@@ -407,6 +407,8 @@ impl Game {
             Some(d) if dawn > d => {
                 self.world.last_dawn = Some(dawn);
                 self.recharge_items();
+                // (Monsters' slots and innate spells come back too.)
+                self.skills.monster_spent.clear();
             }
             Some(_) => {}
             None => self.world.last_dawn = Some(dawn),

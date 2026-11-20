@@ -146,6 +146,24 @@ stays real-time ([Player's guide › Fighting](15-players-guide.md#fighting)).
   attacks (else an unarmed strike) and walks to its weapon to pick it up when it can. Fighters walk through their allies' tiles, and round trees and walls by the
   walking distance to their foe (not into dead ends). Below its *Flee below* share of HP (or frightened) it dashes away and leaves the
   fight 15 tiles away; it drinks a healing potion it carries when its health is critical.
+- **The AI's spells:** a party member with a casting class handed to the AI and a monster with
+  *Spellcasting* in its stat block choose a spell before attacking: **healing** first when an ally
+  in range (itself too) is down or below a third of its hit points (the strongest heal, at its
+  lowest slot); then an **area** that catches two foes or more and none of its side; then a
+  **condition** that takes a foe out of the fight (paralyzed, stunned, restrained, frightened… not
+  a mere prone) on the strongest foe in range that hasn't got it; then **damage** on the most hurt
+  foe: a cantrip, or a slot spell when the foe has at least twice the cantrip's damage left. It
+  casts only at foes it sees and has a line to, starts no concentration spell while it
+  concentrates, and keeps its distance like an archer. A monster's slots and innate uses per day
+  come back at dawn.
+- **The AI's other actions:** a fighter that only shoots, with a foe next to it, *Disengages*
+  first (with *Nimble Escape*, the goblin's trait, as the bonus action, and still shoots) and
+  steps away; *Nimble Escape* also lets it *Hide* after attacking when it is obscured or behind
+  three-quarters cover. When every foe it knows of is hidden, it *Searches*. Before a melee attack
+  it **shoves** its target prone when an ally of its side stands next to the target too (their
+  attacks get advantage), or **grapples** a caster or a shooter with a free hand, when its
+  Athletics is at least as good as the target's Athletics or Acrobatics (once per target and
+  round). A fighter without any attack *Helps* an ally next to the same foe.
 - **The end:** when no enemy is left fighting. A foe that stops being hostile (spared and given a
   friendly faction with *Set faction*, like the example's deserter) leaves the fight at once. Companions still down get up with 1 HP, the
   experience of the defeated is gained, the game autosaves. Saving is refused during a fight (the
@@ -295,7 +313,7 @@ character creator offers them on its third page; the hero then is a class at the
   they fit, while the reaction is free.
 - Party members with a class use theirs on their AI turns: *Rage* when foes are near, *Second
   Wind* (and other heals) below half their hit points, *Action Surge* when their attacks are spent,
-  the monk's strikes after attacking. Spellcasting comes with the spells; the features that need
+  the monk's strikes after attacking, their spells (see *The AI's spells*). The features that need
   other systems (Wild Shape, Divine Smite, senses, Favored Enemy's tracking) are their rules text
   on the sheet.
 - The **character sheet** (K) shows the class, subclass and level, the hit dice by the class's
@@ -536,9 +554,9 @@ Hands, Magic Missile and Fireball (its flying sprite and explosion are the spell
 **Brother Ansel** is a cleric of the Life domain who heals a hurt hero with Cure Wounds once a day.
 
 Conditions: *Knows spell*. Actions: *Learn spell*, *Cast spell*, *Damage around player*, *Light
-around player*. Party members with a casting class cast in fights when the player plays their
-turns (the AI's casting is 0.32); a scroll handed to one teaches it the spell when its class lists
-it.
+around player*. Party members with a casting class cast in fights, on the player's turns for them
+or on their own when handed to the AI (*The AI's spells* above); a scroll handed to one teaches it
+the spell when its class lists it.
 
 ## Equipment and money
 

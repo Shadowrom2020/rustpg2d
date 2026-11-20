@@ -436,6 +436,24 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   feverleaf bushes have both.
 - `status` prints `sight=`; `combat=` marks `[2x2]` and `#squeezed`.
 
+### Combat rules completed (part 4: the AI)
+- **Casting AI:** party members with a casting class handed to the AI, and monsters with
+  *Spellcasting*, cast in fights: a heal for an ally that is down or below a third of its hit
+  points, an area that catches two foes or more and none of its side, a condition that takes a foe
+  out of the fight (paralyzed, restrained…), else damage (a slot spell only on a foe that can take
+  it). Only at foes in sight and line, no new concentration while concentrating; casters keep their
+  distance.
+- **Monster spellcasting:** stat blocks have *Spellcasting* (caster level, ability, DC, attack
+  bonus, slots, spells, innate ones per day), imported from the SRD's structured data for the 36
+  casters and the NPC templates, and a form in the editor. Slots and daily uses come back at dawn.
+- **Other actions:** shooters next to a foe *Disengage* (*Nimble Escape*: as the bonus action) and
+  step away; *Nimble Escape* hides after attacking; the AI *Searches* when every foe is hidden;
+  fighters shove a target prone for their allies or grapple a caster or shooter when their
+  Athletics allows; a fighter without attacks *Helps*.
+- **Example:** a cult fanatic in the mine near Grumbold casts *Hold Person* and *Sacred Flame*
+  (the example gains those spells, *Inflict Wounds* and *Command*).
+- `combat=` shows a casting monster's slots left (`$1:4,2:3`); a heal in a fight is logged.
+
 ### Money is a purse
 - The hero keeps no coins in the bag: money is a value in copper pieces on the character sheet
   (*Money* on the Character tab and now the Sheet tab). Coins that reach the hero (picked up from a

@@ -1032,7 +1032,7 @@ added here.
   end: an attack roll against an unseen foe, a Large creature's opportunity attack, a creature with
   blindsight or truesight.
 
-- [ ] Combat rules 4: the AI — `feature/srd-combat-ai`
+- [x] Combat rules 4: the AI — `feature/srd-combat-ai`
 
   **Goal.** Characters and AI-played companions use everything the hero can.
 
@@ -1049,6 +1049,40 @@ added here.
 
   **Verify.** Autoplay: an enemy caster's spell, a companion's healing spell, an archer that
   disengages.
+
+  **Decided while building.** A monster's spells are its stat block's `spellcasting`, read from the
+  5e-database's structured `special_abilities[].spellcasting` (not the text); a spell the project
+  lacks or a story-only one stays listed and is never cast, and stat block spells follow renames but
+  aren't a dependency (the example's priest lists spells the example doesn't have). A monster's
+  slots and innate uses are kept per map and placed uid for the day (`monster_spent`, not
+  saved, cleared at dawn), not per fight. Conditions are ranked by how much they take a foe out of
+  the fight (paralyzed, stunned… 3, restrained, blinded, frightened, charmed 2, the rest 1); a
+  weak one (Command's prone) isn't cast. Disengage is for fighters whose attacks are all ranged
+  (casters keep their distance instead). The example's cult fanatic is placed with the *monsters*
+  faction (the library definition stays a neutral humanoid) and the example gains Sacred Flame,
+  Inflict Wounds, Hold Person and Command; no bandit is placed for shoves: the rule is generic (the
+  forest's wolves shove).
+
+  **As built.** One pull request.
+  - **Data:** `StatBlock.spellcasting` (`StatSpellcasting`: level, ability, dc, attack, slots,
+    spells = `StatSpell` with level, innate, per_day); the importer's `monster_spellcasting` (36
+    library monsters, 8 NPC templates); the stat block form's *Spellcasting* row; renames in
+    `refactor.rs`.
+  - **Runtime:** `runtime/spells.rs` `monster_casting`, `monster_cast_options`, `monster_pay`,
+    `monster_slots_left`, monster branches in `spell_mod`, `spell_dc`, `spell_attack_bonus`,
+    `scale_level`, `cast_options`; `cast_spell_in_fight` pays a monster's slot; new
+    `runtime/turns/ai_cast.rs` (`pick_cast`, `control_weight`, `ai_cast_step`, `nimble`,
+    `ai_wrestle`, `ai_hide_bonus`, `ai_spell_range`); `ai.rs` casts after the class step, searches,
+    helps, disengages shooters, wrestles before a melee attack, hides with Nimble Escape and keeps
+    casters at their range. `combat=` prints `$1:4,2:3`.
+
+  **Verified.** Unit tests (`pick_cast`, the spellcasting import, stat block spell renames, the form's
+  slots and spells in an editor UI test). Autoplay on scratch copies: goblins given Fire Bolt and
+  Magic Missile casting Magic Missile (`goblin$1:1`); the town guard as an AI-played cleric companion
+  healing the hero with Cure Wounds; a wolf knocking the hero prone; a goblin archer disengaging then
+  shooting (seed 4) and hiding after shooting; a slime searching for the hero hidden in a bush; the
+  example's cult fanatic in the mine casting Hold Person (slot 2) and then Sacred Flame (three
+  seeds). Not run end to end: Help, a grapple by the AI.
 
 - [ ] Movement, senses and the environment — `feature/srd-environment`
 

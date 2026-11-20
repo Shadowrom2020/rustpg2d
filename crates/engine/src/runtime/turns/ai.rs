@@ -2,7 +2,7 @@
 //! a shot (ranged), attack, flee when badly hurt, drink a potion when critical. One step per
 //! call, at a readable pace ([`super::Combat::ai_t`]).
 
-use super::{AttackSpec, Side, Who};
+use super::{AttackSpec, Aim, Side, Who};
 use crate::grid::TilePos;
 use crate::runtime::Game;
 use crate::srd::combat::Cover;
@@ -91,12 +91,54 @@ impl Game {
         if self.ai_class_step(me.who, me.side) {
             return;
         }
+        // Its spells (a class's, a stat block's): a heal, an area, a condition, damage.
+        if self.ai_cast_step(me.who, me.side) {
+            return;
+        }
         let specs = self.attack_specs(me.who);
         let foes = self.ai_foes(me.who, me.side);
+        // Every foe hidden: Search for them.
+        let hidden = self.fight.as_ref().is_some_and(|c| c.order.iter().any(|f| f.side != me.side && f.hidden && !f.out));
+        if foes.is_empty() && hidden && !turn.action {
+            let _ = self.take_act(super::actions::TurnAct::Search);
+            return;
+        }
+        // No attack at all (an unarmed commoner): Help an ally against a foe next to both.
+        if specs.is_empty() && !turn.action {
+            let side = me.side;
+            let helpable = foes.iter().copied().find(|f| {
+                self.who_dist(me.who, *f) <= 1 && self.fight.as_ref().is_some_and(|c| c.order.iter().any(|a| a.side == side && a.who != me.who && !a.out && !a.down && self.who_dist(a.who, *f) <= 1))
+            });
+            if let Some(f) = helpable {
+                let _ = self.act_on(&Aim::Help, f);
+                return;
+            }
+        }
         if foes.is_empty() || specs.is_empty() {
             self.next_turn();
             return;
         }
+        // A shooter with a foe next to it: Disengage (Nimble Escape: the bonus action) and walk
+        // off to shoot from a distance instead of at disadvantage.
+        let shooter = specs.iter().all(|s| s.ranged);
+        let pressed = foes.iter().any(|f| self.who_dist(me.who, *f) <= 1 && conditions::can_act(self.who_conditions(*f)));
+        if shooter && pressed && !turn.disengaged && !turn.ai_walked {
+            let nimble = self.nimble(me.who) && !turn.bonus;
+            if nimble || !turn.action {
+                if let Some(c) = &mut self.fight {
+                    c.turn.disengaged = true;
+                    if nimble {
+                        c.turn.bonus = true;
+                    } else {
+                        c.turn.action = true;
+                    }
+                }
+                let name = self.who_name(me.who);
+                self.fight_log(format!("{name}: {}", crate::lang::tr_ui("disengages")));
+                return;
+            }
+        }
+        let retreating = shooter && pressed && turn.disengaged && !turn.ai_walked;
         // Held (grappled, a net, a web) with no foe to attack from here: it tries to get free.
         if !turn.action && self.escape_dc(me.who).is_some() && !foes.iter().any(|f| specs.iter().any(|s| self.can_attack(me.who, *f, s).is_ok())) {
             if let Some(c) = &mut self.fight {
@@ -106,7 +148,7 @@ impl Game {
             return;
         }
         // Attack now if a foe is in reach (the one most hurt for multiattackers, else the nearest).
-        if !turn.action && turn.attacks_left > 0 {
+        if !turn.action && turn.attacks_left > 0 && !retreating {
             // (Foes down at 0 HP are left alone, except by those with Multiattack: they focus.)
             let focus = turn.attacks_left > 1 || self.who_block(me.who).is_some_and(|b| b.multiattack > 1);
             let mut options: Vec<(Who, AttackSpec, i32)> = Vec::new();
@@ -136,6 +178,10 @@ impl Game {
                 options.retain(|o| !o.1.thrown);
             }
             if let Some((target, spec, _)) = options.into_iter().min_by_key(|o| o.2) {
+                // Instead of the blow: a shove or a grapple when it pays.
+                if !spec.ranged && turn.attacks_left == 1 && self.ai_wrestle(me.who, me.side, target) {
+                    return;
+                }
                 self.make_attack(me.who, target, &spec);
                 if let Some(c) = &mut self.fight {
                     c.turn.attacks_left = c.turn.attacks_left.saturating_sub(1);
@@ -144,13 +190,19 @@ impl Game {
                         c.turn.action = true;
                     }
                 }
+                // Nimble Escape: hide after the last attack (the bonus action), where it can.
+                if self.fight.as_ref().is_some_and(|c| c.turn.attacks_left == 0 && !c.turn.bonus) && self.nimble(me.who) {
+                    self.ai_hide_bonus(me.who, me.side);
+                }
                 return;
             }
         }
         // Walk: to a tile with a foe in reach, else as near the nearest foe as it gets.
-        if !turn.ai_walked && turn.moved < turn.speed && !turn.action {
+        if !turn.ai_walked && turn.moved < turn.speed && (!turn.action || turn.disengaged) {
             let reach = self.reachable(me.who);
-            let ranged = specs.iter().all(|s| s.ranged);
+            // (A caster keeps its distance like a shooter, within its spells' range.)
+            let spell_r = self.ai_spell_range(me.who);
+            let ranged = specs.iter().all(|s| s.ranged) || spell_r >= 3;
             // (Every tile of the foes' spaces; from the square a big mover would take.)
             let foe_tiles: Vec<TilePos> = foes.iter().flat_map(|w| self.who_space(*w)).collect();
             let nearest = foes.iter().copied().min_by_key(|w| self.who_dist(me.who, *w));
@@ -171,7 +223,7 @@ impl Game {
                 let score = if ranged {
                     // Shooters: within their range with a line to the nearest foe, not next to a
                     // foe, the shortest walk.
-                    let r = specs.iter().map(|s| s.range).max().unwrap_or(1);
+                    let r = specs.iter().map(|s| s.range).max().unwrap_or(1).max(spell_r);
                     let line = nearest.is_some_and(|f| near <= r && self.cover_from(*t, me.who, f) != Cover::Total);
                     if near <= r && near > 1 && line {
                         *cost as i32

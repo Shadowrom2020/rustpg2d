@@ -127,7 +127,9 @@ conditions, boons, light and Knock from a table in the import, the rest story on
 library had keeps its icon and look), the 334 monsters ([Characters ›
 Monsters](06-characters.md#monsters); every damage part of an attack, and what a hit does read from its
 text: 67 attacks with more damage of other types, 85 effects on a hit in 65 attacks, such as a save
-against a condition or poison, or a grapple's escape DC) and the 237 items of the equipment list with the five coins
+against a condition or poison, or a grapple's escape DC; the 36 casters' spellcasting from the
+structured data: caster level, ability, DC, attack bonus, slots and spells, innate ones with their
+uses a day) and the 237 items of the equipment list with the five coins
 ([Gameplay › Equipment and money](09-gameplay.md#equipment-and-money): weapons with their category,
 properties, dice and ranges, armor with its armor class, tools, gear, packs that unpack their
 contents, mounts and vehicles as plain items; generic icons by kind on the `srd_gear` sheet; library

@@ -4011,7 +4011,67 @@ pub fn stat_block_ui(ui: &mut egui::Ui, salt: &str, stats: &mut Option<rustpg2d_
         }
     });
     stat_attacks_ui(ui, salt, s);
+    stat_spellcasting_ui(ui, salt, s);
     stat_features_ui(ui, salt, s);
+}
+
+/// A stat block's *Spellcasting* (the fight AI casts from it): caster level, ability, save DC,
+/// spell attack bonus, slots per level as text (`4 3` = four 1st-level, three 2nd-level) and the
+/// spells (by id; innate ones without slots, at will or a number of times a day).
+fn stat_spellcasting_ui(ui: &mut egui::Ui, salt: &str, s: &mut rustpg2d_engine::srd::StatBlock) {
+    use rustpg2d_engine::srd::{Ability, StatSpell, StatSpellcasting};
+    let n = s.spellcasting.as_ref().map_or(0, |c| c.spells.len());
+    egui::CollapsingHeader::new(format!("Spellcasting ({n})")).id_salt((salt, "spellcasting")).default_open(n > 0).show(ui, |ui| {
+        let mut on = s.spellcasting.is_some();
+        if ui.checkbox(&mut on, "Casts spells").on_hover_text("Its spells in fights: the AI casts them like a character's (the project needs the spells)").changed() {
+            s.spellcasting = on.then(StatSpellcasting::default);
+        }
+        let Some(c) = &mut s.spellcasting else { return };
+        ui.horizontal_wrapped(|ui| {
+            ui.add(egui::DragValue::new(&mut c.level).range(0..=20).prefix("level ")).on_hover_text("Its spellcaster level: a cantrip's damage grows with it");
+            egui::ComboBox::from_id_salt((salt, "spell_ability")).width(60.0).selected_text(c.ability.short()).show_ui(ui, |ui| {
+                for ab in Ability::ALL {
+                    ui.selectable_value(&mut c.ability, ab, ab.short());
+                }
+            });
+            ui.add(egui::DragValue::new(&mut c.dc).range(1..=30).prefix("DC ")).on_hover_text("The spell save DC");
+            ui.add(egui::DragValue::new(&mut c.attack).range(-5..=20).prefix("attack +")).on_hover_text("The spell attack bonus");
+            ui.label("slots");
+            let mut text = c.slots.iter().map(|n| n.to_string()).collect::<Vec<_>>().join(" ");
+            if ui.add(egui::TextEdit::singleline(&mut text).desired_width(90.0).hint_text("4 3")).on_hover_text("Spell slots per level, from the 1st: \"4 3\" = four 1st-level and three 2nd-level slots").changed() {
+                c.slots = text.split_whitespace().filter_map(|w| w.parse().ok()).take(9).collect();
+            }
+        });
+        let mut gone = None;
+        egui::Grid::new((salt, "stat_spells")).num_columns(5).show(ui, |ui| {
+            if !c.spells.is_empty() {
+                for h in ["Spell", "Level", "Innate", "Per day", ""] {
+                    ui.weak(h);
+                }
+                ui.end_row();
+            }
+            for (k, sp) in c.spells.iter_mut().enumerate() {
+                ui.add(egui::TextEdit::singleline(&mut sp.spell).desired_width(120.0).hint_text("sacred-flame")).on_hover_text("The spell's id in Database \u{E13A} Spells");
+                ui.add(egui::DragValue::new(&mut sp.level).range(0..=9)).on_hover_text("Its level (0 = a cantrip, at will)");
+                ui.checkbox(&mut sp.innate, "").on_hover_text("Innate: cast without a slot");
+                if sp.innate {
+                    ui.add(egui::DragValue::new(&mut sp.per_day).range(0..=9)).on_hover_text("Times a day (0 = at will)");
+                } else {
+                    ui.label("");
+                }
+                if ui.small_button(ph::TRASH).on_hover_text("Remove the spell").clicked() {
+                    gone = Some(k);
+                }
+                ui.end_row();
+            }
+        });
+        if let Some(k) = gone {
+            c.spells.remove(k);
+        }
+        if ui.button(crate::ui::t(ph::PLUS, "Add spell")).clicked() {
+            c.spells.push(StatSpell { spell: "fire-bolt".into(), ..Default::default() });
+        }
+    });
 }
 
 /// A stat block's traits and special actions in the SRD's words (they act with 0.32; the

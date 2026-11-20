@@ -546,6 +546,8 @@ impl SrdData {
                         b.attacks = src.attacks.clone();
                         b.multiattack = src.multiattack;
                     }
+                    // Its spells (0.32's AI casts them).
+                    b.spellcasting = src.spellcasting.clone();
                     // Its attacks keep their numbers and gain the SRD attack's other damage and
                     // what a hit does (0.32).
                     for a in &mut b.attacks {
@@ -1414,7 +1416,56 @@ fn monster_block(m: &Value) -> rustpg2d_engine::srd::StatBlock {
         speeds: Speeds { fly: speed("fly"), swim: speed("swim"), climb: speed("climb"), burrow: speed("burrow") },
         senses,
         features,
+        spellcasting: monster_spellcasting(m),
     }
+}
+
+/// A monster's *Spellcasting* and *Innate Spellcasting* from the data's structured part: the DC,
+/// the spell attack bonus (the data's modifier, else DC − 8), the slots and every spell (innate
+/// ones at will or so many times a day). None without either.
+fn monster_spellcasting(m: &Value) -> Option<rustpg2d_engine::srd::StatSpellcasting> {
+    use rustpg2d_engine::srd::{Ability, StatSpell, StatSpellcasting};
+    let mut out: Option<StatSpellcasting> = None;
+    for a in &list(m, "special_abilities") {
+        let Some(sc) = a.get("spellcasting") else { continue };
+        let innate = s(a, "name").to_ascii_lowercase().contains("innate");
+        let dc = sc.get("dc").and_then(Value::as_i64).unwrap_or(10) as i32;
+        let modifier = sc.get("modifier").and_then(Value::as_i64).unwrap_or(0) as i32;
+        let ability = sc.pointer("/ability/index").and_then(Value::as_str).and_then(Ability::parse).unwrap_or(Ability::Int);
+        let o = out.get_or_insert_with(|| StatSpellcasting { ability, dc, attack: if modifier > 0 { modifier } else { dc - 8 }, ..Default::default() });
+        // (The leveled spellcasting's DC wins over an innate one's.)
+        if !innate {
+            (o.ability, o.dc, o.attack) = (ability, dc, if modifier > 0 { modifier } else { dc - 8 });
+            o.level = sc.get("level").and_then(Value::as_u64).unwrap_or(0) as u32;
+            if let Some(slots) = sc.get("slots").and_then(Value::as_object) {
+                let mut v = vec![0u32; 9];
+                for (lvl, n) in slots {
+                    if let (Ok(l), Some(n)) = (lvl.parse::<usize>(), n.as_u64()) {
+                        if (1..=9).contains(&l) {
+                            v[l - 1] = n as u32;
+                        }
+                    }
+                }
+                while v.last() == Some(&0) {
+                    v.pop();
+                }
+                o.slots = v;
+            }
+        }
+        for sp in &list(sc, "spells") {
+            let id = s(sp, "url").rsplit('/').next().unwrap_or("").to_string();
+            if id.is_empty() {
+                continue;
+            }
+            let level = sp.get("level").and_then(Value::as_u64).unwrap_or(0) as u32;
+            let per_day = match sp.pointer("/usage/type").and_then(Value::as_str) {
+                Some("per day") => sp.pointer("/usage/times").and_then(Value::as_u64).unwrap_or(1) as u32,
+                _ => 0,
+            };
+            o.spells.push(StatSpell { spell: id, level, innate, per_day });
+        }
+    }
+    out
 }
 
 /// An SRD action with an attack roll as a stat block attack: its bonus, the first damage (of a
@@ -2141,6 +2192,20 @@ impl SrdData {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn spellcasting_comes_from_the_structured_data() {
+        let m: Value = serde_json::json!({"special_abilities": [
+            {"name": "Spellcasting", "spellcasting": {"level": 1, "ability": {"index": "wis"}, "dc": 12, "modifier": 4, "slots": {"1": 3}, "spells": [
+                {"name": "Sacred Flame", "level": 0, "url": "/api/2014/spells/sacred-flame"},
+                {"name": "Cure Wounds", "level": 1, "url": "/api/2014/spells/cure-wounds"}]}},
+            {"name": "Innate Spellcasting", "spellcasting": {"ability": {"index": "cha"}, "dc": 11, "modifier": 0, "spells": [
+                {"name": "Darkness", "level": 2, "usage": {"type": "per day", "times": 1}, "url": "/api/2014/spells/darkness"}]}}]});
+        let sc = monster_spellcasting(&m).unwrap();
+        assert_eq!((sc.ability, sc.dc, sc.attack, sc.slots.clone()), (rustpg2d_engine::srd::Ability::Wis, 12, 4, vec![3]));
+        assert_eq!(sc.spells.iter().map(|s| (s.spell.as_str(), s.level, s.innate, s.per_day)).collect::<Vec<_>>(), vec![("sacred-flame", 0, false, 0), ("cure-wounds", 1, false, 0), ("darkness", 2, true, 1)]);
+        assert!(monster_spellcasting(&serde_json::json!({"special_abilities": []})).is_none());
+    }
 
     #[test]
     fn versatile_damage_comes_from_the_attack_text() {

@@ -1495,6 +1495,59 @@
                     text: "Melee Weapon Attack: +2 to hit, reach 5 ft., one target. Hit: 3 (1d6) bludgeoning damage.",
                 ),
             ],
+            spellcasting: Some((
+                level: 5,
+                ability: Wis,
+                dc: 13,
+                attack: 5,
+                slots: [
+                    4,
+                    3,
+                    2,
+                ],
+                spells: [
+                    (
+                        spell: "light",
+                        level: 0,
+                    ),
+                    (
+                        spell: "sacred-flame",
+                        level: 0,
+                    ),
+                    (
+                        spell: "thaumaturgy",
+                        level: 0,
+                    ),
+                    (
+                        spell: "cure-wounds",
+                        level: 1,
+                    ),
+                    (
+                        spell: "guiding-bolt",
+                        level: 1,
+                    ),
+                    (
+                        spell: "sanctuary",
+                        level: 1,
+                    ),
+                    (
+                        spell: "lesser-restoration",
+                        level: 2,
+                    ),
+                    (
+                        spell: "spiritual-weapon",
+                        level: 2,
+                    ),
+                    (
+                        spell: "dispel-magic",
+                        level: 3,
+                    ),
+                    (
+                        spell: "spirit-guardians",
+                        level: 3,
+                    ),
+                ],
+            )),
         )),
         class: Some((
             class: "cleric",
@@ -5087,6 +5140,41 @@
                     text: "Melee Weapon Attack: +2 to hit, reach 5 ft., one target. Hit: 2 (1d4) bludgeoning damage.",
                 ),
             ],
+            spellcasting: Some((
+                level: 1,
+                ability: Wis,
+                dc: 12,
+                attack: 4,
+                slots: [
+                    3,
+                ],
+                spells: [
+                    (
+                        spell: "light",
+                        level: 0,
+                    ),
+                    (
+                        spell: "sacred-flame",
+                        level: 0,
+                    ),
+                    (
+                        spell: "thaumaturgy",
+                        level: 0,
+                    ),
+                    (
+                        spell: "bless",
+                        level: 1,
+                    ),
+                    (
+                        spell: "cure-wounds",
+                        level: 1,
+                    ),
+                    (
+                        spell: "sanctuary",
+                        level: 1,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -8191,6 +8279,82 @@
                     text: "The sphinx casts a spell from its list of prepared spells, using a spell slot as normal.",
                 ),
             ],
+            spellcasting: Some((
+                level: 12,
+                ability: Wis,
+                dc: 18,
+                attack: 10,
+                slots: [
+                    4,
+                    3,
+                    3,
+                    3,
+                    2,
+                    1,
+                ],
+                spells: [
+                    (
+                        spell: "sacred-flame",
+                        level: 0,
+                    ),
+                    (
+                        spell: "spare-the-dying",
+                        level: 0,
+                    ),
+                    (
+                        spell: "thaumaturgy",
+                        level: 0,
+                    ),
+                    (
+                        spell: "command",
+                        level: 1,
+                    ),
+                    (
+                        spell: "detect-evil-and-good",
+                        level: 1,
+                    ),
+                    (
+                        spell: "detect-magic",
+                        level: 1,
+                    ),
+                    (
+                        spell: "lesser-restoration",
+                        level: 2,
+                    ),
+                    (
+                        spell: "zone-of-truth",
+                        level: 2,
+                    ),
+                    (
+                        spell: "dispel-magic",
+                        level: 3,
+                    ),
+                    (
+                        spell: "tongues",
+                        level: 3,
+                    ),
+                    (
+                        spell: "banishment",
+                        level: 4,
+                    ),
+                    (
+                        spell: "freedom-of-movement",
+                        level: 4,
+                    ),
+                    (
+                        spell: "flame-strike",
+                        level: 5,
+                    ),
+                    (
+                        spell: "greater-restoration",
+                        level: 5,
+                    ),
+                    (
+                        spell: "heroes-feast",
+                        level: 6,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -8524,6 +8688,133 @@
                     text: "Melee or Ranged Weapon Attack: +6 to hit, reach 5 ft. or range 20/60 ft., one target. Hit: 4 (1d4 + 2) piercing damage.",
                 ),
             ],
+            spellcasting: Some((
+                level: 18,
+                ability: Int,
+                dc: 17,
+                attack: 9,
+                slots: [
+                    4,
+                    3,
+                    3,
+                    3,
+                    3,
+                    1,
+                    1,
+                    1,
+                    1,
+                ],
+                spells: [
+                    (
+                        spell: "disguise-self",
+                        level: 1,
+                    ),
+                    (
+                        spell: "invisibility",
+                        level: 2,
+                    ),
+                    (
+                        spell: "fire-bolt",
+                        level: 0,
+                    ),
+                    (
+                        spell: "light",
+                        level: 0,
+                    ),
+                    (
+                        spell: "mage-hand",
+                        level: 0,
+                    ),
+                    (
+                        spell: "prestidigitation",
+                        level: 0,
+                    ),
+                    (
+                        spell: "shocking-grasp",
+                        level: 0,
+                    ),
+                    (
+                        spell: "detect-magic",
+                        level: 1,
+                    ),
+                    (
+                        spell: "identify",
+                        level: 1,
+                    ),
+                    (
+                        spell: "mage-armor",
+                        level: 1,
+                    ),
+                    (
+                        spell: "magic-missile",
+                        level: 1,
+                    ),
+                    (
+                        spell: "detect-thoughts",
+                        level: 2,
+                    ),
+                    (
+                        spell: "mirror-image",
+                        level: 2,
+                    ),
+                    (
+                        spell: "misty-step",
+                        level: 2,
+                    ),
+                    (
+                        spell: "counterspell",
+                        level: 3,
+                    ),
+                    (
+                        spell: "fly",
+                        level: 3,
+                    ),
+                    (
+                        spell: "lightning-bolt",
+                        level: 3,
+                    ),
+                    (
+                        spell: "banishment",
+                        level: 4,
+                    ),
+                    (
+                        spell: "fire-shield",
+                        level: 4,
+                    ),
+                    (
+                        spell: "stoneskin",
+                        level: 4,
+                    ),
+                    (
+                        spell: "cone-of-cold",
+                        level: 5,
+                    ),
+                    (
+                        spell: "scrying",
+                        level: 5,
+                    ),
+                    (
+                        spell: "wall-of-force",
+                        level: 5,
+                    ),
+                    (
+                        spell: "globe-of-invulnerability",
+                        level: 6,
+                    ),
+                    (
+                        spell: "teleport",
+                        level: 7,
+                    ),
+                    (
+                        spell: "mind-blank",
+                        level: 8,
+                    ),
+                    (
+                        spell: "time-stop",
+                        level: 9,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -11715,6 +12006,64 @@
                     text: "Ranged Weapon Attack: +12 to hit, range 60/240 ft., one target. Hit: 30 (4d10 + 8) bludgeoning damage.",
                 ),
             ],
+            spellcasting: Some((
+                ability: Cha,
+                dc: 10,
+                attack: 2,
+                spells: [
+                    (
+                        spell: "detect-magic",
+                        level: 1,
+                        innate: true,
+                    ),
+                    (
+                        spell: "fog-cloud",
+                        level: 1,
+                        innate: true,
+                    ),
+                    (
+                        spell: "light",
+                        level: 0,
+                        innate: true,
+                    ),
+                    (
+                        spell: "feather-fall",
+                        level: 1,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "fly",
+                        level: 3,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "misty-step",
+                        level: 2,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "telekinesis",
+                        level: 5,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "control-weather",
+                        level: 8,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "gaseous-form",
+                        level: 3,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -12127,6 +12476,88 @@
                     text: "The couatl magically polymorphs into a humanoid or beast that has a challenge rating equal to or less than its own, or back into its true form. It reverts to its true form if it dies. Any equipment it is wearing or carrying is absorbed or borne by the new form (the couatl\'s choice).\nIn a new form, the couatl retains its game statistics and ability to speak, but its AC, movement modes, Strength, Dexterity, and other actions are replaced by those of the new form, and it gains any statistics and capabilities (except class features, legendary actions, and lair actions) that the new form has but that it lacks. If the new form has a bite attack, the couatl can use its bite in that form.",
                 ),
             ],
+            spellcasting: Some((
+                ability: Cha,
+                dc: 14,
+                attack: 6,
+                spells: [
+                    (
+                        spell: "detect-evil-and-good",
+                        level: 1,
+                        innate: true,
+                    ),
+                    (
+                        spell: "detect-magic",
+                        level: 1,
+                        innate: true,
+                    ),
+                    (
+                        spell: "detect-thoughts",
+                        level: 2,
+                        innate: true,
+                    ),
+                    (
+                        spell: "bless",
+                        level: 1,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "create-food-and-water",
+                        level: 3,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "cure-wounds",
+                        level: 1,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "lesser-restoration",
+                        level: 2,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "protection-from-poison",
+                        level: 2,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "sanctuary",
+                        level: 1,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "shield",
+                        level: 1,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "dream",
+                        level: 5,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "greater-restoration",
+                        level: 5,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "scrying",
+                        level: 5,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -12357,6 +12788,50 @@
                     text: "Melee or Ranged Weapon Attack: +4 to hit, reach 5 ft. or range 20/60 ft., one creature. Hit: 4 (1d4 + 2) piercing damage.",
                 ),
             ],
+            spellcasting: Some((
+                level: 4,
+                ability: Wis,
+                dc: 11,
+                attack: 3,
+                slots: [
+                    4,
+                    3,
+                ],
+                spells: [
+                    (
+                        spell: "light",
+                        level: 0,
+                    ),
+                    (
+                        spell: "sacred-flame",
+                        level: 0,
+                    ),
+                    (
+                        spell: "thaumaturgy",
+                        level: 0,
+                    ),
+                    (
+                        spell: "command",
+                        level: 1,
+                    ),
+                    (
+                        spell: "inflict-wounds",
+                        level: 1,
+                    ),
+                    (
+                        spell: "shield-of-faith",
+                        level: 1,
+                    ),
+                    (
+                        spell: "hold-person",
+                        level: 2,
+                    ),
+                    (
+                        spell: "spiritual-weapon",
+                        level: 2,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -12673,6 +13148,36 @@
                     text: "Ranged Weapon Attack: +4 to hit, range 30/120 ft., one creature. Hit: 4 (1d4 + 2) piercing damage, and the target must succeed on a DC 12 Constitution saving throw or be poisoned for 1 minute. The target can repeat the saving throw at the end of each of its turns, ending the effect on itself on a success",
                 ),
             ],
+            spellcasting: Some((
+                ability: Int,
+                dc: 11,
+                attack: 3,
+                spells: [
+                    (
+                        spell: "nondetection",
+                        level: 3,
+                        innate: true,
+                    ),
+                    (
+                        spell: "blindness-deafness",
+                        level: 2,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "blur",
+                        level: 2,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "disguise-self",
+                        level: 1,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -12847,6 +13352,30 @@
                     text: "The deva magically polymorphs into a humanoid or beast that has a challenge rating equal to or less than its own, or back into its true form. It reverts to its true form if it dies. Any equipment it is wearing or carrying is absorbed or borne by the new form (the deva\'s choice).\nIn a new form, the deva retains its game statistics and ability to speak, but its AC, movement modes, Strength, Dexterity, and special senses are replaced by those of the new form, and it gains any statistics and capabilities (except class features, legendary actions, and lair actions) that the new form has but that it lacks.",
                 ),
             ],
+            spellcasting: Some((
+                ability: Cha,
+                dc: 17,
+                attack: 9,
+                spells: [
+                    (
+                        spell: "detect-evil-and-good",
+                        level: 1,
+                        innate: true,
+                    ),
+                    (
+                        spell: "commune",
+                        level: 5,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "raise-dead",
+                        level: 5,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -13029,6 +13558,82 @@
                     text: "A 5-foot-radius, 30-foot-tall cylinder of swirling air magically forms on a point the djinni can see within 120 feet of it. The whirlwind lasts as long as the djinni maintains concentration (as if concentrating on a spell). Any creature but the djinni that enters the whirlwind must succeed on a DC 18 Strength saving throw or be restrained by it. The djinni can move the whirlwind up to 60 feet as an action, and creatures restrained by the whirlwind move with it. The whirlwind ends if the djinni loses sight of it.\nA creature can use its action to free a creature restrained by the whirlwind, including itself, by succeeding on a DC 18 Strength check. If the check succeeds, the creature is no longer restrained and moves to the nearest space outside the whirlwind.",
                 ),
             ],
+            spellcasting: Some((
+                ability: Cha,
+                dc: 17,
+                attack: 9,
+                spells: [
+                    (
+                        spell: "detect-evil-and-good",
+                        level: 1,
+                        innate: true,
+                    ),
+                    (
+                        spell: "detect-magic",
+                        level: 1,
+                        innate: true,
+                    ),
+                    (
+                        spell: "thunderwave",
+                        level: 1,
+                        innate: true,
+                    ),
+                    (
+                        spell: "create-food-and-water",
+                        level: 3,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "tongues",
+                        level: 3,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "wind-walk",
+                        level: 6,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "conjure-elemental",
+                        level: 5,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "creation",
+                        level: 5,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "gaseous-form",
+                        level: 3,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "invisibility",
+                        level: 2,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "major-image",
+                        level: 3,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "plane-shift",
+                        level: 7,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -13528,6 +14133,30 @@
                     text: "Ranged Weapon Attack: +6 to hit, range 150/600 ft., one target. Hit: 7 (1d8 + 3) piercing damage plus 4 (1d8) poison damage.",
                 ),
             ],
+            spellcasting: Some((
+                ability: Wis,
+                dc: 13,
+                attack: 5,
+                spells: [
+                    (
+                        spell: "dancing-lights",
+                        level: 1,
+                        innate: true,
+                    ),
+                    (
+                        spell: "darkness",
+                        level: 2,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "faerie-fire",
+                        level: 1,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -13627,6 +14256,30 @@
                     text: "Ranged Weapon Attack: +4 to hit, range 30/120 ft., one target. Hit: 5 (1d6 + 2) piercing damage, and the target must succeed on a DC 13 Constitution saving throw or be poisoned for 1 hour. If the saving throw fails by 5 or more, the target is also unconscious while poisoned in this way. The target wakes up if it takes damage or if another creature takes an action to shake it awake.",
                 ),
             ],
+            spellcasting: Some((
+                ability: Cha,
+                dc: 11,
+                attack: 3,
+                spells: [
+                    (
+                        spell: "dancing-lights",
+                        level: 0,
+                        innate: true,
+                    ),
+                    (
+                        spell: "darkness",
+                        level: 2,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "faerie-fire",
+                        level: 1,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -13691,6 +14344,54 @@
                     text: " Melee Weapon Attack: +2 to hit (+4 to hit with shillelagh), reach 5 ft., one target. Hit: 3 (1d6) bludgeoning damage, 4 (1d8) bludgeoning damage if wielded with two hands, or 6 (1d8 + 2) bludgeoning damage with shillelagh.",
                 ),
             ],
+            spellcasting: Some((
+                level: 4,
+                ability: Wis,
+                dc: 12,
+                attack: 4,
+                slots: [
+                    4,
+                    3,
+                ],
+                spells: [
+                    (
+                        spell: "druidcraft",
+                        level: 0,
+                    ),
+                    (
+                        spell: "produce-flame",
+                        level: 0,
+                    ),
+                    (
+                        spell: "shillelagh",
+                        level: 0,
+                    ),
+                    (
+                        spell: "entangle",
+                        level: 1,
+                    ),
+                    (
+                        spell: "longstrider",
+                        level: 1,
+                    ),
+                    (
+                        spell: "speak-with-animals",
+                        level: 1,
+                    ),
+                    (
+                        spell: "thunderwave",
+                        level: 1,
+                    ),
+                    (
+                        spell: "animal-messenger",
+                        level: 2,
+                    ),
+                    (
+                        spell: "barkskin",
+                        level: 2,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -13779,6 +14480,48 @@
                     text: "The dryad targets one humanoid or beast that she can see within 30 feet of her. If the target can see the dryad, it must succeed on a DC 14 Wisdom saving throw or be magically charmed. The charmed creature regards the dryad as a trusted friend to be heeded and protected. Although the target isn\'t under the dryad\'s control, it takes the dryad\'s requests or actions in the most favorable way it can.\nEach time the dryad or its allies do anything harmful to the target, it can repeat the saving throw, ending the effect on itself on a success. Otherwise, the effect lasts 24 hours or until the dryad dies, is on a different plane of existence from the target, or ends the effect as a bonus action. If a target\'s saving throw is successful, the target is immune to the dryad\'s Fey Charm for the next 24 hours.\nThe dryad can have no more than one humanoid and up to three beasts charmed at a time.",
                 ),
             ],
+            spellcasting: Some((
+                ability: Cha,
+                dc: 14,
+                attack: 6,
+                spells: [
+                    (
+                        spell: "druidcraft",
+                        level: 0,
+                        innate: true,
+                    ),
+                    (
+                        spell: "entangle",
+                        level: 1,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "goodberry",
+                        level: 1,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "barkskin",
+                        level: 2,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "pass-without-trace",
+                        level: 2,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "shillelagh",
+                        level: 0,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -13968,6 +14711,19 @@
                     text: "The mephit exhales a 15-foot cone of blinding dust. Each creature in that area must succeed on a DC 10 Dexterity saving throw or be blinded for 1 minute. A creature can repeat the saving throw at the end of each of its turns, ending the effect on itself on a success.",
                 ),
             ],
+            spellcasting: Some((
+                ability: Cha,
+                dc: 10,
+                attack: 2,
+                spells: [
+                    (
+                        spell: "sleep",
+                        level: 1,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -14242,6 +14998,66 @@
                     text: "Ranged Spell Attack: +7 to hit, range 120 ft., one target. Hit: 17 (5d6) fire damage.",
                 ),
             ],
+            spellcasting: Some((
+                ability: Cha,
+                dc: 15,
+                attack: 7,
+                spells: [
+                    (
+                        spell: "detect-magic",
+                        level: 1,
+                        innate: true,
+                    ),
+                    (
+                        spell: "enlarge-reduce",
+                        level: 2,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "tongues",
+                        level: 3,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "conjure-elemental",
+                        level: 5,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "gaseous-form",
+                        level: 3,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "invisibility",
+                        level: 2,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "major-image",
+                        level: 3,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "plane-shift",
+                        level: 7,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "wall-of-fire",
+                        level: 4,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -18300,6 +19116,46 @@
                     text: "Melee Weapon Attack: +9 to hit, reach 5 ft., one target. Hit: 7 (2d4 + 2) bludgeoning damage.",
                 ),
             ],
+            spellcasting: Some((
+                ability: Int,
+                dc: 16,
+                attack: 8,
+                spells: [
+                    (
+                        spell: "darkness",
+                        level: 2,
+                        innate: true,
+                    ),
+                    (
+                        spell: "detect-magic",
+                        level: 1,
+                        innate: true,
+                    ),
+                    (
+                        spell: "dispel-magic",
+                        level: 3,
+                        innate: true,
+                    ),
+                    (
+                        spell: "confusion",
+                        level: 4,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "fly",
+                        level: 3,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "power-word-stun",
+                        level: 8,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -19022,6 +19878,28 @@
                     text: "The hag magically turns invisible until she attacks or casts a spell, or until her concentration ends (as if concentrating on a spell). While invisible, she leaves no physical evidence of her passage, so she can be tracked only by magic. Any equipment she wears or carries is invisible with her.",
                 ),
             ],
+            spellcasting: Some((
+                ability: Cha,
+                dc: 12,
+                attack: 4,
+                spells: [
+                    (
+                        spell: "dancing-lights",
+                        level: 0,
+                        innate: true,
+                    ),
+                    (
+                        spell: "minor-illusion",
+                        level: 0,
+                        innate: true,
+                    ),
+                    (
+                        spell: "vicious-mockery",
+                        level: 0,
+                        innate: true,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -19388,6 +20266,82 @@
                     text: "Ranged Weapon Attack: +8 to hit, range 15/30 ft., one creature. Hit: The target must make a DC 15 Constitution saving throw, taking 45 (10d8) poison damage on a failed save, or half as much damage on a successful one.",
                 ),
             ],
+            spellcasting: Some((
+                level: 11,
+                ability: Wis,
+                dc: 16,
+                attack: 8,
+                slots: [
+                    4,
+                    3,
+                    3,
+                    3,
+                    2,
+                    1,
+                ],
+                spells: [
+                    (
+                        spell: "mending",
+                        level: 0,
+                    ),
+                    (
+                        spell: "sacred-flame",
+                        level: 0,
+                    ),
+                    (
+                        spell: "thaumaturgy",
+                        level: 0,
+                    ),
+                    (
+                        spell: "command",
+                        level: 1,
+                    ),
+                    (
+                        spell: "cure-wounds",
+                        level: 1,
+                    ),
+                    (
+                        spell: "shield-of-faith",
+                        level: 1,
+                    ),
+                    (
+                        spell: "calm-emotions",
+                        level: 2,
+                    ),
+                    (
+                        spell: "hold-person",
+                        level: 2,
+                    ),
+                    (
+                        spell: "bestow-curse",
+                        level: 3,
+                    ),
+                    (
+                        spell: "clairvoyance",
+                        level: 3,
+                    ),
+                    (
+                        spell: "banishment",
+                        level: 4,
+                    ),
+                    (
+                        spell: "freedom-of-movement",
+                        level: 4,
+                    ),
+                    (
+                        spell: "flame-strike",
+                        level: 5,
+                    ),
+                    (
+                        spell: "geas",
+                        level: 5,
+                    ),
+                    (
+                        spell: "true-seeing",
+                        level: 6,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -19504,6 +20458,81 @@
                     text: "The sphinx casts a spell from its list of prepared spells, using a spell slot as normal.",
                 ),
             ],
+            spellcasting: Some((
+                level: 9,
+                ability: Int,
+                dc: 16,
+                attack: 8,
+                slots: [
+                    4,
+                    3,
+                    3,
+                    3,
+                    1,
+                ],
+                spells: [
+                    (
+                        spell: "mage-hand",
+                        level: 0,
+                    ),
+                    (
+                        spell: "minor-illusion",
+                        level: 0,
+                    ),
+                    (
+                        spell: "prestidigitation",
+                        level: 0,
+                    ),
+                    (
+                        spell: "detect-magic",
+                        level: 1,
+                    ),
+                    (
+                        spell: "identify",
+                        level: 1,
+                    ),
+                    (
+                        spell: "shield",
+                        level: 1,
+                    ),
+                    (
+                        spell: "darkness",
+                        level: 2,
+                    ),
+                    (
+                        spell: "locate-object",
+                        level: 2,
+                    ),
+                    (
+                        spell: "suggestion",
+                        level: 2,
+                    ),
+                    (
+                        spell: "dispel-magic",
+                        level: 3,
+                    ),
+                    (
+                        spell: "remove-curse",
+                        level: 3,
+                    ),
+                    (
+                        spell: "tongues",
+                        level: 3,
+                    ),
+                    (
+                        spell: "banishment",
+                        level: 4,
+                    ),
+                    (
+                        spell: "greater-invisibility",
+                        level: 4,
+                    ),
+                    (
+                        spell: "legend-lore",
+                        level: 5,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -20888,6 +21917,19 @@
                     text: "The mephit exhales a 15-foot cone of cold air. Each creature in that area must succeed on a DC 10 Dexterity saving throw, taking 5 (2d4) cold damage on a failed save, or half as much damage on a successful one.",
                 ),
             ],
+            spellcasting: Some((
+                ability: Cha,
+                dc: 10,
+                attack: 2,
+                spells: [
+                    (
+                        spell: "fog-cloud",
+                        level: 1,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -21793,6 +22835,53 @@
                     text: "Melee Spell Attack: +5 to hit, reach 5 ft., one creature. Hit: The target is magically cursed for 1 hour. Until the curse ends, the target has disadvantage on Wisdom saving throws and all ability checks.",
                 ),
             ],
+            spellcasting: Some((
+                ability: Cha,
+                dc: 13,
+                attack: 5,
+                spells: [
+                    (
+                        spell: "disguise-self",
+                        level: 1,
+                        innate: true,
+                    ),
+                    (
+                        spell: "major-image",
+                        level: 3,
+                        innate: true,
+                    ),
+                    (
+                        spell: "charm-person",
+                        level: 1,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "mirror-image",
+                        level: 2,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "scrying",
+                        level: 5,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "suggestion",
+                        level: 2,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "geas",
+                        level: 5,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -22007,6 +23096,129 @@
                     text: "Each living creature within 20 feet of the lich must make a DC 18 Constitution saving throw against this magic, taking 21 (6d6) necrotic damage on a failed save, or half as much damage on a successful one.",
                 ),
             ],
+            spellcasting: Some((
+                level: 18,
+                ability: Int,
+                dc: 20,
+                attack: 12,
+                slots: [
+                    4,
+                    3,
+                    3,
+                    3,
+                    3,
+                    1,
+                    1,
+                    1,
+                    1,
+                ],
+                spells: [
+                    (
+                        spell: "mage-hand",
+                        level: 0,
+                    ),
+                    (
+                        spell: "prestidigitation",
+                        level: 0,
+                    ),
+                    (
+                        spell: "ray-of-frost",
+                        level: 0,
+                    ),
+                    (
+                        spell: "detect-magic",
+                        level: 1,
+                    ),
+                    (
+                        spell: "magic-missile",
+                        level: 1,
+                    ),
+                    (
+                        spell: "shield",
+                        level: 1,
+                    ),
+                    (
+                        spell: "thunderwave",
+                        level: 1,
+                    ),
+                    (
+                        spell: "acid-arrow",
+                        level: 2,
+                    ),
+                    (
+                        spell: "detect-thoughts",
+                        level: 2,
+                    ),
+                    (
+                        spell: "invisibility",
+                        level: 2,
+                    ),
+                    (
+                        spell: "mirror-image",
+                        level: 2,
+                    ),
+                    (
+                        spell: "animate-dead",
+                        level: 3,
+                    ),
+                    (
+                        spell: "counterspell",
+                        level: 3,
+                    ),
+                    (
+                        spell: "dispel-magic",
+                        level: 3,
+                    ),
+                    (
+                        spell: "fireball",
+                        level: 3,
+                    ),
+                    (
+                        spell: "blight",
+                        level: 4,
+                    ),
+                    (
+                        spell: "dimension-door",
+                        level: 4,
+                    ),
+                    (
+                        spell: "cloudkill",
+                        level: 5,
+                    ),
+                    (
+                        spell: "scrying",
+                        level: 5,
+                    ),
+                    (
+                        spell: "disintegrate",
+                        level: 6,
+                    ),
+                    (
+                        spell: "globe-of-invulnerability",
+                        level: 6,
+                    ),
+                    (
+                        spell: "finger-of-death",
+                        level: 7,
+                    ),
+                    (
+                        spell: "plane-shift",
+                        level: 7,
+                    ),
+                    (
+                        spell: "dominate-monster",
+                        level: 8,
+                    ),
+                    (
+                        spell: "power-word-stun",
+                        level: 8,
+                    ),
+                    (
+                        spell: "power-word-kill",
+                        level: 9,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -22347,6 +23559,85 @@
                     text: "Melee or Ranged Weapon Attack: +5 to hit, reach 5 ft. or range 20/60 ft., one target. Hit: 4 (1d4 + 2) piercing damage.",
                 ),
             ],
+            spellcasting: Some((
+                level: 9,
+                ability: Int,
+                dc: 14,
+                attack: 6,
+                slots: [
+                    4,
+                    3,
+                    3,
+                    3,
+                    1,
+                ],
+                spells: [
+                    (
+                        spell: "fire-bolt",
+                        level: 0,
+                    ),
+                    (
+                        spell: "light",
+                        level: 0,
+                    ),
+                    (
+                        spell: "mage-hand",
+                        level: 0,
+                    ),
+                    (
+                        spell: "prestidigitation",
+                        level: 0,
+                    ),
+                    (
+                        spell: "detect-magic",
+                        level: 1,
+                    ),
+                    (
+                        spell: "mage-armor",
+                        level: 1,
+                    ),
+                    (
+                        spell: "magic-missile",
+                        level: 1,
+                    ),
+                    (
+                        spell: "shield",
+                        level: 1,
+                    ),
+                    (
+                        spell: "misty-step",
+                        level: 2,
+                    ),
+                    (
+                        spell: "suggestion",
+                        level: 2,
+                    ),
+                    (
+                        spell: "counterspell",
+                        level: 3,
+                    ),
+                    (
+                        spell: "fireball",
+                        level: 3,
+                    ),
+                    (
+                        spell: "fly",
+                        level: 3,
+                    ),
+                    (
+                        spell: "greater-invisibility",
+                        level: 4,
+                    ),
+                    (
+                        spell: "ice-storm",
+                        level: 4,
+                    ),
+                    (
+                        spell: "cone-of-cold",
+                        level: 5,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -22450,6 +23741,19 @@
                     text: "The mephit exhales a 15-foot cone of fire. Each creature in that area must make a DC 11 Dexterity saving throw, taking 7 (2d6) fire damage on a failed save, or half as much damage on a successful one.",
                 ),
             ],
+            spellcasting: Some((
+                ability: Cha,
+                dc: 10,
+                attack: 2,
+                spells: [
+                    (
+                        spell: "heat-metal",
+                        level: 2,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -23787,6 +25091,82 @@
                     text: "The mummy lord magically transforms into a whirlwind of sand, moves up to 60 feet, and reverts to its normal form. While in whirlwind form, the mummy lord is immune to all damage, and it can\'t be grappled, petrified, knocked prone, restrained, or stunned. Equipment worn or carried by the mummy lord remain in its possession.",
                 ),
             ],
+            spellcasting: Some((
+                level: 10,
+                ability: Wis,
+                dc: 17,
+                attack: 9,
+                slots: [
+                    4,
+                    3,
+                    3,
+                    3,
+                    2,
+                    1,
+                ],
+                spells: [
+                    (
+                        spell: "sacred-flame",
+                        level: 0,
+                    ),
+                    (
+                        spell: "thaumaturgy",
+                        level: 0,
+                    ),
+                    (
+                        spell: "command",
+                        level: 1,
+                    ),
+                    (
+                        spell: "guiding-bolt",
+                        level: 1,
+                    ),
+                    (
+                        spell: "shield-of-faith",
+                        level: 1,
+                    ),
+                    (
+                        spell: "hold-person",
+                        level: 2,
+                    ),
+                    (
+                        spell: "silence",
+                        level: 2,
+                    ),
+                    (
+                        spell: "spiritual-weapon",
+                        level: 2,
+                    ),
+                    (
+                        spell: "animate-dead",
+                        level: 3,
+                    ),
+                    (
+                        spell: "dispel-magic",
+                        level: 3,
+                    ),
+                    (
+                        spell: "divination",
+                        level: 4,
+                    ),
+                    (
+                        spell: "guardian-of-faith",
+                        level: 4,
+                    ),
+                    (
+                        spell: "contagion",
+                        level: 5,
+                    ),
+                    (
+                        spell: "insect-plague",
+                        level: 5,
+                    ),
+                    (
+                        spell: "harm",
+                        level: 6,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -24005,6 +25385,41 @@
                     text: "While on the Ethereal Plane, the hag magically touches a sleeping humanoid on the Material Plane. A protection from evil and good spell cast on the target prevents this contact, as does a magic circle. As long as the contact persists, the target has dreadful visions. If these visions last for at least 1 hour, the target gains no benefit from its rest, and its hit point maximum is reduced by 5 (1d10). If this effect reduces the target\'s hit point maximum to 0, the target dies, and if the target was evil, its soul is trapped in the hag\'s soul bag. The reduction to the target\'s hit point maximum lasts until removed by the greater restoration spell or similar magic.",
                 ),
             ],
+            spellcasting: Some((
+                ability: Cha,
+                dc: 14,
+                attack: 6,
+                spells: [
+                    (
+                        spell: "detect-magic",
+                        level: 1,
+                        innate: true,
+                    ),
+                    (
+                        spell: "magic-missile",
+                        level: 1,
+                        innate: true,
+                    ),
+                    (
+                        spell: "plane-shift",
+                        level: 7,
+                        innate: true,
+                        per_day: 2,
+                    ),
+                    (
+                        spell: "ray-of-enfeeblement",
+                        level: 2,
+                        innate: true,
+                        per_day: 2,
+                    ),
+                    (
+                        spell: "sleep",
+                        level: 1,
+                        innate: true,
+                        per_day: 2,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -24551,6 +25966,47 @@
                     text: "The oni magically polymorphs into a Small or Medium humanoid, into a Large giant, or back into its true form. Other than its size, its statistics are the same in each form. The only equipment that is transformed is its glaive, which shrinks so that it can be wielded in humanoid form. If the oni dies, it reverts to its true form, and its glaive reverts to its normal size.",
                 ),
             ],
+            spellcasting: Some((
+                ability: Cha,
+                dc: 13,
+                attack: 5,
+                spells: [
+                    (
+                        spell: "darkness",
+                        level: 2,
+                        innate: true,
+                    ),
+                    (
+                        spell: "invisibility",
+                        level: 2,
+                        innate: true,
+                    ),
+                    (
+                        spell: "charm-person",
+                        level: 1,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "cone-of-cold",
+                        level: 5,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "gaseous-form",
+                        level: 3,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "sleep",
+                        level: 1,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -25215,6 +26671,35 @@
                     text: "Melee Weapon Attack: +14 to hit, reach 10 ft., one target. Hit: 24 (3d10 + 8) bludgeoning damage.",
                 ),
             ],
+            spellcasting: Some((
+                ability: Cha,
+                dc: 21,
+                attack: 13,
+                spells: [
+                    (
+                        spell: "detect-magic",
+                        level: 1,
+                        innate: true,
+                    ),
+                    (
+                        spell: "fireball",
+                        level: 3,
+                        innate: true,
+                    ),
+                    (
+                        spell: "hold-monster",
+                        level: 5,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "wall-of-fire",
+                        level: 4,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -25331,6 +26816,65 @@
                     text: "The planetar touches another creature. The target magically regains 30 (6d8 + 3) hit points and is freed from any curse, disease, poison, blindness, or deafness.",
                 ),
             ],
+            spellcasting: Some((
+                ability: Cha,
+                dc: 20,
+                attack: 12,
+                spells: [
+                    (
+                        spell: "detect-evil-and-good",
+                        level: 1,
+                        innate: true,
+                    ),
+                    (
+                        spell: "invisibility",
+                        level: 2,
+                        innate: true,
+                    ),
+                    (
+                        spell: "blade-barrier",
+                        level: 6,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "dispel-evil-and-good",
+                        level: 5,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "flame-strike",
+                        level: 5,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "raise-dead",
+                        level: 5,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "commune",
+                        level: 5,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "control-weather",
+                        level: 8,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "insect-plague",
+                        level: 5,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -26086,6 +27630,87 @@
                     text: "Melee Weapon Attack: +7 to hit, reach 5 ft., one target. Hit: 9 (2d6 + 2) slashing damage, and the target is cursed if it is a creature. The magical curse takes effect whenever the target takes a short or long rest, filling the target\'s thoughts with horrible images and dreams. The cursed target gains no benefit from finishing a short or long rest. The curse lasts until it is lifted by a remove curse spell or similar magic.",
                 ),
             ],
+            spellcasting: Some((
+                ability: Cha,
+                dc: 18,
+                attack: 10,
+                spells: [
+                    (
+                        spell: "detect-thoughts",
+                        level: 2,
+                        innate: true,
+                    ),
+                    (
+                        spell: "disguise-self",
+                        level: 1,
+                        innate: true,
+                    ),
+                    (
+                        spell: "mage-hand",
+                        level: 0,
+                        innate: true,
+                    ),
+                    (
+                        spell: "minor-illusion",
+                        level: 0,
+                        innate: true,
+                    ),
+                    (
+                        spell: "charm-person",
+                        level: 1,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "detect-magic",
+                        level: 1,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "invisibility",
+                        level: 2,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "major-image",
+                        level: 3,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "suggestion",
+                        level: 2,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "dominate-person",
+                        level: 5,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "fly",
+                        level: 3,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "plane-shift",
+                        level: 7,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "true-seeing",
+                        level: 6,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -28255,6 +29880,53 @@
                     text: "The solar targets one creature it can see within 30 ft. of it. If the target can see it, the target must succeed on a DC 15 Constitution saving throw or be blinded until magic such as the lesser restoration spell removes the blindness.",
                 ),
             ],
+            spellcasting: Some((
+                ability: Cha,
+                dc: 25,
+                attack: 17,
+                spells: [
+                    (
+                        spell: "detect-evil-and-good",
+                        level: 1,
+                        innate: true,
+                    ),
+                    (
+                        spell: "invisibility",
+                        level: 2,
+                        innate: true,
+                    ),
+                    (
+                        spell: "blade-barrier",
+                        level: 6,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "dispel-evil-and-good",
+                        level: 5,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "resurrection",
+                        level: 7,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "commune",
+                        level: 5,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "control-weather",
+                        level: 8,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -28526,6 +30198,73 @@
                     text: "Melee Weapon Attack: +7 to hit, reach 10 ft., one creature. Hit: 7 (1d6 + 4) piercing damage, and the target must make a DC 13 Constitution saving throw, taking 31 (7d8) poison damage on a failed save, or half as much damage on a successful one.",
                 ),
             ],
+            spellcasting: Some((
+                level: 10,
+                ability: Int,
+                dc: 14,
+                attack: 6,
+                slots: [
+                    4,
+                    3,
+                    3,
+                    3,
+                    2,
+                ],
+                spells: [
+                    (
+                        spell: "mage-hand",
+                        level: 0,
+                    ),
+                    (
+                        spell: "minor-illusion",
+                        level: 0,
+                    ),
+                    (
+                        spell: "ray-of-frost",
+                        level: 0,
+                    ),
+                    (
+                        spell: "charm-person",
+                        level: 1,
+                    ),
+                    (
+                        spell: "detect-magic",
+                        level: 1,
+                    ),
+                    (
+                        spell: "sleep",
+                        level: 1,
+                    ),
+                    (
+                        spell: "detect-thoughts",
+                        level: 2,
+                    ),
+                    (
+                        spell: "hold-person",
+                        level: 2,
+                    ),
+                    (
+                        spell: "lightning-bolt",
+                        level: 3,
+                    ),
+                    (
+                        spell: "water-breathing",
+                        level: 3,
+                    ),
+                    (
+                        spell: "blight",
+                        level: 4,
+                    ),
+                    (
+                        spell: "dimension-door",
+                        level: 4,
+                    ),
+                    (
+                        spell: "dominate-person",
+                        level: 5,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -28801,6 +30540,19 @@
                     text: "The mephit exhales a 15-foot cone of scalding steam. Each creature in that area must succeed on a DC 10 Dexterity saving throw, taking 4 (1d8) fire damage on a failed save, or half as much damage on a successful one.",
                 ),
             ],
+            spellcasting: Some((
+                ability: Cha,
+                dc: 11,
+                attack: 3,
+                spells: [
+                    (
+                        spell: "blur",
+                        level: 2,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -29186,6 +30938,45 @@
                     text: "The giant hurls a magical lightning bolt at a point it can see within 500 feet of it. Each creature within 10 feet of that point must make a DC 17 Dexterity saving throw, taking 54 (12d8) lightning damage on a failed save, or half as much damage on a successful one.",
                 ),
             ],
+            spellcasting: Some((
+                ability: Cha,
+                dc: 17,
+                attack: 9,
+                spells: [
+                    (
+                        spell: "detect-magic",
+                        level: 1,
+                        innate: true,
+                    ),
+                    (
+                        spell: "feather-fall",
+                        level: 1,
+                        innate: true,
+                    ),
+                    (
+                        spell: "levitate",
+                        level: 2,
+                        innate: true,
+                    ),
+                    (
+                        spell: "light",
+                        level: 0,
+                        innate: true,
+                    ),
+                    (
+                        spell: "control-weather",
+                        level: 8,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                    (
+                        spell: "water-breathing",
+                        level: 3,
+                        innate: true,
+                        per_day: 3,
+                    ),
+                ],
+            )),
         )),
     ),
     (
@@ -30971,6 +32762,46 @@
                     text: "The unicorn magically regains 11 (2d8 + 2) hit points.",
                 ),
             ],
+            spellcasting: Some((
+                ability: Cha,
+                dc: 14,
+                attack: 6,
+                spells: [
+                    (
+                        spell: "detect-evil-and-good",
+                        level: 1,
+                        innate: true,
+                    ),
+                    (
+                        spell: "druidcraft",
+                        level: 0,
+                        innate: true,
+                    ),
+                    (
+                        spell: "pass-without-trace",
+                        level: 2,
+                        innate: true,
+                    ),
+                    (
+                        spell: "calm-emotions",
+                        level: 2,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "dispel-evil-and-good",
+                        level: 5,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                    (
+                        spell: "entangle",
+                        level: 1,
+                        innate: true,
+                        per_day: 1,
+                    ),
+                ],
+            )),
         )),
     ),
     (

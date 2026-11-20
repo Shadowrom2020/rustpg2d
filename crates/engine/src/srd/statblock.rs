@@ -67,6 +67,47 @@ pub struct StatBlock {
     /// aren't plain attacks (they act with 0.32; the editor and the bestiary show them).
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub features: Vec<StatFeature>,
+    /// Its spells (the SRD's *Spellcasting* and *Innate Spellcasting*): cast in fights by the AI.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub spellcasting: Option<StatSpellcasting>,
+}
+
+/// A stat block's spellcasting: its save DC and spell attack bonus, its spell slots and spells.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct StatSpellcasting {
+    /// Its spellcaster level (a cantrip's damage grows with it).
+    #[serde(skip_serializing_if = "is_zero_u32")]
+    pub level: u32,
+    pub ability: super::Ability,
+    pub dc: i32,
+    pub attack: i32,
+    /// Spell slots by level (index 0 = 1st level).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub slots: Vec<u32>,
+    pub spells: Vec<StatSpell>,
+}
+
+impl Default for StatSpellcasting {
+    fn default() -> Self {
+        StatSpellcasting { level: 0, ability: super::Ability::Int, dc: 10, attack: 2, slots: Vec::new(), spells: Vec::new() }
+    }
+}
+
+/// One of a stat block's spells: from its slots (a cantrip at will), or innate (at will, or a
+/// number of times a day).
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct StatSpell {
+    pub spell: String,
+    /// Its level (0 = a cantrip).
+    pub level: u32,
+    /// Innate: cast without slots.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub innate: bool,
+    /// Innate uses a day (0 = at will).
+    #[serde(skip_serializing_if = "is_zero_u32")]
+    pub per_day: u32,
 }
 
 /// A creature's size (the SRD's six).
@@ -247,7 +288,7 @@ fn is_zero_i32(n: &i32) -> bool {
 
 impl Default for StatBlock {
     fn default() -> Self {
-        StatBlock { template: String::new(), name: String::new(), abilities: Abilities::default(), ac: 10, hp: 4, hit_dice: "1d8".into(), speed_ft: 30, darkvision_ft: 0, proficiencies: Vec::new(), languages: String::new(), alignment: String::new(), cr: "0".into(), xp: 10, resistances: Vec::new(), immunities: Vec::new(), vulnerabilities: Vec::new(), condition_immunities: Vec::new(), attacks: Vec::new(), multiattack: 0, size: Size::Medium, creature_type: String::new(), speeds: Speeds::default(), senses: String::new(), features: Vec::new() }
+        StatBlock { template: String::new(), name: String::new(), abilities: Abilities::default(), ac: 10, hp: 4, hit_dice: "1d8".into(), speed_ft: 30, darkvision_ft: 0, proficiencies: Vec::new(), languages: String::new(), alignment: String::new(), cr: "0".into(), xp: 10, resistances: Vec::new(), immunities: Vec::new(), vulnerabilities: Vec::new(), condition_immunities: Vec::new(), attacks: Vec::new(), multiattack: 0, size: Size::Medium, creature_type: String::new(), speeds: Speeds::default(), senses: String::new(), features: Vec::new(), spellcasting: None }
     }
 }
 

@@ -1506,6 +1506,59 @@
                     text: "Melee Weapon Attack: +2 to hit, reach 5 ft., one target. Hit: 3 (1d6) bludgeoning damage.",
                 ),
             ],
+            spellcasting: Some((
+                level: 5,
+                ability: Wis,
+                dc: 13,
+                attack: 5,
+                slots: [
+                    4,
+                    3,
+                    2,
+                ],
+                spells: [
+                    (
+                        spell: "light",
+                        level: 0,
+                    ),
+                    (
+                        spell: "sacred-flame",
+                        level: 0,
+                    ),
+                    (
+                        spell: "thaumaturgy",
+                        level: 0,
+                    ),
+                    (
+                        spell: "cure-wounds",
+                        level: 1,
+                    ),
+                    (
+                        spell: "guiding-bolt",
+                        level: 1,
+                    ),
+                    (
+                        spell: "sanctuary",
+                        level: 1,
+                    ),
+                    (
+                        spell: "lesser-restoration",
+                        level: 2,
+                    ),
+                    (
+                        spell: "spiritual-weapon",
+                        level: 2,
+                    ),
+                    (
+                        spell: "dispel-magic",
+                        level: 3,
+                    ),
+                    (
+                        spell: "spirit-guardians",
+                        level: 3,
+                    ),
+                ],
+            )),
         )),
         class: Some((
             class: "cleric",
@@ -4195,6 +4248,127 @@
                     text: "Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 4 (1d4 + 2) piercing damage.",
                 ),
             ],
+        )),
+    ),
+    (
+        id: "cult-fanatic",
+        name: "Cult Fanatic",
+        speed: 120.0,
+        hitbox: (24.0, 16.0),
+        behavior: Wander(
+            radius: 3.0,
+        ),
+        max_hp: 22,
+        damage: 0,
+        hostile: false,
+        weapon: None,
+        defense: 0,
+        xp: 450,
+        description: "Medium humanoid (any race), challenge 2 (450 XP), any non-good alignment.",
+        triggers: [],
+        shop: None,
+        appearance: (
+            model: "villager",
+            body: "",
+        ),
+        stats: Some((
+            template: "cult-fanatic",
+            name: "Cult Fanatic",
+            abilities: (11, 14, 12, 10, 13, 14),
+            ac: 13,
+            hp: 22,
+            hit_dice: "6d8-5",
+            speed_ft: 30,
+            darkvision_ft: 0,
+            proficiencies: [
+                "deception",
+                "persuasion",
+                "religion",
+            ],
+            languages: "any one language (usually Common)",
+            alignment: "any non-good alignment",
+            cr: "2",
+            xp: 450,
+            attacks: [
+                (
+                    name: "Dagger",
+                    bonus: 4,
+                    dice: "1d4+2",
+                    damage_type: Some(Piercing),
+                    reach_ft: 5,
+                    range_ft: 20,
+                    long_ft: 60,
+                ),
+            ],
+            multiattack: 2,
+            creature_type: "humanoid (any race)",
+            senses: "passive Perception 11",
+            features: [
+                (
+                    kind: Trait,
+                    name: "Dark Devotion",
+                    text: "The fanatic has advantage on saving throws against being charmed or frightened.",
+                ),
+                (
+                    kind: Trait,
+                    name: "Spellcasting",
+                    text: "The fanatic is a 4th-level spellcaster. Its spell casting ability is Wisdom (spell save DC 11, +3 to hit with spell attacks). The fanatic has the following cleric spells prepared:\n\nCantrips (at will): light, sacred flame, thaumaturgy\n- 1st level (4 slots): command, inflict wounds, shield of faith\n- 2nd level (3 slots): hold person, spiritual weapon",
+                ),
+                (
+                    kind: Action,
+                    name: "Multiattack",
+                    text: "The fanatic makes two melee attacks.",
+                ),
+                (
+                    kind: Action,
+                    name: "Dagger",
+                    text: "Melee or Ranged Weapon Attack: +4 to hit, reach 5 ft. or range 20/60 ft., one creature. Hit: 4 (1d4 + 2) piercing damage.",
+                ),
+            ],
+            spellcasting: Some((
+                level: 4,
+                ability: Wis,
+                dc: 11,
+                attack: 3,
+                slots: [
+                    4,
+                    3,
+                ],
+                spells: [
+                    (
+                        spell: "light",
+                        level: 0,
+                    ),
+                    (
+                        spell: "sacred-flame",
+                        level: 0,
+                    ),
+                    (
+                        spell: "thaumaturgy",
+                        level: 0,
+                    ),
+                    (
+                        spell: "command",
+                        level: 1,
+                    ),
+                    (
+                        spell: "inflict-wounds",
+                        level: 1,
+                    ),
+                    (
+                        spell: "shield-of-faith",
+                        level: 1,
+                    ),
+                    (
+                        spell: "hold-person",
+                        level: 2,
+                    ),
+                    (
+                        spell: "spiritual-weapon",
+                        level: 2,
+                    ),
+                ],
+            )),
         )),
     ),
 ]

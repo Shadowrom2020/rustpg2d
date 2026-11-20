@@ -1166,6 +1166,10 @@ pub fn conditions_ui(ui: &mut Ui, salt: &str, conds: &mut Vec<Condition>, refs: 
                     ui.label("the hero is attuned to");
                     suggest(ui, &id, item, &refs.items, 120.0);
                 }
+                Cond::SearchRoll { dc } => {
+                    ui.label("the hero's last search (Perception) is at least");
+                    ui.add(egui::DragValue::new(dc).range(1..=40)).on_hover_text("For Searched triggers: the action bar's Search rolls Perception and fires them on the zones the hero stands in and the props and characters within 2 tiles");
+                }
                 Cond::Passive { what, dc } => {
                     ui.label("the hero's passive");
                     suggest(ui, &id, what, &check_choices(), 120.0);

@@ -746,13 +746,19 @@ the farm holds a **Ring of Protection**, and the hidden hoard in the mine a **+1
 One bar at the bottom of the screen for everything the hero does (since 0.32; it replaced the quick
 bar). **In a fight** it is the turn's bar ([Health and combat](#health-and-combat)). **Outside fights**
 it shows the project's entries (*Database › Project › Menus › Action bar*; built in:
-Use, Cast, Class, Rest, Sneak, Party):
+Use, Cast, Class, Search, Rest, Sneak, Party):
 
 - **Use**: the usable items in the bag (consumables, items with *Use* triggers, scrolls, items that
   cast spells); **Cast**: the spells castable now (attack spells greyed: *Only in a fight*; the lowest
   slot is spent); **Class**: the hero's class actions that work outside fights (Second Wind, Lay on
   Hands with *Heal whom?* when companions are hurt, Preserve Life, script actions; the others greyed:
   *Only in a fight*; a use of the resource, no action).
+- **Search**: the hero rolls Perception (dim light, darkness and a helping companion count) and a
+  minute passes; the *Searched* triggers of the zones they stand in and of the props and characters
+  within 2 tiles run, and *Search found* compares the roll with their DC ([Events](07-events.md)):
+  hidden doors, stashes, clues. "You find nothing." otherwise. `status` prints `search=` (the last
+  total). In the example a night search can still find the lost coins by the forest plaza, and the
+  mine's lower chamber hides a stash (DC 15).
 - **Rest**: *Short rest* (the hit dice window) or **Make camp**: a long rest anywhere, the night's
   sleep of 8 hours, with the **camp item** in the bag (*Database › Project › Rules › Camp item*, the
   SRD's `bedroll` by default, by item id or SRD id; empty = nothing needed), no enemies near and no

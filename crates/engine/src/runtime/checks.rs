@@ -9,6 +9,8 @@ use crate::srd::check::Sight;
 
 /// Tiles within which a companion helps the hero's checks.
 const HELP_TILES: f32 = 6.0;
+/// Tiles around the hero a search reaches (props and characters; zones: those they stand in).
+const SEARCH_TILES: f32 = 2.0;
 
 impl Game {
     /// Once a frame: the light at the hero for checks by sight, and who of the party helps with
@@ -70,6 +72,48 @@ impl Game {
         let (uid, name) = (self.loaded.entities[i].uid, self.display_name(i));
         let Some(block) = self.who_block(Who::Npc(uid)) else { return false };
         self.world.contest(what, &name, &block, against)
+    }
+
+    /// Search (the action bar): the hero rolls Perception (dim light, darkness and help apply), a
+    /// minute passes, and the *Searched* triggers of the zones they stand in and of the props and
+    /// characters within 2 tiles fire (*Search found* compares the roll). "You find nothing."
+    /// when none of them runs.
+    pub(super) fn search(&mut self) {
+        if self.fight.is_some() {
+            self.ui.toast(crate::lang::tr_ui("In a fight: use the action bar").into_owned());
+            return;
+        }
+        if self.runner.busy() {
+            return;
+        }
+        let total = self.world.roll_check("perception").map_or(0, |r| r.total);
+        self.world.last_search = Some(total);
+        self.world.advance_hours(1.0 / 60.0);
+        let ts = self.ts();
+        let mut zones: Vec<u32> = self.zones_inside.iter().copied().collect();
+        zones.sort();
+        let near: Vec<u32> = self
+            .loaded
+            .entities
+            .iter()
+            .filter(|e| e.active && matches!(e.kind, crate::entity::EntityKind::Prop | crate::entity::EntityKind::Character) && e.companion.is_none() && e.body.pos.distance(self.player.pos) <= SEARCH_TILES * ts)
+            .map(|e| e.uid)
+            .collect();
+        let mut found = false;
+        for uid in zones {
+            found |= self.fire(crate::events::GameEvent::Search, super::Source::Zone(uid));
+        }
+        for uid in near {
+            found |= self.fire(crate::events::GameEvent::Search, super::Source::Entity(uid));
+        }
+        if !found {
+            self.ui.toast(crate::lang::tr_ui("You find nothing.").into_owned());
+        }
+    }
+
+    /// `search=` for status: the last search's total (`-` = none yet).
+    pub(super) fn search_status(&self) -> String {
+        self.world.last_search.map_or("-".into(), |t| t.to_string())
     }
 
     /// `senses=` for status: the light at the hero for sight checks (`light:dim`, `:darkvision`)

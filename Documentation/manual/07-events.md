@@ -15,9 +15,9 @@ Triggers belong to an **owner**, and each owner receives only some events:
 | Triggers of | Events they can react to |
 |---|---|
 | a **map** (map settings, nothing selected) | *Map enter*, *Woke up*, *Time reached*, *Fight starts*, *Fight ends*, *Custom event* |
-| a **zone** (trigger area) | *Enter*, *Leave*, *Interact*, *Custom event* |
-| a **character** (placed, or its definition) | *Interact*, *Use item*, *Defeat*, *HP below %*, *Fight starts*, *Fight ends*, *Custom event* |
-| a **prop** (placed, or its definition) | *Interact*, *Use item*, *Unlocked*, *Locked*, *Woke up* (beds), *Custom event* |
+| a **zone** (trigger area) | *Enter*, *Leave*, *Interact*, *Searched*, *Custom event* |
+| a **character** (placed, or its definition) | *Interact*, *Use item*, *Defeat*, *HP below %*, *Fight starts*, *Fight ends*, *Searched*, *Custom event* |
+| a **prop** (placed, or its definition) | *Interact*, *Use item*, *Unlocked*, *Locked*, *Woke up* (beds), *Searched*, *Custom event* |
 | an **item lying on a map** | *Interact*, *Use item*, *Custom event* |
 | an **item definition's** *On use* | *Use item* |
 
@@ -38,6 +38,7 @@ map) or in the Database (definitions).
 | **HP below %** | The character fell below that share of its HP and survived the hit. |
 | **Unlocked** / **Locked** | The prop's lock was opened with its key, or locked again. |
 | **Woke up** | The player woke up after sleeping: the map's triggers (anywhere on it) and the bed's own. |
+| **Searched** | The player used *Search* on the [action bar](09-gameplay.md#the-action-bar): a Perception roll, then the *Searched* triggers of the zones they stand in and of the props and characters within 2 tiles. Pair it with *Search found* (the roll against a DC); "You find nothing." when none runs. *Since 0.32* |
 | **Time reached** | The clock reached that hour (12.0 = noon, 5.5 = 5:30) while the player is on the map, every day; also when time jumps past it by sleeping or *Set time*. |
 | **Fight starts** / **Fight ends** | A [turn-based fight](09-gameplay.md#health-and-combat) started on the map / is over (won or fled; not when lost: the *defeated* menu comes). The map's triggers, and a character's own when it takes part (a boss's words when its fight starts; one that joins later fires *Fight starts* as it joins). |
 
@@ -66,6 +67,7 @@ All conditions of a trigger must hold; each can be negated (*not*). Comparisons 
 | **Time of day** | Between two hours; wraps around midnight (20 to 6 = at night) |
 | **Proficient in** | The hero is proficient in a skill, tool or saving throw (`stealth`, `thieves-tools`, `save:dex`). Until 0.27 *Skill level* |
 | **Check passed** | The last ability check or saving throw (an *Ability check* action, a lock, crafting, `check()` in a script) succeeded, by at least a number (0 = just succeeded) |
+| **Search found** | The hero's last search (a Perception roll) reached a DC: for *Searched* triggers (`search_roll()` in scripts). *Since 0.32* |
 | **Passive check** | The hero's passive check of a skill, ability or ability:tool (10 + the bonus, +5 with advantage, −5 with disadvantage: dim light for Perception; 0 looking in darkness) is at least a DC: something noticed without rolling, e.g. on a zone's *Enter* ([Gameplay › Checks outside fights](09-gameplay.md#checks-outside-fights)). *Since 0.32* |
 | **Knows spell**, **Player level** | Character progress |
 | **Player has condition** | Poisoned, prone, exhausted… (or any condition); until 0.27 *Player has effect* |
@@ -220,7 +222,9 @@ In the example, Tilda's quest reward offers "Ask for a bit more": an *Ability ch
 DC 13) whose success gives ten more coins. Brom the smith, on his stool at the tavern in the evening,
 offers an arm-wrestle for a gold piece: a *Contest* of Athletics against his (his entity's stat block
 has STR 16). A zone by the forest clearing's plaza has a *Passive check* (Perception 13): by day the
-hero notices some lost gold pieces in the grass, at night (dim light) they walk past.
+hero notices some lost gold pieces in the grass, at night (dim light) they walk past, unless a
+*Search* finds them (*Searched* with *Search found* 13; a flag keeps them found once). The mine's
+lower chamber hides a miner's stash behind a loose stone (*Searched*, *Search found* 15).
 
 **Magic**
 - **Learn spell** (only when the hero's class lists the spell), **Teach spell** (a party member

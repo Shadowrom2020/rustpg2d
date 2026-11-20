@@ -377,6 +377,9 @@ pub struct WorldState {
     /// The last dawn the charged items regained charges at (days since the start, from 6:00).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_dawn: Option<i64>,
+    /// The total of the hero's last search (the action bar's Search; not saved).
+    #[serde(skip)]
+    pub last_search: Option<i64>,
     /// When the hero's last long rest ended (game hours since the start): one long rest in 24
     /// hours gives its benefits.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -876,6 +879,24 @@ impl WorldState {
         self.log_roll(them);
         // (`success` is false too when the check fails on its own: looking in darkness.)
         ours.success == Some(true)
+    }
+
+    /// Rolls the hero's check of `what` without a DC (a search): the conditions, light and help
+    /// as in [`WorldState::check`], into the roll log; a check that fails on its own totals 0.
+    pub fn roll_check(&mut self, what: &str) -> Option<crate::srd::RollRecord> {
+        let spec = crate::srd::Spec::parse(what, false)?;
+        let (mode, fails, helper) = self.check_terms(&spec, crate::srd::Mode::Normal);
+        let mut rec = spec.roll(&self.roller(), 0, mode);
+        if let Some(h) = helper {
+            rec.label = format!("{} ({h} helps)", rec.label);
+        }
+        if fails {
+            rec.total = 0;
+            rec.dice = "fails (condition)".into();
+        }
+        rec.success = None;
+        self.log_roll(rec.clone());
+        Some(rec)
     }
 
     /// The hero's passive check of `what` (a skill, an ability, ability:tool): 10 + the bonus, +5

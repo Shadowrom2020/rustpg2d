@@ -227,7 +227,7 @@ impl Game {
     // ---------------------------------------------------------------------------- drawing
 
     /// The action bar's buttons (screen rectangles).
-    pub(super) fn bar_layout(&self) -> Vec<Rect> {
+    pub(in crate::runtime) fn bar_layout(&self) -> Vec<Rect> {
         let _font = text::role(Role::Hud);
         let gap = 4.0;
         let widths: Vec<f32> = TurnAct::BAR.iter().enumerate().map(|(k, a)| measure_text(&self.bar_text(k, *a), None, BAR_FONT as u16, 1.0).width + 16.0).collect();

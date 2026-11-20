@@ -194,6 +194,63 @@ impl TitleScreen {
     }
 }
 
+/// An entry of the action bar outside fights (`ProjectConfig::action_bar`): each opens a list or
+/// acts at once.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum BarEntry {
+    /// The usable items in the bag: potions, food, scrolls, items with *Use* triggers.
+    Use,
+    /// The spells the hero can cast now.
+    Cast,
+    /// The hero's class actions that work outside fights (Second Wind, Lay on Hands).
+    Class,
+    /// A short rest, or a long one in camp (with the camp item: `RulesSettings::camp_item`).
+    Rest,
+    /// Sneaking on / off.
+    Sneak,
+    /// The companions' orders (only with companions).
+    Party,
+    /// Runs a script function. `label` is shown (and translated), `detail` above the favorites
+    /// while the entry has the focus.
+    Custom {
+        label: String,
+        function: String,
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        detail: String,
+    },
+}
+
+impl BarEntry {
+    /// The built-in entries, in order (an empty `action_bar`).
+    pub const DEFAULT: [BarEntry; 6] = [BarEntry::Use, BarEntry::Cast, BarEntry::Class, BarEntry::Rest, BarEntry::Sneak, BarEntry::Party];
+
+    /// The name on the bar (custom entries: their label, untranslated).
+    pub fn label(&self) -> &str {
+        match self {
+            BarEntry::Use => "Use",
+            BarEntry::Cast => "Cast",
+            BarEntry::Class => "Class",
+            BarEntry::Rest => "Rest",
+            BarEntry::Sneak => "Sneak",
+            BarEntry::Party => "Party",
+            BarEntry::Custom { label, .. } => label,
+        }
+    }
+
+    /// The id autoplay's `bar ENTRY` and `status` use (custom entries: their function).
+    pub fn id(&self) -> &str {
+        match self {
+            BarEntry::Use => "use",
+            BarEntry::Cast => "cast",
+            BarEntry::Class => "class",
+            BarEntry::Rest => "rest",
+            BarEntry::Sneak => "sneak",
+            BarEntry::Party => "party",
+            BarEntry::Custom { function, .. } => function,
+        }
+    }
+}
+
 /// The pause menu (`ProjectConfig::menu`).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct PauseMenu {
@@ -246,6 +303,21 @@ fn is_default_bg(b: &TitleBackground) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn action_bar_entries_round_trip() {
+        let mut cfg = crate::project::ProjectConfig::new("p");
+        let text = ron::to_string(&cfg).unwrap();
+        assert!(!text.contains("action_bar"), "the built-in bar isn't written");
+        cfg.action_bar = vec![BarEntry::Rest];
+        let back: crate::project::ProjectConfig = ron::from_str(&ron::to_string(&cfg).unwrap()).unwrap();
+        assert_eq!(back.action_bar, vec![BarEntry::Rest]);
+        let list = vec![BarEntry::Use, BarEntry::Sneak, BarEntry::Custom { label: "Pray".into(), function: "pray".into(), detail: String::new() }];
+        let text = ron::to_string(&list).unwrap();
+        assert_eq!(ron::from_str::<Vec<BarEntry>>(&text).unwrap(), list);
+        assert_eq!(BarEntry::DEFAULT.map(|e| e.id().to_string()), ["use", "cast", "class", "rest", "sneak", "party"]);
+        assert_eq!(list[2].id(), "pray");
+    }
 
     #[test]
     fn empty_settings_are_the_built_in_menus() {

@@ -110,6 +110,10 @@ pub struct ProjectConfig {
     /// The pause menu's entries; empty = the built-in ones.
     #[serde(default, skip_serializing_if = "crate::menus::PauseMenu::is_default")]
     pub menu: crate::menus::PauseMenu,
+    /// The action bar's entries outside fights, in order; empty = the built-in ones
+    /// ([`crate::menus::BarEntry::DEFAULT`]).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub action_bar: Vec<crate::menus::BarEntry>,
     /// The text of the Credits page (menus with a Credits entry); translated like dialogs.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub credits: String,
@@ -285,6 +289,7 @@ impl ProjectConfig {
             skin: String::new(),
             title: Default::default(),
             menu: Default::default(),
+            action_bar: Vec::new(),
             credits: String::new(),
             srd: false,
         }

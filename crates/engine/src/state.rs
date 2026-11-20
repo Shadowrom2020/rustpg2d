@@ -214,9 +214,11 @@ pub struct WorldState {
     pub equipped: String,
     #[serde(default)]
     pub equipment: Equipment,
-    /// Quick action bar: item ids per slot ("" = empty).
-    #[serde(default)]
-    pub quickbar: Vec<String>,
+    /// The action bar's favorites per slot (keys 1-8; "" = empty): an item id, `spell:<id>`,
+    /// `class:<act>`, `act:<short_rest|camp|sneak|search>` or `custom:<function>`. Saves of 0.31
+    /// and older called it the quick bar (items and spells).
+    #[serde(default, alias = "quickbar")]
+    pub favorites: Vec<String>,
     /// Seconds since the Unix epoch when this was saved.
     #[serde(default)]
     pub saved_at: u64,
@@ -1263,7 +1265,7 @@ mod tests {
         // Old saves without `equipment` still load; `equipped` is kept for migration.
         let old: WorldState = ron::from_str(r#"(flags: [], vars: {}, inventory: {"bow": 1}, entities: {}, fired: [], current_map: "m", player_pos: (0.0, 0.0), player_facing: Down, equipped: "bow")"#).unwrap();
         assert_eq!((old.equipped.as_str(), old.equipment.weapon.is_none()), ("bow", true));
-        assert!(old.quickbar.is_empty());
+        assert!(old.favorites.is_empty());
         // Saves from before experience and levels start at level 1 without XP.
         assert_eq!((old.xp, old.player_level()), (0, 1));
         assert!(old.effects.is_empty() && old.bestiary.is_empty() && old.dialog_log.is_empty());
@@ -1275,9 +1277,12 @@ mod tests {
         let w = WorldState { bestiary: [("slime".to_string(), 4)].into(), ..Default::default() };
         let back = WorldState::from_ron(&w.to_ron().unwrap()).unwrap();
         assert_eq!((back.defeated("slime"), back.defeated("goblin")), (4, 0));
-        let w = WorldState { quickbar: vec!["potion".into(), String::new()], ..Default::default() };
+        let w = WorldState { favorites: vec!["potion".into(), String::new(), "class:second-wind".into()], ..Default::default() };
         let back = WorldState::from_ron(&w.to_ron().unwrap()).unwrap();
-        assert_eq!(back.quickbar, w.quickbar);
+        assert_eq!(back.favorites, w.favorites);
+        // A save of 0.31 and older: its quick bar becomes the favorites.
+        let old: WorldState = ron::from_str(r#"(flags: [], vars: {}, inventory: {}, entities: {}, fired: [], current_map: "m", player_pos: (0.0, 0.0), player_facing: Down, quickbar: ["potion", "", "spell:cure-wounds"])"#).unwrap();
+        assert_eq!(old.favorites, vec!["potion".to_string(), String::new(), "spell:cure-wounds".to_string()]);
     }
 
     #[test]

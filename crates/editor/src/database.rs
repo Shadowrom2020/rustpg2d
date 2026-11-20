@@ -3151,6 +3151,74 @@ fn skin_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::skin::SkinDef, cx: &mut
 
 /// The entries of a menu: up / down / remove per entry, custom entries' label and function, and
 /// an Add menu with the entries that fit (`title`: the title screen, else the pause menu).
+/// Project › Menus › Action bar: the bar's entries in order (empty = the built-in ones).
+fn bar_entries_ui(ui: &mut egui::Ui, entries: &mut Vec<rustpg2d_engine::menus::BarEntry>, functions: &[String]) {
+    use rustpg2d_engine::menus::BarEntry;
+    if entries.is_empty() {
+        ui.horizontal(|ui| {
+            ui.weak(format!("Built in: {}.", BarEntry::DEFAULT.iter().map(|e| e.label()).collect::<Vec<_>>().join(", ")));
+            if ui.button(ui::t(ph::PENCIL_SIMPLE, "Change…")).on_hover_text("Start from the built-in entries and change them").clicked() {
+                *entries = BarEntry::DEFAULT.to_vec();
+            }
+        });
+        return;
+    }
+    let (mut up, mut down, mut remove) = (None, None, None);
+    let n = entries.len();
+    for (k, e) in entries.iter_mut().enumerate() {
+        ui.horizontal(|ui| {
+            if ui.add_enabled(k > 0, egui::Button::new(ph::ARROW_UP).small()).on_hover_text("Move up").clicked() {
+                up = Some(k);
+            }
+            if ui.add_enabled(k + 1 < n, egui::Button::new(ph::ARROW_DOWN).small()).on_hover_text("Move down").clicked() {
+                down = Some(k);
+            }
+            if ui.small_button(ph::TRASH).on_hover_text("Remove").clicked() {
+                remove = Some(k);
+            }
+            match e {
+                BarEntry::Custom { label, function, detail } => {
+                    ui.add(egui::TextEdit::singleline(label).hint_text("label").desired_width(140.0)).on_hover_text("What the entry says (translated like dialogs)");
+                    ui.label("runs");
+                    widgets::suggest(ui, &format!("bar_fn_{k}"), function, functions, 130.0);
+                    ui.add(egui::TextEdit::singleline(detail).hint_text("(what it does)").desired_width(160.0));
+                }
+                other => {
+                    ui.label(other.label());
+                }
+            }
+        });
+    }
+    if let Some(k) = up {
+        entries.swap(k, k - 1);
+    }
+    if let Some(k) = down {
+        entries.swap(k, k + 1);
+    }
+    if let Some(k) = remove {
+        entries.remove(k);
+    }
+    ui.horizontal(|ui| {
+        ui.menu_button(ui::t(ph::PLUS, "Add entry"), |ui| {
+            let missing: Vec<BarEntry> = BarEntry::DEFAULT.iter().filter(|e| !entries.contains(e)).cloned().collect();
+            for e in missing {
+                if ui.button(e.label()).clicked() {
+                    entries.push(e);
+                    ui.close_menu();
+                }
+            }
+            ui.separator();
+            if ui.button("Custom: runs a script function").clicked() {
+                entries.push(BarEntry::Custom { label: "New entry".into(), function: String::new(), detail: String::new() });
+                ui.close_menu();
+            }
+        });
+        if ui.button("Built in").on_hover_text("Back to the built-in entries").clicked() {
+            entries.clear();
+        }
+    });
+}
+
 fn entries_ui(ui: &mut egui::Ui, salt: &str, entries: &mut Vec<rustpg2d_engine::menus::MenuEntry>, defaults: &[rustpg2d_engine::menus::MenuEntry], title: bool, functions: &[String]) {
     use rustpg2d_engine::menus::MenuEntry;
     if entries.is_empty() {
@@ -3342,6 +3410,10 @@ fn menus_form(ed: &mut Editor, ui: &mut egui::Ui) {
             });
         });
         entries_ui(ui, "pause", &mut m.entries, &PauseMenu::DEFAULT, false, &refs.functions);
+        ui.separator();
+        ui.heading("Action bar");
+        ui.weak("The bar at the bottom of the screen outside fights (F / gamepad RB focuses it): each entry opens a list (Use: items, Cast: spells, Class: class actions, Rest: short rest or camp) or acts at once (Sneak, Party: the companions' orders). Cast, Class and Party show only when the hero has something there. Custom entries run a script function. In a fight the bar is the turn's action bar. Players pin anything to the eight favorites above it (keys 1-8).");
+        bar_entries_ui(ui, &mut c.action_bar, &refs.functions);
         ui.separator();
         ui.heading("Credits");
         ui.weak("The text of the Credits page (add a Credits entry to a menu to show it). Translated like dialogs.");
@@ -4937,6 +5009,11 @@ pub(crate) fn rules_form(ui: &mut egui::Ui, r: &mut rustpg2d_engine::srd::RulesS
     })
     .response
     .on_hover_text("Items' weights count: the bag and what the hero wears and holds.");
+    ui.horizontal(|ui| {
+        ui.label("Camp item");
+        ui.add(egui::TextEdit::singleline(&mut r.camp_item).desired_width(140.0).hint_text("(none needed)"))
+            .on_hover_text("What the hero needs in the bag to make camp (the action bar's Rest › Make camp: a long rest anywhere): an item id or an SRD id such as bedroll. Empty: camping needs nothing.");
+    });
 }
 
 fn achievement_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::achievements::AchievementDef, cx: &mut Cx) {

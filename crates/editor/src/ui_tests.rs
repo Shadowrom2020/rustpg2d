@@ -605,6 +605,27 @@ fn a_common_event_runs_while_a_flag_is_set() {
     let _ = std::fs::remove_dir_all(&root);
 }
 
+/// Project › Menus › Action bar: the built-in entries to start from, a custom one added, saved.
+#[test]
+fn the_action_bar_gets_a_custom_entry() {
+    use rustpg2d_engine::menus::BarEntry;
+    let root = example_copy("action_bar");
+    let mut h = harness(&root, Tab::Project, 0);
+    assert!(h.state().project.config.action_bar.is_empty(), "the example uses the built-in bar");
+    h.get_all_by(|n| n.role() == Role::Button && n.label().as_deref().is_some_and(|l| l.ends_with("Change…"))).last().unwrap().click();
+    step(&mut h);
+    assert_eq!(h.state().project.config.action_bar, BarEntry::DEFAULT.to_vec());
+    h.get_all_by(|n| n.label().as_deref().is_some_and(|l| l.ends_with("Add entry"))).last().unwrap().click();
+    step(&mut h);
+    h.get_by_label("Custom: runs a script function").click();
+    step(&mut h);
+    assert!(matches!(h.state().project.config.action_bar.last(), Some(BarEntry::Custom { .. })));
+    h.state_mut().save_all();
+    let saved = Project::load(&root).unwrap();
+    assert_eq!(saved.config.action_bar.len(), BarEntry::DEFAULT.len() + 1);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
 #[test]
 fn menu_entries_are_changed_and_saved() {
     use rustpg2d_engine::menus::{MenuEntry, PauseMenu};
@@ -614,7 +635,8 @@ fn menu_entries_are_changed_and_saved() {
     h.state_mut().project.config.menu.entries.clear();
     step(&mut h);
     // The pause menu has the built-in entries: "Change…" copies them to start from.
-    h.get_by(|n| n.role() == Role::Button && n.label().as_deref().is_some_and(|l| l.ends_with("Change…"))).click();
+    // (The pause menu's comes first; the action bar's last.)
+    h.get_all_by(|n| n.role() == Role::Button && n.label().as_deref().is_some_and(|l| l.ends_with("Change…"))).next().unwrap().click();
     step(&mut h);
     assert_eq!(h.state().project.config.menu.entries, PauseMenu::DEFAULT.to_vec());
     // Move the second entry (Photo mode) up. Every row has a Move up (the first one's disabled);

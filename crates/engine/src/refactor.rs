@@ -1048,6 +1048,7 @@ mod tests {
         skin: "wood".into(),
         title: Default::default(),
         menu: Default::default(),
+        action_bar: Vec::new(),
         credits: String::new(),
         srd: false,
         };

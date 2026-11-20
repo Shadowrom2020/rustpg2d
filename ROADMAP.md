@@ -1210,6 +1210,47 @@ added here.
   and one a day later. The editor's *Passive check* form (screenshot) and a UI test adding a *Group
   check*.
 
+- [ ] The action bar — two parts (the user's request, 2026-11-20: the quick bar goes, one bar
+  for fights and exploration takes its place; a long rest anywhere with a bedroll):
+  1. [x] **The bar and favorites** — `feature/action-bar`.
+  2. [ ] **Search** — `feature/search`: an active Perception roll (*Searched* trigger, *Search
+     found* condition, `search_roll()`), a hidden stash in the mine, the forest's coins found by a
+     night search.
+
+  **Goal.** Players reach every action, item, spell and class feature outside fights the way they
+  do in fights, by keys, mouse and gamepad; the quick bar's slots become favorites of any of them.
+
+  **Part 1 decided while building.** One bar, two modes: the fight's turn bar unchanged, outside
+  fights the project's entries (`ProjectConfig.action_bar`, `BarEntry`: Use, Cast, Class, Rest,
+  Sneak, Party, Custom = a script function). Cast, Class and Party hide when the hero has nothing
+  there. Favorites keep the quick bar's slots and save field (`favorites`, reading `quickbar`) and
+  hold `class:` / `act:` / `custom:` entries too; 1-8 are favorites outside fights and the turn's
+  actions in fights (favorites are clicked there, their numbers hidden). F / gamepad RB focuses the
+  bar (`Act::Actions`, rebindable); with it on Sneak or a custom entry, 1-8 pins that. Class actions
+  outside fights: healing (Second Wind, Lay on Hands with *Heal whom?*, Preserve Life) and script
+  actions; temporary hit points, rage and the rest need a fight. *Make camp* = the sleep sequence for
+  8 hours with `RulesSettings.camp_item` (`bedroll`) in the bag; the long rest's rules apply.
+
+  **Part 1 as built.** `runtime/actionbar.rs` (`ActionBar`, `Focus`, `BarList`, `BarRow`,
+  `BarPick`; `bar_entries`, `explore_bar_rects`, `bar_top`, `action_bar_input`,
+  `update_action_bar_modal`, `entry_rows`, `use_favorite`, `make_camp` / `cant_camp`,
+  `draw_action_bar`, `bar_status`; autoplay `bar`, `barpick`, `pin`, `fav`); `menus::BarEntry`;
+  `inventory_ui.rs` `fav_rects` above the bar (the quick bar's drawing and drag and drop kept for
+  favorites); `turns/features.rs` `works_outside`, `class_acts_outside`, `use_class_act_outside`,
+  `class_heal_outside`, `aim_class_favorite`; `healing.rs` `HealSource::ClassAct`;
+  `orders.rs` `open_order_menu`; editor *Project › Menus › Action bar* and *Rules › Camp item*.
+
+  **Part 1 verified.** Unit tests (an old save's quick bar as favorites, `BarEntry` in project
+  files, which class effects work outside fights) and UI tests (the action bar list, the pause
+  menu's still). Autoplay on a scratch copy: potions and bread through *Use*, a potion pinned and
+  used with 1; *Make camp* refused without a bedroll and near a slime, then 8 hours of sleep with
+  one (the long rest counted); a fighter's Second Wind from *Class* and as favorite 3 (then no uses
+  left); a cleric's Cure Wounds from *Cast* (attack spells greyed); *Party* opening Finn's orders;
+  sneaking from the bar and by F / Right / E; a custom "Pray" entry pinned with 4 from the focused
+  bar and run with 4; RB / Right / A opening *Rest* on a gamepad; an old save's quick bar as
+  favorites and a potion favorite clicked in a fight (the turn's action spent). Screenshots of both
+  modes.
+
 - [ ] Objects, traps, poisons, diseases and madness — `feature/srd-hazards`
 
   **Goal.** The SRD's hazards and the objects of the world by the rules.

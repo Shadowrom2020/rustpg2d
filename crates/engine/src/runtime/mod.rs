@@ -74,6 +74,7 @@ mod emotions;
 mod mouse;
 mod movement;
 mod survival;
+mod actionbar;
 mod checks;
 mod spawner;
 mod rolls;
@@ -535,6 +536,8 @@ pub struct Game {
     placed_cache: std::cell::RefCell<std::collections::HashMap<(String, u32), Option<crate::entity::EntityInstance>>>,
     /// The open companion orders menu (G).
     order_menu: Option<orders::OrderMenu>,
+    /// The action bar outside fights: its focus and open list (`actionbar.rs`).
+    bar: actionbar::ActionBar,
     /// The open companion window (its gear and bag).
     comp_win: Option<companion_ui::CompanionWin>,
     /// Bottom of the player's HUD panel as last drawn (the companions' rows go below it).
@@ -730,6 +733,7 @@ impl Game {
             perf: std::cell::RefCell::new(Perf { log: std::env::var("RUSTPG2D_PERF").is_ok_and(|v| v != "0"), ..Perf::default() }),
             placed_cache: Default::default(),
             order_menu: None,
+            bar: Default::default(),
             comp_win: None,
             hud_bottom: std::cell::Cell::new(80.0),
             sleeping: None,
@@ -1843,6 +1847,10 @@ impl Game {
         if self.update_order_menu() {
             return;
         }
+        // And the action bar while it has the focus or a list is open.
+        if self.update_action_bar_modal() {
+            return;
+        }
         // A script's window pauses everything, the menus too.
         self.take_window_request();
         if self.update_script_window() {
@@ -2400,7 +2408,7 @@ impl Game {
 
     /// Gameplay is paused while a dialog or an inventory window is open.
     fn modal(&self) -> bool {
-        self.ui.dialog_open() || self.inventory_open() || self.script_window_open() || self.input_open() || self.scroll_open() || self.rest_open()
+        self.ui.dialog_open() || self.inventory_open() || self.script_window_open() || self.input_open() || self.scroll_open() || self.rest_open() || self.bar.focus.is_some() || self.bar.list.is_some()
     }
 
     /// Applies project rules (inventory size, stack limits) to the world state, e.g. after loading.
@@ -2676,7 +2684,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} plugins={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} combat={} death_saves={:?} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={} rolls={} abilities={} prof={} profs={} sheet={} statblocks={:?} encounters={:?} class={} levelup={} rest={} resources={} class_fx={} money={} weapon={} armor={} attuned={} charges={} ammo={} knocked_out={} sight={} fall={} survival={:?} load={} senses={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} plugins={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} favorites={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} combat={} death_saves={:?} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={} rolls={} abilities={} prof={} profs={} sheet={} statblocks={:?} encounters={:?} class={} levelup={} rest={} resources={} class_fx={} money={} weapon={} armor={} attuned={} charges={} ammo={} knocked_out={} sight={} fall={} survival={:?} load={} senses={} bar={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2760,7 +2768,7 @@ impl Game {
             p.y.floor(),
             self.world.player_hp,
             self.world.vars,
-            self.world.quickbar,
+            self.world.favorites,
             crate::defs::EquipSlot::ALL.map(|s| self.world.equipment.item(s).unwrap_or("-").to_string()),
             self.enemies_alive(),
             self.runner.busy(),
@@ -2816,7 +2824,8 @@ impl Game {
             self.fall_status(),
             self.survival_status(),
             self.load_status(),
-            self.senses_status()
+            self.senses_status(),
+            self.bar_status()
         )
     }
 

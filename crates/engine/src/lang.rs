@@ -414,6 +414,13 @@ pub fn content_texts(project: &crate::project::Project) -> std::collections::BTr
             add(detail);
         }
     }
+    // (The action bar's custom entries.)
+    for e in &project.config.action_bar {
+        if let crate::menus::BarEntry::Custom { label, detail, .. } = e {
+            add(label);
+            add(detail);
+        }
+    }
     add(&project.config.credits);
     for i in &db.items {
         add(&i.name);

@@ -353,6 +353,13 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
     mine chest and the alchemy recipes; saved games holding one keep an item without a definition).
     The locked chest on the farm holds a Ring of Protection, the mine's hidden hoard a +1 Longsword
     and a Wand of Magic Missiles.
+- **Finding items**: every Database list has a search field (name or id), and the item lists (the
+  Database's Items, the asset library's Browse view and *Add from library*) a category picker with
+  the SRD's categories: simple / martial melee and ranged weapons, light / medium / heavy armor and
+  shields, ammunition, adventuring gear, tools, mounts and vehicles, money, the magic item kinds
+  (weapons, armor, potions, rings, rods, scrolls, staffs, wands, wondrous items) and the project's
+  own things, each with its count. Editor script `dbsearch`, `itemfilter`; `status` prints `dblist=`,
+  `itemfilter=`, `libshown=`.
 - **Breaking:** helmets give no armor class (they are clothing), and armor's flat *Defense* is gone:
   weapons and armor of 0.30 and older are upgraded when read (martial from a d8 up, two-handed and
   heavy, ammunition; body armor becomes light armor of the AC it gave, an off-hand piece a shield of

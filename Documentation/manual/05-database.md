@@ -12,6 +12,14 @@ Sprite sheets, Sounds, Fonts, UI skins, Structures, Spells, Recipes, Backgrounds
 *Scripts*. Each asset tab has a list on
 the left and the selected definition's form on the right.
 
+- The **search** field above the list shows only the definitions whose name or id contains the
+  text (the selection jumps to the first match; another tab clears it). On *Items* a **category**
+  picker narrows the list by the SRD's categories, worked out from what each item is: weapons
+  (simple / martial, melee / ranged), armor (light, medium, heavy, shields), ammunition,
+  adventuring gear, tools, mounts and vehicles, money, magic items (weapons and ammunition, armor
+  and shields, potions, rings, rods, scrolls and spell books, staffs, wands, wondrous items) and
+  *Other* (the project's own things: food, ores, keys, furniture). Each entry tells how many items
+  it has; *Weapons*, *Armor* and *Magic items* take all of theirs.
 - **+ New**, **Duplicate** and **Delete** manage the list, **Usages** lists every place the
   selected definition is used ([Finding things](02-the-editor.md#finding-things)); **New asset…** starts a wizard that also
   draws the art ([Art and sound](10-art-and-sound.md#new-assets)), **New character…** makes a

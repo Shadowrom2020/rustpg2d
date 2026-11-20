@@ -24,6 +24,7 @@ mod graph;
 mod decor_tool;
 mod ground_tool;
 mod import;
+mod item_category;
 mod library_ui;
 mod library_update;
 mod library_window;
@@ -653,7 +654,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // watchanswer reload|keep: answers the "changed on disk" banner
         "watchanswer" => ed.watch_answer(arg(1) == "reload"),
         "status" => println!(
-            "[status] {} repo={} library={} script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} projectfile={} notices={} search={} usages={} problems={} plugins={} libupdate={} starter={} art={} pixel={} mode={:?} dbtab={:?} dbsel={} script={:?} ground={} decor={} msg={}",
+            "[status] {} repo={} library={} script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} projectfile={} notices={} search={} usages={} problems={} plugins={} libupdate={} starter={} art={} pixel={} mode={:?} dbtab={:?} dbsel={} dblist={}/{} itemfilter={} libshown={} script={:?} ground={} decor={} msg={}",
             TIMING.with(|t| t.borrow_mut().take()),
             match repo_mode::root() {
                 None => "off".to_string(),
@@ -696,6 +697,10 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.mode,
             ed.db.tab,
             ed.db.sel,
+            ed.db.list_shown.0,
+            ed.db.list_shown.1,
+            ed.db.item_filter.id(),
+            ed.lib.shown,
             ed.db.script_file.as_ref().and_then(|f| f.file_name()).map(|f| f.to_string_lossy().to_string()),
             ed.ground_status(),
             ed.decor_status(),
@@ -754,6 +759,20 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // libimport PATH (into the library) · projimport PATH (into the project)
         // libfilter KIND|all: the Browse view's kind filter
         "libfilter" => ed.lib.filter = library_ui::parse_kind(arg(1)),
+        // dbsearch TEXT|- : the Database list's search · itemfilter all|weapons|armor|magic|CATEGORY:
+        // the item category of the Database's Items list, the library's browse view and the open
+        // "Add from library" dialog (status `dblist=` / `libshown=`)
+        "dbsearch" => ed.db.search = if arg(1) == "-" { String::new() } else { cmd[1..].join(" ") },
+        "itemfilter" => match item_category::ItemFilter::parse(arg(1)) {
+            Some(f) => {
+                ed.db.item_filter = f;
+                ed.lib.item_filter = f;
+                if let Some(d) = ed.lib.add.as_mut() {
+                    d.item_filter = f;
+                }
+            }
+            None => println!("[script] itemfilter: unknown category '{}'", arg(1)),
+        },
         "libsel" => {
             ed.lib.ensure_loaded();
             if let Some(k) = library_ui::parse_kind(arg(1)) {

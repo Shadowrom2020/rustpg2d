@@ -68,6 +68,10 @@ pub fn tab_len(db: &rustpg2d_engine::defs::Database, tab: Tab) -> usize {
 }
 
 thread_local! {
+    /// The Database list's search text (`DbState::search` while the list draws).
+    static LIST_SEARCH: std::cell::RefCell<String> = const { std::cell::RefCell::new(String::new()) };
+    /// What the list showed of how many.
+    static LIST_SHOWN: std::cell::Cell<(usize, usize)> = const { std::cell::Cell::new((0, 0)) };
     /// *Find usages* asked for in a definition list (the id; the open tab gives the kind).
     static USAGES: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
 }
@@ -153,6 +157,12 @@ pub struct RenameUi {
 pub struct DbState {
     pub tab: Tab,
     pub sel: usize,
+    /// The list's search text (name or id; cleared with another tab).
+    pub search: String,
+    /// The Items tab's category filter.
+    pub item_filter: crate::item_category::ItemFilter,
+    /// How many definitions the list shows of how many (status `dblist=`).
+    pub list_shown: (usize, usize),
     pub script_file: Option<std::path::PathBuf>,
     pub script_text: String,
     /// The open script as on disk; `script_dirty` is only set while the text differs from it.
@@ -257,6 +267,7 @@ fn list_ui<T: Clone>(
     ui: &mut egui::Ui,
     items: &mut Vec<T>,
     sel: &mut usize,
+    keep: impl Fn(&T) -> bool,
     label: impl Fn(&T) -> String,
     make: impl Fn(&[String]) -> T,
     id_of: impl Fn(&mut T) -> &mut String,
@@ -292,9 +303,28 @@ fn list_ui<T: Clone>(
             USAGES.with(|u| *u.borrow_mut() = ids.get(*sel).cloned());
         }
     });
+    // The search (name or id) and the tab's own filter.
+    let shown: Vec<usize> = LIST_SEARCH.with(|q| {
+        let mut q = q.borrow_mut();
+        ui.horizontal(|ui| {
+            ui.label(ph::MAGNIFYING_GLASS);
+            ui.add(egui::TextEdit::singleline(&mut *q).hint_text("search").desired_width(f32::INFINITY));
+        });
+        let needle = q.trim().to_lowercase();
+        (0..items.len()).filter(|&i| keep(&items[i]) && (needle.is_empty() || label(&items[i]).to_lowercase().contains(&needle))).collect()
+    });
+    LIST_SHOWN.with(|n| n.set((shown.len(), items.len())));
+    // (The selection follows the search and filter: the first match when it is hidden.)
+    if shown.len() < items.len() && !shown.is_empty() && !shown.contains(sel) {
+        *sel = shown[0];
+    }
+    if shown.len() < items.len() {
+        ui.weak(format!("{} of {} shown", shown.len(), items.len()));
+    }
     ui.separator();
     egui::ScrollArea::vertical().id_salt("db_list").auto_shrink(false).show(ui, |ui| {
-        for (i, it) in items.iter().enumerate() {
+        for &i in &shown {
+            let it = &items[i];
             let r = ui.selectable_label(*sel == i, label(it));
             if r.clicked() {
                 *sel = i;
@@ -350,6 +380,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             if ui.selectable_label(ed.db.tab == t, ui::t(tab_icon(t), l)).clicked() && ed.db.tab != t {
                 ed.db.tab = t;
                 ed.db.sel = 0;
+                ed.db.search.clear();
                 ed.db.rename = RenameUi::default();
             }
         }
@@ -456,20 +487,29 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
         let fresh = crate::builder::default_character(&ed.project.db, "", "New character");
         let db = &mut ed.project.db;
         let sel = &mut ed.db.sel;
+        let item_filter = &mut ed.db.item_filter;
+        LIST_SEARCH.with(|q| *q.borrow_mut() = std::mem::take(&mut ed.db.search));
         egui::SidePanel::left("db_left").resizable(true).default_width(220.0).show_inside(ui, |ui| {
             list_changed = match tab {
-                Tab::Items => list_ui(
+                Tab::Items => {
+                    // The SRD's categories.
+                    let ammo = crate::item_category::ammo_of(db);
+                    let cats: Vec<crate::item_category::ItemCat> = db.items.iter().map(|d| crate::item_category::category(d, &ammo)).collect();
+                    crate::item_category::picker(ui, "db_item_filter", item_filter, &cats);
+                    let f = *item_filter;
+                    list_ui(
                     ui,
                     &mut db.items,
-                    sel,
+                    sel, |d| f.keeps(crate::item_category::category(d, &ammo)),
                     |d| format!("{}  ({})", d.name, d.id),
                     |ids| ItemDef::fresh(&unique("item", ids)),
                     |d| &mut d.id,
-                ),
+                )
+                }
                 Tab::Props => list_ui(
                     ui,
                     &mut db.props,
-                    sel,
+                    sel, |_| true,
                     |d| format!("{}  ({})", d.name, d.id),
                     |ids| PropDef::fresh(&unique("prop", ids)),
                     |d| &mut d.id,
@@ -477,7 +517,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                 Tab::Characters => list_ui(
                     ui,
                     &mut db.characters,
-                    sel,
+                    sel, |_| true,
                     |d| format!("{}  ({})", d.name, d.id),
                     |ids| CharacterDef { id: unique("character", ids), ..fresh.clone() },
                     |d| &mut d.id,
@@ -485,7 +525,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                 Tab::Sheets => list_ui(
                     ui,
                     &mut db.sheets,
-                    sel,
+                    sel, |_| true,
                     |d| d.id.clone(),
                     |ids| SheetDef::fresh(&unique("sheet", ids)),
                     |d| &mut d.id,
@@ -493,7 +533,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                 Tab::Sounds => list_ui(
                     ui,
                     &mut db.sounds,
-                    sel,
+                    sel, |_| true,
                     |d| d.id.clone(),
                     |ids| SoundDef { id: unique("sound", ids), file: "sounds/new.wav".into(), volume: 1.0, caption: String::new() },
                     |d| &mut d.id,
@@ -501,7 +541,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                 Tab::Structures => list_ui(
                     ui,
                     &mut db.structures,
-                    sel,
+                    sel, |_| true,
                     |d| format!("{}  ({})", d.name, d.id),
                     |ids| StructureDef { id: unique("structure", ids), name: "New structure".into(), w: 6, h: 5, ..Default::default() },
                     |d| &mut d.id,
@@ -509,7 +549,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                 Tab::Spells => list_ui(
                     ui,
                     &mut db.spells,
-                    sel,
+                    sel, |_| true,
                     |d| format!("{}  ({})", d.name, d.id),
                     |ids| rustpg2d_engine::skills::SpellDef::new(&unique("spell", ids), "New spell", "", SpriteRef::default(), 5, 1.0, rustpg2d_engine::skills::SpellEffect::Heal { amount: 4 }),
                     |d| &mut d.id,
@@ -518,16 +558,16 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     if ui.button(ui::t(ph::UPLOAD_SIMPLE, "Import model…")).on_hover_text("A rigged .glb (Meshy, Blender, Mixamo…): copied into models/, its clips matched to the animations by name").clicked() {
                         ed.browse_request = Some(Purpose::ModelFile { id: String::new(), clips: false });
                     }
-                    list_ui(ui, &mut db.models, sel, |d| format!("{}  ({}){}", d.label(), d.id, if d.playable { "  - playable" } else { "" }), |ids| rustpg2d_engine::defs::ModelDef::new(&unique("model", ids), ""), |d| &mut d.id)
+                    list_ui(ui, &mut db.models, sel, |_| true, |d| format!("{}  ({}){}", d.label(), d.id, if d.playable { "  - playable" } else { "" }), |ids| rustpg2d_engine::defs::ModelDef::new(&unique("model", ids), ""), |d| &mut d.id)
                 }
-                Tab::Races => list_ui(ui, &mut db.races, sel, |d| format!("{}  ({}){}", d.name, d.id, if d.playable { "" } else { "  - not playable" }), |ids| rustpg2d_engine::races::RaceDef::fresh(&unique("race", ids)), |d| &mut d.id),
+                Tab::Races => list_ui(ui, &mut db.races, sel, |_| true, |d| format!("{}  ({}){}", d.name, d.id, if d.playable { "" } else { "  - not playable" }), |ids| rustpg2d_engine::races::RaceDef::fresh(&unique("race", ids)), |d| &mut d.id),
                 Tab::Recipes => {
                     // Listed by what they make.
                     let names: std::collections::HashMap<String, String> = db.items.iter().map(|d| (d.id.clone(), d.name.clone())).collect();
                     list_ui(
                         ui,
                         &mut db.recipes,
-                        sel,
+                        sel, |_| true,
                         |d| {
                             let made = names.get(&d.result).cloned().unwrap_or_else(|| d.result.clone());
                             let at = if d.station.is_empty() { String::new() } else { format!(" @ {}", d.station) };
@@ -540,7 +580,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                 Tab::Scatter => list_ui(
                     ui,
                     &mut db.scatter,
-                    sel,
+                    sel, |_| true,
                     |d| format!("{}  ({})", d.name, d.id),
                     |ids| rustpg2d_engine::decor::ScatterDef::fresh(&unique("scatter", ids)),
                     |d| &mut d.id,
@@ -548,7 +588,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                 Tab::Fonts => list_ui(
                     ui,
                     &mut db.fonts,
-                    sel,
+                    sel, |_| true,
                     |d| format!("{}  ({})", d.name, d.id),
                     |ids| rustpg2d_engine::fonts::FontDef::fresh(&unique("font", ids)),
                     |d| &mut d.id,
@@ -556,7 +596,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                 Tab::Skins => list_ui(
                     ui,
                     &mut db.skins,
-                    sel,
+                    sel, |_| true,
                     |d| format!("{}  ({})", d.name, d.id),
                     |ids| rustpg2d_engine::skin::SkinDef::fresh(&unique("skin", ids)),
                     |d| &mut d.id,
@@ -564,7 +604,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                 Tab::CommonEvents => list_ui(
                     ui,
                     &mut db.common_events,
-                    sel,
+                    sel, |_| true,
                     |d| format!("{}  ({})", d.name, d.id),
                     |ids| rustpg2d_engine::common_events::CommonEventDef::fresh(&unique("common_event", ids)),
                     |d| &mut d.id,
@@ -572,7 +612,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                 Tab::Backgrounds => list_ui(
                     ui,
                     &mut db.backgrounds,
-                    sel,
+                    sel, |_| true,
                     |d| format!("{}  ({})", d.name, d.id),
                     |ids| rustpg2d_engine::backgrounds::BackgroundDef::fresh(&unique("background", ids)),
                     |d| &mut d.id,
@@ -580,7 +620,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                 Tab::Classes => list_ui(
                     ui,
                     &mut db.classes,
-                    sel,
+                    sel, |_| true,
                     |d| format!("{}  ({})", d.name, d.id),
                     |ids| rustpg2d_engine::classes::ClassDef::fresh(&unique("class", ids)),
                     |d| &mut d.id,
@@ -588,7 +628,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                 Tab::Materials => list_ui(
                     ui,
                     &mut db.materials,
-                    sel,
+                    sel, |_| true,
                     |d| format!("{}  ({})", d.name, d.id),
                     |ids| rustpg2d_engine::ground::MaterialDef::fresh(&unique("material", ids)),
                     |d| &mut d.id,
@@ -596,7 +636,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                 Tab::Achievements => list_ui(
                     ui,
                     &mut db.achievements,
-                    sel,
+                    sel, |_| true,
                     |d| format!("{}{}  ({})", d.name, if d.hidden { " (hidden)" } else { "" }, d.id),
                     |ids| rustpg2d_engine::achievements::AchievementDef::new(&unique("achievement", ids), "New achievement", "", SpriteRef::default(), Vec::new()),
                     |d| &mut d.id,
@@ -604,7 +644,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                 Tab::Quests => list_ui(
                     ui,
                     &mut db.quests,
-                    sel,
+                    sel, |_| true,
                     |d| format!("{}  ({})", d.title, d.id),
                     |ids| rustpg2d_engine::quest::QuestDef { id: unique("quest", ids), title: "New quest".into(), stages: vec!["First objective".into()], ..Default::default() },
                     |d| &mut d.id,
@@ -612,6 +652,8 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                 _ => false,
             };
         });
+        ed.db.search = LIST_SEARCH.with(|q| std::mem::take(&mut *q.borrow_mut()));
+        ed.db.list_shown = LIST_SHOWN.with(|n| n.get());
         if ed.db.sel != sel_before {
             ed.db.rename = RenameUi::default();
         }

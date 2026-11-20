@@ -9103,7 +9103,10 @@
         classes: [
             "cleric",
         ],
-        story_only: true,
+        parts: [
+            Stabilize,
+        ],
+        story_only: false,
     ),
     (
         id: "speak-with-animals",

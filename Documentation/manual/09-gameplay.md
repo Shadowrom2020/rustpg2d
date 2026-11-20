@@ -41,7 +41,11 @@ stays real-time ([Player's guide › Fighting](15-players-guide.md#fighting)).
   advantage), *Hide* (Stealth against the foes' passive Perception: unseen until it attacks),
   *Ready* (an attack when a foe steps into reach), *Search* (Perception against hidden foes),
   *Use an Object* (an item from the inventory), *Grapple* and *Shove* (Athletics against the
-  target's Athletics or Acrobatics: grappled, or knocked prone / pushed a tile). The **bonus action**
+  target's Athletics or Acrobatics: grappled, or knocked prone / pushed a tile). *Help* aimed at an
+  ally at 0 HP next to you is **first aid**: a healer's kit in the bag makes it stable at once (one
+  of the kit's ten uses), else a Medicine check against DC 10 does. While a monster's hit holds you
+  (grappled or restrained, with an escape DC), *Grapple* becomes **Escape**: Athletics or
+  Acrobatics (the better one) against the escape DC. The **bonus action**
   is the off-hand attack: a weapon in the left hand attacks after the Attack action, without the
   ability modifier on its damage; both weapons must be *light* (two-weapon fighting).
 - **Attacks** roll d20 + the ability modifier (STR for melee, DEX for ranged; a *finesse* weapon
@@ -51,6 +55,18 @@ stays real-time ([Player's guide › Fighting](15-players-guide.md#fighting)).
   the weapon's **dice** (*Damage dice* on the item form) + the modifier, of its damage type through
   the target's resistances. Characters attack with their stat block's attacks; without them with
   their weapon or *Damage* (1 = 1d4 … 5 = 1d12, +2 to hit).
+- **Monster attacks in full:** a stat block's attack can do more damage of other types (a red
+  dragon's bite: piercing plus 2d6 fire, each part through the target's resistances) and something
+  on a hit: a saving throw against a condition (a wolf's bite: DC 11 STR or prone; a ghoul's claws:
+  DC 10 CON or paralyzed for a minute) or against more damage (a giant spider's bite: 2d8 poison, half
+  on a success), or a grapple with its escape DC (a constrictor snake). The SRD import gives the
+  monsters theirs (67 attacks with more damage, 85 effects on a hit in 65 attacks); the stat block
+  form edits them (*on a hit*).
+- **Magic and silvered weapons:** a resistance or immunity "from nonmagical attacks" (a ghost's,
+  a werewolf's) doesn't cover a hit with a magic weapon or magic ammunition (+1 Arrows), a spell or
+  a monster with the *Magic Weapons* trait; one "that aren't silvered" doesn't cover a silvered
+  weapon or silvered ammunition either (the item form's *Silvered*; the library has a Silvered Dagger
+  and Silvered Arrows).
 - **Advantage and disadvantage** come from the SRD's sources: the attacker's conditions
   (poisoned, prone, restrained, blinded, frightened, exhaustion 3+), the target's (prone:
   advantage in melee, disadvantage at range; restrained, paralyzed, stunned, unconscious, blinded:
@@ -66,13 +82,25 @@ stays real-time ([Player's guide › Fighting](15-players-guide.md#fighting)).
   shows the reachable tiles that would leave a foe's reach in red, and the path in red when it
   provokes.
 - **0 hit points:** characters die (their *Defeated* triggers run, they drop their loot and
-  gear). The hero and companions fall **unconscious** and roll a **death saving throw** on each of
+  gear). **Knocking out:** when a melee hit of the hero (or of a companion the player plays) would
+  drop a foe to 0 HP, the game asks **Kill or knock out?**. A knocked-out foe counts as defeated
+  (experience, loot, *Defeated* triggers) but lies unconscious where it fell until the hero leaves
+  the map, and stays gone like a defeated one; the condition *Was knocked out* and the script
+  function `knocked_out(name)` tell it apart (a bandit to bring in alive). The hero and companions
+  fall **unconscious** and roll a **death saving throw** on each of
   their turns: 10 or more is a success, three successes and they are stable, three failures and
   they die; a natural 20 brings them back with 1 HP, a natural 1 counts twice. Damage while down is
-  a failure (a critical hit two); any healing brings them back up. Enemies leave the unconscious
+  a failure (a critical hit two); any healing brings them back up. **Massive damage** kills at once:
+  damage that leaves at least the hit point maximum after dropping to 0 (a 12-HP hero at 6 HP taking
+  18), or as much as the maximum while down. A **stable** creature (three successes, first aid, the
+  cantrip *Spare the Dying*) rolls no more death saves. Enemies leave the unconscious
   alone, except those with Multiattack. When nobody of the party stands any more and those down are
   stable (or dead), the fight is lost: the *defeated* menu. A companion that dies follows the
   project's rule for companions at 0 HP (lies there, goes home, gets up).
+- **Conditions in full:** a frightened creature can't move closer to the source of its fear while
+  it can see it (the move overlay leaves those tiles out), and its disadvantage counts only then; a
+  charmed one can't attack its charmer or aim a harmful spell at it; a caster that can't act
+  (incapacitated, stunned, paralyzed, unconscious) loses its concentration.
 - **The party:** the player plays the hero's and every companion's turns. The orders menu (G)
   hands a companion to the AI (*AI fights*) or back (*I command*). Characters on the player's side
   that aren't companions (the guards) always fight on their own.

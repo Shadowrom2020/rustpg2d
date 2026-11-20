@@ -60,6 +60,7 @@ All conditions of a trigger must hold; each can be negated (*not*). Comparisons 
 | **Player race** | The player's race (*Database › Races*), e.g. goblin; a race holds for its subraces too (*dwarf* for a hill dwarf) |
 | **Has money** | The hero's money (every coin carried, in copper pieces: 1 gp = 100) compared with an amount (*≥ 500* = at least 5 gp). Pair it with *Take money*: the example's Greta and the stone house do |
 | **Is attuned** | The hero is attuned to a magic item ([Gameplay › Magic items](09-gameplay.md#magic-items)) |
+| **Was knocked out** | A fight knocked out a character of this name (or definition id) instead of killing it: the player chose *Knock out* ([Gameplay › Health and combat](09-gameplay.md#health-and-combat)) |
 | **Has class** | The hero's class or subclass (*Database › Classes*: *fighter*, *champion*; empty = any class) at a level compared with a number (*≥ 3*); false without a class |
 | **Faction standing** | The player's standing with a faction (-100 to 100) compared with a value; at -20 or below its characters attack the player |
 | **Time of day** | Between two hours; wraps around midnight (20 to 6 = at night) |

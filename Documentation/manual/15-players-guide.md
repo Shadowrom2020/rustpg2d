@@ -133,10 +133,12 @@ the map (a tile is 5 feet).
   *Flurry of Blows*, *Lay on Hands*…, those you can't use now greyed; E / Enter or a click then uses
   it on you or on whoever the cursor is on), *Dash* (move twice as far), *Disengage* (leave without opportunity attacks),
   *Dodge* (attacks against you get disadvantage until your next turn), *Help* (a companion's next
-  attack against an enemy next to you gets advantage), *Hide* (a Stealth check: hidden enemies can't
+  attack against an enemy next to you gets advantage; on a fallen companion next to you it is first
+  aid: your healer's kit or a Medicine check makes them stable), *Hide* (a Stealth check: hidden enemies can't
   find you to attack), *Ready* (strike the first enemy that steps next to you), *Search* (find hidden
   enemies), *Grapple* and *Shove* (wrestle an enemy next to you: grappled can't move; shoved is
-  knocked down or pushed away). Using an item from the inventory (a potion) takes the action too;
+  knocked down or pushed away). When a monster's bite or tentacle holds you, *Grapple* turns into
+  **Escape** (Athletics or Acrobatics against its escape DC). Using an item from the inventory (a potion) takes the action too;
   you can give a potion to a companion right next to you (a fallen one gets back up). Items on
   the ground (loot, a thrown spear): right-click them, or E with the cursor on them, to pick them up
   (free; you walk up first when they lie farther away), or walk over them.
@@ -151,9 +153,15 @@ The **fight log** at the bottom left tells every roll (`Alex > Goblin: d20 (14) 
 hit`); the journal's *Rolls* tab keeps them. A natural 20 is a **critical hit** (the damage dice
 twice).
 
+**Kill or knock out?** When your melee hit would drop an enemy to 0 hit points, a window asks:
+*Kill*, or *Knock out* (it lies unconscious and stays alive; you still get its experience and
+loot). ↑/↓ and E / Enter or a click choose; the window waits for your answer.
+
 **At 0 hit points** you fall unconscious and roll a **death saving throw** at the start of each of
 your turns: 10 or more is a success. Three successes and you are stable, three failures and you
-die; a 20 gets you back up. A companion's healing gets you up too. If nobody of your side is left
+die; a 20 gets you back up. A companion's healing gets you up too, first aid (*Help*) makes you
+stable. A hit that leaves as much damage as your hit point maximum after you drop to 0 kills you at
+once (massive damage). If nobody of your side is left
 standing, the fight is lost. When the fight is won, those still down get up.
 
 You can't save during a fight; the game autosaves when it is over.

@@ -1166,6 +1166,11 @@ pub fn conditions_ui(ui: &mut Ui, salt: &str, conds: &mut Vec<Condition>, refs: 
                     ui.label("the hero is attuned to");
                     suggest(ui, &id, item, &refs.items, 120.0);
                 }
+                Cond::KnockedOut { name } => {
+                    ui.label("a fight knocked out");
+                    ui.add(egui::TextEdit::singleline(name).desired_width(120.0).hint_text("name or id"))
+                        .on_hover_text("A character's name or definition id: true once a fight knocked it out instead of killing it (the player chose Knock out).");
+                }
                 Cond::Money { op, cp } => {
                     ui.label("the hero's money");
                     egui::ComboBox::from_id_salt(format!("{id}/moop")).width(40.0).selected_text(op.symbol()).show_ui(ui, |ui| {

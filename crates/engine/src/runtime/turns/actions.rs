@@ -194,6 +194,14 @@ impl Game {
             }
             // Attack with a weapon that can be thrown too: strike or throw? (The choice window.)
             TurnAct::Attack if self.open_fight_menu(super::menu::MenuKind::Attack, self.attack_rows(who)) => return Ok(()),
+            // Held (a monster's grapple, a web): Grapple tries to escape instead.
+            TurnAct::Grapple if self.escape_dc(who).is_some() => {
+                self.escape(who);
+                if let Some(c) = &mut self.fight {
+                    c.turn.action = true;
+                }
+                return Ok(());
+            }
             TurnAct::Attack | TurnAct::Help | TurnAct::Grapple | TurnAct::Shove | TurnAct::OffHand => {
                 if let Some(c) = &mut self.fight {
                     c.attack_mode = None;
@@ -378,6 +386,13 @@ impl Game {
                 if self.fight.as_ref().unwrap().turn.action {
                     return Err("Action used");
                 }
+                // An ally at 0 HP next to it: first aid (a healer's kit, else Medicine DC 10).
+                let down = self.fight.as_ref().unwrap().fighter(target).is_some_and(|f| f.down && !f.saves.stable);
+                if !foe && down && dist <= 1 {
+                    self.first_aid(me.who, target);
+                    self.fight.as_mut().unwrap().turn.action = true;
+                    return Ok(());
+                }
                 if !foe || dist > 1 {
                     return Err("Help against a foe next to you");
                 }
@@ -472,6 +487,77 @@ impl Game {
                 self.occupy(i);
             }
         }
+    }
+
+    /// A check's modifier for `who` (`athletics`: its STR and proficiency), without rolling.
+    fn check_bonus(&self, who: Who, what: &str) -> i64 {
+        let Some(spec) = crate::srd::Spec::parse(what, false) else { return 0 };
+        if who == Who::Player {
+            return spec.modifier(&self.world.roller());
+        }
+        let Some(block) = self.who_block(who) else { return 0 };
+        let profs: std::collections::BTreeSet<String> = block.proficiencies.iter().map(|p| crate::srd::abilities::proficiency_id(p)).collect();
+        spec.modifier(&crate::srd::check::Roller { abilities: &block.abilities, proficiencies: &profs, level: block.proficiency_level(), training: None })
+    }
+
+    /// The escape DC of what holds `who` (a grapple or restraint a monster's hit gave), the
+    /// condition and who holds it.
+    pub(super) fn escape_dc(&self, who: Who) -> Option<(Condition, i32, String)> {
+        self.who_conditions(who).iter().find(|a| matches!(a.condition, Some(Condition::Grappled | Condition::Restrained)) && a.escape > 0).map(|a| (a.condition.unwrap(), a.escape, a.by.clone()))
+    }
+
+    /// The Escape action: Athletics or Acrobatics (the better one) against the escape DC; the
+    /// grapple or restraint ends on a success.
+    fn escape(&mut self, who: Who) {
+        let Some((c, dc, by)) = self.escape_dc(who) else { return };
+        let skill = if self.check_bonus(who, "acrobatics") > self.check_bonus(who, "athletics") { "acrobatics" } else { "athletics" };
+        let name = self.who_name(who);
+        let ok = self.who_check(who, skill, dc, false).is_some_and(|r| r.success == Some(true));
+        if ok {
+            if let Some(l) = self.who_conditions_mut(who) {
+                conditions::remove(l, c);
+            }
+            let holder = self.who_of_tag(&by);
+            if let Some(f) = holder.and_then(|h| self.fight.as_mut().and_then(|f| f.fighter_mut(h))) {
+                if f.grappling == Some(who) {
+                    f.grappling = None;
+                }
+            }
+            self.fight_log(format!("{name} {}", crate::lang::tr_ui("escapes")));
+        } else {
+            self.fight_log(format!("{name} {}", crate::lang::tr_ui("can't escape")));
+        }
+    }
+
+    /// First aid for a fighter at 0 HP: the hero's healer's kit makes it stable (a use spent),
+    /// else a Medicine check (DC 10) does on a success.
+    fn first_aid(&mut self, who: Who, target: Who) {
+        let name = self.who_name(who);
+        if who == Who::Player {
+            let kit = self.world.inventory.item_ids().into_iter().find(|id| self.project.db.item(id).is_some_and(|d| d.srd == "healers-kit" && d.max_charges() > 0) && self.charges_left(Who::Player, id).unwrap_or(0) > 0);
+            if let Some(kit) = kit {
+                if self.spend_charges(Who::Player, &kit, 1).is_ok() {
+                    let what = self.project.db.item(&kit).map_or(kit.clone(), |d| crate::lang::tr(&d.name));
+                    self.stabilize(target, &format!("{name}: {what}"));
+                    return;
+                }
+            }
+        }
+        let ok = self.who_check(who, "medicine", 10, false).is_some_and(|r| r.success == Some(true));
+        if ok {
+            self.stabilize(target, &format!("{name}: {}", crate::lang::tr_ui("Medicine")));
+        } else {
+            self.fight_log(format!("{name}: {} {}", crate::lang::tr_ui("Medicine"), crate::lang::tr_ui("failed")));
+        }
+    }
+
+    /// A fighter at 0 HP becomes stable: no more death saves (Spare the Dying, first aid).
+    pub(super) fn stabilize(&mut self, target: Who, how: &str) {
+        let tname = self.who_name(target);
+        let Some(f) = self.fight.as_mut().and_then(|c| c.fighter_mut(target)).filter(|f| f.down && !f.out) else { return };
+        f.saves.stable = true;
+        let line = if how.is_empty() { format!("{tname} {}", crate::lang::tr_ui("is stable")) } else { format!("{how}: {tname} {}", crate::lang::tr_ui("is stable")) };
+        self.fight_log(line);
     }
 
     /// Ammunition for a ranged attack of the hero (`false` = none left).

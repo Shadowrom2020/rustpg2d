@@ -3675,6 +3675,13 @@
                     dice: "2d4+2",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            save: Some(Str),
+                            dc: 11,
+                            condition: Some(Prone),
+                        ),
+                    ],
                 ),
             ],
             creature_type: "beast",
@@ -4924,6 +4931,12 @@
                     dice: "2d6+5",
                     damage_type: Some(Bludgeoning),
                     reach_ft: 10,
+                    extra: [
+                        (
+                            dice: "1d12",
+                            damage_type: Some(Acid),
+                        ),
+                    ],
                 ),
                 (
                     name: "Tail",
@@ -5115,6 +5128,12 @@
                     dice: "2d10+6",
                     damage_type: Some(Piercing),
                     reach_ft: 10,
+                    extra: [
+                        (
+                            dice: "1d8",
+                            damage_type: Some(Acid),
+                        ),
+                    ],
                 ),
                 (
                     name: "Claw",
@@ -5256,6 +5275,12 @@
                     dice: "2d10+7",
                     damage_type: Some(Piercing),
                     reach_ft: 10,
+                    extra: [
+                        (
+                            dice: "1d10",
+                            damage_type: Some(Lightning),
+                        ),
+                    ],
                 ),
                 (
                     name: "Claw",
@@ -5958,6 +5983,12 @@
                     dice: "2d10+6",
                     damage_type: Some(Piercing),
                     reach_ft: 10,
+                    extra: [
+                        (
+                            dice: "2d6",
+                            damage_type: Some(Poison),
+                        ),
+                    ],
                 ),
                 (
                     name: "Claw",
@@ -6099,6 +6130,12 @@
                     dice: "2d10+8",
                     damage_type: Some(Piercing),
                     reach_ft: 10,
+                    extra: [
+                        (
+                            dice: "2d6",
+                            damage_type: Some(Fire),
+                        ),
+                    ],
                 ),
                 (
                     name: "Claw",
@@ -6372,6 +6409,12 @@
                     dice: "2d10+6",
                     damage_type: Some(Piercing),
                     reach_ft: 10,
+                    extra: [
+                        (
+                            dice: "1d8",
+                            damage_type: Some(Cold),
+                        ),
+                    ],
                 ),
                 (
                     name: "Claw",
@@ -6613,6 +6656,12 @@
                     dice: "2d10+8",
                     damage_type: Some(Piercing),
                     reach_ft: 15,
+                    extra: [
+                        (
+                            dice: "2d8",
+                            damage_type: Some(Acid),
+                        ),
+                    ],
                 ),
                 (
                     name: "Claw",
@@ -6754,6 +6803,12 @@
                     dice: "2d10+9",
                     damage_type: Some(Piercing),
                     reach_ft: 15,
+                    extra: [
+                        (
+                            dice: "2d10",
+                            damage_type: Some(Lightning),
+                        ),
+                    ],
                 ),
                 (
                     name: "Claw",
@@ -7476,6 +7531,12 @@
                     dice: "2d10+8",
                     damage_type: Some(Piercing),
                     reach_ft: 15,
+                    extra: [
+                        (
+                            dice: "3d6",
+                            damage_type: Some(Poison),
+                        ),
+                    ],
                 ),
                 (
                     name: "Claw",
@@ -7617,6 +7678,12 @@
                     dice: "2d10+10",
                     damage_type: Some(Piercing),
                     reach_ft: 15,
+                    extra: [
+                        (
+                            dice: "4d6",
+                            damage_type: Some(Fire),
+                        ),
+                    ],
                 ),
                 (
                     name: "Claw",
@@ -7895,6 +7962,12 @@
                     dice: "2d10+8",
                     damage_type: Some(Piercing),
                     reach_ft: 15,
+                    extra: [
+                        (
+                            dice: "2d8",
+                            damage_type: Some(Cold),
+                        ),
+                    ],
                 ),
                 (
                     name: "Claw",
@@ -8239,6 +8312,18 @@
                     dice: "2d6+3",
                     damage_type: Some(Slashing),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "1d6",
+                            damage_type: Some(Acid),
+                        ),
+                    ],
+                    on_hit: [
+                        (
+                            condition: Some(Grappled),
+                            escape_dc: 13,
+                        ),
+                    ],
                 ),
             ],
             size: Large,
@@ -8474,6 +8559,21 @@
                     dice: "1d6+3",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "7d6",
+                            damage_type: Some(Poison),
+                        ),
+                    ],
+                    on_hit: [
+                        (
+                            save: Some(Con),
+                            dc: 15,
+                            dice: "7d6",
+                            damage_type: Some(Poison),
+                            half: true,
+                        ),
+                    ],
                 ),
                 (
                     name: "Light Crossbow",
@@ -8482,6 +8582,21 @@
                     damage_type: Some(Piercing),
                     range_ft: 80,
                     long_ft: 320,
+                    extra: [
+                        (
+                            dice: "7d6",
+                            damage_type: Some(Poison),
+                        ),
+                    ],
+                    on_hit: [
+                        (
+                            save: Some(Con),
+                            dc: 15,
+                            dice: "7d6",
+                            damage_type: Some(Poison),
+                            half: true,
+                        ),
+                    ],
                 ),
             ],
             multiattack: 2,
@@ -8786,6 +8901,12 @@
                     dice: "1d8+3",
                     damage_type: Some(Bludgeoning),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "1d6",
+                            damage_type: Some(Fire),
+                        ),
+                    ],
                 ),
             ],
             creature_type: "elemental",
@@ -9019,6 +9140,12 @@
                     dice: "3d8+8",
                     damage_type: Some(Slashing),
                     reach_ft: 10,
+                    extra: [
+                        (
+                            dice: "3d8",
+                            damage_type: Some(Lightning),
+                        ),
+                    ],
                 ),
                 (
                     name: "Whip",
@@ -9026,6 +9153,12 @@
                     dice: "2d6+8",
                     damage_type: Some(Slashing),
                     reach_ft: 30,
+                    extra: [
+                        (
+                            dice: "3d6",
+                            damage_type: Some(Fire),
+                        ),
+                    ],
                 ),
             ],
             multiattack: 2,
@@ -9335,6 +9468,12 @@
                     dice: "2d6+3",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "2d6",
+                            damage_type: Some(Poison),
+                        ),
+                    ],
                 ),
             ],
             creature_type: "monstrosity",
@@ -9415,6 +9554,14 @@
                     dice: "1d8+2",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            save: Some(Con),
+                            dc: 12,
+                            condition: Some(Poisoned),
+                            rounds: 10,
+                        ),
+                    ],
                 ),
                 (
                     name: "Glaive",
@@ -9522,6 +9669,18 @@
                     dice: "2d10+6",
                     damage_type: Some(Bludgeoning),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "2d10+6",
+                            damage_type: Some(Slashing),
+                        ),
+                    ],
+                    on_hit: [
+                        (
+                            condition: Some(Grappled),
+                            escape_dc: 16,
+                        ),
+                    ],
                 ),
             ],
             multiattack: 2,
@@ -9763,6 +9922,12 @@
                     dice: "1d10+2",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "1d4",
+                            damage_type: Some(Acid),
+                        ),
+                    ],
                 ),
             ],
             creature_type: "dragon",
@@ -9851,6 +10016,12 @@
                     dice: "1d6+3",
                     damage_type: Some(Bludgeoning),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "4d8",
+                            damage_type: Some(Acid),
+                        ),
+                    ],
                 ),
             ],
             size: Large,
@@ -10095,6 +10266,12 @@
                     dice: "1d10+3",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "1d6",
+                            damage_type: Some(Lightning),
+                        ),
+                    ],
                 ),
             ],
             creature_type: "dragon",
@@ -10259,6 +10436,12 @@
                     dice: "2d8+4",
                     damage_type: Some(Piercing),
                     reach_ft: 10,
+                    extra: [
+                        (
+                            dice: "5d6",
+                            damage_type: Some(Poison),
+                        ),
+                    ],
                 ),
             ],
             multiattack: 3,
@@ -10940,6 +11123,15 @@
                     dice: "2d6+4",
                     damage_type: Some(Slashing),
                     reach_ft: 10,
+                    on_hit: [
+                        (
+                            condition: Some(Grappled),
+                            escape_dc: 14,
+                        ),
+                        (
+                            condition: Some(Restrained),
+                        ),
+                    ],
                 ),
             ],
             multiattack: 2,
@@ -11137,6 +11329,12 @@
                     dice: "2d6+4",
                     damage_type: Some(Bludgeoning),
                     reach_ft: 10,
+                    on_hit: [
+                        (
+                            condition: Some(Grappled),
+                            escape_dc: 14,
+                        ),
+                    ],
                 ),
             ],
             multiattack: 2,
@@ -11337,6 +11535,11 @@
                     dice: "2d6+3",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            condition: Some(Blinded),
+                        ),
+                    ],
                 ),
                 (
                     name: "Tail",
@@ -11542,6 +11745,11 @@
                     dice: "1d4+1",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            condition: Some(Restrained),
+                        ),
+                    ],
                 ),
             ],
             size: Small,
@@ -11669,6 +11877,15 @@
                     dice: "1d8+2",
                     damage_type: Some(Bludgeoning),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            condition: Some(Grappled),
+                            escape_dc: 14,
+                        ),
+                        (
+                            condition: Some(Restrained),
+                        ),
+                    ],
                 ),
             ],
             size: Large,
@@ -11828,6 +12045,13 @@
                     dice: "1d6+5",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            save: Some(Con),
+                            dc: 13,
+                            condition: Some(Poisoned),
+                        ),
+                    ],
                 ),
                 (
                     name: "Constrict",
@@ -11835,6 +12059,15 @@
                     dice: "2d6+3",
                     damage_type: Some(Bludgeoning),
                     reach_ft: 10,
+                    on_hit: [
+                        (
+                            condition: Some(Grappled),
+                            escape_dc: 15,
+                        ),
+                        (
+                            condition: Some(Restrained),
+                        ),
+                    ],
                 ),
             ],
             creature_type: "celestial",
@@ -11998,6 +12231,15 @@
                     dice: "1d10+2",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            condition: Some(Grappled),
+                            escape_dc: 12,
+                        ),
+                        (
+                            condition: Some(Restrained),
+                        ),
+                    ],
                 ),
             ],
             size: Large,
@@ -12371,6 +12613,14 @@
                     damage_type: Some(Piercing),
                     range_ft: 30,
                     long_ft: 120,
+                    on_hit: [
+                        (
+                            save: Some(Con),
+                            dc: 12,
+                            condition: Some(Poisoned),
+                            rounds: 10,
+                        ),
+                    ],
                 ),
             ],
             size: Small,
@@ -12526,6 +12776,12 @@
                     dice: "1d6+4",
                     damage_type: Some(Bludgeoning),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "4d8",
+                            damage_type: Some(Radiant),
+                        ),
+                    ],
                 ),
             ],
             multiattack: 2,
@@ -12624,6 +12880,13 @@
                     dice: "2d6+3",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            save: Some(Str),
+                            dc: 13,
+                            condition: Some(Prone),
+                        ),
+                    ],
                 ),
             ],
             size: Large,
@@ -12704,6 +12967,12 @@
                     dice: "2d6+5",
                     damage_type: Some(Slashing),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "1d6",
+                            damage_type: Some(Lightning),
+                        ),
+                    ],
                 ),
             ],
             multiattack: 3,
@@ -13155,6 +13424,12 @@
                     dice: "1d4",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "2d8",
+                            damage_type: Some(Poison),
+                        ),
+                    ],
                 ),
                 (
                     name: "Longsword",
@@ -13170,6 +13445,12 @@
                     damage_type: Some(Piercing),
                     range_ft: 150,
                     long_ft: 600,
+                    extra: [
+                        (
+                            dice: "1d8",
+                            damage_type: Some(Poison),
+                        ),
+                    ],
                 ),
             ],
             multiattack: 3,
@@ -13286,6 +13567,14 @@
                     damage_type: Some(Piercing),
                     range_ft: 30,
                     long_ft: 120,
+                    on_hit: [
+                        (
+                            save: Some(Con),
+                            dc: 13,
+                            condition: Some(Poisoned),
+                            rounds: 600,
+                        ),
+                    ],
                 ),
             ],
             creature_type: "humanoid (elf)",
@@ -13884,6 +14173,12 @@
                     dice: "2d6+6",
                     damage_type: Some(Slashing),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "2d6",
+                            damage_type: Some(Fire),
+                        ),
+                    ],
                 ),
                 (
                     name: "Hurl Flame",
@@ -14149,6 +14444,12 @@
                     dice: "1d8+4",
                     damage_type: Some(Slashing),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "3d8",
+                            damage_type: Some(Poison),
+                        ),
+                    ],
                 ),
                 (
                     name: "Longbow",
@@ -14157,6 +14458,19 @@
                     damage_type: Some(Piercing),
                     range_ft: 150,
                     long_ft: 600,
+                    extra: [
+                        (
+                            dice: "3d8",
+                            damage_type: Some(Poison),
+                        ),
+                    ],
+                    on_hit: [
+                        (
+                            save: Some(Con),
+                            dc: 14,
+                            condition: Some(Poisoned),
+                        ),
+                    ],
                 ),
             ],
             multiattack: 3,
@@ -14250,6 +14564,20 @@
                     dice: "1d8+2",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "1d8",
+                            damage_type: Some(Poison),
+                        ),
+                    ],
+                    on_hit: [
+                        (
+                            save: Some(Con),
+                            dc: 11,
+                            condition: Some(Poisoned),
+                            rounds: 10,
+                        ),
+                    ],
                 ),
                 (
                     name: "Claws",
@@ -14743,6 +15071,12 @@
                     dice: "1",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "3d4",
+                            damage_type: Some(Poison),
+                        ),
+                    ],
                 ),
             ],
             size: Tiny,
@@ -15251,6 +15585,14 @@
                     dice: "2d6+3",
                     damage_type: Some(Slashing),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            save: Some(Con),
+                            dc: 10,
+                            condition: Some(Paralyzed),
+                            rounds: 10,
+                        ),
+                    ],
                 ),
             ],
             creature_type: "undead",
@@ -15341,6 +15683,14 @@
                     dice: "2d4+2",
                     damage_type: Some(Slashing),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            save: Some(Con),
+                            dc: 10,
+                            condition: Some(Paralyzed),
+                            rounds: 10,
+                        ),
+                    ],
                 ),
             ],
             creature_type: "undead",
@@ -15727,6 +16077,12 @@
                     dice: "1d4+2",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            condition: Some(Paralyzed),
+                            rounds: 600,
+                        ),
+                    ],
                 ),
             ],
             size: Small,
@@ -15801,6 +16157,15 @@
                     dice: "2d8+4",
                     damage_type: Some(Bludgeoning),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            condition: Some(Grappled),
+                            escape_dc: 16,
+                        ),
+                        (
+                            condition: Some(Restrained),
+                        ),
+                    ],
                 ),
             ],
             size: Huge,
@@ -15872,6 +16237,12 @@
                     dice: "1d6+1",
                     damage_type: Some(Bludgeoning),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            condition: Some(Grappled),
+                            escape_dc: 11,
+                        ),
+                    ],
                 ),
             ],
             creature_type: "beast",
@@ -15943,6 +16314,15 @@
                     dice: "3d10+5",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            condition: Some(Grappled),
+                            escape_dc: 16,
+                        ),
+                        (
+                            condition: Some(Restrained),
+                        ),
+                    ],
                 ),
                 (
                     name: "Tail",
@@ -15950,6 +16330,13 @@
                     dice: "2d8+5",
                     damage_type: Some(Bludgeoning),
                     reach_ft: 10,
+                    on_hit: [
+                        (
+                            save: Some(Str),
+                            dc: 16,
+                            condition: Some(Prone),
+                        ),
+                    ],
                 ),
             ],
             multiattack: 2,
@@ -16271,6 +16658,15 @@
                     dice: "1d6+1",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            condition: Some(Grappled),
+                            escape_dc: 11,
+                        ),
+                        (
+                            condition: Some(Restrained),
+                        ),
+                    ],
                 ),
             ],
             creature_type: "beast",
@@ -16559,6 +16955,15 @@
                     dice: "2d6+3",
                     damage_type: Some(Bludgeoning),
                     reach_ft: 15,
+                    on_hit: [
+                        (
+                            condition: Some(Grappled),
+                            escape_dc: 16,
+                        ),
+                        (
+                            condition: Some(Restrained),
+                        ),
+                    ],
                 ),
             ],
             size: Large,
@@ -16723,6 +17128,15 @@
                     dice: "1d4+4",
                     damage_type: Some(Piercing),
                     reach_ft: 10,
+                    on_hit: [
+                        (
+                            save: Some(Con),
+                            dc: 11,
+                            dice: "3d6",
+                            damage_type: Some(Poison),
+                            half: true,
+                        ),
+                    ],
                 ),
             ],
             creature_type: "beast",
@@ -16931,6 +17345,12 @@
                     dice: "1d8+2",
                     damage_type: Some(Bludgeoning),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            condition: Some(Grappled),
+                            escape_dc: 12,
+                        ),
+                    ],
                 ),
                 (
                     name: "Sting",
@@ -16938,6 +17358,15 @@
                     dice: "1d10+2",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            save: Some(Con),
+                            dc: 12,
+                            dice: "4d10",
+                            damage_type: Some(Poison),
+                            half: true,
+                        ),
+                    ],
                 ),
             ],
             multiattack: 3,
@@ -17165,6 +17594,19 @@
                     dice: "1d8+3",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            save: Some(Con),
+                            dc: 11,
+                            dice: "2d8",
+                            damage_type: Some(Poison),
+                            half: true,
+                        ),
+                        (
+                            condition: Some(Paralyzed),
+                            rounds: 600,
+                        ),
+                    ],
                 ),
             ],
             size: Large,
@@ -17250,6 +17692,21 @@
                     dice: "1d10+2",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "1d10",
+                            damage_type: Some(Poison),
+                        ),
+                    ],
+                    on_hit: [
+                        (
+                            condition: Some(Grappled),
+                            escape_dc: 13,
+                        ),
+                        (
+                            condition: Some(Restrained),
+                        ),
+                    ],
                 ),
             ],
             size: Large,
@@ -17424,6 +17881,19 @@
                     dice: "1d6+2",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            save: Some(Con),
+                            dc: 11,
+                            dice: "3d6",
+                            damage_type: Some(Poison),
+                            half: true,
+                        ),
+                        (
+                            condition: Some(Paralyzed),
+                            rounds: 600,
+                        ),
+                    ],
                 ),
             ],
             creature_type: "beast",
@@ -17559,6 +18029,19 @@
                     dice: "1d6+1",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            save: Some(Con),
+                            dc: 11,
+                            dice: "2d6",
+                            damage_type: Some(Poison),
+                            half: true,
+                        ),
+                        (
+                            condition: Some(Paralyzed),
+                            rounds: 600,
+                        ),
+                    ],
                 ),
             ],
             creature_type: "beast",
@@ -17640,6 +18123,13 @@
                     dice: "5d6",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            save: Some(Str),
+                            dc: 10,
+                            condition: Some(Prone),
+                        ),
+                    ],
                 ),
             ],
             multiattack: 2,
@@ -17742,6 +18232,12 @@
                     dice: "2d10+5",
                     damage_type: Some(Bludgeoning),
                     reach_ft: 10,
+                    on_hit: [
+                        (
+                            condition: Some(Grappled),
+                            escape_dc: 15,
+                        ),
+                    ],
                 ),
                 (
                     name: "Fist",
@@ -17841,6 +18337,13 @@
                     dice: "2d4+4",
                     damage_type: Some(Bludgeoning),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            save: Some(Str),
+                            dc: 15,
+                            condition: Some(Prone),
+                        ),
+                    ],
                 ),
             ],
             multiattack: 3,
@@ -18277,6 +18780,12 @@
                     dice: "1d6+1",
                     damage_type: Some(Bludgeoning),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "2d6",
+                            damage_type: Some(Acid),
+                        ),
+                    ],
                 ),
             ],
             creature_type: "ooze",
@@ -18368,6 +18877,12 @@
                     dice: "1d10+2",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "1d6",
+                            damage_type: Some(Poison),
+                        ),
+                    ],
                 ),
             ],
             creature_type: "dragon",
@@ -18718,6 +19233,12 @@
                     dice: "1d4+3",
                     damage_type: Some(Bludgeoning),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "1d4",
+                            damage_type: Some(Piercing),
+                        ),
+                    ],
                 ),
             ],
             creature_type: "humanoid (grimlock)",
@@ -18807,6 +19328,15 @@
                     dice: "1d8+4",
                     damage_type: Some(Piercing),
                     reach_ft: 10,
+                    on_hit: [
+                        (
+                            save: Some(Con),
+                            dc: 15,
+                            dice: "10d8",
+                            damage_type: Some(Poison),
+                            half: true,
+                        ),
+                    ],
                 ),
             ],
             size: Large,
@@ -19256,6 +19786,12 @@
                     dice: "1d8+3",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "2d6",
+                            damage_type: Some(Fire),
+                        ),
+                    ],
                 ),
             ],
             creature_type: "fiend",
@@ -19696,6 +20232,14 @@
                     dice: "1",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            save: Some(Con),
+                            dc: 10,
+                            condition: Some(Poisoned),
+                            rounds: 10,
+                        ),
+                    ],
                 ),
             ],
             size: Tiny,
@@ -20138,6 +20682,12 @@
                     dice: "2d6+5",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "3d6",
+                            damage_type: Some(Cold),
+                        ),
+                    ],
                 ),
                 (
                     name: "Claws",
@@ -20145,6 +20695,12 @@
                     dice: "2d4+5",
                     damage_type: Some(Slashing),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "3d6",
+                            damage_type: Some(Cold),
+                        ),
+                    ],
                 ),
                 (
                     name: "Tail",
@@ -20152,6 +20708,12 @@
                     dice: "2d6+5",
                     damage_type: Some(Bludgeoning),
                     reach_ft: 10,
+                    extra: [
+                        (
+                            dice: "3d6",
+                            damage_type: Some(Cold),
+                        ),
+                    ],
                 ),
             ],
             multiattack: 3,
@@ -20259,6 +20821,12 @@
                     dice: "1d4+1",
                     damage_type: Some(Slashing),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "1d4",
+                            damage_type: Some(Cold),
+                        ),
+                    ],
                 ),
             ],
             size: Small,
@@ -20360,6 +20928,15 @@
                     dice: "1d4+3",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            save: Some(Con),
+                            dc: 11,
+                            dice: "3d6",
+                            damage_type: Some(Poison),
+                            half: true,
+                        ),
+                    ],
                 ),
             ],
             size: Tiny,
@@ -21009,6 +21586,11 @@
                     dice: "3d8+10",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            condition: Some(Blinded),
+                        ),
+                    ],
                 ),
                 (
                     name: "Tentacle",
@@ -21016,6 +21598,15 @@
                     dice: "3d6+10",
                     damage_type: Some(Bludgeoning),
                     reach_ft: 30,
+                    on_hit: [
+                        (
+                            condition: Some(Grappled),
+                            escape_dc: 18,
+                        ),
+                        (
+                            condition: Some(Restrained),
+                        ),
+                    ],
                 ),
             ],
             multiattack: 3,
@@ -21331,6 +21922,14 @@
                     dice: "3d6",
                     damage_type: Some(Cold),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            save: Some(Con),
+                            dc: 18,
+                            condition: Some(Paralyzed),
+                            rounds: 10,
+                        ),
+                    ],
                 ),
             ],
             creature_type: "undead",
@@ -21784,6 +22383,12 @@
                     dice: "1d4+1",
                     damage_type: Some(Slashing),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "1d4",
+                            damage_type: Some(Fire),
+                        ),
+                    ],
                 ),
             ],
             size: Small,
@@ -22151,6 +22756,15 @@
                     dice: "2d10+4",
                     damage_type: Some(Bludgeoning),
                     reach_ft: 10,
+                    on_hit: [
+                        (
+                            condition: Some(Grappled),
+                            escape_dc: 19,
+                        ),
+                        (
+                            condition: Some(Restrained),
+                        ),
+                    ],
                 ),
             ],
             multiattack: 6,
@@ -22250,6 +22864,13 @@
                     dice: "1d6+1",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            save: Some(Str),
+                            dc: 11,
+                            condition: Some(Prone),
+                        ),
+                    ],
                 ),
             ],
             creature_type: "beast",
@@ -22320,6 +22941,12 @@
                     dice: "1d4+2",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "4d6",
+                            damage_type: Some(Poison),
+                        ),
+                    ],
                 ),
                 (
                     name: "Shortsword",
@@ -22335,6 +22962,12 @@
                     damage_type: Some(Piercing),
                     range_ft: 150,
                     long_ft: 600,
+                    extra: [
+                        (
+                            dice: "2d6",
+                            damage_type: Some(Poison),
+                        ),
+                    ],
                 ),
             ],
             multiattack: 3,
@@ -22600,6 +23233,12 @@
                     dice: "1d8+3",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "1d8",
+                            damage_type: Some(Acid),
+                        ),
+                    ],
                 ),
             ],
             creature_type: "monstrosity (shapechanger)",
@@ -22954,6 +23593,12 @@
                     dice: "2d6+3",
                     damage_type: Some(Bludgeoning),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "3d6",
+                            damage_type: Some(Necrotic),
+                        ),
+                    ],
                 ),
             ],
             multiattack: 2,
@@ -23047,6 +23692,12 @@
                     dice: "3d6+4",
                     damage_type: Some(Bludgeoning),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "6d6",
+                            damage_type: Some(Necrotic),
+                        ),
+                    ],
                 ),
             ],
             multiattack: 2,
@@ -23380,6 +24031,12 @@
                     dice: "2d8+4",
                     damage_type: Some(Bludgeoning),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "2d6",
+                            damage_type: Some(Fire),
+                        ),
+                    ],
                 ),
             ],
             size: Large,
@@ -23475,6 +24132,12 @@
                     dice: "2d6+2",
                     damage_type: Some(Bludgeoning),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "1d6",
+                            damage_type: Some(Acid),
+                        ),
+                    ],
                 ),
             ],
             size: Large,
@@ -23558,6 +24221,12 @@
                     dice: "1",
                     damage_type: Some(Bludgeoning),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            condition: Some(Grappled),
+                            escape_dc: 10,
+                        ),
+                    ],
                 ),
             ],
             size: Small,
@@ -23914,6 +24583,18 @@
                     dice: "1d8+3",
                     damage_type: Some(Bludgeoning),
                     reach_ft: 10,
+                    extra: [
+                        (
+                            dice: "1d8",
+                            damage_type: Some(Piercing),
+                        ),
+                    ],
+                    on_hit: [
+                        (
+                            condition: Some(Grappled),
+                            escape_dc: 13,
+                        ),
+                    ],
                 ),
             ],
             multiattack: 3,
@@ -24322,6 +25003,19 @@
                     dice: "1d10+2",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            save: Some(Con),
+                            dc: 11,
+                            dice: "4d8",
+                            damage_type: Some(Poison),
+                            half: true,
+                        ),
+                        (
+                            condition: Some(Paralyzed),
+                            rounds: 600,
+                        ),
+                    ],
                 ),
             ],
             size: Large,
@@ -24558,6 +25252,12 @@
                     dice: "4d6+7",
                     damage_type: Some(Slashing),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "5d8",
+                            damage_type: Some(Radiant),
+                        ),
+                    ],
                 ),
             ],
             multiattack: 2,
@@ -24727,6 +25427,15 @@
                     dice: "1",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            save: Some(Con),
+                            dc: 10,
+                            dice: "2d4",
+                            damage_type: Some(Poison),
+                            half: true,
+                        ),
+                    ],
                 ),
             ],
             size: Tiny,
@@ -25040,6 +25749,13 @@
                     dice: "3d8+9",
                     damage_type: Some(Piercing),
                     reach_ft: 10,
+                    on_hit: [
+                        (
+                            save: Some(Con),
+                            dc: 21,
+                            condition: Some(Blinded),
+                        ),
+                    ],
                 ),
                 (
                     name: "Tail Stinger",
@@ -25047,6 +25763,15 @@
                     dice: "3d6+9",
                     damage_type: Some(Piercing),
                     reach_ft: 10,
+                    on_hit: [
+                        (
+                            save: Some(Con),
+                            dc: 19,
+                            dice: "12d6",
+                            damage_type: Some(Poison),
+                            half: true,
+                        ),
+                    ],
                 ),
             ],
             multiattack: 2,
@@ -25532,6 +26257,12 @@
                     dice: "1d10+4",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "1d6",
+                            damage_type: Some(Fire),
+                        ),
+                    ],
                 ),
             ],
             creature_type: "dragon",
@@ -25681,6 +26412,21 @@
                     dice: "6d10+7",
                     damage_type: Some(Piercing),
                     reach_ft: 10,
+                    extra: [
+                        (
+                            dice: "3d6",
+                            damage_type: Some(Fire),
+                        ),
+                    ],
+                    on_hit: [
+                        (
+                            condition: Some(Grappled),
+                            escape_dc: 17,
+                        ),
+                        (
+                            condition: Some(Restrained),
+                        ),
+                    ],
                 ),
             ],
             size: Huge,
@@ -25898,6 +26644,15 @@
                     dice: "4d6+9",
                     damage_type: Some(Slashing),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            condition: Some(Grappled),
+                            escape_dc: 19,
+                        ),
+                        (
+                            condition: Some(Restrained),
+                        ),
+                    ],
                 ),
             ],
             multiattack: 2,
@@ -26439,6 +27194,12 @@
                     reach_ft: 5,
                     range_ft: 20,
                     long_ft: 60,
+                    extra: [
+                        (
+                            dice: "1d6",
+                            damage_type: Some(Fire),
+                        ),
+                    ],
                 ),
                 (
                     name: "Tail",
@@ -26446,6 +27207,21 @@
                     dice: "2d6+4",
                     damage_type: Some(Bludgeoning),
                     reach_ft: 10,
+                    extra: [
+                        (
+                            dice: "2d6",
+                            damage_type: Some(Fire),
+                        ),
+                    ],
+                    on_hit: [
+                        (
+                            condition: Some(Grappled),
+                            escape_dc: 14,
+                        ),
+                        (
+                            condition: Some(Restrained),
+                        ),
+                    ],
                 ),
             ],
             multiattack: 2,
@@ -26623,6 +27399,15 @@
                     dice: "1",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            save: Some(Con),
+                            dc: 9,
+                            dice: "1d8",
+                            damage_type: Some(Poison),
+                            half: true,
+                        ),
+                    ],
                 ),
             ],
             size: Tiny,
@@ -27350,6 +28135,12 @@
                     dice: "4d6+8",
                     damage_type: Some(Slashing),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "6d8",
+                            damage_type: Some(Radiant),
+                        ),
+                    ],
                 ),
                 (
                     name: "Slaying Longbow",
@@ -27358,6 +28149,12 @@
                     damage_type: Some(Piercing),
                     range_ft: 150,
                     long_ft: 600,
+                    extra: [
+                        (
+                            dice: "6d8",
+                            damage_type: Some(Radiant),
+                        ),
+                    ],
                 ),
             ],
             multiattack: 2,
@@ -27669,6 +28466,15 @@
                     dice: "1d6+4",
                     damage_type: Some(Piercing),
                     reach_ft: 10,
+                    on_hit: [
+                        (
+                            save: Some(Con),
+                            dc: 13,
+                            dice: "7d8",
+                            damage_type: Some(Poison),
+                            half: true,
+                        ),
+                    ],
                 ),
             ],
             size: Large,
@@ -27930,6 +28736,12 @@
                     dice: "1d4",
                     damage_type: Some(Slashing),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "1d4",
+                            damage_type: Some(Fire),
+                        ),
+                    ],
                 ),
             ],
             size: Small,
@@ -28089,6 +28901,13 @@
                     damage_type: Some(Bludgeoning),
                     range_ft: 60,
                     long_ft: 240,
+                    on_hit: [
+                        (
+                            save: Some(Str),
+                            dc: 17,
+                            condition: Some(Prone),
+                        ),
+                    ],
                 ),
             ],
             multiattack: 2,
@@ -28841,6 +29660,15 @@
                     bonus: 6,
                     dice: "2d6",
                     damage_type: Some(Piercing),
+                    on_hit: [
+                        (
+                            save: Some(Con),
+                            dc: 10,
+                            dice: "4d6",
+                            damage_type: Some(Poison),
+                            half: true,
+                        ),
+                    ],
                 ),
             ],
             creature_type: "swarm of Tiny beasts",
@@ -29362,6 +30190,15 @@
                     dice: "4d12+10",
                     damage_type: Some(Piercing),
                     reach_ft: 10,
+                    on_hit: [
+                        (
+                            condition: Some(Grappled),
+                            escape_dc: 20,
+                        ),
+                        (
+                            condition: Some(Restrained),
+                        ),
+                    ],
                 ),
                 (
                     name: "Claw",
@@ -29383,6 +30220,13 @@
                     dice: "4d6+10",
                     damage_type: Some(Bludgeoning),
                     reach_ft: 20,
+                    on_hit: [
+                        (
+                            save: Some(Str),
+                            dc: 20,
+                            condition: Some(Prone),
+                        ),
+                    ],
                 ),
             ],
             multiattack: 5,
@@ -29925,6 +30769,15 @@
                     dice: "4d12+7",
                     damage_type: Some(Piercing),
                     reach_ft: 10,
+                    on_hit: [
+                        (
+                            condition: Some(Grappled),
+                            escape_dc: 17,
+                        ),
+                        (
+                            condition: Some(Restrained),
+                        ),
+                    ],
                 ),
                 (
                     name: "Tail",
@@ -30154,6 +31007,12 @@
                     dice: "1d6+4",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "3d6",
+                            damage_type: Some(Necrotic),
+                        ),
+                    ],
                 ),
             ],
             multiattack: 2,
@@ -30290,6 +31149,12 @@
                     dice: "1d6+4",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "3d6",
+                            damage_type: Some(Necrotic),
+                        ),
+                    ],
                 ),
             ],
             creature_type: "undead (shapechanger)",
@@ -30516,6 +31381,12 @@
                     dice: "1d6+3",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "2d6",
+                            damage_type: Some(Necrotic),
+                        ),
+                    ],
                 ),
                 (
                     name: "Claws",
@@ -32640,6 +33511,12 @@
                     dice: "1d10+2",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    extra: [
+                        (
+                            dice: "1d4",
+                            damage_type: Some(Cold),
+                        ),
+                    ],
                 ),
             ],
             creature_type: "dragon",
@@ -32938,6 +33815,13 @@
                     dice: "2d6+4",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            save: Some(Str),
+                            dc: 14,
+                            condition: Some(Prone),
+                        ),
+                    ],
                 ),
             ],
             size: Large,
@@ -33022,6 +33906,13 @@
                     dice: "2d6+3",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            save: Some(Str),
+                            dc: 13,
+                            condition: Some(Prone),
+                        ),
+                    ],
                 ),
             ],
             size: Large,
@@ -33205,6 +34096,15 @@
                     dice: "2d6+4",
                     damage_type: Some(Piercing),
                     reach_ft: 10,
+                    on_hit: [
+                        (
+                            save: Some(Con),
+                            dc: 15,
+                            dice: "7d6",
+                            damage_type: Some(Poison),
+                            half: true,
+                        ),
+                    ],
                 ),
             ],
             multiattack: 2,
@@ -33398,6 +34298,12 @@
                     dice: "2d10+4",
                     damage_type: Some(Piercing),
                     reach_ft: 10,
+                    extra: [
+                        (
+                            dice: "1d8",
+                            damage_type: Some(Acid),
+                        ),
+                    ],
                 ),
                 (
                     name: "Claw",
@@ -33502,6 +34408,12 @@
                     dice: "2d10+5",
                     damage_type: Some(Piercing),
                     reach_ft: 10,
+                    extra: [
+                        (
+                            dice: "1d10",
+                            damage_type: Some(Lightning),
+                        ),
+                    ],
                 ),
                 (
                     name: "Claw",
@@ -34016,6 +34928,12 @@
                     dice: "2d10+4",
                     damage_type: Some(Piercing),
                     reach_ft: 10,
+                    extra: [
+                        (
+                            dice: "2d6",
+                            damage_type: Some(Poison),
+                        ),
+                    ],
                 ),
                 (
                     name: "Claw",
@@ -34120,6 +35038,12 @@
                     dice: "2d10+6",
                     damage_type: Some(Piercing),
                     reach_ft: 10,
+                    extra: [
+                        (
+                            dice: "1d6",
+                            damage_type: Some(Fire),
+                        ),
+                    ],
                 ),
                 (
                     name: "Claw",
@@ -34319,6 +35243,12 @@
                     dice: "2d10+4",
                     damage_type: Some(Piercing),
                     reach_ft: 10,
+                    extra: [
+                        (
+                            dice: "1d8",
+                            damage_type: Some(Cold),
+                        ),
+                    ],
                 ),
                 (
                     name: "Claw",

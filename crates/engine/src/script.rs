@@ -669,6 +669,7 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     engine.register_fn("is_consumable", with!(ctx, |c, item: &str| c.consumables.contains(item)));
     // Magic items (immediate).
     engine.register_fn("attuned", with!(ctx, |c, item: &str| c.world.attuned.iter().any(|a| a == item)));
+    engine.register_fn("knocked_out", with!(ctx, |c, name: &str| c.world.was_knocked_out(name)));
     engine.register_fn("attune", with!(ctx, |c, item: &str| {
         let w = &mut c.world;
         let ok = w.item_count(item) > 0 && !w.attuned.iter().any(|a| a == item) && w.attuned.len() < crate::srd::magic_items::MAX_ATTUNED;

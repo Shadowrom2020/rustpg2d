@@ -32,7 +32,7 @@ impl Game {
     pub(super) fn apply_faction(&self, e: &mut super::RtEntity) {
         let (index, hostile) = self.faction_effect(e);
         e.faction = index;
-        if e.companion.is_none() {
+        if e.companion.is_none() && !e.knocked_out {
             e.hostile = hostile;
         }
     }
@@ -62,7 +62,7 @@ impl Game {
         let (index, hostile) = self.faction_effect(&self.loaded.entities[i]);
         let e = &mut self.loaded.entities[i];
         e.faction = index;
-        if e.companion.is_none() {
+        if e.companion.is_none() && !e.knocked_out {
             // Calmed down: it stops hunting the player.
             if e.hostile && !hostile && matches!(e.ai.target, Some(super::ai::Foe::Player) | Some(super::ai::Foe::Companion(_))) {
                 e.ai = Default::default();
@@ -90,7 +90,7 @@ impl Game {
     pub(super) fn refresh_hostility(&mut self) {
         for i in 0..self.loaded.entities.len() {
             let e = &self.loaded.entities[i];
-            if e.kind != crate::entity::EntityKind::Character || e.companion.is_some() {
+            if e.kind != crate::entity::EntityKind::Character || e.companion.is_some() || e.knocked_out {
                 continue;
             }
             let hostile = self.hostile_to_player(&e.def, &self.faction_id(e));

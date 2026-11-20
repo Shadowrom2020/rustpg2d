@@ -343,6 +343,8 @@ pub enum SpellPart {
     /// Calls a script function: `function(caster, x, y, slot)` (caster = "player" or a name; the
     /// target tile; the slot level).
     Script { function: String },
+    /// Stabilizes a creature at 0 hit points (Spare the Dying): no more death saves.
+    Stabilize,
 }
 
 fn yes() -> bool {

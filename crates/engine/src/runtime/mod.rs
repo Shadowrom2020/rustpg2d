@@ -336,6 +336,9 @@ struct RtEntity {
     effects: Vec<crate::srd::ActiveCondition>,
     /// Chasing characters: hunting, returning home, fleeing (not saved).
     ai: ai::Ai,
+    /// Knocked out in a fight: lies unconscious until the hero leaves the map, saved as
+    /// defeated.
+    knocked_out: bool,
 }
 
 struct Loaded {
@@ -917,6 +920,7 @@ impl Game {
             inventory: self.project.db.character(def).filter(|_| kind == EntityKind::Character).map(|d| d.inventory.clone()).unwrap_or_default(),
             effects: Vec::new(),
             ai: ai::Ai::default(),
+            knocked_out: false,
         };
         npc_items::apply_gear(&self.project.db, &mut rt);
         rt
@@ -1695,7 +1699,7 @@ impl Game {
         let st = EntityState {
             // Indoors at a schedule stop is not inactive (the schedule brings it out again);
             // a hidden character stays hidden wherever its schedule is.
-            active: (e.active || e.away) && !e.hidden,
+            active: (e.active || e.away) && !e.hidden && !e.knocked_out,
             frame: e.frame,
             x: e.body.pos.x,
             y: e.body.pos.y,
@@ -2243,6 +2247,11 @@ impl Game {
     }
 
     fn interact_entity(&mut self, i: usize) {
+        if self.loaded.entities[i].knocked_out {
+            let name = self.entity_display_name(self.loaded.entities[i].uid).unwrap_or_default();
+            self.ui.toast(crate::lang::tr_ui("{} is knocked out").replacen("{}", &name, 1));
+            return;
+        }
         if self.is_down(i) {
             let name = self.entity_display_name(self.loaded.entities[i].uid).unwrap_or_default();
             self.ui.toast(format!("{name} is out cold. Heal them to get them back up."));
@@ -2611,7 +2620,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} plugins={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} combat={} death_saves={:?} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={} rolls={} abilities={} prof={} profs={} sheet={} statblocks={:?} encounters={:?} class={} levelup={} rest={} resources={} class_fx={} money={} weapon={} armor={} attuned={} charges={} ammo={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} plugins={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} quick={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} combat={} death_saves={:?} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={} rolls={} abilities={} prof={} profs={} sheet={} statblocks={:?} encounters={:?} class={} levelup={} rest={} resources={} class_fx={} money={} weapon={} armor={} attuned={} charges={} ammo={} knocked_out={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2745,7 +2754,8 @@ impl Game {
             self.armor_status(),
             self.attuned_status(),
             self.charges_status(),
-            self.ammo_status()
+            self.ammo_status(),
+            if self.world.knocked_out.is_empty() { "-".to_string() } else { self.world.knocked_out.iter().map(|k| format!("{}@{}", if k.name.is_empty() { &k.def } else { &k.name }, k.map)).collect::<Vec<_>>().join(",") }
         )
     }
 

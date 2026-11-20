@@ -351,6 +351,31 @@ fn the_item_list_searches_and_filters_by_category() {
 }
 
 #[test]
+fn an_item_gets_uses_and_silvering() {
+    let root = example_copy("uses");
+    let db = Project::load(&root).unwrap().db;
+    let k = db.items.iter().position(|i| i.id == "dagger").expect("the example's dagger");
+    let mut h = harness(&root, Tab::Items, k);
+    step(&mut h);
+    h.get_by_label("Silvered").click();
+    step(&mut h);
+    // Five uses typed.
+    beside(&h, "Uses", |n| n.role() == Role::SpinButton).click();
+    step(&mut h);
+    h.get_by(|n| n.is_focused()).type_text("5");
+    step(&mut h);
+    h.press_key(egui::Key::Enter);
+    step(&mut h);
+    let item = h.state().project.db.items[k].clone();
+    assert!(item.silvered);
+    assert_eq!((item.uses, item.max_charges()), (5, 5));
+    h.state_mut().save_all();
+    let saved = Project::load(&root).unwrap().db.items[k].clone();
+    assert!(saved.silvered && saved.uses == 5);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn an_item_places_furniture() {
     let root = example_copy("furniture");
     let db = Project::load(&root).unwrap().db;

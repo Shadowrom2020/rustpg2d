@@ -4534,4 +4534,23 @@
             bonus: 1,
         )),
     ),
+    (
+        id: "healers-kit",
+        name: "Healer\'s Kit",
+        description: "This kit is a leather pouch containing bandages, salves, and splints. The kit has ten uses. As an action, you can expend one use of the kit to stabilize a creature that has 0 hit points, without needing to make a Wisdom (Medicine) check.",
+        icon: (
+            sheet: "srd_gear",
+            frame: 24,
+        ),
+        consumable: false,
+        on_use: [],
+        weapon: None,
+        armor: None,
+        max_stack: 1,
+        value: 5,
+        srd: "healers-kit",
+        cost_cp: 500,
+        weight: 3.0,
+        uses: 10,
+    ),
 ]

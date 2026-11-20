@@ -17,10 +17,10 @@ pub mod statblock;
 pub use abilities::{Abilities, Ability};
 pub use check::{RollRecord, Spec};
 pub use conditions::{ActiveCondition, Condition, ConditionSpec};
-pub use damage::{DamageType, Defenses};
+pub use damage::{DamageType, Defenses, HitKind};
 pub use dice::{Expr, Mode};
 pub use rules::{ATTRIBUTION, ATTRIBUTION_FILE};
-pub use statblock::{npc_template, npc_templates, FeatureKind, Size, Speeds, StatAttack, StatBlock, StatFeature};
+pub use statblock::{npc_template, npc_templates, DamagePart, FeatureKind, HitRider, Size, Speeds, StatAttack, StatBlock, StatFeature};
 
 /// The rules' conversion version of projects made or converted by this editor
 /// (`ProjectConfig::rules_version`): 1 = the skill tree became SRD proficiencies (0.28); 2 = the

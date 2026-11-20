@@ -411,6 +411,10 @@ impl SrdData {
                     d.light = light;
                     d.armor = Some(Armor::clothing(EquipSlot::Offhand));
                 }
+                // A healer's kit's ten uses (first aid at 0 HP).
+                if index == "healers-kit" {
+                    (d.uses, d.max_stack) = (10, 1);
+                }
                 if index == "backpack" {
                     d.armor = Some(Armor::clothing(EquipSlot::Back));
                     d.bag_slots = 6;
@@ -485,7 +489,7 @@ impl SrdData {
         for new in defs {
             let standing: &[&str] = STANDS_FOR.iter().find(|(i, _)| *i == new.srd).map_or(&[], |(_, ids)| *ids);
             let mut found = false;
-            for old in items.iter_mut().filter(|d| d.id == new.id || standing.contains(&d.id.as_str()) || (!new.srd.is_empty() && d.srd == new.srd && d.magic.is_none())) {
+            for old in items.iter_mut().filter(|d| d.id == new.id || standing.contains(&d.id.as_str()) || (!new.srd.is_empty() && d.srd == new.srd && d.magic.is_none() && !d.silvered)) {
                 found = true;
                 let before = old.clone();
                 merge_item(old, &new);
@@ -517,7 +521,8 @@ impl SrdData {
     /// the SRD's data for those already there: a definition of the monster's id without a block
     /// of the SRD's (a hand-made wolf) takes the whole block, its HP and XP; any character with
     /// an SRD monster's block keeps its numbers (a tougher orc chief) and only gains what it lacks
-    /// (size, type, speeds, senses, features). Returns (added, updated).
+    /// (size, type, speeds, senses, features, its attacks' other damage and riders). Returns
+    /// (added, updated).
     pub fn import_monsters(&self, chars: &mut Vec<CharacterDef>, add: bool) -> (usize, usize) {
         let blocks: BTreeMap<String, rustpg2d_engine::srd::StatBlock> = self.monsters.iter().map(|m| (s(m, "index").to_string(), monster_block(m))).collect();
         let (mut added, mut updated) = (0, 0);
@@ -536,6 +541,13 @@ impl SrdData {
                     if b.attacks.is_empty() {
                         b.attacks = src.attacks.clone();
                         b.multiattack = src.multiattack;
+                    }
+                    // Its attacks keep their numbers and gain the SRD attack's other damage and
+                    // what a hit does (0.32).
+                    for a in &mut b.attacks {
+                        if let Some(x) = src.attacks.iter().find(|x| x.name == a.name) {
+                            (a.extra, a.on_hit) = (x.extra.clone(), x.on_hit.clone());
+                        }
                     }
                 }
                 (None, Some(src)) => {
@@ -894,6 +906,7 @@ fn spell_extras(index: &str) -> Vec<rustpg2d_engine::skills::SpellPart> {
         "dancing-lights" => vec![P::Light { radius: 2.0 }],
         "daylight" => vec![P::Light { radius: 12.0 }],
         "knock" => vec![P::Unlock],
+        "spare-the-dying" => vec![P::Stabilize],
         "false-life" => vec![P::TempHp { by_level: (1..=9).map(|l| (l, format!("1d4+{}", 4 + 5 * (l - 1)))).collect() }],
         "aid" => vec![P::TempHp { by_level: (2..=9).map(|l| (l, format!("{}", 5 * (l - 1)))).collect() }],
         "heroism" => vec![P::TempHp { by_level: vec![(1, "MOD".into())] }],
@@ -1413,6 +1426,17 @@ fn stat_attack(a: &Value) -> Option<rustpg2d_engine::srd::StatAttack> {
         return None;
     }
     let damage_type = d.pointer("/damage_type/index").and_then(Value::as_str).and_then(rustpg2d_engine::srd::DamageType::parse);
+    // More parts of other types ("plus 7 (2d6) fire damage"; a choice's first option).
+    let extra = dmg
+        .iter()
+        .skip(1)
+        .map(|p| p.pointer("/from/options/0").unwrap_or(p))
+        .filter_map(|p| {
+            let dice = s(p, "damage_dice").replace(' ', "");
+            let t = p.pointer("/damage_type/index").and_then(Value::as_str).and_then(rustpg2d_engine::srd::DamageType::parse);
+            (!dice.is_empty()).then_some(rustpg2d_engine::srd::DamagePart { dice, damage_type: t })
+        })
+        .collect();
     let text = desc(a);
     let feet_after = |word: &str| -> Option<&str> { text.split(word).nth(1).map(|t| t.trim_start()) };
     let reach_ft = feet_after("reach ").and_then(|t| t.split(' ').next()).and_then(|n| n.parse().ok()).unwrap_or(0);
@@ -1420,7 +1444,78 @@ fn stat_attack(a: &Value) -> Option<rustpg2d_engine::srd::StatAttack> {
         .and_then(|t| t.split(' ').next())
         .and_then(|r| r.split_once('/').map(|(a, b)| (a.parse().unwrap_or(0), b.parse().unwrap_or(0))))
         .unwrap_or((0, 0));
-    Some(rustpg2d_engine::srd::StatAttack { name: s(a, "name").into(), bonus, dice: dice.replace(' ', ""), damage_type, reach_ft, range_ft, long_ft })
+    let on_hit = hit_riders(&text);
+    Some(rustpg2d_engine::srd::StatAttack { name: s(a, "name").into(), bonus, dice: dice.replace(' ', ""), damage_type, reach_ft, range_ft, long_ft, extra, on_hit })
+}
+
+/// What an attack's text says a hit does besides its damage: "must succeed on a DC 11 Strength
+/// saving throw or be knocked prone", "must make a DC 11 Constitution saving throw, taking 9 (2d8)
+/// poison damage on a failed save, or half as much damage on a successful one", "the target is
+/// grappled (escape DC 13)", "restrained", "poisoned for 1 minute" (rounds: 1 minute = 10).
+pub fn hit_riders(text: &str) -> Vec<rustpg2d_engine::srd::HitRider> {
+    use rustpg2d_engine::srd::{Ability, Condition, DamageType, HitRider};
+    let l = text.to_ascii_lowercase();
+    // Only what follows the hit ("Hit: 7 (2d4 + 2) piercing damage. If the target…").
+    let Some(after) = l.split_once("hit:").map(|(_, r)| r) else { return Vec::new() };
+    let number_after = |s: &str, word: &str| -> Option<i32> { s.split(word).nth(1)?.split(|c: char| !c.is_ascii_digit()).find(|w| !w.is_empty())?.parse().ok() };
+    let conditions = [
+        ("knocked prone", Condition::Prone),
+        ("grappled", Condition::Grappled),
+        ("restrained", Condition::Restrained),
+        ("poisoned", Condition::Poisoned),
+        ("paralyzed", Condition::Paralyzed),
+        ("frightened", Condition::Frightened),
+        ("stunned", Condition::Stunned),
+        ("blinded", Condition::Blinded),
+        ("charmed", Condition::Charmed),
+        ("incapacitated", Condition::Incapacitated),
+    ];
+    let mut out = Vec::new();
+    // Each sentence on its own: a save with its condition or damage, or a condition outright.
+    for sentence in after.split(". ") {
+        let save = sentence.find("saving throw").and_then(|_| {
+            let dc = number_after(sentence, "dc ")?;
+            let ability = ["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"].iter().position(|a| sentence.contains(&format!("{a} saving throw")))?;
+            Some((Ability::ALL[ability], dc))
+        });
+        // (A condition only when the sentence gives it: "or be knocked prone", "is grappled".)
+        let given = |w: &str| sentence.contains(&format!("be {w}")) || sentence.contains(&format!("is {w}")) || sentence.contains(&format!("becomes {w}")) || sentence.contains(&format!("or {w}"));
+        let condition = conditions.iter().find(|(w, _)| given(w) && !sentence.contains(&format!("while {w}")) && !sentence.contains(&format!("isn't {w}"))).map(|c| c.1);
+        // Damage on a failed save: "taking 9 (2d8) poison damage on a failed save".
+        let damage = save.and_then(|_| {
+            let rest = sentence.split("taking ").nth(1)?;
+            let dice: String = rest.split('(').nth(1)?.split(')').next()?.chars().filter(|c| !c.is_whitespace()).collect();
+            let word = rest.split(')').nth(1)?.split_whitespace().next()?;
+            Some((dice, DamageType::parse(word)))
+        });
+        if save.is_none() && condition.is_none() {
+            continue;
+        }
+        if save.is_some() && condition.is_none() && damage.is_none() {
+            continue;
+        }
+        let rounds = if sentence.contains("for 1 minute") {
+            10
+        } else if sentence.contains("for 1 hour") {
+            600
+        } else if sentence.contains("until the end of") {
+            1
+        } else {
+            0
+        };
+        let escape_dc = number_after(sentence, "escape dc").unwrap_or(0);
+        out.push(HitRider {
+            save: save.map(|s| s.0),
+            dc: save.map_or(0, |s| s.1),
+            condition,
+            rounds,
+            dice: damage.as_ref().map_or(String::new(), |d| d.0.clone()),
+            damage_type: damage.and_then(|d| d.1),
+            half: sentence.contains("half as much"),
+            escape_dc,
+        });
+    }
+    out
 }
 
 /// "The captain makes three melee attacks" -> 3.
@@ -1589,6 +1684,10 @@ const PLUS_ONE: [(&str, &str, &str); 6] = [
     ("chain-mail-plus-1", "+1 Chain Mail", "chain-mail"),
     ("shield-plus-1", "+1 Shield", "shield"),
 ];
+
+/// The silvered items the library gets ready-made (the SRD's 100 gp silvering of a weapon or ten
+/// pieces of ammunition): (id, name, the SRD item it is a copy of).
+const SILVERED: [(&str, &str, &str); 2] = [("dagger-silvered", "Silvered Dagger", "dagger"), ("arrow-silvered", "Silvered Arrows", "arrow")];
 
 /// Library items that are an SRD magic item (they keep their id, name, look, triggers and price
 /// and get its rules): (magic item index, library item id).
@@ -1973,6 +2072,19 @@ impl SrdData {
             // (The arrows' +1 counts when they are shot.)
             defs.push(d);
         }
+        // The ready-made silvered items: their SRD item with the silvering's price.
+        for (id, name, base) in SILVERED {
+            let Some(b) = base_of(items, base) else { continue };
+            let ammo = b.max_stack > 1;
+            let mut d = ItemDef { id: id.into(), name: name.into(), ..b };
+            d.description = format!("{} Silvered: it harms creatures that only silver hurts (a werewolf's resistance to nonmagical attacks that aren't silvered).", d.description.trim()).trim().to_string();
+            d.srd = base.into();
+            d.silvered = true;
+            // (100 gp for a weapon or ten pieces of ammunition.)
+            d.cost_cp += if ammo { 1_000 } else { 10_000 };
+            d.value = (d.cost_cp / 100).max(1);
+            defs.push(d);
+        }
         let (mut added, mut updated) = (0, 0);
         for new in defs {
             // A library item standing for it: only the rules (its id, name, look and triggers stay).
@@ -2012,6 +2124,22 @@ impl SrdData {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn hit_riders_come_from_the_attack_text() {
+        use rustpg2d_engine::srd::{Ability, Condition, DamageType};
+        let wolf = hit_riders("Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 7 (2d4 + 2) piercing damage. If the target is a creature, it must succeed on a DC 11 Strength saving throw or be knocked prone.");
+        assert_eq!(wolf.len(), 1);
+        assert_eq!((wolf[0].save, wolf[0].dc, wolf[0].condition), (Some(Ability::Str), 11, Some(Condition::Prone)));
+        let spider = hit_riders("Melee Weapon Attack: +5 to hit, reach 5 ft., one creature. Hit: 7 (1d8 + 3) piercing damage, and the target must make a DC 11 Constitution saving throw, taking 9 (2d8) poison damage on a failed save, or half as much damage on a successful one. If the poison damage reduces the target to 0 hit points, the target is stable but poisoned for 1 hour, even after regaining hit points, and is paralyzed while poisoned in this way.");
+        assert_eq!((spider[0].save, spider[0].dc, spider[0].dice.as_str(), spider[0].damage_type, spider[0].half), (Some(Ability::Con), 11, "2d8", Some(DamageType::Poison), true));
+        assert!(spider[0].condition.is_none(), "the poison is damage: {spider:?}");
+        let grab = hit_riders("Melee Weapon Attack: +6 to hit, reach 5 ft., one target. Hit: 11 (2d6 + 4) bludgeoning damage, and the target is grappled (escape DC 13). Until this grapple ends, the creature is restrained, and the snake can't constrict another target.");
+        assert_eq!((grab[0].save, grab[0].condition, grab[0].escape_dc), (None, Some(Condition::Grappled), 13));
+        let ghoul = hit_riders("Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 7 (2d4 + 2) slashing damage. If the target is a creature other than an elf or undead, it must succeed on a DC 10 Constitution saving throw or be paralyzed for 1 minute. The target can repeat the saving throw at the end of each of its turns, ending the effect on itself on a success.");
+        assert_eq!((ghoul[0].condition, ghoul[0].rounds, ghoul[0].dc), (Some(Condition::Paralyzed), 10, 10));
+        assert!(hit_riders("Melee Weapon Attack: +14 to hit, reach 10 ft., one target. Hit: 19 (2d10 + 8) piercing damage plus 7 (2d6) fire damage.").is_empty());
+    }
 
     fn fixture() -> std::path::PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/srd")
@@ -2258,9 +2386,11 @@ mod tests {
         let spells: Vec<rustpg2d_engine::skills::SpellDef> = ["magic-missile", "cure-wounds"].iter().map(|id| rustpg2d_engine::skills::SpellDef::fresh(id)).collect();
         let (added, updated, story) = data.import_magic_items(&mut items, &spells, true, &[]);
         // 12 entries: the potion of healing (variants), the +1 weapon and the scroll aren't items; the
-        // common potion of healing is the library's potion; six ready-made +1 items.
-        assert_eq!((added, updated, story), (12 - 3 - 1 + 6, 1, 1), "{:?}", items.iter().map(|i| &i.id).collect::<Vec<_>>());
+        // common potion of healing is the library's potion; six ready-made +1 items, two silvered.
+        assert_eq!((added, updated, story), (12 - 3 - 1 + 6 + 2, 1, 1), "{:?}", items.iter().map(|i| &i.id).collect::<Vec<_>>());
         let get = |id: &str| items.iter().find(|i| i.id == id).cloned().unwrap();
+        let silver = get("arrow-silvered");
+        assert!(silver.silvered && silver.magic.is_none() && silver.max_stack > 1, "{silver:?}");
         let ring = get("ring-of-protection");
         let m = ring.magic.as_ref().unwrap();
         assert_eq!((m.rarity, m.attunement, ring.armor.as_ref().map(|a| a.slot)), (Rarity::Rare, true, Some(EquipSlot::Ring)));

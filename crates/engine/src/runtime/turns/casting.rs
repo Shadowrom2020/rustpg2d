@@ -82,6 +82,10 @@ impl Game {
             CastAt::On(w) => w,
             CastAt::Tile(t) => self.who_at(t).ok_or("No one there")?,
         };
+        // Charmed: no harmful spell (an attack or a save) at the charmer.
+        if self.charmed_by(who) == Some(target) && d.parts.iter().any(|p| matches!(p, SpellPart::Attack { .. } | SpellPart::Save { .. })) {
+            return Err("Charmed");
+        }
         let extra = |count: u32, per: u32| (count + per * slot.saturating_sub(d.level.max(1))) as usize;
         let darts = !d.parts.iter().any(|p| matches!(p, SpellPart::Attack { .. } | SpellPart::Save { .. })) && d.parts.iter().any(|p| matches!(p, SpellPart::Damage { .. }));
         let mut targets = vec![target];
@@ -219,6 +223,7 @@ impl Game {
                     crit_on: 20,
                     projectile: d.visual.projectile.clone(),
                     spell: true,
+                    hit: crate::srd::HitKind::Magical,
                     ..Default::default()
                 };
                 landed = self.make_attack(caster, t, &spec);
@@ -253,7 +258,7 @@ impl Game {
                         let line = if save_text.is_empty() { format!("{tname}: {n}") } else { format!("{tname}: {save_text}, {n}") };
                         self.fight_log(line);
                         if n > 0 {
-                            self.combat_damage(t, n, *damage_type, false, Some(caster));
+                            self.combat_damage_magic(t, n, *damage_type, Some(caster));
                         }
                     }
                     SpellPart::Heal { by_level } => {
@@ -276,12 +281,15 @@ impl Game {
                             }
                             continue;
                         }
+                        let tag = self.who_tag(caster);
                         if let Some(l) = self.who_conditions_mut(t) {
                             conditions::apply_from(l, &ConditionSpec::new(*condition, secs), &source);
+                            conditions::set_origin(l, *condition, &tag, 0);
                         }
                         let saved_text = if save_text.is_empty() || damage.is_some() { String::new() } else { format!("{save_text}, ") };
                         self.fight_log(format!("{tname}: {saved_text}{}", crate::lang::tr_ui(condition.name())));
                     }
+                    SpellPart::Stabilize => self.stabilize(t, ""),
                     SpellPart::Buff { buff } => {
                         if (save.is_some() || attack.is_some()) && !landed {
                             continue;

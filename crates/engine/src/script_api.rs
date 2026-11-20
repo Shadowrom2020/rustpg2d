@@ -11,7 +11,7 @@ use crate::script_refs::IdKind;
 
 /// The script API's version: the engine's MAJOR.MINOR. Plugins name the version they need
 /// (`PluginDef::api`); a plugin needing a newer one isn't loaded.
-pub const API_VERSION: &str = "0.31";
+pub const API_VERSION: &str = "0.32";
 
 /// What a function argument expects (drives completion inside string arguments).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -379,6 +379,7 @@ pub const API: &[ApiFn] = api! {
     [since "0.31"] "attune"(item: Item) "Attunes the hero to a magic item they carry at once (a story's attunement: no hour passes, anyone may); false when they don't have it, already are, or have three";
     [since "0.31"] "end_attunement"(item: Item) "Ends the hero's attunement to a magic item; false when they weren't attuned";
     [since "0.31"] "item_charges"(item: Item) "The charges left on the hero's first stack of a magic item (worn first, then the bag); -1 when they don't have it or it has no charges";
+    [since "0.32"] "knocked_out"(name: Text) "Whether a fight knocked out a character of this name (or definition id) instead of killing it: the player chose Knock out at its finishing blow";
     [since "0.31"] "set_item_charges"(item: Item, charges: Num) "Sets the charges left on the hero's first stack of a magic item (at most its charges); false when they don't have it or it has no charges";
     "rush_to"(target: Target, to: Target) "A fighting character (Chase behaviour) runs to where another character (or \"player\") is, following it for 15 s, and fights whoever it sees on the way: a chief calling his men (queued)";
     "bark"(target: Target, text: Line) "A short line in a speech bubble over a character's head (\"player\" too) that doesn't stop play; it stays by its length (queued)";

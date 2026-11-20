@@ -364,6 +364,9 @@ pub struct WorldState {
     /// The magic items the hero is attuned to (item ids, at most three).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub attuned: Vec<String>,
+    /// The characters knocked out in fights instead of killed.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub knocked_out: Vec<KnockedOut>,
     /// The hero's own ability scores while items or buffs raise `abilities` (a Belt of Giant
     /// Strength); None = `abilities` are their own. Change scores through
     /// [`WorldState::base_abilities_mut`].
@@ -617,7 +620,25 @@ impl Sex {
     }
 }
 
+/// A character a fight knocked out instead of killing it (the player's choice).
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct KnockedOut {
+    pub map: String,
+    pub uid: u32,
+    /// Its name (empty = unnamed) and definition id.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub name: String,
+    pub def: String,
+}
+
 impl WorldState {
+    /// Whether a fight knocked out a character of this name or definition id.
+    pub fn was_knocked_out(&self, name: &str) -> bool {
+        let n = name.trim();
+        !n.is_empty() && self.knocked_out.iter().any(|k| k.name.eq_ignore_ascii_case(n) || k.def == n)
+    }
+
     /// In-game hours since the game began (days and the hour of the day).
     pub fn total_hours(&self) -> f64 {
         self.day as f64 * 24.0 + self.hour as f64

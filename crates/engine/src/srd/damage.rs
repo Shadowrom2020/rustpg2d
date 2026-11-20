@@ -81,12 +81,36 @@ impl DamageType {
     }
 }
 
+/// What made a hit: a plain weapon, a silvered one, or magic (a magic weapon or ammunition, a
+/// spell, a monster's magical attack). Resistances "from nonmagical attacks (that aren't
+/// silvered)" don't cover the latter.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum HitKind {
+    #[default]
+    Plain,
+    Silvered,
+    Magical,
+}
+
 /// Whether a list of resistances (or immunities, vulnerabilities) covers a damage type. Entries
 /// are type ids (`fire`) or the SRD's words ("bludgeoning, piercing, and slashing from nonmagical
-/// attacks": every type named counts; magic weapons don't exist yet); `all` covers every type.
+/// attacks": every type named counts); `all` covers every type. A plain hit.
 pub fn covers(list: &[String], t: DamageType) -> bool {
+    covers_hit(list, t, HitKind::Plain)
+}
+
+/// [`covers`] for a hit of a kind: an entry about nonmagical attacks doesn't cover a magical hit,
+/// one about attacks "that aren't silvered" not a silvered one either ("that aren't adamantine"
+/// stays: adamantine weapons aren't SRD items).
+pub fn covers_hit(list: &[String], t: DamageType, hit: HitKind) -> bool {
     list.iter().any(|r| {
         let r = r.to_ascii_lowercase();
+        if hit == HitKind::Magical && r.contains("nonmagical") {
+            return false;
+        }
+        if hit == HitKind::Silvered && r.contains("silvered") {
+            return false;
+        }
         r == "all" || r.split(|c: char| !c.is_ascii_alphabetic()).any(|w| w == t.id())
     })
 }
@@ -104,14 +128,19 @@ impl Defenses {
     /// resistance = half (rounded down), vulnerability = double; resistance and vulnerability
     /// together cancel out.
     pub fn apply(&self, amount: i32, t: Option<DamageType>) -> i32 {
+        self.apply_hit(amount, t, HitKind::Plain)
+    }
+
+    /// [`Self::apply`] for a hit of a kind (a magic weapon gets through "nonmagical" resistances).
+    pub fn apply_hit(&self, amount: i32, t: Option<DamageType>, hit: HitKind) -> i32 {
         let Some(t) = t else { return amount };
         if amount <= 0 {
             return amount;
         }
-        if covers(&self.immunities, t) {
+        if covers_hit(&self.immunities, t, hit) {
             return 0;
         }
-        match (covers(&self.resistances, t), covers(&self.vulnerabilities, t)) {
+        match (covers_hit(&self.resistances, t, hit), covers_hit(&self.vulnerabilities, t, hit)) {
             (true, false) => amount / 2,
             (false, true) => amount * 2,
             _ => amount,
@@ -149,6 +178,16 @@ mod tests {
         assert_eq!(d.apply(7, Some(DamageType::Fire)), 14, "vulnerable");
         assert_eq!(d.apply(7, Some(DamageType::Poison)), 7, "both cancel out");
         assert_eq!(d.apply(7, Some(DamageType::Cold)), 7);
+        // A magic weapon gets through resistance to nonmagical attacks, a silvered one through
+        // "that aren't silvered"; adamantine stays covered.
+        assert_eq!(d.apply_hit(8, Some(DamageType::Slashing), HitKind::Magical), 8);
+        assert_eq!(d.apply_hit(8, Some(DamageType::Slashing), HitKind::Silvered), 4, "silvering doesn't count here");
+        let were = Defenses { resistances: vec!["bludgeoning, piercing, and slashing from nonmagical attacks that aren't silvered".into()], ..Default::default() };
+        assert_eq!(were.apply_hit(8, Some(DamageType::Piercing), HitKind::Silvered), 8);
+        assert_eq!(were.apply_hit(8, Some(DamageType::Piercing), HitKind::Plain), 4);
+        let golem = Defenses { immunities: vec!["bludgeoning, piercing, and slashing from nonmagical attacks that aren't adamantine".into()], ..Default::default() };
+        assert_eq!(golem.apply_hit(8, Some(DamageType::Piercing), HitKind::Silvered), 0);
+        assert_eq!(golem.apply_hit(8, Some(DamageType::Piercing), HitKind::Magical), 8);
         assert_eq!(d.apply(7, None), 7, "untyped");
         assert_eq!(d.effect(Some(DamageType::Slashing)), Some("resisted"));
         assert!(covers(&["all".into()], DamageType::Thunder));

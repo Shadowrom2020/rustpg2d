@@ -391,6 +391,7 @@ definition. These functions let a story attune the hero or play with an item's c
 |---|---|
 | `attuned(item)` | Whether the hero is attuned to the magic item. *(since 0.31)* |
 | `attune(item)` | Attunes the hero to a magic item they carry at once: a story's attunement, with no hour passing and no class asked. `false` when they don't have it, already are attuned, or have three items. *(since 0.31)* |
+| `knocked_out(name)` | Whether a fight knocked out a character of this name (or definition id) instead of killing it: the player chose *Knock out* at its finishing blow. A bandit to bring in alive: `if knocked_out("Bandit Chief") { … }`. *(since 0.32)* |
 | `end_attunement(item)` | Ends the hero's attunement to a magic item; `false` when they weren't attuned. *(since 0.31)* |
 | `item_charges(item)` | The charges left on the hero's first stack of a magic item (worn first, then the bag); `-1` when they don't have it or it has no charges. *(since 0.31)* |
 | `set_item_charges(item, charges)` | Sets the charges left on the hero's first stack of a magic item (at most its charges); `false` when they don't have it or it has no charges. *(since 0.31)* |
@@ -1296,7 +1297,7 @@ fn fountain() {
 
 ## API versions
 
-The script API has a version, R(ust)PG2D's MAJOR.MINOR (`0.31`); `api_version()` returns it.
+The script API has a version, R(ust)PG2D's MAJOR.MINOR (`0.32`); `api_version()` returns it.
 Functions added since versions were kept say *since 0.27* (or later) in this reference, so a script
 or a [plugin](18-plugins.md) knows what it may count on; a plugin names the version it needs
 (`api` in its `plugin.ron`) and isn't loaded by an older engine.

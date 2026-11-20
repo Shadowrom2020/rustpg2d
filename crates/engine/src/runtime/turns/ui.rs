@@ -228,7 +228,7 @@ impl Game {
     pub(super) fn bar_layout(&self) -> Vec<Rect> {
         let _font = text::role(Role::Hud);
         let gap = 4.0;
-        let widths: Vec<f32> = TurnAct::BAR.iter().enumerate().map(|(k, a)| measure_text(&Self::bar_text(k, *a), None, BAR_FONT as u16, 1.0).width + 16.0).collect();
+        let widths: Vec<f32> = TurnAct::BAR.iter().enumerate().map(|(k, a)| measure_text(&self.bar_text(k, *a), None, BAR_FONT as u16, 1.0).width + 16.0).collect();
         let total: f32 = widths.iter().sum::<f32>() + gap * (widths.len() as f32 - 1.0);
         // Two rows when the screen is narrow.
         let rows = if total > screen_width() - 32.0 { 2 } else { 1 };
@@ -248,8 +248,10 @@ impl Game {
         out
     }
 
-    fn bar_text(k: usize, a: TurnAct) -> String {
-        let label = crate::lang::tr_ui(a.label());
+    fn bar_text(&self, k: usize, a: TurnAct) -> String {
+        // (Held by a grapple or a restraint with an escape DC: Grapple is Escape.)
+        let escape = a == TurnAct::Grapple && self.fight.as_ref().is_some_and(|c| self.escape_dc(c.current().who).is_some());
+        let label = crate::lang::tr_ui(if escape { "Escape" } else { a.label() });
         match k {
             0..=7 => format!("{} {label}", k + 1),
             _ if a == TurnAct::EndTurn => format!("{label} [{}]", crate::runtime::glyphs::key_text("end_turn").unwrap_or_default()),
@@ -385,7 +387,7 @@ impl Game {
             if picked {
                 skin::cursor(*r, Color::new(1.0, 0.86, 0.45, 1.0));
             }
-            draw_text(Self::bar_text(k, *act), r.x + 8.0, r.y + 19.0, BAR_FONT, if ok || picked { skin::normal() } else { skin::disabled() });
+            draw_text(self.bar_text(k, *act), r.x + 8.0, r.y + 19.0, BAR_FONT, if ok || picked { skin::normal() } else { skin::disabled() });
         }
         let top = rects.first().map_or(screen_height() - 40.0, |r| r.y) - 8.0;
         let t = &c.turn;

@@ -365,6 +365,17 @@ pub struct ActiveCondition {
     /// A spell's boon or bane instead of a condition (Bless, Shield of Faith, Mage Armor).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub buff: Option<Buff>,
+    /// Who gave it in a fight: `player`, or a character's uid (the source of a fear, the charmer,
+    /// the grappler); "" = unknown.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub by: String,
+    /// A grapple's or restraint's escape DC (a monster's bite: "escape DC 13"); 0 = none.
+    #[serde(default, skip_serializing_if = "is_zero_i32")]
+    pub escape: i32,
+}
+
+fn is_zero_i32(n: &i32) -> bool {
+    *n == 0
 }
 
 /// A spell's boon or bane while it lasts (an [`ActiveCondition`] without a condition).
@@ -412,7 +423,7 @@ pub fn buffs(list: &[ActiveCondition]) -> impl Iterator<Item = &Buff> {
 /// same kind is renewed.
 pub fn apply_buff(list: &mut Vec<ActiveCondition>, buff: Buff, seconds: f32, source: &str) {
     list.retain(|a| !(a.source == source && a.buff.as_ref().is_some_and(|b| std::mem::discriminant(b) == std::mem::discriminant(&buff))));
-    list.push(ActiveCondition { condition: None, level: 0, remaining: (seconds > 0.0).then_some(seconds), ongoing: None, next_round: 0.0, source: source.to_string(), buff: Some(buff) });
+    list.push(ActiveCondition { condition: None, level: 0, remaining: (seconds > 0.0).then_some(seconds), ongoing: None, next_round: 0.0, source: source.to_string(), buff: Some(buff), by: String::new(), escape: 0 });
 }
 
 fn is_zero_f32(n: &f32) -> bool {
@@ -431,13 +442,15 @@ struct ActiveRepr {
     next_round: f32,
     source: String,
     buff: Option<Buff>,
+    by: String,
+    escape: i32,
     kind: OldKind,
     strength: f32,
 }
 
 impl Default for ActiveRepr {
     fn default() -> Self {
-        ActiveRepr { condition: None, level: 0, remaining: None, ongoing: None, next_round: 0.0, source: String::new(), buff: None, kind: OldKind::None, strength: 0.0 }
+        ActiveRepr { condition: None, level: 0, remaining: None, ongoing: None, next_round: 0.0, source: String::new(), buff: None, by: String::new(), escape: 0, kind: OldKind::None, strength: 0.0 }
     }
 }
 
@@ -474,11 +487,11 @@ fn seconds_or_none<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<f32>
 impl From<ActiveRepr> for ActiveCondition {
     fn from(r: ActiveRepr) -> Self {
         match r.kind {
-            OldKind::None => ActiveCondition { condition: r.condition, level: r.level, remaining: r.remaining, ongoing: r.ongoing, next_round: r.next_round, source: r.source, buff: r.buff },
+            OldKind::None => ActiveCondition { condition: r.condition, level: r.level, remaining: r.remaining, ongoing: r.ongoing, next_round: r.next_round, source: r.source, buff: r.buff, by: r.by, escape: r.escape },
             k => {
                 // (An old effect's `remaining` was a plain number.)
                 let s = from_old(k, r.strength, r.remaining.unwrap_or(0.0));
-                ActiveCondition { condition: s.condition, level: 0, remaining: Some(s.seconds), ongoing: s.ongoing, next_round: ROUND, source: String::new(), buff: None }
+                ActiveCondition { condition: s.condition, level: 0, remaining: Some(s.seconds), ongoing: s.ongoing, next_round: ROUND, source: String::new(), buff: None, by: String::new(), escape: 0 }
             }
         }
     }
@@ -583,8 +596,26 @@ pub fn apply_from(list: &mut Vec<ActiveCondition>, spec: &ConditionSpec, source:
             next_round: 0.0,
             source: source.to_string(),
             buff: None,
+            by: String::new(),
+            escape: 0,
         }),
     }
+}
+
+/// Marks who gave condition `c` (`player` or a uid) and its escape DC (0 = none) on the active
+/// one (after [`apply`]).
+pub fn set_origin(list: &mut [ActiveCondition], c: Condition, by: &str, escape: i32) {
+    if let Some(a) = list.iter_mut().find(|a| a.condition == Some(c)) {
+        a.by = by.to_string();
+        if escape > 0 {
+            a.escape = escape;
+        }
+    }
+}
+
+/// Who gave condition `c` ("" = unknown or not there).
+pub fn origin_of(list: &[ActiveCondition], c: Condition) -> &str {
+    list.iter().find(|a| a.condition == Some(c)).map_or("", |a| a.by.as_str())
 }
 
 /// Ends the conditions `source` gave (a spell whose concentration ended). Returns how many.
@@ -880,7 +911,7 @@ mod tests {
         let back: ConditionSpec = ron::from_str(&ron::to_string(&s).unwrap()).unwrap();
         assert_eq!(back, s);
         assert_eq!(s.summary(), "Exhaustion +2 + 1d4 acid per round (CON DC 10)");
-        let a = ActiveCondition { condition: Some(Condition::Poisoned), level: 0, remaining: Some(3.0), ongoing: None, next_round: 0.0, source: String::new(), buff: None };
+        let a = ActiveCondition { condition: Some(Condition::Poisoned), level: 0, remaining: Some(3.0), ongoing: None, next_round: 0.0, source: String::new(), buff: None, by: String::new(), escape: 0 };
         let back: ActiveCondition = ron::from_str(&ron::to_string(&a).unwrap()).unwrap();
         assert_eq!(back, a);
     }

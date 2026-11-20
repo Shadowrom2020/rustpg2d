@@ -374,6 +374,29 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   whose currency item has no coin worth keep their old single-item money. Picking a lock needs
   thieves' tools and spells with material components need a focus, once a project has such items.
 
+### Combat rules completed (SRD 5.1, part 1: damage and death)
+- **Knocking out:** when a melee hit of the hero (or a companion the player plays) would drop a
+  foe to 0 HP, a window asks **Kill or knock out?**. A knocked-out foe counts as defeated
+  (experience, loot, *Defeated* triggers) but lies unconscious until the hero leaves the map; the
+  event condition *Was knocked out* and the script function `knocked_out(name)` (API 0.32) remember
+  it.
+- **Massive damage** kills outright (at least the hit point maximum left after dropping to 0, or as
+  much while down).
+- **First aid:** *Help* on an ally at 0 HP next to you stabilizes it: with a healer's kit (ten uses:
+  items have **Uses** now, counted like charges) or a Medicine check (DC 10). *Spare the Dying*
+  stabilizes too (spell part *Stabilize*).
+- **Monster attacks in full:** a stat block attack can do more damage of other types and something
+  on a hit: a save against a condition or more damage, a grapple's escape DC. The SRD import reads
+  them (67 attacks with more damage, 85 effects in 65 attacks; the example's wolves knock prone), and
+  the stat block form edits them. A grappled or restrained hero's *Grapple* becomes **Escape**.
+- **Magic and silvered weapons** get through resistances "from nonmagical attacks (that aren't
+  silvered)": magic weapons and ammunition, spells and monsters with *Magic Weapons*; items can be
+  **Silvered**, and the library has a Silvered Dagger and Silvered Arrows.
+- **Conditions in full:** frightened can't move closer to the source of its fear while it sees it
+  (its disadvantage counts only then), charmed can't attack the charmer or aim a harmful spell at
+  it, an incapacitated caster loses its concentration.
+- Tilda sells healer's kits. Autoplay `waitturn`; `status` prints `knocked_out=`.
+
 ### Fixes
 - Translated runtime texts with a value starting with a letter of several bytes ("Überzeugen")
   weren't translated.

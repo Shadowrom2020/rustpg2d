@@ -668,6 +668,8 @@ impl Game {
         let hp_max = self.player_max_hp();
         let level = w.player_level();
         let cond = crate::srd::conditions::rules(&w.effects);
+        // (The purse, when the project has coins: money isn't carried in the bag.)
+        let money = if w.coins.is_empty() { None } else { Some(("Money", Self::format_cp(self.money_cp()))) };
         let facts = [
             ("Armor class", self.armor_class().to_string()),
             ("Initiative", abilities::signed(abilities::modifier(w.abilities.score(Ability::Dex)) as i64)),
@@ -677,7 +679,7 @@ impl Game {
             // (Disadvantage: -5, the SRD says.)
             ("Passive Perception", (10 + w.check_bonus("perception", false).unwrap_or(0) - if cond.check_disadvantage { 5 } else { 0 }).to_string()),
         ];
-        for (label, value) in facts {
+        for (label, value) in facts.into_iter().chain(money) {
             draw_text(label, lx, y, 17.0, skin::dim());
             let vw = super::text::measure_text(&value, None, 19, 1.0).width;
             draw_text(&value, mx - 24.0 - vw, y, 19.0, skin::normal());

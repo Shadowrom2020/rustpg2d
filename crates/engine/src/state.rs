@@ -382,6 +382,10 @@ pub struct WorldState {
     /// the definitions; not saved). Money is what these add up to.
     #[serde(skip)]
     pub coins: Vec<(String, u32)>,
+    /// The hero's purse in copper pieces (shown on the character sheet). Coins reaching the bag
+    /// are added to it ([`WorldState::bank_coins`]); until 0.32 the coins were bag items.
+    #[serde(default, skip_serializing_if = "is_zero_u32_ref")]
+    pub money: u32,
     /// The hero's conditions (poisoned, prone, exhaustion…) and ongoing damage or healing; until
     /// 0.27 status effects, which read as their nearest condition.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -720,45 +724,44 @@ impl WorldState {
         }
     }
 
-    /// The hero's money in copper pieces: every coin carried.
+    /// The hero's money in copper pieces: the purse (and coins in the bag not banked yet).
     pub fn money_cp(&self) -> u32 {
-        self.coins.iter().map(|(id, w)| self.item_count(id) * w).sum()
+        self.money + self.coins.iter().map(|(id, w)| self.inventory.count(id) * w).sum::<u32>()
     }
 
-    /// Gives `cp` in the fewest gold, silver and copper pieces; returns what didn't fit (cp).
+    /// Adds `cp` to the purse; returns what was lost (nothing: the purse has no limit).
     pub fn give_cp(&mut self, cp: u32) -> u32 {
-        let worths: Vec<u32> = self.coins.iter().map(|k| k.1).collect();
-        let mut left = 0;
-        for (w, n) in crate::srd::equipment::change(cp, &worths) {
-            let Some(id) = self.coins.iter().find(|k| k.1 == w).map(|k| k.0.clone()) else { continue };
-            left += self.give_item(&id, n) * w;
-        }
-        // (A remainder no coin can pay: nothing of that small a worth exists.)
-        left + cp % worths.iter().copied().filter(|w| *w > 0).min().unwrap_or(1)
+        self.money = self.money.saturating_add(cp);
+        0
     }
 
-    /// Pays `cp` from the coins carried, the smallest first, and takes the change back in the
-    /// fewest coins; false (nothing taken) when short or when the change wouldn't fit.
+    /// Pays `cp` from the purse; false (nothing taken) when it holds less.
     pub fn pay_cp(&mut self, cp: u32) -> bool {
-        if self.money_cp() < cp {
+        self.bank_coins();
+        if self.money < cp {
             return false;
         }
-        let before = (self.inventory.clone(), self.equipment.clone());
-        let mut kinds = self.coins.clone();
-        kinds.sort_by_key(|k| k.1);
-        let mut paid = 0;
-        for (id, w) in kinds {
-            if paid >= cp || w == 0 {
-                continue;
-            }
-            let n = self.item_count(&id).min((cp - paid).div_ceil(w));
-            paid += self.take_item(&id, n) * w;
-        }
-        if self.give_cp(paid - cp) > 0 {
-            (self.inventory, self.equipment) = before;
-            return false;
-        }
+        self.money -= cp;
         true
+    }
+
+    /// What a coin is worth in cp (`None` = not a coin of the project).
+    pub fn coin_worth(&self, item: &str) -> Option<u32> {
+        self.coins.iter().find(|k| k.0 == item).map(|k| k.1).filter(|w| *w > 0)
+    }
+
+    /// Moves every coin in the bag into the purse (coins picked up, given, a chest's dragged
+    /// over, an old save's); returns the cp added.
+    pub fn bank_coins(&mut self) -> u32 {
+        let mut added = 0;
+        for slot in self.inventory.slots.iter_mut() {
+            let Some(s) = slot.as_ref() else { continue };
+            let Some(w) = self.coins.iter().find(|k| k.0 == s.item && k.1 > 0).map(|k| k.1) else { continue };
+            added += s.count * w;
+            *slot = None;
+        }
+        self.money = self.money.saturating_add(added);
+        added
     }
 
     /// The hero's scores, proficiencies and level for a roll.
@@ -972,8 +975,11 @@ impl WorldState {
     pub fn set_var(&mut self, name: &str, v: i64) {
         self.vars.insert(name.to_string(), v);
     }
-    /// Items in the inventory plus equipped ones.
+    /// Items in the inventory plus equipped ones; a coin: how many of it the purse could pay.
     pub fn item_count(&self, item: &str) -> u32 {
+        if let Some(w) = self.coin_worth(item) {
+            return self.money_cp() / w;
+        }
         self.inventory.count(item) + self.equipment.count(item)
     }
     /// The hero's first stack of `item`: worn first, then the bag.
@@ -989,13 +995,24 @@ impl WorldState {
         self.inventory.slots.iter_mut().flatten().find(|s| s.item == item)
     }
 
-    /// Adds items to the player's inventory; returns how many did not fit.
+    /// Adds items to the player's inventory (coins: to the purse); returns how many did not fit.
     pub fn give_item(&mut self, item: &str, count: u32) -> u32 {
+        if let Some(w) = self.coin_worth(item) {
+            self.give_cp(count * w);
+            return 0;
+        }
         self.inventory.add(item, count)
     }
-    /// Removes up to `count` items; returns how many were removed.
+    /// Removes up to `count` items; returns how many were removed (coins: paid from the purse,
+    /// as many as it holds).
     /// Takes from the inventory first, then from equipped items.
     pub fn take_item(&mut self, item: &str, count: u32) -> u32 {
+        if let Some(w) = self.coin_worth(item) {
+            self.bank_coins();
+            let n = count.min(self.money / w);
+            self.money -= n * w;
+            return n;
+        }
         let mut taken = self.inventory.remove(item, count);
         for slot in EquipSlot::ALL {
             if taken == count {
@@ -1167,23 +1184,28 @@ mod tests {
     }
 
     #[test]
-    fn money_pays_from_the_smallest_coins_and_gives_change() {
+    fn money_is_a_purse_coins_go_into() {
         let mut w = WorldState { coins: vec![("pp".into(), 1000), ("coin".into(), 100), ("ep".into(), 50), ("sp".into(), 10), ("cp".into(), 1)], ..Default::default() };
+        // Coins given go into the purse, not the bag.
         w.give_item("coin", 1);
         w.give_item("sp", 12);
         w.give_item("cp", 5);
-        assert_eq!(w.money_cp(), 225);
+        assert_eq!((w.money_cp(), w.money, w.inventory.used_slots()), (225, 225, 0));
         assert!(!w.pay_cp(300), "short: nothing taken");
         assert_eq!(w.money_cp(), 225);
-        // 5 cp + 12 sp + the gold piece pay 2 gp; 2 sp 5 cp come back.
         assert!(w.pay_cp(200));
-        assert_eq!((w.item_count("coin"), w.item_count("sp"), w.item_count("cp")), (0, 2, 5));
-        // A platinum piece breaks into gold, silver and copper (no electrum as change).
-        w.give_item("pp", 1);
-        assert!(w.pay_cp(30));
-        assert_eq!((w.item_count("pp"), w.item_count("coin"), w.item_count("sp"), w.item_count("cp"), w.item_count("ep")), (0, 9, 9, 5, 0));
-        assert_eq!(w.give_cp(1234), 0);
-        assert_eq!((w.money_cp(), w.item_count("coin")), (995 + 1234, 21));
+        assert_eq!(w.money_cp(), 25);
+        // A coin asked for by its id: what the purse could pay, taken from it.
+        w.give_cp(1000);
+        assert_eq!((w.item_count("coin"), w.item_count("sp")), (10, 102));
+        assert_eq!(w.take_item("coin", 3), 3);
+        assert_eq!(w.money_cp(), 725);
+        assert_eq!(w.take_item("pp", 1), 0, "the purse can't pay a platinum piece");
+        // Coins that reached the bag another way (a pile picked up, an old save) are banked.
+        w.inventory.add("sp", 7);
+        w.inventory.add("rope", 1);
+        assert_eq!(w.bank_coins(), 70);
+        assert_eq!((w.money, w.inventory.count("sp"), w.inventory.count("rope")), (795, 0, 1));
     }
 
     #[test]

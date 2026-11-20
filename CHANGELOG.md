@@ -436,6 +436,14 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   feverleaf bushes have both.
 - `status` prints `sight=`; `combat=` marks `[2x2]` and `#squeezed`.
 
+### Money is a purse
+- The hero keeps no coins in the bag: money is a value in copper pieces on the character sheet
+  (*Money* on the Character tab and now the Sheet tab). Coins that reach the hero (picked up from a
+  monster's drop, taken from a chest, a quest's *Give item: coin*, `give_item`) are added to it;
+  shops are paid from it and pay into it. `item_count` / `take_item` / *Has item* with a coin count
+  what the purse could pay and take from it. Coins in the bag of an older save go into the purse when
+  it loads. Monsters, chests and companions still hold coins as items.
+
 ### Fixes
 - Translated runtime texts with a value starting with a letter of several bytes ("Überzeugen")
   weren't translated.

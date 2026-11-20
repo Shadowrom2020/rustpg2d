@@ -584,11 +584,13 @@ Items](05-database.md#items)).
 - **Packs** (Burglar's, Explorer's, Priest's…) unpack when used: their contents go into the bag.
   The classes start with the SRD's starting equipment.
 - **Money** is the SRD's five coins: **copper** (cp), **silver** (sp = 10 cp), **electrum** (ep = 5
-  sp), **gold** (gp = 10 sp) and **platinum** (pp = 10 gp), items with a *Coin worth*. A shop whose
-  currency is a coin counts **every coin** the hero carries: prices read `15 gp`, `1 gp 5 sp`,
-  `4 cp`, paying takes the smallest coins first and gives **change** in the fewest gold, silver
-  and copper pieces (never electrum or platinum), selling pays the same way. The character window
-  shows the purse (*Money*). A shop line's price counts in its currency (a price of 3 with gold as
+  sp), **gold** (gp = 10 sp) and **platinum** (pp = 10 gp), items with a *Coin worth*. The hero
+  keeps no coins in the bag: money is a **purse**, a value in copper pieces shown on the character
+  sheet (*Money* on the Character and the Sheet tab: `12 gp 3 sp`). Coins that reach the hero (a
+  monster's dropped coins picked up, a chest's, a quest's *Give item: coin*) go into it at once;
+  coins in the bag of an older save do so when it loads. A shop whose currency is a coin is paid
+  from the purse and pays into it: prices read `15 gp`, `1 gp 5 sp`, `4 cp`. Monsters, chests and
+  companions still hold coins as items. A shop line's price counts in its currency (a price of 3 with gold as
   the currency: 3 gp); without one an item costs its *Cost* in coins, else its *Value* in the
   currency. Shops of projects of 0.30 and older, whose currency item has no coin worth, count that
   one item as before. Condition: *Has money*; actions: *Give money*, *Take money*; scripts:

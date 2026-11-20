@@ -117,7 +117,7 @@ you see nothing at all: carry a torch. Elves and dwarves see in the dark. A comp
 skill helps with your checks of it. One night's sleep a day refreshes you; a second right after
 doesn't.
 
-A **padlock** over a chest or door means it is locked. Without its key, press E to try to pick it
+Crates, chests and doors can be **smashed**: Attack (X) next to one (a sturdy door shrugs off weak blows). A locked door or chest you can't pick can be **forced** with E (a Strength check). A **padlock** over a chest or door means it is locked. Without its key, press E to try to pick it
 (a Dexterity check with Thieves' Tools): you need **thieves' tools** in your bag. If it holds, give
 it ten minutes before you try again.
 

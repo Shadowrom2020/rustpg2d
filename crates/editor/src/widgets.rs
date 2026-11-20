@@ -2275,6 +2275,14 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
             ui.label("On a failure:");
             ui.indent(format!("{id}/ce"), |ui| actions_ui(ui, &format!("{id}/else"), otherwise, refs));
         }
+        Action::DamageProp { target, amount, damage_type } => {
+            target_field(ui, id, target, refs);
+            labeled(ui, "damage", |ui| {
+                ui.add(egui::DragValue::new(amount).range(0..=500));
+            });
+            damage_type_combo(ui, &format!("{id}/dmgtype"), damage_type, "untyped");
+            ui.weak("(a prop with object statistics: past its threshold; poison and psychic do nothing; at 0 hit points it breaks)");
+        }
         Action::GroupCheck { what, dc, then, otherwise } => {
             ui.horizontal(|ui| {
                 ui.label("group check");

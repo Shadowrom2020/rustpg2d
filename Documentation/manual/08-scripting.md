@@ -889,6 +889,9 @@ tool (`"dex:thieves-tools"`, `"int:smiths-tools"`).
 | `roll(dice)` | Rolls dice such as `"2d6+3"`, `"1d20+DEX"` or `"8d6"` (`STR` to `CHA` = the hero's ability modifier, `PROF` = the proficiency bonus) and returns the total; the roll goes into the roll log. *(immediately, since 0.28)* |
 | `check(what, dc)` | An ability check of the hero against a DC: d20 + the ability modifier, + the proficiency bonus when proficient in the skill or tool; `true` on a success, e.g. `if check("persuasion", 13) { … }`. *(immediately, since 0.28)* |
 | `check(what, dc, mode)` | Like `check`; mode `"advantage"` or `"disadvantage"` rolls two d20s and keeps the higher or the lower. *(immediately, since 0.28)* |
+| `prop_hp(target)` | A prop's hit points as an object (its name or `"self"`); `-1` without object statistics (*Object* in the prop form). *(since 0.32)* |
+| `damage_prop(target, amount)` | Damages a prop with object statistics past its damage threshold; at 0 hit points it breaks (disappears or takes its broken state, its lock gone, its *Defeated* triggers fire). *(since 0.32)* |
+| `damage_prop(target, amount, damage_type)` | Like `damage_prop`, of a damage type (`"fire"`); poison and psychic do nothing to objects. *(since 0.32)* |
 | `search_roll()` | The total of the hero's last search (the action bar's *Search*: a Perception roll), `-1` before the first; the *Search found* condition compares it. *(since 0.32)* |
 | `passive(what)` | The hero's passive check: 10 + the bonus, +5 with advantage, −5 with disadvantage (dim light for Perception, poison…), 0 when looking in darkness; `-1` for an unknown name. The *Passive check* condition compares it. *(immediately, since 0.32)* |
 | `group_check(what, dc)` | A group check: the hero and every companion on the map roll against the DC (into the roll log); `true` when at least half succeed. *(immediately, since 0.32)* |

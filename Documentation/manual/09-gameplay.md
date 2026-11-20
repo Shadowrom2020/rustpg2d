@@ -889,6 +889,25 @@ Facing the spot from the shore (up to three tiles away), the player presses E to
 into the tool slot by itself. Wait until the bobber dips, strike in time, then hold E to reel in,
 letting go before the tension turns red, or the line snaps.
 
+## Objects
+
+Props with object statistics (*Database › Props › Object*, since 0.32: the starter library's doors,
+chests and crates) are the SRD's objects:
+
+- **Breaking**: Attack (X) outside fights swings at the one in front: the hero's melee attack roll
+  against its armor class (both rolls in the journal's *Rolls* page), then the damage; a hit below
+  its damage threshold does nothing, and poison and psychic never hurt objects. At 0 hit points it
+  breaks ("The door breaks."): its lock is gone (a container stays lootable), it disappears or
+  takes its broken state (a door stands open, a crate lies in pieces), and its *Defeated* triggers
+  fire. Damaged ones keep their hit points in save games. In a fight objects can't be attacked.
+- **Forcing**: E on a locked one whose key the hero hasn't got and that they can't pick (no
+  thieves' tools, or no pick DC) tries to force it with Strength (Athletics) against its *Force DC*:
+  "You force it open." opens it as the key would, "It won't budge." waits ten minutes of game time.
+- In the example the stone house's door (wood, 18 hit points, threshold 5, force DC 15) can be
+  broken or forced; breaking in sets the flag `broke_into_stone_house`.
+
+`status` prints `objects=` (`name:hp/max@x,y` for damaged or broken props).
+
 ## Lockpicking
 
 A lock with a **Pick DC** (*Database › Props › Lockable*, or a placed prop's lock) can be picked:

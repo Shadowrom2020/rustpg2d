@@ -106,7 +106,7 @@ impl TriggerOwner {
             (O::Map, T::MapEnter | T::Sleep | T::Hour { .. } | T::CombatStart | T::CombatEnd) => true,
             (O::Zone, T::Enter | T::Leave | T::Interact | T::Search) => true,
             (O::Character, T::Interact | T::UseItem { .. } | T::Defeat | T::HpBelow { .. } | T::CombatStart | T::CombatEnd | T::Search) => true,
-            (O::Prop, T::Interact | T::UseItem { .. } | T::Unlock | T::Lock | T::Sleep | T::Search) => true,
+            (O::Prop, T::Interact | T::UseItem { .. } | T::Unlock | T::Lock | T::Sleep | T::Search | T::Defeat) => true,
             (O::Pickup, T::Interact | T::UseItem { .. }) => true,
             (O::ItemUse, T::UseItem { .. }) => true,
             _ => false,
@@ -999,6 +999,14 @@ pub enum Action {
         #[serde(default)]
         otherwise: Vec<Action>,
     },
+    /// Damages a prop with object statistics (`target`: its name, "self"): `amount` of
+    /// `damage_type` (None = untyped), past its threshold; at 0 hit points it breaks.
+    DamageProp {
+        target: TargetName,
+        amount: i32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        damage_type: Option<crate::srd::DamageType>,
+    },
 }
 
 fn player_target() -> TargetName {
@@ -1212,6 +1220,7 @@ impl Action {
             Action::Nourish { .. } => "Eat / drink",
             Action::GroupCheck { .. } => "Group check",
             Action::Contest { .. } => "Contest",
+            Action::DamageProp { .. } => "Damage prop",
         }
     }
 
@@ -1335,6 +1344,7 @@ impl Action {
             Action::Nourish { food: 1.0, water: 0.0 },
             Action::GroupCheck { what: "stealth".into(), dc: 12, then: Vec::new(), otherwise: Vec::new() },
             Action::Contest { what: "athletics".into(), target: String::new(), against: String::new(), then: Vec::new(), otherwise: Vec::new() },
+            Action::DamageProp { target: "self".into(), amount: 5, damage_type: Some(crate::srd::DamageType::Bludgeoning) },
         ]
     }
 }
@@ -1498,7 +1508,8 @@ mod tests {
         assert!(TriggerOwner::Zone.allows(&TriggerOn::Enter) && !TriggerOwner::Zone.allows(&TriggerOn::MapEnter));
         assert!(!TriggerOwner::Zone.allows(&TriggerOn::UseItem { item: String::new() }));
         assert!(TriggerOwner::Prop.allows(&TriggerOn::Unlock) && !TriggerOwner::Character.allows(&TriggerOn::Unlock));
-        assert!(TriggerOwner::Character.allows(&TriggerOn::Defeat) && !TriggerOwner::Prop.allows(&TriggerOn::Defeat));
+        // (A prop is defeated when it breaks: object statistics.)
+        assert!(TriggerOwner::Character.allows(&TriggerOn::Defeat) && TriggerOwner::Prop.allows(&TriggerOn::Defeat) && !TriggerOwner::Pickup.allows(&TriggerOn::Defeat));
         assert!(!TriggerOwner::ItemUse.allows(&TriggerOn::Custom { name: "x".into() }));
         assert_eq!(TriggerOwner::Map.templates().iter().map(|t| t.label()).collect::<Vec<_>>(), vec!["Map enter", "Custom event", "Woke up", "Time reached", "Fight starts", "Fight ends"]);
         assert!(TriggerOwner::Character.allows(&TriggerOn::CombatStart) && !TriggerOwner::Prop.allows(&TriggerOn::CombatEnd));

@@ -1266,7 +1266,11 @@ added here.
   and not with 14 and 6 (screenshot); leaving the guest room with the key (stuck on the old map, out
   and the key handed back at the stairs on the new one).
 
-- [ ] Objects, traps, poisons, diseases and madness — `feature/srd-hazards`
+- [ ] Objects, traps, poisons, diseases and madness — three parts (the user's decision, 2026-11-20;
+  madness left out: it stays a story tool):
+  1. [x] **Objects** — `feature/srd-objects`.
+  2. [ ] **Traps** (zones and props) — `feature/srd-traps`.
+  3. [ ] **Poisons and diseases** — `feature/srd-poisons`.
 
   **Goal.** The SRD's hazards and the objects of the world by the rules.
 
@@ -1294,6 +1298,28 @@ added here.
   **Verify.** Unit tests of object damage thresholds and disease courses; autoplay: spot and
   disarm a trap (seeded), set one off, coat a weapon and poison a target, catch and cure a disease
   over long rests.
+
+  **Part 1 decided while building.** Objects are broken by the hero's swing outside fights (X,
+  the gathering path; an object next to the hero is in reach of any swing, a fist's too), not in
+  fights; spells and damage areas don't hit them. Forcing comes after the key and picking (E).
+  Decorations (stateless doors placed as decor) aren't entities and can't be broken, so only
+  `room_door`, `front_door`, `chest`, `locked_chest` and `crate` got object statistics (barrels are
+  containers without a broken state: breaking would lose their loot).
+
+  **Part 1 as built.** `srd/objects.rs` (`Material`, `ObjectSize`, `Broken`, `ObjectStats`:
+  `armor_class`, `max_hp`, `damage_taken`); `PropDef.object`; `EntityState.hp` / `RtEntity.obj_hp`;
+  `runtime/objects.rs` (`object_of`, `object_hp`, `strike_object`, `damage_object`, `break_object`,
+  `try_force`, `objects_status`); the swing in `combat.rs`; forcing in `locks.rs try_unlock`; props
+  may have *Defeated*; `Action::DamageProp` (appended), `damage_prop`, `prop_hp`; editor *Object*
+  section and the action's form. Example: the stone house door's *Defeated* trigger sets
+  `broke_into_stone_house`.
+
+  **Part 1 verified.** Unit tests (the tables, thresholds, immunities; saves with `hp`), a UI test
+  (a barrel made breakable). Autoplay on a scratch copy: a mine crate broken with a sword and with
+  bare hands (its broken state, further swings ignored); the stone house door at 7/18 after two
+  punches, broken with a sword (open, the flag set); forcing it (seeds 1, 2, 3, 5, 6, 8, 9 open,
+  4 and 7 fail and wait); the farm's locked chest broken and looted; a damaged door kept at 9/18
+  over a quick save and load.
 
 - [ ] Special abilities of monsters and classes — `feature/srd-special-abilities`
 

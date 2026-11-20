@@ -30,6 +30,15 @@
         )),
         lock: None,
         low: true,
+        object: Some((
+            material: Wood,
+            size: Small,
+            resilient: true,
+            force_dc: 12,
+            broken: ToState(
+                state: "open",
+            ),
+        )),
     ),
     (
         id: "sign",
@@ -1165,6 +1174,14 @@
         container: None,
         lock: None,
         low: true,
+        object: Some((
+            material: Wood,
+            size: Small,
+            resilient: false,
+            broken: ToState(
+                state: "broken",
+            ),
+        )),
     ),
     (
         id: "pot",
@@ -4853,6 +4870,16 @@
         container: None,
         lock: None,
         door: true,
+        object: Some((
+            material: Wood,
+            size: Medium,
+            resilient: true,
+            threshold: 5,
+            force_dc: 15,
+            broken: ToState(
+                state: "open",
+            ),
+        )),
     ),
     (
         id: "front_door",
@@ -4878,6 +4905,16 @@
         container: None,
         lock: None,
         door: true,
+        object: Some((
+            material: Wood,
+            size: Medium,
+            resilient: true,
+            threshold: 5,
+            force_dc: 15,
+            broken: ToState(
+                state: "open",
+            ),
+        )),
     ),
     (
         id: "locked_chest",
@@ -4919,6 +4956,15 @@
             pick_dc: 12,
         )),
         low: true,
+        object: Some((
+            material: Wood,
+            size: Small,
+            resilient: true,
+            force_dc: 12,
+            broken: ToState(
+                state: "open",
+            ),
+        )),
     ),
     (
         id: "rough_rock_wall",

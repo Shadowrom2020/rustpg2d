@@ -140,6 +140,10 @@ impl Game {
             // Picking needs thieves' tools in the bag (the SRD's; a project without them needs none).
             let tools = |d: &crate::defs::ItemDef| d.srd == "thieves-tools";
             if self.project.db.items.iter().any(tools) && !self.world.inventory.slots.iter().flatten().any(|s| self.project.db.item(&s.item).is_some_and(tools)) {
+                // (Without tools it may still be forced open.)
+                if let Some(ok) = self.try_force(i, &lock) {
+                    return ok;
+                }
                 self.ui.toast(crate::lang::tr_ui("You need thieves' tools to pick this lock.").into_owned());
                 return false;
             }
@@ -182,6 +186,11 @@ impl Game {
             None => self.world.item_count(&lock.key) > 0,
         };
         if !has_key {
+            if using.is_none() {
+                if let Some(ok) = self.try_force(i, &lock) {
+                    return ok;
+                }
+            }
             let msg = if lock.locked_text.is_empty() { format!("It's locked. You need the {key_name}.") } else { lock.locked_text.clone() };
             self.ui.toast(msg);
             return false;

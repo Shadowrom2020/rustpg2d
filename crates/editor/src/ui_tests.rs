@@ -605,6 +605,26 @@ fn a_common_event_runs_while_a_flag_is_set() {
     let _ = std::fs::remove_dir_all(&root);
 }
 
+/// Database › Props: a barrel becomes an object (Can be broken), its hit points set, saved.
+#[test]
+fn a_prop_becomes_a_breakable_object() {
+    let root = example_copy("objects");
+    let db = Project::load(&root).unwrap().db;
+    let k = db.props.iter().position(|p| p.id == "barrel").expect("the example's barrel");
+    assert!(db.props[k].object.is_none());
+    let mut h = harness(&root, Tab::Props, k);
+    step(&mut h);
+    h.get_by(|n| n.label().as_deref().is_some_and(|l| l.starts_with("Can be broken")) && n.role() == Role::CheckBox).click();
+    step(&mut h);
+    let o = h.state().project.db.props[k].object.clone().expect("an object now");
+    assert_eq!((o.armor_class(), o.max_hp()), (15, 18), "wood, medium, resilient");
+    h.state_mut().project.db.props[k].object.as_mut().unwrap().force_dc = 12;
+    h.state_mut().save_all();
+    let saved = Project::load(&root).unwrap();
+    assert_eq!(saved.db.props[k].object.as_ref().map(|o| o.force_dc), Some(12));
+    let _ = std::fs::remove_dir_all(&root);
+}
+
 /// Project › Menus › Action bar: the built-in entries to start from, a custom one added, saved.
 #[test]
 fn the_action_bar_gets_a_custom_entry() {

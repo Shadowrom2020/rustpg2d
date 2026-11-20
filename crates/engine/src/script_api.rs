@@ -197,6 +197,9 @@ pub const API: &[ApiFn] = api! {
     [deprecated "is_proficient(skill)"] "skill"(skill: Skill) "1 when the hero is proficient in a skill or tool, else 0 (until 0.27 a skill tree's level). Deprecated: use is_proficient";
     [deprecated "set_proficient(skill, on)"] "set_skill"(skill: Skill, level: Num) "Makes the hero proficient in a skill or tool (level above 0) or not (0). Deprecated: use set_proficient (queued)";
     [since "0.28"] "roll"(dice: Text) "Rolls dice such as \"2d6+3\", \"1d20+DEX\" or \"8d6\" (STR to CHA = the hero's ability modifier, PROF = the proficiency bonus) and returns the total; the roll goes into the roll log (immediately)";
+    [since "0.32"] "prop_hp"(target: Target) "A prop's hit points as an object (its name or \"self\"; -1 without object statistics)";
+    [since "0.32"] "damage_prop"(target: Target, amount: Num) "Damages a prop with object statistics past its threshold; at 0 hit points it breaks (queued)";
+    [since "0.32"] "damage_prop"(target: Target, amount: Num, damage_type: Text) "Like damage_prop(), of a damage type (\"fire\"; poison and psychic do nothing to objects) (queued)";
     [since "0.32"] "search_roll"() "The total of the hero's last search (the action bar's Search: Perception), -1 before the first; *Search found* compares it";
     [since "0.32"] "passive"(what: Skill) "The hero's passive check: 10 + the bonus, +5 with advantage, -5 with disadvantage (dim light for Perception), 0 when looking in darkness; -1 for an unknown name (immediately)";
     [since "0.32"] "group_check"(what: Skill, dc: Num) "A group check: the hero and every companion on the map roll against the DC; true when at least half succeed (immediately)";

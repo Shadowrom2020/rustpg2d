@@ -1502,7 +1502,7 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
             ui.horizontal(|ui| {
                 ui.radio_value(visible, false, "Hide");
                 ui.radio_value(visible, true, "Show");
-                ui.weak("the HUD (status, clock, quick bar, buttons); dialogs still show");
+                ui.weak("the HUD (status, clock, action bar, buttons); dialogs still show");
             });
         }
         Action::SetFlag { name, value } => {

@@ -629,7 +629,7 @@ pub enum Action {
     GiveItemTo { target: TargetName, item: String, count: u32 },
     /// Takes items from what a character carries.
     TakeItemFrom { target: TargetName, item: String, count: u32 },
-    /// Hides or shows the game's HUD (status frame, clock, quick bar, buttons), e.g. for a
+    /// Hides or shows the game's HUD (status frame, clock, action bar, buttons), e.g. for a
     /// cut-scene; dialogs and windows the player opens still show. The player toggles it with H.
     SetUiVisible { visible: bool },
     /// Plays the Rhai function `function` as a cut-scene: the HUD is hidden, black bars slide

@@ -491,13 +491,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   Hands, Preserve Life), **Rest** (a short rest, or **Make camp**: a long rest anywhere with a
   bedroll and no enemies near), **Sneak** and **Party** (the companions' orders). Each opens a list
   that pauses the game, or acts at once. F (gamepad RB) focuses the bar for keys and gamepads.
-- **Favorites** take the quick bar's place: eight slots above the bar on 1-8, now for items, spells,
-  class actions, rests, sneaking and custom entries (1-8 on a list row pins it). Old saves' quick
-  bars become favorites. In a fight favorites are clicked.
+  The quick bar's slots and keys 1-8 outside fights are gone; old saves load without them.
 - **Project › Menus › Action bar** sets the entries, custom ones running a script function;
   **Project › Rules › Camp item** what camping needs (`bedroll`; empty = nothing).
-- Autoplay `bar`, `barpick`, `pin`, `fav`; `status` prints `bar=` and `favorites=` (was `quick=`).
-- **Search** (a bar entry and a favorite): the hero rolls Perception and a minute passes; the new
+- Autoplay `bar`, `barpick`; `status` prints `bar=` (`quick=` is gone).
+- **Search** (a bar entry): the hero rolls Perception and a minute passes; the new
   *Searched* trigger of zones, props and characters around and the *Search found* condition (the
   roll against a DC) reveal hidden things; `search_roll()`. In the example a night search finds the
   lost coins by the forest plaza, and the mine's lower chamber hides a miner's stash.

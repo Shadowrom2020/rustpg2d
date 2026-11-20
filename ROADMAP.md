@@ -1251,6 +1251,11 @@ added here.
   favorites and a potion favorite clicked in a fight (the turn's action spent). Screenshots of both
   modes.
 
+  **Later (2026-11-20, the user's decision).** The favorites row went too: no slots above the bar,
+  no pinning, 1-8 only the turn bar's keys in fights; `WorldState.favorites` / `quickbar` removed
+  (old saves load and drop it), the inventory's quick grid, the Spells tab's 1-8 and the autoplay
+  `pin` / `fav` with it.
+
   **Part 2 as built.** `TriggerOn::Search` ("Searched", zones, props and characters) and
   `GameEvent::Search`, `Cond::SearchRoll` ("Search found"), both appended; `BarEntry::Search`
   (in the default bar after Class; a favorite `act:search`); `WorldState::roll_check` (a check

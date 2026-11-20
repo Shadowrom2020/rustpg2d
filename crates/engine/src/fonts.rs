@@ -82,7 +82,7 @@ pub enum Role {
     Ui,
     /// Dialog and choice boxes, speech bubbles, captions.
     Dialog,
-    /// The HUD: bars, the quickbar, toasts, numbers over heads.
+    /// The HUD: bars, the action bar, toasts, numbers over heads.
     Hud,
     /// The game's name on the title screen.
     Title,

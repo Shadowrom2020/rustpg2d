@@ -411,19 +411,6 @@ impl Game {
         false
     }
 
-    /// A spell on the quick bar in a fight: aimed at its lowest slot on the player's turn.
-    pub(in crate::runtime) fn aim_quick_spell(&mut self, id: &str) {
-        if !self.players_turn() {
-            return;
-        }
-        let who = self.fight.as_ref().unwrap().current().who;
-        let Some(slot) = self.cast_options(who).into_iter().filter(|o| o.0 == id).map(|o| o.1).min() else {
-            self.ui.toast(crate::lang::tr_ui("No spell slot left").into_owned());
-            return;
-        };
-        self.aim_spell(id, slot);
-    }
-
     /// The cursor aims spell `id` at slot level `slot`: on the caster for its own spells, the
     /// nearest ally for healing and buffs, the nearest foe otherwise.
     pub(super) fn aim_spell(&mut self, id: &str, slot: u32) {

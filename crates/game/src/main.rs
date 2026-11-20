@@ -281,11 +281,9 @@ async fn main() {
                         game.cast_spell(&id);
                     }
                     "attune" | "unattune" | "use" | "equip" => say!("[autoplay] {cmd} {id}: {}", game.item_command(&cmd, &id)),
-                    // The action bar: an entry, a row of its list, pinning, a favorite.
+                    // The action bar: an entry, a row of its list.
                     "bar" => say!("[autoplay] bar {id}: {}", game.bar_pick_entry(&id)),
                     "barpick" => say!("[autoplay] barpick {id}: {}", game.bar_pick_row(id.trim().parse().unwrap_or(0))),
-                    "pin" => say!("[autoplay] pin {id}: {}", game.bar_pin(id.trim().parse().unwrap_or(0))),
-                    "fav" => game.bar_use_favorite(id.trim().parse().unwrap_or(0)),
                     _ => {
                         game.learn_spell(&id);
                     }
@@ -631,7 +629,7 @@ impl Autoplay {
                 // attune ITEM / unattune ITEM: the hero attunes to a magic item / ends it
                 // use ITEM: uses an item from the bag (a potion, a wand: its spell; equips gear)
                 // equip ITEM: puts an item from the bag on (a ring into a free ring slot)
-                "seed" | "cast" | "learn" | "call" | "crit" | "attune" | "unattune" | "use" | "equip" | "bar" | "barpick" | "pin" | "fav" => self.skill_cmds.push((arg(0).to_string(), arg(1).to_string())),
+                "seed" | "cast" | "learn" | "call" | "crit" | "attune" | "unattune" | "use" | "equip" | "bar" | "barpick" => self.skill_cmds.push((arg(0).to_string(), arg(1).to_string())),
                 "quit" => return false,
                 // close: as if the window's close button was clicked
                 "close" => {

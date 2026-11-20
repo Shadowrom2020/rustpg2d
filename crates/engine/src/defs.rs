@@ -706,6 +706,8 @@ pub enum EquipSlot {
     Ring,
     /// The second ring.
     Ring2,
+    /// A stack of ammunition (arrows, bolts…): what ranged weapons shoot first.
+    Ammo,
 }
 
 impl EquipSlot {
@@ -727,10 +729,11 @@ impl EquipSlot {
             "hands" | "gloves" | "bracers" | "gauntlets" => EquipSlot::Hands,
             "ring" | "ring1" => EquipSlot::Ring,
             "ring2" => EquipSlot::Ring2,
+            "ammo" | "ammunition" | "quiver" => EquipSlot::Ammo,
             _ => return None,
         })
     }
-    pub const ALL: [EquipSlot; 14] = [
+    pub const ALL: [EquipSlot; 15] = [
         EquipSlot::Clothing,
         EquipSlot::Head,
         EquipSlot::Body,
@@ -745,6 +748,7 @@ impl EquipSlot {
         EquipSlot::Hands,
         EquipSlot::Ring,
         EquipSlot::Ring2,
+        EquipSlot::Ammo,
     ];
     /// The slots of worn magic items (rings, amulets, cloaks…): not drawn on the model.
     pub const WORN: [EquipSlot; 7] = [EquipSlot::Neck, EquipSlot::Cloak, EquipSlot::Belt, EquipSlot::Feet, EquipSlot::Hands, EquipSlot::Ring, EquipSlot::Ring2];
@@ -768,6 +772,7 @@ impl EquipSlot {
             EquipSlot::Hands => "Hands",
             EquipSlot::Ring => "Ring",
             EquipSlot::Ring2 => "Second ring",
+            EquipSlot::Ammo => "Ammunition",
         }
     }
 }
@@ -2158,6 +2163,33 @@ impl Database {
     pub fn item(&self, id: &str) -> Option<&ItemDef> {
         Self::lookup(&self.items, &self.index.items, id)
     }
+
+    /// The kind of ammunition an item is: its SRD index (`arrow`: plain and +1 arrows alike), else
+    /// its id. A ranged weapon shoots every ammunition of its `Ranged::ammo`'s kind.
+    pub fn ammo_kind<'a>(&'a self, id: &'a str) -> &'a str {
+        self.item(id).map(|d| d.srd.as_str()).filter(|s| !s.is_empty()).unwrap_or(id)
+    }
+
+    /// Whether `item` is ammunition `weapon_ammo` (a weapon's `Ranged::ammo`) stands for.
+    pub fn ammo_fits(&self, item: &str, weapon_ammo: &str) -> bool {
+        !weapon_ammo.is_empty() && (item == weapon_ammo || self.ammo_kind(item) == self.ammo_kind(weapon_ammo))
+    }
+
+    /// Whether an item is ammunition: one of the SRD's, or of a kind a ranged weapon shoots.
+    pub fn is_ammunition(&self, id: &str) -> bool {
+        let Some(d) = self.item(id) else { return false };
+        if d.weapon.is_some() || d.armor.is_some() {
+            return false;
+        }
+        crate::srd::equipment::AMMUNITION.contains(&d.srd.as_str())
+            || self.items.iter().filter_map(|w| w.weapon.as_ref()?.ranged.as_ref()).any(|r| self.ammo_fits(id, &r.ammo))
+    }
+
+    /// The equipment slot an item goes into: [`ItemDef::equip_slot`], or the ammunition slot.
+    pub fn slot_of(&self, id: &str) -> Option<EquipSlot> {
+        let d = self.item(id)?;
+        d.equip_slot().or_else(|| self.is_ammunition(id).then_some(EquipSlot::Ammo))
+    }
     pub fn prop(&self, id: &str) -> Option<&PropDef> {
         Self::lookup(&self.props, &self.index.props, id)
     }
@@ -2817,6 +2849,27 @@ mod tests {
         assert_eq!(item.equip_slot(), Some(EquipSlot::Head));
         item.weapon = Some(Weapon::melee(1, 0.3));
         assert_eq!(item.equip_slot(), Some(EquipSlot::Weapon));
+    }
+
+    #[test]
+    fn ammunition_of_a_kind_fits_its_weapons() {
+        let item = |id: &str, srd: &str| ItemDef { srd: srd.into(), ..ItemDef::fresh(id) };
+        let mut bow = item("bow", "shortbow");
+        bow.weapon = Some(Weapon::ranged(1, 0.5, Ranged { projectile: SpriteRef::new("items", 1), speed: 100.0, range: 6.0, ammo: "arrows".into(), long_range: 0.0 }));
+        let mut db = Database { items: vec![bow, item("arrows", "arrow"), item("arrow-plus-1", "arrow"), item("bolts", "crossbow-bolt"), item("pebble", ""), item("relic", "")], ..Default::default() };
+        db.reindex();
+        assert!(db.ammo_fits("arrow-plus-1", "arrows"), "+1 arrows are arrows");
+        assert!(db.ammo_fits("arrows", "arrows"));
+        assert!(!db.ammo_fits("bolts", "arrows"));
+        assert!(!db.ammo_fits("arrows", ""), "a weapon without ammunition takes none");
+        assert_eq!(db.slot_of("arrow-plus-1"), Some(EquipSlot::Ammo));
+        assert_eq!(db.slot_of("bolts"), Some(EquipSlot::Ammo), "the SRD's ammunition without a weapon here");
+        assert_eq!(db.slot_of("pebble"), None);
+        assert_eq!(db.slot_of("bow"), Some(EquipSlot::Weapon));
+        // A project's own ammunition: what one of its weapons shoots.
+        db.items[0].weapon.as_mut().unwrap().ranged.as_mut().unwrap().ammo = "relic".into();
+        assert_eq!(db.slot_of("relic"), Some(EquipSlot::Ammo));
+        assert_eq!(EquipSlot::parse("quiver"), Some(EquipSlot::Ammo));
     }
 
     #[test]

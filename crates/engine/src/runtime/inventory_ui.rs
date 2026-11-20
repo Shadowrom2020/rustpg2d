@@ -37,7 +37,7 @@ fn quick_rects() -> Vec<Rect> {
     (0..QUICK_SLOTS).map(|k| Rect::new(x0 + k as f32 * (QUICK_SLOT + GAP), sh - QUICK_SLOT - 12.0, QUICK_SLOT, QUICK_SLOT)).collect()
 }
 
-const EQUIP_SLOTS: [EquipSlot; 14] = EquipSlot::ALL;
+const EQUIP_SLOTS: [EquipSlot; 15] = EquipSlot::ALL;
 /// The worn magic items' slots: a row of smaller slots under the figure.
 const WORN_SLOT: f32 = 38.0;
 const WORN_GAP: f32 = 4.0;
@@ -56,6 +56,7 @@ fn equip_cell(slot: EquipSlot) -> (usize, usize) {
         EquipSlot::Back => (1, 0),
         EquipSlot::Clothing => (1, 1),
         EquipSlot::Offhand => (1, 2),
+        EquipSlot::Ammo => (1, 3),
         // (The worn row: columns 2 to 8.)
         s => (2 + EquipSlot::WORN.iter().position(|w| *w == s).unwrap_or(0), WORN_ROW),
     }
@@ -71,6 +72,7 @@ fn equip_caption(slot: EquipSlot) -> &'static str {
     match slot {
         EquipSlot::Weapon => "Right hand",
         EquipSlot::Ring2 => "Ring",
+        EquipSlot::Ammo => "Ammo",
         s => s.label(),
     }
 }
@@ -552,7 +554,7 @@ impl Game {
             (Side::Container, Side::Quick) => return,
             (Side::Player, Side::Equip) => {
                 let target = EQUIP_SLOTS[to.1];
-                let fits = self.slot_item(Side::Player, from.1).and_then(|id| self.project.db.item(&id)?.equip_slot()).is_some_and(|s| slot_takes(target, s));
+                let fits = self.slot_item(Side::Player, from.1).and_then(|id| self.project.db.slot_of(&id)).is_some_and(|s| slot_takes(target, s));
                 if fits {
                     self.equip_from_slot_to(from.1, Some(target));
                 } else {
@@ -589,7 +591,7 @@ impl Game {
         let Some(item) = self.slot_item(Side::Player, i) else { return };
         // Equipment goes into its slot (using the clicked stack); an item with spells (a staff)
         // casts instead: it is wielded by dragging it into the hand.
-        if self.project.db.item(&item).is_some_and(|d| d.equip_slot().is_some() && d.magic.as_ref().is_none_or(|m| m.spells.is_empty())) {
+        if self.project.db.slot_of(&item).is_some() && self.project.db.item(&item).is_some_and(|d| d.magic.as_ref().is_none_or(|m| m.spells.is_empty())) {
             self.equip_from_slot(i);
             return;
         }
@@ -961,6 +963,12 @@ impl Game {
                 // An attuned item: a small mark in the corner.
                 if self.is_attuned(&d.id) {
                     draw_circle(r.x + r.w - 6.0, r.y + 6.0, 3.5, skin::highlight());
+                }
+                // A stack (ammunition): its count.
+                if let Some(n) = self.world.equipment.get(slot).map(|s| s.count).filter(|n| *n > 1) {
+                    let t = n.to_string();
+                    let w = measure_text(&t, None, 18, 1.0).width;
+                    draw_text(&t, r.x + r.w - w - 3.0, r.y + r.h - 4.0, 18.0, skin::normal());
                 }
             } else if slot == EquipSlot::Offhand && self.two_handed_equipped() {
                 // A two-handed weapon fills the left hand too: shown faded there.

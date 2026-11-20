@@ -40,6 +40,9 @@ pub struct Equipment {
     pub ring: Option<ItemStack>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ring2: Option<ItemStack>,
+    /// A stack of ammunition: what ranged weapons shoot first.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ammo: Option<ItemStack>,
 }
 
 impl Equipment {
@@ -59,6 +62,7 @@ impl Equipment {
             EquipSlot::Hands => self.hands.as_ref(),
             EquipSlot::Ring => self.ring.as_ref(),
             EquipSlot::Ring2 => self.ring2.as_ref(),
+            EquipSlot::Ammo => self.ammo.as_ref(),
         }
     }
     pub fn slot_mut(&mut self, slot: EquipSlot) -> &mut Option<ItemStack> {
@@ -77,6 +81,7 @@ impl Equipment {
             EquipSlot::Hands => &mut self.hands,
             EquipSlot::Ring => &mut self.ring,
             EquipSlot::Ring2 => &mut self.ring2,
+            EquipSlot::Ammo => &mut self.ammo,
         }
     }
     pub fn item(&self, slot: EquipSlot) -> Option<&str> {
@@ -102,6 +107,7 @@ impl Equipment {
             &mut self.hands,
             &mut self.ring,
             &mut self.ring2,
+            &mut self.ammo,
         ]
         .into_iter()
         .filter_map(|s| s.as_mut())

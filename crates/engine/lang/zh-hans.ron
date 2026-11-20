@@ -930,5 +930,7 @@
         "Hands": "手部",
         "Ring": "戒指",
         "Second ring": "第二枚戒指",
+        "Ammo": "弹药",
+        "The {} stack is full": "{}已经堆满了",
     },
 )

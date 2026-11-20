@@ -498,7 +498,7 @@ Items](05-database.md#items)).
   | Two-handed | Nothing can be held in the left hand. |
   | Reach | Reaches 10 ft (two tiles). |
   | Thrown | *Attack* asks: **Strike** or **Throw** (a ranged attack with the same ability, at its thrown range). A click on a foe always strikes. The thrown weapon lands next to the target: the hand is empty (bare hands, or draw another weapon) until the thrower steps onto it again, which picks it up (free in a fight); after the fight the other characters take theirs back, the hero's lies there. |
-  | Ammunition | Each shot uses one of the ammo item (arrows, bolts, sling bullets). |
+  | Ammunition | Each shot uses one piece of ammunition of the weapon's kind (arrows, bolts, sling bullets, needles): +1 Arrows are arrows too. It takes the stack in the **Ammunition** slot when that fits the weapon, else ammunition from the bag (the weapon's own first, plain before magic). |
   | Loading | One attack with it per action, however many attacks the hero has. |
 
 - **Armor** is *light*, *medium* or *heavy* body armor, a *shield*, or *clothing* (helmets, outfits,
@@ -552,7 +552,8 @@ up to triggers and scripts.
   at a time, and only for those the item names (*by a wizard*, *by a spellcaster*). T again ends
   it at once. Attuned items have a gold dot; the Sheet tab lists the magic items at work.
 - **What they do**, while worn or held (and attuned when they need it):
-  - a **+1 to +3** on attack and damage rolls (weapons, ammunition when shot) or on armor class
+  - a **+1 to +3** on attack and damage rolls (weapons, the ammunition a shot takes: put magic
+    arrows into the *Ammunition* slot to shoot them) or on armor class
     (armor, shields);
   - bonuses to AC, saving throws, spell attacks or the spell save DC (a Ring of Protection: +1 AC
     and saves);

@@ -930,5 +930,7 @@
         "Hands": "手",
         "Ring": "指輪",
         "Second ring": "2つ目の指輪",
+        "Ammo": "矢弾",
+        "The {} stack is full": "{}の束はもう満杯です",
     },
 )

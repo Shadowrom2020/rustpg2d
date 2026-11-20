@@ -483,11 +483,7 @@ impl Game {
         if r.ammo.is_empty() {
             return true;
         }
-        if self.world.item_count(&r.ammo) == 0 {
-            return false;
-        }
-        self.world.take_item(&r.ammo, 1);
-        true
+        self.spend_ammo(&r.ammo)
     }
 
     /// The hero's off-hand weapon (a weapon in the off-hand slot).

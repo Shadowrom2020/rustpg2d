@@ -40,7 +40,9 @@ with E or a right-click.
   drop them; G drops the selected stack (Shift+G one item). A **backpack** in the *Backpack* slot
   gives you more inventory slots; to take it off, first make room for what lies in its slots.
   The row of small slots under the figure takes **rings, an amulet, a cloak, a belt, boots and
-  gloves or bracers**. **T** attunes you to the selected magic item (an hour passes; at most three,
+  gloves or bracers**. The **Ammo** slot under the left hand holds a whole stack of ammunition:
+  bows, crossbows, slings and blowguns shoot it first when it is their kind (+1 Arrows into it to
+  shoot them); without it they take plain ammunition of their kind from the bag. **T** attunes you to the selected magic item (an hour passes; at most three,
   not in a fight) or ends it; attuned items show a gold dot. In a companion's window T attunes the
   companion to an item it wears.
   **Furniture** (in a home of yours) is placed in front of you when used; E at it later asks

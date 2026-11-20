@@ -3,6 +3,9 @@
 
 use crate::defs::{Armor, ArmorCategory, Weapon, WeaponCategory};
 
+/// The SRD's ammunition (by SRD index): what goes into the ammunition slot.
+pub const AMMUNITION: [&str; 4] = ["arrow", "crossbow-bolt", "sling-bullet", "blowgun-needle"];
+
 /// What a caster casts spells with material components through (by SRD index): a component
 /// pouch, an arcane focus, a holy symbol, a druidic focus, or a bard's musical instrument. (The
 /// SRD ties each focus to its classes; any of them does here.)

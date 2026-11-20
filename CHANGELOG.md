@@ -360,6 +360,13 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   (weapons, armor, potions, rings, rods, scrolls, staffs, wands, wondrous items) and the project's
   own things, each with its count. Editor script `dbsearch`, `itemfilter`; `status` prints `dblist=`,
   `itemfilter=`, `libshown=`.
+- **Ammunition slot**: the character window has an *Ammo* slot under the left hand that holds a
+  whole stack of ammunition. A ranged weapon shoots any ammunition of its kind (the SRD's: +1
+  Arrows are arrows): the slot's stack when it fits, else the bag's (the weapon's own first, plain
+  before magic). Magic ammunition gives its bonus when it is the one shot (before, a bow only ever
+  shot its own arrows: +1 Arrows could not be used). The HUD shows what the next shot takes; scripts
+  `unequip("ammo")`; `status` prints `ammo=`. The library's Arrow of Slaying is an arrow now (it
+  was imported as a longsword).
 - **Breaking:** helmets give no armor class (they are clothing), and armor's flat *Defense* is gone:
   weapons and armor of 0.30 and older are upgraded when read (martial from a d8 up, two-handed and
   heavy, ammunition; body armor becomes light armor of the AC it gave, an off-hand piece a shield of

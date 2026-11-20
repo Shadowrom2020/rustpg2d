@@ -737,6 +737,7 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     // The SRD rules: dice, abilities, checks (they roll at once, into the roll log).
     engine.register_fn("roll", with!(ctx, |c, dice: &str| c.world.roll_dice(dice).map_or(0, |r| r.total)));
     // Checks outside fights: passive values, group checks, contests.
+    engine.register_fn("search_roll", with!(ctx, |c| c.world.last_search.unwrap_or(-1)));
     engine.register_fn("passive", with!(ctx, |c, what: &str| c.world.passive(what).unwrap_or(-1)));
     engine.register_fn("group_check", with!(ctx, |c, what: &str, dc: i64| {
         let party = c.player.party.clone();

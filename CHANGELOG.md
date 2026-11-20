@@ -497,6 +497,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **Project › Menus › Action bar** sets the entries, custom ones running a script function;
   **Project › Rules › Camp item** what camping needs (`bedroll`; empty = nothing).
 - Autoplay `bar`, `barpick`, `pin`, `fav`; `status` prints `bar=` and `favorites=` (was `quick=`).
+- **Search** (a bar entry and a favorite): the hero rolls Perception and a minute passes; the new
+  *Searched* trigger of zones, props and characters around and the *Search found* condition (the
+  roll against a DC) reveal hidden things; `search_roll()`. In the example a night search finds the
+  lost coins by the forest plaza, and the mine's lower chamber hides a miner's stash.
 
 ### Rests and checks (SRD 5.1, part 3)
 - **One long rest in 24 hours:** a long rest less than 16 hours after the last one passes the time
@@ -522,6 +526,8 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   it loads. Monsters, chests and companions still hold coins as items.
 
 ### Fixes
+- Leaving the tavern's guest room with its key: the key went back on its hook right outside the door,
+  which locked the door on the hero standing in it. It now goes back at the stairs.
 - Translated runtime texts with a value starting with a letter of several bytes ("Überzeugen")
   weren't translated.
 

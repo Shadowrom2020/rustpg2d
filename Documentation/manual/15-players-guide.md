@@ -96,7 +96,8 @@ dice (each heals d10 + CON) and an hour passes. Sleeping in a bed is a **long re
 points, half your hit dice back and one level of exhaustion less.
 
 **The action bar** at the bottom of the screen is how you do things outside fights: **Use** (potions,
-food, scrolls), **Cast** (your spells), **Class** (Second Wind, Lay on Hands…), **Rest** (a short rest,
+food, scrolls), **Cast** (your spells), **Class** (Second Wind, Lay on Hands…), **Search** (look around for hidden things: a Perception
+roll), **Rest** (a short rest,
 or **Make camp** for a night's rest anywhere: you need a **bedroll** and no enemies near), **Sneak**
 and **Party** (your companions' orders). Click an entry, or press F (gamepad RB) and choose with the
 arrows. In a list, 1–8 pins the selected row to a **favorite**: the eight slots above the bar, used

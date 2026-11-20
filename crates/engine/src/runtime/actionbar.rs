@@ -226,6 +226,7 @@ impl Game {
             let pinnable = match next {
                 Focus::Bar(e) => self.bar_entries().get(e).and_then(|e| match e {
                     BarEntry::Sneak => Some((format!("{ACT_PREFIX}sneak"), self.entry_text(e))),
+                    BarEntry::Search => Some((format!("{ACT_PREFIX}search"), self.entry_text(e))),
                     BarEntry::Custom { function, .. } => Some((format!("{CUSTOM_PREFIX}{function}"), self.entry_text(e))),
                     _ => None,
                 }),
@@ -254,6 +255,10 @@ impl Game {
                 if !self.player_stunned() {
                     self.combat.sneak = !self.combat.sneak;
                 }
+            }
+            BarEntry::Search => {
+                self.bar.focus = None;
+                self.search();
             }
             BarEntry::Party => {
                 self.bar.focus = None;
@@ -427,6 +432,7 @@ impl Game {
         match a {
             "short_rest" => self.open_short_rest(),
             "camp" => self.make_camp(),
+            "search" => self.search(),
             "sneak" => {
                 if !self.player_stunned() {
                     self.combat.sneak = !self.combat.sneak;
@@ -509,6 +515,7 @@ impl Game {
                 "short_rest" => "Short rest",
                 "camp" => "Make camp",
                 "sneak" => "Sneak",
+                "search" => "Search",
                 other => other,
             })
             .into_owned();

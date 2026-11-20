@@ -204,6 +204,8 @@ pub enum BarEntry {
     Cast,
     /// The hero's class actions that work outside fights (Second Wind, Lay on Hands).
     Class,
+    /// Searches the area: a Perception roll that the *Searched* triggers around compare.
+    Search,
     /// A short rest, or a long one in camp (with the camp item: `RulesSettings::camp_item`).
     Rest,
     /// Sneaking on / off.
@@ -222,7 +224,7 @@ pub enum BarEntry {
 
 impl BarEntry {
     /// The built-in entries, in order (an empty `action_bar`).
-    pub const DEFAULT: [BarEntry; 6] = [BarEntry::Use, BarEntry::Cast, BarEntry::Class, BarEntry::Rest, BarEntry::Sneak, BarEntry::Party];
+    pub const DEFAULT: [BarEntry; 7] = [BarEntry::Use, BarEntry::Cast, BarEntry::Class, BarEntry::Search, BarEntry::Rest, BarEntry::Sneak, BarEntry::Party];
 
     /// The name on the bar (custom entries: their label, untranslated).
     pub fn label(&self) -> &str {
@@ -230,6 +232,7 @@ impl BarEntry {
             BarEntry::Use => "Use",
             BarEntry::Cast => "Cast",
             BarEntry::Class => "Class",
+            BarEntry::Search => "Search",
             BarEntry::Rest => "Rest",
             BarEntry::Sneak => "Sneak",
             BarEntry::Party => "Party",
@@ -243,6 +246,7 @@ impl BarEntry {
             BarEntry::Use => "use",
             BarEntry::Cast => "cast",
             BarEntry::Class => "class",
+            BarEntry::Search => "search",
             BarEntry::Rest => "rest",
             BarEntry::Sneak => "sneak",
             BarEntry::Party => "party",
@@ -315,7 +319,7 @@ mod tests {
         let list = vec![BarEntry::Use, BarEntry::Sneak, BarEntry::Custom { label: "Pray".into(), function: "pray".into(), detail: String::new() }];
         let text = ron::to_string(&list).unwrap();
         assert_eq!(ron::from_str::<Vec<BarEntry>>(&text).unwrap(), list);
-        assert_eq!(BarEntry::DEFAULT.map(|e| e.id().to_string()), ["use", "cast", "class", "rest", "sneak", "party"]);
+        assert_eq!(BarEntry::DEFAULT.map(|e| e.id().to_string()), ["use", "cast", "class", "search", "rest", "sneak", "party"]);
         assert_eq!(list[2].id(), "pray");
     }
 

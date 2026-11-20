@@ -42,6 +42,8 @@ pub enum GameEvent {
     /// A turn-based fight started / ended (map triggers, and each fighting character's own).
     CombatStart,
     CombatEnd,
+    /// The hero searched (the action bar's Search): zones they stand in, things within 2 tiles.
+    Search,
 }
 
 /// Which events a trigger reacts to.
@@ -71,6 +73,9 @@ pub enum TriggerOn {
     CombatStart,
     /// The fight is over (no enemy fights on; map triggers and the fighters' own).
     CombatEnd,
+    /// The hero searched here (the action bar's Search): a zone they stand in, a prop or a
+    /// character within 2 tiles. *Search found* compares the roll.
+    Search,
 }
 
 /// Where a trigger lives. The game only sends some events to each kind of owner (see
@@ -99,9 +104,9 @@ impl TriggerOwner {
             // emit() / "Emit event" reach the map, its zones and its entities.
             (O::Map | O::Zone | O::Character | O::Prop | O::Pickup, T::Custom { .. }) => true,
             (O::Map, T::MapEnter | T::Sleep | T::Hour { .. } | T::CombatStart | T::CombatEnd) => true,
-            (O::Zone, T::Enter | T::Leave | T::Interact) => true,
-            (O::Character, T::Interact | T::UseItem { .. } | T::Defeat | T::HpBelow { .. } | T::CombatStart | T::CombatEnd) => true,
-            (O::Prop, T::Interact | T::UseItem { .. } | T::Unlock | T::Lock | T::Sleep) => true,
+            (O::Zone, T::Enter | T::Leave | T::Interact | T::Search) => true,
+            (O::Character, T::Interact | T::UseItem { .. } | T::Defeat | T::HpBelow { .. } | T::CombatStart | T::CombatEnd | T::Search) => true,
+            (O::Prop, T::Interact | T::UseItem { .. } | T::Unlock | T::Lock | T::Sleep | T::Search) => true,
             (O::Pickup, T::Interact | T::UseItem { .. }) => true,
             (O::ItemUse, T::UseItem { .. }) => true,
             _ => false,
@@ -158,7 +163,8 @@ impl TriggerOn {
             | (TriggerOn::Lock, GameEvent::Lock)
             | (TriggerOn::Sleep, GameEvent::Sleep)
             | (TriggerOn::CombatStart, GameEvent::CombatStart)
-            | (TriggerOn::CombatEnd, GameEvent::CombatEnd) => true,
+            | (TriggerOn::CombatEnd, GameEvent::CombatEnd)
+            | (TriggerOn::Search, GameEvent::Search) => true,
             (TriggerOn::UseItem { item: want }, GameEvent::UseItem { item }) => {
                 want.is_empty() || want == item
             }
@@ -197,6 +203,7 @@ impl TriggerOn {
             TriggerOn::Hour { .. } => "Time reached",
             TriggerOn::CombatStart => "Fight starts",
             TriggerOn::CombatEnd => "Fight ends",
+            TriggerOn::Search => "Searched",
         }
     }
 
@@ -216,6 +223,7 @@ impl TriggerOn {
             TriggerOn::Hour { hour: 12.0 },
             TriggerOn::CombatStart,
             TriggerOn::CombatEnd,
+            TriggerOn::Search,
         ]
     }
 }
@@ -340,6 +348,8 @@ pub enum Cond {
     /// The hero's passive check of `what` (10 + the bonus, ±5 for advantage / disadvantage: dim
     /// light for Perception) is at least `dc`: noticed without rolling.
     Passive { what: String, dc: i32 },
+    /// The hero's last search (the action bar's Search: Perception) reached `dc`.
+    SearchRoll { dc: i32 },
 }
 
 fn cmp_ge() -> CmpOp {
@@ -388,6 +398,7 @@ impl Cond {
             Cond::Attuned { .. } => "Is attuned",
             Cond::KnockedOut { .. } => "Was knocked out",
             Cond::Passive { .. } => "Passive check",
+            Cond::SearchRoll { .. } => "Search found",
         }
     }
     pub fn templates() -> Vec<Cond> {
@@ -417,6 +428,7 @@ impl Cond {
             Cond::Attuned { item: String::new() },
             Cond::KnockedOut { name: String::new() },
             Cond::Passive { what: "perception".into(), dc: 13 },
+            Cond::SearchRoll { dc: 15 },
         ]
     }
 }
@@ -472,6 +484,7 @@ impl Condition {
             Cond::Attuned { item } => world.attuned.iter().any(|a| a == item),
             Cond::KnockedOut { name } => world.was_knocked_out(name),
             Cond::Passive { what, dc } => world.passive(what).is_some_and(|v| v >= *dc as i64),
+            Cond::SearchRoll { dc } => world.last_search.is_some_and(|v| v >= *dc as i64),
         };
         v != self.negate
     }
@@ -1489,6 +1502,19 @@ mod tests {
         assert!(!TriggerOwner::ItemUse.allows(&TriggerOn::Custom { name: "x".into() }));
         assert_eq!(TriggerOwner::Map.templates().iter().map(|t| t.label()).collect::<Vec<_>>(), vec!["Map enter", "Custom event", "Woke up", "Time reached", "Fight starts", "Fight ends"]);
         assert!(TriggerOwner::Character.allows(&TriggerOn::CombatStart) && !TriggerOwner::Prop.allows(&TriggerOn::CombatEnd));
+        // Searched: zones, props and characters; Search found compares the last search.
+        assert!([TriggerOwner::Zone, TriggerOwner::Prop, TriggerOwner::Character].iter().all(|o| o.allows(&TriggerOn::Search)) && !TriggerOwner::Map.allows(&TriggerOn::Search));
+        assert!(TriggerOn::Search.matches(&GameEvent::Search) && !TriggerOn::Enter.matches(&GameEvent::Search));
+        let mut w = WorldState::default();
+        let found = |w: &WorldState| Condition::new(Cond::SearchRoll { dc: 15 }).eval(w, &mut |_| false);
+        assert!(!found(&w), "no search yet");
+        w.last_search = Some(15);
+        assert!(found(&w));
+        w.last_search = Some(14);
+        assert!(!found(&w));
+        w.training.sight = crate::srd::check::Sight::Dark;
+        let r = w.roll_check("perception").unwrap();
+        assert_eq!((r.total, r.success), (0, None), "searching in the dark finds nothing");
         assert_eq!(TriggerOwner::Map.replacement(&TriggerOn::Enter), TriggerOn::MapEnter);
         assert_eq!(TriggerOwner::Zone.replacement(&TriggerOn::MapEnter), TriggerOn::Enter);
     }

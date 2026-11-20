@@ -1210,10 +1210,10 @@ added here.
   and one a day later. The editor's *Passive check* form (screenshot) and a UI test adding a *Group
   check*.
 
-- [ ] The action bar — two parts (the user's request, 2026-11-20: the quick bar goes, one bar
+- [x] The action bar — two parts (the user's request, 2026-11-20: the quick bar goes, one bar
   for fights and exploration takes its place; a long rest anywhere with a bedroll):
   1. [x] **The bar and favorites** — `feature/action-bar`.
-  2. [ ] **Search** — `feature/search`: an active Perception roll (*Searched* trigger, *Search
+  2. [x] **Search** — `feature/search`: an active Perception roll (*Searched* trigger, *Search
      found* condition, `search_roll()`), a hidden stash in the mine, the forest's coins found by a
      night search.
 
@@ -1250,6 +1250,21 @@ added here.
   bar and run with 4; RB / Right / A opening *Rest* on a gamepad; an old save's quick bar as
   favorites and a potion favorite clicked in a fight (the turn's action spent). Screenshots of both
   modes.
+
+  **Part 2 as built.** `TriggerOn::Search` ("Searched", zones, props and characters) and
+  `GameEvent::Search`, `Cond::SearchRoll` ("Search found"), both appended; `BarEntry::Search`
+  (in the default bar after Class; a favorite `act:search`); `WorldState::roll_check` (a check
+  without a DC: conditions, light, help) and `last_search` (not saved); `runtime/checks.rs`
+  `search` (a minute passes; zones the hero stands in, props and characters within 2 tiles;
+  "You find nothing."), `search_status`; `search_roll()`. Example: the forest's `glint` zone got a
+  *Searched* trigger (DC 13, flag `glint_found` for both ways), the mine's `loose_stone` zone (uid 29)
+  with `stash_coins` / `stash_potion` (uids 27, 28; DC 15, flag `mine_stash_found`). Also the
+  tavern's checkout zone moved to the stairs (it locked the guest room's door on the hero).
+
+  **Part 2 verified.** Autoplay on a scratch copy: a night search in the forest (dim light) finding
+  the coins with seed 2 (13) and not with seeds 1, 3, 4; the mine stash found with rolls 16, 22, 21
+  and not with 14 and 6 (screenshot); leaving the guest room with the key (stuck on the old map, out
+  and the key handed back at the stairs on the new one).
 
 - [ ] Objects, traps, poisons, diseases and madness — `feature/srd-hazards`
 

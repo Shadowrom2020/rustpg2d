@@ -14,6 +14,7 @@ use rustpg2d_engine::project::Project;
 use rustpg2d_engine::refactor::RefKind;
 use rustpg2d_engine::script_refs::ScriptFn;
 
+use crate::item_category::{self, ItemFilter};
 use crate::app::Editor;
 use crate::files::Purpose;
 use crate::ui::{self, ph};
@@ -34,6 +35,8 @@ pub struct AddDialog {
     pub filter: Option<RefKind>,
     pub picked: BTreeSet<AssetRef>,
     pub search: String,
+    /// The items' category (when it shows items).
+    pub item_filter: ItemFilter,
 }
 
 /// Where project assets go once their script functions are picked.
@@ -75,6 +78,10 @@ pub struct LibState {
     pub tex_dirty: bool,
     pub filter: Option<RefKind>,
     pub search: String,
+    /// The items' category (when the Items kind is shown).
+    pub item_filter: ItemFilter,
+    /// How many assets the browse view or the add dialog showed last (status `libshown=`).
+    pub shown: usize,
     pub selected: BTreeSet<AssetRef>,
     pub report: Option<String>,
     /// Assets waiting for the user to confirm their removal (the confirmation dialog is open).
@@ -275,14 +282,24 @@ fn name_of(db: &Database, a: &AssetRef) -> String {
     .unwrap_or_else(|| a.1.clone())
 }
 
-/// Assets of `db` of the kind `k` (all with `None`) matching a search text (id or name).
-fn filtered(db: &Database, k: Option<RefKind>, search: &str) -> Vec<AssetRef> {
+/// Assets of `db` of the kind `k` (all with `None`) matching a search text (id or name), items
+/// of the category `items` only.
+fn filtered(db: &Database, k: Option<RefKind>, search: &str, items: ItemFilter) -> Vec<AssetRef> {
     let q = search.trim().to_lowercase();
+    let ammo = if items != ItemFilter::All { item_category::ammo_of(db) } else { Default::default() };
     library::all_assets(db)
         .into_iter()
         .filter(|a| k.is_none_or(|k| k == a.0))
+        .filter(|a| items == ItemFilter::All || a.0 != RefKind::Item || db.item(&a.1).is_some_and(|d| items.keeps(item_category::category(d, &ammo))))
         .filter(|a| q.is_empty() || a.1.to_lowercase().contains(&q) || name_of(db, a).to_lowercase().contains(&q))
         .collect()
+}
+
+/// The item category picker of a library view showing items.
+fn item_picker(ui: &mut egui::Ui, id: &str, db: &Database, filter: &mut ItemFilter) {
+    let ammo = item_category::ammo_of(db);
+    let cats: Vec<item_category::ItemCat> = db.items.iter().map(|d| item_category::category(d, &ammo)).collect();
+    item_category::picker(ui, id, filter, &cats);
 }
 
 /// "materials", "sprite sheets", …
@@ -694,11 +711,16 @@ impl Editor {
                     }
                 }
                 ui.separator();
+                if self.lib.filter == Some(RefKind::Item) {
+                    item_picker(ui, "lib_item_filter", &self.project.db, &mut self.lib.item_filter);
+                }
                 ui.label(ph::MAGNIFYING_GLASS);
                 ui.add(egui::TextEdit::singleline(&mut self.lib.search).hint_text("search").desired_width(160.0));
             });
             let db = &self.project.db;
-            let shown = filtered(db, self.lib.filter, &self.lib.search);
+            let items = if self.lib.filter == Some(RefKind::Item) { self.lib.item_filter } else { ItemFilter::All };
+            let shown = filtered(db, self.lib.filter, &self.lib.search, items);
+            self.lib.shown = shown.len();
             ui.horizontal(|ui| {
                 ui.label(format!("{} shown · {} selected", shown.len(), self.lib.selected.len()));
                 if ui.small_button("Select shown").clicked() {
@@ -754,6 +776,7 @@ impl Editor {
         let Some(mut d) = self.lib.add.take() else { return };
         self.lib.textures(ctx);
         let (mut close, mut add) = (false, false);
+        let mut shown_count = self.lib.shown;
         let width = (ctx.screen_rect().width() * 0.8).clamp(400.0, 900.0);
         let height = ctx.screen_rect().height() * 0.5;
         let modal = egui::Modal::new(egui::Id::new("lib_add")).show(ctx, |ui| {
@@ -779,10 +802,15 @@ impl Editor {
                     }
                     ui.separator();
                 }
+                if d.kind.or(d.filter) == Some(RefKind::Item) {
+                    item_picker(ui, "lib_add_item_filter", &lib.db, &mut d.item_filter);
+                }
                 ui.label(ph::MAGNIFYING_GLASS);
                 ui.add(egui::TextEdit::singleline(&mut d.search).hint_text("search").desired_width(160.0));
             });
-            let shown = filtered(&lib.db, d.kind.or(d.filter), &d.search);
+            let items = if d.kind.or(d.filter) == Some(RefKind::Item) { d.item_filter } else { ItemFilter::All };
+            let shown = filtered(&lib.db, d.kind.or(d.filter), &d.search, items);
+            shown_count = shown.len();
             ui.horizontal(|ui| {
                 ui.label(format!("{} in the library · {} picked", shown.len(), d.picked.len()));
                 if ui.small_button("Pick all shown").clicked() {
@@ -845,6 +873,7 @@ impl Editor {
         if modal.should_close() && !add {
             close = true;
         }
+        self.lib.shown = shown_count;
         if add {
             self.lib.add = Some(d);
             self.add_picked_from_library();

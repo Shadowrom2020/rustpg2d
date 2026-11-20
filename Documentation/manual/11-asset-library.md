@@ -65,7 +65,8 @@ starter asset library is the file `starter/starter-library.r2dlib` beside it.
 materials of the Ground tool, the structures palette and the entities palette, and in *Assets › Add from
 library…* (all kinds). The dialog shows the library's assets as cards with thumbnails:
 
-- Click cards to pick one or more (*Pick all shown*, search). Assets the project already has are
+- Click cards to pick one or more (*Pick all shown*, search; for items also their category, as in the
+  Database: [Working with definitions](05-database.md#working-with-definitions)). Assets the project already has are
   marked *in project*, and a line lists what the picks bring along.
 - **Add N to project** (or a double-click) copies them in, **with everything they need**: their
   sprite sheets, ammunition, keys, sounds used by their triggers, and script
@@ -86,7 +87,7 @@ used as last saved.
 The **Asset Library** tab (or *Assets › Asset Library window…*) opens the library in **its own
 window**, a second editor working on the library. It has three views:
 
-- **Browse**: every asset as a card (filter by kind, search, click to select). *Edit* or a
+- **Browse**: every asset as a card (filter by kind, items also by category, search, click to select). *Edit* or a
   double-click opens it in the Edit view; *New character…* and *New asset…* create assets in the
   library; *Import package…* adds a `.r2dpack`; *Export package…* writes the selection to share;
   *Remove from library…* asks first and refuses to remove things other library assets still use.

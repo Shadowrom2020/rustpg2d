@@ -69,7 +69,9 @@ fn field<'t>(h: &'t Harness<'static, Editor>, text: &'t str) -> egui_kittest::ki
 /// is flat: a form's rows are found by their position).
 fn beside<'t>(h: &'t Harness<'static, Editor>, label: &'t str, f: impl Fn(&egui_kittest::kittest::Node<'_>) -> bool + 't) -> egui_kittest::kittest::Node<'t> {
     let line = h.get_by_label(label).bounding_box().expect("the label is on screen");
-    let mut found: Vec<_> = h.query_all_by(move |n| f(n) && n.bounding_box().is_some_and(|b| b.y0 < line.y1 && b.y1 > line.y0)).collect();
+    // (On the label's line; for a label in the form not the list's search field in the left panel.)
+    const LIST_W: f64 = 260.0;
+    let mut found: Vec<_> = h.query_all_by(move |n| f(n) && n.bounding_box().is_some_and(|b| b.y0 < line.y1 && b.y1 > line.y0 && !(line.x0 > LIST_W && b.x1 < LIST_W))).collect();
     assert_eq!(found.len(), 1, "one match beside {label:?}");
     found.remove(0)
 }
@@ -314,6 +316,37 @@ fn an_item_becomes_a_magic_ring_with_charges() {
     h.state_mut().save_all();
     let saved = Project::load(&root).unwrap().db.items[k].clone();
     assert_eq!((saved.armor.map(|a| a.slot), saved.magic.map(|m| (m.attunement, m.charges))), (Some(EquipSlot::Ring), Some((true, 3))));
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn the_item_list_searches_and_filters_by_category() {
+    let root = example_copy("item_list");
+    let db = Project::load(&root).unwrap().db;
+    let mut h = harness(&root, Tab::Items, 0);
+    step(&mut h);
+    let total = db.items.len();
+    assert_eq!(h.state().db.list_shown, (total, total));
+    // A search by name: the selection moves to the first match.
+    // (The list's search field: the text field on the magnifier's line in the left panel.)
+    let line = h.get_by_label(crate::ui::ph::MAGNIFYING_GLASS).bounding_box().unwrap();
+    let is_search = move |n: &egui_kittest::kittest::Node<'_>| n.role() == Role::TextInput && n.bounding_box().is_some_and(|b| b.y0 < line.y1 && b.y1 > line.y0 && b.x0 < 300.0);
+    assert_eq!(h.query_all_by(is_search).count(), 1, "the list's search field");
+    h.get_by(is_search).focus();
+    step(&mut h);
+    h.get_by(is_search).type_text("ring of");
+    step(&mut h);
+    let (shown, _) = h.state().db.list_shown;
+    assert_eq!(shown, 1, "the Ring of Protection");
+    let sel = h.state().db.sel;
+    assert_eq!(h.state().project.db.items[sel].id, "ring-of-protection");
+    // The category picker: magic items among the matches, weapons none.
+    h.state_mut().db.item_filter = crate::item_category::ItemFilter::parse("magic").unwrap();
+    step(&mut h);
+    assert_eq!(h.state().db.list_shown.0, 1);
+    h.state_mut().db.item_filter = crate::item_category::ItemFilter::parse("weapons").unwrap();
+    step(&mut h);
+    assert_eq!(h.state().db.list_shown.0, 0);
     let _ = std::fs::remove_dir_all(&root);
 }
 

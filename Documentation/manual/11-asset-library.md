@@ -125,7 +125,9 @@ that would start without one), the 319 spells ([Gameplay ›
 Spellcasting](09-gameplay.md#spellcasting): attacks, saves, damage and healing from the data,
 conditions, boons, light and Knock from a table in the import, the rest story only; a spell the
 library had keeps its icon and look), the 334 monsters ([Characters ›
-Monsters](06-characters.md#monsters)) and the 237 items of the equipment list with the five coins
+Monsters](06-characters.md#monsters); every damage part of an attack, and what a hit does read from its
+text: 67 attacks with more damage of other types, 85 effects on a hit in 65 attacks, such as a save
+against a condition or poison, or a grapple's escape DC) and the 237 items of the equipment list with the five coins
 ([Gameplay › Equipment and money](09-gameplay.md#equipment-and-money): weapons with their category,
 properties, dice and ranges, armor with its armor class, tools, gear, packs that unpack their
 contents, mounts and vehicles as plain items; generic icons by kind on the `srd_gear` sheet; library
@@ -135,13 +137,15 @@ magic items ([Gameplay › Magic items](09-gameplay.md#magic-items): rarity, att
 recharge from the SRD's text, a table in the import for the rules of about half of them, the others story
 items; magic weapons and armor are a copy of the library's item for their base, with its look, others get
 generic icons by kind on the `srd_magic` sheet; the SRD's generic +1 / +2 / +3 entries are the *Bonus* of any
-item, and six ready-made ones come with it: +1 Longsword, Dagger, Shortbow, Arrows, Chain Mail and Shield;
+item, and six ready-made ones come with it: +1 Longsword, Dagger, Shortbow, Arrows, Chain Mail and Shield,
+as well as a Silvered Dagger and Silvered Arrows (the SRD's silvering);
 spell scrolls are items that *teach* a spell; the library's potion and Elixir of Strength became the Potion of Healing and the Potion of Hill Giant Strength, keeping their ids, look and price) come from the **SRD 5.1** (by Wizards of the Coast LLC, CC BY 4.0), through the data of
 [5e-bits/5e-database](https://github.com/5e-bits/5e-database), pinned to a commit. The import is a
 tool of the repository; running it again updates what it wrote and keeps what the library added
 (models, factions, sizes, colours; a character that already has a monster's id keeps its look,
 behaviour, triggers and loot and takes the SRD's stat block, and a character with a monster's stat
-block keeps its numbers and gains the SRD's size, type, speeds, senses and texts). Run from the
+block keeps its numbers and gains the SRD's size, type, speeds, senses and texts, and its attacks the
+SRD attack's other damage and effects on a hit). Run from the
 repository, it also gives the example's characters, classes and equipment the same data (the
 example gets the items its classes start with, the coins and the magic items it shows) and writes the SRD's 35 NPC stat
 blocks (commoner, guard, bandit, veteran…) into the engine (`crates/engine/src/srd/npcs.ron`): the

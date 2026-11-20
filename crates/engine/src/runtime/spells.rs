@@ -404,6 +404,24 @@ impl Game {
         }
     }
 
+    /// A caster that can't act (incapacitated, stunned, unconscious at 0 HP…) loses its
+    /// concentration.
+    pub(super) fn drop_concentration_when_incapacitated(&mut self) {
+        if self.world.concentration.is_some() && !crate::srd::conditions::can_act(&self.world.effects) {
+            self.end_concentration(Who::Player);
+        }
+        let out: Vec<u32> = self
+            .skills
+            .npc_concentration
+            .keys()
+            .copied()
+            .filter(|uid| self.loaded.entities.iter().find(|e| e.uid == *uid).is_some_and(|e| !crate::srd::conditions::can_act(&e.effects)))
+            .collect();
+        for uid in out {
+            self.end_concentration(Who::Npc(uid));
+        }
+    }
+
     // --------------------------------------------------------------- outside fights
 
     /// Casts a spell outside a fight (the Spells tab, the quick bar, `cast_spell`): healing and
@@ -604,6 +622,7 @@ impl Game {
                 }
                 P::Light { .. } => out.push(crate::lang::tr_ui("Light").into_owned()),
                 P::Unlock => out.push(crate::lang::tr_ui("Opens locks").into_owned()),
+                P::Stabilize => out.push(crate::lang::tr_ui("Stabilizes").into_owned()),
                 P::Script { .. } => {}
             }
         }

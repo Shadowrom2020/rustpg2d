@@ -1063,6 +1063,14 @@ fn srd_item_ui(ui: &mut egui::Ui, d: &mut ItemDef) {
         .response
         .on_hover_text("A coin: shops whose currency is a coin count every coin the player carries by its worth and give change");
     });
+    ui.horizontal(|ui| {
+        ui.label("Uses");
+        ui.add(egui::DragValue::new(&mut d.uses).range(0..=999))
+            .on_hover_text("How many times it can be used, like a magic item's charges (a healer's kit: 10; it is used up after the last); 0 = no count. Items with uses don't stack.");
+        ui.checkbox(&mut d.silvered, "Silvered").on_hover_text(
+            "A silvered weapon or ammunition gets through resistances to nonmagical attacks 'that aren't silvered' (a werewolf's). Magic weapons get through every resistance to nonmagical attacks.",
+        );
+    });
 }
 
 /// The Magic item section: rarity, attunement, its +N bonus, charges and their recharge at dawn,
@@ -4033,6 +4041,65 @@ fn stat_features_ui(ui: &mut egui::Ui, salt: &str, s: &mut rustpg2d_engine::srd:
 
 /// A stat block's attacks in fights (name, attack bonus, damage dice and type, melee reach or a
 /// range) and how many it makes with its Attack action (Multiattack).
+/// An attack's extra damage parts and riders (a dragon's bite's fire, a wolf's knock prone).
+fn stat_hit_ui(ui: &mut egui::Ui, salt: &str, a: &mut rustpg2d_engine::srd::StatAttack) {
+    use rustpg2d_engine::srd::{Ability, DamagePart, HitRider};
+    let mut gone = None;
+    for (k, x) in a.extra.iter_mut().enumerate() {
+        ui.horizontal(|ui| {
+            ui.label("plus");
+            ui.add(egui::TextEdit::singleline(&mut x.dice).desired_width(64.0).hint_text("2d6"));
+            widgets::damage_type_combo(ui, &format!("{salt}/x{k}"), &mut x.damage_type, "untyped");
+            if ui.small_button(ph::TRASH).on_hover_text("Remove this damage").clicked() {
+                gone = Some(k);
+            }
+        });
+    }
+    if let Some(k) = gone {
+        a.extra.remove(k);
+    }
+    let mut gone = None;
+    for (k, r) in a.on_hit.iter_mut().enumerate() {
+        ui.horizontal_wrapped(|ui| {
+            let save = r.save.map_or("no save", |s| s.short());
+            egui::ComboBox::from_id_salt((salt, "save", k)).width(70.0).selected_text(save).show_ui(ui, |ui| {
+                ui.selectable_value(&mut r.save, None, "no save");
+                for ab in Ability::ALL {
+                    ui.selectable_value(&mut r.save, Some(ab), ab.short());
+                }
+            });
+            if r.save.is_some() {
+                ui.label("DC");
+                ui.add(egui::DragValue::new(&mut r.dc).range(1..=30));
+            }
+            ui.label("or");
+            widgets::condition_combo(ui, &format!("{salt}/c{k}"), &mut r.condition, "no condition");
+            if r.condition.is_some() {
+                ui.add(egui::DragValue::new(&mut r.rounds).range(0..=600).suffix(" rounds")).on_hover_text("How long it lasts (0 = until it ends: escaped, removed)");
+                ui.add(egui::DragValue::new(&mut r.escape_dc).range(0..=30).prefix("escape DC ")).on_hover_text("A grapple's or restraint's escape DC (0 = none): the target's Escape action rolls Athletics or Acrobatics against it");
+            }
+            ui.label("damage");
+            ui.add(egui::TextEdit::singleline(&mut r.dice).desired_width(54.0).hint_text("2d8")).on_hover_text("Damage on a failed save (empty = none)");
+            widgets::damage_type_combo(ui, &format!("{salt}/d{k}"), &mut r.damage_type, "untyped");
+            ui.checkbox(&mut r.half, "half on a save");
+            if ui.small_button(ph::TRASH).on_hover_text("Remove this effect").clicked() {
+                gone = Some(k);
+            }
+        });
+    }
+    if let Some(k) = gone {
+        a.on_hit.remove(k);
+    }
+    ui.horizontal(|ui| {
+        if ui.small_button(crate::ui::t(ph::PLUS, "Damage")).on_hover_text("More damage of another type on a hit (plus 2d6 fire)").clicked() {
+            a.extra.push(DamagePart { dice: "1d6".into(), damage_type: None });
+        }
+        if ui.small_button(crate::ui::t(ph::PLUS, "Effect")).on_hover_text("A saving throw against a condition or more damage on a hit (a DC 11 STR save or prone)").clicked() {
+            a.on_hit.push(HitRider { save: Some(Ability::Str), dc: 11, condition: Some(rustpg2d_engine::srd::Condition::Prone), ..Default::default() });
+        }
+    });
+}
+
 fn stat_attacks_ui(ui: &mut egui::Ui, salt: &str, s: &mut rustpg2d_engine::srd::StatBlock) {
     ui.horizontal(|ui| {
         ui.label("Attacks").on_hover_text("What it attacks with in fights. Without any it attacks with its weapon or its old damage (+2).");
@@ -4070,6 +4137,15 @@ fn stat_attacks_ui(ui: &mut egui::Ui, salt: &str, s: &mut rustpg2d_engine::srd::
     });
     if let Some(k) = remove {
         s.attacks.remove(k);
+    }
+    // What a hit does besides its damage: more damage of other types, a save against a condition
+    // or more damage, a grapple's escape DC.
+    for (k, a) in s.attacks.iter_mut().enumerate() {
+        let n = a.extra.len() + a.on_hit.len();
+        egui::CollapsingHeader::new(format!("{}: on a hit ({n})", if a.name.is_empty() { "Attack" } else { &a.name }))
+            .id_salt((salt, "onhit", k))
+            .default_open(n > 0)
+            .show(ui, |ui| stat_hit_ui(ui, &format!("{salt}/hit{k}"), a));
     }
     if ui.button(crate::ui::t(ph::PLUS, "Add attack")).clicked() {
         s.attacks.push(rustpg2d_engine::srd::StatAttack { name: "Attack".into(), bonus: 2, dice: "1d6".into(), reach_ft: 5, ..Default::default() });
@@ -5431,6 +5507,9 @@ fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::Sp
                 P::Unlock => {
                     ui.strong("Opens the nearest lock");
                 }
+                P::Stabilize => {
+                    ui.strong("Stabilizes").on_hover_text("A creature at 0 hit points stops making death saving throws (Spare the Dying)");
+                }
                 P::Script { function } => {
                     ui.strong("Script");
                     widgets::suggest(ui, &format!("sp_fn{k}"), function, &cx.refs.functions, 160.0);
@@ -5444,7 +5523,7 @@ fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::Sp
     }
     ui.horizontal(|ui| {
         ui.label("Add:");
-        let templates: [(&str, P); 11] = [
+        let templates: [(&str, P); 12] = [
             ("Attack", P::Attack { ranged: true }),
             ("Save", P::Save { ability: Ability::Dex, half: true }),
             ("Damage", P::Damage { by_level: vec![(1, "1d8".into())], damage_type: None }),
@@ -5455,6 +5534,7 @@ fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::Sp
             ("Boon", P::Buff { buff: B::AttackDie { dice: "1d4".into(), minus: false } }),
             ("Light", P::Light { radius: 4.0 }),
             ("Unlock", P::Unlock),
+            ("Stabilize", P::Stabilize),
             ("Script", P::Script { function: String::new() }),
         ];
         for (name, t) in templates {

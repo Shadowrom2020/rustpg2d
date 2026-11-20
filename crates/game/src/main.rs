@@ -361,7 +361,12 @@ impl Autoplay {
             frames.push_back(MouseInject { pos: p, ..Default::default() });
         };
         if let Some((probe, left)) = &mut self.until {
-            if game.minigame_probe(probe) {
+            // `waitturn`: until the hero's turn in a fight comes (nothing pressed).
+            if *probe == "myturn" && game.heros_turn() {
+                self.until = None;
+                return true;
+            }
+            if *probe != "myturn" && game.minigame_probe(probe) {
                 self.until = None;
                 inject(&[KeyCode::E], &[KeyCode::E]);
                 self.timer = 0.1;
@@ -369,7 +374,7 @@ impl Autoplay {
             }
             *left -= get_frame_time();
             if *left <= 0.0 {
-                say!("[autoplay] minigame: '{probe}' never came");
+                say!("[autoplay] {}: '{probe}' never came", if *probe == "myturn" { "waitturn" } else { "minigame" });
                 self.until = None;
             }
             inject(&[], &[]);
@@ -518,6 +523,12 @@ impl Autoplay {
                 // of 0.27 and older became a DEX check)
                 "minigame" => {
                     self.until = Some(("bite", 8.0));
+                    return true;
+                }
+                // waitturn [SECS]: waits (at most SECS, default 30) until the hero's turn in a fight,
+                // ready to act (no walk on screen)
+                "waitturn" => {
+                    self.until = Some(("myturn", if arg(1).is_empty() { 30.0 } else { secs(1) }));
                     return true;
                 }
                 // craft K: click the Make button of recipe row K in the crafting window

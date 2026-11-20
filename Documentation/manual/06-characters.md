@@ -193,7 +193,12 @@ proficient in, its **languages**, its **challenge** rating and the **XP** it is 
   with the modifier (`1d6+2`) and type, a melee **reach** and / or a **range** (normal / long, in
   feet; a tile is 5 ft), and **per turn** (Multiattack: how many attacks its Attack action makes).
   Templates bring the SRD's (the guard's spear, the bandit captain's three attacks); *Add attack*
-  adds one by hand. Without attacks it fights with its weapon or *Damage* (+2 to hit).
+  adds one by hand. Without attacks it fights with its weapon or *Damage* (+2 to hit). Each attack's
+  **on a hit** section adds **Damage** of other types (a dragon's bite: plus 2d6 fire) and
+  **Effects**: a saving throw (or none) with its DC against a condition for some rounds (0 = until
+  it ends), and / or damage on a failed save (half on a success when ticked), and an **escape DC**
+  for a grapple or restraint (the target's *Escape* action rolls against it). The SRD monsters bring
+  theirs (a wolf's bite: DC 11 STR or prone).
 - **Resistant to**, **Immune to**, **Vulnerable to**: damage types it takes half, no or double
   damage from (an assassin shrugs off half of the poison);
   **Can't get**: conditions it is immune to (a grimlock can't be blinded). Saving throws against

@@ -189,6 +189,56 @@ pub struct StatAttack {
     pub range_ft: u32,
     #[serde(skip_serializing_if = "is_zero_u32")]
     pub long_ft: u32,
+    /// More damage of other types on a hit (a dragon's bite: "plus 7 (2d6) fire damage").
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub extra: Vec<DamagePart>,
+    /// What a hit does besides its damage (a wolf's bite: a DC 11 STR save or prone).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub on_hit: Vec<HitRider>,
+}
+
+/// Damage dice of a type: one part of an attack's damage.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct DamagePart {
+    pub dice: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub damage_type: Option<super::DamageType>,
+}
+
+/// What a monster's hit does besides its damage: a saving throw (or none) against a condition
+/// and / or more damage ("must succeed on a DC 11 Strength saving throw or be knocked prone";
+/// "taking 9 (2d8) poison damage on a failed save, or half as much on a successful one"; "the
+/// target is grappled (escape DC 13)").
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct HitRider {
+    /// The save that keeps it off (`None` = it happens on every hit).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub save: Option<super::Ability>,
+    #[serde(skip_serializing_if = "is_zero_i32")]
+    pub dc: i32,
+    /// The condition a failed save (or the hit) gives.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub condition: Option<super::Condition>,
+    /// How long it lasts in rounds (0 = until it ends: escaped, a save, removed).
+    #[serde(skip_serializing_if = "is_zero_u32")]
+    pub rounds: u32,
+    /// Damage on a failed save ("" = none).
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub dice: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub damage_type: Option<super::DamageType>,
+    /// Half the damage on a successful save (else none).
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub half: bool,
+    /// A grapple's or restraint's escape DC (0 = none).
+    #[serde(skip_serializing_if = "is_zero_i32")]
+    pub escape_dc: i32,
+}
+
+fn is_zero_i32(n: &i32) -> bool {
+    *n == 0
 }
 
 impl Default for StatBlock {

@@ -575,9 +575,19 @@ pub(super) fn draw_item_detail(db: &crate::defs::Database, d: Rect, pad: f32, st
 }
 
 /// A magic item's part of the numbers: its +N, rarity, attunement and charges left
-/// ("+1 · Rare · Attuned · 5/7 charges").
+/// ("+1 · Rare · Attuned · 5/7 charges"); a plain item's uses and silvering.
 pub(super) fn magic_line(d: &crate::defs::ItemDef, spent: u32, attuned: &[String]) -> Option<String> {
-    let m = d.magic.as_ref()?;
+    // A plain item's uses (a healer's kit: "7/10 uses"); silvered.
+    let Some(m) = d.magic.as_ref() else {
+        let mut v = Vec::new();
+        if d.silvered {
+            v.push(crate::lang::tr_ui("Silvered").into_owned());
+        }
+        if d.uses > 0 {
+            v.push(format!("{}/{} {}", d.uses.saturating_sub(spent), d.uses, crate::lang::tr_ui("uses")));
+        }
+        return (!v.is_empty()).then(|| v.join(" · "));
+    };
     let mut v = Vec::new();
     if m.bonus != 0 {
         v.push(format!("{:+}", m.bonus));

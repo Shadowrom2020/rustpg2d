@@ -325,6 +325,9 @@ impl Game {
         if left == n && d.magic.as_ref().is_some_and(|m| m.destroy_on_last) && crate::srd::dice::die(20) == 1 {
             self.destroy_stack(who, at);
             self.ui.toast(crate::lang::tr_ui("The {} crumbles to dust").replacen("{}", &crate::lang::tr(&d.name), 1));
+        } else if left == n && d.magic.is_none() && d.uses > 0 {
+            // A plain item's last use (a healer's kit) uses it up.
+            self.destroy_stack(who, at);
         }
         if let Some(i) = self.who_index(who) {
             self.persist_npc_items(i);

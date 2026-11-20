@@ -2905,6 +2905,13 @@
                     dice: "2d4+2",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            save: Some(Str),
+                            dc: 11,
+                            condition: Some(Prone),
+                        ),
+                    ],
                 ),
             ],
             creature_type: "beast",

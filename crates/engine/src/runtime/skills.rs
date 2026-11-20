@@ -80,6 +80,7 @@ impl Game {
         if self.fight.is_none() {
             self.tick_concentration(dt);
         }
+        self.drop_concentration_when_incapacitated();
     }
 
     /// A new game or a loaded one: no glow, no aiming, no party member concentrating.

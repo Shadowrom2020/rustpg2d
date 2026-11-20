@@ -335,6 +335,8 @@ pub enum Cond {
     },
     /// The hero is attuned to the magic item.
     Attuned { item: String },
+    /// A character (by name or definition id) was knocked out in a fight instead of killed.
+    KnockedOut { name: String },
 }
 
 fn cmp_ge() -> CmpOp {
@@ -381,6 +383,7 @@ impl Cond {
             Cond::Class { .. } => "Has class",
             Cond::Money { .. } => "Has money",
             Cond::Attuned { .. } => "Is attuned",
+            Cond::KnockedOut { .. } => "Was knocked out",
         }
     }
     pub fn templates() -> Vec<Cond> {
@@ -408,6 +411,7 @@ impl Cond {
             Cond::Class { class: String::new(), op: CmpOp::Ge, level: 1 },
             Cond::Money { op: CmpOp::Ge, cp: 100 },
             Cond::Attuned { item: String::new() },
+            Cond::KnockedOut { name: String::new() },
         ]
     }
 }
@@ -461,6 +465,7 @@ impl Condition {
             }
             Cond::Money { op, cp } => op.apply(world.money_cp() as i64, *cp),
             Cond::Attuned { item } => world.attuned.iter().any(|a| a == item),
+            Cond::KnockedOut { name } => world.was_knocked_out(name),
         };
         v != self.negate
     }

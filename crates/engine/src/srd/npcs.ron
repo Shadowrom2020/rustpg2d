@@ -125,6 +125,21 @@
                 dice: "1d6+3",
                 damage_type: Some(Piercing),
                 reach_ft: 5,
+                extra: [
+                    (
+                        dice: "7d6",
+                        damage_type: Some(Poison),
+                    ),
+                ],
+                on_hit: [
+                    (
+                        save: Some(Con),
+                        dc: 15,
+                        dice: "7d6",
+                        damage_type: Some(Poison),
+                        half: true,
+                    ),
+                ],
             ),
             (
                 name: "Light Crossbow",
@@ -133,6 +148,21 @@
                 damage_type: Some(Piercing),
                 range_ft: 80,
                 long_ft: 320,
+                extra: [
+                    (
+                        dice: "7d6",
+                        damage_type: Some(Poison),
+                    ),
+                ],
+                on_hit: [
+                    (
+                        save: Some(Con),
+                        dc: 15,
+                        dice: "7d6",
+                        damage_type: Some(Poison),
+                        half: true,
+                    ),
+                ],
             ),
         ],
         multiattack: 2,
@@ -541,6 +571,14 @@
                 damage_type: Some(Piercing),
                 range_ft: 30,
                 long_ft: 120,
+                on_hit: [
+                    (
+                        save: Some(Con),
+                        dc: 12,
+                        condition: Some(Poisoned),
+                        rounds: 10,
+                    ),
+                ],
             ),
         ],
         size: Small,
@@ -606,6 +644,14 @@
                 damage_type: Some(Piercing),
                 range_ft: 30,
                 long_ft: 120,
+                on_hit: [
+                    (
+                        save: Some(Con),
+                        dc: 13,
+                        condition: Some(Poisoned),
+                        rounds: 600,
+                    ),
+                ],
             ),
         ],
         creature_type: "humanoid (elf)",
@@ -786,6 +832,13 @@
                 dice: "2d4+4",
                 damage_type: Some(Bludgeoning),
                 reach_ft: 5,
+                on_hit: [
+                    (
+                        save: Some(Str),
+                        dc: 15,
+                        condition: Some(Prone),
+                    ),
+                ],
             ),
         ],
         multiattack: 3,
@@ -971,6 +1024,12 @@
                 dice: "1d4+3",
                 damage_type: Some(Bludgeoning),
                 reach_ft: 5,
+                extra: [
+                    (
+                        dice: "1d4",
+                        damage_type: Some(Piercing),
+                    ),
+                ],
             ),
         ],
         creature_type: "humanoid (grimlock)",

@@ -250,6 +250,12 @@ impl DeathSaves {
 
 /// The feet a step costs: 5, double on difficult terrain (diagonals cost the same, the SRD's
 /// simple rule).
+/// Instant death from massive damage: damage that drops a creature to 0 HP and still has at
+/// least its hit point maximum left (`hp_before` 0 = already down: the damage alone).
+pub fn massive_damage(hp_before: i32, damage: i32, max_hp: i32) -> bool {
+    max_hp > 0 && damage - hp_before.max(0) >= max_hp
+}
+
 pub fn step_cost(difficult: bool) -> u32 {
     if difficult {
         2 * FEET_PER_TILE
@@ -261,6 +267,17 @@ pub fn step_cost(difficult: bool) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn massive_damage_kills_outright() {
+        // A 12 HP hero at 6 HP: 18 damage leaves 12 past 0 = its maximum.
+        assert!(massive_damage(6, 18, 12));
+        assert!(!massive_damage(6, 17, 12));
+        // Already down: the damage alone.
+        assert!(massive_damage(0, 12, 12));
+        assert!(!massive_damage(0, 11, 12));
+        assert!(!massive_damage(5, 100, 0), "no maximum, no rule");
+    }
 
     #[test]
     fn advantage_and_disadvantage_come_from_the_situation() {

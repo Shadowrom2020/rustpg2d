@@ -1,7 +1,8 @@
 //! The choice window over the action bar: Cast lists the spells (each slot level it can cast,
 //! greyed with the reason when it can't), Class the class actions, Attack with a weapon that can
-//! also be thrown asks whether to strike or throw. Keys, mouse and autoplay (`turn menu`,
-//! `turn pick K`) pick a row; Cancel closes it.
+//! also be thrown asks whether to strike or throw, a finishing blow in melee whether to kill or
+//! knock out. Keys, mouse and autoplay (`turn menu`, `turn pick K`) pick a row; Cancel closes it
+//! (not the finishing blow's: that one waits for an answer).
 
 use macroquad::prelude::*;
 
@@ -17,6 +18,8 @@ pub(in crate::runtime) enum MenuKind {
     Cast,
     Class,
     Attack,
+    /// A melee hit drops a foe to 0 HP: kill or knock out.
+    Finish,
 }
 
 /// What picking a row does.
@@ -30,6 +33,16 @@ pub(in crate::runtime) enum MenuPick {
     Attack { thrown: bool },
     /// A spell from an item (a wand) at a slot level, spending its charges.
     ItemCast { item: String, spell: String, slot: u32 },
+    /// The held finishing blow kills or knocks out.
+    Finish { knock_out: bool },
+}
+
+/// The rows of the Kill / Knock out window.
+pub(super) fn finish_rows() -> Vec<MenuRow> {
+    vec![
+        MenuRow { label: crate::lang::tr_ui("Kill").into_owned(), detail: String::new(), why: None, pick: MenuPick::Finish { knock_out: false } },
+        MenuRow { label: crate::lang::tr_ui("Knock out").into_owned(), detail: crate::lang::tr_ui("unconscious, alive").into_owned(), why: None, pick: MenuPick::Finish { knock_out: true } },
+    ]
 }
 
 #[derive(Clone, Debug)]
@@ -59,6 +72,7 @@ impl MenuKind {
             MenuKind::Cast => "Cast a spell",
             MenuKind::Class => "Class action",
             MenuKind::Attack => "Attack",
+            MenuKind::Finish => "The foe falls: kill or knock out?",
         }
     }
 
@@ -67,6 +81,7 @@ impl MenuKind {
             MenuKind::Cast => "cast",
             MenuKind::Class => "class",
             MenuKind::Attack => "attack",
+            MenuKind::Finish => "finish",
         }
     }
 }
@@ -211,6 +226,7 @@ impl Game {
                 }
                 self.aim_spell(&spell, slot);
             }
+            MenuPick::Finish { knock_out } => self.finish_blow(knock_out),
         }
         Ok(())
     }
@@ -244,7 +260,7 @@ impl Game {
             if let Err(why) = self.pick_fight_menu_row(sel) {
                 self.ui.toast(crate::lang::tr_ui(why).into_owned());
             }
-        } else if input::act_pressed(Act::Cancel) || input::mouse_pressed(MouseButton::Right) || (input::mouse_pressed(MouseButton::Left) && hovered.is_none()) {
+        } else if menu.kind != MenuKind::Finish && (input::act_pressed(Act::Cancel) || input::mouse_pressed(MouseButton::Right) || (input::mouse_pressed(MouseButton::Left) && hovered.is_none())) {
             if let Some(c) = &mut self.fight {
                 c.menu = None;
             }

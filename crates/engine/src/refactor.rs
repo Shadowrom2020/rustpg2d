@@ -476,6 +476,8 @@ impl Renamer<'_> {
                     }
                 }
                 Cond::HasItem { item, .. } | Cond::Attuned { item } => self.fix(RefKind::Item, item),
+                // (A definition id there follows its renames; a name stays.)
+                Cond::KnockedOut { name } => self.fix(RefKind::Character, name),
                 Cond::Defeated { character, .. } => self.fix(RefKind::Character, character),
                 Cond::PlayerRace { race } => self.fix(RefKind::Race, race),
                 Cond::Class { class, .. } => self.fix(RefKind::Class, class),

@@ -62,9 +62,9 @@ impl ItemDef {
         self.magic.as_ref().is_some_and(|m| m.attunement)
     }
 
-    /// Its charges (0 = none).
+    /// Its charges, or a plain item's uses (0 = none).
     pub fn max_charges(&self) -> u32 {
-        self.magic.as_ref().map_or(0, |m| m.charges)
+        self.magic.as_ref().map_or(0, |m| m.charges).max(self.uses)
     }
 
     pub fn equip_slot(&self) -> Option<EquipSlot> {
@@ -972,6 +972,14 @@ pub struct ItemDef {
     /// A magic item: rarity, attunement, its +N bonus, effects, charges, spells.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub magic: Option<crate::srd::magic_items::MagicItem>,
+    /// Uses of a plain item (a healer's kit's 10), counted like a magic item's charges
+    /// (`ItemStack::spent`); 0 = none.
+    #[serde(default, skip_serializing_if = "is_zero_u32")]
+    pub uses: u32,
+    /// A silvered weapon or ammunition: gets through resistances "from nonmagical attacks that
+    /// aren't silvered" (a werewolf's).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub silvered: bool,
 }
 
 /// Animation names of an item (`ItemDef::anims`); "" = by its kind ([`ItemAnims::estimate`]),
@@ -1073,6 +1081,8 @@ impl Default for ItemDef {
             weight: 0.0,
             coin_cp: 0,
             magic: None,
+            uses: 0,
+            silvered: false,
         }
     }
 }

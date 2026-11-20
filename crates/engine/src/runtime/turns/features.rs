@@ -713,6 +713,58 @@ impl Game {
         }
     }
 
+    /// After a monster's hit: what its attack does besides damage (a wolf's bite: a STR save or
+    /// prone; a giant spider's: a CON save against poison damage, half on a success; a grapple
+    /// with its escape DC).
+    pub(super) fn hit_riders(&mut self, who: Who, target: Who, spec: &AttackSpec) {
+        for r in &spec.riders {
+            if self.fight.as_ref().and_then(|c| c.fighter(target)).is_none_or(|f| f.out || f.down) {
+                return;
+            }
+            let tname = self.who_name(target);
+            let (saved, save_text) = match r.save {
+                Some(a) => {
+                    let rec = self.who_check(target, a.id(), r.dc, true);
+                    let ok = rec.as_ref().is_some_and(|x| x.success == Some(true));
+                    (ok, format!("{} {}/{} {}", a.short(), rec.as_ref().map_or(0, |x| x.total), r.dc, crate::lang::tr_ui(if ok { "saved" } else { "failed" })))
+                }
+                None => (false, String::new()),
+            };
+            if !r.dice.is_empty() {
+                let full = super::roll_damage(&r.dice, false);
+                let n = if !saved { full } else if r.half { full / 2 } else { 0 };
+                self.fight_log(format!("{tname}: {save_text}{}{n}", if save_text.is_empty() { "" } else { ", " }));
+                if n > 0 {
+                    self.combat_damage_parts(target, &[(n, r.damage_type)], false, Some(who), spec.hit);
+                }
+            }
+            let Some(c) = r.condition else {
+                continue;
+            };
+            let alive = self.fight.as_ref().and_then(|f| f.fighter(target)).is_some_and(|f| !f.out && !f.down);
+            let immune = self.who_block(target).is_some_and(|b| b.immune_to(c));
+            if saved || !alive || immune {
+                if saved && r.dice.is_empty() {
+                    self.fight_log(format!("{tname}: {save_text}"));
+                }
+                continue;
+            }
+            let tag = self.who_tag(who);
+            if let Some(l) = self.who_conditions_mut(target) {
+                conditions::apply(l, &ConditionSpec::new(c, if r.rounds == 0 { 0.0 } else { rounds_secs(r.rounds) }));
+                conditions::set_origin(l, c, &tag, r.escape_dc);
+            }
+            // (A grapple: the grappler holds it; it ends when they part.)
+            if c == conditions::Condition::Grappled {
+                if let Some(f) = self.fight.as_mut().and_then(|f| f.fighter_mut(who)) {
+                    f.grappling = Some(target);
+                }
+            }
+            let saved_text = if save_text.is_empty() || !r.dice.is_empty() { String::new() } else { format!("{save_text}, ") };
+            self.fight_log(format!("{tname}: {saved_text}{}", crate::lang::tr_ui(c.name())));
+        }
+    }
+
     // ---------------------------------------------------------------------------- damage
 
     /// Damage about to land on `target`: rage's resistance and temporary hit points take their
@@ -732,6 +784,15 @@ impl Game {
             }
         }
         n
+    }
+
+    /// Rage's resistance on one part of the damage: half of bludgeoning, piercing and slashing.
+    pub(super) fn rage_halves(&self, target: Who, n: i32, t: Option<DamageType>) -> i32 {
+        if self.fx(target).rage > 0 && matches!(t, Some(DamageType::Bludgeoning | DamageType::Piercing | DamageType::Slashing)) {
+            n / 2
+        } else {
+            n
+        }
     }
 
     /// Hit points about to drop to 0: Relentless Rage's CON save keeps 1. True = it stays up.

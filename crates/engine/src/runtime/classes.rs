@@ -342,7 +342,7 @@ impl Game {
         let (range_ft, long_ft) = w.as_ref().and_then(|w| w.ranged.as_ref()).map_or((0, 0), |r| ((r.range.round() as u32) * 5, (if r.long_range > 0.0 { r.long_range } else { r.range * 2.0 }).round() as u32 * 5));
         let reach_ft = if ranged { 0 } else { w.as_ref().map_or(5, |w| w.reach_tiles().max(1) as u32 * 5) };
         let name = w.as_ref().map_or("Unarmed strike".to_string(), |_| e.equipment.item(crate::defs::EquipSlot::Weapon).and_then(|i| self.project.db.item(i)).map_or("Attack".into(), |i| i.name.clone()));
-        b.attacks = vec![crate::srd::StatAttack { name, bonus, dice, damage_type: w.as_ref().and_then(|w| w.damage_type), reach_ft, range_ft, long_ft }];
+        b.attacks = vec![crate::srd::StatAttack { name, bonus, dice, damage_type: w.as_ref().and_then(|w| w.damage_type), reach_ft, range_ft, long_ft, ..Default::default() }];
         b.multiattack = t.attacks;
         b.resistances.extend(t.resistances.iter().cloned());
         b.immunities.extend(t.immunities.iter().cloned());

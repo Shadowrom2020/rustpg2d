@@ -567,6 +567,22 @@ impl Game {
     /// Defeats character `i`; `xp`: the player gains its experience; `bestiary`: it counts as
     /// the player's.
     fn defeat_by(&mut self, i: usize, xp: bool, bestiary: bool) {
+        self.defeat_how(i, xp, bestiary, false);
+    }
+
+    /// A character knocked out in a fight (the player's choice): defeated (experience, loot,
+    /// *Defeat* triggers, saved as defeated) but it lies unconscious where it fell until the hero
+    /// leaves the map, and `WorldState::knocked_out` remembers it.
+    pub(super) fn knock_out_entity(&mut self, i: usize) {
+        let e = &self.loaded.entities[i];
+        let k = crate::state::KnockedOut { map: self.loaded.map.name.clone(), uid: e.uid, name: e.name.clone(), def: e.def.clone() };
+        if !self.world.knocked_out.contains(&k) {
+            self.world.knocked_out.push(k);
+        }
+        self.defeat_how(i, true, true, true);
+    }
+
+    fn defeat_how(&mut self, i: usize, xp: bool, bestiary: bool, knocked: bool) {
         if self.loaded.entities[i].companion.is_some() {
             // Companions aren't defeated: they fall (and wait to be healed), or go home.
             self.knock_down(i);
@@ -585,11 +601,25 @@ impl Game {
             *self.world.bestiary.entry(def).or_insert(0) += 1;
         }
         let e = &mut self.loaded.entities[i];
-        e.active = false;
         e.knock = Vec2::ZERO;
+        if knocked {
+            // Lying unconscious, out of everything (saved as defeated: `persist` reads it).
+            e.knocked_out = true;
+            e.hostile = false;
+            e.hp = 0;
+            e.patrol = None;
+            e.schedule = None;
+            e.body.moving = false;
+            e.ai = Default::default();
+            crate::srd::conditions::apply(&mut e.effects, &crate::srd::ConditionSpec::new(crate::srd::Condition::Unconscious, 0.0));
+        } else {
+            e.active = false;
+        }
         let (uid, pos, spawned_by) = (e.uid, e.body.pos - vec2(0.0, e.body.hitbox.y), e.spawned_by);
         let (feet, loot) = (e.body.pos, e.loot.clone());
-        self.effects.push((pos, 0.0));
+        if !knocked {
+            self.effects.push((pos, 0.0));
+        }
         self.persist(i);
         self.drop_loot(&loot, feet);
         self.drop_npc_items(i);

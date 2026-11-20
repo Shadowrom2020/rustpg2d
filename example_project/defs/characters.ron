@@ -307,6 +307,7 @@
                     reach_ft: 5,
                     range_ft: 20,
                     long_ft: 60,
+                    versatile: "1d8+1",
                 ),
             ],
             creature_type: "humanoid (any race)",
@@ -2446,6 +2447,7 @@
                     reach_ft: 5,
                     range_ft: 20,
                     long_ft: 60,
+                    versatile: "1d8+1",
                 ),
             ],
             creature_type: "humanoid (any race)",
@@ -4062,6 +4064,7 @@
                     dice: "1d8+3",
                     damage_type: Some(Slashing),
                     reach_ft: 5,
+                    versatile: "1d10+3",
                 ),
                 (
                     name: "Shortsword",

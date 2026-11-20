@@ -20,6 +20,8 @@ pub(in crate::runtime) enum MenuKind {
     Attack,
     /// A melee hit drops a foe to 0 HP: kill or knock out.
     Finish,
+    /// Ready: an attack or a spell, held for a trigger.
+    Ready,
 }
 
 /// What picking a row does.
@@ -35,6 +37,10 @@ pub(in crate::runtime) enum MenuPick {
     ItemCast { item: String, spell: String, slot: u32 },
     /// The held finishing blow kills or knocks out.
     Finish { knock_out: bool },
+    /// Ready the attack: when a foe comes within reach.
+    ReadyAttack,
+    /// Ready a spell at a slot level: when a foe comes within its range.
+    ReadySpell(String, u32),
 }
 
 /// The rows of the Kill / Knock out window.
@@ -73,6 +79,7 @@ impl MenuKind {
             MenuKind::Class => "Class action",
             MenuKind::Attack => "Attack",
             MenuKind::Finish => "The foe falls: kill or knock out?",
+            MenuKind::Ready => "Ready",
         }
     }
 
@@ -82,6 +89,7 @@ impl MenuKind {
             MenuKind::Class => "class",
             MenuKind::Attack => "attack",
             MenuKind::Finish => "finish",
+            MenuKind::Ready => "ready",
         }
     }
 }
@@ -183,6 +191,64 @@ impl Game {
         rows
     }
 
+    /// The rows of the Ready window: the attack (when a foe comes within reach), and each spell
+    /// with a creature as its target it can cast now (when a foe comes within its range).
+    pub(super) fn ready_rows(&self, who: Who) -> Vec<MenuRow> {
+        let mut rows = Vec::new();
+        if let Some(s) = self.melee_spec(who) {
+            let ft = s.reach.max(1) * 5;
+            rows.push(MenuRow { label: crate::lang::tr_ui("Attack").into_owned(), detail: crate::lang::tr_ui("when a foe comes within {} ft").replacen("{}", &ft.to_string(), 1), why: None, pick: MenuPick::ReadyAttack });
+        }
+        for (id, slot) in self.cast_options(who) {
+            let Some(d) = self.project.db.spell(&id) else { continue };
+            let aimed = d.area.is_none() && d.range != crate::skills::SpellRange::Caster && d.parts.iter().any(|p| matches!(p, crate::skills::SpellPart::Attack { .. } | crate::skills::SpellPart::Save { .. } | crate::skills::SpellPart::Damage { .. } | crate::skills::SpellPart::Condition { .. }));
+            if !aimed || d.casting != crate::skills::SpellCast::Action {
+                continue;
+            }
+            let label = if slot == 0 { crate::lang::tr(&d.name) } else { format!("{} ({} {slot})", crate::lang::tr(&d.name), crate::lang::tr_ui("slot")) };
+            let ft = d.range.tiles().max(1) * 5;
+            rows.push(MenuRow { label, detail: crate::lang::tr_ui("when a foe comes within {} ft").replacen("{}", &ft.to_string(), 1), why: None, pick: MenuPick::ReadySpell(id.clone(), slot) });
+        }
+        rows
+    }
+
+    /// Ready › Attack: the attack waits for a foe to come within reach (the reaction).
+    pub(super) fn ready_attack(&mut self) {
+        let Some(c) = &mut self.fight else { return };
+        let who = c.current().who;
+        c.turn.action = true;
+        if let Some(f) = c.fighter_mut(who) {
+            f.readied = true;
+        }
+        let name = self.who_name(who);
+        self.fight_log(format!("{name}: {}", crate::lang::tr_ui("readies an attack")));
+    }
+
+    /// Ready › a spell: its slot is spent now and it is held with concentration until a foe
+    /// comes within its range (or the next turn: then it is lost).
+    pub(super) fn ready_spell(&mut self, id: &str, slot: u32) -> Result<(), &'static str> {
+        let who = self.fight.as_ref().ok_or("No fight")?.current().who;
+        if !self.cast_options(who).iter().any(|(s, l)| s == id && *l == slot) {
+            return Err("You can't cast that spell");
+        }
+        if slot >= 1 {
+            self.spend_slot(who, slot);
+        }
+        // (Holding it takes concentration: one it had ends.)
+        self.begin_concentration(who, &format!("ready:{id}"), 60.0);
+        if let Some(c) = &mut self.fight {
+            c.turn.action = true;
+            if let Some(f) = c.fighter_mut(who) {
+                f.readied_spell = Some((id.to_string(), slot));
+                f.hidden = false;
+            }
+        }
+        let name = self.who_name(who);
+        let spell = self.project.db.spell(id).map_or(id.to_string(), |d| crate::lang::tr(&d.name));
+        self.fight_log(format!("{name}: {} {spell}", crate::lang::tr_ui("readies")));
+        Ok(())
+    }
+
     /// Opens the choice window (the first row that can be picked is selected). False when it
     /// has no rows.
     pub(in crate::runtime) fn open_fight_menu(&mut self, kind: MenuKind, rows: Vec<MenuRow>) -> bool {
@@ -227,6 +293,8 @@ impl Game {
                 self.aim_spell(&spell, slot);
             }
             MenuPick::Finish { knock_out } => self.finish_blow(knock_out),
+            MenuPick::ReadyAttack => self.ready_attack(),
+            MenuPick::ReadySpell(id, slot) => self.ready_spell(&id, slot)?,
         }
         Ok(())
     }

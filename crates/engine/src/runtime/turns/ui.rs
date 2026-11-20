@@ -284,7 +284,7 @@ impl Game {
         // Reachable tiles; those whose way leaves a foe's reach (an opportunity attack) in red.
         let here = self.who_tile(me.who);
         let threats = self.threatening_foes(me.who);
-        let provokes = |t: TilePos| !c.turn.disengaged && threats.iter().any(|f| f.0.abs_diff(t.0) > 1 || f.1.abs_diff(t.1) > 1);
+        let provokes = |t: TilePos| !c.turn.disengaged && threats.iter().any(|(f, r)| f.0.abs_diff(t.0).max(f.1.abs_diff(t.1)) as i32 > *r);
         for t in c.reach.keys() {
             let r = tile_rect(*t);
             let col = if *t != here && provokes(*t) { Color::new(1.0, 0.35, 0.25, 0.2) } else { Color::new(0.3, 0.6, 1.0, 0.16) };
@@ -315,16 +315,17 @@ impl Game {
 
     /// The tiles of the foes next to `who` that would take an opportunity attack when it leaves
     /// their reach (standing, able to act, their reaction not spent, a melee attack).
-    pub(super) fn threatening_foes(&self, who: Who) -> Vec<TilePos> {
+    pub(super) fn threatening_foes(&self, who: Who) -> Vec<(TilePos, i32)> {
         let Some(c) = &self.fight else { return Vec::new() };
         let Some(me) = c.fighter(who) else { return Vec::new() };
         let here = self.who_tile(who);
+        // (Each with its melee reach: a glaive's two tiles.)
         c.order
             .iter()
             .filter(|f| f.side != me.side && !f.out && !f.down && !f.reacted)
-            .filter(|f| crate::srd::conditions::can_act(self.who_conditions(f.who)) && self.melee_spec(f.who).is_some())
-            .map(|f| self.who_tile(f.who))
-            .filter(|t| t.0.abs_diff(here.0) <= 1 && t.1.abs_diff(here.1) <= 1)
+            .filter(|f| crate::srd::conditions::can_act(self.who_conditions(f.who)))
+            .filter_map(|f| Some((self.who_tile(f.who), self.melee_spec(f.who)?.reach.max(1))))
+            .filter(|(t, r)| t.0.abs_diff(here.0).max(t.1.abs_diff(here.1)) as i32 <= *r)
             .collect()
     }
 

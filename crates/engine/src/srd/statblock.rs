@@ -189,6 +189,10 @@ pub struct StatAttack {
     pub range_ft: u32,
     #[serde(skip_serializing_if = "is_zero_u32")]
     pub long_ft: u32,
+    /// The damage with both hands on the weapon (a versatile spear's "or 1d8 + 1 if used with
+    /// two hands"); "" = none. Used while the character's left hand is free.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub versatile: String,
     /// More damage of other types on a hit (a dragon's bite: "plus 7 (2d6) fire damage").
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub extra: Vec<DamagePart>,

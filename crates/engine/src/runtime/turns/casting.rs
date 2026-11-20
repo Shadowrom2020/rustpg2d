@@ -11,6 +11,7 @@ use crate::grid::{feet_spot, TilePos};
 use crate::runtime::Game;
 use crate::skills::{Area, Shape, SpellDef, SpellPart, SpellRange};
 use crate::srd::conditions::{self, ConditionSpec};
+use crate::srd::combat::Cover;
 use crate::srd::{Ability, Mode};
 
 /// Where a spell is aimed.
@@ -57,7 +58,7 @@ impl Game {
     }
 
     /// Who a spell aimed at `at` affects in a fight.
-    fn spell_targets(&self, who: Who, d: &SpellDef, slot: u32, at: CastAt) -> Result<(Vec<Who>, TilePos), &'static str> {
+    pub(super) fn spell_targets(&self, who: Who, d: &SpellDef, slot: u32, at: CastAt) -> Result<(Vec<Who>, TilePos), &'static str> {
         let c = self.fight.as_ref().ok_or("No fight")?;
         let here = self.who_tile(who);
         let reach = d.range.tiles();
@@ -231,9 +232,16 @@ impl Game {
             let mut saved = false;
             let mut save_text = String::new();
             if let Some((ability, _)) = save {
-                let rec = self.who_check(t, ability.id(), dc, true);
+                // Cover between the effect's origin and the target: +2 / +5 to a DEX save; total
+                // cover keeps it out.
+                let cover = if ability == Ability::Dex { self.cover_from(self.spell_origin(caster, d, point), caster, t) } else { Cover::None };
+                if cover == Cover::Total && t != caster {
+                    continue;
+                }
+                let rec = self.who_check(t, ability.id(), dc - cover.ac_bonus(), true);
                 saved = rec.as_ref().is_some_and(|r| r.success == Some(true));
-                save_text = format!("{} {}/{dc} {}", ability.short(), rec.as_ref().map_or(0, |r| r.total), crate::lang::tr_ui(if saved { "saved" } else { "failed" }));
+                let cover_text = if cover == Cover::None { String::new() } else { format!(" [{}]", crate::lang::tr_ui(cover.id())) };
+                save_text = format!("{} {}/{dc}{cover_text} {}", ability.short(), rec.as_ref().map_or(0, |r| r.total + cover.ac_bonus() as i64), crate::lang::tr_ui(if saved { "saved" } else { "failed" }));
                 landed = !saved;
             }
             let tname = self.who_name(t);
@@ -325,6 +333,15 @@ impl Game {
                 }
                 _ => {}
             }
+        }
+    }
+
+    /// Where a spell's effect comes from (cover is counted from there): the point of an area
+    /// spread around a point (a Fireball's), else the caster.
+    pub(super) fn spell_origin(&self, caster: Who, d: &SpellDef, point: Option<TilePos>) -> TilePos {
+        match (d.area, point) {
+            (Some(a), Some(p)) if d.range != SpellRange::Caster && matches!(a.shape, Shape::Sphere | Shape::Cylinder) => p,
+            _ => self.who_tile(caster),
         }
     }
 

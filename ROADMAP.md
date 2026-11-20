@@ -914,7 +914,7 @@ added here.
   *Spare the Dying* cast in a fight, concentration lost when stunned, a placed (not spawned)
   knocked-out character after the map is left and entered again.
 
-- [ ] Combat rules 2: grapple, cover, surprise and weapons — `feature/srd-combat-actions`
+- [x] Combat rules 2: grapple, cover, surprise and weapons — `feature/srd-combat-actions`
 
   **Goal.** The combat chapter's actions and weapon rules.
 
@@ -943,6 +943,41 @@ added here.
 
   **Verify.** Unit tests of the escape contest and cover on saves; autoplay: an escape from a
   grapple, a readied spell going off, a surprise round from Stealth, arrows recovered after a fight.
+
+  **Decided while building.** Your decisions: surprise strictly by Stealth (only while sneaking;
+  an unaware foe isn't surprised otherwise), monsters out of the hero's sight can ambush, Ready is an
+  attack or a spell (no readied Dash, Disengage or moves), improvised weapons left out. "Out of
+  sight" for an ambush is line of sight (total cover), not the light. The free object interaction
+  covers equipment changes; picking items up stays free. The AI grapples nobody yet (part 4): the
+  orc chief's grapple moved there; Tilda sells nets instead of the bandits' gear.
+
+  **As built.** One pull request.
+  - **Rules (`srd/combat.rs`):** `can_grapple`, `dragging_halves`, `recovered_ammo`.
+  - **Runtime:** `who_size`, `release_grapple`, `escape_dc` with the contest case (DC 0), the AI's
+    escape in `ai_step`, `drag_grappled` in `walk` (no opportunity attack from the dragged one),
+    the halved speed in `who_speed` and `refresh_turn_speed`; `spell_origin` + cover in
+    `resolve_spell`'s DEX saves; `MenuKind::Ready` (`ready_rows`, `ready_attack`, `ready_spell`),
+    `Fighter.readied_spell`, `readied_spells` in `walk`, lost at the next turn; reach in
+    `threatening_foes` / the overlay / opportunity and readied attacks; `roll_surprise` (sneaking
+    party vs passive Perception, unseen monsters vs the party), `passive_of`; `Combat.shot` +
+    recovery in `end_combat`; `AttackSpec.net` / `lance`; `Turn.interacted` +
+    `fight_object_use` in `equip_from_slot_to` / `unequip` (skipped while events run).
+  - **Data / import:** `StatAttack.versatile` (`two_handed_dice`, merged into existing blocks), the
+    lance two-handed.
+  - **Testing:** `turn release`, `combat=` marks (`~`, `^attack`, `^SPELL`, `>NAME`), `who_by_key`
+    prefers the nearest.
+
+  **Verified.** Unit tests (sizes, dragging, recovered ammunition, the versatile parser). Autoplay on
+  a scratch copy, seeded: a goblin grappled (speed 25 → 13) and dragged two tiles, no opportunity
+  attack from it, released (speed back to 25); the hero's escape contest against a grapple bite
+  (wolf Athletics 19, the hero's 11 failed); a Huge goblin "Too big" for grapple and shove; the Ready
+  window (screenshot) with Magic Missile readied (slot spent, concentration), lost to a hit's failed
+  concentration check, and going off at a slime walking in; a goblin with a 10 ft scimitar not
+  attacking a step within its reach, attacking the step out of it; sneaking Stealth 17 surprising two
+  slimes (they skip round 1), a goblin ambush with Stealth 18 surprising the hero; two arrows shot,
+  one recovered; a net hit for 0 restraining a goblin; equipping a dagger free, the sword back taking
+  the action, the shield refused, armor refused. Not run end to end: cover on a DEX save, an AI
+  escaping a grapple, a monster's two-handed damage.
 
 - [ ] Combat rules 3: size and sight — `feature/srd-combat-space`
 

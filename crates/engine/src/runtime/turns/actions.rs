@@ -247,10 +247,11 @@ impl Game {
                 say(self, "dodges");
             }
             TurnAct::Ready => {
-                if let Some(f) = self.fight.as_mut().and_then(|c| c.fighter_mut(who)) {
-                    f.readied = true;
+                // The choice window: the attack or a spell.
+                if !self.open_fight_menu(super::menu::MenuKind::Ready, self.ready_rows(who)) {
+                    return Err("Nothing to ready");
                 }
-                say(self, "readies an attack");
+                return Ok(());
             }
             TurnAct::Hide => {
                 // Stealth against the best passive Perception of the foes.
@@ -286,18 +287,49 @@ impl Game {
     /// The highest passive Perception (10 + WIS, + proficiency) of the side against `side`.
     pub(super) fn passive_perception(&self, side: Side) -> i32 {
         let Some(c) = &self.fight else { return 10 };
-        c.order
-            .iter()
-            .filter(|f| f.side != side && !f.out && !f.down)
-            .map(|f| match f.who {
-                Who::Player => 10 + self.world.check_bonus("perception", false).unwrap_or(0) as i32,
-                w => self.who_block(w).map_or(10, |b| {
-                    let prof = b.proficiencies.iter().any(|p| crate::srd::abilities::proficiency_id(p) == "perception");
-                    10 + b.abilities.modifier(crate::srd::Ability::Wis) + if prof { crate::srd::abilities::proficiency_bonus(b.proficiency_level()) } else { 0 }
-                }),
-            })
-            .max()
-            .unwrap_or(10)
+        c.order.iter().filter(|f| f.side != side && !f.out && !f.down).map(|f| self.passive_of(f.who)).max().unwrap_or(10)
+    }
+
+    /// A combatant's passive Perception: 10 + its Perception modifier.
+    pub(super) fn passive_of(&self, who: Who) -> i32 {
+        10 + self.check_bonus(who, "perception") as i32
+    }
+
+    /// Who is surprised when a fight starts (the SRD's rule: a creature that notices no threat).
+    /// `struck`: the hero's side struck first; while the hero sneaks, each party member rolls
+    /// Stealth, and a foe whose passive Perception is below every roll is surprised. `ambush`:
+    /// monsters started it; those the hero can't see roll Stealth, and a party member whose
+    /// passive Perception is below every roll is surprised.
+    pub(super) fn roll_surprise(&mut self, struck: bool, ambush: bool) {
+        let Some(c) = &self.fight else { return };
+        let (hiders, seekers): (Vec<Who>, Vec<Who>) = if struck && self.sneaking() {
+            (c.order.iter().filter(|f| f.side == Side::Party).map(|f| f.who).collect(), c.order.iter().filter(|f| f.side == Side::Enemy).map(|f| f.who).collect())
+        } else if ambush {
+            let unseen: Vec<Who> = c.order.iter().filter(|f| f.side == Side::Enemy).map(|f| f.who).filter(|w| self.cover(Who::Player, *w) == super::Cover::Total).collect();
+            (unseen, c.order.iter().filter(|f| f.side == Side::Party).map(|f| f.who).collect())
+        } else {
+            return;
+        };
+        // (Everyone of the hiding side must stay unnoticed: some in plain sight spoil it.)
+        if hiders.is_empty() || (ambush && hiders.len() < c.order.iter().filter(|f| f.side == Side::Enemy).count()) {
+            return;
+        }
+        let lowest = hiders.iter().map(|w| self.who_check(*w, "stealth", 0, false).map_or(0, |r| r.total as i32)).min().unwrap_or(0);
+        // (The Stealth rolls have no DC of their own: plain rolls in the log.)
+        let n = hiders.len();
+        let len = self.world.rolls.len();
+        for r in self.world.rolls.iter_mut().skip(len.saturating_sub(n)) {
+            (r.success, r.dc) = (None, 0);
+        }
+        let surprised: Vec<Who> = seekers.into_iter().filter(|w| self.passive_of(*w) < lowest).collect();
+        if let Some(c) = &mut self.fight {
+            for f in c.order.iter_mut() {
+                f.surprised = surprised.contains(&f.who);
+            }
+        }
+        let names: Vec<String> = surprised.iter().map(|w| self.who_name(*w)).collect();
+        let line = format!("{} {lowest}: {}", crate::lang::tr_ui("Stealth"), if names.is_empty() { crate::lang::tr_ui("no one is surprised").into_owned() } else { format!("{} {}", names.join(", "), crate::lang::tr_ui("surprised")) });
+        self.fight_log(line);
     }
 
     /// The cursor's aim, and the cursor onto the nearest fitting target.
@@ -369,7 +401,8 @@ impl Game {
                 c.attack_mode = None;
                 c.turn.attacked = true;
                 // (A loading weapon: one attack with it per action.)
-                c.turn.attacks_left = if spec.loading { 0 } else { c.turn.attacks_left.saturating_sub(1) };
+                // (A net: one attack with it per action too.)
+                c.turn.attacks_left = if spec.loading || spec.net { 0 } else { c.turn.attacks_left.saturating_sub(1) };
                 c.turn.action = true;
                 Ok(())
             }
@@ -404,11 +437,20 @@ impl Game {
                 Ok(())
             }
             Aim::Grapple | Aim::Shove => {
+                // Grapple on the one it holds: lets go (free).
+                if *aim == Aim::Grapple && self.fight.as_ref().unwrap().fighter(me.who).is_some_and(|f| f.grappling == Some(target)) {
+                    self.release_grapple(me.who);
+                    return Ok(());
+                }
                 if self.fight.as_ref().unwrap().turn.action {
                     return Err("Action used");
                 }
                 if !foe || dist > 1 {
                     return Err("Out of reach");
+                }
+                // At most one size larger than the grappler or shover.
+                if !crate::srd::combat::can_grapple(self.who_size(me.who), self.who_size(target)) {
+                    return Err("Too big");
                 }
                 // Athletics against the target's Athletics or Acrobatics (its better one).
                 let theirs = self.contest_roll(target);
@@ -420,12 +462,16 @@ impl Game {
                     return Ok(());
                 }
                 if *aim == Aim::Grapple {
+                    let tag = self.who_tag(me.who);
                     if let Some(l) = self.who_conditions_mut(target) {
                         conditions::apply(l, &ConditionSpec::new(Condition::Grappled, 0.0));
+                        conditions::set_origin(l, Condition::Grappled, &tag, 0);
                     }
                     if let Some(f) = self.fight.as_mut().and_then(|c| c.fighter_mut(me.who)) {
                         f.grappling = Some(target);
                     }
+                    // (Dragging it: the rest of the turn at the speed it has now.)
+                    self.refresh_turn_speed(me.who);
                     self.fight_log(format!("{name}: {}", crate::lang::tr_ui("grapples")));
                 } else {
                     let push = self.fight.as_ref().is_some_and(|c| c.shove_push);
@@ -500,24 +546,68 @@ impl Game {
         spec.modifier(&crate::srd::check::Roller { abilities: &block.abilities, proficiencies: &profs, level: block.proficiency_level(), training: None })
     }
 
-    /// The escape DC of what holds `who` (a grapple or restraint a monster's hit gave), the
-    /// condition and who holds it.
+    /// What holds `who`: a grapple or restraint with an escape DC (a monster's hit, a net), or a
+    /// grapple by a fighter (DC 0: a contest against its Athletics); the condition, the DC and
+    /// who holds it.
     pub(super) fn escape_dc(&self, who: Who) -> Option<(Condition, i32, String)> {
-        self.who_conditions(who).iter().find(|a| matches!(a.condition, Some(Condition::Grappled | Condition::Restrained)) && a.escape > 0).map(|a| (a.condition.unwrap(), a.escape, a.by.clone()))
+        self.who_conditions(who)
+            .iter()
+            .find(|a| matches!(a.condition, Some(Condition::Grappled | Condition::Restrained)) && (a.escape > 0 || (a.condition == Some(Condition::Grappled) && !a.by.is_empty())))
+            .map(|a| (a.condition.unwrap(), a.escape, a.by.clone()))
+    }
+
+    /// The size of a combatant: the hero's race's, a stat block's (Medium when unknown).
+    pub(super) fn who_size(&self, who: Who) -> crate::srd::Size {
+        match who {
+            Who::Player => self.player_race().and_then(|r| crate::srd::Size::parse(&r.size_category)).unwrap_or_default(),
+            w => self.who_block(w).map_or(crate::srd::Size::Medium, |b| b.size),
+        }
+    }
+
+    /// `who` lets go of the creature it grapples (free).
+    pub(super) fn release_grapple(&mut self, who: Who) {
+        let Some(held) = self.fight.as_mut().and_then(|c| c.fighter_mut(who)).and_then(|f| f.grappling.take()) else { return };
+        let tag = self.who_tag(who);
+        if let Some(l) = self.who_conditions_mut(held) {
+            if conditions::origin_of(l, Condition::Grappled) == tag {
+                conditions::remove(l, Condition::Grappled);
+            }
+        }
+        let name = self.who_name(who);
+        self.fight_log(format!("{name} {}", crate::lang::tr_ui("lets go")));
+        self.refresh_turn_speed(who);
+    }
+
+    /// The current turn's speed after it changed mid-turn (a grapple taken or let go).
+    fn refresh_turn_speed(&mut self, who: Who) {
+        let speed = self.who_speed(who);
+        if let Some(c) = self.fight.as_mut().filter(|c| c.current().who == who) {
+            c.turn.speed = speed;
+        }
     }
 
     /// The Escape action: Athletics or Acrobatics (the better one) against the escape DC; the
     /// grapple or restraint ends on a success.
-    fn escape(&mut self, who: Who) {
+    pub(super) fn escape(&mut self, who: Who) {
         let Some((c, dc, by)) = self.escape_dc(who) else { return };
         let skill = if self.check_bonus(who, "acrobatics") > self.check_bonus(who, "athletics") { "acrobatics" } else { "athletics" };
         let name = self.who_name(who);
+        let holder = self.who_of_tag(&by);
+        // (No DC: a contest against the grappler's Athletics.)
+        let dc = if dc > 0 {
+            dc
+        } else {
+            let theirs = holder.and_then(|h| self.who_check(h, "athletics", 0, false)).map_or(10, |r| r.total as i32);
+            if let Some(last) = self.world.rolls.last_mut() {
+                (last.success, last.dc) = (None, 0);
+            }
+            theirs + 1
+        };
         let ok = self.who_check(who, skill, dc, false).is_some_and(|r| r.success == Some(true));
         if ok {
             if let Some(l) = self.who_conditions_mut(who) {
                 conditions::remove(l, c);
             }
-            let holder = self.who_of_tag(&by);
             if let Some(f) = holder.and_then(|h| self.fight.as_mut().and_then(|f| f.fighter_mut(h))) {
                 if f.grappling == Some(who) {
                     f.grappling = None;

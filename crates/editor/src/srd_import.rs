@@ -310,7 +310,11 @@ impl SrdData {
         match cat {
             "weapon" => {
                 let props: Vec<String> = list(v, "properties").iter().map(|p| s(p, "index").to_string()).collect();
-                let properties: Vec<WeaponProperty> = props.iter().filter_map(|p| WeaponProperty::parse(p)).collect();
+                let mut properties: Vec<WeaponProperty> = props.iter().filter_map(|p| WeaponProperty::parse(p)).collect();
+                // (A lance needs both hands unless mounted: there are no mounts.)
+                if index == "lance" && !properties.contains(&WeaponProperty::TwoHanded) {
+                    properties.push(WeaponProperty::TwoHanded);
+                }
                 let dice = v.pointer("/damage/damage_dice").and_then(Value::as_str).unwrap_or("0").to_string();
                 let sides = dice.split_once('d').and_then(|(_, n)| n.parse::<i32>().ok()).unwrap_or(4);
                 let mut w = Weapon::melee(((sides - 2) / 2).max(1), 0.5);
@@ -546,7 +550,7 @@ impl SrdData {
                     // what a hit does (0.32).
                     for a in &mut b.attacks {
                         if let Some(x) = src.attacks.iter().find(|x| x.name == a.name) {
-                            (a.extra, a.on_hit) = (x.extra.clone(), x.on_hit.clone());
+                            (a.extra, a.on_hit, a.versatile) = (x.extra.clone(), x.on_hit.clone(), x.versatile.clone());
                         }
                     }
                 }
@@ -1445,7 +1449,20 @@ fn stat_attack(a: &Value) -> Option<rustpg2d_engine::srd::StatAttack> {
         .and_then(|r| r.split_once('/').map(|(a, b)| (a.parse().unwrap_or(0), b.parse().unwrap_or(0))))
         .unwrap_or((0, 0));
     let on_hit = hit_riders(&text);
-    Some(rustpg2d_engine::srd::StatAttack { name: s(a, "name").into(), bonus, dice: dice.replace(' ', ""), damage_type, reach_ft, range_ft, long_ft, extra, on_hit })
+    let versatile = two_handed_dice(&text);
+    Some(rustpg2d_engine::srd::StatAttack { name: s(a, "name").into(), bonus, dice: dice.replace(' ', ""), damage_type, reach_ft, range_ft, long_ft, versatile, extra, on_hit })
+}
+
+/// A versatile weapon's damage with two hands from an attack's text: "…, or 6 (1d8 + 2) piercing
+/// damage if used with two hands to make a melee attack" → `1d8+2`; "" when it says nothing.
+pub fn two_handed_dice(text: &str) -> String {
+    let l = text.to_ascii_lowercase();
+    let Some(at) = l.find("if used with two hands") else { return String::new() };
+    let before = &l[..at];
+    let Some(open) = before.rfind('(') else { return String::new() };
+    let inner = before[open + 1..].split(')').next().unwrap_or("");
+    let dice: String = inner.chars().filter(|c| !c.is_whitespace()).collect();
+    if rustpg2d_engine::srd::Expr::parse(&dice).is_ok() { dice } else { String::new() }
 }
 
 /// What an attack's text says a hit does besides its damage: "must succeed on a DC 11 Strength
@@ -2124,6 +2141,12 @@ impl SrdData {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn versatile_damage_comes_from_the_attack_text() {
+        assert_eq!(two_handed_dice("Melee or Ranged Weapon Attack: +3 to hit, reach 5 ft. or range 20/60 ft., one target. Hit: 4 (1d6 + 1) piercing damage, or 5 (1d8 + 1) piercing damage if used with two hands to make a melee attack."), "1d8+1");
+        assert_eq!(two_handed_dice("Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 5 (1d6 + 2) slashing damage."), "");
+    }
 
     #[test]
     fn hit_riders_come_from_the_attack_text() {

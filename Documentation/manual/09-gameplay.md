@@ -23,8 +23,12 @@ stays real-time ([Player's guide › Fighting](15-players-guide.md#fighting)).
   what they were doing and join when they notice the party. *Start fight* / `start_combat()` takes
   every hostile character near. The companions and characters of factions hostile to the enemies
   (the village guards against bandits) fight on the player's side.
-- **Surprise:** when the player strikes first, enemies that hadn't noticed them lose the first
-  round. Sneaking up on a camp pays.
+- **Surprise** (the SRD's rule: a creature that notices no threat): when the player strikes first
+  **while sneaking**, everyone of the party rolls Stealth, and each enemy whose passive Perception is
+  below every roll is surprised: it loses the first round. Without sneaking nobody is surprised.
+  The other way round, when monsters start a fight while the hero can't see any of them (behind
+  walls or trees), they roll Stealth against each party member's passive Perception. The fight log
+  shows the lowest roll and who is surprised.
 - **Initiative:** everyone rolls d20 + DEX; the turn order bar at the top shows it with everyone's
   hit points. Everyone steps onto the middle of their tile (a tile is 5 ft).
 - **A turn:** moving up to the speed (30 ft = 6 tiles; the race's speed; conditions slow it),
@@ -39,13 +43,22 @@ stays real-time ([Player's guide › Fighting](15-players-guide.md#fighting)).
   *Dash* (the speed again), *Disengage* (no opportunity attacks this turn), *Dodge* (attacks
   against it have disadvantage), *Help* (an ally's next attack against a foe next to you has
   advantage), *Hide* (Stealth against the foes' passive Perception: unseen until it attacks),
-  *Ready* (an attack when a foe steps into reach), *Search* (Perception against hidden foes),
+  *Ready* (a window: the **attack**, made when a foe comes within reach, or a **spell** that targets
+  a creature, cast at the first foe that comes within its range; the spell's slot is spent at once and
+  it is held with concentration: a hit that breaks it, or the next turn, loses it), *Search* (Perception against hidden foes),
   *Use an Object* (an item from the inventory), *Grapple* and *Shove* (Athletics against the
-  target's Athletics or Acrobatics: grappled, or knocked prone / pushed a tile). *Help* aimed at an
+  target's Athletics or Acrobatics: grappled, or knocked prone / pushed a tile; only a target at
+  most one size larger: "Too big"). A grappler **drags** the grappled creature along when it walks,
+  at half speed unless the creature is two or more sizes smaller; *Grapple* on the creature you hold
+  lets it go (free). *Help* aimed at an
   ally at 0 HP next to you is **first aid**: a healer's kit in the bag makes it stable at once (one
   of the kit's ten uses), else a Medicine check against DC 10 does. While a monster's hit holds you
-  (grappled or restrained, with an escape DC), *Grapple* becomes **Escape**: Athletics or
-  Acrobatics (the better one) against the escape DC. The **bonus action**
+  (grappled or restrained, with an escape DC), or any grapple holds you, *Grapple* becomes
+  **Escape**: Athletics or Acrobatics (the better one) against the escape DC, or against the
+  grappler's Athletics roll; held characters the AI plays try it when no foe is in reach. Drawing or
+  stowing a weapon (or putting on a ring, a cloak…) in a fight is free once a turn, a second change
+  takes the action; a shield takes the action, and body armor, clothing and helmets can't be changed
+  in a fight. The **bonus action**
   is the off-hand attack: a weapon in the left hand attacks after the Attack action, without the
   ability modifier on its damage; both weapons must be *light* (two-weapon fighting).
 - **Attacks** roll d20 + the ability modifier (STR for melee, DEX for ranged; a *finesse* weapon
@@ -75,10 +88,13 @@ stays real-time ([Player's guide › Fighting](15-players-guide.md#fighting)).
   the weapon). Paralyzed or unconscious targets within 5 ft take critical hits.
 - **Cover:** walls, tall props, trees and other creatures between the attacker and the target give
   **half cover** (+2 AC) or **three-quarters cover** (+5 AC); behind full cover it can't be
-  targeted. Shots fly over low obstacles (fences, rocks, water) ([Maps › Low and high
+  targeted. Cover counts for **DEX saving throws** too (+2 / +5), from where the effect comes: a
+  Fireball's point, the caster of a cone, a line or a targeted spell; full cover keeps a creature
+  out of an area. Shots fly over low obstacles (fences, rocks, water) ([Maps › Low and high
   obstacles](03-maps.md#low-and-high-obstacles)).
 - **Opportunity attacks:** leaving a foe's reach without *Disengage* gives it a melee attack (its
-  reaction), also by a single step away; a step that stays next to it doesn't. The move overlay
+  reaction), also by a single step away; a step that stays within its reach doesn't. Reach is the
+  foe's melee reach: two tiles for a glaive or a reach monster. The move overlay
   shows the reachable tiles that would leave a foe's reach in red, and the path in red when it
   provokes.
 - **0 hit points:** characters die (their *Defeated* triggers run, they drop their loot and
@@ -137,7 +153,8 @@ stays real-time ([Player's guide › Fighting](15-players-guide.md#fighting)).
   (lit) by the light at the player: the map's lighting by the clock plus the light sources around
   them, their own lantern included. That applies sneaking or not (at night everyone is harder to
   see); behind walls the usual half of that, and within three quarters of a tile always. An enemy
-  that hasn't noticed the player when they attack is **surprised**. Models play their **sneak** clip
+  that notices none of the party when they attack while sneaking is **surprised** (Stealth against
+  passive Perception, see *Surprise* above). Models play their **sneak** clip
   while sneaking (*Database › 3D models*; every playable model of the example has a creeping walk),
   others their walk, slowed. Scripts ask `is_sneaking()`; `status` prints
   `sneak=on|off:light…:sight10=…`. In the example a sign on the way to the bandits' camp in
@@ -523,11 +540,17 @@ Items](05-database.md#items)).
   | Versatile | With the left hand free it rolls its two-handed dice (a longsword 1d10 instead of 1d8). |
   | Light | Two light weapons, one in each hand, make the off-hand attack. |
   | Heavy | Small heroes (halflings, gnomes) attack with disadvantage. |
-  | Two-handed | Nothing can be held in the left hand. |
+  | Two-handed | Nothing can be held in the left hand (a lance too: there are no mounts). |
   | Reach | Reaches 10 ft (two tiles). |
   | Thrown | *Attack* asks: **Strike** or **Throw** (a ranged attack with the same ability, at its thrown range). A click on a foe always strikes. The thrown weapon lands next to the target: the hand is empty (bare hands, or draw another weapon) until the thrower steps onto it again, which picks it up (free in a fight); after the fight the other characters take theirs back, the hero's lies there. |
   | Ammunition | Each shot uses one piece of ammunition of the weapon's kind (arrows, bolts, sling bullets, needles): +1 Arrows are arrows too. It takes the stack in the **Ammunition** slot when that fits the weapon, else ammunition from the bag (the weapon's own first, plain before magic). |
   | Loading | One attack with it per action, however many attacks the hero has. |
+  | Net | A hit restrains a creature of Large size or smaller (no damage); it escapes with a check against DC 10. One attack with it per action. |
+  | Lance | Disadvantage against a target within 5 ft. |
+
+  **Half the ammunition shot is found again** after a fight (the SRD's minute of searching): it goes
+  back into the bag ("Recovered 4 Arrows"). Monsters' attacks with a versatile weapon use its
+  two-handed damage when the character visibly holds it with nothing in the left hand.
 
 - **Armor** is *light*, *medium* or *heavy* body armor, a *shield*, or *clothing* (helmets, outfits,
   backpacks, lights: no armor class). The **armor class** is the body armor's (leather 11, chain

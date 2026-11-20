@@ -71,6 +71,9 @@ pub(super) struct Fighter {
     pub reacted: bool,
     /// Readied an attack (Ready): the next foe entering its reach.
     pub readied: bool,
+    /// A readied spell (its id and slot, paid): cast at the first foe that comes within its
+    /// range, while its concentration holds.
+    pub readied_spell: Option<(String, u32)>,
     /// Who it is grappling.
     pub grappling: Option<Who>,
     /// What its class features keep going (rage, inspiration, temporary hit points…).
@@ -111,6 +114,9 @@ pub(super) struct Turn {
     pub attacked: bool,
     /// The AI walked already this turn.
     pub ai_walked: bool,
+    /// The free object interaction is used (drawing or stowing a weapon): the next takes the
+    /// action.
+    pub interacted: bool,
 }
 
 /// An attack, ready to roll.
@@ -157,6 +163,11 @@ pub(super) struct AttackSpec {
     /// What makes the hit: a plain weapon, a silvered one, magic (resistances to nonmagical
     /// attacks).
     pub hit: crate::srd::HitKind,
+    /// A net: a hit restrains (Large or smaller, escape DC 10), no damage; one attack with it per
+    /// action.
+    pub net: bool,
+    /// A lance: disadvantage against a target within 5 ft.
+    pub lance: bool,
 }
 
 /// A hit that would drop a foe to 0 HP, held while the player chooses: kill or knock out.
@@ -234,6 +245,8 @@ pub(super) struct Combat {
     pub pending_blow: Option<PendingBlow>,
     /// The damage being dealt knocks out instead of killing.
     pub knocking: bool,
+    /// The hero's ammunition shot in this fight (item, count): half is found again after it.
+    pub shot: Vec<(String, u32)>,
 }
 
 /// What a fight log keeps.
@@ -354,7 +367,7 @@ impl Game {
     }
 
     /// Speed in feet, after conditions (0 when it can't move).
-    fn who_speed(&self, who: Who) -> u32 {
+    pub(super) fn who_speed(&self, who: Who) -> u32 {
         let base = match who {
             // (The class: Fast Movement, Unarmored Movement without armor and shield.)
             Who::Player => self.hero_speed_ft(),
@@ -362,7 +375,10 @@ impl Game {
             _ => self.who_block(who).map_or(30, |b| b.speed_ft.max(b.speeds.fly)),
         };
         let r = conditions::rules(self.who_conditions(who));
-        (self.buff_speed(who, base) as f32 * r.speed).round() as u32
+        // Dragging a grappled creature: half speed, unless it is two sizes smaller or more.
+        let dragging = self.fight.as_ref().and_then(|c| c.fighter(who)).and_then(|f| f.grappling).is_some_and(|g| rules::dragging_halves(self.who_size(who), self.who_size(g)));
+        let drag = if dragging { 0.5 } else { 1.0 };
+        (self.buff_speed(who, base) as f32 * r.speed * drag).round() as u32
     }
 
     fn who_dex(&self, who: Who) -> i32 {
@@ -396,7 +412,7 @@ impl Game {
         let here = self.player.pos;
         let near = |p: Vec2| p.distance(here) <= JOIN_TILES * ts;
         let mut order: Vec<Fighter> = Vec::new();
-        let fighter = |who, side, ai| Fighter { who, key: String::new(), side, init: 0, dex: 0, surprised: false, ai, saves: DeathSaves::default(), down: false, out: false, dodging: false, hidden: false, reacted: false, readied: false, grappling: None, fx: Default::default(), thrown: Vec::new() };
+        let fighter = |who, side, ai| Fighter { who, key: String::new(), side, init: 0, dex: 0, surprised: false, ai, saves: DeathSaves::default(), down: false, out: false, dodging: false, hidden: false, reacted: false, readied: false, readied_spell: None, grappling: None, fx: Default::default(), thrown: Vec::new() };
         order.push(fighter(Who::Player, Side::Party, false));
         let mut enemies = Vec::new();
         for i in 0..self.loaded.entities.len() {
@@ -411,9 +427,8 @@ impl Game {
                 if aware && !self.takes_part(i, surprise) {
                     continue;
                 }
-                let mut f = fighter(Who::Npc(e.uid), Side::Enemy, true);
-                f.surprised = surprise && self.unaware(i);
-                order.push(f);
+                // (Who is surprised is decided once the fight is set up: Stealth rolls.)
+                order.push(fighter(Who::Npc(e.uid), Side::Enemy, true));
                 enemies.push(e.faction);
             }
         }
@@ -458,12 +473,15 @@ impl Game {
             }
         }
         let cursor = feet_tile(self.player.pos, ts);
-        let mut c = Combat { round: 1, order, current: 0, turn: Turn::default(), helped: Vec::new(), cursor, aim: Aim::Move, walking: Vec::new(), ai_t: 0.4, log: Vec::new(), fast: self.fight_fast, over: false, shove_push: false, selected: 0, then_attack: None, then_pick_up: None, reach: Default::default(), menu: None, attack_mode: None, reach_key: None, mouse_last: Vec2::ZERO, once: Vec::new(), scroll: None, item_cast: None, pending_blow: None, knocking: false };
+        let mut c = Combat { round: 1, order, current: 0, turn: Turn::default(), helped: Vec::new(), cursor, aim: Aim::Move, walking: Vec::new(), ai_t: 0.4, log: Vec::new(), fast: self.fight_fast, over: false, shove_push: false, selected: 0, then_attack: None, then_pick_up: None, reach: Default::default(), menu: None, attack_mode: None, reach_key: None, mouse_last: Vec2::ZERO, once: Vec::new(), scroll: None, item_cast: None, pending_blow: None, knocking: false, shot: Vec::new() };
         c.log(crate::lang::tr_ui("Fight! Initiative:").into_owned());
         let names: Vec<String> = first.iter().map(|(w, init)| format!("{} {init}", self.who_name(*w))).collect();
         c.log(names.join(", "));
         self.fight = Some(Box::new(c));
         self.ui.toast(crate::lang::tr_ui("Fight!").into_owned());
+        // Surprise (the SRD's): the hero's side struck first while sneaking, or monsters
+        // started it out of the hero's sight.
+        self.roll_surprise(surprise, aware && !surprise);
         self.fire(crate::events::GameEvent::CombatStart, super::Source::Map);
         // (And the fighters' own triggers: a boss's words when its fight starts.)
         let uids: Vec<u32> = self.fight.as_ref().map_or(Vec::new(), |c| c.order.iter().filter_map(|f| if let Who::Npc(u) = f.who { Some(u) } else { None }).collect());
@@ -500,7 +518,7 @@ impl Game {
             e.body.moving = false;
             e.body.pos = feet_spot(feet_tile(e.body.pos, ts), ts);
             self.occupy(i);
-            let f = Fighter { who, key, side: Side::Enemy, init, dex, surprised: false, ai: true, saves: DeathSaves::default(), down: false, out: false, dodging: false, hidden: false, reacted: false, readied: false, grappling: None, fx: Default::default(), thrown: Vec::new() };
+            let f = Fighter { who, key, side: Side::Enemy, init, dex, surprised: false, ai: true, saves: DeathSaves::default(), down: false, out: false, dodging: false, hidden: false, reacted: false, readied: false, readied_spell: None, grappling: None, fx: Default::default(), thrown: Vec::new() };
             if let Some(c) = &mut self.fight {
                 c.order.push(f);
                 c.log(format!("{name} {} ({init})", crate::lang::tr_ui("joins the fight")));
@@ -544,8 +562,21 @@ impl Game {
             self.revive(f.who, 1);
         }
         for f in &c.order {
+            // (A knocked-out foe stays unconscious where it lies.)
+            if self.who_index(f.who).is_some_and(|i| self.loaded.entities[i].knocked_out) {
+                continue;
+            }
             if let Some(list) = self.who_conditions_mut(f.who) {
                 conditions::remove(list, Condition::Unconscious);
+            }
+        }
+        // Half the ammunition shot is found again (the SRD: a minute's search after the fight).
+        for (item, n) in &c.shot {
+            let back = crate::srd::combat::recovered_ammo(*n);
+            if back > 0 {
+                self.world.give_item(item, back);
+                let name = self.project.db.item(item).map_or(item.clone(), |d| crate::lang::tr(&d.name));
+                self.ui.toast(crate::lang::tr_ui("Recovered {} {}").replacen("{}", &back.to_string(), 1).replacen("{}", &name, 1));
             }
         }
         self.fire(crate::events::GameEvent::CombatEnd, super::Source::Map);
@@ -628,10 +659,18 @@ impl Game {
         c.aim = Aim::Move;
         (c.menu, c.attack_mode) = (None, None);
         c.helped.retain(|w| *w != f.who);
+        let mut held = None;
         if let Some(me) = c.fighter_mut(f.who) {
             me.dodging = false;
             me.reacted = false;
             me.readied = false;
+            held = me.readied_spell.take();
+        }
+        // A readied spell that didn't go off is lost (with its slot), and its concentration.
+        if let Some((id, _)) = held {
+            if self.concentration_of(f.who).as_deref() == Some(&format!("ready:{id}")) {
+                self.end_concentration(f.who);
+            }
         }
         if f.out {
             self.next_turn();
@@ -677,7 +716,7 @@ impl Game {
         // A grapple ends when the grappler isn't next to its target any more.
         let grappled = conditions::has(self.who_conditions(me.who), Condition::Grappled);
         if grappled {
-            let held = self.fight.as_ref().is_some_and(|c| c.order.iter().any(|g| g.grappling == Some(me.who) && !g.out && !g.down && self.who_tile(g.who).0.abs_diff(self.who_tile(me.who).0) <= 1 && self.who_tile(g.who).1.abs_diff(self.who_tile(me.who).1) <= 1));
+            let held = self.fight.as_ref().is_some_and(|c| c.order.iter().any(|g| g.grappling == Some(me.who) && !g.out && !g.down && conditions::can_act(self.who_conditions(g.who)) && self.who_tile(g.who).0.abs_diff(self.who_tile(me.who).0) <= 1 && self.who_tile(g.who).1.abs_diff(self.who_tile(me.who).1) <= 1));
             if !held {
                 if let Some(l) = self.who_conditions_mut(me.who) {
                     conditions::remove(l, Condition::Grappled);
@@ -922,10 +961,14 @@ impl Game {
         let disengaged = self.fight.as_ref().is_some_and(|c| c.turn.disengaged);
         // Leaving a foe's reach without Disengage: its opportunity attack (a reaction).
         if !disengaged {
-            let foes: Vec<Who> = self.fight.as_ref().map_or(Vec::new(), |c| c.order.iter().filter(|f| f.side != side && !f.out && !f.down && !f.reacted).map(|f| f.who).collect());
+            // (Not the creature it drags along: it comes with it.)
+            let dragged = self.fight.as_ref().and_then(|c| c.fighter(who)).and_then(|f| f.grappling);
+            let foes: Vec<Who> = self.fight.as_ref().map_or(Vec::new(), |c| c.order.iter().filter(|f| f.side != side && !f.out && !f.down && !f.reacted && Some(f.who) != dragged).map(|f| f.who).collect());
             for foe in foes {
                 let ft = self.who_tile(foe);
-                let near = |t: TilePos| t.0.abs_diff(ft.0) <= 1 && t.1.abs_diff(ft.1) <= 1;
+                // (Its melee reach: a glaive's two tiles.)
+                let r = self.melee_spec(foe).map_or(1, |s| s.reach.max(1));
+                let near = |t: TilePos| t.0.abs_diff(ft.0).max(t.1.abs_diff(ft.1)) as i32 <= r;
                 if near(from) && !near(next) && conditions::can_act(self.who_conditions(foe)) {
                     if let Some(spec) = self.melee_spec(foe) {
                         if let Some(f) = self.fight.as_mut().and_then(|c| c.fighter_mut(foe)) {
@@ -966,6 +1009,8 @@ impl Game {
         if let Some(c) = &mut self.fight {
             c.turn.moved += cost;
         }
+        // A grappler drags the creature it holds into the tile it left.
+        self.drag_grappled(who, from, next);
         // Its own thrown weapon lying there: picked up (free); characters the player plays pick up
         // everything lying there.
         self.pick_up_thrown(who, next);
@@ -977,7 +1022,8 @@ impl Game {
         let readied: Vec<Who> = self.fight.as_ref().map_or(Vec::new(), |c| c.order.iter().filter(|f| f.side != side && f.readied && !f.reacted && !f.out && !f.down).map(|f| f.who).collect());
         for foe in readied {
             let ft = self.who_tile(foe);
-            if next.0.abs_diff(ft.0) <= 1 && next.1.abs_diff(ft.1) <= 1 {
+            let r = self.melee_spec(foe).map_or(1, |s| s.reach.max(1));
+            if next.0.abs_diff(ft.0).max(next.1.abs_diff(ft.1)) as i32 <= r {
                 if let Some(spec) = self.melee_spec(foe) {
                     if let Some(f) = self.fight.as_mut().and_then(|c| c.fighter_mut(foe)) {
                         f.reacted = true;
@@ -987,7 +1033,59 @@ impl Game {
                 }
             }
         }
+        // Coming within range of a foe's readied spell: it is cast at it.
+        self.readied_spells(who, side, next);
         true
+    }
+
+    /// `mover` ended a step on `at`: a foe's readied spell whose range now reaches it goes off at
+    /// it (the reaction; its slot was paid when it was readied).
+    fn readied_spells(&mut self, mover: Who, side: Side, at: TilePos) {
+        let ready: Vec<(Who, String, u32)> = self.fight.as_ref().map_or(Vec::new(), |c| {
+            c.order.iter().filter(|f| f.side != side && !f.reacted && !f.out && !f.down).filter_map(|f| f.readied_spell.clone().map(|(s, l)| (f.who, s, l))).collect()
+        });
+        for (caster, id, slot) in ready {
+            let Some(d) = self.project.db.spell(&id).cloned() else { continue };
+            let ct = self.who_tile(caster);
+            let dist = ct.0.abs_diff(at.0).max(ct.1.abs_diff(at.1)) as i32;
+            if dist > d.range.tiles().max(1) || self.cover(caster, mover) == Cover::Total {
+                continue;
+            }
+            // (Its concentration broke: the spell is lost.)
+            let held = self.concentration_of(caster).as_deref() == Some(&format!("ready:{id}"));
+            if let Some(f) = self.fight.as_mut().and_then(|c| c.fighter_mut(caster)) {
+                f.readied_spell = None;
+                if held {
+                    f.reacted = true;
+                }
+            }
+            if !held {
+                continue;
+            }
+            self.end_concentration(caster);
+            let Ok((targets, point)) = self.spell_targets(caster, &d, slot, casting::CastAt::On(mover)) else { continue };
+            let name = self.who_name(caster);
+            self.fight_log(format!("{name}: {} ({})", crate::lang::tr(&d.name), crate::lang::tr_ui("readied")));
+            self.resolve_spell(caster, &d, slot, &targets, Some(point));
+        }
+    }
+
+    /// The creature `who` grapples follows it: into the tile `who` left (`from`) when it isn't
+    /// next to `who`'s new tile any more.
+    fn drag_grappled(&mut self, who: Who, from: TilePos, to: TilePos) {
+        let Some(g) = self.fight.as_ref().and_then(|c| c.fighter(who)).and_then(|f| f.grappling) else { return };
+        let gt = self.who_tile(g);
+        if gt.0.abs_diff(to.0) <= 1 && gt.1.abs_diff(to.1) <= 1 {
+            return;
+        }
+        let p = feet_spot(from, self.ts());
+        match self.who_index(g) {
+            None => self.player.pos = p,
+            Some(i) => {
+                self.loaded.entities[i].body.pos = p;
+                self.occupy(i);
+            }
+        }
     }
 
     /// Whether character `uid` takes part in the fight (its turns move it).
@@ -1031,13 +1129,20 @@ impl Game {
                 } else {
                     crate::srd::HitKind::Plain
                 };
+                // (Both hands free: a versatile weapon's two-handed damage, for a character whose
+                // equipment shows it: a weapon in hand, nothing in the left.)
+                let two_hands = self.who_index(who).is_some_and(|i| {
+                    let eq = &self.loaded.entities[i].equipment;
+                    eq.item(crate::defs::EquipSlot::Weapon).is_some() && eq.item(crate::defs::EquipSlot::Offhand).is_none()
+                });
                 let mut specs: Vec<AttackSpec> = b.attacks
                     .iter()
                     .filter(|a| !gone.contains(&a.name))
                     .flat_map(|a| {
                         let mut v = Vec::new();
                         if a.reach_ft > 0 {
-                            v.push(AttackSpec { name: a.name.clone(), bonus: a.bonus, dice: a.dice.clone(), damage_type: a.damage_type, ranged: false, reach: (a.reach_ft / 5).max(1) as i32, range: 0, long: 0, crit_on, effect: effect.clone(), projectile: None, ability: classed.then_some(Ability::Str), finesse, extra: a.extra.clone(), riders: a.on_hit.clone(), hit, ..Default::default() });
+                            let dice = if two_hands && !a.versatile.is_empty() { a.versatile.clone() } else { a.dice.clone() };
+                            v.push(AttackSpec { name: a.name.clone(), bonus: a.bonus, dice, damage_type: a.damage_type, ranged: false, reach: (a.reach_ft / 5).max(1) as i32, range: 0, long: 0, crit_on, effect: effect.clone(), projectile: None, ability: classed.then_some(Ability::Str), finesse, extra: a.extra.clone(), riders: a.on_hit.clone(), hit, ..Default::default() });
                         }
                         if a.range_ft > 0 {
                             // (Melee or ranged: a thrown weapon.)
@@ -1119,7 +1224,8 @@ impl Game {
             crate::srd::HitKind::Plain
         };
         let dmg_mod = dmg_mod + if dueling { 2 } else { 0 } + magic + t.bonus(crate::classes::BonusTo::Damage);
-        let dice = if dmg_mod == 0 { base_dice } else { format!("{base_dice}{dmg_mod:+}") };
+        // (A net does no damage: no modifier on its 0.)
+        let dice = if dmg_mod == 0 || srd == "net" { base_dice } else { format!("{base_dice}{dmg_mod:+}") };
         let (range, long) = match (&w.ranged, thrown) {
             (_, true) => w.thrown_ft.map_or((4, 12), |(n, l)| ((n / 5).max(1) as i32, (l / 5).max(1) as i32)),
             (Some(r), _) => (r.range.round() as i32, if r.long_range > 0.0 { r.long_range } else { r.range * 2.0 }.round() as i32),
@@ -1151,6 +1257,8 @@ impl Game {
             loading: w.has(P::Loading),
             disadvantage: small && w.has(P::Heavy),
             hit,
+            net: srd == "net",
+            lance: srd == "lance",
             ..Default::default()
         }
     }
@@ -1265,7 +1373,7 @@ impl Game {
             adjacent: dist <= 1,
             enemy_adjacent,
             long_range: spec.ranged && dist > spec.range,
-            attacker_disadvantage: me.attack_disadvantage || spec.disadvantage || (!spec.spell && self.who_armor_untrained(who)),
+            attacker_disadvantage: me.attack_disadvantage || spec.disadvantage || (!spec.spell && self.who_armor_untrained(who)) || (spec.lance && dist <= 1),
             attacker_unseen: me.invisible || c.and_then(|c| c.fighter(who)).is_some_and(|f| f.hidden),
             target_prone: conditions::has(self.who_conditions(target), Condition::Prone),
             target_helpless: conditions::has(self.who_conditions(target), Condition::Restrained) || them.str_dex_saves_fail || them.blinded,
@@ -1355,7 +1463,8 @@ impl Game {
             return false;
         }
         let dice = if roll.crit { rules::crit_dice(&spec.dice) } else { spec.dice.clone() };
-        let mut amount = roll_damage(&dice, spec.reroll_low);
+        // (A net does no damage: it restrains.)
+        let mut amount = if spec.net { 0 } else { roll_damage(&dice, spec.reroll_low) };
         // Brutal Critical: one more weapon die per step on a critical melee hit.
         if roll.crit && spec.brutal > 0 {
             if let Some((n, sides)) = first_dice(&spec.dice) {
@@ -1388,6 +1497,16 @@ impl Game {
         self.combat_damage_parts(target, &parts, roll.crit, Some(who), spec.hit);
         self.on_hit_saves(who, target, spec);
         self.hit_riders(who, target, spec);
+        // A net restrains a creature of Large size or smaller (escape DC 10).
+        if spec.net && self.who_size(target) <= crate::srd::Size::Large {
+            let tag = self.who_tag(who);
+            if let Some(l) = self.who_conditions_mut(target) {
+                conditions::apply(l, &ConditionSpec::new(Condition::Restrained, 0.0));
+                conditions::set_origin(l, Condition::Restrained, &tag, 10);
+            }
+            let tname = self.who_name(target);
+            self.fight_log(format!("{tname}: {}", crate::lang::tr_ui(Condition::Restrained.name())));
+        }
         if let Some(fx) = &spec.effect {
             match target {
                 Who::Player => self.apply_player_effect(fx),
@@ -1726,7 +1845,21 @@ impl Game {
                 let (hp, max) = self.who_hp(f.who);
                 let mark = if f.out { "x" } else if f.down { "!" } else { "" };
                 let side = if f.side == Side::Party { "+" } else { "-" };
-                format!("{side}{}{mark}:{hp}/{max}", self.who_key(f.who))
+                // (~ surprised, ^attack / ^SPELL readied, >NAME grappling.)
+                let mut more = String::new();
+                if f.surprised && c.round == 1 {
+                    more.push('~');
+                }
+                if f.readied {
+                    more.push_str("^attack");
+                }
+                if let Some((s, _)) = &f.readied_spell {
+                    more.push_str(&format!("^{s}"));
+                }
+                if let Some(g) = f.grappling {
+                    more.push_str(&format!(">{}", self.who_key(g)));
+                }
+                format!("{side}{}{mark}{more}:{hp}/{max}", self.who_key(f.who))
             })
             .collect();
         let aim = match &c.aim {
@@ -1863,6 +1996,15 @@ impl Game {
                     None => format!("no action {id}"),
                 }
             }
+            // `release`: the current fighter lets go of the creature it grapples.
+            "release" => {
+                let who = self.fight.as_ref().unwrap().current().who;
+                if self.fight.as_ref().unwrap().current().grappling.is_none() {
+                    return "not grappling".into();
+                }
+                self.release_grapple(who);
+                "ok".into()
+            }
             "help" | "grapple" | "offhand" | "shove" => match target(self, 1) {
                 Ok(t) => {
                     let aim = match arg(0) {
@@ -1984,7 +2126,12 @@ impl Game {
     /// A combatant by the name `status` gives it ("player", a name, a definition id).
     pub(super) fn who_by_key(&self, key: &str) -> Option<Who> {
         let c = self.fight.as_ref()?;
-        c.order.iter().filter(|f| !f.out).map(|f| f.who).find(|w| self.who_key(*w).eq_ignore_ascii_case(key))
+        // (Several of that name: the one nearest to whose turn it is.)
+        let here = self.who_tile(c.current().who);
+        c.order.iter().filter(|f| !f.out).map(|f| f.who).filter(|w| self.who_key(*w).eq_ignore_ascii_case(key)).min_by_key(|w| {
+            let t = self.who_tile(*w);
+            t.0.abs_diff(here.0).max(t.1.abs_diff(here.1))
+        })
     }
 }
 

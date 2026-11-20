@@ -21,6 +21,8 @@ use super::text::{draw_text, measure_text};
 pub(super) enum HealSource {
     Item(String),
     Spell(String),
+    /// A class action that heals (Lay on Hands outside a fight), by its id.
+    ClassAct(String),
 }
 
 /// The open "Heal whom?" choice.
@@ -81,7 +83,7 @@ impl Game {
                 }
                 self.project.db.item(id).map_or(UseTarget::Player, |d| d.use_on)
             }
-            HealSource::Spell(_) => UseTarget::Choose,
+            HealSource::Spell(_) | HealSource::ClassAct(_) => UseTarget::Choose,
         };
         if use_on == UseTarget::Player {
             return false;
@@ -107,7 +109,7 @@ impl Game {
             0 => {
                 let name = match &source {
                     HealSource::Item(id) => self.project.db.item(id).map_or(id.clone(), |d| d.name.clone()),
-                    HealSource::Spell(id) => id.clone(),
+                    HealSource::Spell(id) | HealSource::ClassAct(id) => id.clone(),
                 };
                 self.ui.toast(format!("{name} is for companions - none is here."));
                 true
@@ -210,6 +212,12 @@ impl Game {
                 None => self.use_item_now(item),
                 Some(i) => self.use_item_on(item, i),
             },
+            HealSource::ClassAct(id) => {
+                let who = target.filter(|uid| self.uid_index(*uid).is_some()).map_or(super::turns::Who::Player, super::turns::Who::Npc);
+                if let Err(why) = self.class_heal_outside(id, who) {
+                    self.ui.toast(crate::lang::tr_ui(why).into_owned());
+                }
+            }
         }
     }
 
@@ -378,6 +386,7 @@ impl Game {
         let what = match &pick.source {
             HealSource::Item(id) => self.project.db.item(id).map_or(id.clone(), |d| d.name.clone()),
             HealSource::Spell(id) => self.project.db.spell(id).map_or(id.clone(), |d| d.name.clone()),
+            HealSource::ClassAct(id) => self.class_acts(super::turns::Who::Player).into_iter().find(|a| a.id == *id).map_or(id.clone(), |a| a.name),
         };
         let title = format!("{what}: heal whom?");
         let names: Vec<String> = pick.choices.iter().map(label).collect();

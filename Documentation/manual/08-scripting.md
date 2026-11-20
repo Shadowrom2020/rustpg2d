@@ -584,7 +584,7 @@ fn guard_upgrade() {
 
 ### Interface
 
-The player hides and shows the HUD (status frame, clock, quick bar and the buttons) with **H**.
+The player hides and shows the HUD (status frame, clock, action bar and the buttons) with **H**.
 Scripts can do the same, e.g. for a cut-scene. Dialogs, choices and windows the player opens
 are still shown. Not saved: a loaded game always starts with the HUD visible.
 

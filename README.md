@@ -30,11 +30,11 @@ for how to use it all.
     <td align="center"><em>The editor: paint maps, place characters, set up the world</em></td>
   </tr>
   <tr>
-    <td><img src="Documentation/images/game-character.webp" alt="The character window with the hero's gear, stats, inventory and quick bar"></td>
+    <td><img src="Documentation/images/game-character.webp" alt="The character window with the hero's gear, stats, inventory and favorites"></td>
     <td><img src="Documentation/images/editor-builder.webp" alt="The character editor with 3D model cards, colour swatches for skin, hair and clothing, and a walking preview"></td>
   </tr>
   <tr>
-    <td align="center"><em>Equipment, stats, inventory and quick bar</em></td>
+    <td align="center"><em>Equipment, stats, inventory and favorites</em></td>
     <td align="center"><em>3D characters in the pixel look, in the colours you pick</em></td>
   </tr>
   <tr>

@@ -25,16 +25,20 @@ pub(super) enum Side {
     Quick,
 }
 
-/// Number of quick bar slots (keys 1-8).
+/// Number of favorite slots (keys 1-8: the action bar's favorites, the quick bar until 0.31).
 pub const QUICK_SLOTS: usize = 8;
 const QUICK_SLOT: f32 = 44.0;
 
-/// Screen rects of the quick bar slots (bottom center).
-fn quick_rects() -> Vec<Rect> {
-    let (sw, sh) = (screen_width(), screen_height());
-    let w = QUICK_SLOTS as f32 * (QUICK_SLOT + GAP) - GAP;
-    let x0 = ((sw - w) / 2.0).round();
-    (0..QUICK_SLOTS).map(|k| Rect::new(x0 + k as f32 * (QUICK_SLOT + GAP), sh - QUICK_SLOT - 12.0, QUICK_SLOT, QUICK_SLOT)).collect()
+impl Game {
+    /// Screen rects of the favorite slots: centred above the action bar (in a fight above the
+    /// turn's economy line too).
+    pub(super) fn fav_rects(&self) -> Vec<Rect> {
+        let sw = screen_width();
+        let w = QUICK_SLOTS as f32 * (QUICK_SLOT + GAP) - GAP;
+        let x0 = ((sw - w) / 2.0).round();
+        let y = self.bar_top() - if self.fight.is_some() { 34.0 } else { 8.0 } - QUICK_SLOT;
+        (0..QUICK_SLOTS).map(|k| Rect::new(x0 + k as f32 * (QUICK_SLOT + GAP), y, QUICK_SLOT, QUICK_SLOT)).collect()
+    }
 }
 
 const EQUIP_SLOTS: [EquipSlot; 15] = EquipSlot::ALL;
@@ -93,7 +97,7 @@ pub(super) struct InvUi {
     sel: Option<(Side, usize)>,
     drag: DragState<Side>,
     /// Quick bar slot that was just used (for a short highlight).
-    quick_flash: Option<(usize, f64)>,
+    pub(super) quick_flash: Option<(usize, f64)>,
 }
 
 impl InvUi {
@@ -145,7 +149,7 @@ enum HudButton {
 }
 
 /// Help line of the inventory (Character tab).
-const INVENTORY_HINT: &str = "Double-click / {key:confirm}: use · Drag to slots or quick bar (1-8) · {key:drop}: drop ({key:run}+{key:drop}: one) · {key:take_all}: attune · {key:next_tab}: next tab · {key:cancel}: close";
+const INVENTORY_HINT: &str = "Double-click / {key:confirm}: use · Drag to slots or favorites (1-8) · {key:drop}: drop ({key:run}+{key:drop}: one) · {key:take_all}: attune · {key:next_tab}: next tab · {key:cancel}: close";
 
 impl Game {
     /// The HUD buttons with their screen rects, right to left.
@@ -364,7 +368,7 @@ impl Game {
         let right = grids.iter().map(|g| g.panel.x + g.panel.w).fold(0.0, f32::max);
         let bottom = grids.iter().map(|g| g.panel.y + g.panel.h).fold(0.0, f32::max);
         let last = grids.last().unwrap().panel;
-        let slots = quick_rects();
+        let slots = self.fav_rects();
         let bar = Rect::new(slots[0].x - 6.0, slots[0].y - 6.0, slots[QUICK_SLOTS - 1].right() - slots[0].x + 12.0, QUICK_SLOT + 12.0);
         grids.push(Grid { side: Side::Quick, title: String::new(), panel: bar, slots, cols: QUICK_SLOTS });
         let close = if self.inv.loot.is_some() { Rect::new(last.x + last.w - 30.0, last.y + 8.0, 22.0, 22.0) } else { self.window_close() };
@@ -429,13 +433,13 @@ impl Game {
     }
 
     fn quick_item(&self, k: usize) -> Option<String> {
-        self.world.quickbar.get(k).filter(|id| !id.is_empty()).cloned()
+        self.world.favorites.get(k).filter(|id| !id.is_empty()).cloned()
     }
 
     /// Puts an item type (or `spell:<id>`) on quick bar slot `k` (moving it if it was on
     /// another slot).
     pub(super) fn assign_quick(&mut self, k: usize, item: &str) {
-        let bar = &mut self.world.quickbar;
+        let bar = &mut self.world.favorites;
         bar.resize(QUICK_SLOTS, String::new());
         for s in bar.iter_mut() {
             if s == item {
@@ -446,35 +450,9 @@ impl Game {
     }
 
     fn clear_quick(&mut self, k: usize) {
-        if let Some(s) = self.world.quickbar.get_mut(k) {
+        if let Some(s) = self.world.favorites.get_mut(k) {
             s.clear();
         }
-    }
-
-    /// Uses the item on quick bar slot `k` (same as using it from the inventory).
-    pub(super) fn use_quick(&mut self, k: usize) {
-        let Some(id) = self.quick_item(k) else { return };
-        if let Some(spell) = Self::quick_spell(&id).map(str::to_string) {
-            self.inv.quick_flash = Some((k, get_time()));
-            // In a fight it is aimed on the hero's turn, like Cast.
-            if self.fight.is_some() {
-                self.aim_quick_spell(&spell);
-            } else {
-                self.cast_spell(&spell);
-            }
-            return;
-        }
-        let name = self.project.db.item(&id).map_or(id.clone(), |d| d.name.clone());
-        self.inv.quick_flash = Some((k, get_time()));
-        if self.world.inventory.count(&id) == 0 {
-            if self.world.equipment.count(&id) > 0 {
-                self.ui.toast(format!("{name} is already equipped"));
-            } else {
-                self.ui.toast(format!("No {name} left"));
-            }
-            return;
-        }
-        self.use_item(&id);
     }
 
     /// Moves `count` (None = all) from a slot to the other side. Returns how many moved.
@@ -542,8 +520,8 @@ impl Game {
                 return;
             }
             (Side::Quick, Side::Quick) => {
-                self.world.quickbar.resize(QUICK_SLOTS, String::new());
-                self.world.quickbar.swap(from.1, to.1);
+                self.world.favorites.resize(QUICK_SLOTS, String::new());
+                self.world.favorites.swap(from.1, to.1);
                 return;
             }
             // Dragging a shortcut anywhere off the bar removes it.
@@ -606,7 +584,7 @@ impl Game {
     fn activate(&mut self, side: Side, i: usize, double: bool) {
         if side == Side::Quick {
             if double {
-                self.use_quick(i);
+                self.use_favorite(i);
             }
             return;
         }
@@ -657,23 +635,8 @@ impl Game {
                     return (false, true);
                 }
             }
-            // Quick bar: keys 1-8 or a click use the item (in a fight they pick the turn's actions).
-            if self.fight.is_some() {
-                return (false, false);
-            }
-            if !key_consumed {
-                if let Some(k) = Act::QUICK.iter().position(|a| input::act_pressed(*a)) {
-                    self.use_quick(k);
-                    return (true, false);
-                }
-            }
-            if (click || rclick) && !self.ui_hidden {
-                if let Some(k) = quick_rects().iter().position(|r| r.contains(m)) {
-                    self.use_quick(k);
-                    return (false, true);
-                }
-            }
-            return (false, false);
+            // The action bar: favorites (keys 1-8, clicks; in a fight only clicks), its entries.
+            return self.action_bar_input(key_consumed, click, rclick);
         }
 
         // ---- keyboard
@@ -850,8 +813,8 @@ impl Game {
 
     pub(super) fn draw_inventory_ui(&mut self) {
         let m = input::mouse_pos();
-        if (!self.ui.dialog_open() && !self.ui_hidden && self.fight.is_none()) || self.inv.is_open() {
-            self.draw_quickbar();
+        if (!self.ui.dialog_open() && !self.ui_hidden && !self.cutscene_active()) || self.inv.is_open() {
+            self.draw_action_bar();
         }
         if !self.inv.is_open() {
             if !self.ui.dialog_open() && !self.skills_open() && !self.ui_hidden {
@@ -1015,10 +978,10 @@ impl Game {
 
 impl Game {
     /// The quick action bar (bottom center): icon, owned count, key number.
-    fn draw_quickbar(&self) {
+    pub(super) fn draw_quickbar(&self) {
         let _font = super::text::role(super::text::Role::Hud);
         let m = input::mouse_pos();
-        let rects = quick_rects();
+        let rects = self.fav_rects();
         let first = rects[0];
         let last = rects[QUICK_SLOTS - 1];
         let backing = if super::ui::contrast() { BLACK } else { Color::new(0.04, 0.04, 0.08, 0.55) };
@@ -1040,7 +1003,10 @@ impl Game {
             let drop_target = dragging.is_some_and(|(s, _)| matches!(s, Side::Player | Side::Equip | Side::Quick));
             let border = if drop_target { skin::highlight() } else { skin::line(0.5) };
             draw_rectangle_lines(r.x, r.y, r.w, r.h, 1.5, border);
-            draw_text((k + 1).to_string(), r.x + 3.0, r.y + 13.0, 15.0, Color::new(1.0, 1.0, 1.0, 0.7));
+            // (The keys 1-8 are the turn bar's in a fight: favorites are clicked there.)
+            if self.fight.is_none() {
+                draw_text((k + 1).to_string(), r.x + 3.0, r.y + 13.0, 15.0, Color::new(1.0, 1.0, 1.0, 0.7));
+            }
             let Some(id) = self.quick_item(k) else { continue };
             if let Some(spell) = Self::quick_spell(&id).and_then(|s| self.project.db.spell(s)) {
                 let ready = self.can_cast(super::turns::Who::Player, &spell.id);
@@ -1054,7 +1020,11 @@ impl Game {
                 draw_text(&t, r.x + r.w - w - 3.0, r.y + r.h - 4.0, 14.0, Color::new(0.6, 0.7, 1.0, 1.0));
                 continue;
             }
-            let Some(def) = self.project.db.item(&id) else { continue };
+            // (A class action, a rest, a custom entry: its name.)
+            let Some(def) = self.project.db.item(&id) else {
+                self.draw_favorite_text(&id, *r);
+                continue;
+            };
             let owned = self.world.inventory.count(&id);
             let equipped = self.world.equipment.count(&id) > 0;
             let alpha = if dragging == Some((Side::Quick, k)) { 0.3 } else if owned == 0 && !equipped { 0.35 } else { 1.0 };

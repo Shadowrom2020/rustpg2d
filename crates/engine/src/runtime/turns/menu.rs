@@ -97,7 +97,7 @@ impl MenuKind {
 impl Game {
     /// The rows of the Cast window for `who`: every spell and slot level it can cast now, then
     /// the spells it knows or prepared but can't cast now, greyed with the reason.
-    pub(super) fn cast_rows(&self, who: Who) -> Vec<MenuRow> {
+    pub(in crate::runtime) fn cast_rows(&self, who: Who) -> Vec<MenuRow> {
         let options = self.cast_options(who);
         let mut rows: Vec<MenuRow> = options
             .iter()

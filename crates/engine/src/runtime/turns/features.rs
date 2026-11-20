@@ -73,7 +73,7 @@ impl Game {
     }
 
     /// The class actions a combatant has.
-    pub(super) fn class_acts(&self, who: Who) -> Vec<ClassAct> {
+    pub(in crate::runtime) fn class_acts(&self, who: Who) -> Vec<ClassAct> {
         self.who_traits(who).map_or(Vec::new(), |t| t.acts)
     }
 
@@ -463,6 +463,124 @@ impl Game {
             }
         }
         Ok(())
+    }
+
+    // ----------------------------------------------------------- outside fights
+
+    /// Whether a class action's effect works outside a fight (healing, a script); the others
+    /// (rage, extra actions, strikes, saves of foes, buffs that last rounds) need one.
+    pub(in crate::runtime) fn works_outside(effect: &ActEffect) -> bool {
+        matches!(effect, ActEffect::Heal { .. } | ActEffect::HealPool | ActEffect::HealAllies { .. } | ActEffect::Script { .. })
+    }
+
+    /// The hero's class actions for the action bar outside fights, with why one can't be used now.
+    pub(in crate::runtime) fn class_acts_outside(&self) -> Vec<(ClassAct, Option<&'static str>)> {
+        self.class_acts(Who::Player)
+            .into_iter()
+            .map(|a| {
+                let why = if !Self::works_outside(&a.effect) {
+                    Some("Only in a fight")
+                } else if !a.resource.is_empty() && self.uses(Who::Player, &a.resource).is_none_or(|(left, _)| left < 1) {
+                    Some("No uses left")
+                } else {
+                    None
+                };
+                (a, why)
+            })
+            .collect()
+    }
+
+    /// Uses the hero's class action `id` outside a fight (the action bar, a favorite): a use of
+    /// its resource, no action. Lay on Hands with companions around asks whom first.
+    pub(in crate::runtime) fn use_class_act_outside(&mut self, id: &str) -> Result<(), &'static str> {
+        if self.fight.is_some() {
+            return Err("In a fight: use the action bar");
+        }
+        let (a, why) = self.class_acts_outside().into_iter().find(|(a, _)| a.id == id).ok_or("No such class action")?;
+        if let Some(why) = why {
+            return Err(why);
+        }
+        let level = self.who_traits(Who::Player).map_or(1, |t| t.level) as i32;
+        let act_name = crate::lang::tr(&a.name);
+        match &a.effect {
+            ActEffect::HealPool => {
+                if self.start_heal_pick(crate::runtime::healing::HealSource::ClassAct(id.to_string())) {
+                    return Ok(());
+                }
+                return self.class_heal_outside(id, Who::Player);
+            }
+            ActEffect::Heal { dice, per_level } => {
+                if self.hp() >= self.player_max_hp() {
+                    return Err("Not hurt");
+                }
+                let n = roll_or_zero(dice) + per_level * level;
+                self.combat_heal(Who::Player, n);
+                self.ui.toast(format!("{act_name} +{n}"));
+            }
+            ActEffect::HealAllies { feet, per_level } => {
+                let mut pool = per_level * level;
+                let ts = self.ts();
+                let reach = *feet as f32 / 5.0 * ts;
+                let mut allies = vec![Who::Player];
+                allies.extend(self.loaded.entities.iter().filter(|e| e.active && e.companion.is_some() && e.body.pos.distance(self.player.pos) <= reach).map(|e| Who::Npc(e.uid)));
+                allies.sort_by_key(|w| self.who_hp(*w).0);
+                let mut healed = 0;
+                for w in allies {
+                    let (hp, max) = self.who_hp(w);
+                    let n = (max / 2 - hp).clamp(0, pool);
+                    if n > 0 {
+                        self.combat_heal(w, n);
+                        pool -= n;
+                        healed += n;
+                    }
+                }
+                if healed == 0 {
+                    return Err("No one is badly hurt");
+                }
+                self.ui.toast(format!("{act_name} +{healed}"));
+            }
+            ActEffect::Script { function } => {
+                self.sync_script_player();
+                let t = self.player_tile();
+                let args = vec![rhai::Dynamic::from("player".to_string()), rhai::Dynamic::from(t.0 as f64 + 0.5), rhai::Dynamic::from(t.1 as f64 + 0.5)];
+                let actions = self.scripts.call_args(&mut self.world, function, args, None);
+                self.runner.push(&actions, &crate::events::runner::ActionCtx::default());
+            }
+            _ => return Err("Only in a fight"),
+        }
+        if !a.resource.is_empty() {
+            self.spend(Who::Player, &a.resource, 1);
+        }
+        Ok(())
+    }
+
+    /// Lay on Hands outside a fight on `target` (the hero or a companion): as much as it lacks,
+    /// from the pool.
+    pub(in crate::runtime) fn class_heal_outside(&mut self, id: &str, target: Who) -> Result<(), &'static str> {
+        let a = self.class_acts(Who::Player).into_iter().find(|a| a.id == id).ok_or("No such class action")?;
+        let (hp, max) = self.who_hp(target);
+        let pool = self.uses(Who::Player, &a.resource).map_or(0, |u| u.0);
+        let n = (max - hp).clamp(0, pool);
+        if n == 0 {
+            return Err(if pool == 0 { "No uses left" } else { "Not hurt" });
+        }
+        self.combat_heal(target, n);
+        self.spend(Who::Player, &a.resource, n);
+        self.ui.toast(format!("{} > {} +{n}", crate::lang::tr(&a.name), self.who_name(target)));
+        Ok(())
+    }
+
+    /// A class action favorite in a fight: aimed like the Class window's pick (on the hero's turn).
+    pub(in crate::runtime) fn aim_class_favorite(&mut self, id: &str) {
+        if !self.players_turn() {
+            return;
+        }
+        let who = self.fight.as_ref().unwrap().current().who;
+        let Some(a) = self.class_acts(who).into_iter().find(|a| a.id == id) else { return };
+        match self.class_act_ready(who, &a) {
+            Ok(()) => self.set_aim(super::Aim::Feature(id.to_string())),
+            Err(why) => self.ui.toast(crate::lang::tr_ui(why).into_owned()),
+        }
     }
 
     /// Who class action `id` goes to without a named target: itself, the nearest foe or the
@@ -930,4 +1048,17 @@ fn roll_or_zero(dice: &str) -> i32 {
         return 0;
     }
     crate::srd::Expr::parse(dice).map(|e| e.roll(&crate::srd::dice::NoMods).total.max(0)).unwrap_or(0) as i32
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn healing_class_actions_work_outside_fights() {
+        let yes = [ActEffect::Heal { dice: "1d10".into(), per_level: 1 }, ActEffect::HealPool, ActEffect::HealAllies { feet: 30, per_level: 5 }, ActEffect::Script { function: "f".into() }];
+        let no = [ActEffect::Rage, ActEffect::ExtraAction, ActEffect::Reckless, ActEffect::UnarmedStrikes { count: 2 }, ActEffect::TempHp { dice: String::new(), per_level: 1 }];
+        assert!(yes.iter().all(Game::works_outside));
+        assert!(!no.iter().any(Game::works_outside));
+    }
 }

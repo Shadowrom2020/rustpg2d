@@ -484,6 +484,20 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **Forced march** (an option): walking more than 8 game hours between long rests calls for CON saves.
 - `carried_weight()`; `status` prints `survival=` and `load=`.
 
+### The action bar
+- **The quick bar is gone:** one bar at the bottom of the screen serves fights and exploration.
+  In a fight it is the turn's bar as before. Outside fights it shows **Use** (potions, food,
+  scrolls), **Cast** (spells), **Class** (class actions that work outside fights: Second Wind, Lay on
+  Hands, Preserve Life), **Rest** (a short rest, or **Make camp**: a long rest anywhere with a
+  bedroll and no enemies near), **Sneak** and **Party** (the companions' orders). Each opens a list
+  that pauses the game, or acts at once. F (gamepad RB) focuses the bar for keys and gamepads.
+- **Favorites** take the quick bar's place: eight slots above the bar on 1-8, now for items, spells,
+  class actions, rests, sneaking and custom entries (1-8 on a list row pins it). Old saves' quick
+  bars become favorites. In a fight favorites are clicked.
+- **Project › Menus › Action bar** sets the entries, custom ones running a script function;
+  **Project › Rules › Camp item** what camping needs (`bedroll`; empty = nothing).
+- Autoplay `bar`, `barpick`, `pin`, `fav`; `status` prints `bar=` and `favorites=` (was `quick=`).
+
 ### Rests and checks (SRD 5.1, part 3)
 - **One long rest in 24 hours:** a long rest less than 16 hours after the last one passes the time
   but gives nothing.

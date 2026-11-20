@@ -61,11 +61,19 @@ pub struct RulesSettings {
     pub forced_march: bool,
     /// How carrying is limited: the plain rule (STR × 15 lb) or the variant encumbrance.
     pub encumbrance: survival::Encumbrance,
+    /// What the hero needs in the bag to make camp (a long rest anywhere): an item id or SRD id;
+    /// "" = nothing.
+    #[serde(default = "default_camp_item")]
+    pub camp_item: String,
+}
+
+fn default_camp_item() -> String {
+    "bedroll".into()
 }
 
 impl Default for RulesSettings {
     fn default() -> Self {
-        RulesSettings { abilities: Abilities::STANDARD, proficiencies: Vec::new(), show_checks: true, food_water: false, forced_march: false, encumbrance: survival::Encumbrance::Plain }
+        RulesSettings { abilities: Abilities::STANDARD, proficiencies: Vec::new(), show_checks: true, food_water: false, forced_march: false, encumbrance: survival::Encumbrance::Plain, camp_item: default_camp_item() }
     }
 }
 

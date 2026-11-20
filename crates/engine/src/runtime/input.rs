@@ -555,12 +555,14 @@ pub enum Act {
     Sneak,
     /// Photo mode on / off (`photo.rs`).
     Photo,
+    /// Focuses the action bar outside fights (`actionbar.rs`).
+    Actions,
 }
 
 impl Act {
     pub const QUICK: [Act; 8] = [Act::Quick1, Act::Quick2, Act::Quick3, Act::Quick4, Act::Quick5, Act::Quick6, Act::Quick7, Act::Quick8];
 
-    pub const ALL: [Act; 39] = [
+    pub const ALL: [Act; 40] = [
         Act::Up,
         Act::Down,
         Act::Left,
@@ -581,6 +583,7 @@ impl Act {
         Act::HideUi,
         Act::Photo,
         Act::Command,
+        Act::Actions,
         Act::Drop,
         Act::Use,
         Act::TakeAll,
@@ -624,6 +627,7 @@ impl Act {
             Act::Journal => "journal",
             Act::HideUi => "hide_ui",
             Act::Photo => "photo",
+            Act::Actions => "actions",
             Act::Drop => "drop",
             Act::Use => "use",
             Act::TakeAll => "take_all",
@@ -673,20 +677,21 @@ impl Act {
             Act::Journal => "Journal",
             Act::HideUi => "Hide interface",
             Act::Photo => "Photo mode",
+            Act::Actions => "Action bar",
             Act::Drop => "Drop item",
             Act::Use => "Use item",
             Act::TakeAll => "Take all (loot)",
             Act::ZoomIn => "Map: zoom in",
             Act::ZoomOut => "Map: zoom out",
             Act::MapCenter => "Map: center",
-            Act::Quick1 => "Quick slot 1",
-            Act::Quick2 => "Quick slot 2",
-            Act::Quick3 => "Quick slot 3",
-            Act::Quick4 => "Quick slot 4",
-            Act::Quick5 => "Quick slot 5",
-            Act::Quick6 => "Quick slot 6",
-            Act::Quick7 => "Quick slot 7",
-            Act::Quick8 => "Quick slot 8",
+            Act::Quick1 => "Favorite 1",
+            Act::Quick2 => "Favorite 2",
+            Act::Quick3 => "Favorite 3",
+            Act::Quick4 => "Favorite 4",
+            Act::Quick5 => "Favorite 5",
+            Act::Quick6 => "Favorite 6",
+            Act::Quick7 => "Favorite 7",
+            Act::Quick8 => "Favorite 8",
             Act::QuickSave => "Quick save",
             Act::QuickLoad => "Quick load",
             Act::Debug => "Debug overlay",
@@ -744,6 +749,7 @@ impl Act {
             Act::Journal => &[K::J],
             Act::HideUi => &[K::H],
             Act::Photo => &[K::P],
+            Act::Actions => &[K::F],
             Act::Drop => &[K::G],
             Act::Use => &[K::U],
             Act::TakeAll => &[K::T],
@@ -795,6 +801,7 @@ impl Act {
             Act::ZoomOut => &[Pad::Lb],
             Act::MapCenter => &[Pad::South],
             Act::Command => &[Pad::Lb],
+            Act::Actions => &[Pad::Rb],
             _ => &[],
         }
     }

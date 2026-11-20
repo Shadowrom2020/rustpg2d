@@ -590,7 +590,7 @@ become SRD spells of level 1 (a bolt a cantrip) that every casting class has.
   now, a row for each slot level it has left (a higher slot **upcasts** it, more damage or more
   targets), with its range and area; spells it knows but can't cast now are greyed with why (no
   slot left, untrained armor, no focus). The spell picked is aimed; E / Enter or a click casts it at
-  the creature or tile under the cursor. The quick bar's spells (1-8) are aimed directly. The line above
+  the creature or tile under the cursor. Favorite spells are aimed directly when clicked. The line above
   the bar tells the spell, the slot, its area and its save or attack bonus. **Areas** are drawn on
   the grid: spheres and cylinders around the aimed tile (around the caster for a *Self* spell), cubes
   on it, cones and lines from the caster toward it; everyone inside is a target, allies too.
@@ -605,7 +605,7 @@ become SRD spells of level 1 (a bolt a cantrip) that every casting class has.
   spell gave everyone.
 - **Outside fights** the **Spells** tab (L) is the spellbook: the known and preparable spells by
   level, the slots, the DC, P prepares or unprepares, ←/→ choose the slot, Enter casts (healing,
-  boons, light, Knock; spells that attack wait for a fight), 1-8 put a spell on the quick bar. A heal
+  boons, light, Knock; spells that attack wait for a fight), 1-8 put a spell on a favorite. A heal
   with companions around asks whom to heal.
 - **Scrolls and books** (items with *Teaches spell*), as the SRD has it: a wizard copies the spell
   into the spellbook (a spell of a level it has slots of); another caster whose class lists the spell
@@ -741,7 +741,36 @@ In the example the red **Potion of Healing** (2d4 + 2) and the **Potion of Hill 
 the farm holds a **Ring of Protection**, and the hidden hoard in the mine a **+1 Longsword** and a
 **Wand of Magic Missiles**.
 
-## Inventory, quick bar and containers
+## The action bar
+
+One bar at the bottom of the screen for everything the hero does (since 0.32; it replaced the quick
+bar). **In a fight** it is the turn's bar ([Health and combat](#health-and-combat)). **Outside fights**
+it shows the project's entries (*Database › Project › Menus › Action bar*; built in:
+Use, Cast, Class, Rest, Sneak, Party):
+
+- **Use**: the usable items in the bag (consumables, items with *Use* triggers, scrolls, items that
+  cast spells); **Cast**: the spells castable now (attack spells greyed: *Only in a fight*; the lowest
+  slot is spent); **Class**: the hero's class actions that work outside fights (Second Wind, Lay on
+  Hands with *Heal whom?* when companions are hurt, Preserve Life, script actions; the others greyed:
+  *Only in a fight*; a use of the resource, no action).
+- **Rest**: *Short rest* (the hit dice window) or **Make camp**: a long rest anywhere, the night's
+  sleep of 8 hours, with the **camp item** in the bag (*Database › Project › Rules › Camp item*, the
+  SRD's `bedroll` by default, by item id or SRD id; empty = nothing needed), no enemies near and no
+  fight. The long rest's rules apply (one in 24 hours, food and water), and the map's *Woke up*
+  triggers fire as after a bed.
+- **Sneak** (on / off) and **Party** (the companions' orders; only with companions) act at once;
+  Cast and Class show only when the hero has something there.
+- **Custom entries** run a script function (a plugin's "Pray", a camp of the game's own).
+
+A list pauses the world like the inventory; greyed rows say why. **F** (gamepad **RB**) focuses
+the bar: Left / Right choose, Up goes to the favorites, Confirm opens, Cancel leaves. **Favorites**:
+eight slots above the bar on keys 1–8 (outside fights; in a fight they are clicked: an item is the
+turn's action, a spell or a class action is aimed). In a list 1–8 pins the selected row; with the
+bar focused on Sneak or a custom entry, 1–8 pins that; items are dragged on from the inventory, and
+right-click empties a slot. A favorite is an item, a spell, a class action, a rest, sneaking or a
+custom entry; old saves' quick bars load as favorites.
+
+## Inventory, favorites and containers
 
 ![The character window](../images/game-character.webp)
 
@@ -757,8 +786,9 @@ the farm holds a **Ring of Protection**, and the hidden hoard in the mine a **+1
   they don't fit it stays on (*Make room first*). In the example Tilda sells a **Small Backpack**
   (+6) and a **Traveller's Pack** (+12), and the bandit chief carries a **Magic Backpack** (+24);
   all three are in the starter library.
-- The **quick bar** has 8 slots: drag items onto it (or select one and press 1–8), then press 1–8 or
-  click to use them. Slots show how many you own and grey out at 0.
+- The **favorites** (the [action bar](#the-action-bar)'s eight slots, the quick bar until 0.31):
+  drag items onto them (or select one and press 1–8), then press 1–8 or click to use them. Item slots
+  show how many you own and grey out at 0.
 - **Dropping**: G drops the selected stack (Shift+G one item), or drag it out of the window. Dropped
   items stay where they are, also across map changes and in save games.
 - **Containers** (chests, barrels: *Lootable container* props) open a window next to the inventory:
@@ -985,7 +1015,7 @@ for a quest well done) or check it in conditions.
 The starter library's villagers (and the example's) come with friendship as content:
 
 - **A chat a day**: the first time each day the player talks to them, +2.
-- **Gifts**: use an item on them (the quick bar or the inventory while facing them): a gift they
+- **Gifts**: use an item on them (a favorite, the action bar's *Use* or the inventory while facing them): a gift they
   love +15, like +8, anything else +3, a gift they dislike -8, each with a reply and an emotion.
   One gift a day: a second one is handed back.
 - **Five hearts**: they give the player something once ("You're a true friend...").

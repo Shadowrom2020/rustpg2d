@@ -14,14 +14,15 @@ These are the default keys; players change them in *Options › Gameplay › Con
 | X | Attack: starts a fight with an enemy in sight; outside fights a swing at a tree or a vein |
 | Left Ctrl / V | Sneak on / off (see below) |
 | Q | Switch weapon (bare hands, then the weapons you own) |
-| 1–8, or a click on a quick bar slot | Use that item or spell (in a fight: the action bar, see below) |
+| 1–8, or a click on a favorite | Use that favorite: an item, a spell, a class action, a rest (in a fight 1–8 pick the turn's actions; favorites are clicked) |
+| F (gamepad RB) | The action bar: Left / Right choose an entry, Up the favorites, E opens it, Esc leaves |
 | Space | End the turn (in a fight) |
 | C / I | The character window: character sheet and inventory |
 | K / L | The character window's *Sheet* tab (your character sheet: scores, saving throws, skills, armor class, hit points, conditions, languages, features and traits; R there: short rest) and *Spells* tab (your spellbook: slots, prepare with P, cast with Enter; for casters) |
 | Tab | Next tab of the open window |
 | J | Journal: *Quests*, *Bestiary*, *Dialogs*, *People* (the villagers you made friends with, in hearts), *Rolls* (your last checks and dice rolls) |
 | M | The map screen |
-| G | Companion orders (with companions along) |
+| G | Companion orders (with companions along; also the action bar's *Party*) |
 | H | Hide or show the interface |
 | P | Photo mode (see below) |
 | F5 / F9 | Quick save / quick load |
@@ -42,7 +43,7 @@ in feet, half from standing.
 
 - **Character window**: arrows or a click select (on the character sheet the arrows move between
   the slots around the figure, right from the right column into the inventory); Enter, a
-  double-click or a right-click uses or equips; drag items onto or off the equipment slots, onto the quick bar, or out of the window to
+  double-click or a right-click uses or equips; drag items onto or off the equipment slots, onto the favorites, or out of the window to
   drop them; G drops the selected stack (Shift+G one item). A **backpack** in the *Backpack* slot
   gives you more inventory slots; to take it off, first make room for what lies in its slots.
   The row of small slots under the figure takes **rings, an amulet, a cloak, a belt, boots and
@@ -93,6 +94,14 @@ you still, blindness narrows what you see; a saving throw can keep one off when 
 **Resting**: press R on the sheet (gamepad X) for a **short rest** when no enemy is near: spend hit
 dice (each heals d10 + CON) and an hour passes. Sleeping in a bed is a **long rest**: full hit
 points, half your hit dice back and one level of exhaustion less.
+
+**The action bar** at the bottom of the screen is how you do things outside fights: **Use** (potions,
+food, scrolls), **Cast** (your spells), **Class** (Second Wind, Lay on Hands…), **Rest** (a short rest,
+or **Make camp** for a night's rest anywhere: you need a **bedroll** and no enemies near), **Sneak**
+and **Party** (your companions' orders). Click an entry, or press F (gamepad RB) and choose with the
+arrows. In a list, 1–8 pins the selected row to a **favorite**: the eight slots above the bar, used
+with 1–8 or a click (right-click empties one). In a fight the bar becomes the turn's actions, and
+favorites still work with a click (a potion is your action, a spell or class action is aimed).
 
 **What you carry** weighs: the sheet shows *Carried* (`42 / 240 lb`; your capacity is STR × 15).
 Above the capacity you drag the load at a crawl, above twice it you can't move at all: drop

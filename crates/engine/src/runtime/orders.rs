@@ -74,9 +74,15 @@ impl Game {
         if !allow || !input::act_pressed(Act::Command) {
             return false;
         }
+        self.open_order_menu();
+        true
+    }
+
+    /// Opens the orders menu (G / LB, the action bar's Party), or says why it can't.
+    pub(super) fn open_order_menu(&mut self) {
         if self.order_targets().is_empty() {
             self.ui.toast(if self.healable_companions().is_empty() { "No companions to give orders to.".into() } else { "Your companions can't hear you now.".into() });
-            return true;
+            return;
         }
         let several = self.order_targets().len() > 1;
         // Start on the order the (first) companion has.
@@ -84,7 +90,6 @@ impl Game {
         let cur = self.companion_ai(first);
         let sel = CHOICES.iter().position(|c| *c == Choice::Ai(cur)).unwrap_or(0);
         self.order_menu = Some(OrderMenu { who: if several { 0 } else { 1 }, sel, on_who: false, mouse: input::mouse_pos() });
-        true
     }
 
     /// The menu's input (it pauses the world). Returns true while it is open.

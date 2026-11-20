@@ -625,6 +625,31 @@ fn a_prop_becomes_a_breakable_object() {
     let _ = std::fs::remove_dir_all(&root);
 }
 
+/// Database › Props: a barrel gets a trap (the poison needle to start from), the preset switched
+/// to the falling net, saved.
+#[test]
+fn a_prop_gets_a_trap() {
+    let root = example_copy("traps");
+    let db = Project::load(&root).unwrap().db;
+    let k = db.props.iter().position(|p| p.id == "barrel").expect("the example's barrel");
+    assert!(db.props[k].trap.is_none());
+    let mut h = harness(&root, Tab::Props, k);
+    step(&mut h);
+    h.get_by(|n| n.label().as_deref().is_some_and(|l| l.starts_with("Trapped")) && n.role() == Role::CheckBox).click();
+    step(&mut h);
+    assert_eq!(h.state().project.db.props[k].trap.as_ref().map(|t| t.preset.as_str()), Some("poison_needle"));
+    // (The preset's combo box is the one beside "Preset".)
+    beside(&h, "Preset", |n| n.role() == Role::ComboBox).click();
+    step(&mut h);
+    h.get_by_label("Falling net").click();
+    step(&mut h);
+    let t = h.state().project.db.props[k].trap.clone().expect("still trapped");
+    assert_eq!((t.preset.as_str(), t.detect_dc, t.condition.map(|c| c.condition)), ("falling_net", 10, Some(Some(rustpg2d_engine::srd::Condition::Restrained))));
+    h.state_mut().save_all();
+    assert_eq!(Project::load(&root).unwrap().db.props[k].trap.as_ref().map(|t| t.preset.clone()), Some("falling_net".into()));
+    let _ = std::fs::remove_dir_all(&root);
+}
+
 /// Project › Menus › Action bar: the built-in entries to start from, a custom one added, saved.
 #[test]
 fn the_action_bar_gets_a_custom_entry() {

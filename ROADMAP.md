@@ -1274,7 +1274,7 @@ added here.
 - [ ] Objects, traps, poisons, diseases and madness — three parts (the user's decision, 2026-11-20;
   madness left out: it stays a story tool):
   1. [x] **Objects** — `feature/srd-objects`.
-  2. [ ] **Traps** (zones and props) — `feature/srd-traps`.
+  2. [x] **Traps** (zones and props) — `feature/srd-traps`.
   3. [ ] **Poisons and diseases** — `feature/srd-poisons`.
 
   **Goal.** The SRD's hazards and the objects of the world by the rules.
@@ -1325,6 +1325,37 @@ added here.
   punches, broken with a sword (open, the flag set); forcing it (seeds 1, 2, 3, 5, 6, 8, 9 open,
   4 and 7 fail and wait); the farm's locked chest broken and looted; a damaged door kept at 9/18
   over a quick save and load.
+
+  **Part 2 decided while building.** A trap is a `TrapSpec` on a zone (`ZoneKind::Trap`) or a prop
+  (`PropDef.trap`); the SRD's seven sample traps are presets of the editor that fill the fields
+  (`preset` only names the source). Investigation counts as sight like Perception (the checks
+  part's rule), so the dim mine gives −5 to passive scores; a Search rolls Investigation as well
+  when a trap found that way is in reach. A sprung trap stays marked as found. Nothing springs in
+  fights and only the hero springs traps (no trap-aware pathing for the AI needed). The example's
+  darts and needle use the SRD's *setback* damage for levels 1-4 (1d6 / 1d10 poison) instead of
+  the samples' 2d10, which took a level-1 hero from 12 HP to 0 in testing.
+
+  **Part 2 as built.** `srd/traps.rs` (`Detect`, `TrapSave`, `Reset`, `TrapSpec` + `PRESETS` /
+  `preset` / `after_save`, `TrapState`: `armed`, `word`); `ZoneKind::Trap` and `PropDef.trap`;
+  `WorldState.traps` (`map/uid`); `runtime/traps.rs` (`notice_traps` once a second, `search_traps`
+  from `search()`, `try_disarm` from `interact()` and the Prop branch of `interact_entity`,
+  `prop_trap_on_use`, `enter_trap_zone`, `spring_trap`, `disarm_named_trap`, `draw_traps`,
+  `traps_status`); `TriggerOn::TrapSprung` / `TrapDisarmed` (zones, props), `Action::DisarmTrap`
+  (appended); `trap_state`, `disarm_trap`; editor `widgets::trap_ui` (zone kind *Trap*, the prop
+  form's *Trap* section), red trap zones, Problems checks (DC 0, bad dice). Library: `chest_trapped`
+  (*Old Chest*, poison needle) and `dart_statue`. Example: the mine's `pit_trap`, `dart_plate`
+  (armed again after 24 h) and `old_chest`.
+
+  **Part 2 verified.** Unit tests (presets, halving, reset, file round trips: `TrapSpec`, an old save
+  without traps, a map with a Trap zone), a UI test (a barrel trapped, the preset switched to the
+  net). Autoplay on a scratch copy: the pit walked into unnoticed (the fall), noticed passively with
+  WIS 20 in light (outline) and not in dim light, E on it ("can't be disarmed"); the darts sprung
+  (attack 21, 1d4, CON 8/15 failed, poison), found by a Search's Investigation roll (seeds 11, 12),
+  disarmed (seeds 1-3, 5, 6, 8), a failure by 8 springing them, a failure by 2 waiting, no tools;
+  armed again after `settime +25`; the chest's needle (1 + 1d10 poison, poisoned 1 h) then the chest
+  opening, found by a Search and disarmed, the second E opening it unharmed; *Trap sprung* /
+  *Trap disarmed* triggers setting flags; `trap_state` / `disarm_trap` from the console; the editor's
+  zone form with the darts (screenshot).
 
 - [ ] Special abilities of monsters and classes — `feature/srd-special-abilities`
 

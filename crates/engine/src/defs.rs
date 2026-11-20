@@ -1447,6 +1447,10 @@ pub struct PropDef {
     /// what breaking does (`None` = it can't be broken or forced).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub object: Option<crate::srd::objects::ObjectStats>,
+    /// A trap on it (a needle in a chest's lock): it springs when the prop is used unless found
+    /// and disarmed first (`srd::traps`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trap: Option<crate::srd::traps::TrapSpec>,
     /// Placed on a grid of this many pixels (16 or 32: wall pieces); 0 = anywhere.
     #[serde(default, skip_serializing_if = "is_zero_u16")]
     pub snap: u16,
@@ -1504,6 +1508,7 @@ impl Default for PropDef {
             climb: false,
             climb_dc: 0,
             object: None,
+            trap: None,
             snap: 0,
             pieces: vec![],
             anim: None,

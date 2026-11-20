@@ -2275,6 +2275,12 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
             ui.label("On a failure:");
             ui.indent(format!("{id}/ce"), |ui| actions_ui(ui, &format!("{id}/else"), otherwise, refs));
         }
+        Action::DisarmTrap { target } => {
+            labeled(ui, "trap", |ui| {
+                ui.add(egui::TextEdit::singleline(target).desired_width(120.0).hint_text("zone or prop name"));
+            });
+            ui.weak("(a lever, a hidden switch: that trap no longer springs)");
+        }
         Action::DamageProp { target, amount, damage_type } => {
             target_field(ui, id, target, refs);
             labeled(ui, "damage", |ui| {
@@ -2778,6 +2784,90 @@ pub fn condition_combo(ui: &mut egui::Ui, id: &str, kind: &mut Option<SrdConditi
 }
 
 /// A combo box of the SRD's damage types (`None` = `none`: untyped, or healing).
+/// A trap's fields (a Trap zone, a prop's Trap section): a preset of the SRD's, finding and
+/// disarming, what it does.
+pub fn trap_ui(ui: &mut Ui, id: &str, t: &mut rustpg2d_engine::srd::traps::TrapSpec) {
+    use rustpg2d_engine::srd::traps::{Detect, Reset, TrapSave, TrapSpec, PRESETS};
+    use rustpg2d_engine::srd::Ability;
+    ui.horizontal(|ui| {
+        ui.label("Preset");
+        let shown = PRESETS.iter().find(|p| p.0 == t.preset).map_or("(own)", |p| p.1);
+        egui::ComboBox::from_id_salt(format!("{id}/preset")).selected_text(shown).show_ui(ui, |ui| {
+            for (pid, name) in PRESETS {
+                if ui.selectable_label(t.preset == pid, name).clicked() {
+                    if let Some(p) = TrapSpec::preset(pid) {
+                        *t = p;
+                    }
+                }
+            }
+        });
+        ui.weak("(the SRD's sample traps; change anything after)");
+    });
+    ui.horizontal(|ui| {
+        ui.label("Found by");
+        egui::ComboBox::from_id_salt(format!("{id}/detect")).selected_text(t.detect.skill()).show_ui(ui, |ui| {
+            ui.selectable_value(&mut t.detect, Detect::Perception, "perception");
+            ui.selectable_value(&mut t.detect, Detect::Investigation, "investigation");
+        });
+        ui.add(egui::DragValue::new(&mut t.detect_dc).range(0..=30).prefix("DC ")).on_hover_text("Passive (within 2 tiles) or a Search's roll; 0 = it can't be found");
+        ui.label("disarm");
+        ui.add(egui::DragValue::new(&mut t.disarm_dc).range(0..=30).prefix("DC ")).on_hover_text("DEX (Thieves' Tools); 0 = it can't be disarmed. Failing by 5 or more springs it.");
+    });
+    ui.horizontal(|ui| {
+        ui.label("Attack");
+        ui.add(egui::DragValue::new(&mut t.attack).range(0..=20).prefix("+")).on_hover_text("An attack roll against the hero's AC with this bonus; 0 = no attack roll");
+        ui.label("damage");
+        ui.add(egui::TextEdit::singleline(&mut t.damage).desired_width(60.0).hint_text("4d10"));
+        damage_type_combo(ui, &format!("{id}/dt"), &mut t.damage_type, "untyped");
+    });
+    let save_row = |ui: &mut Ui, salt: &str, label: &str, save: &mut Option<TrapSave>| {
+        ui.horizontal(|ui| {
+            let mut on = save.is_some();
+            if ui.checkbox(&mut on, label).changed() {
+                *save = on.then_some(TrapSave { ability: Ability::Dex, dc: 15, half: true });
+            }
+            if let Some(s) = save {
+                egui::ComboBox::from_id_salt(format!("{id}/{salt}")).width(60.0).selected_text(s.ability.short()).show_ui(ui, |ui| {
+                    for a in Ability::ALL {
+                        ui.selectable_value(&mut s.ability, a, a.short());
+                    }
+                });
+                ui.add(egui::DragValue::new(&mut s.dc).range(1..=30).prefix("DC "));
+                ui.checkbox(&mut s.half, "half on a success");
+            }
+        });
+    };
+    save_row(ui, "save", "Saving throw", &mut t.save);
+    save_row(ui, "then", "Then (after a hit) a save", &mut t.then_save);
+    if t.then_save.is_some() {
+        ui.horizontal(|ui| {
+            ui.label("its damage");
+            ui.add(egui::TextEdit::singleline(&mut t.then_damage).desired_width(60.0).hint_text("2d10"));
+            damage_type_combo(ui, &format!("{id}/tdt"), &mut t.then_type, "untyped");
+        });
+    }
+    ui.horizontal(|ui| {
+        ui.label("Fall");
+        ui.add(egui::DragValue::new(&mut t.fall_ft).range(0..=200).speed(5.0).suffix(" ft")).on_hover_text("A pit: 1d6 per 10 ft and prone, falling in place");
+        ui.label("Text");
+        ui.add(egui::TextEdit::singleline(&mut t.text).desired_width(200.0).hint_text("A trap!"));
+    });
+    ui.horizontal(|ui| {
+        let mut again = matches!(t.reset, Reset::After { .. });
+        if ui.checkbox(&mut again, "Armed again after").changed() {
+            t.reset = if again { Reset::After { hours: 24.0 } } else { Reset::Once };
+        }
+        if let Reset::After { hours } = &mut t.reset {
+            ui.add(egui::DragValue::new(hours).range(0.1..=720.0).speed(0.5).suffix(" h"));
+        } else {
+            ui.weak("(springs once)");
+        }
+    });
+    if let Some(c) = &t.condition {
+        ui.weak(format!("On a hit or a failed save: {}", c.summary()));
+    }
+}
+
 pub fn damage_type_combo(ui: &mut egui::Ui, id: &str, t: &mut Option<DamageType>, none: &str) -> bool {
     let before = *t;
     egui::ComboBox::from_id_salt(id).selected_text(t.map_or(none, |t| t.name())).show_ui(ui, |ui| {

@@ -889,6 +889,8 @@ tool (`"dex:thieves-tools"`, `"int:smiths-tools"`).
 | `roll(dice)` | Rolls dice such as `"2d6+3"`, `"1d20+DEX"` or `"8d6"` (`STR` to `CHA` = the hero's ability modifier, `PROF` = the proficiency bonus) and returns the total; the roll goes into the roll log. *(immediately, since 0.28)* |
 | `check(what, dc)` | An ability check of the hero against a DC: d20 + the ability modifier, + the proficiency bonus when proficient in the skill or tool; `true` on a success, e.g. `if check("persuasion", 13) { … }`. *(immediately, since 0.28)* |
 | `check(what, dc, mode)` | Like `check`; mode `"advantage"` or `"disadvantage"` rolls two d20s and keeps the higher or the lower. *(immediately, since 0.28)* |
+| `trap_state(name)` | The state of the trap of the zone or prop of that name on this map: `"armed"`, `"found"` (noticed, still armed), `"disarmed"`, `"sprung"`; `""` without such a trap. *(since 0.32)* |
+| `disarm_trap(name)` | Disarms the trap of the zone or prop of that name on this map (a lever, a hidden switch): it no longer springs. *(since 0.32)* |
 | `prop_hp(target)` | A prop's hit points as an object (its name or `"self"`); `-1` without object statistics (*Object* in the prop form). *(since 0.32)* |
 | `damage_prop(target, amount)` | Damages a prop with object statistics past its damage threshold; at 0 hit points it breaks (disappears or takes its broken state, its lock gone, its *Defeated* triggers fire). *(since 0.32)* |
 | `damage_prop(target, amount, damage_type)` | Like `damage_prop`, of a damage type (`"fire"`); poison and psychic do nothing to objects. *(since 0.32)* |

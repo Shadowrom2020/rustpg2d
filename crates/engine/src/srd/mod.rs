@@ -15,6 +15,7 @@ pub mod rules;
 pub mod statblock;
 pub mod survival;
 pub mod objects;
+pub mod traps;
 
 pub use abilities::{Abilities, Ability};
 pub use check::{RollRecord, Spec};

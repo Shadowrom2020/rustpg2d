@@ -45,6 +45,9 @@ pub enum ZoneKind {
         #[serde(default)]
         target_spawn: String,
     },
+    /// A trap: noticed by the hero's passive Perception or Investigation (or a Search),
+    /// disarmed with Thieves' Tools, sprung by walking in (`srd::traps`).
+    Trap { trap: crate::srd::traps::TrapSpec },
 }
 
 /// When defeated spawner characters come back.
@@ -80,6 +83,7 @@ impl ZoneKind {
             ZoneKind::Ambience { .. } => "Ambience",
             ZoneKind::Encounter { .. } => "Encounter",
             ZoneKind::Drop { .. } => "Drop",
+            ZoneKind::Trap { .. } => "Trap",
         }
     }
 }

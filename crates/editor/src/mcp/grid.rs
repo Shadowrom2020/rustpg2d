@@ -82,6 +82,7 @@ pub fn zone_kind(k: &ZoneKind) -> String {
             let list: Vec<String> = monsters.iter().map(|m| format!("{} x{}", m.character, m.count)).collect();
             format!("encounter {} [{}] ({respawn:?})", difficulty.id(), list.join(", "))
         }
+        ZoneKind::Trap { trap } => format!("trap {} (find DC {}, disarm DC {})", if trap.preset.is_empty() { "custom" } else { trap.preset.as_str() }, trap.detect_dc, trap.disarm_dc),
         ZoneKind::Drop { height_ft, target_map, target_spawn } => format!("drop {height_ft} ft -> {}/{}", if target_map.is_empty() { "(this map)" } else { target_map }, if target_spawn.is_empty() { "(beyond)" } else { target_spawn }),
     }
 }

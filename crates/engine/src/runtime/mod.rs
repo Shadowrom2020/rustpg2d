@@ -76,6 +76,7 @@ mod movement;
 mod survival;
 mod actionbar;
 mod objects;
+mod traps;
 mod checks;
 mod spawner;
 mod rolls;
@@ -541,6 +542,8 @@ pub struct Game {
     order_menu: Option<orders::OrderMenu>,
     /// The action bar outside fights: its focus and open list (`actionbar.rs`).
     bar: actionbar::ActionBar,
+    /// Seconds to the next passive look for traps (`traps.rs`).
+    trap_look: f32,
     /// The open companion window (its gear and bag).
     comp_win: Option<companion_ui::CompanionWin>,
     /// Bottom of the player's HUD panel as last drawn (the companions' rows go below it).
@@ -737,6 +740,7 @@ impl Game {
             placed_cache: Default::default(),
             order_menu: None,
             bar: Default::default(),
+            trap_look: 0.0,
             comp_win: None,
             hud_bottom: std::cell::Cell::new(80.0),
             sleeping: None,
@@ -1894,6 +1898,12 @@ impl Game {
         }
         self.check_clock();
         self.update_survival();
+        // Once a second the hero's passive Perception looks for traps nearby.
+        self.trap_look -= dt;
+        if self.trap_look <= 0.0 && !self.on_title() && self.fight.is_none() {
+            self.trap_look = 1.0;
+            self.notice_traps();
+        }
         if input::act_pressed(Act::Debug) {
             self.debug = !self.debug;
         }
@@ -2171,6 +2181,10 @@ impl Game {
         let running = run > 1.0;
         for uid in entered {
             self.fire(GameEvent::Enter, Source::Zone(uid));
+            // A trap there springs (found or not) unless disarmed.
+            if self.loaded.map.zones.iter().any(|z| z.uid == uid && matches!(z.kind, ZoneKind::Trap { .. })) {
+                self.enter_trap_zone(uid);
+            }
             // A pit or a ledge: a jump over it, or a fall.
             if self.loaded.map.zones.iter().any(|z| z.uid == uid && matches!(z.kind, ZoneKind::Drop { .. })) && self.enter_drop(uid, running) {
                 return;
@@ -2304,6 +2318,10 @@ impl Game {
     }
 
     fn interact(&mut self) {
+        // A found trap the hero stands in or beside: E disarms it.
+        if self.facing_entity().is_none() && self.try_disarm(None) {
+            return;
+        }
         if let Some(i) = self.facing_entity() {
             self.interact_entity(i);
             return;
@@ -2363,6 +2381,10 @@ impl Game {
                     }
                 }
                 EntityKind::Prop => {
+                    // A trap on it: a found one is disarmed first, a hidden one springs.
+                    if self.prop_trap_on_use(i) {
+                        return;
+                    }
                     // Placed furniture: use it or pick it up? A door: open or close it.
                     if self.ask_furniture(i) || self.use_door(i) {
                         return;
@@ -2690,7 +2712,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} plugins={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} combat={} death_saves={:?} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={} rolls={} abilities={} prof={} profs={} sheet={} statblocks={:?} encounters={:?} class={} levelup={} rest={} resources={} class_fx={} money={} weapon={} armor={} attuned={} charges={} ammo={} knocked_out={} sight={} fall={} survival={:?} load={} senses={} bar={} search={} objects={:?}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} plugins={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} combat={} death_saves={:?} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} models={} rolls={} abilities={} prof={} profs={} sheet={} statblocks={:?} encounters={:?} class={} levelup={} rest={} resources={} class_fx={} money={} weapon={} armor={} attuned={} charges={} ammo={} knocked_out={} sight={} fall={} survival={:?} load={} senses={} bar={} search={} objects={:?} traps={:?}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2832,7 +2854,8 @@ impl Game {
             self.senses_status(),
             self.bar_status(),
             self.search_status(),
-            self.objects_status()
+            self.objects_status(),
+            self.traps_status()
         )
     }
 
@@ -3135,6 +3158,7 @@ impl Game {
         if !self.on_title() {
             self.draw_mouse_world();
             self.draw_padlocks();
+            self.draw_traps();
         }
 
         self.draw_decor_layer(crate::decor::DecorLayer::Above, view);
@@ -3892,6 +3916,10 @@ impl ActionHost for Game {
             }
             Action::Nourish { food, water } => {
                 self.nourish(*food, *water);
+                Step::Continue
+            }
+            Action::DisarmTrap { target } => {
+                self.disarm_named_trap(target);
                 Step::Continue
             }
             Action::DamageProp { target, amount, damage_type } => {

@@ -1152,6 +1152,7 @@ fn zone_color(k: &ZoneKind) -> Color {
         ZoneKind::FishingSpot { .. } => Color::new(0.2, 0.55, 1.0, 1.0),
         ZoneKind::Ambience { .. } => Color::new(0.45, 0.9, 0.55, 1.0),
         ZoneKind::Drop { .. } => Color::new(0.55, 0.35, 0.2, 1.0),
+        ZoneKind::Trap { .. } => Color::new(0.9, 0.15, 0.15, 1.0),
     }
 }
 

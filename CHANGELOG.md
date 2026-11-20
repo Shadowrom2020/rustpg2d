@@ -533,6 +533,18 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   example's stone house door can be broken or forced.
 - The *Damage prop* action, `damage_prop()`, `prop_hp()`; `status` prints `objects=`.
 
+### Traps (SRD 5.1)
+- **Trap zones** (*Zones › Trap*) and **trapped props** (*Database › Props › Trap*) with the SRD's
+  seven sample traps as presets: the hero notices one within 2 tiles by passive Perception or
+  Investigation (dim light counts) or a *Search*, sees found ones outlined in red, and disarms them
+  with E and Thieves' Tools (failing by 5 or more springs it). Walking into one, or using a trapped
+  prop, springs it: an attack roll or a saving throw, damage, poison after a hit, a condition, a
+  fall. Traps can be armed again after some hours; their state is saved.
+- *Trap sprung* and *Trap disarmed* triggers, the *Disarm trap* action, `trap_state()` and
+  `disarm_trap()`; `status` prints `traps=`.
+- The starter library's *Old Chest* (`chest_trapped`, a poison needle) and *Dart statue*; the
+  example's mine has a hidden pit, a dart plate and a trapped chest.
+
 ### Art
 - The male **dragonborn** has a new model (example and starter library) with its own walk, idle,
   sword attack and spell-casting clips; hurt, sitting, sneaking and the weapon animations still come

@@ -99,7 +99,8 @@ impl Game {
             .filter(|e| e.active && matches!(e.kind, crate::entity::EntityKind::Prop | crate::entity::EntityKind::Character) && e.companion.is_none() && e.body.pos.distance(self.player.pos) <= SEARCH_TILES * ts)
             .map(|e| e.uid)
             .collect();
-        let mut found = false;
+        // Traps within reach whose DC the roll reaches are found.
+        let mut found = self.search_traps(total);
         for uid in zones {
             found |= self.fire(crate::events::GameEvent::Search, super::Source::Zone(uid));
         }

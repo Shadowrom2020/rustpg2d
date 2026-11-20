@@ -2980,7 +2980,7 @@ impl Editor {
                 });
                 ui.separator();
                 ui.heading("Triggers");
-                ui.weak("Zones react to Enter, Leave and Interact (pressing E while inside).");
+                ui.weak("Zones react to Enter, Leave, Interact (pressing E while inside) and Search; trap zones also to Trap sprung and Trap disarmed.");
                 widgets::triggers_ui(ui, &format!("z{uid}"), &mut z.triggers, refs, rustpg2d_engine::events::TriggerOwner::Zone);
             }
             Selection::Region(r) => region_req = crate::clipboard::region_inspector(ui, &doc.map, r, self.clipboard.as_ref()),
@@ -3210,6 +3210,7 @@ fn zone_fields(ui: &mut egui::Ui, z: &mut Zone, refs: &Refs, mw: u32, mh: u32) {
             ZoneKind::Ambience { .. } => 6,
             ZoneKind::Encounter { .. } => 7,
             ZoneKind::Drop { .. } => 8,
+            ZoneKind::Trap { .. } => 9,
         };
         let old = k;
         ui.vertical(|ui| {
@@ -3225,6 +3226,7 @@ fn zone_fields(ui: &mut egui::Ui, z: &mut Zone, refs: &Refs, mw: u32, mh: u32) {
                 ui.radio_value(&mut k, 6, "Ambience");
                 ui.radio_value(&mut k, 7, "Encounter");
                 ui.radio_value(&mut k, 8, "Drop");
+                ui.radio_value(&mut k, 9, "Trap");
             });
         });
         if k != old {
@@ -3237,6 +3239,7 @@ fn zone_fields(ui: &mut egui::Ui, z: &mut Zone, refs: &Refs, mw: u32, mh: u32) {
                 6 => ZoneKind::Ambience { sound: String::new(), volume: 0.6, fade: 4.0 },
                 7 => default_encounter(refs),
                 8 => ZoneKind::Drop { height_ft: 20, target_map: String::new(), target_spawn: String::new() },
+                9 => ZoneKind::Trap { trap: rustpg2d_engine::srd::traps::TrapSpec::preset("hidden_pit").unwrap_or_default() },
                 _ => default_spawner(refs),
             };
         }
@@ -3328,6 +3331,11 @@ fn zone_fields(ui: &mut egui::Ui, z: &mut Zone, refs: &Refs, mw: u32, mh: u32) {
             if ui.button(format!("\u{E5DE} Go to {target_map}")).on_hover_text("Open the target map at the target spawn (or double-click the portal)").clicked() {
                 GOTO.with(|g| *g.borrow_mut() = Some((target_map.clone(), target_spawn.clone())));
             }
+            ui.end_row();
+        }
+        if let ZoneKind::Trap { trap } = &mut z.kind {
+            ui.label("Trap");
+            ui.vertical(|ui| widgets::trap_ui(ui, "zone_trap", trap));
             ui.end_row();
         }
         if let ZoneKind::Drop { height_ft, target_map, target_spawn } = &mut z.kind {
@@ -3444,6 +3452,9 @@ fn zone_fields(ui: &mut egui::Ui, z: &mut Zone, refs: &Refs, mw: u32, mh: u32) {
         }
         ZoneKind::Ambience { .. } => {
             ui.weak("Invisible in the game: a looping sound heard here, full inside the zone and fading out around it (birds over a meadow, a river along its banks, a tavern's murmur over the whole room). Zones with the same sound play it once, at the loudest. The player's Ambience volume option applies.");
+        }
+        ZoneKind::Trap { .. } => {
+            ui.weak("A hidden trap: the hero notices it within 2 tiles when their passive Perception (or Investigation) reaches its DC, or by a Search; found traps show a red outline, and E next to one disarms it (DEX with Thieves' Tools; failing by 5 or more springs it). Walking in springs it, found or not, unless disarmed. Not in fights.");
         }
         ZoneKind::Drop { .. } => {
             ui.weak("A pit or a ledge's edge. The player walking in falls: 1d6 bludgeoning per 10 ft of height (at most 20d6) and prone for a moment, landing on the nearest spawn of that name (on this map or another), or without a spawn on the first tile past the zone in the direction they walked. Running at it (or walking 10 ft up to it) jumps it when it is no wider than the hero's Strength score in feet (half without a run-up). Characters keep off it; fliers cross it in fights.");

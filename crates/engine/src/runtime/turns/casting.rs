@@ -176,6 +176,10 @@ impl Game {
             self.fly_visual(from, to, p.clone());
         }
         self.spell_impact(&d, feet_spot(point, ts));
+        // (Counterspell: a foe may stop it, the slot spent all the same.)
+        if self.counter_spell(who, &d, slot, &targets, point) {
+            return Ok(());
+        }
         self.resolve_spell(who, &d, slot, &targets, Some(point));
         Ok(())
     }
@@ -328,7 +332,16 @@ impl Game {
                         self.fight_log(format!("{tname}: {saved_text}{}", crate::lang::tr_ui(condition.name())));
                     }
                     SpellPart::Stabilize => self.stabilize(t, ""),
-                    SpellPart::Cure { conditions: list, disease } => {
+                    SpellPart::Cure { conditions: list, disease, exhaustion } => {
+                        // (Greater Restoration: a level of exhaustion too.)
+                        if *exhaustion {
+                            if let Some(l) = self.who_conditions_mut(t) {
+                                let n = conditions::exhaustion(l);
+                                if n > 0 {
+                                    conditions::set_exhaustion(l, n - 1);
+                                }
+                            }
+                        }
                         let ended = self.who_conditions_mut(t).and_then(|l| {
                             let c = list.iter().copied().find(|c| conditions::has(l, *c))?;
                             conditions::remove(l, c);
@@ -344,8 +357,14 @@ impl Game {
                         if (save.is_some() || attack.is_some()) && !landed {
                             continue;
                         }
-                        // (Enhance Ability: the target's best score when none is set.)
+                        // (Enhance Ability: the target's best score when none is set; Sanctuary's DC
+                        // and Warding Bond's caster.)
                         let mut buff = buff.clone();
+                        match &mut buff {
+                            conditions::Buff::Sanctuary { dc: x } => *x = dc,
+                            conditions::Buff::Bond { mark } => *mark = self.who_tag(caster),
+                            _ => {}
+                        }
                         if let conditions::Buff::CheckAdvantage { ability: a @ None } = &mut buff {
                             let s = self.who_abilities(t);
                             *a = Ability::ALL.into_iter().max_by_key(|x| s.score(*x));
@@ -354,6 +373,7 @@ impl Game {
                             conditions::apply_buff(l, buff, secs, &source);
                         }
                     }
+                    SpellPart::Dispel => self.dispel_on(caster, t, slot),
                     // (A boon of the caster's aimed at this target: Hunter's Mark, True Strike.)
                     SpellPart::Mark { buff } => {
                         if (save.is_some() || attack.is_some()) && !landed {
@@ -402,6 +422,11 @@ impl Game {
                 }
                 SpellPart::Unlock => self.knock(),
                 SpellPart::Teleport => self.teleport(caster, d, point),
+                SpellPart::Dispel => {
+                    if let Some(p) = point {
+                        self.dispel_areas_at(caster, p, slot);
+                    }
+                }
                 SpellPart::Lasting { effect } => self.start_area(caster, d, slot, point, effect, spell_secs(d)),
                 SpellPart::HpPool { by_level, condition } => {
                     let pool = dice_of(self, by_level).map_or(0, |x| roll(&x));
@@ -595,6 +620,7 @@ impl Game {
             .map(|b| match b {
                 conditions::Buff::AttackDie { dice, minus } if attack => roll(dice) * if *minus { -1 } else { 1 },
                 conditions::Buff::SaveDie { dice, minus } if !attack => roll(dice) * if *minus { -1 } else { 1 },
+                conditions::Buff::Bond { .. } if !attack => 1,
                 _ => 0,
             })
             .sum()
@@ -621,6 +647,7 @@ impl Game {
             match b {
                 conditions::Buff::Ac { bonus } => out += bonus,
                 conditions::Buff::Haste => out += 2,
+                conditions::Buff::Bond { .. } => out += 1,
                 _ => {}
             }
         }
@@ -643,7 +670,14 @@ impl Game {
 
     /// Damage types the buffs resist (Stoneskin, Protection from Poison).
     pub(in crate::runtime) fn buff_resistances(&self, who: Who) -> Vec<String> {
-        conditions::buffs(self.who_conditions(who)).filter_map(|b| if let conditions::Buff::Resistance { types } = b { Some(types.clone()) } else { None }).flatten().collect()
+        conditions::buffs(self.who_conditions(who))
+            .filter_map(|b| match b {
+                conditions::Buff::Resistance { types } => Some(types.clone()),
+                conditions::Buff::Bond { .. } => Some(vec!["all".to_string()]),
+                _ => None,
+            })
+            .flatten()
+            .collect()
     }
 
     /// Mode for a saving throw from a spell buff on the saver (Bless / Bane add or take a die;
@@ -755,5 +789,174 @@ impl Game {
             !*once
         });
         out
+    }
+
+    /// The spellcasting ability of `who` (a monster's, a class's; INT without).
+    pub(super) fn spell_ability(&self, who: Who) -> Ability {
+        if let Some(sc) = self.monster_casting(who) {
+            return sc.ability;
+        }
+        self.spellcasting(who).map_or(Ability::Int, |(_, sc, _)| sc.ability)
+    }
+
+    /// Dispel Magic on `t`: the spells on it (its conditions' and boons' sources, a shape, a
+    /// summons) end.
+    pub(super) fn dispel_on(&mut self, caster: Who, t: Who, slot: u32) {
+        let mut sources: Vec<String> = self.who_conditions(t).iter().map(|a| a.source.trim_start_matches(crate::runtime::poisons::WAKE_ON_HIT).to_string()).filter(|s| s.contains('@')).collect();
+        match t {
+            Who::Player => sources.extend(self.world.shape.as_ref().map(|s| s.source.clone())),
+            w => {
+                if let Some(i) = self.who_index(w) {
+                    let e = &self.loaded.entities[i];
+                    sources.extend(e.shape.as_ref().map(|s| s.orig_source()));
+                    sources.extend(e.summon.as_ref().map(|s| s.source.clone()));
+                }
+            }
+        }
+        sources.retain(|s| s.contains('@'));
+        sources.sort();
+        sources.dedup();
+        if sources.is_empty() {
+            let name = self.who_name(t);
+            self.fight_log(format!("{name}: {}", crate::lang::tr_ui("no magic to end")));
+        }
+        for src in sources {
+            self.dispel_source(caster, &src, slot);
+        }
+    }
+
+    /// Dispel Magic at tile `p`: the lasting areas there end.
+    pub(super) fn dispel_areas_at(&mut self, caster: Who, p: TilePos, slot: u32) {
+        for src in self.area_sources_at(p) {
+            self.dispel_source(caster, &src, slot);
+        }
+    }
+
+    /// One spell (`source` = `id@who`) ends: at once up to `slot`'s level, else a check of the
+    /// caster's spellcasting ability against DC 10 + its level. True when it ended.
+    pub(super) fn dispel_source(&mut self, caster: Who, source: &str, slot: u32) -> bool {
+        let id = source.split('@').next().unwrap_or("");
+        let Some(d) = self.project.db.spell(id).cloned() else { return false };
+        let name = crate::lang::tr(&d.name).to_string();
+        if d.level > slot {
+            let a = self.spell_ability(caster);
+            let ok = self.who_check(caster, a.id(), 10 + d.level as i32, false).is_some_and(|r| r.success == Some(true));
+            if !ok {
+                self.fight_log(format!("{name}: {}", crate::lang::tr_ui("holds")));
+                return false;
+            }
+        }
+        self.fight_log(format!("{name}: {}", crate::lang::tr_ui("ends")));
+        // (The caster still concentrating on it: everything it gave ends.)
+        let by = source.split_once('@').and_then(|(_, b)| self.who_of_tag(b));
+        if let Some(b) = by {
+            if self.concentration_of(b).as_deref() == Some(source) {
+                self.end_concentration(b);
+                return true;
+            }
+        }
+        crate::srd::conditions::remove_source(&mut self.world.effects, source);
+        let wake = format!("{}{source}", crate::runtime::poisons::WAKE_ON_HIT);
+        crate::srd::conditions::remove_source(&mut self.world.effects, &wake);
+        for e in &mut self.loaded.entities {
+            crate::srd::conditions::remove_source(&mut e.effects, source);
+            crate::srd::conditions::remove_source(&mut e.effects, &wake);
+        }
+        self.end_shapes_of(source);
+        self.end_areas_of(source);
+        true
+    }
+
+    /// Defences against `who`'s attack on `target` before the roll: Sanctuary (a WIS save or the
+    /// attack is lost; the attacker's own ends), Mirror Image (an image takes it). True when the
+    /// attack is over.
+    pub(super) fn defences_before(&mut self, who: Who, target: Who, spec: &AttackSpec) -> bool {
+        // (Attacking ends the attacker's own Sanctuary.)
+        if let Some(l) = self.who_conditions_mut(who) {
+            l.retain(|a| !matches!(a.buff, Some(conditions::Buff::Sanctuary { .. })));
+        }
+        let (aname, tname) = (self.who_name(who), self.who_name(target));
+        let sanctuary = conditions::buffs(self.who_conditions(target)).find_map(|b| if let conditions::Buff::Sanctuary { dc } = b { Some(*dc) } else { None });
+        if let Some(dc) = sanctuary.filter(|_| !spec.spell) {
+            let ok = self.who_check(who, "wis", dc.max(1), true).is_some_and(|r| r.success == Some(true));
+            if !ok {
+                self.fight_log(format!("{aname}: {} ({tname}: {})", crate::lang::tr_ui("can't bring itself to attack"), crate::lang::tr_ui("Sanctuary")));
+                return true;
+            }
+        }
+        let images = conditions::buffs(self.who_conditions(target)).find_map(|b| if let conditions::Buff::Images { count } = b { Some(*count) } else { None }).unwrap_or(0);
+        if images > 0 && !self.sees_truly(who, target) {
+            let need = match images {
+                1 => 11,
+                2 => 8,
+                _ => 6,
+            };
+            if crate::srd::dice::die(20) >= need {
+                let ac = 10 + self.who_mod(target, Ability::Dex);
+                let hit = crate::srd::dice::die(20) as i32 + spec.bonus >= ac;
+                if hit {
+                    if let Some(l) = self.who_conditions_mut(target) {
+                        for a in l.iter_mut() {
+                            if let Some(conditions::Buff::Images { count }) = &mut a.buff {
+                                *count = count.saturating_sub(1);
+                            }
+                        }
+                        l.retain(|a| !matches!(a.buff, Some(conditions::Buff::Images { count: 0 })));
+                    }
+                    self.fight_log(format!("{aname} > {tname}: {}", crate::lang::tr_ui("an image vanishes")));
+                } else {
+                    self.fight_log(format!("{aname} > {tname}: {}", crate::lang::tr_ui("misses an image")));
+                }
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Whether `who` sees `target` as it is (blindsight or truesight in range: no Blur, no image).
+    fn sees_truly(&self, who: Who, target: Who) -> bool {
+        let feet = self.who_dist(who, target) as u32 * 5;
+        [crate::srd::conditions::Sense::Blindsight, crate::srd::conditions::Sense::Truesight].into_iter().any(|s| {
+            let r = self.sense_of(who, s);
+            r > 0 && feet <= r
+        })
+    }
+
+    /// Disadvantage on `who`'s attack from `target`'s defences: Blur, Protection from Evil and Good.
+    pub(super) fn defence_disadvantage(&self, who: Who, target: Who) -> bool {
+        let kind = self.who_block(who).map(|b| b.creature_type.to_ascii_lowercase()).unwrap_or_default();
+        conditions::buffs(self.who_conditions(target)).any(|b| match b {
+            conditions::Buff::Blur => !self.sees_truly(who, target),
+            conditions::Buff::Warded { types } => !kind.is_empty() && types.iter().any(|t| kind.contains(&t.to_ascii_lowercase())),
+            _ => false,
+        })
+    }
+
+    /// Death Ward on `who`: spent, true (it stays at 1 HP).
+    pub(super) fn death_ward(&mut self, who: Who) -> bool {
+        let Some(l) = self.who_conditions_mut(who) else { return false };
+        let k = l.iter().position(|a| matches!(a.buff, Some(conditions::Buff::DeathWard)));
+        let warded = k.map(|k| l.remove(k)).is_some();
+        if warded {
+            let name = self.who_name(who);
+            self.fight_log(format!("{name}: {}", crate::lang::tr_ui("Death Ward")));
+        }
+        warded
+    }
+
+    /// Warding Bond: the caster bound to `who` takes the same damage (`n`).
+    pub(super) fn share_bond(&mut self, who: Who, n: i32) {
+        if n <= 0 {
+            return;
+        }
+        let tag = self.who_tag(who);
+        let Some(by) = conditions::buffs(self.who_conditions(who)).find_map(|b| if let conditions::Buff::Bond { mark } = b { self.who_of_tag(mark) } else { None }) else { return };
+        // (Not back and forth between two bonded ones.)
+        if by == who || conditions::buffs(self.who_conditions(by)).any(|b| matches!(b, conditions::Buff::Bond { mark } if *mark == tag)) {
+            return;
+        }
+        let name = self.who_name(by);
+        self.fight_log(format!("{name}: {} ({n})", crate::lang::tr_ui("Warding Bond")));
+        self.combat_damage(by, n, None, false, None);
     }
 }

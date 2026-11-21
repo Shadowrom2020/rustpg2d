@@ -14786,6 +14786,7 @@
         "spell:blur": (
             defs: [
                 804834406831226341,
+                7382681995097765502,
             ],
         ),
         "spell:branding-smite": (
@@ -14949,6 +14950,7 @@
         ),
         "spell:counterspell": (
             defs: [
+                8625384437925706019,
                 9058372740082738134,
             ],
         ),
@@ -15002,6 +15004,7 @@
         "spell:death-ward": (
             defs: [
                 7429819019221597047,
+                10989293262100635235,
             ],
         ),
         "spell:delayed-blast-fireball": (
@@ -15058,6 +15061,7 @@
         "spell:dispel-magic": (
             defs: [
                 1470066684773918500,
+                17278975883751037106,
             ],
         ),
         "spell:divination": (
@@ -15290,6 +15294,7 @@
         "spell:freedom-of-movement": (
             defs: [
                 3935850298070650496,
+                13245114608316622691,
             ],
         ),
         "spell:freezing-sphere": (
@@ -15356,6 +15361,7 @@
         "spell:greater-restoration": (
             defs: [
                 2500375932233060330,
+                15617606436492524291,
             ],
         ),
         "spell:guardian-of-faith": (
@@ -15670,6 +15676,7 @@
         "spell:mind-blank": (
             defs: [
                 7536655191105221432,
+                10637079053670361009,
             ],
         ),
         "spell:minor-illusion": (
@@ -15684,6 +15691,7 @@
         ),
         "spell:mirror-image": (
             defs: [
+                3660219105566621100,
                 16116776334367529317,
             ],
         ),
@@ -15823,10 +15831,12 @@
         "spell:protection-from-energy": (
             defs: [
                 1687717970472693937,
+                14081733176310040242,
             ],
         ),
         "spell:protection-from-evil-and-good": (
             defs: [
+                8963284190062871649,
                 12451865107400443985,
             ],
         ),
@@ -15908,6 +15918,7 @@
         ),
         "spell:sanctuary": (
             defs: [
+                556289490523459760,
                 6700639013645904680,
             ],
         ),
@@ -16225,6 +16236,7 @@
         "spell:warding-bond": (
             defs: [
                 4955696074351559648,
+                11920772853477660906,
             ],
         ),
         "spell:water-breathing": (

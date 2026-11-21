@@ -1279,7 +1279,12 @@
             "sorcerer",
             "wizard",
         ],
-        story_only: true,
+        parts: [
+            Buff(
+                buff: Blur,
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "branding-smite",
@@ -2409,7 +2414,10 @@
             "warlock",
             "wizard",
         ],
-        story_only: true,
+        parts: [
+            Counter,
+        ],
+        story_only: false,
     ),
     (
         id: "create-food-and-water",
@@ -2753,7 +2761,12 @@
             "cleric",
             "paladin",
         ],
-        story_only: true,
+        parts: [
+            Buff(
+                buff: DeathWard,
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "delayed-blast-fireball",
@@ -3120,7 +3133,10 @@
             "warlock",
             "wizard",
         ],
-        story_only: true,
+        parts: [
+            Dispel,
+        ],
+        story_only: false,
     ),
     (
         id: "divination",
@@ -4580,7 +4596,17 @@
             "druid",
             "ranger",
         ],
-        story_only: true,
+        parts: [
+            Buff(
+                buff: ConditionImmunity(
+                    conditions: [
+                        Paralyzed,
+                        Restrained,
+                    ],
+                ),
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "freezing-sphere",
@@ -4991,7 +5017,16 @@
             "cleric",
             "druid",
         ],
-        story_only: true,
+        parts: [
+            Cure(
+                conditions: [
+                    Charmed,
+                    Petrified,
+                ],
+                exhaustion: true,
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "guardian-of-faith",
@@ -7084,7 +7119,23 @@
             "bard",
             "wizard",
         ],
-        story_only: true,
+        parts: [
+            Buff(
+                buff: ConditionImmunity(
+                    conditions: [
+                        Charmed,
+                    ],
+                ),
+            ),
+            Buff(
+                buff: Resistance(
+                    types: [
+                        "psychic",
+                    ],
+                ),
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "minor-illusion",
@@ -7174,7 +7225,14 @@
             "warlock",
             "wizard",
         ],
-        story_only: true,
+        parts: [
+            Buff(
+                buff: Images(
+                    count: 3,
+                ),
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "mislead",
@@ -8070,7 +8128,16 @@
             "sorcerer",
             "wizard",
         ],
-        story_only: true,
+        parts: [
+            Buff(
+                buff: Resistance(
+                    types: [
+                        "fire",
+                    ],
+                ),
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "protection-from-evil-and-good",
@@ -8100,7 +8167,21 @@
             "warlock",
             "wizard",
         ],
-        story_only: true,
+        parts: [
+            Buff(
+                buff: Warded(
+                    types: [
+                        "aberration",
+                        "celestial",
+                        "elemental",
+                        "fey",
+                        "fiend",
+                        "undead",
+                    ],
+                ),
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "protection-from-poison",
@@ -8624,7 +8705,14 @@
         classes: [
             "cleric",
         ],
-        story_only: true,
+        parts: [
+            Buff(
+                buff: Sanctuary(
+                    dc: 0,
+                ),
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "scorching-ray",
@@ -10756,7 +10844,12 @@
         classes: [
             "cleric",
         ],
-        story_only: true,
+        parts: [
+            Buff(
+                buff: Bond(),
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "water-breathing",

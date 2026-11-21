@@ -446,6 +446,29 @@ pub enum Buff {
     /// Its melee weapon's damage die becomes `dice`, attacks and damage use its spellcasting
     /// ability, and the hits are magical (Shillelagh 1d8).
     WeaponDie { dice: String },
+    /// Blur: attackers that rely on sight have disadvantage.
+    Blur,
+    /// Mirror Image: `count` illusory duplicates draw attacks (each hit on one ends it).
+    Images { count: u32 },
+    /// Sanctuary: an attacker makes a WIS save against `dc` or loses the attack; it ends when the
+    /// warded one attacks (`dc` = the caster's spell DC, set when it lands).
+    Sanctuary {
+        #[serde(default)]
+        dc: i32,
+    },
+    /// Attackers of these creature types have disadvantage (Protection from Evil and Good).
+    Warded { types: Vec<String> },
+    /// Death Ward: the first drop to 0 hit points leaves it at 1 instead, then it ends.
+    DeathWard,
+    /// Warding Bond: +1 AC and saves, resistance to all damage; the creature `mark` names (the
+    /// caster, set when it lands) takes the same damage.
+    Bond {
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        mark: String,
+    },
+    /// It can't get these conditions (Freedom of Movement: paralyzed, restrained; Mind Blank:
+    /// charmed).
+    ConditionImmunity { conditions: Vec<Condition> },
 }
 
 /// The SRD's special senses (a stat block's `senses` text names them; spells and items give the
@@ -507,6 +530,13 @@ impl Buff {
             Buff::Hope => "HOP".into(),
             Buff::AcMin { .. } => "AC".into(),
             Buff::WeaponDie { .. } => "WPN".into(),
+            Buff::Blur => "BLR".into(),
+            Buff::Images { count } => format!("IMG{count}"),
+            Buff::Sanctuary { .. } => "SNC".into(),
+            Buff::Warded { .. } => "WRD".into(),
+            Buff::DeathWard => "DWD".into(),
+            Buff::Bond { .. } => "BND".into(),
+            Buff::ConditionImmunity { .. } => "IMM".into(),
             Buff::Sense { sense, .. } => match sense {
                 Sense::Darkvision => "DKV",
                 Sense::Blindsight => "BLS",
@@ -697,6 +727,12 @@ pub fn apply(list: &mut Vec<ActiveCondition>, spec: &ConditionSpec) {
 pub fn apply_from(list: &mut Vec<ActiveCondition>, spec: &ConditionSpec, source: &str) {
     if spec.is_nothing() {
         return;
+    }
+    // (Freedom of Movement, Mind Blank: a condition it can't get.)
+    if let Some(c) = spec.condition {
+        if buffs(list).any(|b| matches!(b, Buff::ConditionImmunity { conditions } if conditions.contains(&c))) {
+            return;
+        }
     }
     // A boon or bane runs on its own (the same one from the same source is renewed).
     if let Some(b) = &spec.buff {
@@ -1091,5 +1127,14 @@ mod tests {
         assert_eq!(l.len(), 1);
         apply_buff(&mut l, Buff::Hope, 60.0, "beacon-of-hope@player");
         assert!(check_boons(&l, crate::srd::Ability::Wis, true).0);
+    }
+
+    #[test]
+    fn freedom_of_movement_keeps_paralysis_off() {
+        let mut l = Vec::new();
+        apply_buff(&mut l, Buff::ConditionImmunity { conditions: vec![Condition::Paralyzed] }, 60.0, "freedom-of-movement@player");
+        apply(&mut l, &ConditionSpec::new(Condition::Paralyzed, 12.0));
+        apply(&mut l, &ConditionSpec::new(Condition::Prone, 12.0));
+        assert!(!has(&l, Condition::Paralyzed) && has(&l, Condition::Prone));
     }
 }

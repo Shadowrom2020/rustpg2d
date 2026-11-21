@@ -352,6 +352,9 @@ pub enum SpellPart {
         conditions: Vec<crate::srd::conditions::Condition>,
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         disease: bool,
+        /// And one level of exhaustion (Greater Restoration).
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        exhaustion: bool,
     },
     /// The target takes a beast's shape for the spell's duration (Polymorph): one of the project's
     /// characters whose stat block is a beast, of a challenge rating up to `max_cr` (`""` = the
@@ -383,6 +386,13 @@ pub enum SpellPart {
     /// The spell's area stays for its duration (Fog Cloud, Darkness, Spirit Guardians, Moonbeam,
     /// Spike Growth, Silence, walls): see [`Lasting`].
     Lasting { effect: Lasting },
+    /// Ends the spells on the target and the lasting areas at the aimed tile (Dispel Magic): those
+    /// of the slot's level or lower at once, a higher one with a check of the caster's
+    /// spellcasting ability against DC 10 + its level.
+    Dispel,
+    /// Counterspell: cast as a reaction when a creature in range casts a spell, it stops it (a
+    /// spell of the slot's level or lower at once, a higher one with the check).
+    Counter,
 }
 
 /// What a lasting area does while it stays (a spell's [`SpellPart::Lasting`]). With `repeat` the
@@ -595,9 +605,9 @@ impl SpellDef {
         self.components.split(',').any(|c| c.trim() == "V")
     }
 
-    /// Whether it may be aimed at an empty tile (a summons, a teleport).
+    /// Whether it may be aimed at an empty tile (a summons, a teleport, Dispel Magic on an area).
     pub fn aims_at_tile(&self) -> bool {
-        self.parts.iter().any(|p| matches!(p, SpellPart::Summon { .. } | SpellPart::Teleport))
+        self.parts.iter().any(|p| matches!(p, SpellPart::Summon { .. } | SpellPart::Teleport | SpellPart::Dispel))
     }
 
     pub fn offensive(&self) -> bool {

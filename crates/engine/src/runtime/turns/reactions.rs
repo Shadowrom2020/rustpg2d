@@ -24,6 +24,7 @@ pub(in crate::runtime) enum ReactChoice {
     Deflect,
     HellishRebuke,
     Protection,
+    Counterspell,
 }
 
 impl ReactChoice {
@@ -36,6 +37,7 @@ impl ReactChoice {
             ReactChoice::Deflect => "Deflect Missiles",
             ReactChoice::HellishRebuke => "Hellish Rebuke",
             ReactChoice::Protection => "Protection",
+            ReactChoice::Counterspell => "Counterspell",
         }
     }
 
@@ -49,6 +51,7 @@ impl ReactChoice {
             ReactChoice::Deflect => "deflect",
             ReactChoice::HellishRebuke => "hellish_rebuke",
             ReactChoice::Protection => "protection",
+            ReactChoice::Counterspell => "counterspell",
         }
     }
 
@@ -61,6 +64,7 @@ impl ReactChoice {
             ReactChoice::Deflect => "Less damage from the missile",
             ReactChoice::HellishRebuke => "Fire at the attacker, DEX save for half",
             ReactChoice::Protection => "Disadvantage on the attack against your ally",
+            ReactChoice::Counterspell => "Stop the spell being cast (a slot)",
         }
     }
 }
@@ -81,6 +85,17 @@ pub(super) enum ReactWhen {
     Hit,
     /// After the damage (Hellish Rebuke at the attacker).
     Hurt,
+    /// A spell being cast (Counterspell).
+    Cast,
+}
+
+/// A spell held for the hero's Counterspell: what it would do.
+#[derive(Clone, Debug)]
+pub(in crate::runtime) struct PendingCast {
+    pub(super) spell: String,
+    pub(super) slot: u32,
+    pub(super) targets: Vec<Who>,
+    pub(super) point: crate::path::TilePos,
 }
 
 /// An attack held for the hero's answer.
@@ -94,6 +109,8 @@ pub(in crate::runtime) struct PendingReact {
     pub(super) logged: String,
     /// The choices offered (status `react=`).
     pub(super) options: Vec<ReactChoice>,
+    /// The spell held (Counterspell).
+    pub(super) cast: Option<PendingCast>,
 }
 
 /// What a reactor does now: nothing possible, waits for the hero's answer, or this one.
@@ -175,7 +192,7 @@ impl Game {
                 continue;
             }
             if g == Who::Player && !spec.spell && self.asks_reactions() {
-                self.ask_reaction(PendingReact { when: ReactWhen::Before, who, target, spec: spec.clone(), roll: None, logged: String::new(), options: Vec::new() }, &[ReactChoice::Protection]);
+                self.ask_reaction(PendingReact { when: ReactWhen::Before, who, target, spec: spec.clone(), roll: None, logged: String::new(), options: Vec::new(), cast: None }, &[ReactChoice::Protection]);
                 return ReactNow::Wait;
             }
             self.react_log(g, ReactChoice::Protection);
@@ -214,7 +231,7 @@ impl Game {
         }
         // (A spell attack goes on at once: by rule.)
         if target == Who::Player && !spec.spell && self.asks_reactions() {
-            self.ask_reaction(PendingReact { when: ReactWhen::Hit, who, target, spec: spec.clone(), roll: Some(*roll), logged: logged.to_string(), options: Vec::new() }, &options);
+            self.ask_reaction(PendingReact { when: ReactWhen::Hit, who, target, spec: spec.clone(), roll: Some(*roll), logged: logged.to_string(), options: Vec::new(), cast: None }, &options);
             return ReactNow::Wait;
         }
         ReactNow::Use(options[0])
@@ -230,7 +247,7 @@ impl Game {
             return;
         }
         if self.asks_reactions() {
-            self.ask_reaction(PendingReact { when: ReactWhen::Hurt, who, target, spec: AttackSpec::default(), roll: None, logged: String::new(), options: Vec::new() }, &[ReactChoice::HellishRebuke]);
+            self.ask_reaction(PendingReact { when: ReactWhen::Hurt, who, target, spec: AttackSpec::default(), roll: None, logged: String::new(), options: Vec::new(), cast: None }, &[ReactChoice::HellishRebuke]);
             return;
         }
         self.cast_reaction(target, "hellish-rebuke", ReactChoice::HellishRebuke, &[who]);
@@ -277,7 +294,71 @@ impl Game {
                     self.cast_reaction(Who::Player, "hellish-rebuke", c, &[p.who]);
                 }
             }
+            ReactWhen::Cast => {
+                let Some(cast) = p.cast else { return };
+                let Some(d) = self.project.db.spell(&cast.spell).cloned() else { return };
+                let countered = c == ReactChoice::Counterspell && self.do_counter(Who::Player, p.who, &d, cast.slot);
+                if !countered {
+                    self.resolve_spell(p.who, &d, cast.slot, &cast.targets, Some(cast.point));
+                }
+            }
         }
+    }
+
+    /// The counterspell `who` can cast now: its id and lowest slot.
+    fn counter_of(&self, who: Who) -> Option<(String, u32)> {
+        self.cast_options(who).into_iter().filter(|(id, _)| self.project.db.spell(id).is_some_and(|d| d.casting == crate::skills::SpellCast::Reaction && d.parts.iter().any(|p| matches!(p, crate::skills::SpellPart::Counter)))).min_by_key(|x| x.1)
+    }
+
+    /// `caster` casts spell `d` at `slot`: a foe in range that sees it may counter it (the hero
+    /// is asked; by rule a spell of 1st level or higher is countered). True when the spell is
+    /// stopped or held for the answer.
+    pub(super) fn counter_spell(&mut self, caster: Who, d: &crate::skills::SpellDef, slot: u32, targets: &[Who], point: crate::path::TilePos) -> bool {
+        if d.parts.iter().any(|p| matches!(p, crate::skills::SpellPart::Counter)) {
+            return false;
+        }
+        let Some(c) = &self.fight else { return false };
+        let side = c.fighter(caster).map(|f| f.side);
+        let foes: Vec<Who> = c.order.iter().filter(|f| Some(f.side) != side && !f.out && !f.down).map(|f| f.who).collect();
+        for w in foes {
+            let Some((id, _)) = self.counter_of(w) else { continue };
+            let range = self.project.db.spell(&id).map_or(12, |s| s.range.tiles().max(1));
+            if !self.reaction_free(w) || self.who_dist(w, caster) > range || !self.can_see(w, caster) {
+                continue;
+            }
+            if w == Who::Player && self.asks_reactions() {
+                let cast = PendingCast { spell: d.id.clone(), slot, targets: targets.to_vec(), point };
+                self.ask_reaction(PendingReact { when: ReactWhen::Cast, who: caster, target: Who::Player, spec: AttackSpec::default(), roll: None, logged: String::new(), options: Vec::new(), cast: Some(cast) }, &[ReactChoice::Counterspell]);
+                return true;
+            }
+            if d.level == 0 {
+                continue;
+            }
+            return self.do_counter(w, caster, d, slot);
+        }
+        false
+    }
+
+    /// `w` casts its Counterspell at `caster`'s spell `d` (cast at `slot`): it stops a spell of
+    /// its own slot's level or lower, a higher one with a check against DC 10 + the level. True
+    /// when the spell is stopped.
+    fn do_counter(&mut self, w: Who, caster: Who, d: &crate::skills::SpellDef, slot: u32) -> bool {
+        let Some((id, cslot)) = self.counter_of(w) else { return false };
+        if self.monster_casting(w).is_some() {
+            self.monster_pay(w, &id, cslot);
+        } else if cslot >= 1 {
+            self.spend_slot(w, cslot);
+        }
+        self.react_log(w, ReactChoice::Counterspell);
+        let level = slot.max(d.level);
+        let stopped = level <= cslot || {
+            let a = self.spell_ability(w);
+            self.who_check(w, a.id(), 10 + level as i32, false).is_some_and(|r| r.success == Some(true))
+        };
+        let name = self.who_name(caster);
+        let spell = crate::lang::tr(&d.name).to_string();
+        self.fight_log(format!("{name}: {spell} {}", crate::lang::tr_ui(if stopped { "is countered" } else { "goes on" })));
+        stopped
     }
 
     /// Status `react=`: the reactions asked now (`shield|pass`), `-` when none.

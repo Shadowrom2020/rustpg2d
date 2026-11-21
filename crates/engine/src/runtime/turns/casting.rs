@@ -272,7 +272,12 @@ impl Game {
                 if cover == Cover::Total && t != caster {
                     continue;
                 }
+                // (What the save is against: Brave, Fey Ancestry, Gnome Cunning.)
+                self.save_against = d.parts.iter().find_map(|p| if let SpellPart::Condition { condition, .. } = p { Some(*condition) } else { None });
+                self.magic_save = !d.id.starts_with("action:");
                 let rec = self.who_check(t, ability.id(), dc - cover.ac_bonus(), true);
+                self.save_against = None;
+                self.magic_save = false;
                 saved = rec.as_ref().is_some_and(|r| r.success == Some(true));
                 let cover_text = if cover == Cover::None { String::new() } else { format!(" [{}]", crate::lang::tr_ui(cover.id())) };
                 save_text = format!("{} {}/{dc}{cover_text} {}", ability.short(), rec.as_ref().map_or(0, |r| r.total + cover.ac_bonus() as i64), crate::lang::tr_ui(if saved { "saved" } else { "failed" }));
@@ -762,6 +767,8 @@ impl Game {
             .filter(|t| !self.fight.as_ref().and_then(|c| c.fighter(*t)).is_some_and(|f| f.out || f.down))
             .filter(|t| !conditions::has(self.who_conditions(*t), condition))
             .filter(|t| !self.who_block(*t).is_some_and(|b| b.immune_to(condition) || (sleep && (b.immune_to(Condition::Charmed) || b.creature_type.eq_ignore_ascii_case("undead")))))
+            // (Fey Ancestry: no magical sleep.)
+            .filter(|t| !(sleep && self.who_traits(*t).is_some_and(|tr| tr.riders.contains(&crate::classes::FeatureEffect::NoMagicSleep))))
             .map(|t| (self.who_hp(t).0, t))
             .filter(|(hp, _)| *hp > 0)
             .collect();

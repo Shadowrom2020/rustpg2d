@@ -115,7 +115,7 @@ impl SrdData {
         let mut choices = Vec::new();
         for t in refs.iter().filter_map(|t| self.traits.get(s(t, "index"))) {
             let id = s(t, "index");
-            r.traits.push(RaceTrait { id: id.into(), name: s(t, "name").into(), description: desc(t) });
+            r.traits.push(RaceTrait { id: id.into(), name: s(t, "name").into(), description: desc(t), effects: trait_effects(id) });
             for p in list(t, "proficiencies") {
                 let id = prof_id(s(&p, "index"));
                 if !r.skills.iter().any(|x| x.skill == id) {
@@ -896,6 +896,34 @@ fn spell_def(v: &Value) -> rustpg2d_engine::skills::SpellDef {
     }
     d.parts = parts;
     d
+}
+
+/// What a racial trait does (0.32), by trait index; empty = its text only.
+fn trait_effects(index: &str) -> Vec<rustpg2d_engine::classes::FeatureEffect> {
+    use rustpg2d_engine::classes::{ActCost, ActEffect, FeatureEffect as F, Recharge};
+    use rustpg2d_engine::srd::conditions::Condition as K;
+    use rustpg2d_engine::srd::Ability;
+    let resource = |id: &str, recharge: Recharge| F::Resource { id: id.into(), count: 1, number: String::new(), ability: None, per_level: 0, recharge };
+    match index {
+        "lucky" => vec![F::Lucky],
+        "brave" => vec![F::SaveAdvantageAgainst { conditions: vec![K::Frightened] }],
+        "fey-ancestry" => vec![F::SaveAdvantageAgainst { conditions: vec![K::Charmed] }, F::NoMagicSleep],
+        "gnome-cunning" => vec![F::MagicSaves { abilities: vec![Ability::Int, Ability::Wis, Ability::Cha] }],
+        "halfling-nimbleness" => vec![F::Nimble],
+        "relentless-endurance" => vec![resource("relentless-endurance", Recharge::LongRest), F::Endurance { resource: "relentless-endurance".into() }],
+        "savage-attacks" => vec![F::BrutalCritical { dice: 1 }],
+        "breath-weapon" => vec![
+            resource("breath-weapon", Recharge::ShortRest),
+            F::Act {
+                id: "breath-weapon".into(),
+                name: "Breath Weapon".into(),
+                cost: ActCost::Action,
+                resource: "breath-weapon".into(),
+                effect: ActEffect::Breath { by_level: vec![(1, "2d6".into()), (6, "3d6".into()), (11, "4d6".into()), (16, "5d6".into())] },
+            },
+        ],
+        _ => Vec::new(),
+    }
 }
 
 /// What the SRD data doesn't say as numbers: conditions, buffs, targets, light, unlocking and

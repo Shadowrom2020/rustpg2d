@@ -560,6 +560,10 @@ pub struct Game {
     /// Seconds to the next passive look for traps (`traps.rs`).
     trap_look: f32,
     /// A saving throw against poison is being rolled (`poisons.rs`: its advantages count).
+    /// The condition a saving throw being rolled is against (Brave, Fey Ancestry) and whether it
+    /// is against magic (Gnome Cunning).
+    save_against: Option<crate::srd::Condition>,
+    magic_save: bool,
     poison_save: bool,
     /// A disease's fit is hurting the hero (`diseases.rs`: no fit of the fit).
     in_disease_fit: bool,
@@ -764,6 +768,8 @@ impl Game {
             areas: Vec::new(),
             trap_look: 0.0,
             poison_save: false,
+            save_against: None,
+            magic_save: false,
             in_disease_fit: false,
             comp_win: None,
             hud_bottom: std::cell::Cell::new(80.0),

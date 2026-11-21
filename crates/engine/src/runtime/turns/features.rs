@@ -457,6 +457,19 @@ impl Game {
                 }
                 self.fight_log(format!("{name}: {act_name} ({n})"));
             }
+            ActEffect::Breath { by_level } => {
+                let a = self.breath_action(me.who, by_level).ok_or("No draconic ancestry")?;
+                self.use_action(me.who, &a, super::casting::CastAt::Tile(self.who_tile(target)));
+            }
+            ActEffect::Spell { spell, level: slot } => {
+                let d = self.project.db.spell(spell).cloned().ok_or("No such spell")?;
+                let slot = (*slot).max(d.level);
+                let at = if d.area.is_some() { super::casting::CastAt::Tile(self.who_tile(target)) } else { super::casting::CastAt::On(target) };
+                let (targets, point) = self.spell_targets(me.who, &d, slot, at)?;
+                self.fight_log(format!("{name}: {act_name} ({})", crate::lang::tr(&d.name)));
+                self.spell_impact(&d, crate::grid::feet_spot(point, self.ts()));
+                self.resolve_spell(me.who, &d, slot, &targets, Some(point));
+            }
             ActEffect::Script { function } => {
                 self.sync_script_player();
                 let t = self.who_tile(target);
@@ -491,6 +504,26 @@ impl Game {
     /// (rage, extra actions, strikes, saves of foes, buffs that last rounds) need one.
     pub(in crate::runtime) fn works_outside(effect: &ActEffect) -> bool {
         matches!(effect, ActEffect::Heal { .. } | ActEffect::HealPool | ActEffect::HealAllies { .. } | ActEffect::Script { .. } | ActEffect::Shape { .. })
+    }
+
+    /// A dragonborn's breath as a save action: its ancestry's damage type, shape and save, the
+    /// dice of its level, DC 8 + CON + proficiency.
+    fn breath_action(&self, who: Who, by_level: &[(u32, String)]) -> Option<crate::srd::StatAction> {
+        use crate::skills::{Area, Shape};
+        use crate::srd::DamageType as D;
+        let race = self.project.db.race_full(&self.world.player_race)?;
+        let choice = race.choices.iter().find(|c| c.kind == crate::races::ChoiceKind::Ancestry)?;
+        let pick = self.world.choices.get(&choice.id)?.first()?;
+        let t = choice.grants.get(pick).and_then(|t| D::parse(t))?;
+        let level = self.who_traits(who).map_or(1, |t| t.level).max(self.world.player_level());
+        let dice = crate::skills::dice_at(by_level, level)?.to_string();
+        let (area, save) = match t {
+            D::Acid | D::Lightning => (Area { shape: Shape::Line, feet: 30 }, Ability::Dex),
+            D::Poison | D::Cold => (Area { shape: Shape::Cone, feet: 15 }, Ability::Con),
+            _ => (Area { shape: Shape::Cone, feet: 15 }, Ability::Dex),
+        };
+        let dc = 8 + self.who_mod(who, Ability::Con) + crate::srd::abilities::proficiency_bonus(level);
+        Some(crate::srd::StatAction { name: "Breath Weapon".into(), area: Some(area), save, dc, dice, damage_type: Some(t), half: true, ..Default::default() })
     }
 
     /// Spends class action `id`'s use and its cost of the turn (in a fight).
@@ -956,6 +989,14 @@ impl Game {
 
     /// Hit points about to drop to 0: Relentless Rage's CON save keeps 1. True = it stays up.
     pub(super) fn relentless(&mut self, who: Who) -> bool {
+        // (Relentless Endurance: 1 hit point instead, once per its rest.)
+        if let Some(res) = self.who_rider(who, |e| if let FeatureEffect::Endurance { resource } = e { Some(resource.clone()) } else { None }) {
+            if self.uses(who, &res).is_some_and(|(left, _)| left > 0) {
+                self.spend(who, &res, 1);
+                self.fight_log(format!("{}: {}", self.who_name(who), crate::lang::tr_ui("relentless endurance")));
+                return true;
+            }
+        }
         if self.fx(who).rage == 0 {
             return false;
         }
@@ -1011,6 +1052,14 @@ impl Game {
     pub(super) fn class_save_mode(&self, who: Who, what: &str) -> Mode {
         let str_based = what.eq_ignore_ascii_case("str") || what.eq_ignore_ascii_case("save:str") || what.eq_ignore_ascii_case("athletics");
         if str_based && self.fx(who).rage > 0 {
+            return Mode::Advantage;
+        }
+        // (Brave, Fey Ancestry: against a condition; Gnome Cunning: against magic.)
+        let ability = crate::srd::Ability::parse(what.trim_start_matches("save:"));
+        let traits = self.who_traits(who);
+        let against = self.save_against.is_some_and(|c| traits.as_ref().is_some_and(|t| t.riders.iter().any(|e| matches!(e, FeatureEffect::SaveAdvantageAgainst { conditions } if conditions.contains(&c)))));
+        let magic = self.magic_save && ability.is_some_and(|a| traits.as_ref().is_some_and(|t| t.riders.iter().any(|e| matches!(e, FeatureEffect::MagicSaves { abilities } if abilities.contains(&a)))));
+        if against || magic {
             Mode::Advantage
         } else {
             Mode::Normal

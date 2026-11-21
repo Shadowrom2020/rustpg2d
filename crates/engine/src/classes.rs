@@ -257,6 +257,21 @@ pub enum FeatureEffect {
     Darkvision { feet: u32 },
     /// A special sense this far (feet; 0 = as far as it sees): a Gem of Seeing's truesight.
     Sense { sense: crate::srd::conditions::Sense, feet: u32 },
+    /// Lucky: a natural 1 on an attack roll, an ability check or a saving throw is rolled again.
+    Lucky,
+    /// Advantage on saving throws against these conditions (Brave: frightened; Fey Ancestry:
+    /// charmed).
+    SaveAdvantageAgainst { conditions: Vec<crate::srd::conditions::Condition> },
+    /// Advantage on saving throws of these abilities against magic (Gnome Cunning: INT, WIS,
+    /// CHA).
+    MagicSaves { abilities: Vec<Ability> },
+    /// Magic can't put it to sleep (Fey Ancestry).
+    NoMagicSleep,
+    /// It moves through the space of a creature larger than it (Halfling Nimbleness).
+    Nimble,
+    /// Dropped to 0 hit points but not killed outright: 1 hit point instead, once per its
+    /// resource's rest (Relentless Endurance).
+    Endurance { resource: String },
 }
 
 /// What a flat bonus (`FeatureEffect::Bonus`) adds to.
@@ -397,6 +412,12 @@ pub enum ActEffect {
         #[serde(default)]
         hours_per_level: f32,
     },
+    /// A dragonborn's Breath Weapon: `by_level` damage dice (by the user's level), the type,
+    /// shape and save of its draconic ancestry (acid and lightning a 30 ft line and DEX, poison
+    /// and cold a 15 ft cone and CON, fire a 15 ft cone and DEX), DC 8 + CON + proficiency.
+    Breath { by_level: Vec<(u32, String)> },
+    /// Casts spell `spell` at slot level `level` without a slot (Infernal Legacy's Darkness).
+    Spell { spell: String, #[serde(default)] level: u32 },
 }
 
 /// Who a class action is used on.
@@ -416,6 +437,8 @@ impl ActEffect {
             ActEffect::GiveDie { feet, .. } => ActTarget::Ally { tiles: (*feet / 5).max(1) as i32, myself: false },
             ActEffect::UnarmedStrikes { .. } | ActEffect::FrenzyAttack => ActTarget::Foe { tiles: 1 },
             ActEffect::AreaSave { feet, single: true, .. } => ActTarget::Foe { tiles: (*feet / 5).max(1) as i32 },
+            ActEffect::Breath { .. } => ActTarget::Foe { tiles: 6 },
+            ActEffect::Spell { .. } => ActTarget::Foe { tiles: 24 },
             _ => ActTarget::Myself,
         }
     }

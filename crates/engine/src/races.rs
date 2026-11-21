@@ -28,6 +28,10 @@ pub struct RaceTrait {
     pub name: String,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub description: String,
+    /// What it does (the class features' vocabulary: Lucky, Brave's advantage, Breath Weapon as
+    /// an action with its resource…); empty = its text only.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub effects: Vec<crate::classes::FeatureEffect>,
 }
 
 /// What a racial choice picks.

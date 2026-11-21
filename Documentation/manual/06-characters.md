@@ -507,6 +507,15 @@ Gnome), and goblins, orcs and trolls for the world's characters. A race has:
 - **Languages** and **resistances** (damage types: a dwarf's poison, a tiefling's fire).
 - **Colours**: the race's colours in the creator (a colour feature of its models and a colour).
 - **Traits**: their names and rules text (the creator lists them; the character sheet shows them).
+  Traits that act (0.32) carry *effects* from the class features' vocabulary (edited in the race's
+  RON for now): **Lucky** (a natural 1 on an attack, check or save is rolled again), **Brave**
+  (advantage on saves against being frightened), **Fey Ancestry** (against being charmed, and no
+  magical sleep), **Gnome Cunning** (advantage on INT, WIS and CHA saves against magic),
+  **Halfling Nimbleness** (through the space of a larger creature), **Relentless Endurance** (once a
+  long rest 1 HP instead of 0), **Savage Attacks** (one more weapon die on a melee critical hit) and
+  the dragonborn's **Breath Weapon** (a class action: the ancestry's damage type and shape, 2d6 up
+  to 5d6, DC 8 + CON + proficiency, once a short rest). Infernal Legacy, Stonecunning and Trance stay
+  text (a class action *Spell* can cast a spell without a slot for content of one's own).
 - **Choices** the hero makes in the creator: *+1* (to abilities: a half-elf's two), *Skill* (a
   half-elf's two), *Tool* (a dwarf's artisan's tools), *Language* (a human's, a half-elf's, a high
   elf's extra language), *Ancestry* (a dragonborn's dragon, which gives its damage resistance) and

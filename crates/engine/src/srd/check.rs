@@ -47,6 +47,8 @@ pub struct Training {
     pub save_bonus: i32,
     /// Taken off checks by sight (a disease's failing sight: Sight Rot).
     pub sight_penalty: i32,
+    /// Lucky: a natural 1 is rolled again.
+    pub lucky: bool,
 }
 
 /// The light where the hero is, for checks that rely on sight (the SRD's *Vision and Light*).
@@ -187,6 +189,10 @@ impl Spec {
         // (Boots of Elvenkind: advantage on Stealth.)
         let mode = if !self.save && !self.proficiency.is_empty() && r.training.is_some_and(|t| t.check_advantage.contains(&self.proficiency)) { mode.combine(Mode::Advantage) } else { mode };
         let mut d = D20::roll(mode);
+        // (Lucky: a natural 1 again.)
+        if d.kept == 1 && r.training.is_some_and(|t| t.lucky) {
+            d = D20::roll(mode);
+        }
         // Reliable Talent: a proficient check's d20 is at least 10.
         if !self.save && self.proficient(r) && r.training.is_some_and(|t| t.reliable) && d.kept < 10 {
             d.kept = 10;

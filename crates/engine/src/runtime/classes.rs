@@ -20,7 +20,18 @@ impl Game {
     /// With the worn magic items' effects (also for a hero without a class).
     pub(super) fn hero_traits(&self) -> Option<ClassTraits> {
         let class = self.world.class.as_ref().and_then(|hc| Some(ClassTraits::of(self.project.db.class(&hc.class)?, self.world.player_level(), hc)));
-        self.with_items(Who::Player, class, self.world.player_level())
+        let t = self.with_items(Who::Player, class, self.world.player_level());
+        // (The race's traits that act: Lucky, Brave, Breath Weapon…)
+        let race: Vec<(String, Vec<crate::classes::FeatureEffect>)> = self.project.db.race_full(&self.world.player_race).map(|r| r.traits.iter().filter(|x| !x.effects.is_empty()).map(|x| (x.id.clone(), x.effects.clone())).collect()).unwrap_or_default();
+        if race.is_empty() {
+            return t;
+        }
+        let level = self.world.player_level();
+        let mut t = t.unwrap_or_else(|| ClassTraits { level, ..ClassTraits::plain() });
+        for (id, fx) in race {
+            t.add_effects(&fx, self.hero_class(), &id);
+        }
+        Some(t)
     }
 
     /// The hero's class feature ids at their level (chosen options included).
@@ -174,6 +185,7 @@ impl Game {
             save_advantage: t.save_advantage.clone(),
             check_advantage: t.check_advantage.iter().map(|e| crate::srd::abilities::proficiency_id(e)).collect(),
             save_bonus: t.bonus(crate::classes::BonusTo::Saves),
+            lucky: t.riders.iter().any(|e| matches!(e, crate::classes::FeatureEffect::Lucky)),
             ..Default::default()
         };
     }

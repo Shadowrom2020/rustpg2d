@@ -104,7 +104,7 @@ impl Game {
 
     /// Uses save action `a` of `who` at `at`: the targets save, the damage and condition land, the
     /// action is spent (recharge) or counted (uses).
-    fn use_action(&mut self, who: Who, a: &StatAction, at: CastAt) {
+    pub(super) fn use_action(&mut self, who: Who, a: &StatAction, at: CastAt) {
         let d = Self::action_spell(a);
         let Ok((targets, point)) = self.spell_targets(who, &d, 0, at) else { return };
         let name = self.who_name(who);

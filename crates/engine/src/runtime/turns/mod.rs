@@ -976,7 +976,9 @@ impl Game {
         });
         // Who stands on a tile: an ally's space can be passed (as difficult terrain), a foe's only
         // when one of the two is two sizes larger or more; nobody ends on another's space.
-        let passable = |w: Who, s: Side| s == me.side || (my_size as i32 - self.who_size(w) as i32).abs() >= 2;
+        // (Halfling Nimbleness: through any larger creature's space.)
+        let nimble = self.who_traits(who).is_some_and(|t| t.riders.contains(&crate::classes::FeatureEffect::Nimble));
+        let passable = |w: Who, s: Side| s == me.side || (my_size as i32 - self.who_size(w) as i32).abs() >= 2 || (nimble && self.who_size(w) > my_size);
         out.insert(start, (0, start));
         let mut open = std::collections::BinaryHeap::new();
         open.push(std::cmp::Reverse((0u32, start)));
@@ -1596,6 +1598,10 @@ impl Game {
         let ac = self.who_ac(target) + cover.ac_bonus();
         let auto_crit = sit.adjacent && conditions::rules(self.who_conditions(target)).hits_crit;
         let mut roll = rules::attack(spec.bonus, ac, mode, spec.crit_on, auto_crit);
+        // (Lucky: a natural 1 is rolled again.)
+        if roll.d20 == 1 && self.who_traits(who).is_some_and(|t| t.riders.contains(&crate::classes::FeatureEffect::Lucky)) {
+            roll = rules::attack(spec.bonus, ac, mode, spec.crit_on, auto_crit);
+        }
         // Autoplay `crit always|never`: the hits of the player's side.
         let party = self.fight.as_ref().and_then(|c| c.fighter(who)).is_some_and(|f| f.side == Side::Party);
         if let (true, Some(always)) = (party && roll.hit, self.juice.crit_mode) {

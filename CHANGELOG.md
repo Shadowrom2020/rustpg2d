@@ -621,6 +621,12 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   Good* (what they sense glows; `status` `detect=`) and *Find Traps* (new boons and a Find traps
   part). 167 of the 319 spells act now.
 
+### Racial traits (SRD 5.1)
+- Racial traits act (a trait's new *effects*): **Lucky**, **Brave**, **Fey Ancestry**, **Gnome
+  Cunning**, **Halfling Nimbleness**, **Relentless Endurance**, **Savage Attacks** and the
+  dragonborn's **Breath Weapon** (a class action by the ancestry: damage type, line or cone, DEX or
+  CON save; once a short rest). A class action can cast a spell without a slot (*Spell*).
+
 ### Shapes and summons (SRD 5.1)
 - **Wild Shape** (the druid's class action, a new *Shape* class action effect): the hero picks a
   beast they know (defeated or on the map) up to the CR their level allows and plays its stat

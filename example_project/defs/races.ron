@@ -103,6 +103,14 @@
                 id: "fey-ancestry",
                 name: "Fey Ancestry",
                 description: "You have advantage on saving throws against being charmed, and magic cannot put you to sleep.",
+                effects: [
+                    SaveAdvantageAgainst(
+                        conditions: [
+                            Charmed,
+                        ],
+                    ),
+                    NoMagicSleep,
+                ],
             ),
             (
                 id: "trance",
@@ -256,16 +264,29 @@
                 id: "brave",
                 name: "Brave",
                 description: "You have advantage on saving throw against being frightened.",
+                effects: [
+                    SaveAdvantageAgainst(
+                        conditions: [
+                            Frightened,
+                        ],
+                    ),
+                ],
             ),
             (
                 id: "halfling-nimbleness",
                 name: "Halfling Nimbleness",
                 description: "You can move through the space of any creature that is of a size larger than yours.",
+                effects: [
+                    Nimble,
+                ],
             ),
             (
                 id: "lucky",
                 name: "Lucky",
                 description: "When you roll a 1 on the d20 for an attack roll, ability check, or saving throw, you can reroll the die and must use the new roll.",
+                effects: [
+                    Lucky,
+                ],
             ),
         ],
     ),
@@ -300,6 +321,28 @@
                 id: "breath-weapon",
                 name: "Breath Weapon",
                 description: "You can use your action to exhale destructive energy. Your draconic ancestry determines the size, shape, and damage type of the exhalation. When you use your breath weapon, each creature in the area of the exhalation must make a saving throw, the type of which is determined by your draconic ancestry. The DC for this saving throw equals 8 + your Constitution modifier + your proficiency bonus. A creature takes 2d6 damage on a failed save, and half as much damage on a successful one. The damage increases to 3d6 at 6th level, 4d6 at 11th level, and 5d6 at 16th level. After you use your breath weapon, you cannot use it again until you complete a short or long rest.",
+                effects: [
+                    Resource(
+                        id: "breath-weapon",
+                        count: 1,
+                        per_level: 0,
+                        recharge: ShortRest,
+                    ),
+                    Act(
+                        id: "breath-weapon",
+                        name: "Breath Weapon",
+                        cost: Action,
+                        resource: "breath-weapon",
+                        effect: Breath(
+                            by_level: [
+                                (1, "2d6"),
+                                (6, "3d6"),
+                                (11, "4d6"),
+                                (16, "5d6"),
+                            ],
+                        ),
+                    ),
+                ],
             ),
             (
                 id: "damage-resistance",
@@ -426,6 +469,15 @@
                 id: "gnome-cunning",
                 name: "Gnome Cunning",
                 description: "You have advantage on all Intelligence, Wisdom, and Charisma saving throws against magic.",
+                effects: [
+                    MagicSaves(
+                        abilities: [
+                            Int,
+                            Wis,
+                            Cha,
+                        ],
+                    ),
+                ],
             ),
         ],
     ),
@@ -460,6 +512,14 @@
                 id: "fey-ancestry",
                 name: "Fey Ancestry",
                 description: "You have advantage on saving throws against being charmed, and magic cannot put you to sleep.",
+                effects: [
+                    SaveAdvantageAgainst(
+                        conditions: [
+                            Charmed,
+                        ],
+                    ),
+                    NoMagicSleep,
+                ],
             ),
             (
                 id: "skill-versatility",
@@ -569,11 +629,27 @@
                 id: "savage-attacks",
                 name: "Savage Attacks",
                 description: "When you score a critical hit with a melee weapon attack, you can roll one of the weapon\'s damage dice one additional time and add it to the extra damage of the critical hit.",
+                effects: [
+                    BrutalCritical(
+                        dice: 1,
+                    ),
+                ],
             ),
             (
                 id: "relentless-endurance",
                 name: "Relentless Endurance",
                 description: "When you are reduced to 0 hit points but not killed outright, you can drop to 1 hit point instead. you cannot use this feature again until you finish a long rest.",
+                effects: [
+                    Resource(
+                        id: "relentless-endurance",
+                        count: 1,
+                        per_level: 0,
+                        recharge: LongRest,
+                    ),
+                    Endurance(
+                        resource: "relentless-endurance",
+                    ),
+                ],
             ),
             (
                 id: "menacing",

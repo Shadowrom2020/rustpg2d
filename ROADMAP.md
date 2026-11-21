@@ -1574,7 +1574,16 @@ added here.
   a group (seeded), *Misty Step* across a gap, *Spirit Guardians* around the cleric for three
   rounds, *Counterspell* against an enemy caster, *Revivify* with and without the diamond.
 
-- [ ] Class features and racial traits that act — `feature/srd-features-completed`
+- [~] Class features and racial traits that act — three parts (2026-11-21, the parts and their
+  merging like *Spells completed*):
+  1. [x] **Racial traits** — `feature/srd-features-1`. Verified on a scratch copy: a red
+     dragonborn fighter breathes a 15 ft cone of fire (DEX save, DC 12) on two orc warriors, the
+     use spent until a short rest; a half-orc at 2 HP hit for 9 stays at 1 (Relentless Endurance,
+     spent). Lucky, Brave, Fey Ancestry, Gnome Cunning, Halfling Nimbleness and Savage Attacks act
+     through the rolls, saves and the fight grid (not played through). Infernal Legacy stays text
+     (race traits have no levels; the new class action *Spell* casts without a slot).
+  2. [ ] **Class features on hits and checks** — `feature/srd-features-2`.
+  3. [ ] **Spell-related class features** — `feature/srd-features-3`.
 
   **Goal.** The class features and racial traits that are still only text (found in the
   2026-11-20 check: 230 of 407 class features have no effect, a few of them only headings; most

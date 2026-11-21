@@ -5543,7 +5543,7 @@ fn race_srd_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::races::RaceDef, cx:
         d.traits.remove(k);
     }
     if ui.small_button("+ Trait").clicked() {
-        d.traits.push(RaceTrait { id: format!("trait-{}", d.traits.len() + 1), name: "New trait".into(), description: String::new() });
+        d.traits.push(RaceTrait { id: format!("trait-{}", d.traits.len() + 1), name: "New trait".into(), description: String::new(), effects: Vec::new() });
     }
     ui.label(format!("Choices in the creator ({})", d.choices.len())).on_hover_text("What a hero of the race picks: +1 to abilities, skills, a tool, a language, an ancestry, a cantrip");
     // The colour features of the race's models (a choice can colour them).

@@ -49,7 +49,7 @@ impl Game {
     }
 
     /// After a throw: the weapon leaves the hand and lands next to the target; the attack is gone
-    /// until it is picked up again.
+    /// until it is picked up again. A consumable one (a flask, a vial) shatters instead.
     pub(super) fn after_throw(&mut self, who: Who, target: Who, spec: &AttackSpec) {
         let item = self.thrown_item(who, spec);
         // Out of the hand.
@@ -74,14 +74,19 @@ impl Game {
                 }
             }
         }
+        // A consumable one shatters (a flask of alchemist's fire, a vial of acid): nothing lands.
+        let shatters = item.as_ref().and_then(|id| self.project.db.item(id)).is_some_and(|d| d.consumable);
         // On the ground next to the target.
-        let drop = item.as_ref().map(|id| {
+        let drop = item.as_ref().filter(|_| !shatters).map(|id| {
             let at = self.landing_spot(who, target);
             self.place_drop(id, 1, at)
         });
         let name = self.who_name(who);
         let what = item.as_ref().and_then(|id| self.project.db.item(id)).map_or(spec.name.clone(), |d| crate::lang::tr(&d.name));
         self.fight_log(crate::lang::tr_ui("{} throws the {}").replacen("{}", &name, 1).replacen("{}", &what, 1));
+        if shatters {
+            return;
+        }
         if let Some(f) = self.fight.as_mut().and_then(|c| c.fighter_mut(who)) {
             f.thrown.push(Thrown { attack: if who == Who::Player { String::new() } else { spec.name.clone() }, item, drop });
         }

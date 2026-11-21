@@ -215,6 +215,14 @@ proficient in, its **languages**, its **challenge** rating and the **XP** it is 
   id of *Database › Diseases*) a failed save, or the hit without a save, gives the hero. The SRD
   monsters bring theirs (a wolf's bite: DC 11 STR or prone; a diseased giant rat's: DC 10 CON or
   Rat-Bite Fever).
+- **Special abilities** (since 0.32): **save actions** (a name, an area: a cone or line from the
+  creature, a sphere or cube at a point in range, a sphere *around itself*, or one creature in
+  range; the saving throw and DC, damage dice and type with *half on a save*, a condition for some
+  rounds, *recharge* 5 = *Recharge 5-6* or uses a day, *legendary only*), **legendary actions** (an
+  attack or a save action and its cost; *a round* = the points), **Legendary Resistance** (failed
+  saves turned a day), **Regeneration** (hit points at the start of its turns, the damage types that
+  stop it, *gets up from 0 HP*) and **Pack Tactics**. The SRD's monsters bring theirs: a dragon's
+  breath, a troll's regeneration, a wolf's Pack Tactics ([Gameplay › Monster abilities](09-gameplay.md#monster-abilities)).
 - **Resistant to**, **Immune to**, **Vulnerable to**: damage types it takes half, no or double
   damage from (an assassin shrugs off half of the poison);
   **Can't get**: conditions it is immune to (a grimlock can't be blinded). Saving throws against

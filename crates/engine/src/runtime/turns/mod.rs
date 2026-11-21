@@ -11,6 +11,7 @@ mod ai;
 mod ai_cast;
 mod casting;
 mod features;
+mod monster_actions;
 pub(in crate::runtime) mod menu;
 mod throwing;
 mod ui;
@@ -82,6 +83,8 @@ pub(super) struct Fighter {
     pub fx: features::ClassFx,
     /// The weapons it threw and hasn't picked up again.
     pub thrown: Vec<throwing::Thrown>,
+    /// A monster's recharge, uses, legendary points, regeneration (`monster_actions.rs`).
+    pub mon: monster_actions::MonsterFx,
 }
 
 /// What the player-controlled turn's cursor does on Confirm.
@@ -455,7 +458,7 @@ impl Game {
         let here = self.player.pos;
         let near = |p: Vec2| p.distance(here) <= JOIN_TILES * ts;
         let mut order: Vec<Fighter> = Vec::new();
-        let fighter = |who, side, ai| Fighter { who, key: String::new(), side, init: 0, dex: 0, surprised: false, ai, saves: DeathSaves::default(), down: false, out: false, dodging: false, hidden: false, reacted: false, readied: false, readied_spell: None, grappling: None, fx: Default::default(), thrown: Vec::new() };
+        let fighter = |who, side, ai| Fighter { who, key: String::new(), side, init: 0, dex: 0, surprised: false, ai, saves: DeathSaves::default(), down: false, out: false, dodging: false, hidden: false, reacted: false, readied: false, readied_spell: None, grappling: None, fx: Default::default(), thrown: Vec::new(), mon: Default::default() };
         order.push(fighter(Who::Player, Side::Party, false));
         let mut enemies = Vec::new();
         for i in 0..self.loaded.entities.len() {
@@ -565,7 +568,7 @@ impl Game {
             e.body.moving = false;
             e.body.pos = feet_spot(feet_tile(e.body.pos, ts), ts);
             self.occupy(i);
-            let f = Fighter { who, key, side: Side::Enemy, init, dex, surprised: false, ai: true, saves: DeathSaves::default(), down: false, out: false, dodging: false, hidden: false, reacted: false, readied: false, readied_spell: None, grappling: None, fx: Default::default(), thrown: Vec::new() };
+            let f = Fighter { who, key, side: Side::Enemy, init, dex, surprised: false, ai: true, saves: DeathSaves::default(), down: false, out: false, dodging: false, hidden: false, reacted: false, readied: false, readied_spell: None, grappling: None, fx: Default::default(), thrown: Vec::new(), mon: Default::default() };
             if let Some(c) = &mut self.fight {
                 c.order.push(f);
                 c.log(format!("{name} {} ({init})", crate::lang::tr_ui("joins the fight")));
@@ -687,7 +690,8 @@ impl Game {
     /// Whether the fight is decided: no enemy can fight on, or the whole party is down.
     fn check_over(&mut self) {
         let Some(c) = &self.fight else { return };
-        let enemies = c.order.iter().any(|f| f.side == Side::Enemy && !f.out && !f.down);
+        // (A troll at 0 hit points that will regenerate is still in the fight.)
+        let enemies = c.order.iter().any(|f| f.side == Side::Enemy && !f.out && (!f.down || self.regenerating_down(f.who)));
         // (The party lost when nobody stands and those down are stable: their death saves are over.)
         let party = c.order.iter().any(|f| f.side == Side::Party && !f.out && (!f.down || !f.saves.stable));
         if !party {
@@ -700,6 +704,11 @@ impl Game {
             return;
         }
         if !enemies {
+            // (One whose regeneration fire stopped dies where it lies.)
+            let stopped: Vec<Who> = c.order.iter().filter(|f| f.side == Side::Enemy && !f.out && f.down && f.mon.regen_down).map(|f| f.who).collect();
+            for w in stopped {
+                self.dies(w);
+            }
             if let Some(c) = &mut self.fight {
                 c.over = true;
             }
@@ -734,6 +743,8 @@ impl Game {
             return;
         }
         self.class_turn_start(f.who);
+        // (A monster's recharge, legendary points, regeneration.)
+        self.monster_turn_start(f.who);
         // (Concentration's time: a round of the caster's.)
         if let Some(t) = match f.who {
             Who::Player => self.world.concentration.as_mut().map(|c| &mut c.1),
@@ -817,6 +828,10 @@ impl Game {
                 c.menu = None;
             }
             self.finish_blow(false);
+        }
+        // The turn is over: a legendary monster may take a legendary action.
+        if let Some(ended) = self.fight.as_ref().filter(|c| !c.over).map(|c| c.current().who) {
+            self.legendary_step(ended);
         }
         self.check_over();
         let Some(c) = &mut self.fight else { return };
@@ -1496,7 +1511,8 @@ impl Game {
             target_dodging: c.and_then(|c| c.fighter(target)).is_some_and(|f| f.dodging) && conditions::can_act(self.who_conditions(target)),
             // The Grappler feat: advantage against the creature it grapples (counted as a helping hand).
             // (And Reckless Attack: the attacker's on its STR melee attacks, the target's on all.)
-            helped: c.is_some_and(|c| c.helped.contains(&target)) || (c.and_then(|c| c.fighter(who)).is_some_and(|f| f.grappling == Some(target)) && self.has_grappler(who)) || self.reckless_edge(who, target, spec),
+            // (Pack Tactics: an ally of the attacker's next to the target.)
+            helped: c.is_some_and(|c| c.helped.contains(&target)) || (c.and_then(|c| c.fighter(who)).is_some_and(|f| f.grappling == Some(target)) && self.has_grappler(who)) || self.reckless_edge(who, target, spec) || self.pack_tactics(who, target),
         }
     }
 
@@ -1699,6 +1715,11 @@ impl Game {
     /// through the target's defenses (`hit`: a magic weapon gets through resistance to
     /// nonmagical attacks), one hit of the sum.
     pub(super) fn combat_damage_parts(&mut self, target: Who, parts: &[(i32, Option<DamageType>)], crit: bool, by: Option<Who>, hit: crate::srd::HitKind) {
+        // (Fire on a troll: no regeneration at the start of its next turn.)
+        self.regeneration_hit(target, &parts.iter().filter(|p| p.0 > 0).map(|p| p.1).collect::<Vec<_>>());
+        if self.fight.as_ref().and_then(|c| c.fighter(target)).is_some_and(|f| f.mon.regen_down) {
+            return;
+        }
         let defenses = self.fight_defenses(target);
         // (Rage's resistance counts per part: bludgeoning, piercing and slashing only.)
         let mut n: i32 = parts.iter().map(|(a, t)| self.rage_halves(target, defenses.apply_hit(*a, *t, hit), *t)).sum();
@@ -1790,7 +1811,7 @@ impl Game {
                         self.falls(target);
                     } else if knocking {
                         self.knocked_out(target);
-                    } else {
+                    } else if !self.regeneration_falls(target) {
                         self.dies(target);
                     }
                 } else {

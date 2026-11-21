@@ -1343,6 +1343,18 @@
                     price: 0,
                 ),
                 (
+                    item: "alchemists-fire-flask",
+                    count: 3,
+                    unlimited: false,
+                    price: 0,
+                ),
+                (
+                    item: "acid-vial",
+                    count: 2,
+                    unlimited: false,
+                    price: 0,
+                ),
+                (
                     item: "bandage",
                     count: 5,
                     unlimited: false,
@@ -3000,6 +3012,7 @@
                     text: "Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 7 (2d4 + 2) piercing damage. If the target is a creature, it must succeed on a DC 11 Strength saving throw or be knocked prone.",
                 ),
             ],
+            pack_tactics: true,
         )),
     ),
     (
@@ -3721,6 +3734,14 @@
                     text: "Melee Weapon Attack: +7 to hit, reach 5 ft., one target. Hit: 11 (2d6 + 4) slashing damage.",
                 ),
             ],
+            regeneration: Some((
+                hp: 10,
+                stopped_by: [
+                    Acid,
+                    Fire,
+                ],
+                revives: true,
+            )),
         )),
     ),
     (
@@ -4260,6 +4281,7 @@
                     text: "Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 4 (1d4 + 2) piercing damage.",
                 ),
             ],
+            pack_tactics: true,
         )),
     ),
     (
@@ -4600,6 +4622,7 @@
                     text: "Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 3 (1d4 + 2) piercing damage. If the target is a creature, it must succeed on a DC 10 Constitution saving throw or contract a disease. Until the disease is cured, the target can\'t regain hit points except by magical means, and the target\'s hit point maximum decreases by 3 (1d6) every 24 hours. If the target\'s hit point maximum drops to 0 as a result of this disease, the target dies.",
                 ),
             ],
+            pack_tactics: true,
         )),
     ),
 ]

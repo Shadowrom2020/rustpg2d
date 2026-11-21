@@ -971,6 +971,37 @@ Serpent Venom, Torpor, Truth Serum, Wyvern Poison) and the Potion of Poison:
 
 `status` prints `coating=` (`POISON>ITEM[:SECONDSs]`, the poison on the hero's weapon, `-` without).
 
+## Monster abilities
+
+What the SRD's stat blocks do besides their attacks (since 0.32; *Characters › Stat block ›
+Special abilities*):
+
+- **Save actions**: a dragon's breath, a wing beat, a gaze. The monster uses one when it catches a
+  foe and none of its own side: everyone in the area (a cone or line from it, a sphere at a point
+  or around itself) rolls the saving throw against its DC, and takes the damage (half on a success
+  when the action says so) and the condition. *Recharge 5-6*: it is spent until a d6 at the start
+  of the monster's turn shows 5 or 6 ("Fire Breath recharges (6)"); others have uses a day, and
+  one without damage or recharge (Frightful Presence) once a fight.
+- **Legendary actions**: at the end of each other creature's turn a legendary monster takes one,
+  an attack in reach or a save action, while its points last (three a round, back at the start of
+  its turn; a wing attack costs two).
+- **Legendary Resistance**: a failed saving throw becomes a success, so many times a day (in the
+  game: a fight).
+- **Regeneration**: hit points at the start of its turns, unless it took the damage that stops it
+  since its last turn (a troll: fire or acid). A troll at 0 hit points falls, still twitching, and
+  gets up on its turn; only fire or acid then lets it die. Alchemist's fire and acid (*Wren* sells
+  them in the example) are thrown like a dagger and shatter: the fire burns for three rounds.
+- **Pack Tactics**: advantage on attacks when an ally of the attacker's that can act stands next to
+  the target (wolves).
+- Of the starter library's monsters, 70 have save actions (40 of them recharge), 30 legendary
+  actions, 25 Legendary Resistance, 7 Regeneration and 17 Pack Tactics. Still text only:
+  innate abilities like swallowing, multi-headed traits, damage transfer, lair actions; senses
+  (blindsight, tremorsense, truesight), reactions and shapes come in the next parts.
+- In the example, the bridge troll in the Wilds regenerates, and the wolves hunt with Pack Tactics.
+
+`status` prints `monster_fx=` (`name:spent(ACTION)…:legendaryN:resistN:regen[:down][:stopped]`, the
+fighters with special abilities).
+
 ## Diseases
 
 Diseases (*Database › Diseases*, since 0.32) are the SRD's; the starter library has Cackle Fever,

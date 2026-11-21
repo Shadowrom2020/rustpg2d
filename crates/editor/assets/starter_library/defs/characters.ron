@@ -1332,6 +1332,18 @@
                     price: 0,
                 ),
                 (
+                    item: "alchemists-fire-flask",
+                    count: 3,
+                    unlimited: false,
+                    price: 0,
+                ),
+                (
+                    item: "acid-vial",
+                    count: 2,
+                    unlimited: false,
+                    price: 0,
+                ),
+                (
                     item: "bandage",
                     count: 5,
                     unlimited: false,
@@ -3675,6 +3687,24 @@
                     text: "One humanoid that the ghost can see within 5 ft. of it must succeed on a DC 13 Charisma saving throw or be possessed by the ghost; the ghost then disappears, and the target is incapacitated and loses control of its body. The ghost now controls the body but doesn\'t deprive the target of awareness. The ghost can\'t be targeted by any attack, spell, or other effect, except ones that turn undead, and it retains its alignment, Intelligence, Wisdom, Charisma, and immunity to being charmed and frightened. It otherwise uses the possessed target\'s statistics, but doesn\'t gain access to the target\'s knowledge, class features, or proficiencies.\nThe possession lasts until the body drops to 0 hit points, the ghost ends it as a bonus action, or the ghost is turned or forced out by an effect like the dispel evil and good spell. When the possession ends, the ghost reappears in an unoccupied space within 5 ft. of the body. The target is immune to this ghost\'s Possession for 24 hours after succeeding on the saving throw or after the possession ends.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Horrifying Visage",
+                    range_ft: 60,
+                    save: Wis,
+                    dc: 13,
+                    condition: Some(Frightened),
+                    rounds: 10,
+                ),
+                (
+                    name: "Possession",
+                    range_ft: 5,
+                    save: Cha,
+                    dc: 13,
+                    condition: Some(Frightened),
+                    recharge: 6,
+                ),
+            ],
         )),
     ),
     (
@@ -3770,6 +3800,7 @@
                     text: "Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 7 (2d4 + 2) piercing damage. If the target is a creature, it must succeed on a DC 11 Strength saving throw or be knocked prone.",
                 ),
             ],
+            pack_tactics: true,
         )),
     ),
     (
@@ -4416,6 +4447,14 @@
                     text: "Melee Weapon Attack: +7 to hit, reach 5 ft., one target. Hit: 11 (2d6 + 4) slashing damage.",
                 ),
             ],
+            regeneration: Some((
+                hp: 10,
+                stopped_by: [
+                    Acid,
+                    Fire,
+                ],
+                revives: true,
+            )),
         )),
     ),
     (
@@ -5089,6 +5128,23 @@
                     text: "One creature charmed by the aboleth takes 10 (3d6) psychic damage, and the aboleth regains hit points equal to the damage the creature takes.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Enslave",
+                    range_ft: 30,
+                    save: Wis,
+                    dc: 14,
+                    per_day: 3,
+                ),
+            ],
+            legendary: [
+                (
+                    name: "Tail Swipe",
+                    attack: "Tail",
+                    cost: 1,
+                ),
+            ],
+            legendary_points: 3,
         )),
     ),
     (
@@ -5334,6 +5390,62 @@
                     text: "The dragon beats its wings. Each creature within 10 ft. of the dragon must succeed on a DC 19 Dexterity saving throw or take 13 (2d6 + 6) bludgeoning damage and be knocked prone. The dragon can then fly up to half its flying speed.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Frightful Presence",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 120,
+                    )),
+                    around: true,
+                    save: Wis,
+                    dc: 16,
+                    condition: Some(Frightened),
+                    rounds: 10,
+                ),
+                (
+                    name: "Acid Breath",
+                    area: Some((
+                        shape: Line,
+                        feet: 60,
+                    )),
+                    range_ft: 60,
+                    save: Dex,
+                    dc: 18,
+                    dice: "12d8",
+                    damage_type: Some(Acid),
+                    half: true,
+                    recharge: 5,
+                ),
+                (
+                    name: "Wing Attack",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 10,
+                    )),
+                    around: true,
+                    save: Dex,
+                    dc: 19,
+                    dice: "2d6+6",
+                    damage_type: Some(Bludgeoning),
+                    condition: Some(Prone),
+                    legendary_only: true,
+                ),
+            ],
+            legendary: [
+                (
+                    name: "Tail Attack",
+                    attack: "Tail",
+                    cost: 1,
+                ),
+                (
+                    name: "Wing Attack",
+                    action: "Wing Attack",
+                    cost: 2,
+                ),
+            ],
+            legendary_points: 3,
+            legendary_resistance: 3,
         )),
     ),
     (
@@ -5476,6 +5588,62 @@
                     text: "The dragon beats its wings. Each creature within 10 ft. of the dragon must succeed on a DC 20 Dexterity saving throw or take 14 (2d6 + 7) bludgeoning damage and be knocked prone. The dragon can then fly up to half its flying speed.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Frightful Presence",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 120,
+                    )),
+                    around: true,
+                    save: Wis,
+                    dc: 17,
+                    condition: Some(Frightened),
+                    rounds: 10,
+                ),
+                (
+                    name: "Lightning Breath",
+                    area: Some((
+                        shape: Line,
+                        feet: 90,
+                    )),
+                    range_ft: 90,
+                    save: Dex,
+                    dc: 19,
+                    dice: "12d10",
+                    damage_type: Some(Lightning),
+                    half: true,
+                    recharge: 5,
+                ),
+                (
+                    name: "Wing Attack",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 10,
+                    )),
+                    around: true,
+                    save: Dex,
+                    dc: 20,
+                    dice: "2d6+7",
+                    damage_type: Some(Bludgeoning),
+                    condition: Some(Prone),
+                    legendary_only: true,
+                ),
+            ],
+            legendary: [
+                (
+                    name: "Tail Attack",
+                    attack: "Tail",
+                    cost: 1,
+                ),
+                (
+                    name: "Wing Attack",
+                    action: "Wing Attack",
+                    cost: 2,
+                ),
+            ],
+            legendary_points: 3,
+            legendary_resistance: 3,
         )),
     ),
     (
@@ -5614,6 +5782,48 @@
                     text: "The dragon beats its wings. Each creature within 10 ft. of the dragon must succeed on a DC 19 Dexterity saving throw or take 13 (2d6 + 6) bludgeoning damage and be knocked prone. The dragon can then fly up to half its flying speed.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Frightful Presence",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 120,
+                    )),
+                    around: true,
+                    save: Wis,
+                    dc: 16,
+                    condition: Some(Frightened),
+                    rounds: 10,
+                ),
+                (
+                    name: "Wing Attack",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 10,
+                    )),
+                    around: true,
+                    save: Dex,
+                    dc: 19,
+                    dice: "2d6+6",
+                    damage_type: Some(Bludgeoning),
+                    condition: Some(Prone),
+                    legendary_only: true,
+                ),
+            ],
+            legendary: [
+                (
+                    name: "Tail Attack",
+                    attack: "Tail",
+                    cost: 1,
+                ),
+                (
+                    name: "Wing Attack",
+                    action: "Wing Attack",
+                    cost: 2,
+                ),
+            ],
+            legendary_points: 3,
+            legendary_resistance: 3,
         )),
     ),
     (
@@ -5756,6 +5966,48 @@
                     text: "The dragon beats its wings. Each creature within 10 ft. of the dragon must succeed on a DC 20 Dexterity saving throw or take 14 (2d6 + 7) bludgeoning damage and be knocked prone. The dragon can then fly up to half its flying speed.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Frightful Presence",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 120,
+                    )),
+                    around: true,
+                    save: Wis,
+                    dc: 17,
+                    condition: Some(Frightened),
+                    rounds: 10,
+                ),
+                (
+                    name: "Wing Attack",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 10,
+                    )),
+                    around: true,
+                    save: Dex,
+                    dc: 20,
+                    dice: "2d6+7",
+                    damage_type: Some(Bludgeoning),
+                    condition: Some(Prone),
+                    legendary_only: true,
+                ),
+            ],
+            legendary: [
+                (
+                    name: "Tail Attack",
+                    attack: "Tail",
+                    cost: 1,
+                ),
+                (
+                    name: "Wing Attack",
+                    action: "Wing Attack",
+                    cost: 2,
+                ),
+            ],
+            legendary_points: 3,
+            legendary_resistance: 3,
         )),
     ),
     (
@@ -5893,6 +6145,48 @@
                     text: "The dragon beats its wings. Each creature within 10 ft. of the dragon must succeed on a DC 19 Dexterity saving throw or take 13 (2d6 + 6) bludgeoning damage and be knocked prone. The dragon can then fly up to half its flying speed.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Frightful Presence",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 120,
+                    )),
+                    around: true,
+                    save: Wis,
+                    dc: 16,
+                    condition: Some(Frightened),
+                    rounds: 10,
+                ),
+                (
+                    name: "Wing Attack",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 10,
+                    )),
+                    around: true,
+                    save: Dex,
+                    dc: 19,
+                    dice: "2d6+6",
+                    damage_type: Some(Bludgeoning),
+                    condition: Some(Prone),
+                    legendary_only: true,
+                ),
+            ],
+            legendary: [
+                (
+                    name: "Tail Attack",
+                    attack: "Tail",
+                    cost: 1,
+                ),
+                (
+                    name: "Wing Attack",
+                    action: "Wing Attack",
+                    cost: 2,
+                ),
+            ],
+            legendary_points: 3,
+            legendary_resistance: 3,
         )),
     ),
     (
@@ -6036,6 +6330,48 @@
                     text: "The dragon beats its wings. Each creature within 10 ft. of the dragon must succeed on a DC 22 Dexterity saving throw or take 15 (2d6 + 8) bludgeoning damage and be knocked prone. The dragon can then fly up to half its flying speed.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Frightful Presence",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 120,
+                    )),
+                    around: true,
+                    save: Wis,
+                    dc: 21,
+                    condition: Some(Frightened),
+                    rounds: 10,
+                ),
+                (
+                    name: "Wing Attack",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 10,
+                    )),
+                    around: true,
+                    save: Dex,
+                    dc: 22,
+                    dice: "2d6+8",
+                    damage_type: Some(Bludgeoning),
+                    condition: Some(Prone),
+                    legendary_only: true,
+                ),
+            ],
+            legendary: [
+                (
+                    name: "Tail Attack",
+                    attack: "Tail",
+                    cost: 1,
+                ),
+                (
+                    name: "Wing Attack",
+                    action: "Wing Attack",
+                    cost: 2,
+                ),
+            ],
+            legendary_points: 3,
+            legendary_resistance: 3,
         )),
     ),
     (
@@ -6189,6 +6525,62 @@
                     text: "The dragon beats its wings. Each creature within 10 ft. of the dragon must succeed on a DC 19 Dexterity saving throw or take 13 (2d6 + 6) bludgeoning damage and be knocked prone. The dragon can then fly up to half its flying speed.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Frightful Presence",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 120,
+                    )),
+                    around: true,
+                    save: Wis,
+                    dc: 16,
+                    condition: Some(Frightened),
+                    rounds: 10,
+                ),
+                (
+                    name: "Poison Breath",
+                    area: Some((
+                        shape: Cone,
+                        feet: 60,
+                    )),
+                    range_ft: 60,
+                    save: Con,
+                    dc: 18,
+                    dice: "16d6",
+                    damage_type: Some(Poison),
+                    half: true,
+                    recharge: 5,
+                ),
+                (
+                    name: "Wing Attack",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 10,
+                    )),
+                    around: true,
+                    save: Dex,
+                    dc: 19,
+                    dice: "2d6+6",
+                    damage_type: Some(Bludgeoning),
+                    condition: Some(Prone),
+                    legendary_only: true,
+                ),
+            ],
+            legendary: [
+                (
+                    name: "Tail Attack",
+                    attack: "Tail",
+                    cost: 1,
+                ),
+                (
+                    name: "Wing Attack",
+                    action: "Wing Attack",
+                    cost: 2,
+                ),
+            ],
+            legendary_points: 3,
+            legendary_resistance: 3,
         )),
     ),
     (
@@ -6331,6 +6723,62 @@
                     text: "The dragon beats its wings. Each creature within 10 ft. of the dragon must succeed on a DC 22 Dexterity saving throw or take 15 (2d6 + 8) bludgeoning damage and be knocked prone. The dragon can then fly up to half its flying speed.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Frightful Presence",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 120,
+                    )),
+                    around: true,
+                    save: Wis,
+                    dc: 19,
+                    condition: Some(Frightened),
+                    rounds: 10,
+                ),
+                (
+                    name: "Fire Breath",
+                    area: Some((
+                        shape: Cone,
+                        feet: 60,
+                    )),
+                    range_ft: 60,
+                    save: Dex,
+                    dc: 21,
+                    dice: "18d6",
+                    damage_type: Some(Fire),
+                    half: true,
+                    recharge: 5,
+                ),
+                (
+                    name: "Wing Attack",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 10,
+                    )),
+                    around: true,
+                    save: Dex,
+                    dc: 22,
+                    dice: "2d6+8",
+                    damage_type: Some(Bludgeoning),
+                    condition: Some(Prone),
+                    legendary_only: true,
+                ),
+            ],
+            legendary: [
+                (
+                    name: "Tail Attack",
+                    attack: "Tail",
+                    cost: 1,
+                ),
+                (
+                    name: "Wing Attack",
+                    action: "Wing Attack",
+                    cost: 2,
+                ),
+            ],
+            legendary_points: 3,
+            legendary_resistance: 3,
         )),
     ),
     (
@@ -6468,6 +6916,48 @@
                     text: "The dragon beats its wings. Each creature within 10 ft. of the dragon must succeed on a DC 22 Dexterity saving throw or take 15 (2d6 + 8) bludgeoning damage and be knocked prone. The dragon can then fly up to half its flying speed.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Frightful Presence",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 120,
+                    )),
+                    around: true,
+                    save: Wis,
+                    dc: 18,
+                    condition: Some(Frightened),
+                    rounds: 10,
+                ),
+                (
+                    name: "Wing Attack",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 10,
+                    )),
+                    around: true,
+                    save: Dex,
+                    dc: 22,
+                    dice: "2d6+8",
+                    damage_type: Some(Bludgeoning),
+                    condition: Some(Prone),
+                    legendary_only: true,
+                ),
+            ],
+            legendary: [
+                (
+                    name: "Tail Attack",
+                    attack: "Tail",
+                    cost: 1,
+                ),
+                (
+                    name: "Wing Attack",
+                    action: "Wing Attack",
+                    cost: 2,
+                ),
+            ],
+            legendary_points: 3,
+            legendary_resistance: 3,
         )),
     ),
     (
@@ -6616,6 +7106,62 @@
                     text: "The dragon beats its wings. Each creature within 10 ft. of the dragon must succeed on a DC 19 Dexterity saving throw or take 13 (2d6 + 6) bludgeoning damage and be knocked prone. The dragon can then fly up to half its flying speed.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Frightful Presence",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 120,
+                    )),
+                    around: true,
+                    save: Wis,
+                    dc: 14,
+                    condition: Some(Frightened),
+                    rounds: 10,
+                ),
+                (
+                    name: "Cold Breath",
+                    area: Some((
+                        shape: Cone,
+                        feet: 60,
+                    )),
+                    range_ft: 60,
+                    save: Con,
+                    dc: 19,
+                    dice: "12d8",
+                    damage_type: Some(Cold),
+                    half: true,
+                    recharge: 5,
+                ),
+                (
+                    name: "Wing Attack",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 10,
+                    )),
+                    around: true,
+                    save: Dex,
+                    dc: 19,
+                    dice: "2d6+6",
+                    damage_type: Some(Bludgeoning),
+                    condition: Some(Prone),
+                    legendary_only: true,
+                ),
+            ],
+            legendary: [
+                (
+                    name: "Tail Attack",
+                    attack: "Tail",
+                    cost: 1,
+                ),
+                (
+                    name: "Wing Attack",
+                    action: "Wing Attack",
+                    cost: 2,
+                ),
+            ],
+            legendary_points: 3,
+            legendary_resistance: 3,
         )),
     ),
     (
@@ -6862,6 +7408,62 @@
                     text: "The dragon beats its wings. Each creature within 15 ft. of the dragon must succeed on a DC 23 Dexterity saving throw or take 15 (2d6 + 8) bludgeoning damage and be knocked prone. The dragon can then fly up to half its flying speed.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Frightful Presence",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 120,
+                    )),
+                    around: true,
+                    save: Wis,
+                    dc: 19,
+                    condition: Some(Frightened),
+                    rounds: 10,
+                ),
+                (
+                    name: "Acid Breath",
+                    area: Some((
+                        shape: Line,
+                        feet: 90,
+                    )),
+                    range_ft: 90,
+                    save: Dex,
+                    dc: 22,
+                    dice: "15d8",
+                    damage_type: Some(Acid),
+                    half: true,
+                    recharge: 5,
+                ),
+                (
+                    name: "Wing Attack",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 15,
+                    )),
+                    around: true,
+                    save: Dex,
+                    dc: 23,
+                    dice: "2d6+8",
+                    damage_type: Some(Bludgeoning),
+                    condition: Some(Prone),
+                    legendary_only: true,
+                ),
+            ],
+            legendary: [
+                (
+                    name: "Tail Attack",
+                    attack: "Tail",
+                    cost: 1,
+                ),
+                (
+                    name: "Wing Attack",
+                    action: "Wing Attack",
+                    cost: 2,
+                ),
+            ],
+            legendary_points: 3,
+            legendary_resistance: 3,
         )),
     ),
     (
@@ -7004,6 +7606,62 @@
                     text: "The dragon beats its wings. Each creature within 15 ft. of the dragon must succeed on a DC 24 Dexterity saving throw or take 16 (2d6 + 9) bludgeoning damage and be knocked prone. The dragon can then fly up to half its flying speed.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Frightful Presence",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 120,
+                    )),
+                    around: true,
+                    save: Wis,
+                    dc: 20,
+                    condition: Some(Frightened),
+                    rounds: 10,
+                ),
+                (
+                    name: "Lightning Breath",
+                    area: Some((
+                        shape: Line,
+                        feet: 120,
+                    )),
+                    range_ft: 120,
+                    save: Dex,
+                    dc: 23,
+                    dice: "16d10",
+                    damage_type: Some(Lightning),
+                    half: true,
+                    recharge: 5,
+                ),
+                (
+                    name: "Wing Attack",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 15,
+                    )),
+                    around: true,
+                    save: Dex,
+                    dc: 24,
+                    dice: "2d6+9",
+                    damage_type: Some(Bludgeoning),
+                    condition: Some(Prone),
+                    legendary_only: true,
+                ),
+            ],
+            legendary: [
+                (
+                    name: "Tail Attack",
+                    attack: "Tail",
+                    cost: 1,
+                ),
+                (
+                    name: "Wing Attack",
+                    action: "Wing Attack",
+                    cost: 2,
+                ),
+            ],
+            legendary_points: 3,
+            legendary_resistance: 3,
         )),
     ),
     (
@@ -7147,6 +7805,48 @@
                     text: "The dragon beats its wings. Each creature within 15 ft. of the dragon must succeed on a DC 22 Dexterity saving throw or take 15 (2d6 + 8) bludgeoning damage and be knocked prone. The dragon can then fly up to half its flying speed.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Frightful Presence",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 120,
+                    )),
+                    around: true,
+                    save: Wis,
+                    dc: 18,
+                    condition: Some(Frightened),
+                    rounds: 10,
+                ),
+                (
+                    name: "Wing Attack",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 15,
+                    )),
+                    around: true,
+                    save: Dex,
+                    dc: 22,
+                    dice: "2d6+8",
+                    damage_type: Some(Bludgeoning),
+                    condition: Some(Prone),
+                    legendary_only: true,
+                ),
+            ],
+            legendary: [
+                (
+                    name: "Tail Attack",
+                    attack: "Tail",
+                    cost: 1,
+                ),
+                (
+                    name: "Wing Attack",
+                    action: "Wing Attack",
+                    cost: 2,
+                ),
+            ],
+            legendary_points: 3,
+            legendary_resistance: 3,
         )),
     ),
     (
@@ -7294,6 +7994,48 @@
                     text: "The dragon beats its wings. Each creature within 15 ft. of the dragon must succeed on a DC 24 Dexterity saving throw or take 16 (2d6 + 9) bludgeoning damage and be knocked prone. The dragon can then fly up to half its flying speed.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Frightful Presence",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 120,
+                    )),
+                    around: true,
+                    save: Wis,
+                    dc: 20,
+                    condition: Some(Frightened),
+                    rounds: 10,
+                ),
+                (
+                    name: "Wing Attack",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 15,
+                    )),
+                    around: true,
+                    save: Dex,
+                    dc: 24,
+                    dice: "2d6+9",
+                    damage_type: Some(Bludgeoning),
+                    condition: Some(Prone),
+                    legendary_only: true,
+                ),
+            ],
+            legendary: [
+                (
+                    name: "Tail Attack",
+                    attack: "Tail",
+                    cost: 1,
+                ),
+                (
+                    name: "Wing Attack",
+                    action: "Wing Attack",
+                    cost: 2,
+                ),
+            ],
+            legendary_points: 3,
+            legendary_resistance: 3,
         )),
     ),
     (
@@ -7436,6 +8178,48 @@
                     text: "The dragon beats its wings. Each creature within 15 ft. of the dragon must succeed on a DC 23 Dexterity saving throw or take 15 (2d6 + 8) bludgeoning damage and be knocked prone. The dragon can then fly up to half its flying speed.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Frightful Presence",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 120,
+                    )),
+                    around: true,
+                    save: Wis,
+                    dc: 19,
+                    condition: Some(Frightened),
+                    rounds: 10,
+                ),
+                (
+                    name: "Wing Attack",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 15,
+                    )),
+                    around: true,
+                    save: Dex,
+                    dc: 23,
+                    dice: "2d6+8",
+                    damage_type: Some(Bludgeoning),
+                    condition: Some(Prone),
+                    legendary_only: true,
+                ),
+            ],
+            legendary: [
+                (
+                    name: "Tail Attack",
+                    attack: "Tail",
+                    cost: 1,
+                ),
+                (
+                    name: "Wing Attack",
+                    action: "Wing Attack",
+                    cost: 2,
+                ),
+            ],
+            legendary_points: 3,
+            legendary_resistance: 3,
         )),
     ),
     (
@@ -7584,6 +8368,48 @@
                     text: "The dragon beats its wings. Each creature within 15 ft. of the dragon must succeed on a DC 25 Dexterity saving throw or take 17 (2d6 + 10) bludgeoning damage and be knocked prone. The dragon can then fly up to half its flying speed.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Frightful Presence",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 120,
+                    )),
+                    around: true,
+                    save: Wis,
+                    dc: 24,
+                    condition: Some(Frightened),
+                    rounds: 10,
+                ),
+                (
+                    name: "Wing Attack",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 15,
+                    )),
+                    around: true,
+                    save: Dex,
+                    dc: 25,
+                    dice: "2d6+10",
+                    damage_type: Some(Bludgeoning),
+                    condition: Some(Prone),
+                    legendary_only: true,
+                ),
+            ],
+            legendary: [
+                (
+                    name: "Tail Attack",
+                    attack: "Tail",
+                    cost: 1,
+                ),
+                (
+                    name: "Wing Attack",
+                    action: "Wing Attack",
+                    cost: 2,
+                ),
+            ],
+            legendary_points: 3,
+            legendary_resistance: 3,
         )),
     ),
     (
@@ -7737,6 +8563,62 @@
                     text: "The dragon beats its wings. Each creature within 15 ft. of the dragon must succeed on a DC 23 Dexterity saving throw or take 15 (2d6 + 8) bludgeoning damage and be knocked prone. The dragon can then fly up to half its flying speed.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Frightful Presence",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 120,
+                    )),
+                    around: true,
+                    save: Wis,
+                    dc: 19,
+                    condition: Some(Frightened),
+                    rounds: 10,
+                ),
+                (
+                    name: "Poison Breath",
+                    area: Some((
+                        shape: Cone,
+                        feet: 90,
+                    )),
+                    range_ft: 90,
+                    save: Con,
+                    dc: 22,
+                    dice: "22d6",
+                    damage_type: Some(Poison),
+                    half: true,
+                    recharge: 5,
+                ),
+                (
+                    name: "Wing Attack",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 15,
+                    )),
+                    around: true,
+                    save: Dex,
+                    dc: 23,
+                    dice: "2d6+8",
+                    damage_type: Some(Bludgeoning),
+                    condition: Some(Prone),
+                    legendary_only: true,
+                ),
+            ],
+            legendary: [
+                (
+                    name: "Tail Attack",
+                    attack: "Tail",
+                    cost: 1,
+                ),
+                (
+                    name: "Wing Attack",
+                    action: "Wing Attack",
+                    cost: 2,
+                ),
+            ],
+            legendary_points: 3,
+            legendary_resistance: 3,
         )),
     ),
     (
@@ -7879,6 +8761,62 @@
                     text: "The dragon beats its wings. Each creature within 15 ft. of the dragon must succeed on a DC 25 Dexterity saving throw or take 17 (2d6 + 10) bludgeoning damage and be knocked prone. The dragon can then fly up to half its flying speed.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Frightful Presence",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 120,
+                    )),
+                    around: true,
+                    save: Wis,
+                    dc: 21,
+                    condition: Some(Frightened),
+                    rounds: 10,
+                ),
+                (
+                    name: "Fire Breath",
+                    area: Some((
+                        shape: Cone,
+                        feet: 90,
+                    )),
+                    range_ft: 90,
+                    save: Dex,
+                    dc: 24,
+                    dice: "26d6",
+                    damage_type: Some(Fire),
+                    half: true,
+                    recharge: 5,
+                ),
+                (
+                    name: "Wing Attack",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 15,
+                    )),
+                    around: true,
+                    save: Dex,
+                    dc: 25,
+                    dice: "2d6+10",
+                    damage_type: Some(Bludgeoning),
+                    condition: Some(Prone),
+                    legendary_only: true,
+                ),
+            ],
+            legendary: [
+                (
+                    name: "Tail Attack",
+                    attack: "Tail",
+                    cost: 1,
+                ),
+                (
+                    name: "Wing Attack",
+                    action: "Wing Attack",
+                    cost: 2,
+                ),
+            ],
+            legendary_points: 3,
+            legendary_resistance: 3,
         )),
     ),
     (
@@ -8021,6 +8959,48 @@
                     text: "The dragon beats its wings. Each creature within 15 ft. of the dragon must succeed on a DC 25 Dexterity saving throw or take 17 (2d6 + 10) bludgeoning damage and be knocked prone. The dragon can then fly up to half its flying speed.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Frightful Presence",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 120,
+                    )),
+                    around: true,
+                    save: Wis,
+                    dc: 21,
+                    condition: Some(Frightened),
+                    rounds: 10,
+                ),
+                (
+                    name: "Wing Attack",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 15,
+                    )),
+                    around: true,
+                    save: Dex,
+                    dc: 25,
+                    dice: "2d6+10",
+                    damage_type: Some(Bludgeoning),
+                    condition: Some(Prone),
+                    legendary_only: true,
+                ),
+            ],
+            legendary: [
+                (
+                    name: "Tail Attack",
+                    attack: "Tail",
+                    cost: 1,
+                ),
+                (
+                    name: "Wing Attack",
+                    action: "Wing Attack",
+                    cost: 2,
+                ),
+            ],
+            legendary_points: 3,
+            legendary_resistance: 3,
         )),
     ),
     (
@@ -8169,6 +9149,62 @@
                     text: "The dragon beats its wings. Each creature within 15 ft. of the dragon must succeed on a DC 22 Dexterity saving throw or take 15 (2d6 + 8) bludgeoning damage and be knocked prone. The dragon can then fly up to half its flying speed.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Frightful Presence",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 120,
+                    )),
+                    around: true,
+                    save: Wis,
+                    dc: 16,
+                    condition: Some(Frightened),
+                    rounds: 10,
+                ),
+                (
+                    name: "Cold Breath",
+                    area: Some((
+                        shape: Cone,
+                        feet: 90,
+                    )),
+                    range_ft: 90,
+                    save: Con,
+                    dc: 22,
+                    dice: "16d8",
+                    damage_type: Some(Cold),
+                    half: true,
+                    recharge: 5,
+                ),
+                (
+                    name: "Wing Attack",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 15,
+                    )),
+                    around: true,
+                    save: Dex,
+                    dc: 22,
+                    dice: "2d6+8",
+                    damage_type: Some(Bludgeoning),
+                    condition: Some(Prone),
+                    legendary_only: true,
+                ),
+            ],
+            legendary: [
+                (
+                    name: "Tail Attack",
+                    attack: "Tail",
+                    cost: 1,
+                ),
+                (
+                    name: "Wing Attack",
+                    action: "Wing Attack",
+                    cost: 2,
+                ),
+            ],
+            legendary_points: 3,
+            legendary_resistance: 3,
         )),
     ),
     (
@@ -8367,6 +9403,14 @@
                     ),
                 ],
             )),
+            legendary: [
+                (
+                    name: "Claw Attack",
+                    attack: "Claw",
+                    cost: 1,
+                ),
+            ],
+            legendary_points: 3,
         )),
     ),
     (
@@ -8537,6 +9581,18 @@
                     kind: Action,
                     name: "Acid Spray",
                     text: "The ankheg spits acid in a line that is 30 ft. long and 5 ft. wide, provided that it has no creature grappled. Each creature in that line must make a DC 13 Dexterity saving throw, taking 10 (3d6) acid damage on a failed save, or half as much damage on a successful one.",
+                ),
+            ],
+            actions: [
+                (
+                    name: "Acid Spray",
+                    range_ft: 5,
+                    save: Dex,
+                    dc: 13,
+                    dice: "3d6",
+                    damage_type: Some(Acid),
+                    half: true,
+                    recharge: 6,
                 ),
             ],
         )),
@@ -9326,6 +10382,7 @@
                     text: "Melee Weapon Attack: +1 to hit, reach 5 ft., one target. Hit: 1 (1d4 - 1) piercing damage.",
                 ),
             ],
+            pack_tactics: true,
         )),
     ),
     (
@@ -10040,6 +11097,18 @@
                     text: "The behir makes one bite attack against a Medium or smaller target it is grappling. If the attack hits, the target is also swallowed, and the grapple ends. While swallowed, the target is blinded and restrained, it has total cover against attacks and other effects outside the behir, and it takes 21 (6d6) acid damage at the start of each of the behir\'s turns. A behir can have only one creature swallowed at a time.\nIf the behir takes 30 damage or more on a single turn from the swallowed creature, the behir must succeed on a DC 14 Constitution saving throw at the end of that turn or regurgitate the creature, which falls prone in a space within 10 ft. of the behir. If the behir dies, a swallowed creature is no longer restrained by it and can escape from the corpse by using 15 ft. of movement, exiting prone.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Lightning Breath",
+                    range_ft: 5,
+                    save: Dex,
+                    dc: 16,
+                    dice: "12d10",
+                    damage_type: Some(Lightning),
+                    half: true,
+                    recharge: 5,
+                ),
+            ],
         )),
     ),
     (
@@ -10274,6 +11343,22 @@
                     kind: Action,
                     name: "Acid Breath",
                     text: "The dragon exhales acid in a 15-foot line that is 5 feet wide. Each creature in that line must make a DC 11 Dexterity saving throw, taking 22 (5d8) acid damage on a failed save, or half as much damage on a successful one.",
+                ),
+            ],
+            actions: [
+                (
+                    name: "Acid Breath",
+                    area: Some((
+                        shape: Line,
+                        feet: 15,
+                    )),
+                    range_ft: 15,
+                    save: Dex,
+                    dc: 11,
+                    dice: "5d8",
+                    damage_type: Some(Acid),
+                    half: true,
+                    recharge: 5,
                 ),
             ],
         )),
@@ -10530,6 +11615,7 @@
                     text: "Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 4 (1d4 + 2) piercing damage.",
                 ),
             ],
+            pack_tactics: true,
         )),
     ),
     (
@@ -10613,6 +11699,22 @@
                     kind: Action,
                     name: "Lightning Breath",
                     text: "The dragon exhales lightning in a 30-foot line that is 5 feet wide. Each creature in that line must make a DC 12 Dexterity saving throw, taking 22 (4d10) lightning damage on a failed save, or half as much damage on a successful one.",
+                ),
+            ],
+            actions: [
+                (
+                    name: "Lightning Breath",
+                    area: Some((
+                        shape: Line,
+                        feet: 30,
+                    )),
+                    range_ft: 30,
+                    save: Dex,
+                    dc: 12,
+                    dice: "4d10",
+                    damage_type: Some(Lightning),
+                    half: true,
+                    recharge: 5,
                 ),
             ],
         )),
@@ -11594,6 +12696,22 @@
                     text: "The dragon head exhales fire in a 15-foot cone. Each creature in that area must make a DC 15 Dexterity saving throw, taking 31 (7d8) fire damage on a failed save, or half as much damage on a successful one.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Fire Breath",
+                    area: Some((
+                        shape: Cone,
+                        feet: 15,
+                    )),
+                    range_ft: 15,
+                    save: Dex,
+                    dc: 15,
+                    dice: "7d8",
+                    damage_type: Some(Fire),
+                    half: true,
+                    recharge: 5,
+                ),
+            ],
         )),
     ),
     (
@@ -11692,6 +12810,16 @@
                     kind: Action,
                     name: "Tentacles",
                     text: "One creature grappled by the chuul must succeed on a DC 13 Constitution saving throw or be poisoned for 1 minute. Until this poison ends, the target is paralyzed. The target can repeat the saving throw at the end of each of its turns, ending the effect on itself on a success.",
+                ),
+            ],
+            actions: [
+                (
+                    name: "Tentacles",
+                    range_ft: 5,
+                    save: Con,
+                    dc: 13,
+                    condition: Some(Poisoned),
+                    rounds: 10,
                 ),
             ],
         )),
@@ -11919,6 +13047,20 @@
                     kind: Action,
                     name: "Phantasms",
                     text: "The cloaker magically creates three illusory duplicates of itself if it isn\'t in bright light. The duplicates move with it and mimic its actions, shifting position so as to make it impossible to track which cloaker is the real one. If the cloaker is ever in an area of bright light, the duplicates disappear.\nWhenever any creature targets the cloaker with an attack or a harmful spell while a duplicate remains, that creature rolls randomly to determine whether it targets the cloaker or one of the duplicates. A creature is unaffected by this magical effect if it can\'t see or if it relies on senses other than sight.\nA duplicate has the cloaker\'s AC and uses its saving throws. If an attack hits a duplicate, or if a duplicate fails a saving throw against an effect that deals damage, the duplicate disappears.",
+                ),
+            ],
+            actions: [
+                (
+                    name: "Moan",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 60,
+                    )),
+                    around: true,
+                    save: Wis,
+                    dc: 13,
+                    condition: Some(Frightened),
+                    rounds: 1,
                 ),
             ],
         )),
@@ -13470,6 +14612,7 @@
                     text: "Melee Weapon Attack: +5 to hit, reach 5 ft., one target. Hit: 10 (2d6 + 3) piercing damage. If the target is a creature, it must succeed on a DC 13 Strength saving throw or be knocked prone.",
                 ),
             ],
+            pack_tactics: true,
         )),
     ),
     (
@@ -13646,6 +14789,15 @@
                     ),
                 ],
             )),
+            actions: [
+                (
+                    name: "Create Whirlwind",
+                    range_ft: 120,
+                    save: Str,
+                    dc: 18,
+                    condition: Some(Restrained),
+                ),
+            ],
         )),
     ),
     (
@@ -13912,6 +15064,22 @@
                     text: "The dragon turtle exhales scalding steam in a 60-foot cone. Each creature in that area must make a DC 18 Constitution saving throw, taking 52 (15d6) fire damage on a failed save, or half as much damage on a successful one. Being underwater doesn\'t grant resistance against this damage.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Steam Breath",
+                    area: Some((
+                        shape: Cone,
+                        feet: 60,
+                    )),
+                    range_ft: 60,
+                    save: Con,
+                    dc: 18,
+                    dice: "15d6",
+                    damage_type: Some(Fire),
+                    half: true,
+                    recharge: 5,
+                ),
+            ],
         )),
     ),
     (
@@ -14006,6 +15174,17 @@
                     kind: Action,
                     name: "Fetid Cloud",
                     text: "A 10-foot radius of disgusting green gas extends out from the dretch. The gas spreads around corners, and its area is lightly obscured. It lasts for 1 minute or until a strong wind disperses it. Any creature that starts its turn in that area must succeed on a DC 11 Constitution saving throw or be poisoned until the start of its next turn. While poisoned in this way, the target can take either an action or a bonus action on its turn, not both, and can\'t take reactions.",
+                ),
+            ],
+            actions: [
+                (
+                    name: "Fetid Cloud",
+                    range_ft: 5,
+                    save: Con,
+                    dc: 11,
+                    condition: Some(Poisoned),
+                    rounds: 10,
+                    per_day: 1,
                 ),
             ],
         )),
@@ -14534,6 +15713,14 @@
                     ),
                 ],
             )),
+            actions: [
+                (
+                    name: "Fey Charm",
+                    range_ft: 30,
+                    save: Wis,
+                    dc: 14,
+                ),
+            ],
         )),
     ),
     (
@@ -14736,6 +15923,21 @@
                     ),
                 ],
             )),
+            actions: [
+                (
+                    name: "Blinding Breath",
+                    area: Some((
+                        shape: Cone,
+                        feet: 15,
+                    )),
+                    range_ft: 15,
+                    save: Dex,
+                    dc: 10,
+                    condition: Some(Blinded),
+                    rounds: 10,
+                    recharge: 6,
+                ),
+            ],
         )),
     ),
     (
@@ -16366,6 +17568,17 @@
                     kind: Action,
                     name: "Engulf",
                     text: "The cube moves up to its speed. While doing so, it can enter Large or smaller creatures\' spaces. Whenever the cube enters a creature\'s space, the creature must make a DC 12 Dexterity saving throw.\nOn a successful save, the creature can choose to be pushed 5 feet back or to the side of the cube. A creature that chooses not to be pushed suffers the consequences of a failed saving throw.\nOn a failed save, the cube enters the creature\'s space, and the creature takes 10 (3d6) acid damage and is engulfed. The engulfed creature can\'t breathe, is restrained, and takes 21 (6d6) acid damage at the start of each of the cube\'s turns. When the cube moves, the engulfed creature moves with it.\nAn engulfed creature can try to escape by taking an action to make a DC 12 Strength check. On a success, the creature escapes and enters a space of its choice within 5 feet of the cube.",
+                ),
+            ],
+            actions: [
+                (
+                    name: "Engulf",
+                    range_ft: 5,
+                    save: Dex,
+                    dc: 12,
+                    dice: "3d6",
+                    damage_type: Some(Acid),
+                    condition: Some(Restrained),
                 ),
             ],
         )),
@@ -18073,6 +19286,7 @@
                     text: "Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 4 (1d4 + 2) piercing damage.",
                 ),
             ],
+            pack_tactics: true,
         )),
     ),
     (
@@ -18152,6 +19366,7 @@
                     text: "Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 3 (1d4 + 2) piercing damage. If the target is a creature, it must succeed on a DC 10 Constitution saving throw or contract a disease. Until the disease is cured, the target can\'t regain hit points except by magical means, and the target\'s hit point maximum decreases by 3 (1d6) every 24 hours. If the target\'s hit point maximum drops to 0 as a result of this disease, the target dies.",
                 ),
             ],
+            pack_tactics: true,
         )),
     ),
     (
@@ -18689,6 +19904,7 @@
                     text: "Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 9 (2d6 + 2) slashing damage.",
                 ),
             ],
+            pack_tactics: true,
         )),
     ),
     (
@@ -19020,6 +20236,21 @@
                     kind: Action,
                     name: "Blinding Spittle",
                     text: "The mouther spits a chemical glob at a point it can see within 15 feet of it. The glob explodes in a blinding flash of light on impact. Each creature within 5 feet of the flash must succeed on a DC 13 Dexterity saving throw or be blinded until the end of the mouther\'s next turn.",
+                ),
+            ],
+            actions: [
+                (
+                    name: "Blinding Spittle",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 15,
+                    )),
+                    around: true,
+                    save: Dex,
+                    dc: 13,
+                    condition: Some(Blinded),
+                    rounds: 1,
+                    recharge: 5,
                 ),
             ],
         )),
@@ -19615,6 +20846,20 @@
                     text: "The gorgon exhales petrifying gas in a 30-foot cone. Each creature in that area must succeed on a DC 13 Constitution saving throw. On a failed save, a target begins to turn to stone and is restrained. The restrained target must repeat the saving throw at the end of its next turn. On a success, the effect ends on the target. On a failure, the target is petrified until freed by the greater restoration spell or other magic.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Petrifying Breath",
+                    area: Some((
+                        shape: Cone,
+                        feet: 30,
+                    )),
+                    range_ft: 30,
+                    save: Con,
+                    dc: 13,
+                    condition: Some(Restrained),
+                    recharge: 5,
+                ),
+            ],
         )),
     ),
     (
@@ -19805,6 +21050,22 @@
                     kind: Action,
                     name: "Poison Breath",
                     text: "The dragon exhales poisonous gas in a 15-foot cone. Each creature in that area must make a DC 11 Constitution saving throw, taking 21 (6d6) poison damage on a failed save, or half as much damage on a successful one.",
+                ),
+            ],
+            actions: [
+                (
+                    name: "Poison Breath",
+                    area: Some((
+                        shape: Cone,
+                        feet: 15,
+                    )),
+                    range_ft: 15,
+                    save: Con,
+                    dc: 11,
+                    dice: "6d6",
+                    damage_type: Some(Poison),
+                    half: true,
+                    recharge: 5,
                 ),
             ],
         )),
@@ -20552,6 +21813,14 @@
                     ),
                 ],
             )),
+            legendary: [
+                (
+                    name: "Claw Attack",
+                    attack: "Claw",
+                    cost: 1,
+                ),
+            ],
+            legendary_points: 3,
         )),
     ),
     (
@@ -20645,6 +21914,22 @@
                     kind: Action,
                     name: "Fire Breath",
                     text: "The veteran exhales fire in a 15-foot cone. Each creature in that area must make a DC 15 Dexterity saving throw, taking 24 (7d6) fire damage on a failed save, or half as much damage on a successful one.",
+                ),
+            ],
+            actions: [
+                (
+                    name: "Fire Breath",
+                    area: Some((
+                        shape: Cone,
+                        feet: 15,
+                    )),
+                    range_ft: 15,
+                    save: Dex,
+                    dc: 15,
+                    dice: "7d6",
+                    damage_type: Some(Fire),
+                    half: true,
+                    recharge: 5,
                 ),
             ],
         )),
@@ -20891,6 +22176,23 @@
                     text: "The hound exhales fire in a 15-foot cone. Each creature in that area must make a DC 12 Dexterity saving throw, taking 21 (6d6) fire damage on a failed save, or half as much damage on a successful one.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Fire Breath",
+                    area: Some((
+                        shape: Cone,
+                        feet: 15,
+                    )),
+                    range_ft: 15,
+                    save: Dex,
+                    dc: 12,
+                    dice: "6d6",
+                    damage_type: Some(Fire),
+                    half: true,
+                    recharge: 5,
+                ),
+            ],
+            pack_tactics: true,
         )),
     ),
     (
@@ -21691,6 +22993,7 @@
                     text: "Melee Weapon Attack: +2 to hit, reach 5 ft., one target. Hit: 3 (1d6) piercing damage.",
                 ),
             ],
+            pack_tactics: true,
         )),
     ),
     (
@@ -21949,6 +23252,22 @@
                     ),
                 ],
             )),
+            actions: [
+                (
+                    name: "Frost Breath",
+                    area: Some((
+                        shape: Cone,
+                        feet: 15,
+                    )),
+                    range_ft: 15,
+                    save: Dex,
+                    dc: 10,
+                    dice: "2d4",
+                    damage_type: Some(Cold),
+                    half: true,
+                    recharge: 6,
+                ),
+            ],
         )),
     ),
     (
@@ -22276,6 +23595,22 @@
                     text: "The golem exhales poisonous gas in a 15-foot cone. Each creature in that area must make a DC 19 Constitution saving throw, taking 45 (10d8) poison damage on a failed save, or half as much damage on a successful one.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Poison Breath",
+                    area: Some((
+                        shape: Cone,
+                        feet: 15,
+                    )),
+                    range_ft: 15,
+                    save: Con,
+                    dc: 19,
+                    dice: "10d8",
+                    damage_type: Some(Poison),
+                    half: true,
+                    recharge: 5,
+                ),
+            ],
         )),
     ),
     (
@@ -22350,6 +23685,7 @@
                     text: "Melee Weapon Attack: +1 to hit, reach 5 ft., one target. Hit: 1 (1d4 - 1) piercing damage.",
                 ),
             ],
+            pack_tactics: true,
         )),
     ),
     (
@@ -22609,6 +23945,7 @@
                     text: "Ranged Weapon Attack: +4 to hit, range 30/120 ft., one target. Hit: 4 (1d4 + 2) bludgeoning damage.",
                 ),
             ],
+            pack_tactics: true,
         )),
     ),
     (
@@ -22760,6 +24097,40 @@
                     text: "While underwater, the kraken expels an ink cloud in a 60-foot radius. The cloud spreads around corners, and that area is heavily obscured to creatures other than the kraken. Each creature other than the kraken that ends its turn there must succeed on a DC 23 Constitution saving throw, taking 16 (3d10) poison damage on a failed save, or half as much damage on a successful one. A strong current disperses the cloud, which otherwise disappears at the end of the kraken\'s next turn.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Lightning Storm",
+                    range_ft: 120,
+                    save: Dex,
+                    dc: 23,
+                    dice: "4d10",
+                    damage_type: Some(Lightning),
+                    half: true,
+                ),
+                (
+                    name: "Ink Cloud",
+                    range_ft: 5,
+                    save: Con,
+                    dc: 23,
+                    dice: "3d10",
+                    damage_type: Some(Poison),
+                    half: true,
+                    legendary_only: true,
+                ),
+            ],
+            legendary: [
+                (
+                    name: "Tentacle Attack or Fling",
+                    attack: "Tentacle",
+                    cost: 1,
+                ),
+                (
+                    name: "Ink Cloud",
+                    action: "Ink Cloud",
+                    cost: 3,
+                ),
+            ],
+            legendary_points: 3,
         )),
     ),
     (
@@ -23238,6 +24609,41 @@
                     ),
                 ],
             )),
+            actions: [
+                (
+                    name: "Frightening Gaze",
+                    range_ft: 10,
+                    save: Wis,
+                    dc: 18,
+                    condition: Some(Frightened),
+                    rounds: 10,
+                    legendary_only: true,
+                ),
+                (
+                    name: "Disrupt Life",
+                    range_ft: 20,
+                    save: Con,
+                    dc: 18,
+                    dice: "6d6",
+                    damage_type: Some(Necrotic),
+                    half: true,
+                    legendary_only: true,
+                ),
+            ],
+            legendary: [
+                (
+                    name: "Frightening Gaze",
+                    action: "Frightening Gaze",
+                    cost: 2,
+                ),
+                (
+                    name: "Disrupt Life",
+                    action: "Disrupt Life",
+                    cost: 3,
+                ),
+            ],
+            legendary_points: 3,
+            legendary_resistance: 3,
         )),
     ),
     (
@@ -23335,6 +24741,7 @@
                     text: "Melee Weapon Attack: +5 to hit, reach 5 ft., one target. Hit: 6 (1d6 + 3) slashing damage.",
                 ),
             ],
+            pack_tactics: true,
         )),
     ),
     (
@@ -23773,6 +25180,22 @@
                     ),
                 ],
             )),
+            actions: [
+                (
+                    name: "Fire Breath",
+                    area: Some((
+                        shape: Cone,
+                        feet: 15,
+                    )),
+                    range_ft: 15,
+                    save: Dex,
+                    dc: 11,
+                    dice: "2d6",
+                    damage_type: Some(Fire),
+                    half: true,
+                    recharge: 6,
+                ),
+            ],
         )),
     ),
     (
@@ -24971,6 +26394,16 @@
                     text: "The mummy targets one creature it can see within 60 ft. of it. If the target can see the mummy, it must succeed on a DC 11 Wisdom saving throw against this magic or become frightened until the end of the mummy\'s next turn. If the target fails the saving throw by 5 or more, it is also paralyzed for the same duration. A target that succeeds on the saving throw is immune to the Dreadful Glare of all mummies (but not mummy lords) for the next 24 hours.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Dreadful Glare",
+                    range_ft: 60,
+                    save: Wis,
+                    dc: 11,
+                    condition: Some(Frightened),
+                    rounds: 1,
+                ),
+            ],
         )),
     ),
     (
@@ -25186,6 +26619,51 @@
                     ),
                 ],
             )),
+            actions: [
+                (
+                    name: "Dreadful Glare",
+                    range_ft: 60,
+                    save: Wis,
+                    dc: 16,
+                    condition: Some(Frightened),
+                    rounds: 1,
+                ),
+                (
+                    name: "Blinding Dust",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 5,
+                    )),
+                    around: true,
+                    save: Con,
+                    dc: 16,
+                    condition: Some(Blinded),
+                    rounds: 1,
+                    legendary_only: true,
+                ),
+                (
+                    name: "Blasphemous Word",
+                    range_ft: 10,
+                    save: Con,
+                    dc: 16,
+                    condition: Some(Stunned),
+                    rounds: 1,
+                    legendary_only: true,
+                ),
+            ],
+            legendary: [
+                (
+                    name: "Blinding Dust",
+                    action: "Blinding Dust",
+                    cost: 1,
+                ),
+                (
+                    name: "Blasphemous Word",
+                    action: "Blasphemous Word",
+                    cost: 2,
+                ),
+            ],
+            legendary_points: 3,
         )),
     ),
     (
@@ -25299,6 +26777,21 @@
                     kind: Action,
                     name: "Teleport",
                     text: "The nalfeshnee magically teleports, along with any equipment it is wearing or carrying, up to 120 feet to an unoccupied space it can see.",
+                ),
+            ],
+            actions: [
+                (
+                    name: "Horror Nimbus",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 15,
+                    )),
+                    around: true,
+                    save: Wis,
+                    dc: 15,
+                    condition: Some(Frightened),
+                    rounds: 10,
+                    recharge: 5,
                 ),
             ],
         )),
@@ -26026,6 +27519,9 @@
                     ),
                 ],
             )),
+            regeneration: Some((
+                hp: 10,
+            )),
         )),
     ),
     (
@@ -26128,6 +27624,17 @@
                     kind: Action,
                     name: "Tentacle Slam",
                     text: "The otyugh slams creatures grappled by it into each other or a solid surface. Each creature must succeed on a DC 14 Constitution saving throw or take 10 (2d6 + 3) bludgeoning damage and be stunned until the end of the otyugh\'s next turn. On a successful save, the target takes half the bludgeoning damage and isn\'t stunned.",
+                ),
+            ],
+            actions: [
+                (
+                    name: "Tentacle Slam",
+                    range_ft: 5,
+                    save: Con,
+                    dc: 14,
+                    half: true,
+                    condition: Some(Stunned),
+                    rounds: 1,
                 ),
             ],
         )),
@@ -27489,6 +28996,21 @@
                     text: "The quasit magically turns invisible until it attacks or uses Scare, or until its concentration ends (as if concentrating on a spell). Any equipment the quasit wears or carries is invisible with it.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Scare",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 20,
+                    )),
+                    around: true,
+                    save: Wis,
+                    dc: 10,
+                    condition: Some(Frightened),
+                    rounds: 10,
+                    per_day: 1,
+                ),
+            ],
         )),
     ),
     (
@@ -27954,6 +29476,22 @@
                     text: "The dragon exhales fire in a 15-foot cone. Each creature in that area must make a DC 13 Dexterity saving throw, taking 24 (7d6) fire damage on a failed save, or half as much damage on a successful one.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Fire Breath",
+                    area: Some((
+                        shape: Cone,
+                        feet: 15,
+                    )),
+                    range_ft: 15,
+                    save: Dex,
+                    dc: 13,
+                    dice: "7d6",
+                    damage_type: Some(Fire),
+                    half: true,
+                    recharge: 5,
+                ),
+            ],
         )),
     ),
     (
@@ -28029,6 +29567,7 @@
                     text: "Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 6 (1d8 + 2) piercing damage.",
                 ),
             ],
+            pack_tactics: true,
         )),
     ),
     (
@@ -29260,6 +30799,14 @@
                     text: "The hag covers herself and anything she is wearing or carrying with a magical illusion that makes her look like an ugly creature of her general size and humanoid shape. The effect ends if the hag takes a bonus action to end it or if she dies.\nThe changes wrought by this effect fail to hold up to physical inspection. For example, the hag could appear to have no claws, but someone touching her hand might feel the claws. Otherwise, a creature must take an action to visually inspect the illusion and succeed on a DC 16 Intelligence (Investigation) check to discern that the hag is disguised.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Death Glare",
+                    range_ft: 30,
+                    save: Wis,
+                    dc: 11,
+                ),
+            ],
         )),
     ),
     (
@@ -29605,6 +31152,9 @@
                     text: "When a creature makes an attack against the wearer of the guardian\'s amulet, the guardian grants a +2 bonus to the wearer\'s AC if the guardian is within 5 feet of the wearer.",
                 ),
             ],
+            regeneration: Some((
+                hp: 10,
+            )),
         )),
     ),
     (
@@ -29946,6 +31496,39 @@
                     ),
                 ],
             )),
+            actions: [
+                (
+                    name: "Searing Burst",
+                    range_ft: 5,
+                    save: Dex,
+                    dc: 23,
+                    dice: "4d6",
+                    damage_type: Some(Fire),
+                    half: true,
+                    legendary_only: true,
+                ),
+                (
+                    name: "Blinding Gaze",
+                    range_ft: 30,
+                    save: Con,
+                    dc: 15,
+                    condition: Some(Blinded),
+                    legendary_only: true,
+                ),
+            ],
+            legendary: [
+                (
+                    name: "Searing Burst",
+                    action: "Searing Burst",
+                    cost: 2,
+                ),
+                (
+                    name: "Blinding Gaze",
+                    action: "Blinding Gaze",
+                    cost: 3,
+                ),
+            ],
+            legendary_points: 3,
         )),
     ),
     (
@@ -30375,6 +31958,14 @@
                     text: "The sprite magically turns invisible until it attacks or casts a spell, or until its concentration ends (as if concentrating on a spell). Any equipment the sprite wears or carries is invisible with it.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Heart Sight",
+                    range_ft: 5,
+                    save: Cha,
+                    dc: 10,
+                ),
+            ],
         )),
     ),
     (
@@ -30572,6 +32163,22 @@
                     ),
                 ],
             )),
+            actions: [
+                (
+                    name: "Steam Breath",
+                    area: Some((
+                        shape: Cone,
+                        feet: 15,
+                    )),
+                    range_ft: 15,
+                    save: Dex,
+                    dc: 10,
+                    dice: "1d8",
+                    damage_type: Some(Fire),
+                    half: true,
+                    recharge: 6,
+                ),
+            ],
         )),
     ),
     (
@@ -30842,6 +32449,16 @@
                     text: "The golem targets one or more creatures it can see within 10 ft. of it. Each target must make a DC 17 Wisdom saving throw against this magic. On a failed save, a target can\'t use reactions, its speed is halved, and it can\'t make more than one attack on its turn. In addition, the target can take either an action or a bonus action on its turn, not both. These effects last for 1 minute. A target can repeat the saving throw at the end of each of its turns, ending the effect on itself on a success.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Slow",
+                    range_ft: 10,
+                    save: Wis,
+                    dc: 17,
+                    rounds: 10,
+                    recharge: 5,
+                ),
+            ],
         )),
     ),
     (
@@ -30996,6 +32613,22 @@
                     ),
                 ],
             )),
+            actions: [
+                (
+                    name: "Lightning Strike",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 500,
+                    )),
+                    around: true,
+                    save: Dex,
+                    dc: 17,
+                    dice: "12d8",
+                    damage_type: Some(Lightning),
+                    half: true,
+                    recharge: 5,
+                ),
+            ],
         )),
     ),
     (
@@ -31095,6 +32728,14 @@
                     kind: Action,
                     name: "Etherealness",
                     text: "The fiend magically enters the Ethereal Plane from the Material Plane, or vice versa.",
+                ),
+            ],
+            actions: [
+                (
+                    name: "Charm",
+                    range_ft: 30,
+                    save: Wis,
+                    dc: 15,
                 ),
             ],
         )),
@@ -32144,6 +33785,34 @@
                     text: "The tarrasque makes one bite attack or uses its Swallow.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Frightful Presence",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 120,
+                    )),
+                    around: true,
+                    save: Wis,
+                    dc: 17,
+                    condition: Some(Frightened),
+                    rounds: 10,
+                ),
+            ],
+            legendary: [
+                (
+                    name: "Attack",
+                    attack: "Claw",
+                    cost: 1,
+                ),
+                (
+                    name: "Chomp",
+                    attack: "Bite",
+                    cost: 2,
+                ),
+            ],
+            legendary_points: 3,
+            legendary_resistance: 3,
         )),
     ),
     (
@@ -32225,6 +33894,7 @@
                     text: "Ranged Weapon Attack: +2 to hit, range 100/400 ft., one target. Hit: 5 (1d10) piercing damage.",
                 ),
             ],
+            pack_tactics: true,
         )),
     ),
     (
@@ -32478,6 +34148,7 @@
                     text: "Melee or Ranged Weapon Attack: +3 to hit, reach 5 ft. or range 20/60 ft., one target. Hit: 4 (1d6 + 1) piercing damage, or 5 (1d8 + 1) piercing damage if used with two hands to make a melee attack.",
                 ),
             ],
+            pack_tactics: true,
         )),
     ),
     (
@@ -32821,6 +34492,7 @@
                     ),
                 ],
             )),
+            legendary_points: 3,
         )),
     ),
     (
@@ -32970,6 +34642,30 @@
                     text: "The vampire makes one bite attack.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Charm",
+                    range_ft: 30,
+                    save: Wis,
+                    dc: 17,
+                    condition: Some(Charmed),
+                ),
+            ],
+            legendary: [
+                (
+                    name: "Bite",
+                    attack: "Bite",
+                    cost: 2,
+                ),
+            ],
+            legendary_points: 3,
+            legendary_resistance: 3,
+            regeneration: Some((
+                hp: 20,
+                stopped_by: [
+                    Radiant,
+                ],
+            )),
         )),
     ),
     (
@@ -33104,6 +34800,30 @@
                     text: "The vampire makes one bite attack.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Charm",
+                    range_ft: 30,
+                    save: Wis,
+                    dc: 17,
+                    condition: Some(Charmed),
+                ),
+            ],
+            legendary: [
+                (
+                    name: "Bite",
+                    attack: "Bite",
+                    cost: 2,
+                ),
+            ],
+            legendary_points: 3,
+            legendary_resistance: 3,
+            regeneration: Some((
+                hp: 20,
+                stopped_by: [
+                    Radiant,
+                ],
+            )),
         )),
     ),
     (
@@ -33203,6 +34923,14 @@
                     text: "The vampire makes one bite attack.",
                 ),
             ],
+            legendary_points: 3,
+            legendary_resistance: 3,
+            regeneration: Some((
+                hp: 20,
+                stopped_by: [
+                    Radiant,
+                ],
+            )),
         )),
     ),
     (
@@ -33311,6 +35039,12 @@
                     text: "Melee Weapon Attack: +6 to hit, reach 5 ft., one creature. Hit: 8 (2d4 + 3) slashing damage. Instead of dealing damage, the vampire can grapple the target (escape DC 13).",
                 ),
             ],
+            regeneration: Some((
+                hp: 10,
+                stopped_by: [
+                    Radiant,
+                ],
+            )),
         )),
     ),
     (
@@ -33591,6 +35325,29 @@
                     text: "The vrock emits a horrific screech. Each creature within 20 feet of it that can hear it and that isn\'t a demon must succeed on a DC 14 Constitution saving throw or be stunned until the end of the vrock\'s next turn .",
                 ),
             ],
+            actions: [
+                (
+                    name: "Spores",
+                    range_ft: 5,
+                    save: Con,
+                    dc: 14,
+                    condition: Some(Poisoned),
+                    recharge: 6,
+                ),
+                (
+                    name: "Stunning Screech",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 20,
+                    )),
+                    around: true,
+                    save: Con,
+                    dc: 14,
+                    condition: Some(Stunned),
+                    rounds: 1,
+                    per_day: 1,
+                ),
+            ],
         )),
     ),
     (
@@ -33666,6 +35423,7 @@
                     text: "Melee Weapon Attack: +2 to hit, reach 5 ft., one target. Hit: 2 (1d4) piercing damage.",
                 ),
             ],
+            pack_tactics: true,
         )),
     ),
     (
@@ -33906,6 +35664,22 @@
                     kind: Action,
                     name: "Whelm",
                     text: "Each creature in the elemental\'s space must make a DC 15 Strength saving throw. On a failure, a target takes 13 (2d8 + 4) bludgeoning damage. If it is Large or smaller, it is also grappled (escape DC 14). Until this grapple ends, the target is restrained and unable to breathe unless it can breathe water. If the saving throw is successful, the target is pushed out of the elemental\'s space.\nThe elemental can grapple one Large creature or up to two Medium or smaller creatures at one time. At the start of each of the elemental\'s turns, each target grappled by it takes 13 (2d8 + 4) bludgeoning damage. A creature within 5 feet of the elemental can pull a creature or object out of it by taking an action to make a DC 14 Strength and succeeding.",
+                ),
+            ],
+            actions: [
+                (
+                    name: "Whelm",
+                    area: Some((
+                        shape: Sphere,
+                        feet: 5,
+                    )),
+                    around: true,
+                    save: Str,
+                    dc: 15,
+                    dice: "2d8+4",
+                    damage_type: Some(Bludgeoning),
+                    condition: Some(Restrained),
+                    recharge: 4,
                 ),
             ],
         )),
@@ -35420,6 +37194,22 @@
                     text: "The dragon exhales an icy blast of hail in a 15-foot cone. Each creature in that area must make a DC 12 Constitution saving throw, taking 22 (5d8) cold damage on a failed save, or half as much damage on a successful one.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Cold Breath",
+                    area: Some((
+                        shape: Cone,
+                        feet: 15,
+                    )),
+                    range_ft: 15,
+                    save: Con,
+                    dc: 12,
+                    dice: "5d8",
+                    damage_type: Some(Cold),
+                    half: true,
+                    recharge: 5,
+                ),
+            ],
         )),
     ),
     (
@@ -35737,6 +37527,23 @@
                     text: "The wolf exhales a blast of freezing wind in a 15-foot cone. Each creature in that area must make a DC 12 Dexterity saving throw, taking 18 (4d8) cold damage on a failed save, or half as much damage on a successful one.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Cold Breath",
+                    area: Some((
+                        shape: Cone,
+                        feet: 15,
+                    )),
+                    range_ft: 15,
+                    save: Dex,
+                    dc: 12,
+                    dice: "4d8",
+                    damage_type: Some(Cold),
+                    half: true,
+                    recharge: 5,
+                ),
+            ],
+            pack_tactics: true,
         )),
     ),
     (
@@ -36231,6 +38038,22 @@
                     text: "The dragon exhales acid in a 30-foot line that is 5 feet wide. Each creature in that line must make a DC 14 Dexterity saving throw, taking 49 (11d8) acid damage on a failed save, or half as much damage on a successful one.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Acid Breath",
+                    area: Some((
+                        shape: Line,
+                        feet: 30,
+                    )),
+                    range_ft: 30,
+                    save: Dex,
+                    dc: 14,
+                    dice: "11d8",
+                    damage_type: Some(Acid),
+                    half: true,
+                    recharge: 5,
+                ),
+            ],
         )),
     ),
     (
@@ -36334,6 +38157,22 @@
                     kind: Action,
                     name: "Lightning Breath",
                     text: "The dragon exhales lightning in a 60-foot line that is 5 feet wide. Each creature in that line must make a DC 16 Dexterity saving throw, taking 55 (10d10) lightning damage on a failed save, or half as much damage on a successful one.",
+                ),
+            ],
+            actions: [
+                (
+                    name: "Lightning Breath",
+                    area: Some((
+                        shape: Line,
+                        feet: 60,
+                    )),
+                    range_ft: 60,
+                    save: Dex,
+                    dc: 16,
+                    dice: "10d10",
+                    damage_type: Some(Lightning),
+                    half: true,
+                    recharge: 5,
                 ),
             ],
         )),
@@ -36861,6 +38700,22 @@
                     text: "The dragon exhales poisonous gas in a 30-foot cone. Each creature in that area must make a DC 14 Constitution saving throw, taking 42 (12d6) poison damage on a failed save, or half as much damage on a successful one.",
                 ),
             ],
+            actions: [
+                (
+                    name: "Poison Breath",
+                    area: Some((
+                        shape: Cone,
+                        feet: 30,
+                    )),
+                    range_ft: 30,
+                    save: Con,
+                    dc: 14,
+                    dice: "12d6",
+                    damage_type: Some(Poison),
+                    half: true,
+                    recharge: 5,
+                ),
+            ],
         )),
     ),
     (
@@ -36964,6 +38819,22 @@
                     kind: Action,
                     name: "Fire Breath",
                     text: "The dragon exhales fire in a 30-foot cone. Each creature in that area must make a DC 17 Dexterity saving throw, taking 56 (16d6) fire damage on a failed save, or half as much damage on a successful one.",
+                ),
+            ],
+            actions: [
+                (
+                    name: "Fire Breath",
+                    area: Some((
+                        shape: Cone,
+                        feet: 30,
+                    )),
+                    range_ft: 30,
+                    save: Dex,
+                    dc: 17,
+                    dice: "16d6",
+                    damage_type: Some(Fire),
+                    half: true,
+                    recharge: 5,
                 ),
             ],
         )),
@@ -37175,6 +39046,22 @@
                     kind: Action,
                     name: "Cold Breath",
                     text: "The dragon exhales an icy blast in a 30-foot cone. Each creature in that area must make a DC 15 Constitution saving throw, taking 45 (10d8) cold damage on a failed save, or half as much damage on a successful one.",
+                ),
+            ],
+            actions: [
+                (
+                    name: "Cold Breath",
+                    area: Some((
+                        shape: Cone,
+                        feet: 30,
+                    )),
+                    range_ft: 30,
+                    save: Con,
+                    dc: 15,
+                    dice: "10d8",
+                    damage_type: Some(Cold),
+                    half: true,
+                    recharge: 5,
                 ),
             ],
         )),

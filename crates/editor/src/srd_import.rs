@@ -548,11 +548,20 @@ impl SrdData {
                     }
                     // Its spells (0.32's AI casts them).
                     b.spellcasting = src.spellcasting.clone();
+                    // Its save actions, legendary actions and traits that act (0.32).
+                    (b.actions, b.legendary, b.legendary_points, b.legendary_resistance) = (src.actions.clone(), src.legendary.clone(), src.legendary_points, src.legendary_resistance);
+                    (b.regeneration, b.pack_tactics) = (src.regeneration.clone(), src.pack_tactics);
                     // Its attacks keep their numbers and gain the SRD attack's other damage and
-                    // what a hit does (0.32).
+                    // what a hit does (0.32), unless they have their own (a goblin poisoner's arrows).
                     for a in &mut b.attacks {
                         if let Some(x) = src.attacks.iter().find(|x| x.name == a.name) {
-                            (a.extra, a.on_hit, a.versatile) = (x.extra.clone(), x.on_hit.clone(), x.versatile.clone());
+                            if a.extra.is_empty() {
+                                a.extra = x.extra.clone();
+                            }
+                            if a.on_hit.is_empty() {
+                                a.on_hit = x.on_hit.clone();
+                            }
+                            a.versatile = x.versatile.clone();
                         }
                     }
                 }
@@ -1417,7 +1426,168 @@ fn monster_block(m: &Value) -> rustpg2d_engine::srd::StatBlock {
         senses,
         features,
         spellcasting: monster_spellcasting(m),
+        actions: monster_actions(m),
+        legendary: monster_legendary(m),
+        legendary_points: if list(m, "legendary_actions").is_empty() { 0 } else { 3 },
+        legendary_resistance: list(m, "special_abilities").iter().find(|a| s(a, "name").starts_with("Legendary Resistance")).map_or(0, |a| a.pointer("/usage/times").and_then(Value::as_u64).unwrap_or(3) as u32),
+        regeneration: list(m, "special_abilities").iter().find(|a| s(a, "name") == "Regeneration").and_then(|a| regeneration(&desc(a))),
+        pack_tactics: list(m, "special_abilities").iter().any(|a| s(a, "name") == "Pack Tactics"),
     }
+}
+
+/// The number just before `pat` in `text` ("in a 60-foot cone" with "-foot cone" -> 60).
+fn number_before(text: &str, pat: &str) -> Option<u32> {
+    let i = text.find(pat)?;
+    let digits: String = text[..i].chars().rev().take_while(|c| c.is_ascii_digit()).collect::<Vec<_>>().into_iter().rev().collect();
+    digits.parse().ok()
+}
+
+/// The number just after `word` ("within 120 feet" with "within " -> 120).
+fn number_after_word(text: &str, word: &str) -> Option<u32> {
+    let rest = &text[text.find(word)? + word.len()..];
+    let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+    digits.parse().ok()
+}
+
+/// A save action's area from its text: a cone or line from the creature, a sphere at a point or
+/// around the creature, a cube; `None` with the range for one creature. Returns (area, around
+/// the creature, range in feet).
+pub fn action_area(text: &str) -> (Option<rustpg2d_engine::skills::Area>, bool, u32) {
+    use rustpg2d_engine::skills::{Area, Shape};
+    let l = text.to_ascii_lowercase();
+    let range = number_after_word(&l, "within ").unwrap_or(5);
+    if let Some(n) = number_before(&l, "-foot cone") {
+        return (Some(Area { shape: Shape::Cone, feet: n }), false, n);
+    }
+    if let Some(n) = number_before(&l, "-foot line") {
+        return (Some(Area { shape: Shape::Line, feet: n }), false, n);
+    }
+    if let Some(n) = number_before(&l, "-foot-radius sphere").or_else(|| number_before(&l, "-foot radius sphere")) {
+        return (Some(Area { shape: Shape::Sphere, feet: n }), false, range);
+    }
+    if let Some(n) = number_before(&l, "-foot cube") {
+        return (Some(Area { shape: Shape::Cube, feet: n }), false, range);
+    }
+    // "each creature within 10 feet of the dragon", "within 120 feet of it".
+    if l.contains("each creature") || l.contains("each other creature") || l.contains("creature of the") {
+        if let Some(n) = number_after_word(&l, "within ").filter(|_| l.contains(" of the ") || l.contains(" of it")) {
+            return (Some(Area { shape: Shape::Sphere, feet: n }), true, 0);
+        }
+    }
+    (None, false, range)
+}
+
+/// One of a monster's actions with a saving throw and no attack roll (a breath weapon, a wing
+/// beat, a gaze) from the data's `dc`, `damage` and `usage` and its text's area and condition.
+pub fn save_action(a: &Value, legendary_only: bool) -> Option<rustpg2d_engine::srd::StatAction> {
+    use rustpg2d_engine::srd::{Ability, Condition, DamageType, StatAction};
+    if a.get("attack_bonus").is_some() {
+        return None;
+    }
+    let dc = a.get("dc")?;
+    let text = desc(a);
+    let l = text.to_ascii_lowercase();
+    let (area, around, range_ft) = action_area(&text);
+    let damage = a.pointer("/damage/0");
+    let conditions = [
+        ("knocked prone", Condition::Prone),
+        ("restrained", Condition::Restrained),
+        ("poisoned", Condition::Poisoned),
+        ("paralyzed", Condition::Paralyzed),
+        ("frightened", Condition::Frightened),
+        ("stunned", Condition::Stunned),
+        ("blinded", Condition::Blinded),
+        ("charmed", Condition::Charmed),
+        ("incapacitated", Condition::Incapacitated),
+        ("petrified", Condition::Petrified),
+    ];
+    let given = |w: &str| l.contains(&format!("be {w}")) || l.contains(&format!("become {w}")) || l.contains(&format!("is {w}")) || l.contains(&format!("and {w}"));
+    let condition = conditions.iter().find(|(w, _)| given(w)).map(|c| c.1);
+    let rounds = if l.contains("for 1 minute") {
+        10
+    } else if l.contains("for 1 hour") {
+        600
+    } else if l.contains("until the end of") {
+        1
+    } else {
+        0
+    };
+    let (recharge, per_day) = match a.pointer("/usage/type").and_then(Value::as_str) {
+        Some("recharge on roll") => (a.pointer("/usage/min_value").and_then(Value::as_u64).unwrap_or(6) as u32, 0),
+        Some("per day") => (0, a.pointer("/usage/times").and_then(Value::as_u64).unwrap_or(1) as u32),
+        Some("recharge after rest") => (0, 1),
+        _ => (0, 0),
+    };
+    let name = s(a, "name");
+    let name = name.split(" (").next().unwrap_or(name).to_string();
+    Some(StatAction {
+        name,
+        area,
+        around,
+        range_ft,
+        save: Ability::parse(dc.pointer("/dc_type/index").and_then(Value::as_str).unwrap_or("dex")).unwrap_or(Ability::Dex),
+        dc: dc.get("dc_value").and_then(Value::as_i64).unwrap_or(10) as i32,
+        dice: damage.map_or(String::new(), |d| s(d, "damage_dice").replace(' ', "")),
+        damage_type: damage.and_then(|d| d.pointer("/damage_type/index")).and_then(Value::as_str).and_then(DamageType::parse),
+        // (The data says "none" for some whose text says "half as much": the text wins.)
+        half: dc.get("success_type").and_then(Value::as_str) == Some("half") || l.contains("half as much"),
+        condition,
+        rounds,
+        recharge,
+        per_day,
+        legendary_only,
+    })
+}
+
+/// A monster's save actions: its actions' and its legendary actions' (those only legendary).
+fn monster_actions(m: &Value) -> Vec<rustpg2d_engine::srd::StatAction> {
+    let mut out: Vec<rustpg2d_engine::srd::StatAction> = list(m, "actions").iter().filter_map(|a| save_action(a, false)).collect();
+    for a in list(m, "legendary_actions") {
+        if let Some(x) = save_action(&a, true).filter(|x| !out.iter().any(|o| o.name == x.name)) {
+            out.push(x);
+        }
+    }
+    out
+}
+
+/// A monster's legendary actions that act: an attack it names ("The dragon makes a tail
+/// attack") or one of its save actions, with the cost ("Costs 2 Actions").
+fn monster_legendary(m: &Value) -> Vec<rustpg2d_engine::srd::StatLegendary> {
+    let attacks: Vec<String> = list(m, "actions").iter().filter(|a| a.get("attack_bonus").is_some()).map(|a| s(a, "name").to_string()).collect();
+    list(m, "legendary_actions")
+        .iter()
+        .filter_map(|a| {
+            let full = s(a, "name");
+            let cost = number_after_word(&full.to_ascii_lowercase(), "(costs ").unwrap_or(1);
+            let name = full.split(" (").next().unwrap_or(full).to_string();
+            let text = desc(a).to_ascii_lowercase();
+            let action = if a.get("dc").is_some() && a.get("attack_bonus").is_none() { name.clone() } else { String::new() };
+            // "makes a tail attack", "makes one claw attack", "makes a bite attack".
+            let attack = if action.is_empty() {
+                attacks.iter().find(|n| text.contains(&format!(" {} attack", n.to_ascii_lowercase()))).cloned().unwrap_or_default()
+            } else {
+                String::new()
+            };
+            (!attack.is_empty() || !action.is_empty()).then_some(rustpg2d_engine::srd::StatLegendary { name, attack, action, cost })
+        })
+        .collect()
+}
+
+/// Regeneration's numbers from its text: "The troll regains 10 hit points at the start of its
+/// turn. If the troll takes acid or fire damage, this trait doesn't function at the start of the
+/// troll's next turn. The troll dies only if it starts its turn with 0 hit points and doesn't
+/// regenerate."
+pub fn regeneration(text: &str) -> Option<rustpg2d_engine::srd::Regeneration> {
+    use rustpg2d_engine::srd::DamageType;
+    let l = text.to_ascii_lowercase();
+    let hp = number_after_word(&l, "regains ")? as i32;
+    let stopped_by = l
+        .split(". ")
+        .find(|s| s.contains("doesn't function") || s.contains("does not function"))
+        .and_then(|s| s.split("takes ").nth(1))
+        .map(|s| s.split(" damage").next().unwrap_or("").split(|c: char| !c.is_ascii_alphabetic()).filter_map(DamageType::parse).collect())
+        .unwrap_or_default();
+    Some(rustpg2d_engine::srd::Regeneration { hp, stopped_by, revives: l.contains("dies only if it starts its turn with 0 hit points") })
 }
 
 /// A monster's *Spellcasting* and *Innate Spellcasting* from the data's structured part: the DC,
@@ -2198,6 +2368,40 @@ impl SrdData {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Save actions, legendary actions and traits that act come from the data and the texts.
+    #[test]
+    fn monster_abilities_come_from_the_data() {
+        use rustpg2d_engine::skills::Shape;
+        use rustpg2d_engine::srd::{Ability, Condition, DamageType};
+        assert_eq!(action_area("exhales fire in a 60-foot cone").0.map(|a| (a.shape, a.feet)), Some((Shape::Cone, 60)));
+        assert_eq!(action_area("acid in a 30-foot line that is 5 feet wide").0.map(|a| (a.shape, a.feet)), Some((Shape::Line, 30)));
+        let around = action_area("Each creature within 10 ft. of the dragon must succeed");
+        assert_eq!((around.0.map(|a| (a.shape, a.feet)), around.1), (Some((Shape::Sphere, 10)), true));
+        assert_eq!(action_area("one creature it can see within 30 feet of it").2, 30);
+        let m: Value = serde_json::json!({
+            "actions": [
+                {"name": "Tail", "attack_bonus": 14, "desc": "Melee Weapon Attack: +14 to hit, reach 15 ft."},
+                {"name": "Fire Breath", "desc": "The dragon exhales fire in a 60-foot cone. Each creature in that area must make a DC 21 Dexterity saving throw, taking 63 (18d6) fire damage on a failed save, or half as much damage on a successful one.",
+                 "usage": {"type": "recharge on roll", "dice": "1d6", "min_value": 5},
+                 "dc": {"dc_type": {"index": "dex"}, "dc_value": 21, "success_type": "none"},
+                 "damage": [{"damage_type": {"index": "fire"}, "damage_dice": "18d6"}]}],
+            "legendary_actions": [
+                {"name": "Detect", "desc": "The dragon makes a Wisdom (Perception) check."},
+                {"name": "Tail Attack", "desc": "The dragon makes a tail attack."},
+                {"name": "Wing Attack (Costs 2 Actions)", "desc": "Each creature within 10 ft. of the dragon must succeed on a DC 22 Dexterity saving throw or take 15 (2d6 + 8) bludgeoning damage and be knocked prone.",
+                 "dc": {"dc_type": {"index": "dex"}, "dc_value": 22, "success_type": "none"}, "damage": [{"damage_type": {"index": "bludgeoning"}, "damage_dice": "2d6+8"}]}]});
+        let acts = monster_actions(&m);
+        let breath = &acts[0];
+        // (The data says "none"; the text's "half as much" wins.)
+        assert_eq!((breath.name.as_str(), breath.save, breath.dc, breath.dice.as_str(), breath.damage_type, breath.half, breath.recharge), ("Fire Breath", Ability::Dex, 21, "18d6", Some(DamageType::Fire), true, 5));
+        let wing = &acts[1];
+        assert!(wing.legendary_only && wing.around && wing.condition == Some(Condition::Prone));
+        let leg = monster_legendary(&m);
+        assert_eq!(leg.iter().map(|l| (l.name.as_str(), l.attack.as_str(), l.action.as_str(), l.cost)).collect::<Vec<_>>(), [("Tail Attack", "Tail", "", 1), ("Wing Attack", "", "Wing Attack", 2)]);
+        let r = regeneration("The troll regains 10 hit points at the start of its turn. If the troll takes acid or fire damage, this trait doesn't function at the start of the troll's next turn. The troll dies only if it starts its turn with 0 hit points and doesn't regenerate.").unwrap();
+        assert_eq!((r.hp, r.stopped_by, r.revives), (10, vec![DamageType::Acid, DamageType::Fire], true));
+    }
 
     #[test]
     fn spellcasting_comes_from_the_structured_data() {

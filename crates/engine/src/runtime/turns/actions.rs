@@ -83,12 +83,16 @@ impl Game {
         // (A party member's magic items on saves: the hero's are in its training.)
         let items = if save && who != Who::Player { self.bonus_of(who, crate::classes::BonusTo::Saves) } else { 0 };
         let aura = if save { self.aura_bonus(who) + self.buff_roll(who, false) + items } else { 0 };
-        let rec = self.who_check_once(who, what, dc, save, aura)?;
+        let mut rec = self.who_check_once(who, what, dc, save, aura)?;
         // A failed save: Bardic Inspiration's die, Indomitable's second roll.
         if save {
             let (w, d) = (what.to_string(), dc);
             if let Some(r) = self.rescue_save(who, &rec, move |g| g.who_check_once(who, &w, d, true, aura)) {
                 return Some(r);
+            }
+            // (Legendary Resistance: a monster's failed save becomes a success.)
+            if rec.success == Some(false) && who != Who::Player && self.legendary_resist(who) {
+                rec.success = Some(true);
             }
         }
         Some(rec)

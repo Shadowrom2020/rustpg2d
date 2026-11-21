@@ -126,6 +126,11 @@ nothing. *Search* looks around on purpose. Walk around a found trap, or stand ne
 E to disarm it with your **thieves' tools** (a Dexterity check: fail badly and it springs). A found
 trapped chest is disarmed first; press E again to open it.
 
+**Poisons**: use a vial of injury or contact poison (from the inventory or *Use* on the action
+bar) to coat your piercing or slashing weapon, or your arrows; the next hit poisons the target. In
+a fight that is your action. Antitoxin gives you advantage on saving throws against poison for an
+hour.
+
 **Weapons and armor**: the item's line in the character window tells its dice and properties
 (`1d8 (1d10) · Versatile`: more damage with the left hand free) or its armor class (`Heavy armor ·
 AC 16 · STR 13`). Armor you aren't trained in makes you clumsy (disadvantage on Strength and

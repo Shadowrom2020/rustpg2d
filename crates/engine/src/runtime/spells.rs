@@ -696,11 +696,13 @@ impl Game {
                         B::Haste => crate::lang::tr_ui("Haste").into_owned(),
                         B::Resistance { types } => format!("{} {}", crate::lang::tr_ui("Resistance"), types.join(", ")),
                         B::AbilityScore { ability, score } => format!("{} {score}", ability.short()),
+                        B::PoisonSaves => crate::lang::tr_ui("Advantage on saves against poison").into_owned(),
                     });
                 }
                 P::Light { .. } => out.push(crate::lang::tr_ui("Light").into_owned()),
                 P::Unlock => out.push(crate::lang::tr_ui("Opens locks").into_owned()),
                 P::Stabilize => out.push(crate::lang::tr_ui("Stabilizes").into_owned()),
+                P::Cure { conditions } => out.push(format!("{} {}", crate::lang::tr_ui("Ends"), conditions.iter().map(|c| crate::lang::tr_ui(c.name()).into_owned()).collect::<Vec<_>>().join(" / "))),
                 P::Script { .. } => {}
             }
         }

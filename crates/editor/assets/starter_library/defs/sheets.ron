@@ -411,4 +411,10 @@
         frame_w: 32,
         frame_h: 32,
     ),
+    (
+        id: "srd_poisons",
+        image: "sprites/srd_poisons.png",
+        frame_w: 32,
+        frame_h: 32,
+    ),
 ]

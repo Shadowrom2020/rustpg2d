@@ -2275,6 +2275,13 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
             ui.label("On a failure:");
             ui.indent(format!("{id}/ce"), |ui| actions_ui(ui, &format!("{id}/else"), otherwise, refs));
         }
+        Action::Poison { target, item } => {
+            target_field(ui, id, target, refs);
+            labeled(ui, "poison", |ui| {
+                suggest(ui, &format!("{id}/poison"), item, &refs.items, 140.0);
+            });
+            ui.weak("(an item with a Poison section: its Constitution save, damage and conditions; \"player\", \"self\" or a character's name)");
+        }
         Action::DisarmTrap { target } => {
             labeled(ui, "trap", |ui| {
                 ui.add(egui::TextEdit::singleline(target).desired_width(120.0).hint_text("zone or prop name"));
@@ -2881,6 +2888,141 @@ pub fn damage_type_combo(ui: &mut egui::Ui, id: &str, t: &mut Option<DamageType>
 
 /// A condition to apply: the condition (or none: only ongoing damage / healing), how long, the
 /// exhaustion levels, a saving throw that keeps it off, and damage or healing every round.
+/// An item's *Poison* section (the SRD's poisons): a preset, how it gets in, the CON save's
+/// DC, its damage and the conditions of a failed save (and of one failed by 5 or more), and
+/// how long a coating lasts.
+pub fn poison_ui(ui: &mut Ui, id: &str, p: &mut rustpg2d_engine::srd::poisons::PoisonDef) {
+    use rustpg2d_engine::srd::poisons::{PoisonDef, PoisonKind, PRESETS};
+    ui.horizontal(|ui| {
+        ui.label("Preset");
+        let shown = PRESETS.iter().find(|x| x.0 == p.preset).map_or("(own)", |x| x.1);
+        egui::ComboBox::from_id_salt(format!("{id}/preset")).selected_text(shown).show_ui(ui, |ui| {
+            for (pid, name, _) in PRESETS {
+                if ui.selectable_label(p.preset == pid, name).clicked() {
+                    if let Some(x) = PoisonDef::preset(pid) {
+                        *p = x;
+                    }
+                }
+            }
+        });
+        ui.weak("(the SRD's poisons; change anything after)");
+    });
+    ui.horizontal(|ui| {
+        ui.label("Kind");
+        egui::ComboBox::from_id_salt(format!("{id}/kind")).selected_text(p.kind.label()).show_ui(ui, |ui| {
+            for k in PoisonKind::ALL {
+                ui.selectable_value(&mut p.kind, k, k.label());
+            }
+        });
+        ui.weak(if p.kind.coats() { "(using it coats the weapon in hand or its ammunition)" } else { "(given by Expose to poison: a drink, a gas)" });
+    });
+    ui.horizontal(|ui| {
+        ui.label("CON save");
+        ui.add(egui::DragValue::new(&mut p.dc).range(1..=30).prefix("DC "));
+        ui.label("damage");
+        ui.add(egui::TextEdit::singleline(&mut p.damage).desired_width(60.0).hint_text("3d6"));
+        ui.label("poison");
+        ui.checkbox(&mut p.half, "half on a success");
+    });
+    let list = |ui: &mut Ui, salt: &str, label: &str, specs: &mut Vec<ConditionSpec>| {
+        ui.label(label);
+        let mut remove = None;
+        for (k, e) in specs.iter_mut().enumerate() {
+            ui.horizontal(|ui| {
+                effect_spec_ui(ui, &format!("{id}/{salt}{k}"), e);
+                if ui.small_button("x").on_hover_text("Remove").clicked() {
+                    remove = Some(k);
+                }
+            });
+        }
+        if let Some(k) = remove {
+            specs.remove(k);
+        }
+        if ui.small_button("+ Condition").clicked() {
+            specs.push(ConditionSpec::new(SrdCondition::Poisoned, 3600.0));
+        }
+    };
+    list(ui, "fx", "On a failed save:", &mut p.effects);
+    list(ui, "worse", "Failed by 5 or more, also:", &mut p.worse);
+    if p.kind.coats() {
+        ui.horizontal(|ui| {
+            ui.label("A coating lasts");
+            ui.add(egui::DragValue::new(&mut p.minutes).range(0.0..=1440.0).speed(0.5).suffix(" min"));
+            ui.weak("(0 = until a hit delivers it)");
+        });
+    }
+}
+
+/// A boon or bane (a spell's Buff part, an effect's boon): its kind and its value.
+pub fn buff_ui(ui: &mut Ui, id: &str, buff: &mut rustpg2d_engine::srd::conditions::Buff) {
+    use rustpg2d_engine::srd::conditions::Buff as B;
+    use rustpg2d_engine::srd::Ability;
+    let names = ["Attack die", "Save die", "AC +", "AC base", "Speed", "Haste", "Resistance", "Ability score", "Poison saves"];
+    let mut kind = match buff {
+        B::AttackDie { .. } => 0,
+        B::SaveDie { .. } => 1,
+        B::Ac { .. } => 2,
+        B::AcBase { .. } => 3,
+        B::Speed { .. } => 4,
+        B::Haste => 5,
+        B::Resistance { .. } => 6,
+        B::AbilityScore { .. } => 7,
+        B::PoisonSaves => 8,
+    };
+    let before = kind;
+    egui::ComboBox::from_id_salt(format!("{id}/kind")).selected_text(names[kind]).show_ui(ui, |ui| {
+        for (i, n) in names.iter().enumerate() {
+            ui.selectable_value(&mut kind, i, *n);
+        }
+    });
+    if kind != before {
+        *buff = match kind {
+            0 => B::AttackDie { dice: "1d4".into(), minus: false },
+            1 => B::SaveDie { dice: "1d4".into(), minus: false },
+            2 => B::Ac { bonus: 2 },
+            3 => B::AcBase { base: 13 },
+            4 => B::Speed { feet: 10 },
+            5 => B::Haste,
+            6 => B::Resistance { types: vec!["fire".into()] },
+            8 => B::PoisonSaves,
+            _ => B::AbilityScore { ability: Ability::Str, score: 21 },
+        };
+    }
+    match buff {
+        B::AttackDie { dice, minus } | B::SaveDie { dice, minus } => {
+            ui.add(egui::TextEdit::singleline(dice).desired_width(50.0));
+            ui.checkbox(minus, "taken off (a bane)");
+        }
+        B::Ac { bonus } => {
+            ui.add(egui::DragValue::new(bonus).range(-10..=10));
+        }
+        B::AcBase { base } => {
+            ui.add(egui::DragValue::new(base).range(10..=20)).on_hover_text("+ DEX, without body armor");
+        }
+        B::Speed { feet } => {
+            ui.add(egui::DragValue::new(feet).range(-60..=60).speed(5).suffix(" ft"));
+        }
+        B::Haste => {}
+        B::PoisonSaves => {
+            ui.weak("advantage on saving throws against poison");
+        }
+        B::Resistance { types } => {
+            let mut t = types.join(", ");
+            if ui.add(egui::TextEdit::singleline(&mut t).desired_width(160.0)).changed() {
+                *types = t.split(',').map(|x| x.trim().to_string()).filter(|x| !x.is_empty()).collect();
+            }
+        }
+        B::AbilityScore { ability, score } => {
+            egui::ComboBox::from_id_salt(format!("{id}/ab")).selected_text(ability.short()).show_ui(ui, |ui| {
+                for a in Ability::ALL {
+                    ui.selectable_value(ability, a, a.short());
+                }
+            });
+            ui.add(egui::DragValue::new(score).range(1..=30)).on_hover_text("The score becomes at least this");
+        }
+    }
+}
+
 pub fn effect_spec_ui(ui: &mut egui::Ui, id: &str, spec: &mut ConditionSpec) {
     ui.vertical(|ui| {
         ui.horizontal(|ui| {
@@ -2892,7 +3034,7 @@ pub fn effect_spec_ui(ui: &mut egui::Ui, id: &str, spec: &mut ConditionSpec) {
                 }
             }
             ui.label("for");
-            ui.add(egui::DragValue::new(&mut spec.seconds).range(0.0..=3600.0).speed(0.1).suffix(" s")).on_hover_text("0 = until it is removed (or a rest ends it)");
+            ui.add(egui::DragValue::new(&mut spec.seconds).range(0.0..=172800.0).speed(0.1).suffix(" s")).on_hover_text("0 = until it is removed (or a rest ends it); 3600 = an hour");
             if spec.seconds <= 0.0 {
                 ui.weak("(until removed)");
             }
@@ -2922,6 +3064,15 @@ pub fn effect_spec_ui(ui: &mut egui::Ui, id: &str, spec: &mut ConditionSpec) {
             if let Some(o) = &mut spec.ongoing {
                 ui.add(egui::TextEdit::singleline(&mut o.dice).desired_width(60.0)).on_hover_text("Dice like 1d4, 2d6 or a number");
                 damage_type_combo(ui, &format!("{id}/dt"), &mut o.damage_type, "Healing");
+            }
+        });
+        ui.horizontal(|ui| {
+            let mut on = spec.buff.is_some();
+            if ui.checkbox(&mut on, "Boon / bane").on_hover_text("A boon or bane while it lasts: a die on attacks or saves, AC, speed, a resistance, advantage against poison (Antitoxin)").changed() {
+                spec.buff = on.then_some(rustpg2d_engine::srd::conditions::Buff::PoisonSaves);
+            }
+            if let Some(b) = &mut spec.buff {
+                buff_ui(ui, &format!("{id}/buff"), b);
             }
         });
     });

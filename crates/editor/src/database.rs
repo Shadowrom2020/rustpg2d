@@ -1322,6 +1322,15 @@ fn item_form(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
         ui.weak("(healing items, whose 'On use' heals: with companions around the player chooses whom to heal)");
     });
     ui.separator();
+    let mut poisoned = d.poison.is_some();
+    if ui.checkbox(&mut poisoned, "Poison").on_hover_text("The SRD's poisons: injury and contact poisons coat the weapon in hand when used (the next hit delivers them); ingested and inhaled ones are given by the Expose to poison action. A Constitution save, damage, conditions.").changed() {
+        d.poison = poisoned.then(|| rustpg2d_engine::srd::poisons::PoisonDef::preset("poison-basic-vial").unwrap_or_default());
+    }
+    if let Some(p) = d.poison.as_mut() {
+        let id = format!("poison_{}", d.id);
+        widgets::poison_ui(ui, &id, p);
+    }
+    ui.separator();
     crop_ui(ui, d, cx);
     ui.separator();
     ui.heading("Equipment");
@@ -5682,65 +5691,7 @@ fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::Sp
                 }
                 P::Buff { buff } => {
                     ui.strong("Boon / bane");
-                    let names = ["Attack die", "Save die", "AC +", "AC base", "Speed", "Haste", "Resistance", "Ability score"];
-                    let mut kind = match buff {
-                        B::AttackDie { .. } => 0,
-                        B::SaveDie { .. } => 1,
-                        B::Ac { .. } => 2,
-                        B::AcBase { .. } => 3,
-                        B::Speed { .. } => 4,
-                        B::Haste => 5,
-                        B::Resistance { .. } => 6,
-                        B::AbilityScore { .. } => 7,
-                    };
-                    let before = kind;
-                    egui::ComboBox::from_id_salt(("sp_buff", k)).selected_text(names[kind]).show_ui(ui, |ui| {
-                        for (i, n) in names.iter().enumerate() {
-                            ui.selectable_value(&mut kind, i, *n);
-                        }
-                    });
-                    if kind != before {
-                        *buff = match kind {
-                            0 => B::AttackDie { dice: "1d4".into(), minus: false },
-                            1 => B::SaveDie { dice: "1d4".into(), minus: false },
-                            2 => B::Ac { bonus: 2 },
-                            3 => B::AcBase { base: 13 },
-                            4 => B::Speed { feet: 10 },
-                            5 => B::Haste,
-                            6 => B::Resistance { types: vec!["fire".into()] },
-                            _ => B::AbilityScore { ability: Ability::Str, score: 21 },
-                        };
-                    }
-                    match buff {
-                        B::AttackDie { dice, minus } | B::SaveDie { dice, minus } => {
-                            ui.add(egui::TextEdit::singleline(dice).desired_width(50.0));
-                            ui.checkbox(minus, "taken off (a bane)");
-                        }
-                        B::Ac { bonus } => {
-                            ui.add(egui::DragValue::new(bonus).range(-10..=10));
-                        }
-                        B::AcBase { base } => {
-                            ui.add(egui::DragValue::new(base).range(10..=20)).on_hover_text("+ DEX, without body armor");
-                        }
-                        B::Speed { feet } => {
-                            ui.add(egui::DragValue::new(feet).range(-60..=60).speed(5).suffix(" ft"));
-                        }
-                        B::Haste => {}
-                        B::Resistance { types } => {
-                            let mut t = types.join(", ");
-                            if ui.add(egui::TextEdit::singleline(&mut t).desired_width(160.0)).changed() {
-                                *types = t.split(',').map(|x| x.trim().to_string()).filter(|x| !x.is_empty()).collect();
-                            }
-                        }
-                        B::AbilityScore { ability, score } => {
-                            egui::ComboBox::from_id_salt(("sp_buff_ab", k)).selected_text(ability.short()).show_ui(ui, |ui| {
-                                for a in Ability::ALL {
-                                    ui.selectable_value(ability, a, a.short());
-                                }
-                            });
-                            ui.add(egui::DragValue::new(score).range(1..=30)).on_hover_text("The score becomes at least this");
-                        }
-                    }
+                    widgets::buff_ui(ui, &format!("sp_buff{k}"), buff);
                 }
                 P::Light { radius } => {
                     ui.strong("Light");
@@ -5751,6 +5702,21 @@ fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::Sp
                 }
                 P::Stabilize => {
                     ui.strong("Stabilizes").on_hover_text("A creature at 0 hit points stops making death saving throws (Spare the Dying)");
+                }
+                P::Cure { conditions } => {
+                    ui.strong("Ends").on_hover_text("Ends the first of these conditions the target has (Lesser Restoration: blinded, deafened, paralyzed or poisoned)");
+                    ui.horizontal_wrapped(|ui| {
+                        for c in Condition::ALL.into_iter().filter(|c| !matches!(c, Condition::Any | Condition::Exhaustion)) {
+                            let mut on = conditions.contains(&c);
+                            if ui.checkbox(&mut on, c.name()).changed() {
+                                if on {
+                                    conditions.push(c);
+                                } else {
+                                    conditions.retain(|x| *x != c);
+                                }
+                            }
+                        }
+                    });
                 }
                 P::Script { function } => {
                     ui.strong("Script");
@@ -5765,7 +5731,7 @@ fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::Sp
     }
     ui.horizontal(|ui| {
         ui.label("Add:");
-        let templates: [(&str, P); 12] = [
+        let templates: [(&str, P); 13] = [
             ("Attack", P::Attack { ranged: true }),
             ("Save", P::Save { ability: Ability::Dex, half: true }),
             ("Damage", P::Damage { by_level: vec![(1, "1d8".into())], damage_type: None }),
@@ -5777,6 +5743,7 @@ fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::Sp
             ("Light", P::Light { radius: 4.0 }),
             ("Unlock", P::Unlock),
             ("Stabilize", P::Stabilize),
+            ("Cure", P::Cure { conditions: vec![Condition::Poisoned] }),
             ("Script", P::Script { function: String::new() }),
         ];
         for (name, t) in templates {

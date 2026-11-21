@@ -503,7 +503,7 @@ impl Renamer<'_> {
     fn actions(&mut self, acts: &mut [Action]) {
         crate::events::walk_actions_mut(acts, &mut |a| match a {
             Action::GiveItem { item, .. } | Action::TakeItem { item, .. } => self.fix(RefKind::Item, item),
-            Action::Equip { item, .. } | Action::GiveItemTo { item, .. } | Action::TakeItemFrom { item, .. } | Action::ShopStock { item, .. } => self.fix(RefKind::Item, item),
+            Action::Equip { item, .. } | Action::GiveItemTo { item, .. } | Action::TakeItemFrom { item, .. } | Action::ShopStock { item, .. } | Action::Poison { item, .. } => self.fix(RefKind::Item, item),
             Action::Teleport { map, .. } | Action::SetSpawners { map, .. } | Action::SetWeather { map, .. } => self.fix(RefKind::Map, map),
             Action::PlaySound { sound, .. } | Action::PlayMusic { sound, .. } | Action::PlayMusicEffect { sound, .. } => self.fix(RefKind::Sound, sound),
             Action::CallCommon { id } => self.fix(RefKind::CommonEvent, id),

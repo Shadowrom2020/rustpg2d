@@ -1023,6 +1023,9 @@ pub enum Action {
     /// Disarms the trap of the zone or prop named `target` on this map (a lever, a hidden
     /// switch): it no longer springs.
     DisarmTrap { target: TargetName },
+    /// The SRD's poisons: gives poison `item` (an item with a poison) to the hero or a character: its
+    /// Constitution save, damage and conditions (a drugged ale, a gas trap).
+    Poison { target: TargetName, item: String },
 }
 
 fn player_target() -> TargetName {
@@ -1238,6 +1241,7 @@ impl Action {
             Action::Contest { .. } => "Contest",
             Action::DamageProp { .. } => "Damage prop",
             Action::DisarmTrap { .. } => "Disarm trap",
+            Action::Poison { .. } => "Expose to poison",
         }
     }
 
@@ -1363,6 +1367,7 @@ impl Action {
             Action::Contest { what: "athletics".into(), target: String::new(), against: String::new(), then: Vec::new(), otherwise: Vec::new() },
             Action::DamageProp { target: "self".into(), amount: 5, damage_type: Some(crate::srd::DamageType::Bludgeoning) },
             Action::DisarmTrap { target: String::new() },
+            Action::Poison { target: "player".into(), item: "poison-basic-vial".into() },
         ]
     }
 }

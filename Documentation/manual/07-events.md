@@ -211,8 +211,12 @@ across map changes and in save games.
 - **Apply condition**: a [condition](09-gameplay.md#conditions-and-damage) on the player or a
   character (poisoned, prone, exhaustion with its levels…) for some seconds (0 = until removed),
   with an optional **saving throw** that keeps it off (ability and DC) and **every round** damage
-  of a type or healing (`1d4` fire, `2` healing). *None* as the condition = only the per-round part.
-  Until 0.27 *Apply effect*.
+  of a type or healing (`1d4` fire, `2` healing), and a **boon or bane** for as long (a die on
+  attacks or saves, AC, speed, a resistance, advantage against poison: the library's Antitoxin).
+  *None* as the condition = only the per-round part or the boon. Until 0.27 *Apply effect*.
+- **Expose to poison** (a character or the player, an item with a *Poison* section): its
+  Constitution save, then its damage and conditions ([Gameplay › Poisons](09-gameplay.md#poisons)):
+  a drugged ale, a gas trap, a poisoned well. `poison()` in scripts. *Since 0.32*
 - **Remove condition**: one condition, or all of them with their damage per round. Until 0.27
   *Cure effect*.
 - **Short rest**: opens the rest window, where the hero spends hit dice; an hour passes.

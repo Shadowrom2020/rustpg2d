@@ -980,6 +980,10 @@ pub struct ItemDef {
     /// aren't silvered" (a werewolf's).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub silvered: bool,
+    /// A poison (the SRD's): injury and contact ones coat the weapon in hand when used,
+    /// ingested and inhaled ones are given by *Expose to poison*.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub poison: Option<crate::srd::poisons::PoisonDef>,
 }
 
 /// Animation names of an item (`ItemDef::anims`); "" = by its kind ([`ItemAnims::estimate`]),
@@ -1083,6 +1087,7 @@ impl Default for ItemDef {
             magic: None,
             uses: 0,
             silvered: false,
+            poison: None,
         }
     }
 }

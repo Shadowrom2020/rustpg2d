@@ -345,6 +345,9 @@ pub enum SpellPart {
     Script { function: String },
     /// Stabilizes a creature at 0 hit points (Spare the Dying): no more death saves.
     Stabilize,
+    /// Ends the first of these conditions the target has (Lesser Restoration: blinded, deafened,
+    /// paralyzed or poisoned; Protection from Poison: poisoned).
+    Cure { conditions: Vec<crate::srd::conditions::Condition> },
 }
 
 fn yes() -> bool {

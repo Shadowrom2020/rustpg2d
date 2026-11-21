@@ -34,7 +34,9 @@ impl Game {
         }
         // The saving throw keeps it off (the roll shows on screen and in the journal).
         if let Some(sv) = &spec.save {
-            if self.world.check(&sv.ability, sv.dc, crate::srd::Mode::Normal, true).is_some_and(|r| r.success == Some(true)) {
+            // (Against being poisoned: Antitoxin and a dwarf's resilience give advantage.)
+            let mode = if spec.condition == Some(Condition::Poisoned) || spec.ongoing.as_ref().is_some_and(|o| o.damage_type == Some(crate::srd::DamageType::Poison)) { self.poison_save_mode(super::turns::Who::Player) } else { crate::srd::Mode::Normal };
+            if self.world.check(&sv.ability, sv.dc, mode, true).is_some_and(|r| r.success == Some(true)) {
                 return;
             }
         }

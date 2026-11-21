@@ -57,6 +57,7 @@ is full, assigns it and opens it for drawing.
 | **Icon** | The inventory picture |
 | **Use on** | *Player* (the default), *Player or companion* (asks whom to heal when a companion is around) or *Companions* |
 | **Magic item** | Rarity; **Attunement** (required, and *by* whom: class or race ids, `spellcaster`; empty = anyone); **Bonus** (+1 to +3: a weapon's or ammunition's attack and damage, armor's or a shield's AC); **Charges** and what comes back **at dawn** (dice such as `1d6+1`, `all`), *may crumble* (the last charge rolls a d20); **Spells cast from it** (spell, charges, slot level, *up to* a higher slot for one more charge per level, its own DC); **Effects while worn or held** (the class features' effects as RON: `Bonus(to: Ac, amount: 1)`, `AbilityScore(ability: Str, score: 21)`, `Resistance(types: ["fire"])`, `CheckAdvantage(skill: "stealth")`, `Darkvision(feet: 60)`…); **Using it**: spell parts (healing, boons, conditions) and how long they last. Without any of them it is a story item ([Gameplay › Magic items](09-gameplay.md#magic-items)) |
+| **Poison** | The SRD's poisons (since 0.32): a **Preset** fills the fields from the SRD's poisons (the basic vial, Assassin's Blood … Wyvern Poison); **Kind**: *Injury* and *Contact* poisons coat the weapon in hand (or the ammunition of a bow) when used, *Ingested* and *Inhaled* ones are given by the *Expose to poison* action; the **CON save**'s DC, its **damage** (poison) with *half on a success*; the conditions **on a failed save** and those **failed by 5 or more** (Drow Poison's sleep); how long **a coating lasts** (0 = until a hit delivers it) ([Gameplay › Poisons](09-gameplay.md#poisons)) |
 | **Equipment** | *None, Weapon, Helmet, Body armor, Left hand, Clothing, Tool, Backpack* or *Worn item* (a ring, amulet, cloak, belt, boots, gloves or bracers: its slot in *Worn on*) (below) |
 | **Seed** | Makes it plantable on farm plots: growth stages with a sprite and hours each, and the harvest ([Farming](09-gameplay.md#farming)) |
 | **Magic** | **Teaches spell**: a spell scroll (consumed) or book: a wizard copies the spell, another caster whose class lists it casts it once from a scroll, nobody else can use it |
@@ -447,7 +448,8 @@ cone or line and its size), components, a duration in rounds with **concentratio
 the **classes** whose list has it, **story only** (only events and scripts cast it), its **parts**
 (what it does, in order: a spell attack or a saving throw, then damage and healing by slot level as
 `1:1d10,5:2d10` with `MOD` for the spellcasting modifier, temporary hit points, a condition, the
-number of targets, a boon or bane, light, unlocking, a script function `(caster, x, y, slot)`), its
+number of targets, a boon or bane, light, unlocking, *ends* conditions (the first of those ticked
+the target has: Lesser Restoration, Protection from Poison), a script function `(caster, x, y, slot)`), its
 **look** (a projectile, an impact effect sheet and its scale, a sound) and an icon. Spells, recipes
 and achievements belong to the game systems they drive: [Spellcasting](09-gameplay.md#spellcasting),
 [Crafting](09-gameplay.md#crafting-cooking-and-blacksmithing) and

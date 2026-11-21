@@ -257,12 +257,13 @@ impl Game {
         }
     }
 
-    /// An item the Use list offers: consumables, items with *Use* triggers, scrolls and items
-    /// that cast spells (not gear to wear: the inventory equips that).
+    /// An item the Use list offers: consumables, items with *Use* triggers, scrolls, items
+    /// that cast spells and poisons that coat a weapon (not gear to wear: the inventory equips that).
     fn usable_from_bar(&self, id: &str) -> bool {
         let Some(d) = self.project.db.item(id) else { return false };
         let casts = d.magic.as_ref().is_some_and(|m| !m.spells.is_empty());
-        (d.consumable || !d.on_use.is_empty() || !d.teaches.is_empty() || casts) && (self.project.db.slot_of(id).is_none() || casts) && d.coin_cp == 0
+        let coats = d.poison.as_ref().is_some_and(|p| p.kind.coats());
+        (d.consumable || !d.on_use.is_empty() || !d.teaches.is_empty() || casts || coats) && (self.project.db.slot_of(id).is_none() || casts) && d.coin_cp == 0
     }
 
     fn list_rects(&self, list: &BarList) -> (Rect, Vec<Rect>) {

@@ -545,6 +545,21 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - The starter library's *Old Chest* (`chest_trapped`, a poison needle) and *Dart statue*; the
   example's mine has a hidden pit, a dart plate and a trapped chest.
 
+### Poisons (SRD 5.1)
+- Items can be the SRD's **poisons** (*Database › Items › Poison*): contact, ingested, inhaled or
+  injury, a Constitution save, damage, conditions (and worse ones when the save fails by 5 or
+  more). Using an injury or contact poison coats the weapon in hand or the next arrows; the next
+  hit delivers it (the basic vial dries after a minute). The *Expose to poison* action and
+  `poison()` give any poison to the hero or a character. A creature a poison put to sleep wakes
+  when hurt; the hero passing out outside a fight sleeps the hours away.
+- Advantage on saves against poison: a new boon (Antitoxin, Protection from Poison) and races that
+  resist poison (dwarves, stout halflings). *Apply effect* can now give boons too.
+- Spells can **end conditions** (a new spell part): Lesser Restoration is no longer story-only,
+  Protection from Poison ends poisoned.
+- The starter library has the SRD's 14 poisons with their own vials, a working Potion of Poison
+  and Antitoxin; the example's forest camp has a Goblin Poisoner, and Wren sells Antitoxin and
+  basic poison. `status` prints `coating=`.
+
 ### Art
 - The male **dragonborn** has a new model (example and starter library) with its own walk, idle,
   sword attack and spell-casting clips; hurt, sitting, sneaking and the weapon animations still come

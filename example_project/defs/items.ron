@@ -4662,4 +4662,63 @@
         value: 1,
         weight: 1.0,
     ),
+    (
+        id: "antitoxin-vial",
+        name: "Antitoxin (vial)",
+        description: "A creature that drinks this vial of liquid gains advantage on saving throws against poison for 1 hour. It confers no benefit to undead or constructs.",
+        icon: (
+            sheet: "srd_gear",
+            frame: 33,
+        ),
+        consumable: true,
+        on_use: [
+            (
+                on: UseItem(
+                    item: "",
+                ),
+                conditions: [],
+                actions: [
+                    ApplyEffect(
+                        target: "player",
+                        effect: (
+                            condition: None,
+                            seconds: 3600.0,
+                            buff: Some(PoisonSaves),
+                        ),
+                    ),
+                ],
+                once: false,
+            ),
+        ],
+        weapon: None,
+        armor: None,
+        max_stack: 10,
+        value: 50,
+        srd: "antitoxin-vial",
+        cost_cp: 5000,
+    ),
+    (
+        id: "poison-basic-vial",
+        name: "Poison, basic (vial)",
+        description: "You can use the poison in this vial to coat one slashing or piercing weapon or up to three pieces of ammunition. Applying the poison takes an action. A creature hit by the poisoned weapon or ammunition must make a DC 10 Constitution saving throw or take 1d4 poison damage. Once applied, the poison retains potency for 1 minute before drying.",
+        icon: (
+            sheet: "srd_gear",
+            frame: 33,
+        ),
+        consumable: false,
+        on_use: [],
+        weapon: None,
+        armor: None,
+        max_stack: 10,
+        value: 100,
+        srd: "poison-basic-vial",
+        cost_cp: 10000,
+        poison: Some((
+            preset: "poison-basic-vial",
+            kind: Injury,
+            dc: 10,
+            damage: "1d4",
+            minutes: 1.0,
+        )),
+    ),
 ]

@@ -245,7 +245,9 @@ crates/engine/src/      library: everything shared by game and editor
                         the quick bar is gone; status bar=), objects (props as SRD objects: PropDef.object,
                         breaking by the swing, forcing in locks.rs, RtEntity.obj_hp; status objects=), traps
                         (srd/traps.rs TrapSpec on ZoneKind::Trap / PropDef.trap, WorldState.traps by map/uid: noticing
-                        once a second, Search, E disarms, springing; status traps=)
+                        once a second, Search, E disarms, springing; status traps=), poisons (srd/poisons.rs
+                        PoisonDef on ItemDef.poison: coating the weapon (WorldState.coating, AttackSpec.poison),
+                        expose_to_poison (Action::Poison), poison saves' advantage, wake_poisoned; status coating=)
   quest.rs, inventory.rs, entity.rs, path.rs (A*), render/ (Assets, chunked tile renderer;
                         lighting.rs = day/night ambient, LightPass light map, tile_lights;
                         parallax.rs = Map.parallax image layers behind / over the map)

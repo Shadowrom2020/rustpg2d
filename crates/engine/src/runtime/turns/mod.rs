@@ -125,6 +125,8 @@ pub(super) struct Turn {
 #[derive(Clone, Debug, Default)]
 pub(super) struct AttackSpec {
     pub name: String,
+    /// The poison item coating the weapon or ammunition (`poisons.rs`; "" = none).
+    pub poison: String,
     pub bonus: i32,
     /// Damage dice with the modifier ("1d8+3").
     pub dice: String,
@@ -354,7 +356,7 @@ impl Game {
         }
     }
 
-    fn who_conditions_mut(&mut self, who: Who) -> Option<&mut Vec<crate::srd::ActiveCondition>> {
+    pub(super) fn who_conditions_mut(&mut self, who: Who) -> Option<&mut Vec<crate::srd::ActiveCondition>> {
         match who {
             Who::Player => Some(&mut self.world.effects),
             Who::Npc(uid) => self.loaded.entities.iter_mut().find(|e| e.uid == uid).map(|e| &mut e.effects),
@@ -751,6 +753,9 @@ impl Game {
         }
         // Conditions run a round: damage and healing per round fall now.
         let ticks = self.who_conditions_mut(f.who).map(|l| conditions::tick(l, conditions::ROUND)).unwrap_or_default();
+        if f.who == Who::Player {
+            self.tick_coating(conditions::ROUND);
+        }
         for (amount, t) in ticks {
             match t {
                 Some(t) => self.combat_damage(f.who, amount, Some(t), false, None),
@@ -1365,6 +1370,7 @@ impl Game {
             loading: w.has(P::Loading),
             disadvantage: small && w.has(P::Heavy),
             hit,
+            poison: self.coated_attack(&made_of),
             net: srd == "net",
             lance: srd == "lance",
             ..Default::default()
@@ -1596,6 +1602,10 @@ impl Game {
         }
         // A finishing blow of the player's in melee: Kill or Knock out? (held until chosen)
         if self.asks_knock_out(who, target, spec, &parts) {
+            // (The blow lands: a coating is spent on it.)
+            if who == Who::Player && !spec.poison.is_empty() {
+                self.world.coating = None;
+            }
             if let Some(c) = &mut self.fight {
                 c.pending_blow = Some(PendingBlow { who, target, parts, crit: roll.crit, hit: spec.hit });
             }
@@ -1605,6 +1615,10 @@ impl Game {
         self.combat_damage_parts(target, &parts, roll.crit, Some(who), spec.hit);
         self.on_hit_saves(who, target, spec);
         self.hit_riders(who, target, spec);
+        // A coated weapon or arrow: the poison's dose.
+        if !spec.poison.is_empty() {
+            self.deliver_coating(who, target, &spec.poison);
+        }
         // A net restrains a creature of Large size or smaller (escape DC 10).
         if spec.net && self.who_size(target) <= crate::srd::Size::Large {
             let tag = self.who_tag(who);
@@ -1725,6 +1739,8 @@ impl Game {
         if n <= 0 {
             return;
         }
+        // (Asleep from a poison: the hit wakes it.)
+        self.wake_poisoned(target);
         let kind = if party { NumberKind::Hurt } else if crit { NumberKind::Crit } else { NumberKind::Hit };
         self.damage_number(head, n, kind);
         self.audio.play(&self.project.config.sfx.hit);
@@ -2264,7 +2280,7 @@ fn first_dice(expr: &str) -> Option<(u32, u32)> {
 
 /// Rolls damage dice ("2d6+3"), at least 1; `reroll_low`: a die showing 1 or 2 is rolled again
 /// once (Great Weapon Fighting).
-fn roll_damage(expr: &str, reroll_low: bool) -> i32 {
+pub(super) fn roll_damage(expr: &str, reroll_low: bool) -> i32 {
     if reroll_low {
         if let Some((n, sides)) = first_dice(expr) {
             let rest: i32 = expr.trim().find(['+', '-']).map_or(0, |k| expr.trim()[k..].replace('+', "").trim().parse().unwrap_or(0));

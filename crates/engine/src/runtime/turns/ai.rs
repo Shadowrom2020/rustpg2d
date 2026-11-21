@@ -16,8 +16,8 @@ impl Game {
     /// The living foes of `who` that can be attacked (not at 0 HP unless the attacker focuses).
     pub(super) fn ai_foes(&self, who: Who, side: Side) -> Vec<Who> {
         let Some(c) = &self.fight else { return Vec::new() };
-        let _ = who;
-        c.order.iter().filter(|f| f.side != side && !f.out && !(f.hidden && side == Side::Enemy)).map(|f| f.who).collect()
+        // (A hidden hero is found by blindsight or tremorsense in range.)
+        c.order.iter().filter(|f| f.side != side && !f.out && !(f.hidden && side == Side::Enemy && !self.perceives(who, f.who))).map(|f| f.who).collect()
     }
 
     /// Whether `who` runs (morale): frightened, or hurt below its *flee below* share.

@@ -73,6 +73,18 @@ impl Game {
         (sight * light * sneak).max(NEAR_NOTICE.min(sight)) * self.ts()
     }
 
+    /// How far (tiles) character `i` notices the hero whatever the light, sneaking or
+    /// invisibility: its blindsight, tremorsense or truesight (a bat's 60 ft. = 12 tiles).
+    pub(super) fn sense_tiles(&self, i: usize) -> f32 {
+        let who = super::turns::Who::Npc(self.loaded.entities[i].uid);
+        let feet = [crate::srd::conditions::Sense::Blindsight, crate::srd::conditions::Sense::Tremorsense, crate::srd::conditions::Sense::Truesight].into_iter().map(|s| self.sense_of(who, s)).max().unwrap_or(0);
+        if feet == u32::MAX {
+            f32::MAX
+        } else {
+            feet as f32 / 5.0
+        }
+    }
+
     /// Whether character `i` hasn't noticed the player (an enemy that isn't hunting anyone).
     pub(super) fn unaware(&self, i: usize) -> bool {
         let e = &self.loaded.entities[i];

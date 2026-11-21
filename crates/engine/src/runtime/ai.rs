@@ -105,7 +105,8 @@ impl Game {
             d <= range && (d <= range * 0.5 || self.line_clear(eye, mid))
         };
         let player_mid = self.player.pos - vec2(0.0, self.player.hitbox.y / 2.0);
-        let near = self.player.pos.distance(pos) <= super::stealth::NEAR_NOTICE.min(sight) * ts;
+        // (Blindsight, tremorsense, truesight: noticed within their range, dark or sneaking.)
+        let near = self.player.pos.distance(pos) <= super::stealth::NEAR_NOTICE.min(sight).max(self.sense_tiles(i).min(sight)) * ts;
         near || notices(self.player.pos, player_mid, self.player_sight(sight)) || self.companion_targets().into_iter().any(|(c, mid)| notices(self.loaded.entities[c].body.pos, mid, sight * ts))
     }
 
@@ -269,7 +270,8 @@ impl Game {
         // The player and companions only when it is hostile to the player. The player is
         // noticed later while sneaking and in the dark (`stealth.rs`).
         if e.hostile && !charmed {
-            let near = self.player.pos.distance(pos) <= super::stealth::NEAR_NOTICE.min(sight) * ts;
+            // (Blindsight, tremorsense, truesight: noticed within their range, dark or sneaking.)
+            let near = self.player.pos.distance(pos) <= super::stealth::NEAR_NOTICE.min(sight).max(self.sense_tiles(i).min(sight)) * ts;
             if near || notices_within(self.player.pos, player_mid, self.player_sight(sight)) {
                 seen.push((Foe::Player, self.player.pos, player_mid));
             }

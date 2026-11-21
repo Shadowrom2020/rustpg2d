@@ -9,7 +9,7 @@ use macroquad::prelude::*;
 use super::Who;
 use crate::grid::TilePos;
 use crate::runtime::Game;
-use crate::srd::conditions::{self, Condition};
+use crate::srd::conditions::{self, Condition, Sense};
 
 /// Light below this is darkness (heavily obscured): caves, dark interiors without lights.
 pub(in crate::runtime) const DARK_BELOW: f32 = 0.08;
@@ -70,20 +70,37 @@ pub(in crate::runtime) enum Sight {
 }
 
 impl Game {
-    /// A fighter's darkvision in feet: the hero's race's, a stat block's (or its senses text's).
+    /// A fighter's darkvision in feet: the hero's (race, items, a spell), a stat block's (or its
+    /// senses text's), a spell on a character.
     pub(in crate::runtime) fn darkvision_of(&self, who: Who) -> u32 {
-        match who {
-            Who::Player => self.player_race().map_or(0, |r| r.darkvision_ft),
+        let own = match who {
+            Who::Player => self.darkvision_ft(),
             w => self.who_block(w).map_or(0, |b| b.darkvision_ft.max(sense_ft(&b.senses, "darkvision"))),
-        }
+        };
+        own.max(self.sense_of(who, Sense::Darkvision))
     }
 
-    /// A fighter's special sense in feet (blindsight, tremorsense, truesight); 0 = none.
-    pub(in crate::runtime) fn sense_of(&self, who: Who, name: &str) -> u32 {
-        match who {
-            Who::Player => 0,
-            w => self.who_block(w).map_or(0, |b| sense_ft(&b.senses, name)),
-        }
+    /// A fighter's special sense in feet (0 = none; `u32::MAX` = as far as it sees): a stat
+    /// block's senses text, the hero's items, and spells on either (*True Seeing*).
+    pub(in crate::runtime) fn sense_of(&self, who: Who, sense: Sense) -> u32 {
+        let wide = |feet: u32| if feet == 0 { u32::MAX } else { feet };
+        let spells = conditions::buffs(self.who_conditions(who)).filter_map(|b| if let conditions::Buff::Sense { sense: s, feet } = b { (*s == sense).then(|| wide(*feet)) } else { None }).max().unwrap_or(0);
+        let own = match who {
+            Who::Player => self.hero_traits().map_or(0, |t| t.senses.iter().filter(|(s, _)| *s == sense).map(|(_, f)| wide(*f)).max().unwrap_or(0)),
+            w if sense == Sense::SeeInvisible => self.who_block(w).map_or(0, |b| sense_ft(&b.senses, "see invisib")),
+            w => self.who_block(w).map_or(0, |b| sense_ft(&b.senses, sense.id())),
+        };
+        own.max(spells)
+    }
+
+    /// `viewer` perceives `target` without seeing it: blindsight or tremorsense in range (it
+    /// finds the hidden and the invisible, in darkness too).
+    pub(in crate::runtime) fn perceives(&self, viewer: Who, target: Who) -> bool {
+        let feet = self.who_dist(viewer, target) as u32 * 5;
+        [Sense::Blindsight, Sense::Tremorsense].into_iter().any(|s| {
+            let r = self.sense_of(viewer, s);
+            r > 0 && feet <= r
+        })
     }
 
     /// How obscured tile `t` is for `viewer` (and why): its light (darkvision within its range
@@ -114,17 +131,18 @@ impl Game {
     /// space decides, and an invisible one isn't seen.
     pub(in crate::runtime) fn sees(&self, viewer: Who, target: Who) -> Sight {
         let feet = self.who_dist(viewer, target) as u32 * 5;
-        let within = |name: &str| {
-            let r = self.sense_of(viewer, name);
+        let within = |s: Sense| {
+            let r = self.sense_of(viewer, s);
             r > 0 && feet <= r
         };
-        if within("blindsight") || within("truesight") || within("tremorsense") {
+        if within(Sense::Blindsight) || within(Sense::Truesight) || within(Sense::Tremorsense) {
             return Sight::Clear;
         }
         if conditions::rules(self.who_conditions(viewer)).blinded {
             return Sight::Unseen("blind");
         }
-        if conditions::has(self.who_conditions(target), Condition::Invisible) {
+        // (See Invisibility: the invisible are seen like anyone else.)
+        if conditions::has(self.who_conditions(target), Condition::Invisible) && !within(Sense::SeeInvisible) {
             return Sight::Unseen("invisible");
         }
         let best = self.who_space(target).into_iter().map(|t| self.tile_obscured(viewer, t)).min_by_key(|o| o.0).unwrap_or((Obscured::None, ""));

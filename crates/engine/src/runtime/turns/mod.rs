@@ -1504,10 +1504,11 @@ impl Game {
             long_range: spec.ranged && dist > spec.range,
             attacker_disadvantage: me.attack_disadvantage || spec.disadvantage || (!spec.spell && self.who_armor_untrained(who)) || (who == Who::Player && self.world.training.heavy_load) || (spec.lance && dist <= 1) || self.squeezed(who),
             // (Unseen: invisible, hidden, or the target can't see it: darkness, fog.)
-            attacker_unseen: me.invisible || c.and_then(|c| c.fighter(who)).is_some_and(|f| f.hidden) || !self.can_see(target, who),
+            // (Truesight, blindsight, See Invisibility: the invisible are seen; can_see knows.)
+            attacker_unseen: c.and_then(|c| c.fighter(who)).is_some_and(|f| f.hidden && !self.perceives(target, who)) || !self.can_see(target, who),
             target_prone: conditions::has(self.who_conditions(target), Condition::Prone),
             target_helpless: conditions::has(self.who_conditions(target), Condition::Restrained) || them.str_dex_saves_fail || them.blinded || self.squeezed(target),
-            target_unseen: them.invisible || !self.can_see(who, target),
+            target_unseen: !self.can_see(who, target),
             target_dodging: c.and_then(|c| c.fighter(target)).is_some_and(|f| f.dodging) && conditions::can_act(self.who_conditions(target)),
             // The Grappler feat: advantage against the creature it grapples (counted as a helping hand).
             // (And Reckless Attack: the attacker's on its STR melee attacks, the target's on all.)

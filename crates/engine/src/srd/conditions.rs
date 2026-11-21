@@ -411,6 +411,50 @@ pub enum Buff {
     AbilityScore { ability: crate::srd::Ability, score: i32 },
     /// Advantage on saving throws against poison (Antitoxin, Protection from Poison).
     PoisonSaves,
+    /// A special sense this far (feet; 0 = as far as it sees): *See Invisibility*, *True
+    /// Seeing*'s truesight, *Darkvision*.
+    Sense { sense: Sense, feet: u32 },
+}
+
+/// The SRD's special senses (a stat block's `senses` text names them; spells and items give the
+/// hero one).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum Sense {
+    /// Sees in darkness as in dim light, dim light as bright.
+    Darkvision,
+    /// Perceives without sight: in darkness, the invisible and the hidden.
+    Blindsight,
+    /// Feels what touches the ground: in darkness, the invisible and the hidden.
+    Tremorsense,
+    /// Sees in darkness and the invisible.
+    Truesight,
+    /// Sees the invisible (*See Invisibility*).
+    SeeInvisible,
+}
+
+impl Sense {
+    pub const ALL: [Sense; 5] = [Sense::Darkvision, Sense::Blindsight, Sense::Tremorsense, Sense::Truesight, Sense::SeeInvisible];
+
+    /// Its word in a stat block's senses text and in `status` (`blindsight`).
+    pub fn id(self) -> &'static str {
+        match self {
+            Sense::Darkvision => "darkvision",
+            Sense::Blindsight => "blindsight",
+            Sense::Tremorsense => "tremorsense",
+            Sense::Truesight => "truesight",
+            Sense::SeeInvisible => "see invisibility",
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Sense::Darkvision => "Darkvision",
+            Sense::Blindsight => "Blindsight",
+            Sense::Tremorsense => "Tremorsense",
+            Sense::Truesight => "Truesight",
+            Sense::SeeInvisible => "See invisibility",
+        }
+    }
 }
 
 impl Buff {
@@ -425,6 +469,14 @@ impl Buff {
             Buff::Resistance { types } => types.first().map_or("RES".into(), |t| t.chars().take(3).collect::<String>().to_ascii_uppercase()),
             Buff::AbilityScore { ability, .. } => ability.short().to_string(),
             Buff::PoisonSaves => "PSN".into(),
+            Buff::Sense { sense, .. } => match sense {
+                Sense::Darkvision => "DKV",
+                Sense::Blindsight => "BLS",
+                Sense::Tremorsense => "TRM",
+                Sense::Truesight => "TRU",
+                Sense::SeeInvisible => "INV",
+            }
+            .into(),
         }
     }
 }
@@ -913,6 +965,16 @@ mod tests {
         assert_eq!(remove(&mut l, Condition::Poisoned), 0);
         assert_eq!(remove(&mut l, Condition::Prone), 1);
         assert!(!has(&l, Condition::Any));
+    }
+
+    #[test]
+    fn a_sense_is_a_boon() {
+        let spec = ConditionSpec::boon(Buff::Sense { sense: Sense::Truesight, feet: 120 }, 3600.0);
+        assert_eq!(ron::from_str::<ConditionSpec>(&ron::to_string(&spec).unwrap()).unwrap(), spec);
+        let mut l = Vec::new();
+        apply(&mut l, &spec);
+        assert_eq!(l[0].badge(), "TRU 3600");
+        assert_eq!(Sense::ALL.map(Sense::id), ["darkvision", "blindsight", "tremorsense", "truesight", "see invisibility"]);
     }
 
     #[test]

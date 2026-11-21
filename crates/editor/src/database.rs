@@ -6004,6 +6004,9 @@ fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::Sp
                     ui.add(egui::DragValue::new(within_hours).range(0.0..=1_000_000.0).speed(0.1).suffix(" h"));
                     ui.checkbox(full, "all hit points");
                 }
+                P::RevealTraps => {
+                    ui.strong("Finds traps").on_hover_text("The armed traps within the spell's range are found (Find Traps)");
+                }
                 P::Dispel => {
                     ui.strong("Dispel").on_hover_text("Ends the spells on the target and the lasting areas at the aimed tile: up to the slot's level at once, a higher one with a check of the spellcasting ability against DC 10 + its level (Dispel Magic)");
                 }
@@ -6039,7 +6042,7 @@ fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::Sp
     }
     ui.horizontal(|ui| {
         ui.label("Add:");
-        let templates: [(&str, P); 22] = [
+        let templates: [(&str, P); 23] = [
             ("Attack", P::Attack { ranged: true }),
             ("Save", P::Save { ability: Ability::Dex, half: true }),
             ("Damage", P::Damage { by_level: vec![(1, "1d8".into())], damage_type: None }),
@@ -6058,6 +6061,7 @@ fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::Sp
             ("Teleport", P::Teleport),
             ("Dispel", P::Dispel),
             ("Counter", P::Counter),
+            ("Find traps", P::RevealTraps),
             ("Revive", P::Revive { within_hours: 1.0 / 60.0, full: false }),
             ("Lasting area", P::Lasting { effect: rustpg2d_engine::skills::Lasting { obscures: true, ..Default::default() } }),
             ("HP pool", P::HpPool { by_level: vec![(1, "5d8".into())], condition: Condition::Unconscious }),

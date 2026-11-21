@@ -2981,7 +2981,7 @@ pub fn poison_ui(ui: &mut Ui, id: &str, p: &mut rustpg2d_engine::srd::poisons::P
 pub fn buff_ui(ui: &mut Ui, id: &str, buff: &mut rustpg2d_engine::srd::conditions::Buff) {
     use rustpg2d_engine::srd::conditions::Buff as B;
     use rustpg2d_engine::srd::Ability;
-    let names = ["Attack die", "Save die", "AC +", "AC base", "Speed", "Haste", "Resistance", "Ability score", "Poison saves", "Sense", "Damage on hits", "Check die", "Check advantage", "Next attack", "Hope", "AC at least", "Weapon die", "Blur", "Mirror images", "Sanctuary", "Protection from types", "Death Ward", "Warding Bond", "Condition immunity"];
+    let names = ["Attack die", "Save die", "AC +", "AC base", "Speed", "Haste", "Resistance", "Ability score", "Poison saves", "Sense", "Damage on hits", "Check die", "Check advantage", "Next attack", "Hope", "AC at least", "Weapon die", "Blur", "Mirror images", "Sanctuary", "Protection from types", "Death Ward", "Warding Bond", "Condition immunity", "Feather fall", "Jump", "Spider climb", "Fly", "Tongues", "Skill bonus", "Detect"];
     let mut kind = match buff {
         B::AttackDie { .. } => 0,
         B::SaveDie { .. } => 1,
@@ -3007,6 +3007,13 @@ pub fn buff_ui(ui: &mut Ui, id: &str, buff: &mut rustpg2d_engine::srd::condition
         B::DeathWard => 21,
         B::Bond { .. } => 22,
         B::ConditionImmunity { .. } => 23,
+        B::FeatherFall => 24,
+        B::Jump { .. } => 25,
+        B::SpiderClimb => 26,
+        B::Fly { .. } => 27,
+        B::Tongues => 28,
+        B::SkillBonus { .. } => 29,
+        B::Detect { .. } => 30,
     };
     let before = kind;
     egui::ComboBox::from_id_salt(format!("{id}/kind")).selected_text(names[kind]).show_ui(ui, |ui| {
@@ -3038,6 +3045,13 @@ pub fn buff_ui(ui: &mut Ui, id: &str, buff: &mut rustpg2d_engine::srd::condition
             20 => B::Warded { types: vec!["undead".into(), "fiend".into()] },
             21 => B::DeathWard,
             22 => B::Bond { mark: String::new() },
+            24 => B::FeatherFall,
+            25 => B::Jump { times: 3.0 },
+            26 => B::SpiderClimb,
+            27 => B::Fly { feet: 60 },
+            28 => B::Tongues,
+            29 => B::SkillBonus { skill: "stealth".into(), bonus: 10 },
+            30 => B::Detect { what: vec!["magic".into()] },
             23 => B::ConditionImmunity { conditions: vec![rustpg2d_engine::srd::conditions::Condition::Paralyzed, rustpg2d_engine::srd::conditions::Condition::Restrained] },
             _ => B::AbilityScore { ability: Ability::Str, score: 21 },
         };
@@ -3099,6 +3113,31 @@ pub fn buff_ui(ui: &mut Ui, id: &str, buff: &mut rustpg2d_engine::srd::condition
         }
         B::Bond { .. } => {
             ui.weak("+1 AC and saves, resistance; the caster shares the damage");
+        }
+        B::FeatherFall => {
+            ui.weak("no damage from falling");
+        }
+        B::Jump { times } => {
+            ui.add(egui::DragValue::new(times).range(1.0..=10.0).speed(0.1).prefix("x")).on_hover_text("Long jumps this many times as far (Jump 3)");
+        }
+        B::SpiderClimb => {
+            ui.weak("climbs walls without a check");
+        }
+        B::Fly { feet } => {
+            ui.add(egui::DragValue::new(feet).range(10..=120).speed(5).suffix(" ft")).on_hover_text("A flying speed: over drops and water in fights, no falls");
+        }
+        B::Tongues => {
+            ui.weak("understands every language (knows_language)");
+        }
+        B::SkillBonus { skill, bonus } => {
+            ui.add(egui::TextEdit::singleline(skill).desired_width(90.0)).on_hover_text("A skill id (stealth, perception…)");
+            ui.add(egui::DragValue::new(bonus).range(-20..=20));
+        }
+        B::Detect { what } => {
+            let mut t = what.join(", ");
+            if ui.add(egui::TextEdit::singleline(&mut t).desired_width(200.0)).on_hover_text("What glows within 30 ft: magic, poison, creature types (undead, fiend…)").changed() {
+                *what = t.split(',').map(|x| x.trim().to_string()).filter(|x| !x.is_empty()).collect();
+            }
         }
         B::ConditionImmunity { conditions } => {
             use rustpg2d_engine::srd::conditions::Condition;

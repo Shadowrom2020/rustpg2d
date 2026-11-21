@@ -116,6 +116,23 @@ impl Game {
         any
     }
 
+    /// Find Traps: the armed traps within `tiles` of the hero are found. Returns how many.
+    pub(super) fn reveal_traps(&mut self, tiles: i32) -> usize {
+        let now = self.world.total_hours();
+        let mut n = 0;
+        for (at, spec, r) in self.traps_here() {
+            let uid = Self::uid_of(at);
+            let mut st = self.trap_state(uid);
+            if st.found || !st.armed(spec.reset, now) || self.tiles_to(r) > tiles {
+                continue;
+            }
+            st.found = true;
+            self.set_trap_state(uid, st);
+            n += 1;
+        }
+        n
+    }
+
     fn found_trap(&mut self, uid: u32, mut st: TrapState) {
         st.found = true;
         self.set_trap_state(uid, st);

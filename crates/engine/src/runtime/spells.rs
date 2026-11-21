@@ -704,6 +704,13 @@ impl Game {
             B::Warded { types } => format!("{}: {}", crate::lang::tr_ui("Protection from"), types.join(", ")),
             B::DeathWard => crate::lang::tr_ui("Death Ward").into_owned(),
             B::Bond { .. } => crate::lang::tr_ui("AC and saves +1, resistance; the caster shares the damage").into_owned(),
+            B::FeatherFall => crate::lang::tr_ui("No falling damage").into_owned(),
+            B::Jump { times } => format!("{} x{times}", crate::lang::tr_ui("Jumps")),
+            B::SpiderClimb => crate::lang::tr_ui("Climbs walls").into_owned(),
+            B::Fly { feet } => format!("{} {feet} ft", crate::lang::tr_ui("Flies")),
+            B::Tongues => crate::lang::tr_ui("Understands every language").into_owned(),
+            B::SkillBonus { skill, bonus } => format!("{bonus:+} {skill}"),
+            B::Detect { what } => format!("{} {}", crate::lang::tr_ui("Senses"), what.join(", ")),
             B::ConditionImmunity { conditions } => format!("{} {}", crate::lang::tr_ui("Immune to"), conditions.iter().map(|c| crate::lang::tr_ui(c.name()).into_owned()).collect::<Vec<_>>().join(", ")),
         }
     }
@@ -740,6 +747,7 @@ impl Game {
                 P::Mark { buff } => out.push(Self::buff_summary(buff)),
                 P::Teleport => out.push(crate::lang::tr_ui("Teleport").into_owned()),
                 P::Dispel => out.push(crate::lang::tr_ui("Ends spells").into_owned()),
+                P::RevealTraps => out.push(crate::lang::tr_ui("Finds traps").into_owned()),
                 P::Revive { full, .. } => out.push(crate::lang::tr_ui(if *full { "Brings back the dead, healed" } else { "Brings back the dead" }).into_owned()),
                 P::Counter => out.push(crate::lang::tr_ui("Stops a spell being cast").into_owned()),
                 P::Lasting { effect } => {

@@ -469,6 +469,21 @@ pub enum Buff {
     /// It can't get these conditions (Freedom of Movement: paralyzed, restrained; Mind Blank:
     /// charmed).
     ConditionImmunity { conditions: Vec<Condition> },
+    /// Feather Fall: no damage from falling.
+    FeatherFall,
+    /// Jump: a long jump `times` as far.
+    Jump { times: f32 },
+    /// Spider Climb: climbs walls without a check.
+    SpiderClimb,
+    /// Fly: a flying speed of `feet` (over drops and water in fights, no falls).
+    Fly { feet: u32 },
+    /// Comprehend Languages, Tongues: it understands every language (`knows_language`).
+    Tongues,
+    /// `bonus` on checks of skill `skill` (Pass without Trace: +10 Stealth).
+    SkillBonus { skill: String, bonus: i32 },
+    /// Detect Magic and the like: what it senses within 30 ft glows (`magic`, `poison`, creature
+    /// types such as `undead`, `fiend`).
+    Detect { what: Vec<String> },
 }
 
 /// The SRD's special senses (a stat block's `senses` text names them; spells and items give the
@@ -537,6 +552,13 @@ impl Buff {
             Buff::DeathWard => "DWD".into(),
             Buff::Bond { .. } => "BND".into(),
             Buff::ConditionImmunity { .. } => "IMM".into(),
+            Buff::FeatherFall => "FTH".into(),
+            Buff::Jump { .. } => "JMP".into(),
+            Buff::SpiderClimb => "CLM".into(),
+            Buff::Fly { .. } => "FLY".into(),
+            Buff::Tongues => "LNG".into(),
+            Buff::SkillBonus { skill, .. } => skill.chars().take(3).collect::<String>().to_ascii_uppercase(),
+            Buff::Detect { .. } => "DET".into(),
             Buff::Sense { sense, .. } => match sense {
                 Sense::Darkvision => "DKV",
                 Sense::Blindsight => "BLS",
@@ -560,7 +582,7 @@ pub fn buffs(list: &[ActiveCondition]) -> impl Iterator<Item = &Buff> {
 /// What the buffs in `list` do to an ability check (`save` = false) or a saving throw of
 /// `ability`: advantage (Enhance Ability, Beacon of Hope on WIS saves) and the dice added
 /// (Guidance, spent by the check: `spent` is true then).
-pub fn check_boons(list: &[ActiveCondition], ability: crate::srd::Ability, save: bool) -> (bool, Vec<String>, bool) {
+pub fn check_boons(list: &[ActiveCondition], ability: crate::srd::Ability, skill: &str, save: bool) -> (bool, Vec<String>, bool) {
     let mut adv = false;
     let mut dice = Vec::new();
     for b in buffs(list) {
@@ -568,10 +590,12 @@ pub fn check_boons(list: &[ActiveCondition], ability: crate::srd::Ability, save:
             Buff::CheckAdvantage { ability: a } if !save && a.is_none_or(|a| a == ability) => adv = true,
             Buff::Hope if save && ability == crate::srd::Ability::Wis => adv = true,
             Buff::CheckDie { dice: d } if !save => dice.push(d.clone()),
+            // (Pass without Trace: a fixed bonus, not spent.)
+            Buff::SkillBonus { skill: s, bonus } if !save && !skill.is_empty() && s.eq_ignore_ascii_case(skill) => dice.push(bonus.to_string()),
             _ => {}
         }
     }
-    let spent = !dice.is_empty();
+    let spent = buffs(list).any(|b| matches!(b, Buff::CheckDie { .. })) && !save;
     (adv, dice, spent)
 }
 
@@ -1119,14 +1143,14 @@ mod tests {
         let mut l = Vec::new();
         apply_buff(&mut l, Buff::CheckDie { dice: "1d4".into() }, 60.0, "guidance@player");
         apply_buff(&mut l, Buff::CheckAdvantage { ability: Some(crate::srd::Ability::Str) }, 60.0, "enhance-ability@player");
-        let (adv, dice, spent) = check_boons(&l, crate::srd::Ability::Str, false);
+        let (adv, dice, spent) = check_boons(&l, crate::srd::Ability::Str, "", false);
         assert!(adv && dice == ["1d4"] && spent);
-        assert!(!check_boons(&l, crate::srd::Ability::Dex, false).0);
-        assert!(check_boons(&l, crate::srd::Ability::Str, true).1.is_empty(), "no die on saves");
+        assert!(!check_boons(&l, crate::srd::Ability::Dex, "", false).0);
+        assert!(check_boons(&l, crate::srd::Ability::Str, "", true).1.is_empty(), "no die on saves");
         spend_check_dice(&mut l);
         assert_eq!(l.len(), 1);
         apply_buff(&mut l, Buff::Hope, 60.0, "beacon-of-hope@player");
-        assert!(check_boons(&l, crate::srd::Ability::Wis, true).0);
+        assert!(check_boons(&l, crate::srd::Ability::Wis, "", true).0);
     }
 
     #[test]

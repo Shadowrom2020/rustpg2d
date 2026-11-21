@@ -405,6 +405,8 @@ pub enum SpellPart {
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         full: bool,
     },
+    /// The armed traps within the spell's range are found (Find Traps).
+    RevealTraps,
 }
 
 /// A costly material component (Revivify's diamonds): `count` of item `item`.

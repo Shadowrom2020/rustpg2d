@@ -641,6 +641,15 @@ become SRD spells of level 1 (a bolt a cantrip) that every casting class has.
   dust, *Warding Bond* 2 platinum rings, *Find Familiar* charcoal, incense and herbs, *True Seeing*
   an eye ointment, *Identify* a pearl (library items; the example's dwarf merchant sells diamonds).
   Scrolls and monsters' spells need none.
+- **Exploring** (boons, and a *Find traps* part): *Feather Fall* (no falling damage, not prone),
+  *Jump* (long jumps three times as far), *Spider Climb* (climbable walls without a check), *Fly*
+  (60 ft flying speed: over drops while exploring, over drops and water in fights), *Comprehend
+  Languages* and *Tongues* (`knows_language` is true for every language), *Pass without Trace*
+  (+10 to Stealth checks for up to six), *Detect Magic*, *Detect Poison and Disease* and *Detect
+  Evil and Good* (what they sense within 30 ft glows: magic items lying there, carried or in a
+  container; poisons and poisonous creatures; creature types; `status` prints `detect=`), *Find
+  Traps* (the armed traps within its range are found and shown). Identify, Levitate, Water
+  Breathing / Walk and Locate Object stay the story's.
 - **Lasting areas** (a spell part *Lasting area*): the spell's area stays on the map for its
   duration, in fights by rounds and while exploring (every six seconds), drawn as a tint (fog grey,
   darkness black, walls stone). What it does, by its switches:
@@ -674,9 +683,9 @@ become SRD spells of level 1 (a bolt a cantrip) that every casting class has.
 
 ![A Fireball aimed in a fight: its 20 ft sphere on the grid, the slot, the DEX DC](../images/game-spell-area.webp)
 
-**The 319 spells**: 156 act by their parts (the SRD data's attack, save, damage and healing, plus a
+**The 319 spells**: 167 act by their parts (the SRD data's attack, save, damage and healing, plus a
 table in the import for conditions, boons, light, Knock, shapes, summons, teleports and the rest
-below); the other 163 are **story only** (divination, travel, illusions: their text is shown, and
+below); the other 152 are **story only** (divination, travel, illusions: their text is shown, and
 only events and scripts cast them: *Cast spell*, `cast_spell`). The example's spells are Cure
 Wounds, Light, Fire Bolt, Burning Hands, Magic Missile, Fireball, Misty Step and Sleep (Wren the
 herbalist sells their scrolls; Fireball's flying sprite and explosion are the spell's *Look*);

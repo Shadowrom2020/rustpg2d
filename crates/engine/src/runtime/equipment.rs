@@ -92,6 +92,9 @@ impl Game {
         }
         let base = self.player_race().map_or(30, |r| r.walk_feet()) + self.class_speed_ft(self.unarmored());
         let base = if self.armor_too_heavy() { base.saturating_sub(10) } else { base };
+        // (Fly: its flying speed when faster.)
+        let fly = crate::srd::conditions::buffs(&self.world.effects).find_map(|b| if let crate::srd::conditions::Buff::Fly { feet } = b { Some(*feet) } else { None }).unwrap_or(0);
+        let base = base.max(fly);
         // What the hero carries (encumbrance).
         self.hero_load().speed(base)
     }

@@ -749,6 +749,12 @@ impl WorldState {
         self.bestiary.get(character).copied().unwrap_or(0)
     }
 
+    /// Whether the hero understands a language: their own, or every one under Tongues /
+    /// Comprehend Languages.
+    pub fn knows_language(&self, id: &str) -> bool {
+        self.languages.contains(id.trim()) || crate::srd::conditions::buffs(&self.effects).any(|b| matches!(b, crate::srd::conditions::Buff::Tongues))
+    }
+
     /// Game hours since the start (days and the hour).
     pub fn game_hours(&self) -> f64 {
         self.day as f64 * 24.0 + self.hour as f64
@@ -931,7 +937,7 @@ impl WorldState {
     /// The spells' boons on a roll of `spec`: Enhance Ability's and Beacon of Hope's advantage,
     /// Guidance's die (spent by it). Returns the mode and what the dice add.
     fn boons(&mut self, spec: &crate::srd::Spec, mode: crate::srd::Mode) -> (crate::srd::Mode, i32) {
-        let (adv, dice, spent) = crate::srd::conditions::check_boons(&self.effects, spec.ability, spec.save);
+        let (adv, dice, spent) = crate::srd::conditions::check_boons(&self.effects, spec.ability, &spec.proficiency, spec.save);
         let mode = if adv { mode.combine(crate::srd::Mode::Advantage) } else { mode };
         let die: i32 = dice.iter().map(|d| crate::srd::Expr::parse(d).map(|e| e.roll(&crate::srd::dice::NoMods).total).unwrap_or(0) as i32).sum();
         if spent {

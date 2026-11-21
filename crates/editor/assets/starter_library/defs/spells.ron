@@ -1898,7 +1898,12 @@
             "warlock",
             "wizard",
         ],
-        story_only: true,
+        parts: [
+            Buff(
+                buff: Tongues,
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "compulsion",
@@ -2874,7 +2879,21 @@
             "cleric",
             "paladin",
         ],
-        story_only: true,
+        parts: [
+            Buff(
+                buff: Detect(
+                    what: [
+                        "aberration",
+                        "celestial",
+                        "elemental",
+                        "fey",
+                        "fiend",
+                        "undead",
+                    ],
+                ),
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "detect-magic",
@@ -2910,7 +2929,16 @@
             "sorcerer",
             "wizard",
         ],
-        story_only: true,
+        parts: [
+            Buff(
+                buff: Detect(
+                    what: [
+                        "magic",
+                    ],
+                ),
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "detect-poison-and-disease",
@@ -2944,7 +2972,16 @@
             "paladin",
             "ranger",
         ],
-        story_only: true,
+        parts: [
+            Buff(
+                buff: Detect(
+                    what: [
+                        "poison",
+                    ],
+                ),
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "detect-thoughts",
@@ -3917,7 +3954,12 @@
             "sorcerer",
             "wizard",
         ],
-        story_only: true,
+        parts: [
+            Buff(
+                buff: FeatherFall,
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "feeblemind",
@@ -4050,7 +4092,10 @@
             "druid",
             "ranger",
         ],
-        story_only: true,
+        parts: [
+            RevealTraps,
+        ],
+        story_only: false,
     ),
     (
         id: "find-the-path",
@@ -4440,7 +4485,14 @@
             "warlock",
             "wizard",
         ],
-        story_only: true,
+        parts: [
+            Buff(
+                buff: Fly(
+                    feet: 60,
+                ),
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "fog-cloud",
@@ -6198,7 +6250,14 @@
             "sorcerer",
             "wizard",
         ],
-        story_only: true,
+        parts: [
+            Buff(
+                buff: Jump(
+                    times: 3.0,
+                ),
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "knock",
@@ -7478,7 +7537,19 @@
             "druid",
             "ranger",
         ],
-        story_only: true,
+        parts: [
+            Targets(
+                count: 6,
+                per_slot: 0,
+            ),
+            Buff(
+                buff: SkillBonus(
+                    skill: "stealth",
+                    bonus: 10,
+                ),
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "passwall",
@@ -9581,7 +9652,12 @@
             "warlock",
             "wizard",
         ],
-        story_only: true,
+        parts: [
+            Buff(
+                buff: SpiderClimb,
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "spike-growth",
@@ -10348,7 +10424,12 @@
             "warlock",
             "wizard",
         ],
-        story_only: true,
+        parts: [
+            Buff(
+                buff: Tongues,
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "transport-via-plants",

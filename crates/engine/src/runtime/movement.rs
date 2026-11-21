@@ -107,6 +107,10 @@ impl Game {
             self.moves.holding = false;
         }
         let Some(dc) = on_dc(self, to) else { return true };
+        // (Spider Climb: no check.)
+        if self.hero_buff(|b| matches!(b, crate::srd::conditions::Buff::SpiderClimb)) {
+            return true;
+        }
         if self.moves.holding || from == to {
             return true;
         }
@@ -131,6 +135,10 @@ impl Game {
         if self.hero_jumping() {
             return false;
         }
+        // (Flying: over it.)
+        if self.hero_buff(|b| matches!(b, crate::srd::conditions::Buff::Fly { .. })) {
+            return false;
+        }
         let ts = self.ts();
         let here = self.player_tile();
         let step = axis(if self.moves.dir == Vec2::ZERO { vec2(0.0, 1.0) } else { self.moves.dir });
@@ -140,7 +148,9 @@ impl Game {
         let edge = (0..3).map(|k| (here.0 + step.0 * k, here.1 + step.1 * k)).find(|t| is_drop(*t)).unwrap_or(here);
         let (n, past) = gap_along(edge, step, limit, is_drop);
         let run_up = running || self.moves.run_up >= RUN_UP_FT / 5.0 * ts;
-        let jump = long_jump_ft(self.world.abilities.score(crate::srd::Ability::Str), run_up);
+        // (Jump: three times as far.)
+        let times = crate::srd::conditions::buffs(&self.world.effects).find_map(|b| if let crate::srd::conditions::Buff::Jump { times } = b { Some(*times) } else { None }).unwrap_or(1.0);
+        let jump = (long_jump_ft(self.world.abilities.score(crate::srd::Ability::Str), run_up) as f32 * times.max(1.0)) as u32;
         // The landing: the tile past the gap, else one beside it (room for the hero's feet: open
         // ground, nothing standing there).
         let perp = (step.1, step.0);
@@ -158,6 +168,11 @@ impl Game {
         true
     }
 
+    /// Whether one of the hero's boons is like `f` (Feather Fall, Fly, Spider Climb).
+    pub(super) fn hero_buff(&self, f: impl Fn(&crate::srd::conditions::Buff) -> bool) -> bool {
+        crate::srd::conditions::buffs(&self.world.effects).any(f)
+    }
+
     /// Whether the hero is in the air (a jump of a route).
     pub(super) fn hero_jumping(&self) -> bool {
         self.route_jumping(super::routes::Walker::Player)
@@ -167,7 +182,9 @@ impl Game {
     /// landing: the nearest spawn named `spawn` on `map` ("" = this map), else `beyond`, else
     /// where the hero is.
     pub(super) fn fall(&mut self, feet: u32, map: &str, spawn: &str, beyond: Option<(i32, i32)>) {
-        let dice = fall_dice(feet);
+        // (Feather Fall: down slowly, unhurt.)
+        let feather = self.hero_buff(|b| matches!(b, crate::srd::conditions::Buff::FeatherFall));
+        let dice = if feather { String::new() } else { fall_dice(feet) };
         let dmg = if dice.is_empty() { 0 } else { self.world.roll_dice(&dice).map_or(0, |r| r.total as i32) };
         self.moves.last_fall = Some((feet, dmg));
         self.moves.run_up = 0.0;
@@ -189,7 +206,7 @@ impl Game {
             let from = self.player.pos;
             self.hurt_player_by(dmg, from, Some(crate::srd::DamageType::Bludgeoning));
         }
-        if self.game_over.is_none() {
+        if self.game_over.is_none() && !feather {
             self.apply_player_effect(&crate::srd::conditions::ConditionSpec::new(crate::srd::Condition::Prone, FALL_PRONE));
         }
     }

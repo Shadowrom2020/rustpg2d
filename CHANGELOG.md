@@ -615,7 +615,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **Costly components**: spells with a material component worth 10 gp or more need it as items and
   use them up (a spell's new *costly* field): diamonds, diamond dust, ruby dust, platinum rings,
   incense, eye ointment and a pearl in the starter library; the example's dwarf merchant sells
-  diamonds. 156 of the 319 spells act now.
+  diamonds.
+- **Exploring spells**: *Feather Fall*, *Jump*, *Spider Climb*, *Fly*, *Comprehend Languages*,
+  *Tongues*, *Pass without Trace*, *Detect Magic*, *Detect Poison and Disease*, *Detect Evil and
+  Good* (what they sense glows; `status` `detect=`) and *Find Traps* (new boons and a Find traps
+  part). 167 of the 319 spells act now.
 
 ### Shapes and summons (SRD 5.1)
 - **Wild Shape** (the druid's class action, a new *Shape* class action effect): the hero picks a

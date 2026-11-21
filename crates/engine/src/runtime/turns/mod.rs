@@ -944,7 +944,7 @@ impl Game {
     /// Whether `who` flies (a fly speed in its stat block): it crosses water, pits and low
     /// obstacles in fights.
     pub(super) fn who_flies(&self, who: Who) -> bool {
-        self.who_block(who).is_some_and(|b| b.speeds.fly > 0)
+        self.who_block(who).is_some_and(|b| b.speeds.fly > 0) || conditions::buffs(self.who_conditions(who)).any(|b| matches!(b, conditions::Buff::Fly { .. }))
     }
 
     pub(super) fn terrain_closed(&self, t: TilePos) -> bool {

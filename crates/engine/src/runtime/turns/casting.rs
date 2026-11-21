@@ -429,6 +429,11 @@ impl Game {
                 SpellPart::Unlock => self.knock(),
                 SpellPart::Teleport => self.teleport(caster, d, point),
                 SpellPart::Revive { within_hours, full } => self.revive_fallen(caster, *within_hours, *full),
+                SpellPart::RevealTraps => {
+                    let n = self.reveal_traps(d.range.tiles().max(1));
+                    let line = format!("{}: {n}", crate::lang::tr_ui("Traps found"));
+                    if self.fight.is_some() { self.fight_log(line) } else { self.ui.toast(line) }
+                }
                 SpellPart::Dispel => {
                     if let Some(p) = point {
                         self.dispel_areas_at(caster, p, slot);

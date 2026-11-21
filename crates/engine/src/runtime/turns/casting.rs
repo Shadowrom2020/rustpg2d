@@ -123,7 +123,13 @@ impl Game {
         let d = self.project.db.spell(id).cloned().ok_or("No such spell")?;
         let slot = if d.level == 0 { 0 } else { slot.max(d.level) };
         let t = &c.turn;
+        // (Quickened Spell: a spell of an action takes the bonus action.)
+        let quick = !scroll && d.casting == crate::skills::SpellCast::Action && c.fighter(who).is_some_and(|f| f.fx.quicken);
+        if quick && t.bonus {
+            return Err("Bonus action used");
+        }
         match d.casting {
+            crate::skills::SpellCast::Action if quick => {}
             crate::skills::SpellCast::Bonus if t.bonus => return Err("Bonus action used"),
             crate::skills::SpellCast::Reaction if c.fighter(who).is_some_and(|f| f.reacted) => return Err("Reaction used"),
             crate::skills::SpellCast::Action if t.action => return Err("Action used"),
@@ -154,6 +160,12 @@ impl Game {
         }
         if let Some(c) = &mut self.fight {
             match (scroll, d.casting) {
+                (false, crate::skills::SpellCast::Action) if quick => {
+                    c.turn.bonus = true;
+                    if let Some(f) = c.fighter_mut(who) {
+                        f.fx.quicken = false;
+                    }
+                }
                 (true, _) | (_, crate::skills::SpellCast::Action) => c.turn.action = true,
                 (_, crate::skills::SpellCast::Bonus) => c.turn.bonus = true,
                 (_, crate::skills::SpellCast::Reaction) => {
@@ -227,9 +239,15 @@ impl Game {
         let source = self.spell_source(caster, d);
         let secs = spell_secs(d);
         let dc = self.spell_dc(caster);
+        // (Agonizing Blast, Empowered Evocation: a modifier more; Sculpt Spells spares allies;
+        // Potent Cantrip halves a saved cantrip.)
+        let dmg_bonus = self.spell_damage_bonus(caster, d);
+        let with_bonus = |x: String| if dmg_bonus == 0 { x } else { format!("{x}{dmg_bonus:+}") };
+        let sculpt = self.who_traits(caster).is_some_and(|t| t.riders.iter().any(|e| matches!(e, crate::classes::FeatureEffect::Sculpt { school } if school.eq_ignore_ascii_case(&d.school))));
+        let potent = d.level == 0 && self.who_traits(caster).is_some_and(|t| t.riders.contains(&crate::classes::FeatureEffect::PotentCantrip));
         // A save spell rolls its damage once for everyone (the SRD's areas).
         let shared = match (&save, &damage) {
-            (Some(_), Some((by, _))) => dice_of(self, by).map(|x| roll(&x)),
+            (Some(_), Some((by, _))) => dice_of(self, by).map(|x| roll(&with_bonus(x))),
             _ => None,
         };
         if d.concentration && !again {
@@ -242,9 +260,12 @@ impl Game {
             if self.fight.as_ref().and_then(|c| c.fighter(t)).is_some_and(|f| f.out) {
                 continue;
             }
+            if sculpt && save.is_some() && t != caster && self.fight.as_ref().is_some_and(|c| c.fighter(t).map(|f| f.side) == c.fighter(caster).map(|f| f.side)) {
+                continue;
+            }
             let mut landed = true;
             if let Some(ranged) = attack {
-                let dice = damage.as_ref().and_then(|(by, _)| dice_of(self, by)).unwrap_or_else(|| "0".into());
+                let dice = damage.as_ref().and_then(|(by, _)| dice_of(self, by)).map(with_bonus).unwrap_or_else(|| "0".into());
                 let range = d.range.tiles().max(1);
                 let spec = AttackSpec {
                     name: crate::lang::tr(&d.name),
@@ -289,9 +310,9 @@ impl Game {
                     SpellPart::Damage { by_level, damage_type } if attack.is_none() => {
                         let full = match shared {
                             Some(n) => n,
-                            None => dice_of(self, by_level).map_or(0, |x| roll(&x)),
+                            None => dice_of(self, by_level).map_or(0, |x| roll(&with_bonus(x))),
                         };
-                        let half = save.is_some_and(|s| s.1);
+                        let half = save.is_some_and(|s| s.1) || potent;
                         // (Evasion: none on a passed DEX save, half on a failed one.)
                         let evasion = save.is_some_and(|s| s.0 == Ability::Dex) && self.who_traits(t).is_some_and(|tr| tr.evasion);
                         let n = match (save.is_some(), saved, half, evasion) {
@@ -1015,5 +1036,17 @@ impl Game {
         self.companion_healed(i);
         let line = format!("{name} {}", crate::lang::tr_ui("is back among the living"));
         if self.fight.is_some() { self.fight_log(line) } else { self.ui.toast(line) }
+    }
+
+    /// What `caster`'s features add to spell `d`'s damage (Agonizing Blast, Empowered Evocation).
+    fn spell_damage_bonus(&self, caster: Who, d: &SpellDef) -> i32 {
+        let Some(t) = self.who_traits(caster) else { return 0 };
+        t.riders
+            .iter()
+            .filter_map(|e| match e {
+                crate::classes::FeatureEffect::SpellDamageBonus { spell, school, ability } if (!spell.is_empty() && *spell == d.id) || (!school.is_empty() && school.eq_ignore_ascii_case(&d.school)) => Some(self.who_mod(caster, *ability)),
+                _ => None,
+            })
+            .sum()
     }
 }

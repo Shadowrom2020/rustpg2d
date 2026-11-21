@@ -158,7 +158,7 @@ impl Game {
         out
     }
 
-    fn slots_spent_of(&self, who: Who) -> [u32; 9] {
+    pub(super) fn slots_spent_of(&self, who: Who) -> [u32; 9] {
         match who {
             Who::Player => self.world.slots_spent,
             Who::Npc(uid) => self.member_save_index(uid).map_or([0; 9], |k| self.world.companions[k].slots_spent),
@@ -284,14 +284,70 @@ impl Game {
             return Vec::new();
         }
         let chosen = self.prepared_list(who);
+        // (Domain and Oath Spells: always prepared, on top.)
+        let always = self.always_prepared(who);
         if !chosen.is_empty() {
-            return chosen;
+            let mut v = chosen;
+            for s in always {
+                if !v.contains(&s) {
+                    v.push(s);
+                }
+            }
+            return v;
         }
         let mut options: Vec<String> = self.preparable(who);
         // (Healing and damage first: what a new caster wants at hand.)
         options.sort_by_key(|id| self.project.db.spell(id).map_or((9, 1), |d| (d.level, (!d.heals() && !d.offensive()) as u32)));
         options.truncate(max);
+        for s in always {
+            if !options.contains(&s) {
+                options.push(s);
+            }
+        }
         options
+    }
+
+    /// The spells `who`'s features keep prepared (Domain Spells, Oath Spells).
+    pub(super) fn always_prepared(&self, who: Who) -> Vec<String> {
+        self.who_traits(who).map_or(Vec::new(), |t| t.riders.iter().filter_map(|e| if let crate::classes::FeatureEffect::AlwaysPrepared { spells } = e { Some(spells.clone()) } else { None }).flatten().filter(|s| self.project.db.spell(s).is_some()).collect())
+    }
+
+    /// One spent slot of `level` back.
+    pub(super) fn recover_slot(&mut self, who: Who, level: u32) {
+        if !(1..=9).contains(&level) {
+            return;
+        }
+        let k = level as usize - 1;
+        match who {
+            Who::Player => self.world.slots_spent[k] = self.world.slots_spent[k].saturating_sub(1),
+            Who::Npc(uid) => {
+                if let Some(i) = self.member_save_index(uid) {
+                    self.world.companions[i].slots_spent[k] = self.world.companions[i].slots_spent[k].saturating_sub(1);
+                }
+            }
+        }
+    }
+
+    /// Arcane / Natural Recovery at a short rest: spent slots back worth half the class level
+    /// (rounded up), highest first, none of 6th level or higher; once per its resource's rest.
+    pub(super) fn slot_recovery(&mut self) {
+        let Some(res) = self.who_traits(Who::Player).and_then(|t| t.riders.iter().find_map(|e| if let crate::classes::FeatureEffect::SlotRecovery { resource } = e { Some(resource.clone()) } else { None })) else { return };
+        if self.uses(Who::Player, &res).is_none_or(|u| u.0 < 1) {
+            return;
+        }
+        let mut budget = self.who_traits(Who::Player).map_or(1, |t| t.level).div_ceil(2);
+        let mut back = 0;
+        for level in (1..=5u32).rev() {
+            while level <= budget && self.world.slots_spent[level as usize - 1] > 0 {
+                self.recover_slot(Who::Player, level);
+                budget -= level;
+                back += 1;
+            }
+        }
+        if back > 0 {
+            self.pay_class_resource(Who::Player, &res);
+            self.ui.toast(format!("{} +{back}", crate::lang::tr_ui("Spell slots back")));
+        }
     }
 
     /// Prepares or unprepares a spell (`Err` = why not).

@@ -315,6 +315,18 @@ character creator offers them on its third page; the hero then is a class at the
   fiends and undead within 30 ft glow for a round), *Song of Rest* (a short rest with hit dice
   spent heals the bard's die more; a bard in the party counts), *Escape the Horde* (opportunity
   attacks against the hunter have disadvantage), *Favored Enemy* (advantage on Survival checks).
+- **Spell features** (0.32): *Domain Spells* and *Oath Spells* are always prepared (on top of the
+  prepared ones; a spell the project lacks is skipped); *Arcane Recovery* / *Natural Recovery* (a
+  short rest gives back spent slots worth half the level, rounded up, highest first, none of 6th
+  level or higher; once a long rest); *Font of Magic*: sorcery points (the class table's), *Create
+  Spell Slot* and *Convert Spell Slot* (bonus actions: 2/3/5/6/7 points for a slot of level 1-5, a
+  slot for its level in points), *Quickened Spell* (a picked Metamagic: 2 points, the next spell of
+  an action takes the bonus action); *Agonizing Blast* (CHA on Eldritch Blast's damage),
+  *Devil's Sight* (darkvision 120 ft), *Empowered Evocation* (INT on evocation damage), *Sculpt
+  Spells* (allies in the caster's evocation saves take nothing), *Potent Cantrip* (a saved
+  cantrip still does half). The other Metamagic options, the invocations besides these two, Pact
+  Boons, Mystic Arcanum, Magical Secrets, Overchannel and the draconic sorcerer's features stay
+  text.
 - **Riders and reactions** work by themselves: *Sneak Attack* (once a turn, extra d6s with a ranged
   or one-handed weapon when the rogue has advantage or an ally stands next to the target), *Colossus
   Slayer* and *Divine Strike* (extra dice once a turn), *Stunning Strike* (1 ki on the first melee

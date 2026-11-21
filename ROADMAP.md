@@ -1574,7 +1574,7 @@ added here.
   a group (seeded), *Misty Step* across a gap, *Spirit Guardians* around the cleric for three
   rounds, *Counterspell* against an enemy caster, *Revivify* with and without the diamond.
 
-- [~] Class features and racial traits that act — three parts (2026-11-21, the parts and their
+- [x] Class features and racial traits that act — three parts (2026-11-21, the parts and their
   merging like *Spells completed*):
   1. [x] **Racial traits** — `feature/srd-features-1`. Verified on a scratch copy: a red
      dragonborn fighter breathes a 15 ft cone of fire (DEX save, DC 12) on two orc warriors, the
@@ -1590,7 +1590,14 @@ added here.
      through). Left text: Cutting Words, Horde Breaker, Giant Killer, Multiattack Defense, Volley,
      Whirlwind Attack, Stand Against the Tide, Quivering Palm, Stroke of Luck, Divine
      Intervention, the capstones without numbers; the sheet's "story feature" note is left out.
-  3. [ ] **Spell-related class features** — `feature/srd-features-3`.
+  3. [x] **Spell-related class features** — `feature/srd-features-3`. Verified on a scratch copy:
+     a sorcerer's Quickened Spell (2 sorcery points) casts Fire Bolt with the bonus action, the
+     action left; Convert / Create Spell Slot take the bonus action; a level 4 wizard's Arcane
+     Recovery gives a 2nd-level slot back at a short rest (once); a Life cleric has Bless,
+     Spiritual Weapon and Lesser Restoration always prepared. Agonizing Blast, Devil's Sight,
+     Empowered Evocation, Sculpt Spells and Potent Cantrip act in the spells' damage and saves (not
+     played through). The other Metamagic options and invocations, Pact Boons, Mystic Arcanum,
+     Magical Secrets, Overchannel, Elemental Affinity, Dragon Wings stay text.
 
   **Goal.** The class features and racial traits that are still only text (found in the
   2026-11-20 check: 230 of 407 class features have no effect, a few of them only headings; most

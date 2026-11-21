@@ -1843,6 +1843,14 @@
                 name: "Domain Spells",
                 level: 1,
                 text: "Each domain has a list of spells--its domain spells--that you gain at the cleric levels noted in the domain description. Once you gain a domain spell, you always have it prepared, and it doesn\'t count against the number of spells you can prepare each day. If you have a domain spell that doesn\'t appear on the cleric spell list, the spell is nonetheless a cleric spell for you.",
+                effects: [
+                    AlwaysPrepared(
+                        spells: [
+                            "bless",
+                            "cure-wounds",
+                        ],
+                    ),
+                ],
             ),
             (
                 id: "bonus-proficiency",
@@ -1931,6 +1939,14 @@
                 name: "Domain Spells",
                 level: 3,
                 text: "Each domain has a list of spells--its domain spells--that you gain at the cleric levels noted in the domain description. Once you gain a domain spell, you always have it prepared, and it doesn\'t count against the number of spells you can prepare each day. If you have a domain spell that doesn\'t appear on the cleric spell list, the spell is nonetheless a cleric spell for you.",
+                effects: [
+                    AlwaysPrepared(
+                        spells: [
+                            "lesser-restoration",
+                            "spiritual-weapon",
+                        ],
+                    ),
+                ],
             ),
             (
                 id: "cleric-ability-score-improvement-1",
@@ -1944,6 +1960,14 @@
                 name: "Domain Spells",
                 level: 5,
                 text: "Each domain has a list of spells--its domain spells--that you gain at the cleric levels noted in the domain description. Once you gain a domain spell, you always have it prepared, and it doesn\'t count against the number of spells you can prepare each day. If you have a domain spell that doesn\'t appear on the cleric spell list, the spell is nonetheless a cleric spell for you.",
+                effects: [
+                    AlwaysPrepared(
+                        spells: [
+                            "beacon-of-hope",
+                            "revivify",
+                        ],
+                    ),
+                ],
             ),
             (
                 id: "destroy-undead-cr-1-2-or-below",
@@ -1979,6 +2003,14 @@
                 name: "Domain Spells",
                 level: 7,
                 text: "Each domain has a list of spells--its domain spells--that you gain at the cleric levels noted in the domain description. Once you gain a domain spell, you always have it prepared, and it doesn\'t count against the number of spells you can prepare each day. If you have a domain spell that doesn\'t appear on the cleric spell list, the spell is nonetheless a cleric spell for you.",
+                effects: [
+                    AlwaysPrepared(
+                        spells: [
+                            "death-ward",
+                            "guardian-of-faith",
+                        ],
+                    ),
+                ],
             ),
             (
                 id: "cleric-ability-score-improvement-2",
@@ -2025,6 +2057,14 @@
                 name: "Domain Spells",
                 level: 9,
                 text: "Each domain has a list of spells--its domain spells--that you gain at the cleric levels noted in the domain description. Once you gain a domain spell, you always have it prepared, and it doesn\'t count against the number of spells you can prepare each day. If you have a domain spell that doesn\'t appear on the cleric spell list, the spell is nonetheless a cleric spell for you.",
+                effects: [
+                    AlwaysPrepared(
+                        spells: [
+                            "mass-cure-wounds",
+                            "raise-dead",
+                        ],
+                    ),
+                ],
             ),
             (
                 id: "divine-intervention",
@@ -2708,6 +2748,17 @@
                 name: "Natural Recovery",
                 level: 2,
                 text: "Starting at 2nd level, you can regain some of your magical energy by sitting in meditation and communing with nature. During a short rest, you choose expended spell slots to recover. The spell slots can have a combined level that is equal to or less than half your druid level (rounded up), and none of the slots can be 6th level or higher. You can\'t use this feature again until you finish a long rest. For example, when you are a 4th-level druid, you can recover up to two levels worth of spell slots. You can recover either a 2nd-level slot or two 1st-level slots.",
+                effects: [
+                    Resource(
+                        id: "natural-recovery",
+                        count: 1,
+                        per_level: 0,
+                        recharge: LongRest,
+                    ),
+                    SlotRecovery(
+                        resource: "natural-recovery",
+                    ),
+                ],
             ),
             (
                 id: "circle-spells-1",
@@ -4628,6 +4679,22 @@
                 name: "Oath Spells",
                 level: 3,
                 text: "Each oath has a list of associated spells. You gain access to these spells at the levels specified in the oath description. Once you gain access to an oath spell, you always have it prepared. Oath spells don\'t count against the number of spells you can prepare each day. If you gain an oath spell that doesn\'t appear on the paladin spell list, the spell is nonetheless a paladin spell for you.",
+                effects: [
+                    AlwaysPrepared(
+                        spells: [
+                            "protection-from-evil-and-good",
+                            "sanctuary",
+                            "lesser-restoration",
+                            "zone-of-truth",
+                            "beacon-of-hope",
+                            "dispel-magic",
+                            "freedom-of-movement",
+                            "guardian-of-faith",
+                            "commune",
+                            "flame-strike",
+                        ],
+                    ),
+                ],
             ),
             (
                 id: "channel-divinity",
@@ -6658,18 +6725,49 @@
                 name: "Font of Magic",
                 level: 2,
                 text: "At 2nd level, you tap into a deep wellspring of magic within yourself. This wellspring is represented by sorcery points, which allow you to create a variety of magical effects. Sorcery Points You have 2 sorcery points, and you gain more as you reach higher levels, as shown in the Sorcery Points column of the Sorcerer table. You can never have more sorcery points than shown on the table for your level. You regain all spent sorcery points when you finish a long rest.",
+                effects: [
+                    Resource(
+                        id: "sorcery-points",
+                        count: 0,
+                        number: "sorcery_points",
+                        per_level: 0,
+                        recharge: LongRest,
+                    ),
+                ],
             ),
             (
                 id: "flexible-casting-creating-spell-slots",
                 name: "Flexible Casting: Creating Spell Slots",
                 level: 2,
                 text: "You can transform unexpended sorcery points into one spell slot as a bonus action on your turn. The Creating Spell Slots table shows the cost of creating a spell slot of a given level. You can create spell slots no higher in level than 5th.  Any spell slot you create with this feature vanishes when you finish a long rest.",
+                effects: [
+                    Act(
+                        id: "create-spell-slot",
+                        name: "Create Spell Slot",
+                        cost: Bonus,
+                        effect: FlexibleCasting(
+                            points: "sorcery-points",
+                            create: true,
+                        ),
+                    ),
+                ],
             ),
             (
                 id: "flexible-casting-converting-spell-slot",
                 name: "Flexible Casting: Converting Spell Slot",
                 level: 2,
                 text: "As a bonus action on your turn, you can expend one spell slot and gain a number of sorcery points equal to the slot\'s level..",
+                effects: [
+                    Act(
+                        id: "convert-spell-slot",
+                        name: "Convert Spell Slot",
+                        cost: Bonus,
+                        effect: FlexibleCasting(
+                            points: "sorcery-points",
+                            create: false,
+                        ),
+                    ),
+                ],
             ),
             (
                 id: "metamagic-1",
@@ -6725,6 +6823,17 @@
                 name: "Metamagic: Quickened Spell",
                 level: 3,
                 text: "When you cast a spell that has a casting time of 1 action, you can spend 2 sorcery points to change the casting time to 1 bonus action for this casting.",
+                effects: [
+                    Act(
+                        id: "quickened-spell",
+                        name: "Quickened Spell",
+                        cost: Free,
+                        effect: Quicken(
+                            points: "sorcery-points",
+                            cost: 2,
+                        ),
+                    ),
+                ],
             ),
             (
                 id: "metamagic-subtle-spell",
@@ -7426,6 +7535,12 @@
                 name: "Eldritch Invocation: Agonizing Blast",
                 level: 2,
                 text: "When you cast eldritch blast, add your Charisma modifier to the damage it deals on a hit.",
+                effects: [
+                    SpellDamageBonus(
+                        spell: "eldritch-blast",
+                        ability: Cha,
+                    ),
+                ],
             ),
             (
                 id: "eldritch-invocation-armor-of-shadows",
@@ -7456,6 +7571,11 @@
                 name: "Eldritch Invocation: Devil\'s Sight",
                 level: 2,
                 text: "You can see normally in darkness, both magical and nonmagical, to a distance of 120 feet.",
+                effects: [
+                    Darkvision(
+                        feet: 120,
+                    ),
+                ],
             ),
             (
                 id: "eldritch-invocation-eldritch-sight",
@@ -8182,6 +8302,17 @@
                 name: "Arcane Recovery",
                 level: 1,
                 text: "You have learned to regain some of your magical energy by studying your spellbook. Once per day when you finish a short rest, you can choose expended spell slots to recover. The spell slots can have a combined level that is equal to or less than half your wizard level (rounded up), and none of the slots can be 6th level or higher. For example, if you\'re a 4th-level wizard, you can recover up to two levels worth of spell slots. You can recover either a 2nd-level spell slot or two 1st-level spell slots.",
+                effects: [
+                    Resource(
+                        id: "arcane-recovery",
+                        count: 1,
+                        per_level: 0,
+                        recharge: LongRest,
+                    ),
+                    SlotRecovery(
+                        resource: "arcane-recovery",
+                    ),
+                ],
             ),
             (
                 id: "arcane-tradition",
@@ -8200,6 +8331,11 @@
                 name: "Sculpt Spells",
                 level: 2,
                 text: "Beginning at 2nd level, you can create pockets of relative safety within the effects of your evocation spells. When you cast an evocation spell that affects other creatures that you can see, you can choose a number of them equal to 1 + the spell\'s level. The chosen creatures automatically succeed on their saving throws against the spell, and they take no damage if they would normally take half damage on a successful save.",
+                effects: [
+                    Sculpt(
+                        school: "evocation",
+                    ),
+                ],
             ),
             (
                 id: "wizard-ability-score-improvement-1",
@@ -8219,6 +8355,9 @@
                 name: "Potent Cantrip",
                 level: 6,
                 text: "Starting at 6th level, your damaging cantrips affect even creatures that avoid the brunt of the effect. When a creature succeeds on a saving throw against your cantrip, the creature takes half the cantrip\'s damage (if any) but suffers no additional effect from the cantrip.",
+                effects: [
+                    PotentCantrip,
+                ],
             ),
             (
                 id: "wizard-ability-score-improvement-2",
@@ -8238,6 +8377,12 @@
                 name: "Empowered Evocation",
                 level: 10,
                 text: "Beginning at 10th level, you can add your Intelligence modifier to one damage roll of any wizard evocation spell you cast.",
+                effects: [
+                    SpellDamageBonus(
+                        school: "evocation",
+                        ability: Int,
+                    ),
+                ],
             ),
             (
                 id: "wizard-ability-score-improvement-3",

@@ -12,6 +12,7 @@ mod ai_cast;
 mod casting;
 mod features;
 mod monster_actions;
+mod reactions;
 pub(in crate::runtime) mod menu;
 mod throwing;
 mod ui;
@@ -250,6 +251,8 @@ pub(super) struct Combat {
     pub item_cast: Option<crate::runtime::magic_items::ItemCast>,
     /// A finishing blow waiting for the player's Kill / Knock out.
     pub pending_blow: Option<PendingBlow>,
+    /// An attack held for the hero's reaction (the Reaction window).
+    pub pending_react: Option<reactions::PendingReact>,
     /// The damage being dealt knocks out instead of killing.
     pub knocking: bool,
     /// The hero's ammunition shot in this fight (item, count): half is found again after it.
@@ -523,7 +526,7 @@ impl Game {
             }
         }
         let cursor = feet_tile(self.player.pos, ts);
-        let mut c = Combat { round: 1, order, current: 0, turn: Turn::default(), helped: Vec::new(), cursor, aim: Aim::Move, walking: Vec::new(), ai_t: 0.4, log: Vec::new(), fast: self.fight_fast, over: false, shove_push: false, selected: 0, then_attack: None, then_pick_up: None, reach: Default::default(), menu: None, attack_mode: None, reach_key: None, mouse_last: Vec2::ZERO, once: Vec::new(), scroll: None, item_cast: None, pending_blow: None, knocking: false, shot: Vec::new(), ai_wrestled: Vec::new() };
+        let mut c = Combat { round: 1, order, current: 0, turn: Turn::default(), helped: Vec::new(), cursor, aim: Aim::Move, walking: Vec::new(), ai_t: 0.4, log: Vec::new(), fast: self.fight_fast, over: false, shove_push: false, selected: 0, then_attack: None, then_pick_up: None, reach: Default::default(), menu: None, attack_mode: None, reach_key: None, mouse_last: Vec2::ZERO, once: Vec::new(), scroll: None, item_cast: None, pending_blow: None, pending_react: None, knocking: false, shot: Vec::new(), ai_wrestled: Vec::new() };
         c.log(crate::lang::tr_ui("Fight! Initiative:").into_owned());
         let names: Vec<String> = first.iter().map(|(w, init)| format!("{} {init}", self.who_name(*w))).collect();
         c.log(names.join(", "));
@@ -861,6 +864,17 @@ impl Game {
     /// Once a frame while fighting: walks on screen, the AI's turns, the player's input.
     pub(super) fn update_turns(&mut self, dt: f32, key_consumed: bool) {
         if self.fight.is_none() {
+            return;
+        }
+        // A reaction asked: the fight waits for the hero's answer (its window takes the input).
+        if self.fight.as_ref().is_some_and(|c| c.pending_react.is_some()) {
+            if self.fight.as_ref().and_then(|c| c.menu.as_ref()).is_some_and(|m| m.kind == menu::MenuKind::Reaction) {
+                if !key_consumed {
+                    self.fight_menu_input();
+                }
+            } else {
+                self.resume_reaction(reactions::ReactChoice::Pass);
+            }
             return;
         }
         if self.update_walk(dt) {
@@ -1525,14 +1539,31 @@ impl Game {
         rules::AttackRoll::chance(spec.bonus, ac, mode)
     }
 
-    /// Rolls an attack of `who` on `target` and applies its damage and condition.
+    /// Rolls an attack of `who` on `target` and applies its damage and condition (the
+    /// reactions to it in between, `reactions.rs`: an asked one holds the attack).
     pub(super) fn make_attack(&mut self, who: Who, target: Who, spec: &AttackSpec) -> bool {
+        self.attack_with(who, target, spec, reactions::AttackOpts::default())
+    }
+
+    /// [`Self::make_attack`] with the reactions decided so far.
+    fn attack_with(&mut self, who: Who, target: Who, spec: &AttackSpec, opts: reactions::AttackOpts) -> bool {
+        // Protection: an ally of the target's makes the attack roll with disadvantage.
+        let protected = match opts.protected {
+            Some(p) => p,
+            None => match self.protection_before(who, target, spec) {
+                reactions::ReactNow::Wait => return false,
+                reactions::ReactNow::Use(_) => true,
+                reactions::ReactNow::None => false,
+            },
+        };
         let mut spec = self.buffed(who, spec);
         // (Bless / Bane: a die on the attack roll.)
         spec.bonus += self.buff_roll(who, true);
         let spec = &spec;
         let sit = self.situation(who, target, spec);
-        let mode = rules::odds(&sit).mode();
+        let mut odds = rules::odds(&sit);
+        odds.disadvantage |= protected;
+        let mode = odds.mode();
         let cover = self.cover(who, target);
         let ac = self.who_ac(target) + cover.ac_bonus();
         let auto_crit = sit.adjacent && conditions::rules(self.who_conditions(target)).hits_crit;
@@ -1594,6 +1625,28 @@ impl Game {
             self.miss_number(head);
             return false;
         }
+        // The target's reaction to the hit (Shield, Parry, Uncanny Dodge…).
+        let react = match self.hit_reaction(who, target, spec, &roll, &logged) {
+            reactions::ReactNow::Wait => return true,
+            reactions::ReactNow::Use(c) => c,
+            reactions::ReactNow::None => reactions::ReactChoice::Pass,
+        };
+        self.land_attack(who, target, spec, roll, logged, react)
+    }
+
+    /// A hit's damage and what comes with it, after the target's reaction `react`: a Shield or
+    /// Parry that raises the AC above the roll turns it into a miss.
+    fn land_attack(&mut self, who: Who, target: Who, spec: &AttackSpec, roll: rules::AttackRoll, logged: String, react: reactions::ReactChoice) -> bool {
+        let mode = roll.mode;
+        let to = self.who_pos(target);
+        if self.ac_reaction(target, react, &roll) {
+            if let Some(l) = self.fight.as_mut().and_then(|c| c.log.iter_mut().rev().find(|l| **l == logged)) {
+                l.push_str(&format!(" > {}", crate::lang::tr_ui("miss")));
+            }
+            let head = to - vec2(0.0, self.ts() * 1.1);
+            self.miss_number(head);
+            return false;
+        }
         let dice = if roll.crit { rules::crit_dice(&spec.dice) } else { spec.dice.clone() };
         // (A net does no damage: it restrains.)
         let mut amount = if spec.net { 0 } else { roll_damage(&dice, spec.reroll_low) };
@@ -1606,7 +1659,7 @@ impl Game {
         }
         // The attacker's riders (Sneak Attack…), the target's reaction (Uncanny Dodge…).
         amount += self.rider_damage(who, target, spec, mode, roll.crit);
-        let amount = self.react_to_hit(who, target, spec, amount);
+        let amount = self.react_to_hit(who, target, spec, amount, react);
         // More damage of other types (a dragon's bite's fire), doubled on a critical hit.
         let mut parts = vec![(amount, spec.damage_type)];
         for x in &spec.extra {
@@ -1656,6 +1709,10 @@ impl Game {
                     }
                 }
             }
+        }
+        // Hurt: the hero's Hellish Rebuke at the attacker.
+        if total > 0 {
+            self.hurt_reaction(who, target);
         }
         true
     }
@@ -2100,6 +2157,13 @@ impl Game {
             let n: usize = arg(1).parse().unwrap_or(8);
             return c.log[c.log.len().saturating_sub(n)..].join(" | ");
         }
+        // (The Reaction window is answered on any fighter's turn.)
+        if arg(0) == "pick" && self.fight_menu_open() && !self.players_turn() {
+            return match arg(1).parse::<usize>() {
+                Ok(k) => self.pick_fight_menu_row(k).map_or_else(|e| e.to_string(), |_| "ok".into()),
+                Err(_) => "pick K".into(),
+            };
+        }
         if !self.players_turn() {
             return "not the player's turn".into();
         }
@@ -2257,7 +2321,7 @@ impl Game {
     /// Autoplay `waitturn`: a fight is on and it is the hero's turn, nothing moving on screen
     /// and no finishing blow waiting.
     pub fn heros_turn(&self) -> bool {
-        self.fight.as_ref().is_some_and(|c| c.current().who == Who::Player && !c.current().ai && c.walking.is_empty() && !c.over && c.pending_blow.is_none() && !self.runner.busy())
+        self.fight.as_ref().is_some_and(|c| c.current().who == Who::Player && !c.current().ai && c.walking.is_empty() && !c.over && c.pending_blow.is_none() && c.pending_react.is_none() && !self.runner.busy())
     }
 
     /// Who as an [`ActiveCondition::by`](crate::srd::ActiveCondition) tag: `player` or the uid.

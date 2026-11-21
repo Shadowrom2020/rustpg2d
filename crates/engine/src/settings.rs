@@ -53,11 +53,14 @@ pub struct Settings {
     /// Accessibility: holding Attack keeps attacking, holding E keeps working a tree, a rock,
     /// a crop (in the world, not in dialogs or windows).
     pub hold_repeat: bool,
+    /// Fights: the hero's reactions (Shield, Uncanny Dodge, Hellish Rebuke, Protection) by rule
+    /// instead of asking each time.
+    pub auto_reactions: bool,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { fullscreen: false, zoom: 1.0, show_fps: false, master_volume: 1.0, music_volume: 0.8, effects_volume: 1.0, ambience_volume: 0.7, text_speed: 1.0, screen_effects: true, damage_numbers: true, quest_markers: true, keys: Default::default(), pad: Default::default(), pad_style: "auto".into(), language: None, text_size: 0, captions: false, high_contrast: false, hold_repeat: false }
+        Settings { fullscreen: false, zoom: 1.0, show_fps: false, master_volume: 1.0, music_volume: 0.8, effects_volume: 1.0, ambience_volume: 0.7, text_speed: 1.0, screen_effects: true, damage_numbers: true, quest_markers: true, keys: Default::default(), pad: Default::default(), pad_style: "auto".into(), language: None, text_size: 0, captions: false, high_contrast: false, hold_repeat: false, auto_reactions: false }
     }
 }
 

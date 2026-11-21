@@ -580,6 +580,18 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   boon), magic items can give one (a *Sense* effect); darkvision from items now counts in fights.
   `status` prints them in `senses=` (`see:`).
 
+### Reactions (SRD 5.1)
+- When the hero can react in a fight, the fight pauses and the **Reaction** window asks: *Shield*
+  (+5 AC for a round when that makes a hit miss), *Protection* (disadvantage on an attack against
+  an ally next to a fighter with the style and a shield), *Hellish Rebuke* (fire at the creature
+  that hurt the hero), *Uncanny Dodge* and *Deflect Missiles*, or *No reaction*. *Options ›
+  Gameplay › Reactions* = *Auto* lets the game decide by rule, as it does for companions and
+  monsters.
+- Monsters with *Parry* in their stat block (bandit captain, knight, noble, gladiator…) raise their
+  AC against a melee hit that would land; monsters that know *Shield* cast it. `status` prints
+  `react=`; autoplay `turn pick K` answers the window on any fighter's turn.
+- Esc closes a fight's choice window (Cast, Attack, Reaction…) instead of opening the pause menu.
+
 ### Diseases (SRD 5.1)
 - **Diseases** (*Database › Diseases*, `defs/diseases.ron`): a save against catching them, an
   onset, then exhaustion, blocked or halved healing, a shrinking hit point maximum, failing sight

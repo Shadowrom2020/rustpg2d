@@ -22,6 +22,8 @@ pub(in crate::runtime) enum MenuKind {
     Finish,
     /// Ready: an attack or a spell, held for a trigger.
     Ready,
+    /// A reaction the hero may take now (Shield, Protection…): the fight waits for it.
+    Reaction,
 }
 
 /// What picking a row does.
@@ -41,6 +43,8 @@ pub(in crate::runtime) enum MenuPick {
     ReadyAttack,
     /// Ready a spell at a slot level: when a foe comes within its range.
     ReadySpell(String, u32),
+    /// The held attack goes on with this reaction (or none).
+    React(super::reactions::ReactChoice),
 }
 
 /// The rows of the Kill / Knock out window.
@@ -80,6 +84,7 @@ impl MenuKind {
             MenuKind::Attack => "Attack",
             MenuKind::Finish => "The foe falls: kill or knock out?",
             MenuKind::Ready => "Ready",
+            MenuKind::Reaction => "Reaction",
         }
     }
 
@@ -90,6 +95,7 @@ impl MenuKind {
             MenuKind::Attack => "attack",
             MenuKind::Finish => "finish",
             MenuKind::Ready => "ready",
+            MenuKind::Reaction => "reaction",
         }
     }
 }
@@ -249,6 +255,11 @@ impl Game {
         Ok(())
     }
 
+    /// Whether a fight's choice window is open (Esc closes it instead of pausing).
+    pub(in crate::runtime) fn fight_menu_open(&self) -> bool {
+        self.fight.as_ref().is_some_and(|c| c.menu.is_some())
+    }
+
     /// Opens the choice window (the first row that can be picked is selected). False when it
     /// has no rows.
     pub(in crate::runtime) fn open_fight_menu(&mut self, kind: MenuKind, rows: Vec<MenuRow>) -> bool {
@@ -295,6 +306,7 @@ impl Game {
             MenuPick::Finish { knock_out } => self.finish_blow(knock_out),
             MenuPick::ReadyAttack => self.ready_attack(),
             MenuPick::ReadySpell(id, slot) => self.ready_spell(&id, slot)?,
+            MenuPick::React(r) => self.resume_reaction(r),
         }
         Ok(())
     }
@@ -331,6 +343,10 @@ impl Game {
         } else if menu.kind != MenuKind::Finish && (input::act_pressed(Act::Cancel) || input::mouse_pressed(MouseButton::Right) || (input::mouse_pressed(MouseButton::Left) && hovered.is_none())) {
             if let Some(c) = &mut self.fight {
                 c.menu = None;
+            }
+            // (Closing the Reaction window = no reaction.)
+            if menu.kind == MenuKind::Reaction {
+                self.resume_reaction(super::reactions::ReactChoice::Pass);
             }
         }
         true

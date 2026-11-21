@@ -391,6 +391,16 @@ impl Default for StatBlock {
 }
 
 impl StatBlock {
+    /// Its Parry reaction's AC bonus against a melee hit ("adds 2 to its AC against one melee
+    /// attack that would hit it"; 0 = none).
+    pub fn parry(&self) -> i32 {
+        self.features.iter().filter(|f| f.kind == FeatureKind::Reaction && f.name.starts_with("Parry")).find_map(|f| {
+            let rest = f.text.split_once(" adds ")?.1;
+            let (n, tail) = rest.split_once(' ')?;
+            tail.starts_with("to its AC").then(|| n.parse().ok()).flatten()
+        }).unwrap_or(0)
+    }
+
     /// What it does with damage of a type.
     pub fn defenses(&self) -> super::Defenses {
         super::Defenses { resistances: self.resistances.clone(), immunities: self.immunities.clone(), vulnerabilities: self.vulnerabilities.clone() }

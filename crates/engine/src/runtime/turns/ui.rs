@@ -391,6 +391,8 @@ impl Game {
             let t = format!("{who}...");
             let tw = measure_plain(&t, 20.0).width;
             draw_plain(&t, (screen_width() - tw) / 2.0, screen_height() - 24.0, 20.0, skin::highlight());
+            // (The Reaction window asks on others' turns.)
+            self.draw_fight_menu();
             return;
         }
         // The action bar with the turn's economy above it.

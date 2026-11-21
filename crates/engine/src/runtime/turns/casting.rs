@@ -7,10 +7,10 @@
 use macroquad::prelude::*;
 
 use super::{AttackSpec, Who};
-use crate::grid::{feet_spot, TilePos};
+use crate::grid::{feet_spot, feet_tile, TilePos};
 use crate::runtime::Game;
 use crate::skills::{Area, Shape, SpellDef, SpellPart, SpellRange};
-use crate::srd::conditions::{self, ConditionSpec};
+use crate::srd::conditions::{self, Condition, ConditionSpec};
 use crate::srd::combat::Cover;
 use crate::srd::{Ability, Mode};
 
@@ -83,13 +83,12 @@ impl Game {
         if d.range == SpellRange::Caster {
             return Ok((vec![who], point));
         }
-        // (A summons appears at an empty tile.)
-        let summons = d.parts.iter().any(|p| matches!(p, SpellPart::Summon { .. }));
+        // (A summons appears at an empty tile, a teleport goes to one.)
         let target = match at {
             CastAt::On(w) => w,
             CastAt::Tile(t) => match self.who_at(t) {
                 Some(w) => w,
-                None if summons => return Ok((Vec::new(), point)),
+                None if d.aims_at_tile() => return Ok((Vec::new(), point)),
                 None => return Err("No one there"),
             },
         };
@@ -138,7 +137,7 @@ impl Game {
             return Err(self.cast_refusal(who, id, "You can't cast that spell"));
         }
         let (targets, point) = self.spell_targets(who, &d, slot, at)?;
-        if targets.is_empty() && !d.parts.iter().any(|p| matches!(p, SpellPart::Script { .. } | SpellPart::Summon { .. })) {
+        if targets.is_empty() && !d.aims_at_tile() && !d.parts.iter().any(|p| matches!(p, SpellPart::Script { .. })) {
             return Err("No one there");
         }
         if self.monster_casting(who).is_some() {
@@ -282,7 +281,10 @@ impl Game {
                         }
                     }
                     SpellPart::Heal { by_level } => {
-                        let n = dice_of(self, by_level).map_or(0, |x| roll(&x));
+                        // (Beacon of Hope: the most the dice can heal.)
+                        let hope = conditions::buffs(self.who_conditions(t)).any(|b| matches!(b, conditions::Buff::Hope));
+                        let most = |x: &str| crate::srd::Expr::parse(x).map(|e| e.range(&crate::srd::dice::NoMods).1.max(0)).unwrap_or(0) as i32;
+                        let n = dice_of(self, by_level).map_or(0, |x| if hope { most(&x) } else { roll(&x) });
                         if n > 0 && self.fight.is_some() {
                             self.fight_log(format!("{tname}: +{n} HP"));
                         }
@@ -329,9 +331,30 @@ impl Game {
                         if (save.is_some() || attack.is_some()) && !landed {
                             continue;
                         }
-                        if let Some(l) = self.who_conditions_mut(t) {
-                            conditions::apply_buff(l, buff.clone(), secs, &source);
+                        // (Enhance Ability: the target's best score when none is set.)
+                        let mut buff = buff.clone();
+                        if let conditions::Buff::CheckAdvantage { ability: a @ None } = &mut buff {
+                            let s = self.who_abilities(t);
+                            *a = Ability::ALL.into_iter().max_by_key(|x| s.score(*x));
                         }
+                        if let Some(l) = self.who_conditions_mut(t) {
+                            conditions::apply_buff(l, buff, secs, &source);
+                        }
+                    }
+                    // (A boon of the caster's aimed at this target: Hunter's Mark, True Strike.)
+                    SpellPart::Mark { buff } => {
+                        if (save.is_some() || attack.is_some()) && !landed {
+                            continue;
+                        }
+                        let tag = self.who_tag(t);
+                        let mut buff = buff.clone();
+                        if let conditions::Buff::HitDamage { mark, .. } | conditions::Buff::NextAttack { mark } = &mut buff {
+                            *mark = tag;
+                        }
+                        if let Some(l) = self.who_conditions_mut(caster) {
+                            conditions::apply_buff(l, buff, secs, &source);
+                        }
+                        self.fight_log(format!("{tname}: {}", crate::lang::tr(&d.name)));
                     }
                     // (A willing ally or the caster: no save.)
                     SpellPart::Shape { max_cr } => {
@@ -362,6 +385,11 @@ impl Game {
                     }
                 }
                 SpellPart::Unlock => self.knock(),
+                SpellPart::Teleport => self.teleport(caster, d, point),
+                SpellPart::HpPool { by_level, condition } => {
+                    let pool = dice_of(self, by_level).map_or(0, |x| roll(&x));
+                    self.hp_pool(caster, targets, pool, *condition, secs, &source);
+                }
                 SpellPart::Summon { creature, count } => {
                     let secs = if d.duration_rounds == 0 { 0.0 } else { spell_secs(d) };
                     let source = self.spell_source(caster, d);
@@ -468,8 +496,7 @@ impl Game {
         let c = self.fight.as_ref().ok_or("No fight")?;
         let (cursor, me) = (c.cursor, c.current().who);
         let d = self.project.db.spell(id).cloned().ok_or("No such spell")?;
-        let summons = d.parts.iter().any(|p| matches!(p, SpellPart::Summon { .. }));
-        let at = if d.area.is_some() || d.range == SpellRange::Caster || (summons && self.who_at(cursor).is_none()) {
+        let at = if d.area.is_some() || d.range == SpellRange::Caster || (d.aims_at_tile() && self.who_at(cursor).is_none()) {
             CastAt::Tile(cursor)
         } else {
             CastAt::On(self.who_at(cursor).ok_or("No one there")?)
@@ -568,6 +595,8 @@ impl Game {
         for b in conditions::buffs(self.who_conditions(who)) {
             match b {
                 conditions::Buff::AcBase { base } if unarmored => out = out.max(base + dex),
+                // (Barkskin: at least 16, whatever it wears.)
+                conditions::Buff::AcMin { ac } => out = out.max(*ac),
                 _ => {}
             }
         }
@@ -611,5 +640,103 @@ impl Game {
         } else {
             poison
         }
+    }
+
+    /// Teleport (Misty Step): `caster` to `point` when it is free and walkable; without a point
+    /// (outside fights) to the farthest free tile within the range straight ahead.
+    fn teleport(&mut self, caster: Who, d: &SpellDef, point: Option<TilePos>) {
+        let ts = self.ts();
+        let range = d.range.tiles().max(1);
+        let from = self.who_tile(caster);
+        let free = |g: &Game, t: TilePos| {
+            !g.tile_blocks_npc(t.0, t.1) && g.who_at(t).is_none() && feet_tile(g.player.pos, ts) != t && !g.loaded.entities.iter().any(|e| e.active && e.solid && feet_tile(e.body.pos, ts) == t)
+        };
+        let to = match point {
+            Some(p) => Some(p).filter(|p| free(self, *p)),
+            None => {
+                let facing = match caster {
+                    Who::Player => self.player.facing,
+                    w => self.who_index(w).map_or(self.player.facing, |i| self.loaded.entities[i].body.facing),
+                };
+                let (dx, dy) = facing.dir();
+                (1..=range).rev().map(|k| (from.0 + dx.round() as i32 * k, from.1 + dy.round() as i32 * k)).find(|t| free(self, *t))
+            }
+        };
+        let name = self.who_name(caster);
+        let Some(t) = to else {
+            let line = format!("{name}: {}", crate::lang::tr_ui("nowhere to go"));
+            if self.fight.is_some() { self.fight_log(line) } else { self.ui.toast(line) }
+            return;
+        };
+        let (old, new) = (self.who_pos(caster), feet_spot(t, ts));
+        match self.who_index(caster) {
+            None => {
+                self.player.pos = new;
+                self.player.move_target = None;
+                self.player.moving = false;
+            }
+            Some(i) => {
+                let e = &mut self.loaded.entities[i];
+                e.body.pos = new;
+                e.body.move_target = None;
+                self.occupy(i);
+            }
+        }
+        self.effects.push((old - vec2(0.0, ts * 0.4), 0.0));
+        self.effects.push((new - vec2(0.0, ts * 0.4), 0.0));
+        if self.fight.is_some() {
+            self.fight_log(format!("{name} {} {},{}", crate::lang::tr_ui("teleports to"), t.0, t.1));
+        }
+    }
+
+    /// An HP pool (Sleep, Color Spray): the targets with the fewest hit points first get
+    /// `condition` while `pool` covers them (undead and those immune to charm don't sleep).
+    fn hp_pool(&mut self, caster: Who, targets: &[Who], pool: i32, condition: Condition, secs: f32, source: &str) {
+        let sleep = condition == Condition::Unconscious;
+        let list: Vec<(i32, Who)> = targets
+            .iter()
+            .copied()
+            .filter(|t| !self.fight.as_ref().and_then(|c| c.fighter(*t)).is_some_and(|f| f.out || f.down))
+            .filter(|t| !conditions::has(self.who_conditions(*t), condition))
+            .filter(|t| !self.who_block(*t).is_some_and(|b| b.immune_to(condition) || (sleep && (b.immune_to(Condition::Charmed) || b.creature_type.eq_ignore_ascii_case("undead")))))
+            .map(|t| (self.who_hp(t).0, t))
+            .filter(|(hp, _)| *hp > 0)
+            .collect();
+        let tag = self.who_tag(caster);
+        // (Asleep from a spell: a hit wakes it.)
+        let source = if sleep { format!("{}{source}", crate::runtime::poisons::WAKE_ON_HIT) } else { source.to_string() };
+        for t in crate::skills::hp_pool_pick(list, pool) {
+            if let Some(l) = self.who_conditions_mut(t) {
+                conditions::apply_from(l, &ConditionSpec::new(condition, secs), &source);
+                conditions::set_origin(l, condition, &tag, 0);
+            }
+            let tname = self.who_name(t);
+            self.fight_log(format!("{tname}: {}", crate::lang::tr_ui(condition.name())));
+        }
+    }
+
+    /// True Strike: advantage on `who`'s next attack (against the marked creature), spent now.
+    pub(super) fn take_next_attack(&mut self, who: Who, target: Who) -> bool {
+        let tag = self.who_tag(target);
+        let Some(l) = self.who_conditions_mut(who) else { return false };
+        let k = l.iter().position(|a| matches!(&a.buff, Some(conditions::Buff::NextAttack { mark }) if mark.is_empty() || *mark == tag));
+        k.map(|k| l.remove(k)).is_some()
+    }
+
+    /// The buffs' damage on `who`'s weapon hit on `target` (Divine Favor, Hunter's Mark against
+    /// the marked one, a smite's once): dice and type; one-hit ones are spent.
+    pub(super) fn hit_buffs(&mut self, who: Who, target: Who) -> Vec<(String, Option<crate::srd::DamageType>)> {
+        let tag = self.who_tag(target);
+        let Some(l) = self.who_conditions_mut(who) else { return Vec::new() };
+        let mut out = Vec::new();
+        l.retain(|a| {
+            let Some(conditions::Buff::HitDamage { dice, damage_type, mark, once }) = &a.buff else { return true };
+            if !mark.is_empty() && *mark != tag {
+                return true;
+            }
+            out.push((dice.clone(), *damage_type));
+            !*once
+        });
+        out
     }
 }

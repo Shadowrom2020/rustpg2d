@@ -13,6 +13,9 @@ const POISON_SLEEP: &str = "poison";
 use crate::srd::poisons::{Coating, PoisonDef};
 use crate::srd::{DamageType, Mode};
 
+/// The source prefix of an unconsciousness a hit ends (Sleep's).
+pub(super) const WAKE_ON_HIT: &str = "wake:";
+
 impl Game {
     /// The poison of item `item`, if it is one.
     fn poison_of(&self, item: &str) -> Option<PoisonDef> {
@@ -145,7 +148,7 @@ impl Game {
         let woke = match self.who_conditions_mut(who) {
             Some(l) => {
                 let before = l.len();
-                l.retain(|a| !(a.condition == Some(Condition::Unconscious) && a.source == POISON_SLEEP));
+                l.retain(|a| !(a.condition == Some(Condition::Unconscious) && (a.source == POISON_SLEEP || a.source.starts_with(WAKE_ON_HIT))));
                 l.len() < before
             }
             None => false,

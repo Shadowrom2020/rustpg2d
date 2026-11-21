@@ -866,6 +866,10 @@ fn spell_def(v: &Value) -> rustpg2d_engine::skills::SpellDef {
             _ => parts.retain(|p| !matches!(p, P::Damage { .. })),
         }
     }
+    // (Misty Step's 30 feet are the teleport's, the data's range is the caster.)
+    if index == "misty-step" {
+        d.range = rustpg2d_engine::skills::SpellRange::Feet(30);
+    }
     // (Light's save is for an object a foe holds: lit by the caster, there is none.)
     if s(v, "index") == "light" {
         parts.retain(|p| !matches!(p, P::Save { .. }));
@@ -925,6 +929,19 @@ fn spell_extras(index: &str) -> Vec<rustpg2d_engine::skills::SpellPart> {
         "false-life" => vec![P::TempHp { by_level: (1..=9).map(|l| (l, format!("1d4+{}", 4 + 5 * (l - 1)))).collect() }],
         "aid" => vec![P::TempHp { by_level: (2..=9).map(|l| (l, format!("{}", 5 * (l - 1)))).collect() }],
         "heroism" => vec![P::TempHp { by_level: vec![(1, "MOD".into())] }],
+        // (0.32: teleports, hit point pools, damage on hits, checks and AC.)
+        "misty-step" | "dimension-door" => vec![P::Teleport],
+        "sleep" => vec![P::HpPool { by_level: (1..=9).map(|l| (l, format!("{}d8", 5 + 2 * (l - 1)))).collect(), condition: K::Unconscious }],
+        "color-spray" => vec![P::HpPool { by_level: (1..=9).map(|l| (l, format!("{}d10", 6 + 2 * (l - 1)))).collect(), condition: K::Blinded }],
+        "hunters-mark" => vec![P::Mark { buff: B::HitDamage { dice: "1d6".into(), damage_type: None, mark: String::new(), once: false } }],
+        "divine-favor" => vec![buff(B::HitDamage { dice: "1d4".into(), damage_type: Some(rustpg2d_engine::srd::DamageType::Radiant), mark: String::new(), once: false })],
+        "branding-smite" => vec![buff(B::HitDamage { dice: "2d6".into(), damage_type: Some(rustpg2d_engine::srd::DamageType::Radiant), mark: String::new(), once: true })],
+        "shillelagh" => vec![buff(B::WeaponDie { dice: "1d8".into() })],
+        "guidance" => vec![buff(B::CheckDie { dice: "1d4".into() })],
+        "enhance-ability" => vec![buff(B::CheckAdvantage { ability: None })],
+        "true-strike" => vec![P::Mark { buff: B::NextAttack { mark: String::new() } }],
+        "beacon-of-hope" => vec![P::Targets { count: 6, per_slot: 0 }, buff(B::Hope)],
+        "barkskin" => vec![buff(B::AcMin { ac: 16 })],
         _ => Vec::new(),
     }
 }
@@ -2607,9 +2624,10 @@ mod tests {
         // Bless: three creatures and one a slot, a d4 on attacks and saves; Magic Missile hits.
         assert!(get("bless").parts.contains(&P::Buff { buff: Buff::AttackDie { dice: "1d4".into(), minus: false } }));
         assert!(matches!(&get("magic-missile").parts[..], [P::Damage { .. }]));
-        // Light without its save; Sleep (its hit point pool) and Detect Magic are the story's.
+        // Light without its save; Sleep's hit point pool; Detect Magic is the story's.
         assert!(matches!(&get("light").parts[..], [P::Light { .. }]));
-        assert!(story.contains(&"sleep".to_string()) && story.contains(&"detect-magic".to_string()) && get("sleep").parts.is_empty());
+        assert!(matches!(&get("sleep").parts[..], [P::HpPool { condition: Condition::Unconscious, .. }]));
+        assert!(story.contains(&"detect-magic".to_string()) && !story.contains(&"sleep".to_string()));
         // A second run changes nothing; an existing spell keeps its icon.
         spells.iter_mut().find(|d| d.id == "light").unwrap().icon = rustpg2d_engine::defs::SpriteRef::new("items", 27);
         let before = spells.clone();

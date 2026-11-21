@@ -1325,6 +1325,18 @@
                     price: 0,
                 ),
                 (
+                    item: "scroll_sleep",
+                    count: 2,
+                    unlimited: false,
+                    price: 0,
+                ),
+                (
+                    item: "scroll_misty_step",
+                    count: 1,
+                    unlimited: false,
+                    price: 0,
+                ),
+                (
                     item: "antidote",
                     count: 3,
                     unlimited: false,

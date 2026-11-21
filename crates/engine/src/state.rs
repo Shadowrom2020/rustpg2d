@@ -828,11 +828,13 @@ impl WorldState {
             return None;
         };
         let (mode, fails, helper) = self.check_terms(&spec, mode);
+        let (mode, die) = self.boons(&spec, mode);
         // (Failing sight takes its penalty off checks by sight: rolled against a higher DC, shown
-        // as a lower total.)
+        // as a lower total; a die adds the other way.)
         let pen = if !save && crate::srd::conditions::needs_sight(&spec.proficiency) { self.training.sight_penalty.max(0) } else { 0 };
+        let pen = pen - die;
         let mut rec = spec.roll(&self.roller(), dc + pen, mode);
-        if pen > 0 {
+        if pen != 0 {
             (rec.modifier, rec.total, rec.dc) = (rec.modifier - pen as i64, rec.total - pen as i64, dc);
         }
         if let Some(h) = helper {
@@ -918,10 +920,24 @@ impl WorldState {
 
     /// Rolls the hero's check of `what` without a DC (a search): the conditions, light and help
     /// as in [`WorldState::check`], into the roll log; a check that fails on its own totals 0.
+    /// The spells' boons on a roll of `spec`: Enhance Ability's and Beacon of Hope's advantage,
+    /// Guidance's die (spent by it). Returns the mode and what the dice add.
+    fn boons(&mut self, spec: &crate::srd::Spec, mode: crate::srd::Mode) -> (crate::srd::Mode, i32) {
+        let (adv, dice, spent) = crate::srd::conditions::check_boons(&self.effects, spec.ability, spec.save);
+        let mode = if adv { mode.combine(crate::srd::Mode::Advantage) } else { mode };
+        let die: i32 = dice.iter().map(|d| crate::srd::Expr::parse(d).map(|e| e.roll(&crate::srd::dice::NoMods).total).unwrap_or(0) as i32).sum();
+        if spent {
+            crate::srd::conditions::spend_check_dice(&mut self.effects);
+        }
+        (mode, die)
+    }
+
     pub fn roll_check(&mut self, what: &str) -> Option<crate::srd::RollRecord> {
         let spec = crate::srd::Spec::parse(what, false)?;
         let (mode, fails, helper) = self.check_terms(&spec, crate::srd::Mode::Normal);
+        let (mode, die) = self.boons(&spec, mode);
         let mut rec = spec.roll(&self.roller(), 0, mode);
+        (rec.modifier, rec.total) = (rec.modifier + die as i64, rec.total + die as i64);
         if let Some(h) = helper {
             rec.label = format!("{} ({h} helps)", rec.label);
         }

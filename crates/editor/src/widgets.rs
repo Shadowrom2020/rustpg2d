@@ -2981,7 +2981,7 @@ pub fn poison_ui(ui: &mut Ui, id: &str, p: &mut rustpg2d_engine::srd::poisons::P
 pub fn buff_ui(ui: &mut Ui, id: &str, buff: &mut rustpg2d_engine::srd::conditions::Buff) {
     use rustpg2d_engine::srd::conditions::Buff as B;
     use rustpg2d_engine::srd::Ability;
-    let names = ["Attack die", "Save die", "AC +", "AC base", "Speed", "Haste", "Resistance", "Ability score", "Poison saves", "Sense"];
+    let names = ["Attack die", "Save die", "AC +", "AC base", "Speed", "Haste", "Resistance", "Ability score", "Poison saves", "Sense", "Damage on hits", "Check die", "Check advantage", "Next attack", "Hope", "AC at least", "Weapon die"];
     let mut kind = match buff {
         B::AttackDie { .. } => 0,
         B::SaveDie { .. } => 1,
@@ -2993,6 +2993,13 @@ pub fn buff_ui(ui: &mut Ui, id: &str, buff: &mut rustpg2d_engine::srd::condition
         B::AbilityScore { .. } => 7,
         B::PoisonSaves => 8,
         B::Sense { .. } => 9,
+        B::HitDamage { .. } => 10,
+        B::CheckDie { .. } => 11,
+        B::CheckAdvantage { .. } => 12,
+        B::NextAttack { .. } => 13,
+        B::Hope => 14,
+        B::AcMin { .. } => 15,
+        B::WeaponDie { .. } => 16,
     };
     let before = kind;
     egui::ComboBox::from_id_salt(format!("{id}/kind")).selected_text(names[kind]).show_ui(ui, |ui| {
@@ -3011,6 +3018,13 @@ pub fn buff_ui(ui: &mut Ui, id: &str, buff: &mut rustpg2d_engine::srd::condition
             6 => B::Resistance { types: vec!["fire".into()] },
             8 => B::PoisonSaves,
             9 => B::Sense { sense: rustpg2d_engine::srd::conditions::Sense::Truesight, feet: 120 },
+            10 => B::HitDamage { dice: "1d4".into(), damage_type: None, mark: String::new(), once: false },
+            11 => B::CheckDie { dice: "1d4".into() },
+            12 => B::CheckAdvantage { ability: None },
+            13 => B::NextAttack { mark: String::new() },
+            14 => B::Hope,
+            15 => B::AcMin { ac: 16 },
+            16 => B::WeaponDie { dice: "1d8".into() },
             _ => B::AbilityScore { ability: Ability::Str, score: 21 },
         };
     }
@@ -3029,6 +3043,34 @@ pub fn buff_ui(ui: &mut Ui, id: &str, buff: &mut rustpg2d_engine::srd::condition
             ui.add(egui::DragValue::new(feet).range(-60..=60).speed(5).suffix(" ft"));
         }
         B::Haste => {}
+        B::HitDamage { dice, damage_type, once, .. } => {
+            ui.add(egui::TextEdit::singleline(dice).desired_width(50.0));
+            damage_type_combo(ui, &format!("{id}/hdt"), damage_type, "the weapon's");
+            ui.checkbox(once, "the next hit only").on_hover_text("A smite: spent by the next weapon hit. With a spell's Mark part only against the marked creature (Hunter's Mark)");
+        }
+        B::CheckDie { dice } => {
+            ui.add(egui::TextEdit::singleline(dice).desired_width(50.0)).on_hover_text("Added to the next ability check, then it ends (Guidance)");
+        }
+        B::CheckAdvantage { ability } => {
+            egui::ComboBox::from_id_salt(format!("{id}/chk")).selected_text(ability.map_or("best score", |a| a.short())).show_ui(ui, |ui| {
+                ui.selectable_value(ability, None, "best score");
+                for a in Ability::ALL {
+                    ui.selectable_value(ability, Some(a), a.short());
+                }
+            });
+        }
+        B::NextAttack { .. } => {
+            ui.weak("advantage on the next attack roll (True Strike, with a Mark part)");
+        }
+        B::Hope => {
+            ui.weak("advantage on WIS and death saves, healing at its most");
+        }
+        B::AcMin { ac } => {
+            ui.add(egui::DragValue::new(ac).range(10..=25)).on_hover_text("Armor class at least this (Barkskin 16)");
+        }
+        B::WeaponDie { dice } => {
+            ui.add(egui::TextEdit::singleline(dice).desired_width(50.0)).on_hover_text("The melee weapon's die; attacks use the spellcasting ability (Shillelagh)");
+        }
         B::PoisonSaves => {
             ui.weak("advantage on saving throws against poison");
         }

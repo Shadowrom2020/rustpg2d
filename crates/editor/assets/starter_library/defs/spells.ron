@@ -1979,7 +1979,13 @@
             "druid",
             "ranger",
         ],
-        story_only: true,
+        parts: [
+            Summon(
+                creature: "dire-wolf",
+                count: 2,
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "conjure-celestial",
@@ -3872,7 +3878,13 @@
         classes: [
             "wizard",
         ],
-        story_only: true,
+        parts: [
+            Summon(
+                creature: "owl",
+                count: 1,
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "find-steed",
@@ -7546,7 +7558,14 @@
             "sorcerer",
             "wizard",
         ],
-        story_only: true,
+        parts: [
+            Save(
+                ability: Wis,
+                half: false,
+            ),
+            Shape(),
+        ],
+        story_only: false,
     ),
     (
         id: "power-word-kill",

@@ -386,7 +386,7 @@ impl Game {
     }
 
     /// The fighter standing on tile `t`.
-    pub(super) fn who_at(&self, t: TilePos) -> Option<Who> {
+    pub(in crate::runtime) fn who_at(&self, t: TilePos) -> Option<Who> {
         let c = self.fight.as_ref()?;
         c.order.iter().filter(|f| !f.out).map(|f| f.who).find(|w| self.who_space(*w).contains(&t))
     }
@@ -579,7 +579,7 @@ impl Game {
     /// The size of a combatant: the hero's race's, a stat block's (Medium when unknown).
     pub(super) fn who_size(&self, who: Who) -> crate::srd::Size {
         match who {
-            Who::Player => self.player_race().and_then(|r| crate::srd::Size::parse(&r.size_category)).unwrap_or_default(),
+            Who::Player if self.world.shape.is_none() => self.player_race().and_then(|r| crate::srd::Size::parse(&r.size_category)).unwrap_or_default(),
             w => self.who_block(w).map_or(crate::srd::Size::Medium, |b| b.size),
         }
     }

@@ -1412,7 +1412,7 @@ added here.
   (8 psychic, incapacitated); Sight Rot's -2 on a Perception roll (the Rolls page) and blindness after
   four rests; a Cure part with a disease; Brother Ansel's offer and cure (30 to 5 gold).
 
-- [ ] Special abilities of monsters and classes — four parts (2026-11-21):
+- [x] Special abilities of monsters and classes — four parts (2026-11-21):
   1. [x] **Monster actions** — `feature/srd-monster-actions`.
   2. [x] **Senses** (blindsight, tremorsense, truesight) — `feature/srd-senses`.
   3. [x] **Reactions** (the prompt, the AI's by rule) — `feature/srd-reactions`. Verified on a
@@ -1421,7 +1421,14 @@ added here.
      a warlock's Hellish Rebuke hits back for 3d10 (DEX save for half); a fighter with Protection
      and a shield gives the orc disadvantage on its javelin at Faelan next to them; an orc with
      *Parry* turns the hero's 14 vs AC 13 into a miss.
-  4. [ ] **Shapes and summons** — `feature/srd-shapes`.
+  4. [x] **Shapes and summons** — `feature/srd-shapes`. Verified on a scratch copy: a level 4
+     druid's Wild Shape lists the wolf and the giant rat (not the flying bat), plays the wolf's
+     bite (+4, 2d4+2, the knock-down save) at speed 40, drops back to 28 of 30 HP when the wolf's
+     3 HP take 5, leaves the shape as a bonus action, and keeps it across save and load; Polymorph
+     turns an orc warrior that fails its WIS save into an owl that turns back (2 damage carried
+     over) when hit, and ends when the wizard loses concentration; the wizard polymorphed by
+     themselves chooses the beast (INT 3); Find Familiar's owl follows as a companion; Conjure
+     Animals' two dire wolves join the fight on the hero's side and win it.
 
   **Goal.** What the stat block and spell vocabularies of 0.29 and 0.30 leave as text.
 

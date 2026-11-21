@@ -5970,6 +5970,16 @@ fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::Sp
                     widgets::suggest(ui, &format!("sp_fn{k}"), function, &cx.refs.functions, 160.0);
                     ui.weak("function(caster, x, y, slot)");
                 }
+                P::Shape { max_cr } => {
+                    ui.strong("Beast shape").on_hover_text("The target takes the shape of a beast (a character whose stat block's type is beast) for the spell's duration (Polymorph); the hero casting it on themselves chooses among the beasts they know");
+                    ui.label("up to CR");
+                    ui.add(egui::TextEdit::singleline(max_cr).desired_width(50.0).hint_text("level"));
+                }
+                P::Summon { creature, count } => {
+                    ui.strong("Summon").on_hover_text("Creatures appear next to the caster, on its side, for the spell's duration (instantaneous: until 0 HP or the map is left); the party's are companions the AI plays");
+                    ui.add(egui::DragValue::new(count).range(1..=12).prefix("x"));
+                    widgets::suggest(ui, &format!("sp_summon{k}"), creature, &cx.refs.characters, 160.0);
+                }
             }
         });
     }
@@ -5978,7 +5988,7 @@ fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::Sp
     }
     ui.horizontal(|ui| {
         ui.label("Add:");
-        let templates: [(&str, P); 13] = [
+        let templates: [(&str, P); 15] = [
             ("Attack", P::Attack { ranged: true }),
             ("Save", P::Save { ability: Ability::Dex, half: true }),
             ("Damage", P::Damage { by_level: vec![(1, "1d8".into())], damage_type: None }),
@@ -5992,6 +6002,8 @@ fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::Sp
             ("Stabilize", P::Stabilize),
             ("Cure", P::Cure { conditions: vec![Condition::Poisoned], disease: false }),
             ("Script", P::Script { function: String::new() }),
+            ("Shape", P::Shape { max_cr: String::new() }),
+            ("Summon", P::Summon { creature: String::new(), count: 1 }),
         ];
         for (name, t) in templates {
             if ui.small_button(name).clicked() {

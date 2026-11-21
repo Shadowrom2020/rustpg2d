@@ -17,6 +17,10 @@ impl Game {
         if self.combat.max_hp <= 0 {
             return self.combat.max_hp;
         }
+        // (A beast's shape: its hit points.)
+        if let Some(s) = &self.world.shape {
+            return s.max_hp;
+        }
         let race = self.player_race();
         let level = if self.progression_on() { self.world.player_level() } else { 1 };
         let con = self.world.abilities.modifier(crate::srd::Ability::Con);

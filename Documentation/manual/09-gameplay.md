@@ -318,8 +318,8 @@ character creator offers them on its third page; the hero then is a class at the
 - Party members with a class use theirs on their AI turns: *Rage* when foes are near, *Second
   Wind* (and other heals) below half their hit points, *Action Surge* when their attacks are spent,
   the monk's strikes after attacking, their spells (see *The AI's spells*). The features that need
-  other systems (Wild Shape, Divine Smite, senses, Favored Enemy's tracking) are their rules text
-  on the sheet.
+  other systems (Divine Smite, Favored Enemy's tracking) are their rules text on the sheet; Wild
+  Shape is the hero's (see *Shapes and summons*).
 - The **character sheet** (K) shows the class, subclass and level, the hit dice by the class's
   die, and the class's features first in *Features and traits* (their text below the list), those
   with uses with the uses left (*Rage 2/3*).
@@ -599,7 +599,9 @@ become SRD spells of level 1 (a bolt a cantrip) that every casting class has.
   failure; Evasion counts), damage, healing, temporary hit points, conditions (paralyzed, prone,
   frightened…), boons and banes (Bless and Bane's d4 on attacks and saves, Shield and Shield of Faith
   on AC, Mage Armor's AC 13 + DEX, Haste, Longstrider, resistances), light, Knock (the lock within
-  two tiles opens), a script function. The fight log tells each target's save and damage.
+  two tiles opens), a beast's shape (*Polymorph*), summoned creatures (*Find Familiar*, *Conjure
+  Animals*), a script function. The fight log tells each target's save and damage. See *Shapes and
+  summons*.
 - **Concentration**: a concentration spell lasts while the caster keeps it: one at a time (a new one
   ends the old), and damage asks for a CON save (DC 10 or half the damage); a failure ends what the
   spell gave everyone.
@@ -1038,6 +1040,36 @@ answer (the rule decides).
 The starter library has the spells *Shield* and *Hellish Rebuke*; Parry comes from the stat
 blocks' reaction texts (nothing to set up). `status` prints `react=` (the reactions asked now,
 `shield|pass`, `-` when none); autoplay `turn pick K` answers the window on any fighter's turn.
+
+### Shapes and summons
+
+**Wild Shape** (the druid's class action from level 2: two uses, back after a short rest) turns the
+hero into a beast. The window (in a fight: over the action bar; outside: the action bar's list)
+shows the beasts the hero knows: those in the bestiary (defeated) and those on the map now, of a
+challenge rating up to 1/4 (level 2, no flying or swimming speed), 1/2 (level 4, no flying speed)
+or 1 (level 8), with their CR, hit points and AC. In the shape the hero plays the beast's stat
+block: its hit points, AC, speed (its flying speed when it has one), size, attacks (Multiattack
+too), senses and STR, DEX and CON; INT, WIS, CHA, proficiencies and class features stay, spells
+don't. It lasts half the druid level in hours. Using Wild Shape again leaves the shape (a bonus
+action in a fight); at 0 hit points the hero is back with their own hit points and the rest of the
+damage carries over. The look is the beast's character's.
+
+**Polymorph** (a spell part *Shape*: a beast up to a challenge rating, empty = the target's level
+or CR): on the hero cast by themselves the same window opens (all six scores are the beast's); a
+foe that fails its WIS save becomes the weakest beast it may (an orc warrior an owl), an ally the
+strongest. The shape lasts while the caster concentrates, and at 0 hit points the creature is
+itself again (the rest of the damage carried over) and the spell ends.
+
+**Summons** (a spell part *Summon*: a character and how many): the creatures appear at the aimed
+tile, or next to the caster, on its side. The party's are companions the AI plays (the orders
+menu, G, works; their HUD rows show), joining a fight at once with their own initiative; a foe's
+fight for it. They stay for the spell's duration or while it is concentrated on, an instantaneous
+spell's until they drop to 0 hit points (they vanish, nothing is left) or the hero leaves the map;
+they aren't saved. In the starter library *Find Familiar* summons an owl, *Conjure Animals* two
+dire wolves; the druid's Wild Shape is in the library's and the example's classes.
+
+The hero's shape is saved with the game. `status` prints `shape=` (`player>wolf:11/11:7199s`, a
+character's `orc>owl:1/1`; `-`) and `summons=` (`dire-wolf:37/37:3600s`, `owl:1/1:-`).
 
 ## Diseases
 

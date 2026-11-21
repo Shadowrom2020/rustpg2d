@@ -352,6 +352,12 @@ impl Renamer<'_> {
         }
         self.fix(RefKind::Sheet, &mut d.visual.impact);
         self.fix(RefKind::Sound, &mut d.visual.sound);
+        // (The creatures it summons travel with it.)
+        for p in &mut d.parts {
+            if let crate::skills::SpellPart::Summon { creature, .. } = p {
+                self.fix(RefKind::Character, creature);
+            }
+        }
         // (Renamed with their class; not a dependency: a spell travels without the classes.)
         if self.found.is_none() {
             for c in &mut d.classes {

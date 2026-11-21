@@ -383,6 +383,20 @@ pub enum ActEffect {
     },
     /// A script function (arguments: the user's name and the target's tile x, y).
     Script { function: String },
+    /// Wild Shape: the user takes the shape of a beast it knows (defeated, or seen on this map)
+    /// of a challenge rating up to `max_cr`'s step for its class level (`(2, "1/4"), (4, "1/2"),
+    /// (8, "1")`), without a flying speed below level `fly_from` and a swimming speed below
+    /// `swim_from`, for `hours_per_level` × the level hours (at least 1). Used again in the shape
+    /// (a bonus action), it leaves it.
+    Shape {
+        max_cr: Vec<(u32, String)>,
+        #[serde(default)]
+        fly_from: u32,
+        #[serde(default)]
+        swim_from: u32,
+        #[serde(default)]
+        hours_per_level: f32,
+    },
 }
 
 /// Who a class action is used on.

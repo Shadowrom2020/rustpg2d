@@ -34,6 +34,8 @@ pub(super) enum BarPick {
     Class(String),
     /// `short_rest`, `camp`.
     Act(String),
+    /// A beast's shape to take (Wild Shape, Polymorph's window).
+    Shape(String),
 }
 
 #[derive(Clone, Debug)]
@@ -197,6 +199,12 @@ impl Game {
         }
     }
 
+    /// Opens a list of `rows` under `entry`'s title (the beasts of Wild Shape).
+    pub(super) fn open_bar_list(&mut self, entry: BarEntry, rows: Vec<BarRow>) {
+        let sel = rows.iter().position(|r| r.why.is_none()).unwrap_or(0);
+        self.bar.list = Some(BarList { entry, rows, sel, mouse: input::mouse_pos() });
+    }
+
     /// The rows of a list entry.
     fn entry_rows(&self, e: &BarEntry) -> Vec<BarRow> {
         match e {
@@ -337,6 +345,7 @@ impl Game {
                 }
             }
             BarPick::Act(a) => self.bar_act(a),
+            BarPick::Shape(form) => self.pick_shape(form),
         }
     }
 

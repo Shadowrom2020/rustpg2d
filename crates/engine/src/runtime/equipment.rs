@@ -52,6 +52,10 @@ impl Game {
     /// The hero's armor class (SRD): body armor's base + DEX up to its cap (10 + DEX without),
     /// a shield's bonus, the class's unarmored formulas and fighting style, the spells' buffs.
     pub(super) fn armor_class(&self) -> i32 {
+        // (A beast's shape: its natural armor.)
+        if let Some(b) = self.hero_form_block() {
+            return self.buff_ac(super::turns::Who::Player, b.ac);
+        }
         let dex = self.world.abilities.modifier(crate::srd::Ability::Dex);
         let (ac, body, shield) = crate::srd::equipment::armor_class(self.worn_armor(EquipSlot::Body), self.worn_armor(EquipSlot::Offhand), dex);
         // Magic armor and shields: their +N (on what they give); items: a Ring of Protection.
@@ -82,6 +86,10 @@ impl Game {
     /// The hero's walking speed in feet: the race's, the class's (Fast Movement, Unarmored
     /// Movement), 10 less in armor too heavy, then the load's.
     pub(super) fn hero_speed_ft(&self) -> u32 {
+        // (A beast's shape: its speed, or its flying speed.)
+        if let Some(b) = self.hero_form_block() {
+            return b.speed_ft.max(b.speeds.fly);
+        }
         let base = self.player_race().map_or(30, |r| r.walk_feet()) + self.class_speed_ft(self.unarmored());
         let base = if self.armor_too_heavy() { base.saturating_sub(10) } else { base };
         // What the hero carries (encumbrance).

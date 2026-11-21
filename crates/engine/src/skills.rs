@@ -353,6 +353,27 @@ pub enum SpellPart {
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         disease: bool,
     },
+    /// The target takes a beast's shape for the spell's duration (Polymorph): one of the project's
+    /// characters whose stat block is a beast, of a challenge rating up to `max_cr` (`""` = the
+    /// target's level or challenge rating). The hero casting it on themselves chooses the beast
+    /// among the ones they know; a foe becomes the weakest, an ally the strongest.
+    Shape {
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        max_cr: String,
+    },
+    /// `count` creatures of character definition `creature` appear next to the caster, on its
+    /// side, for the spell's duration (an instantaneous spell's stay until they drop to 0 hit
+    /// points or the map is left): Find Familiar, Conjure Animals. Summoned by the party, they are
+    /// companions the AI plays.
+    Summon {
+        creature: String,
+        #[serde(default = "one")]
+        count: u32,
+    },
+}
+
+fn one() -> u32 {
+    1
 }
 
 fn yes() -> bool {

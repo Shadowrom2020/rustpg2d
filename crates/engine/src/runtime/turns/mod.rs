@@ -372,6 +372,10 @@ impl Game {
     /// A character's stat block, or one made from its old real-time values (AC 10 + defense,
     /// HP); a block without attacks gets one with its weapon or its damage.
     pub(super) fn who_block(&self, who: Who) -> Option<crate::srd::StatBlock> {
+        // The hero has none, but in a beast's shape (Wild Shape, Polymorph).
+        if who == Who::Player {
+            return self.hero_form_block();
+        }
         // A party member with a class: its class's block.
         if let Who::Npc(uid) = who {
             if let Some(b) = self.member_block(uid) {
@@ -758,6 +762,8 @@ impl Game {
                 self.end_concentration(f.who);
             }
         }
+        // (A shape's and a summon's time: a round of theirs.)
+        self.tick_shapes(conditions::ROUND, Some(f.who));
         let Some(c) = &self.fight else { return };
         if f.surprised && c.round == 1 {
             let line = format!("{} {}", self.who_name(f.who), crate::lang::tr_ui("is surprised"));
@@ -934,7 +940,7 @@ impl Game {
     /// Whether `who` flies (a fly speed in its stat block): it crosses water, pits and low
     /// obstacles in fights.
     pub(super) fn who_flies(&self, who: Who) -> bool {
-        who != Who::Player && self.who_block(who).is_some_and(|b| b.speeds.fly > 0)
+        self.who_block(who).is_some_and(|b| b.speeds.fly > 0)
     }
 
     pub(super) fn terrain_closed(&self, t: TilePos) -> bool {
@@ -1240,7 +1246,8 @@ impl Game {
     /// The attacks a combatant can make: the hero's weapon, a stat block's attacks.
     pub(super) fn attack_specs(&self, who: Who) -> Vec<AttackSpec> {
         match who {
-            Who::Player => {
+            // (In a beast's shape: the beast's attacks.)
+            Who::Player if self.world.shape.is_none() => {
                 let w = self.attack_weapon();
                 let mut v = vec![self.hero_spec(&w, false)];
                 // A thrown weapon: a ranged attack too (it stays in hand: a simplification).
@@ -1751,6 +1758,10 @@ impl Game {
             return false;
         }
         let Some(i) = self.who_index(target) else { return false };
+        // (A beast's shape at 0 HP: the creature is back, not down.)
+        if self.loaded.entities[i].shape.is_some() || self.loaded.entities[i].summon.is_some() {
+            return false;
+        }
         let hp = self.loaded.entities[i].hp;
         let defenses = self.fight_defenses(target);
         let n: i32 = parts.iter().map(|(a, t)| defenses.apply_hit(*a, *t, spec.hit)).sum();
@@ -1826,7 +1837,8 @@ impl Game {
         self.audio.play(&self.project.config.sfx.hit);
         match target {
             Who::Player => {
-                let before = self.hp();
+                // (A beast's shape takes it: at 0 HP the hero is back, the rest carries over.)
+                let (before, n) = self.shape_takes(self.hp(), n);
                 let mut hp = (before - n).max(0);
                 if hp == 0 && self.relentless(target) {
                     hp = 1;
@@ -1860,6 +1872,13 @@ impl Game {
                     e.bar_lag = before.max(0) as f32 / e.max_hp as f32;
                 }
                 e.bar = super::juice::BAR_TIME;
+                // (A character in a beast's shape: itself again, the rest carried over.)
+                if e.hp == 0 && e.shape.is_some() {
+                    let source = e.shape.as_ref().map(|s| s.source.clone()).unwrap_or_default();
+                    self.revert_npc(i, n - before);
+                    self.spell_over(&source);
+                }
+                let e = &self.loaded.entities[i];
                 if e.hp == 0 {
                     let max = e.max_hp;
                     let knocking = self.fight.as_ref().is_some_and(|c| c.knocking);
@@ -1966,6 +1985,12 @@ impl Game {
             Who::Npc(_) => {
                 if let Some(i) = self.who_index(who) {
                     self.loaded.entities[i].hp = 0;
+                    // (A summoned creature vanishes.)
+                    if self.loaded.entities[i].summon.is_some() {
+                        self.unsummon(i);
+                        self.check_over();
+                        return;
+                    }
                     if self.loaded.entities[i].companion.is_some() {
                         // (The project's rule for companions at 0 HP: they lie there, go home or get up.)
                         self.knock_down(i);

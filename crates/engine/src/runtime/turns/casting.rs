@@ -83,9 +83,15 @@ impl Game {
         if d.range == SpellRange::Caster {
             return Ok((vec![who], point));
         }
+        // (A summons appears at an empty tile.)
+        let summons = d.parts.iter().any(|p| matches!(p, SpellPart::Summon { .. }));
         let target = match at {
             CastAt::On(w) => w,
-            CastAt::Tile(t) => self.who_at(t).ok_or("No one there")?,
+            CastAt::Tile(t) => match self.who_at(t) {
+                Some(w) => w,
+                None if summons => return Ok((Vec::new(), point)),
+                None => return Err("No one there"),
+            },
         };
         // Charmed: no harmful spell (an attack or a save) at the charmer.
         if self.charmed_by(who) == Some(target) && d.parts.iter().any(|p| matches!(p, SpellPart::Attack { .. } | SpellPart::Save { .. })) {
@@ -132,7 +138,7 @@ impl Game {
             return Err(self.cast_refusal(who, id, "You can't cast that spell"));
         }
         let (targets, point) = self.spell_targets(who, &d, slot, at)?;
-        if targets.is_empty() && !d.parts.iter().any(|p| matches!(p, SpellPart::Script { .. })) {
+        if targets.is_empty() && !d.parts.iter().any(|p| matches!(p, SpellPart::Script { .. } | SpellPart::Summon { .. })) {
             return Err("No one there");
         }
         if self.monster_casting(who).is_some() {
@@ -327,6 +333,18 @@ impl Game {
                             conditions::apply_buff(l, buff.clone(), secs, &source);
                         }
                     }
+                    // (A willing ally or the caster: no save.)
+                    SpellPart::Shape { max_cr } => {
+                        let ally = t == caster || self.fight.as_ref().is_some_and(|c| c.fighter(t).map(|f| f.side) == c.fighter(caster).map(|f| f.side));
+                        if !save_text.is_empty() && damage.is_none() && !ally {
+                            self.fight_log(format!("{tname}: {save_text}"));
+                        }
+                        if (save.is_some() || attack.is_some()) && !landed && !ally {
+                            continue;
+                        }
+                        let secs = if d.duration_rounds == 0 { 0.0 } else { secs };
+                        self.spell_shape(caster, t, max_cr, &source, secs);
+                    }
                     _ => {}
                 }
             }
@@ -344,6 +362,12 @@ impl Game {
                     }
                 }
                 SpellPart::Unlock => self.knock(),
+                SpellPart::Summon { creature, count } => {
+                    let secs = if d.duration_rounds == 0 { 0.0 } else { spell_secs(d) };
+                    let source = self.spell_source(caster, d);
+                    let at = point.unwrap_or_else(|| self.who_tile(caster));
+                    self.summon(caster, at, creature, *count, &source, secs);
+                }
                 SpellPart::Script { function } => {
                     self.sync_script_player();
                     let t = point.unwrap_or_else(|| self.who_tile(targets.first().copied().unwrap_or(caster)));
@@ -444,7 +468,8 @@ impl Game {
         let c = self.fight.as_ref().ok_or("No fight")?;
         let (cursor, me) = (c.cursor, c.current().who);
         let d = self.project.db.spell(id).cloned().ok_or("No such spell")?;
-        let at = if d.area.is_some() || d.range == SpellRange::Caster {
+        let summons = d.parts.iter().any(|p| matches!(p, SpellPart::Summon { .. }));
+        let at = if d.area.is_some() || d.range == SpellRange::Caster || (summons && self.who_at(cursor).is_none()) {
             CastAt::Tile(cursor)
         } else {
             CastAt::On(self.who_at(cursor).ok_or("No one there")?)

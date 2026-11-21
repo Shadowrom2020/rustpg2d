@@ -208,6 +208,9 @@ impl Game {
 
     /// What the player holds (fishing: the rod instead of the weapon; carrying a prop).
     pub(super) fn player_gear(&self) -> Gear {
+        if self.world.shape.is_some() {
+            return Gear::default();
+        }
         Gear { ready: self.player_in_combat(), ..self.character_gear(&self.world.equipment, &self.world.player_carrying, self.player_tool_in_use().as_deref()) }
     }
 
@@ -218,6 +221,10 @@ impl Game {
 
     /// The player's model: the creator's choice, else the player definition's.
     pub(super) fn player_appearance(&self) -> Option<Appearance> {
+        // (In a beast's shape: the beast.)
+        if let Some(d) = self.world.shape.as_ref().and_then(|s| self.project.db.character(&s.form)) {
+            return Some(d.appearance.clone());
+        }
         let def = self.project.db.character(&self.project.config.player);
         if let Some(a) = &self.world.player_appearance {
             // (The creator chooses model and colours; the size is the player character's.)

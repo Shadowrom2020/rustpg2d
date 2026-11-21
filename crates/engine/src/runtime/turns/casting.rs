@@ -133,9 +133,12 @@ impl Game {
         if scroll && t.action {
             return Err("Action used");
         }
-        // (Silence: no verbal component inside.)
+        // (Silence: no verbal component inside; a costly component must be at hand.)
         if d.verbal() && self.silenced(who) {
             return Err("Silence: no words of magic here");
+        }
+        if !scroll && !self.has_costly(who, &d) {
+            return Err("Its costly component is missing");
         }
         if !scroll && !self.cast_options(who).iter().any(|(s, l)| s == id && *l == slot) {
             return Err(self.cast_refusal(who, id, "You can't cast that spell"));
@@ -176,6 +179,9 @@ impl Game {
             self.fly_visual(from, to, p.clone());
         }
         self.spell_impact(&d, feet_spot(point, ts));
+        if !scroll {
+            self.use_costly(who, &d);
+        }
         // (Counterspell: a foe may stop it, the slot spent all the same.)
         if self.counter_spell(who, &d, slot, &targets, point) {
             return Ok(());
@@ -422,6 +428,7 @@ impl Game {
                 }
                 SpellPart::Unlock => self.knock(),
                 SpellPart::Teleport => self.teleport(caster, d, point),
+                SpellPart::Revive { within_hours, full } => self.revive_fallen(caster, *within_hours, *full),
                 SpellPart::Dispel => {
                     if let Some(p) = point {
                         self.dispel_areas_at(caster, p, slot);
@@ -958,5 +965,43 @@ impl Game {
         let name = self.who_name(by);
         self.fight_log(format!("{name}: {} ({n})", crate::lang::tr_ui("Warding Bond")));
         self.combat_damage(by, n, None, false, None);
+    }
+
+    /// A revival spell: the fallen party member nearest `caster` within reach (2 tiles) is back:
+    /// one dead for at most `within` hours or only down, with 1 hit point or all.
+    fn revive_fallen(&mut self, caster: Who, within: f32, full: bool) {
+        let now = self.world.game_hours();
+        let at = self.who_pos(caster);
+        let ts = self.ts();
+        let near = self.loaded.entities.iter().enumerate().filter(|(_, e)| e.active && e.companion.as_ref().is_some_and(|l| l.down.is_some())).map(|(i, e)| (i, e.body.pos.distance(at))).filter(|(_, d)| *d <= 2.5 * ts).min_by(|a, b| a.1.total_cmp(&b.1)).map(|x| x.0);
+        let Some(i) = near else {
+            let line = crate::lang::tr_ui("No one fallen within reach").into_owned();
+            if self.fight.is_some() { self.fight_log(line) } else { self.ui.toast(line) }
+            return;
+        };
+        let name = self.display_name(i);
+        if let Some(t) = self.companion_dead_at(i) {
+            if now - t > within as f64 {
+                let line = format!("{name}: {}", crate::lang::tr_ui("dead too long for this spell"));
+                if self.fight.is_some() { self.fight_log(line) } else { self.ui.toast(line) }
+                return;
+            }
+        }
+        let uid = self.loaded.entities[i].uid;
+        let max = self.loaded.entities[i].max_hp;
+        self.companion_raised(i);
+        self.loaded.entities[i].hp = if full { max } else { 1 };
+        // (In a fight it is back in the order.)
+        if let Some(f) = self.fight.as_mut().and_then(|c| c.order.iter_mut().find(|f| f.who == Who::Npc(uid))) {
+            f.out = false;
+            f.down = false;
+            f.saves = Default::default();
+        }
+        if let Some(l) = self.who_conditions_mut(Who::Npc(uid)) {
+            conditions::remove(l, Condition::Unconscious);
+        }
+        self.companion_healed(i);
+        let line = format!("{name} {}", crate::lang::tr_ui("is back among the living"));
+        if self.fight.is_some() { self.fight_log(line) } else { self.ui.toast(line) }
     }
 }

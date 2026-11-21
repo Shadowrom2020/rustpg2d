@@ -352,6 +352,10 @@ impl Renamer<'_> {
         }
         self.fix(RefKind::Sheet, &mut d.visual.impact);
         self.fix(RefKind::Sound, &mut d.visual.sound);
+        // (Its costly component's items too.)
+        if let Some(c) = &mut d.costly {
+            self.fix(RefKind::Item, &mut c.item);
+        }
         // (The creatures it summons travel with it.)
         for p in &mut d.parts {
             if let crate::skills::SpellPart::Summon { creature, .. } = p {

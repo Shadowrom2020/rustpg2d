@@ -1515,9 +1515,14 @@ added here.
      hero at 1 HP; Dispel Magic ends a Darkness; an orc with a mage's stat block counters the
      hero's Fireball, and the hero (asked) counters its Magic Missile. Remove Curse stays the
      story's (the engine has no curses yet).
-  4. [ ] **Life and death, priced components** (components under 10 gp dropped, the pouch or focus
+  4. [x] **Life and death, priced components** (components under 10 gp dropped, the pouch or focus
      covers them; costlier ones needed as items and used up; a dead party member by the project's
-     `companion_down` rule, *dead* a new option) — `feature/srd-spells-4`.
+     `companion_down` rule, *dead* a new option) — `feature/srd-spells-4`. Verified on a scratch
+     copy with *Dead*: Faelan dies, Revivify with three diamonds brings him back with 1 HP; two
+     hours later healing doesn't help, Revivify fails (too long, the diamonds are spent all the
+     same) and Raise Dead with five more works; Greater Restoration without diamond dust is
+     refused. Ansel's revival in the example is left out (the example keeps *Stays down*); the
+     dwarf merchant sells diamonds.
   5. [ ] **Exploration** — `feature/srd-spells-5`.
 
   **Goal.** Most of the 206 spells imported as *story only* in 0.30 work by the rules (found in the

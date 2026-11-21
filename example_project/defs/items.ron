@@ -4829,4 +4829,20 @@
         cost_cp: 5000,
         weight: 1.0,
     ),
+    (
+        id: "diamond",
+        name: "Diamond",
+        description: "A clear, flawless diamond worth 100 gp. Spells that bring back the dead use diamonds up (Revivify three, Raise Dead five, Resurrection ten).",
+        icon: (
+            sheet: "srd_components",
+            frame: 0,
+        ),
+        consumable: false,
+        on_use: [],
+        weapon: None,
+        armor: None,
+        max_stack: 10,
+        value: 100,
+        cost_cp: 10000,
+    ),
 ]

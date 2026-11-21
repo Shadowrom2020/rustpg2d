@@ -391,7 +391,9 @@ the player:
   when the fight is won it gets up with 1 HP. Dead (three failures), or at 0 HP outside fights, it
   is **knocked down**: it lies where it fell, enemies leave it alone, and any heal gets it back up. Leaving the map with a downed companion asks whether to leave it behind
   (it then limps home). *Database › Project › Companions at 0 HP* can instead let it get up by
-  itself after some seconds, or send it home at once.
+  itself after some seconds, send it home at once, or make it **dead**: only a spell that brings
+  back the dead helps then (Revivify within a minute, Raise Dead within ten days, Resurrection;
+  see the manual's *Life and death*), and healing does nothing.
 - **Dismissed** (`stop_following`, or the action with *leaves*), a companion stays where it is on its
   own map or goes home from elsewhere.
 

@@ -336,4 +336,17 @@ mod tests {
         let text = ron::to_string(&Lasting { obscures: true, ..Default::default() }).unwrap();
         assert_eq!(text, "(obscures:true)");
     }
+
+    #[test]
+    fn revival_spells_need_their_diamonds() {
+        let lib = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../editor/assets/starter_library/defs/spells.ron");
+        let spells: Vec<SpellDef> = ron::from_str(&std::fs::read_to_string(lib).unwrap()).unwrap();
+        let get = |id: &str| spells.iter().find(|s| s.id == id).unwrap();
+        let r = get("revivify");
+        assert_eq!(r.costly, Some(crate::skills::Costly { item: "diamond".into(), count: 3 }));
+        assert!(matches!(r.parts[..], [SpellPart::Revive { full: false, .. }]));
+        assert!(matches!(get("resurrection").parts[..], [SpellPart::Revive { full: true, .. }]));
+        // (A spell without one writes nothing.)
+        assert!(get("fireball").costly.is_none());
+    }
 }

@@ -393,4 +393,10 @@
         frame_w: 32,
         frame_h: 32,
     ),
+    (
+        id: "srd_components",
+        image: "sprites/srd_components.png",
+        frame_w: 32,
+        frame_h: 32,
+    ),
 ]

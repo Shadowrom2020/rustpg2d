@@ -519,6 +519,9 @@ pub struct Companion {
     /// The magic items it is attuned to (item ids, at most three).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub attuned: Vec<String>,
+    /// Dead since this game hour (`DownRule::Dead`; revival spells bring it back).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dead_at: Option<f64>,
 }
 
 fn slots_unspent(s: &[u32; 9]) -> bool {
@@ -744,6 +747,11 @@ impl WorldState {
     /// How many characters of a definition have been defeated.
     pub fn defeated(&self, character: &str) -> u32 {
         self.bestiary.get(character).copied().unwrap_or(0)
+    }
+
+    /// Game hours since the start (days and the hour).
+    pub fn game_hours(&self) -> f64 {
+        self.day as f64 * 24.0 + self.hour as f64
     }
 
     /// The player's level (at least 1).

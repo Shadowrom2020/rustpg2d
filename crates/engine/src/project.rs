@@ -150,6 +150,9 @@ pub enum DownRule {
     GetsUp { seconds: f32 },
     /// It goes back to where it is placed at once, healed (as before 0.6).
     GoesHome,
+    /// Fallen in a fight it is dead: it lies there, healing doesn't help, only a spell that brings
+    /// back the dead does (Revivify within a minute, Raise Dead, Resurrection).
+    Dead,
 }
 
 impl DownRule {
@@ -158,6 +161,7 @@ impl DownRule {
             DownRule::StaysDown => "Stays down until healed",
             DownRule::GetsUp { .. } => "Gets up after a while",
             DownRule::GoesHome => "Goes home",
+            DownRule::Dead => "Dead (revival spells)",
         }
     }
 }

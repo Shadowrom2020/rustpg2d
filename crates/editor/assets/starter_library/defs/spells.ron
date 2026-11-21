@@ -2313,6 +2313,10 @@
             ),
         ],
         story_only: false,
+        costly: Some((
+            item: "ruby-dust",
+            count: 1,
+        )),
     ),
     (
         id: "control-water",
@@ -3989,6 +3993,10 @@
             ),
         ],
         story_only: false,
+        costly: Some((
+            item: "incense",
+            count: 1,
+        )),
     ),
     (
         id: "find-steed",
@@ -5027,6 +5035,10 @@
             ),
         ],
         story_only: false,
+        costly: Some((
+            item: "diamond-dust",
+            count: 4,
+        )),
     ),
     (
         id: "guardian-of-faith",
@@ -5857,6 +5869,10 @@
             "wizard",
         ],
         story_only: true,
+        costly: Some((
+            item: "pearl",
+            count: 1,
+        )),
     ),
     (
         id: "illusory-script",
@@ -8284,7 +8300,16 @@
             "cleric",
             "paladin",
         ],
-        story_only: true,
+        parts: [
+            Revive(
+                within_hours: 240.0,
+            ),
+        ],
+        story_only: false,
+        costly: Some((
+            item: "diamond",
+            count: 5,
+        )),
     ),
     (
         id: "ray-of-enfeeblement",
@@ -8549,7 +8574,17 @@
             "bard",
             "cleric",
         ],
-        story_only: true,
+        parts: [
+            Revive(
+                within_hours: 876000.0,
+                full: true,
+            ),
+        ],
+        story_only: false,
+        costly: Some((
+            item: "diamond",
+            count: 10,
+        )),
     ),
     (
         id: "reverse-gravity",
@@ -8610,7 +8645,16 @@
             "cleric",
             "paladin",
         ],
-        story_only: true,
+        parts: [
+            Revive(
+                within_hours: 0.017,
+            ),
+        ],
+        story_only: false,
+        costly: Some((
+            item: "diamond",
+            count: 3,
+        )),
     ),
     (
         id: "rope-trick",
@@ -9804,6 +9848,10 @@
             ),
         ],
         story_only: false,
+        costly: Some((
+            item: "diamond-dust",
+            count: 4,
+        )),
     ),
     (
         id: "storm-of-vengeance",
@@ -10450,6 +10498,10 @@
             ),
         ],
         story_only: false,
+        costly: Some((
+            item: "eye-ointment",
+            count: 1,
+        )),
     ),
     (
         id: "true-strike",
@@ -10850,6 +10902,10 @@
             ),
         ],
         story_only: false,
+        costly: Some((
+            item: "platinum-ring",
+            count: 2,
+        )),
     ),
     (
         id: "water-breathing",

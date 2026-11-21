@@ -1,6 +1,8 @@
 (
     name: "Deutsch",
     texts: {
+        "Diamond": "Diamant",
+        "A clear, flawless diamond worth 100 gp. Spells that bring back the dead use diamonds up (Revivify three, Raise Dead five, Resurrection ten).": "Ein klarer, makelloser Diamant im Wert von 100 GM. Zauber, die Tote zurückholen, verbrauchen Diamanten (Wiederbeleben drei, Tote erwecken fünf, Auferstehung zehn).",
         "A spell scroll. A bard, sorcerer or wizard can read it to cast Sleep once: the weakest creatures in a 20-foot sphere fall asleep. Then it crumbles.": "Eine Zauberschriftrolle. Barden, Zauberer und Magier können sie lesen, um einmal Schlaf zu wirken: die schwächsten Kreaturen in einer Kugel von 6 Metern schlafen ein. Dann zerfällt sie.",
         "A spell scroll. A sorcerer, warlock or wizard can read it to cast Misty Step once: a step through silvery mist to a spot up to 30 feet away. Then it crumbles.": "Eine Zauberschriftrolle. Zauberer, Hexenmeister und Magier können sie lesen, um einmal Nebelschritt zu wirken: ein Schritt durch silbrigen Nebel an eine Stelle bis zu 9 Meter entfernt. Dann zerfällt sie.",
         "Briefly surrounded by silvery mist, you teleport up to 30 feet to an unoccupied space that you can see.": "Kurz von silbrigem Nebel umhüllt, teleportierst du dich bis zu 9 Meter weit an einen freien Ort, den du sehen kannst.",

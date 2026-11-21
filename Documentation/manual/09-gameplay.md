@@ -630,6 +630,17 @@ become SRD spells of level 1 (a bolt a cantrip) that every casting class has.
   everyone) and **Counter** (*Counterspell*, a reaction: when a foe within 60 ft casts a spell, it
   stops it the same way; the hero is asked in the Reaction window, monsters with it in their spells
   counter a spell of 1st level or higher by rule).
+- **Life and death** (a spell part *Revive*): the fallen party member nearest the caster (within
+  two tiles) gets up: one only down, or one dead (the project's *Companions at 0 HP* = *Dead*) for
+  at most the spell's time: *Revivify* a minute (with 1 hit point), *Raise Dead* ten days (1 hit
+  point), *Resurrection* a century (all hit points). In a fight it is back in the order.
+- **Costly components**: a spell whose material component is worth 10 gp or more needs it as items
+  in the caster's bag, and casting uses them up (the definition's *costly* items; cheaper
+  components are the component pouch's or the focus's): *Revivify* 3 diamonds, *Raise Dead* 5,
+  *Resurrection* 10, *Greater Restoration* and *Stoneskin* 4 diamond dust, *Continual Flame* ruby
+  dust, *Warding Bond* 2 platinum rings, *Find Familiar* charcoal, incense and herbs, *True Seeing*
+  an eye ointment, *Identify* a pearl (library items; the example's dwarf merchant sells diamonds).
+  Scrolls and monsters' spells need none.
 - **Lasting areas** (a spell part *Lasting area*): the spell's area stays on the map for its
   duration, in fights by rounds and while exploring (every six seconds), drawn as a tint (fog grey,
   darkness black, walls stone). What it does, by its switches:
@@ -663,9 +674,9 @@ become SRD spells of level 1 (a bolt a cantrip) that every casting class has.
 
 ![A Fireball aimed in a fight: its 20 ft sphere on the grid, the slot, the DEX DC](../images/game-spell-area.webp)
 
-**The 319 spells**: 153 act by their parts (the SRD data's attack, save, damage and healing, plus a
+**The 319 spells**: 156 act by their parts (the SRD data's attack, save, damage and healing, plus a
 table in the import for conditions, boons, light, Knock, shapes, summons, teleports and the rest
-below); the other 166 are **story only** (divination, travel, illusions: their text is shown, and
+below); the other 163 are **story only** (divination, travel, illusions: their text is shown, and
 only events and scripts cast them: *Cast spell*, `cast_spell`). The example's spells are Cure
 Wounds, Light, Fire Bolt, Burning Hands, Magic Missile, Fireball, Misty Step and Sleep (Wren the
 herbalist sells their scrolls; Fireball's flying sprite and explosion are the spell's *Look*);

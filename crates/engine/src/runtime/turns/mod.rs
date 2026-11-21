@@ -1945,6 +1945,10 @@ impl Game {
             }
             Who::Npc(_) => {
                 if let Some(i) = self.who_index(who) {
+                    // (A dead party member: healing doesn't help.)
+                    if self.companion_dead_at(i).is_some() {
+                        return;
+                    }
                     let e = &mut self.loaded.entities[i];
                     e.hp = (e.hp + amount).min(e.max_hp);
                 }

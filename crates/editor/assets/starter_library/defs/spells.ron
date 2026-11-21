@@ -1039,6 +1039,12 @@
                 ],
                 damage_type: Some(Bludgeoning),
             ),
+            Lasting(
+                effect: (
+                    difficult: true,
+                    repeat: true,
+                ),
+            ),
         ],
         story_only: false,
     ),
@@ -1080,6 +1086,12 @@
                     (6, "6d10"),
                 ],
                 damage_type: Some(Slashing),
+            ),
+            Lasting(
+                effect: (
+                    difficult: true,
+                    repeat: true,
+                ),
             ),
         ],
         story_only: false,
@@ -1704,6 +1716,12 @@
                     (9, "9d8"),
                 ],
                 damage_type: Some(Poison),
+            ),
+            Lasting(
+                effect: (
+                    repeat: true,
+                    obscures: true,
+                ),
             ),
         ],
         story_only: false,
@@ -2624,7 +2642,14 @@
             "warlock",
             "wizard",
         ],
-        story_only: true,
+        parts: [
+            Lasting(
+                effect: (
+                    dark: true,
+                ),
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "darkvision",
@@ -3528,6 +3553,12 @@
                 condition: Restrained,
                 on_fail: true,
             ),
+            Lasting(
+                effect: (
+                    difficult: true,
+                    repeat: true,
+                ),
+            ),
         ],
         story_only: false,
     ),
@@ -4418,7 +4449,14 @@
             "sorcerer",
             "wizard",
         ],
-        story_only: true,
+        parts: [
+            Lasting(
+                effect: (
+                    obscures: true,
+                ),
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "forbiddance",
@@ -4882,6 +4920,12 @@
             Condition(
                 condition: Prone,
                 on_fail: true,
+            ),
+            Lasting(
+                effect: (
+                    difficult: true,
+                    repeat: true,
+                ),
             ),
         ],
         story_only: false,
@@ -5876,6 +5920,12 @@
                 ],
                 damage_type: Some(Fire),
             ),
+            Lasting(
+                effect: (
+                    repeat: true,
+                    obscures: true,
+                ),
+            ),
         ],
         story_only: false,
     ),
@@ -5969,6 +6019,12 @@
                     (9, "8d10"),
                 ],
                 damage_type: Some(Piercing),
+            ),
+            Lasting(
+                effect: (
+                    difficult: true,
+                    repeat: true,
+                ),
             ),
         ],
         story_only: false,
@@ -7251,6 +7307,11 @@
                     (9, "9d10"),
                 ],
                 damage_type: Some(Radiant),
+            ),
+            Lasting(
+                effect: (
+                    repeat: true,
+                ),
             ),
         ],
         story_only: false,
@@ -9037,7 +9098,14 @@
             "cleric",
             "ranger",
         ],
-        story_only: true,
+        parts: [
+            Lasting(
+                effect: (
+                    silence: true,
+                ),
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "silent-image",
@@ -9183,6 +9251,13 @@
             Condition(
                 condition: Prone,
                 on_fail: true,
+            ),
+            Lasting(
+                effect: (
+                    obscures: true,
+                    difficult: true,
+                    repeat: true,
+                ),
             ),
         ],
         story_only: false,
@@ -9406,7 +9481,23 @@
             "druid",
             "ranger",
         ],
-        story_only: true,
+        parts: [
+            Damage(
+                by_level: [
+                    (2, "2d4"),
+                ],
+                damage_type: Some(Piercing),
+            ),
+            Lasting(
+                effect: (
+                    difficult: true,
+                    repeat: true,
+                    per_tile: true,
+                    later: true,
+                ),
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "spirit-guardians",
@@ -9433,7 +9524,35 @@
         classes: [
             "cleric",
         ],
-        story_only: true,
+        parts: [
+            Save(
+                ability: Wis,
+                half: true,
+            ),
+            Damage(
+                by_level: [
+                    (3, "3d8"),
+                    (4, "4d8"),
+                    (5, "5d8"),
+                    (6, "6d8"),
+                    (7, "7d8"),
+                    (8, "8d8"),
+                    (9, "9d8"),
+                ],
+                damage_type: Some(Radiant),
+            ),
+            Lasting(
+                effect: (
+                    difficult: true,
+                    repeat: true,
+                    later: true,
+                    follows: true,
+                    foes_only: true,
+                    feet: 15,
+                ),
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "spiritual-weapon",
@@ -9518,6 +9637,12 @@
             Condition(
                 condition: Incapacitated,
                 on_fail: true,
+            ),
+            Lasting(
+                effect: (
+                    repeat: true,
+                    obscures: true,
+                ),
             ),
         ],
         story_only: false,
@@ -10428,6 +10553,11 @@
                 ],
                 damage_type: Some(Fire),
             ),
+            Lasting(
+                effect: (
+                    repeat: true,
+                ),
+            ),
         ],
         story_only: false,
     ),
@@ -10456,7 +10586,15 @@
         classes: [
             "wizard",
         ],
-        story_only: true,
+        parts: [
+            Lasting(
+                effect: (
+                    wall: true,
+                    feet: 50,
+                ),
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "wall-of-ice",
@@ -10531,7 +10669,15 @@
             "sorcerer",
             "wizard",
         ],
-        story_only: true,
+        parts: [
+            Lasting(
+                effect: (
+                    wall: true,
+                    feet: 50,
+                ),
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "wall-of-thorns",
@@ -10575,6 +10721,12 @@
                     (9, "10d8"),
                 ],
                 damage_type: Some(Piercing),
+            ),
+            Lasting(
+                effect: (
+                    difficult: true,
+                    repeat: true,
+                ),
             ),
         ],
         story_only: false,
@@ -10700,6 +10852,12 @@
             Condition(
                 condition: Restrained,
                 on_fail: true,
+            ),
+            Lasting(
+                effect: (
+                    difficult: true,
+                    repeat: true,
+                ),
             ),
         ],
         story_only: false,

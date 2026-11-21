@@ -106,6 +106,10 @@ impl Game {
     /// How obscured tile `t` is for `viewer` (and why): its light (darkvision within its range
     /// counts darkness as dim and dim as bright), the weather's fog by the distance, foliage.
     pub(in crate::runtime) fn tile_obscured(&self, viewer: Who, t: TilePos) -> (Obscured, &'static str) {
+        // (A spell's fog or darkness: heavily obscured, darkvision or not.)
+        if let Some(why) = self.area_obscures(t) {
+            return (Obscured::Heavy, why);
+        }
         let ts = self.ts();
         let dist = self.dist_to(viewer, t);
         let mut light = obscured_by_light(self.light_level(vec2((t.0 as f32 + 0.5) * ts, (t.1 as f32 + 0.5) * ts)));

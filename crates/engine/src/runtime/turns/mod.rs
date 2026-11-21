@@ -762,8 +762,12 @@ impl Game {
                 self.end_concentration(f.who);
             }
         }
-        // (A shape's and a summon's time: a round of theirs.)
+        // (A shape's and a summon's time: a round of theirs; the lasting areas: the caster's round,
+        // and those it starts in act on it.)
         self.tick_shapes(conditions::ROUND, Some(f.who));
+        self.areas_new_turn(f.who);
+        self.tick_areas(conditions::ROUND, Some(f.who));
+        self.areas_turn(f.who);
         let Some(c) = &self.fight else { return };
         if f.surprised && c.round == 1 {
             let line = format!("{} {}", self.who_name(f.who), crate::lang::tr_ui("is surprised"));
@@ -998,7 +1002,7 @@ impl Game {
                     continue;
                 }
                 // (Difficult ground under any of its tiles, squeezing, or another's space: double.)
-                let rough = squeezed || through || space.iter().any(|p| self.difficult_at(*p));
+                let rough = squeezed || through || space.iter().any(|p| self.difficult_at(*p) || self.area_difficult(*p, who));
                 let nc = cost + rules::step_cost(rough);
                 if nc > left {
                     continue;
@@ -1102,7 +1106,7 @@ impl Game {
         }
         let next = c.walking.remove(0);
         let from = self.who_tile(who);
-        let cost = rules::step_cost(self.difficult_at(next));
+        let cost = rules::step_cost(self.difficult_at(next) || self.area_difficult(next, who));
         let disengaged = self.fight.as_ref().is_some_and(|c| c.turn.disengaged);
         // Leaving a foe's reach without Disengage: its opportunity attack (a reaction).
         if !disengaged {
@@ -1183,6 +1187,8 @@ impl Game {
         }
         // Coming within range of a foe's readied spell: it is cast at it.
         self.readied_spells(who, side, next);
+        // Into a lasting area: Spirit Guardians, Spike Growth, a Moonbeam act.
+        self.areas_step(who, next);
         true
     }
 

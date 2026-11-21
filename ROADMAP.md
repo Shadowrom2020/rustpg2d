@@ -1502,7 +1502,13 @@ added here.
      aimed tile in a fight and six tiles ahead outside one; Hunter's Mark adds its d6; Shillelagh
      makes the dagger 1d8+WIS; Barkskin AC 16 (ending when Guidance takes the concentration);
      Guidance's die on a search, spent; True Strike's advantage; Color Spray blinds.
-  2. [ ] **Lasting areas** (fights and exploring) — `feature/srd-spells-2`.
+  2. [x] **Lasting areas** (fights and exploring) — `feature/srd-spells-2`. Verified on a scratch
+     copy: Spirit Guardians (7×7 tiles around the cleric) hits an orc warrior starting its turn
+     there (WIS save for half); Spike Growth's spikes kill an orc warrior running through them;
+     Moonbeam hits again at each turn's start; Fog Cloud and Darkness hide the orcs (`sight=`
+     unseen:fog / darkness); Silence stops Sacred Flame; Wall of Stone blocks the hero's way.
+     Moving a Moonbeam or a Cloudkill, and the example's enemy caster with Darkness, are left for
+     later.
   3. [ ] **Defences and ending effects** (Counterspell as a reaction) — `feature/srd-spells-3`.
   4. [ ] **Life and death, priced components** (components under 10 gp dropped, the pouch or focus
      covers them; costlier ones needed as items and used up; a dead party member by the project's

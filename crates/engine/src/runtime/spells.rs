@@ -459,8 +459,9 @@ impl Game {
             Who::Npc(uid) => self.skills.npc_concentration.remove(&uid).map(|c| c.0),
         };
         let Some(source) = source else { return };
-        // (A Polymorph ends, conjured creatures go.)
+        // (A Polymorph ends, conjured creatures go, a lasting area is gone.)
         self.end_shapes_of(&source);
+        self.end_areas_of(&source);
         crate::srd::conditions::remove_source(&mut self.world.effects, &source);
         for e in &mut self.loaded.entities {
             crate::srd::conditions::remove_source(&mut e.effects, &source);
@@ -526,6 +527,9 @@ impl Game {
         }
         if d.story_only && !free {
             return Err("Nothing happens");
+        }
+        if d.verbal() && self.silenced(Who::Player) {
+            return Err("Silence: no words of magic here");
         }
         // A ritual: no slot, ten minutes.
         let ritual = !free && d.ritual && self.spellcasting(Who::Player).is_some_and(|(_, sc, _)| sc.ritual) && self.known_or_prepared(Who::Player, id);
@@ -722,6 +726,10 @@ impl Game {
                 P::Buff { buff } => out.push(Self::buff_summary(buff)),
                 P::Mark { buff } => out.push(Self::buff_summary(buff)),
                 P::Teleport => out.push(crate::lang::tr_ui("Teleport").into_owned()),
+                P::Lasting { effect } => {
+                    let what = [(effect.obscures, "Fog"), (effect.dark, "Darkness"), (effect.difficult, "Difficult terrain"), (effect.silence, "Silence"), (effect.wall, "Wall"), (effect.repeat, "Lasting")];
+                    out.extend(what.iter().filter(|w| w.0).map(|w| crate::lang::tr_ui(w.1).into_owned()));
+                }
                 P::HpPool { by_level, condition } => {
                     if let Some(x) = crate::skills::dice_at(by_level, lvl) {
                         out.push(format!("{} HP: {}", self.spell_dice(who, x), crate::lang::tr_ui(condition.name())));

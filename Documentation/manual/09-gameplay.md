@@ -615,6 +615,24 @@ become SRD spells of level 1 (a bolt a cantrip) that every casting class has.
     best ability (*Enhance Ability*), *Beacon of Hope* (advantage on WIS and death saves, healing at
     its most), AC at least 16 (*Barkskin*), *Shillelagh* (the melee weapon's die becomes 1d8, attacks
     and damage use the spellcasting ability, the hits are magical).
+- **Lasting areas** (a spell part *Lasting area*): the spell's area stays on the map for its
+  duration, in fights by rounds and while exploring (every six seconds), drawn as a tint (fog grey,
+  darkness black, walls stone). What it does, by its switches:
+  - **fog** / **darkness**: who stands inside can't be seen (*Fog Cloud*, *Cloudkill*, *Stinking
+    Cloud*; *Darkness* also against darkvision; blindsight and truesight still see);
+  - **difficult**: moving through costs double (*Spike Growth*, *Web*, *Entangle*, *Grease*,
+    *Black Tentacles*, *Sleet Storm*), for the caster's foes only with **foes only**;
+  - **acts again**: the spell's save, damage and condition hit a creature that starts its turn
+    inside or enters it (once a turn), with **per tile moved** on every tile (*Spike Growth*'s 2d4
+    piercing); **not when cast**: only then (*Spirit Guardians*, *Spike Growth*); *Moonbeam*,
+    *Cloudkill*, *Wall of Fire*, *Insect Plague*, *Blade Barrier* and others hit again;
+  - **moves with the caster** and a radius in feet (*Spirit Guardians*: 15 ft around the cleric,
+    3d8 radiant, WIS save for half, foes only, their speed halved);
+  - **silence**: no spell with a verbal component is cast inside (*Silence*);
+  - **wall**: a wall across the aimed tile, its length in feet, stops walking and sight (*Wall of
+    Stone*, *Wall of Force*; cast outside a fight two tiles ahead).
+  The areas end with the spell's duration or concentration and when the hero leaves the map; they
+  aren't saved. `status` prints `areas=` (`spirit-guardians:49:600s`: tiles and seconds left).
 - **Concentration**: a concentration spell lasts while the caster keeps it: one at a time (a new one
   ends the old), and damage asks for a CON save (DC 10 or half the damage); a failure ends what the
   spell gave everyone.
@@ -630,9 +648,9 @@ become SRD spells of level 1 (a bolt a cantrip) that every casting class has.
 
 ![A Fireball aimed in a fight: its 20 ft sphere on the grid, the slot, the DEX DC](../images/game-spell-area.webp)
 
-**The 319 spells**: 134 act by their parts (the SRD data's attack, save, damage and healing, plus a
+**The 319 spells**: 141 act by their parts (the SRD data's attack, save, damage and healing, plus a
 table in the import for conditions, boons, light, Knock, shapes, summons, teleports and the rest
-below); the other 185 are **story only** (divination, travel, illusions: their text is shown, and
+below); the other 178 are **story only** (divination, travel, illusions: their text is shown, and
 only events and scripts cast them: *Cast spell*, `cast_spell`). The example's spells are Cure
 Wounds, Light, Fire Bolt, Burning Hands, Magic Missile, Fireball, Misty Step and Sleep (Wren the
 herbalist sells their scrolls; Fireball's flying sprite and explosion are the spell's *Look*);

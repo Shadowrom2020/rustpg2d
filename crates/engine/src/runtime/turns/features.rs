@@ -77,7 +77,7 @@ impl Game {
         self.who_traits(who).map_or(Vec::new(), |t| t.acts)
     }
 
-    fn who_rider<T>(&self, who: Who, f: impl Fn(&FeatureEffect) -> Option<T>) -> Option<T> {
+    pub(super) fn who_rider<T>(&self, who: Who, f: impl Fn(&FeatureEffect) -> Option<T>) -> Option<T> {
         self.who_traits(who)?.rider(f)
     }
 
@@ -752,15 +752,17 @@ impl Game {
         extra
     }
 
-    /// The target's reaction to a hit's damage: Deflect Missiles against a ranged weapon,
-    /// Uncanny Dodge against an attacker it sees. Returns the damage left.
-    pub(super) fn react_to_hit(&mut self, attacker: Who, target: Who, spec: &AttackSpec, amount: i32) -> i32 {
+    /// The target's reaction to a hit's damage, `react` (chosen in `reactions.rs`): Deflect
+    /// Missiles against a ranged weapon, Uncanny Dodge against an attacker it sees. Returns the
+    /// damage left.
+    pub(super) fn react_to_hit(&mut self, attacker: Who, target: Who, spec: &AttackSpec, amount: i32, react: super::reactions::ReactChoice) -> i32 {
+        use super::reactions::ReactChoice;
         let free = self.fight.as_ref().and_then(|c| c.fighter(target)).is_some_and(|f| !f.reacted && !f.down && !f.out) && conditions::can_act(self.who_conditions(target));
-        if !free || spec.spell || amount <= 0 {
+        if !free || spec.spell || amount <= 0 || !matches!(react, ReactChoice::Deflect | ReactChoice::UncannyDodge) {
             return amount;
         }
         let tname = self.who_name(target);
-        if spec.ranged {
+        if spec.ranged && react == ReactChoice::Deflect {
             if let Some((dice, a, per)) = self.who_rider(target, |e| if let FeatureEffect::ReactionReduceRanged { dice, ability, per_level } = e { Some((dice.clone(), *ability, *per_level)) } else { None }) {
                 let level = self.who_traits(target).map_or(1, |t| t.level) as i32;
                 let cut = roll_or_zero(&dice) + self.who_mod(target, a) + per * level;
@@ -770,7 +772,7 @@ impl Game {
             }
         }
         let seen = !self.fight.as_ref().and_then(|c| c.fighter(attacker)).is_some_and(|f| f.hidden) && !conditions::rules(self.who_conditions(attacker)).invisible;
-        if seen && self.who_rider(target, |e| (*e == FeatureEffect::ReactionHalveDamage).then_some(())).is_some() {
+        if seen && react == ReactChoice::UncannyDodge && self.who_rider(target, |e| (*e == FeatureEffect::ReactionHalveDamage).then_some(())).is_some() {
             self.set_reacted(target);
             self.fight_log(format!("{tname}: {}", crate::lang::tr_ui("uncanny dodge")));
             return amount / 2;

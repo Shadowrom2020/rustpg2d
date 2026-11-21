@@ -77,13 +77,14 @@ enum Opt {
     Captions,
     HighContrast,
     HoldRepeat,
+    Reactions,
 }
 
 /// The tabs of the Options page: name and rows (every tab ends with Reset and Back).
 const TABS: [(&str, &[Opt]); 4] = [
     ("Graphics", &[Opt::Fullscreen, Opt::Zoom, Opt::ScreenEffects, Opt::ShowFps, Opt::Reset, Opt::Back]),
     ("Sound", &[Opt::Master, Opt::Music, Opt::Effects, Opt::Ambience, Opt::Reset, Opt::Back]),
-    ("Gameplay", &[Opt::TextSpeed, Opt::DamageNumbers, Opt::QuestMarkers, Opt::Language, Opt::ButtonStyle, Opt::Controls, Opt::Reset, Opt::Back]),
+    ("Gameplay", &[Opt::TextSpeed, Opt::DamageNumbers, Opt::QuestMarkers, Opt::Reactions, Opt::Language, Opt::ButtonStyle, Opt::Controls, Opt::Reset, Opt::Back]),
     ("Accessibility", &[Opt::TextSize, Opt::Captions, Opt::HighContrast, Opt::HoldRepeat, Opt::Reset, Opt::Back]),
 ];
 /// The tab strip's height on the Options page.
@@ -116,6 +117,7 @@ impl Opt {
             Opt::Captions => s.captions = d.captions,
             Opt::HighContrast => s.high_contrast = d.high_contrast,
             Opt::HoldRepeat => s.hold_repeat = d.hold_repeat,
+            Opt::Reactions => s.auto_reactions = d.auto_reactions,
             Opt::Language | Opt::Controls | Opt::Reset | Opt::Back => {}
         }
     }
@@ -759,6 +761,7 @@ impl Game {
             Opt::Captions => "Captions",
             Opt::HighContrast => "High contrast",
             Opt::HoldRepeat => "Hold to repeat",
+            Opt::Reactions => "Reactions",
         }
     }
 
@@ -784,6 +787,7 @@ impl Game {
             Opt::Captions => on(s.captions),
             Opt::HighContrast => on(s.high_contrast),
             Opt::HoldRepeat => on(s.hold_repeat),
+            Opt::Reactions => if s.auto_reactions { "Auto" } else { "Ask" }.to_string(),
             Opt::Controls | Opt::Reset | Opt::Back => String::new(),
         }
     }
@@ -847,6 +851,7 @@ impl Game {
             Opt::Captions => s.captions = !s.captions,
             Opt::HighContrast => s.high_contrast = !s.high_contrast,
             Opt::HoldRepeat => s.hold_repeat = !s.hold_repeat,
+            Opt::Reactions => s.auto_reactions = !s.auto_reactions,
             Opt::Controls | Opt::Back => return,
         }
         self.apply_settings();
@@ -1556,7 +1561,7 @@ mod tests {
                 seen.push(*o);
             }
         }
-        assert_eq!(seen.len(), 18, "every option has a tab");
+        assert_eq!(seen.len(), 19, "every option has a tab");
         // Resetting a tab touches its own options only.
         let mut s = Settings { music_volume: 0.2, text_size: 2, ..Settings::default() };
         for o in TABS[1].1 {

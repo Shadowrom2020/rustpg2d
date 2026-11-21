@@ -1415,7 +1415,12 @@ added here.
 - [ ] Special abilities of monsters and classes — four parts (2026-11-21):
   1. [x] **Monster actions** — `feature/srd-monster-actions`.
   2. [x] **Senses** (blindsight, tremorsense, truesight) — `feature/srd-senses`.
-  3. [ ] **Reactions** (the prompt, the AI's by rule) — `feature/srd-reactions`.
+  3. [x] **Reactions** (the prompt, the AI's by rule) — `feature/srd-reactions`. Verified on a
+     scratch copy: an orc's javelin hits a wizard by 16 vs AC 12, the window offers Shield and the
+     hit misses (a slot spent), No reaction / Esc takes the 9 damage, *Auto* casts Shield by rule;
+     a warlock's Hellish Rebuke hits back for 3d10 (DEX save for half); a fighter with Protection
+     and a shield gives the orc disadvantage on its javelin at Faelan next to them; an orc with
+     *Parry* turns the hero's 14 vs AC 13 into a miss.
   4. [ ] **Shapes and summons** — `feature/srd-shapes`.
 
   **Goal.** What the stat block and spell vocabularies of 0.29 and 0.30 leave as text.

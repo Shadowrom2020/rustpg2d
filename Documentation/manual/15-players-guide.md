@@ -296,6 +296,7 @@ one. *Reset tab to defaults* at the bottom of each tab resets only that tab's op
 | Gameplay | Text speed | Slow, Normal, Fast, Instant |
 | | Damage numbers | On / off: the numbers that rise from hits |
 | | Quest markers | On / off: markers over quest targets, arrows at the screen's edge and pins on the map |
+| | Reactions | *Ask*: a fight pauses and asks when the hero can react (*Shield*, *Protection*, *Hellish Rebuke*, *Uncanny Dodge*…); *Auto*: the game decides by rule |
 | | Language | The game's languages |
 | | Button style | How gamepad buttons are shown: Auto, Xbox, PlayStation, Nintendo |
 | | Controls… | Every action with its keys: Enter, then a key, adds one (up to three per action); Del clears; *Reset to defaults* |

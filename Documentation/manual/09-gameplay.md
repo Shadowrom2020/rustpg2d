@@ -313,8 +313,8 @@ character creator offers them on its third page; the hero then is a class at the
   (Flurry's strikes knock prone on a failed DEX save), *Uncanny Dodge* (the reaction halves a hit's
   damage), *Deflect Missiles* (the reaction lowers a ranged weapon's damage by 1d10 + DEX + level),
   *Relentless Rage*, *Retaliation*, *Survivor*, *Indomitable* (a failed save rolled again), *Dark
-  One's Blessing* (temporary hit points for a foe brought to 0 HP). Reactions are taken as soon as
-  they fit, while the reaction is free.
+  One's Blessing* (temporary hit points for a foe brought to 0 HP). *Uncanny Dodge* and *Deflect
+  Missiles* are reactions: see *Reactions*.
 - Party members with a class use theirs on their AI turns: *Rage* when foes are near, *Second
   Wind* (and other heals) below half their hit points, *Action Surge* when their attacks are spent,
   the monk's strikes after attacking, their spells (see *The AI's spells*). The features that need
@@ -1005,11 +1005,39 @@ Special abilities*):
 - Of the starter library's monsters, 70 have save actions (40 of them recharge), 30 legendary
   actions, 25 Legendary Resistance, 7 Regeneration and 17 Pack Tactics; 83 have blindsight, 6
   tremorsense and 13 truesight. Still text only: innate abilities like swallowing, multi-headed
-  traits, damage transfer, lair actions; reactions and shapes come in the next parts.
+  traits, damage transfer, lair actions; shapes come in the next part. 8 have the *Parry* reaction.
 - In the example, the bridge troll in the Wilds regenerates, and the wolves hunt with Pack Tactics.
 
 `status` prints `monster_fx=` (`name:spent(ACTION)…:legendaryN:resistN:regen[:down][:stopped]`, the
 fighters with special abilities).
+
+### Reactions
+
+Every fighter has one reaction a round (it comes back at the start of its turn). Besides
+opportunity attacks and readied actions, these reactions act in fights:
+
+| Reaction | Who | When | What it does |
+|---|---|---|---|
+| *Protection* | a fighter with the Protection fighting style and a shield in the off hand | a creature it sees attacks an ally next to it | the attack roll has disadvantage |
+| *Shield* (spell, 1st level) | casters who know or prepared it (wizards, sorcerers, monsters with it in their spells) | an attack hits them, and +5 AC would make it miss | +5 AC until the start of its next turn (a round): the hit misses; spends a slot |
+| *Parry* | monsters whose stat block has the *Parry* reaction (the bandit captain, knight, noble, gladiator, erinyes, marilith) | a melee attack it sees would hit by less than the bonus | +2 (or the text's bonus) AC: the hit misses |
+| *Uncanny Dodge* | rogues from level 5 | an attacker it sees hits it | half the damage |
+| *Deflect Missiles* | monks from level 3 | a ranged weapon hits it | the damage drops by 1d10 + DEX + level |
+| *Hellish Rebuke* (spell, 1st level) | casters who know it (warlocks) | a creature within 60 ft that it sees hurts it | 2d10 fire (one more d10 per slot level above 1st), DEX save for half; spends a slot |
+
+**The hero is asked.** When one of these reactions is possible for the hero, the fight pauses and
+the **Reaction** window opens over the action bar: the reactions that fit (*Shield*: "+5 AC until
+your next turn: the hit misses") and *No reaction*. Arrows or the mouse choose, E or a click
+takes it; Esc or a click outside is *No reaction*. Shield and Parry are only offered when they
+turn the hit into a miss, so the window never asks for nothing; a natural 20 can't be parried.
+*Options › Gameplay › Reactions* switches from *Ask* to *Auto*: the game then takes the first
+reaction that fits by rule, as it always does for companions and monsters. While the window is
+open, other reactions in the same moment are decided by rule; spell attacks don't wait for an
+answer (the rule decides).
+
+The starter library has the spells *Shield* and *Hellish Rebuke*; Parry comes from the stat
+blocks' reaction texts (nothing to set up). `status` prints `react=` (the reactions asked now,
+`shield|pass`, `-` when none); autoplay `turn pick K` answers the window on any fighter's turn.
 
 ## Diseases
 

@@ -603,7 +603,12 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   *Darkness*), difficult terrain (*Spike Growth*, *Web*), damage again at the start of a turn or
   on entering (*Spirit Guardians* around the cleric, *Moonbeam*, *Cloudkill*, *Spike Growth* per
   tile), *Silence*, walls that block the way and sight (*Wall of Stone*, *Wall of Force*). `status`
-  prints `areas=`. 141 of the 319 spells act now.
+  prints `areas=`.
+- **Defences and ending spells**: *Blur*, *Mirror Image*, *Sanctuary*, *Protection from Evil and
+  Good*, *Protection from Energy*, *Death Ward*, *Warding Bond*, *Freedom of Movement*, *Mind
+  Blank* (new boons), *Greater Restoration* (a Cure part ends a level of exhaustion), *Dispel Magic*
+  (a new Dispel part) and **Counterspell** (a new Counter part, a reaction: the hero is asked in
+  the Reaction window, monsters counter by rule). 153 of the 319 spells act now.
 
 ### Shapes and summons (SRD 5.1)
 - **Wild Shape** (the druid's class action, a new *Shape* class action effect): the hero picks a

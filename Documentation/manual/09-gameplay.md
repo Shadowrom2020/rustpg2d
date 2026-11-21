@@ -615,6 +615,21 @@ become SRD spells of level 1 (a bolt a cantrip) that every casting class has.
     best ability (*Enhance Ability*), *Beacon of Hope* (advantage on WIS and death saves, healing at
     its most), AC at least 16 (*Barkskin*), *Shillelagh* (the melee weapon's die becomes 1d8, attacks
     and damage use the spellcasting ability, the hits are magical).
+- **Defences** (boons): *Blur* (attackers that rely on sight have disadvantage), *Mirror Image*
+  (three images: an attack hits one on a d20 of 6, 8 or 11+ by how many are left, and a hit on it
+  against AC 10 + DEX ends it), *Sanctuary* (an attacker makes a WIS save against the caster's DC
+  or loses the attack; attacking ends it), *Protection from Evil and Good* (aberrations,
+  celestials, elementals, fey, fiends and undead attack with disadvantage), *Protection from Energy*
+  (resistance to fire), *Death Ward* (the first drop to 0 HP leaves 1), *Warding Bond* (+1 AC and
+  saves, resistance to all damage; the caster takes the same damage), *Freedom of Movement* and
+  *Mind Blank* (immunity to conditions: paralyzed and restrained, charmed).
+- **Ending spells**: *Greater Restoration* (charmed, petrified, a level of exhaustion; a *Cure*
+  part's new switch), **Dispel** (*Dispel Magic*: the spells on the target, or a lasting area at
+  the aimed tile, end; up to the slot's level at once, a higher one with a check of the caster's
+  spellcasting ability against DC 10 + its level; a spell its caster concentrates on ends for
+  everyone) and **Counter** (*Counterspell*, a reaction: when a foe within 60 ft casts a spell, it
+  stops it the same way; the hero is asked in the Reaction window, monsters with it in their spells
+  counter a spell of 1st level or higher by rule).
 - **Lasting areas** (a spell part *Lasting area*): the spell's area stays on the map for its
   duration, in fights by rounds and while exploring (every six seconds), drawn as a tint (fog grey,
   darkness black, walls stone). What it does, by its switches:
@@ -648,9 +663,9 @@ become SRD spells of level 1 (a bolt a cantrip) that every casting class has.
 
 ![A Fireball aimed in a fight: its 20 ft sphere on the grid, the slot, the DEX DC](../images/game-spell-area.webp)
 
-**The 319 spells**: 141 act by their parts (the SRD data's attack, save, damage and healing, plus a
+**The 319 spells**: 153 act by their parts (the SRD data's attack, save, damage and healing, plus a
 table in the import for conditions, boons, light, Knock, shapes, summons, teleports and the rest
-below); the other 178 are **story only** (divination, travel, illusions: their text is shown, and
+below); the other 166 are **story only** (divination, travel, illusions: their text is shown, and
 only events and scripts cast them: *Cast spell*, `cast_spell`). The example's spells are Cure
 Wounds, Light, Fire Bolt, Burning Hands, Magic Missile, Fireball, Misty Step and Sleep (Wren the
 herbalist sells their scrolls; Fireball's flying sprite and explosion are the spell's *Look*);
@@ -1057,6 +1072,7 @@ opportunity attacks and readied actions, these reactions act in fights:
 | *Parry* | monsters whose stat block has the *Parry* reaction (the bandit captain, knight, noble, gladiator, erinyes, marilith) | a melee attack it sees would hit by less than the bonus | +2 (or the text's bonus) AC: the hit misses |
 | *Uncanny Dodge* | rogues from level 5 | an attacker it sees hits it | half the damage |
 | *Deflect Missiles* | monks from level 3 | a ranged weapon hits it | the damage drops by 1d10 + DEX + level |
+| *Counterspell* (spell, 3rd level) | casters who know or prepared it | a foe within 60 ft that it sees casts a spell | the spell stops (up to the slot's level, a higher one with a check); spends a slot |
 | *Hellish Rebuke* (spell, 1st level) | casters who know it (warlocks) | a creature within 60 ft that it sees hurts it | 2d10 fire (one more d10 per slot level above 1st), DEX save for half; spends a slot |
 
 **The hero is asked.** When one of these reactions is possible for the hero, the fight pauses and

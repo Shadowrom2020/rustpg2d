@@ -1509,7 +1509,12 @@ added here.
      unseen:fog / darkness); Silence stops Sacred Flame; Wall of Stone blocks the hero's way.
      Moving a Moonbeam or a Cloudkill, and the example's enemy caster with Darkness, are left for
      later.
-  3. [ ] **Defences and ending effects** (Counterspell as a reaction) — `feature/srd-spells-3`.
+  3. [x] **Defences and ending effects** (Counterspell as a reaction) — `feature/srd-spells-3`.
+     Verified on a scratch copy: Blur gives an orc's javelin disadvantage; Mirror Image's image
+     takes a blow; Sanctuary stops an orc's attack on a failed WIS save; Death Ward leaves the
+     hero at 1 HP; Dispel Magic ends a Darkness; an orc with a mage's stat block counters the
+     hero's Fireball, and the hero (asked) counters its Magic Missile. Remove Curse stays the
+     story's (the engine has no curses yet).
   4. [ ] **Life and death, priced components** (components under 10 gp dropped, the pouch or focus
      covers them; costlier ones needed as items and used up; a dead party member by the project's
      `companion_down` rule, *dead* a new option) — `feature/srd-spells-4`.

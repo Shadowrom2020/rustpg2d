@@ -266,6 +266,11 @@ impl Game {
         }
     }
 
+    /// The spell sources of the lasting areas covering tile `p` (Dispel Magic).
+    pub(super) fn area_sources_at(&self, p: TilePos) -> Vec<String> {
+        self.areas_at(p).into_iter().map(|k| self.areas[k].source.clone()).collect()
+    }
+
     /// The areas of a spell's source end with it (concentration).
     pub(super) fn end_areas_of(&mut self, source: &str) {
         while let Some(k) = self.areas.iter().position(|a| a.source == source) {

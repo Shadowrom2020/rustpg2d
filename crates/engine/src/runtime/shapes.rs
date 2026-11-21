@@ -33,6 +33,13 @@ pub(super) struct NpcShape {
     pub left: f32,
 }
 
+impl NpcShape {
+    /// The spell that gave it (Dispel Magic).
+    pub fn orig_source(&self) -> String {
+        self.source.clone()
+    }
+}
+
 /// A summoned creature: what summoned it (a spell's source) and its time.
 #[derive(Clone, Debug)]
 pub(super) struct Summoned {

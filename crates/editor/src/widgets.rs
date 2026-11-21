@@ -2981,7 +2981,7 @@ pub fn poison_ui(ui: &mut Ui, id: &str, p: &mut rustpg2d_engine::srd::poisons::P
 pub fn buff_ui(ui: &mut Ui, id: &str, buff: &mut rustpg2d_engine::srd::conditions::Buff) {
     use rustpg2d_engine::srd::conditions::Buff as B;
     use rustpg2d_engine::srd::Ability;
-    let names = ["Attack die", "Save die", "AC +", "AC base", "Speed", "Haste", "Resistance", "Ability score", "Poison saves", "Sense", "Damage on hits", "Check die", "Check advantage", "Next attack", "Hope", "AC at least", "Weapon die"];
+    let names = ["Attack die", "Save die", "AC +", "AC base", "Speed", "Haste", "Resistance", "Ability score", "Poison saves", "Sense", "Damage on hits", "Check die", "Check advantage", "Next attack", "Hope", "AC at least", "Weapon die", "Blur", "Mirror images", "Sanctuary", "Protection from types", "Death Ward", "Warding Bond", "Condition immunity"];
     let mut kind = match buff {
         B::AttackDie { .. } => 0,
         B::SaveDie { .. } => 1,
@@ -3000,6 +3000,13 @@ pub fn buff_ui(ui: &mut Ui, id: &str, buff: &mut rustpg2d_engine::srd::condition
         B::Hope => 14,
         B::AcMin { .. } => 15,
         B::WeaponDie { .. } => 16,
+        B::Blur => 17,
+        B::Images { .. } => 18,
+        B::Sanctuary { .. } => 19,
+        B::Warded { .. } => 20,
+        B::DeathWard => 21,
+        B::Bond { .. } => 22,
+        B::ConditionImmunity { .. } => 23,
     };
     let before = kind;
     egui::ComboBox::from_id_salt(format!("{id}/kind")).selected_text(names[kind]).show_ui(ui, |ui| {
@@ -3025,6 +3032,13 @@ pub fn buff_ui(ui: &mut Ui, id: &str, buff: &mut rustpg2d_engine::srd::condition
             14 => B::Hope,
             15 => B::AcMin { ac: 16 },
             16 => B::WeaponDie { dice: "1d8".into() },
+            17 => B::Blur,
+            18 => B::Images { count: 3 },
+            19 => B::Sanctuary { dc: 0 },
+            20 => B::Warded { types: vec!["undead".into(), "fiend".into()] },
+            21 => B::DeathWard,
+            22 => B::Bond { mark: String::new() },
+            23 => B::ConditionImmunity { conditions: vec![rustpg2d_engine::srd::conditions::Condition::Paralyzed, rustpg2d_engine::srd::conditions::Condition::Restrained] },
             _ => B::AbilityScore { ability: Ability::Str, score: 21 },
         };
     }
@@ -3064,6 +3078,42 @@ pub fn buff_ui(ui: &mut Ui, id: &str, buff: &mut rustpg2d_engine::srd::condition
         }
         B::Hope => {
             ui.weak("advantage on WIS and death saves, healing at its most");
+        }
+        B::Blur => {
+            ui.weak("attackers that rely on sight have disadvantage");
+        }
+        B::Images { count } => {
+            ui.add(egui::DragValue::new(count).range(1..=5)).on_hover_text("Illusory duplicates (Mirror Image 3)");
+        }
+        B::Sanctuary { .. } => {
+            ui.weak("an attacker saves (WIS, the caster's DC) or loses the attack");
+        }
+        B::Warded { types } => {
+            let mut t = types.join(", ");
+            if ui.add(egui::TextEdit::singleline(&mut t).desired_width(200.0)).on_hover_text("Creature types whose attacks have disadvantage").changed() {
+                *types = t.split(',').map(|x| x.trim().to_string()).filter(|x| !x.is_empty()).collect();
+            }
+        }
+        B::DeathWard => {
+            ui.weak("the first drop to 0 HP leaves 1 HP");
+        }
+        B::Bond { .. } => {
+            ui.weak("+1 AC and saves, resistance; the caster shares the damage");
+        }
+        B::ConditionImmunity { conditions } => {
+            use rustpg2d_engine::srd::conditions::Condition;
+            ui.horizontal_wrapped(|ui| {
+                for c in Condition::ALL.into_iter().filter(|c| !matches!(c, Condition::Any | Condition::Exhaustion)) {
+                    let mut on = conditions.contains(&c);
+                    if ui.checkbox(&mut on, c.name()).changed() {
+                        if on {
+                            conditions.push(c);
+                        } else {
+                            conditions.retain(|x| *x != c);
+                        }
+                    }
+                }
+            });
         }
         B::AcMin { ac } => {
             ui.add(egui::DragValue::new(ac).range(10..=25)).on_hover_text("Armor class at least this (Barkskin 16)");

@@ -1577,6 +1577,10 @@ impl Game {
                 reactions::ReactNow::None => false,
             },
         };
+        // Sanctuary, Mirror Image: the attack may be over before its roll.
+        if self.defences_before(who, target, spec) {
+            return false;
+        }
         let mut spec = self.buffed(who, spec);
         // (Bless / Bane: a die on the attack roll.)
         spec.bonus += self.buff_roll(who, true);
@@ -1584,8 +1588,9 @@ impl Game {
         let sit = self.situation(who, target, spec);
         let mut odds = rules::odds(&sit);
         odds.disadvantage |= protected;
-        // (True Strike: advantage, spent by this attack.)
+        // (True Strike: advantage, spent by this attack; Blur, Protection from Evil and Good.)
         odds.advantage |= self.take_next_attack(who, target);
+        odds.disadvantage |= self.defence_disadvantage(who, target);
         let mode = odds.mode();
         let cover = self.cover(who, target);
         let ac = self.who_ac(target) + cover.ac_bonus();
@@ -1863,7 +1868,7 @@ impl Game {
                 // (A beast's shape takes it: at 0 HP the hero is back, the rest carries over.)
                 let (before, n) = self.shape_takes(self.hp(), n);
                 let mut hp = (before - n).max(0);
-                if hp == 0 && self.relentless(target) {
+                if hp == 0 && (self.death_ward(target) || self.relentless(target)) {
                     hp = 1;
                 }
                 self.world.player_hp = Some(hp);
@@ -1882,7 +1887,7 @@ impl Game {
                 let e = &mut self.loaded.entities[i];
                 let before = e.hp;
                 e.hp = (e.hp - n).max(0);
-                if e.hp == 0 && party && self.relentless(target) {
+                if e.hp == 0 && (self.death_ward(target) || (party && self.relentless(target))) {
                     if let Some(i) = self.who_index(target) {
                         self.loaded.entities[i].hp = 1;
                     }
@@ -1920,6 +1925,8 @@ impl Game {
             }
         }
         self.after_damage(target, by);
+        // (Warding Bond: the caster takes the same.)
+        self.share_bond(target, n);
         // (Concentration: a CON save, the spell ends on a failure.)
         if n > 0 {
             self.concentration_check(target, n);

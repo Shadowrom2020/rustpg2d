@@ -5949,7 +5949,8 @@ fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::Sp
                 P::Stabilize => {
                     ui.strong("Stabilizes").on_hover_text("A creature at 0 hit points stops making death saving throws (Spare the Dying)");
                 }
-                P::Cure { conditions, disease } => {
+                P::Cure { conditions, disease, exhaustion } => {
+                    ui.checkbox(exhaustion, "and a level of exhaustion").on_hover_text("Greater Restoration");
                     ui.checkbox(disease, "or a disease").on_hover_text("When the target has none of the conditions: one of the hero's diseases ends (Lesser Restoration)");
                     ui.strong("Ends").on_hover_text("Ends the first of these conditions the target has (Lesser Restoration: blinded, deafened, paralyzed or poisoned)");
                     ui.horizontal_wrapped(|ui| {
@@ -5989,6 +5990,12 @@ fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::Sp
                     ui.checkbox(&mut effect.wall, "wall");
                     ui.add(egui::DragValue::new(&mut effect.feet).range(0..=200).speed(5).suffix(" ft")).on_hover_text("Radius without an area (Spirit Guardians 15), a wall's length");
                 }
+                P::Dispel => {
+                    ui.strong("Dispel").on_hover_text("Ends the spells on the target and the lasting areas at the aimed tile: up to the slot's level at once, a higher one with a check of the spellcasting ability against DC 10 + its level (Dispel Magic)");
+                }
+                P::Counter => {
+                    ui.strong("Counter").on_hover_text("Cast as a reaction when a foe in range casts a spell, it stops it (Counterspell; the spell's casting time must be Reaction)");
+                }
                 P::Teleport => {
                     ui.strong("Teleport").on_hover_text("The caster moves to the aimed free tile within range (Misty Step); outside a fight as far as the range goes straight ahead");
                 }
@@ -6018,7 +6025,7 @@ fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::Sp
     }
     ui.horizontal(|ui| {
         ui.label("Add:");
-        let templates: [(&str, P); 19] = [
+        let templates: [(&str, P); 21] = [
             ("Attack", P::Attack { ranged: true }),
             ("Save", P::Save { ability: Ability::Dex, half: true }),
             ("Damage", P::Damage { by_level: vec![(1, "1d8".into())], damage_type: None }),
@@ -6030,11 +6037,13 @@ fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::Sp
             ("Light", P::Light { radius: 4.0 }),
             ("Unlock", P::Unlock),
             ("Stabilize", P::Stabilize),
-            ("Cure", P::Cure { conditions: vec![Condition::Poisoned], disease: false }),
+            ("Cure", P::Cure { conditions: vec![Condition::Poisoned], disease: false, exhaustion: false }),
             ("Script", P::Script { function: String::new() }),
             ("Shape", P::Shape { max_cr: String::new() }),
             ("Summon", P::Summon { creature: String::new(), count: 1 }),
             ("Teleport", P::Teleport),
+            ("Dispel", P::Dispel),
+            ("Counter", P::Counter),
             ("Lasting area", P::Lasting { effect: rustpg2d_engine::skills::Lasting { obscures: true, ..Default::default() } }),
             ("HP pool", P::HpPool { by_level: vec![(1, "5d8".into())], condition: Condition::Unconscious }),
             ("Mark", P::Mark { buff: B::HitDamage { dice: "1d6".into(), damage_type: None, mark: String::new(), once: false } }),

@@ -692,6 +692,13 @@ impl Game {
             B::Hope => crate::lang::tr_ui("Advantage on WIS and death saves, the most healing").into_owned(),
             B::AcMin { ac } => format!("AC {ac}"),
             B::WeaponDie { dice } => format!("{} {dice}", crate::lang::tr_ui("Weapon")),
+            B::Blur => crate::lang::tr_ui("Attackers have disadvantage").into_owned(),
+            B::Images { count } => format!("{count} {}", crate::lang::tr_ui("images")),
+            B::Sanctuary { .. } => crate::lang::tr_ui("Attackers must save first").into_owned(),
+            B::Warded { types } => format!("{}: {}", crate::lang::tr_ui("Protection from"), types.join(", ")),
+            B::DeathWard => crate::lang::tr_ui("Death Ward").into_owned(),
+            B::Bond { .. } => crate::lang::tr_ui("AC and saves +1, resistance; the caster shares the damage").into_owned(),
+            B::ConditionImmunity { conditions } => format!("{} {}", crate::lang::tr_ui("Immune to"), conditions.iter().map(|c| crate::lang::tr_ui(c.name()).into_owned()).collect::<Vec<_>>().join(", ")),
         }
     }
 
@@ -726,6 +733,8 @@ impl Game {
                 P::Buff { buff } => out.push(Self::buff_summary(buff)),
                 P::Mark { buff } => out.push(Self::buff_summary(buff)),
                 P::Teleport => out.push(crate::lang::tr_ui("Teleport").into_owned()),
+                P::Dispel => out.push(crate::lang::tr_ui("Ends spells").into_owned()),
+                P::Counter => out.push(crate::lang::tr_ui("Stops a spell being cast").into_owned()),
                 P::Lasting { effect } => {
                     let what = [(effect.obscures, "Fog"), (effect.dark, "Darkness"), (effect.difficult, "Difficult terrain"), (effect.silence, "Silence"), (effect.wall, "Wall"), (effect.repeat, "Lasting")];
                     out.extend(what.iter().filter(|w| w.0).map(|w| crate::lang::tr_ui(w.1).into_owned()));
@@ -738,10 +747,13 @@ impl Game {
                 P::Light { .. } => out.push(crate::lang::tr_ui("Light").into_owned()),
                 P::Unlock => out.push(crate::lang::tr_ui("Opens locks").into_owned()),
                 P::Stabilize => out.push(crate::lang::tr_ui("Stabilizes").into_owned()),
-                P::Cure { conditions, disease } => {
+                P::Cure { conditions, disease, exhaustion } => {
                     let mut what: Vec<String> = conditions.iter().map(|c| crate::lang::tr_ui(c.name()).into_owned()).collect();
                     if *disease {
                         what.push(crate::lang::tr_ui("a disease").into_owned());
+                    }
+                    if *exhaustion {
+                        what.push(crate::lang::tr_ui("a level of exhaustion").into_owned());
                     }
                     out.push(format!("{} {}", crate::lang::tr_ui("Ends"), what.join(" / ")));
                 }

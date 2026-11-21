@@ -2981,7 +2981,7 @@ pub fn poison_ui(ui: &mut Ui, id: &str, p: &mut rustpg2d_engine::srd::poisons::P
 pub fn buff_ui(ui: &mut Ui, id: &str, buff: &mut rustpg2d_engine::srd::conditions::Buff) {
     use rustpg2d_engine::srd::conditions::Buff as B;
     use rustpg2d_engine::srd::Ability;
-    let names = ["Attack die", "Save die", "AC +", "AC base", "Speed", "Haste", "Resistance", "Ability score", "Poison saves"];
+    let names = ["Attack die", "Save die", "AC +", "AC base", "Speed", "Haste", "Resistance", "Ability score", "Poison saves", "Sense"];
     let mut kind = match buff {
         B::AttackDie { .. } => 0,
         B::SaveDie { .. } => 1,
@@ -2992,6 +2992,7 @@ pub fn buff_ui(ui: &mut Ui, id: &str, buff: &mut rustpg2d_engine::srd::condition
         B::Resistance { .. } => 6,
         B::AbilityScore { .. } => 7,
         B::PoisonSaves => 8,
+        B::Sense { .. } => 9,
     };
     let before = kind;
     egui::ComboBox::from_id_salt(format!("{id}/kind")).selected_text(names[kind]).show_ui(ui, |ui| {
@@ -3009,6 +3010,7 @@ pub fn buff_ui(ui: &mut Ui, id: &str, buff: &mut rustpg2d_engine::srd::condition
             5 => B::Haste,
             6 => B::Resistance { types: vec!["fire".into()] },
             8 => B::PoisonSaves,
+            9 => B::Sense { sense: rustpg2d_engine::srd::conditions::Sense::Truesight, feet: 120 },
             _ => B::AbilityScore { ability: Ability::Str, score: 21 },
         };
     }
@@ -3029,6 +3031,14 @@ pub fn buff_ui(ui: &mut Ui, id: &str, buff: &mut rustpg2d_engine::srd::condition
         B::Haste => {}
         B::PoisonSaves => {
             ui.weak("advantage on saving throws against poison");
+        }
+        B::Sense { sense, feet } => {
+            egui::ComboBox::from_id_salt(format!("{id}/sense")).selected_text(sense.label()).show_ui(ui, |ui| {
+                for s in rustpg2d_engine::srd::conditions::Sense::ALL {
+                    ui.selectable_value(sense, s, s.label());
+                }
+            });
+            ui.add(egui::DragValue::new(feet).range(0..=600).speed(5).suffix(" ft")).on_hover_text("0 = as far as it sees");
         }
         B::Resistance { types } => {
             let mut t = types.join(", ");

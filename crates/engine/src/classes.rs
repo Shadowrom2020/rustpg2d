@@ -255,6 +255,8 @@ pub enum FeatureEffect {
     CheckAdvantage { skill: String },
     /// Darkvision this far (feet; Goggles of Night 60).
     Darkvision { feet: u32 },
+    /// A special sense this far (feet; 0 = as far as it sees): a Gem of Seeing's truesight.
+    Sense { sense: crate::srd::conditions::Sense, feet: u32 },
 }
 
 /// What a flat bonus (`FeatureEffect::Bonus`) adds to.
@@ -557,6 +559,8 @@ pub struct ClassTraits {
     pub check_advantage: Vec<String>,
     /// Darkvision in feet (0 = none).
     pub darkvision_ft: u32,
+    /// Special senses in feet (blindsight, truesight…; 0 feet = as far as it sees).
+    pub senses: Vec<(crate::srd::conditions::Sense, u32)>,
 }
 
 impl ClassTraits {
@@ -643,6 +647,7 @@ impl ClassTraits {
                 FeatureEffect::AbilityScore { ability, score } => t.ability_scores.push((*ability, *score)),
                 FeatureEffect::CheckAdvantage { skill } => t.check_advantage.push(skill.clone()),
                 FeatureEffect::Darkvision { feet } => t.darkvision_ft = t.darkvision_ft.max(*feet),
+                FeatureEffect::Sense { sense, feet } => t.senses.push((*sense, *feet)),
                 other => t.riders.push(other.clone()),
             }
         }

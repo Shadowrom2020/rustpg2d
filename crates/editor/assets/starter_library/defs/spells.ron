@@ -2607,7 +2607,15 @@
             "sorcerer",
             "wizard",
         ],
-        story_only: true,
+        parts: [
+            Buff(
+                buff: Sense(
+                    sense: Darkvision,
+                    feet: 60,
+                ),
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "daylight",
@@ -8587,7 +8595,15 @@
             "sorcerer",
             "wizard",
         ],
-        story_only: true,
+        parts: [
+            Buff(
+                buff: Sense(
+                    sense: SeeInvisible,
+                    feet: 0,
+                ),
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "seeming",
@@ -10096,7 +10112,15 @@
             "warlock",
             "wizard",
         ],
-        story_only: true,
+        parts: [
+            Buff(
+                buff: Sense(
+                    sense: Truesight,
+                    feet: 120,
+                ),
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "true-strike",

@@ -124,6 +124,16 @@ impl Game {
         let t = &self.world.training;
         let dv = if self.darkvision_ft() > 0 { ":darkvision" } else { "" };
         let help: Vec<String> = t.help.iter().map(|(k, v)| format!("{k}={v}")).collect();
-        format!("light:{}{dv} help:{}", t.sight.word(), if help.is_empty() { "-".into() } else { help.join(",") })
+        // (The hero's special senses: spells, items.)
+        let see: Vec<String> = crate::srd::conditions::Sense::ALL
+            .into_iter()
+            .filter(|s| *s != crate::srd::conditions::Sense::Darkvision)
+            .filter_map(|s| match self.sense_of(super::turns::Who::Player, s) {
+                0 => None,
+                u32::MAX => Some(s.id().replace(' ', "_")),
+                f => Some(format!("{}{f}", s.id().replace(' ', "_"))),
+            })
+            .collect();
+        format!("light:{}{dv} help:{}{}", t.sight.word(), if help.is_empty() { "-".into() } else { help.join(",") }, if see.is_empty() { String::new() } else { format!(" see:{}", see.join(",")) })
     }
 }

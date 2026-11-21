@@ -701,6 +701,7 @@ impl Game {
                         B::Resistance { types } => format!("{} {}", crate::lang::tr_ui("Resistance"), types.join(", ")),
                         B::AbilityScore { ability, score } => format!("{} {score}", ability.short()),
                         B::PoisonSaves => crate::lang::tr_ui("Advantage on saves against poison").into_owned(),
+                        B::Sense { sense, feet } => if *feet == 0 { crate::lang::tr_ui(sense.label()).into_owned() } else { format!("{} {feet} ft", crate::lang::tr_ui(sense.label())) },
                     });
                 }
                 P::Light { .. } => out.push(crate::lang::tr_ui("Light").into_owned()),

@@ -993,10 +993,19 @@ Special abilities*):
   them in the example) are thrown like a dagger and shatter: the fire burns for three rounds.
 - **Pack Tactics**: advantage on attacks when an ally of the attacker's that can act stands next to
   the target (wolves).
+- **Senses** (the stat block's *Senses* text): within its range, **blindsight** and
+  **tremorsense** perceive without sight, in darkness, the invisible and the hidden (a hero can't
+  hide from them, and a hiding hero is still found); **truesight** sees in darkness and the
+  invisible. Outside fights they notice a sneaking or invisible hero within the creature's sight
+  whatever the light (the example's bats find a hero sneaking through the dark by blindsight).
+- **The hero's senses**: *Darkvision* (60 ft, 8 hours), *See Invisibility* (1 hour: the invisible
+  are seen) and *True Seeing* (truesight 120 ft, 1 hour) in the starter library give them as
+  boons, magic items with a *Sense* effect while worn (`Sense(sense: Truesight, feet: 120)`), and
+  darkvision from the race or Goggles of Night as before.
 - Of the starter library's monsters, 70 have save actions (40 of them recharge), 30 legendary
-  actions, 25 Legendary Resistance, 7 Regeneration and 17 Pack Tactics. Still text only:
-  innate abilities like swallowing, multi-headed traits, damage transfer, lair actions; senses
-  (blindsight, tremorsense, truesight), reactions and shapes come in the next parts.
+  actions, 25 Legendary Resistance, 7 Regeneration and 17 Pack Tactics; 83 have blindsight, 6
+  tremorsense and 13 truesight. Still text only: innate abilities like swallowing, multi-headed
+  traits, damage transfer, lair actions; reactions and shapes come in the next parts.
 - In the example, the bridge troll in the Wilds regenerates, and the wolves hunt with Pack Tactics.
 
 `status` prints `monster_fx=` (`name:spent(ACTION)…:legendaryN:resistN:regen[:down][:stopped]`, the

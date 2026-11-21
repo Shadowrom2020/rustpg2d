@@ -1414,7 +1414,7 @@ added here.
 
 - [ ] Special abilities of monsters and classes — four parts (2026-11-21):
   1. [x] **Monster actions** — `feature/srd-monster-actions`.
-  2. [ ] **Senses** (blindsight, tremorsense, truesight) — `feature/srd-senses`.
+  2. [x] **Senses** (blindsight, tremorsense, truesight) — `feature/srd-senses`.
   3. [ ] **Reactions** (the prompt, the AI's by rule) — `feature/srd-reactions`.
   4. [ ] **Shapes and summons** — `feature/srd-shapes`.
 
@@ -1468,6 +1468,20 @@ added here.
   Presence, Tail Attack as a legendary action after the hero's turn (from round 1), Legendary
   Resistance turning two failed DC 30 saves; the bridge troll regenerating 10, falling at 0 and
   getting up, and dying after alchemist's fire hit it while down; wolves' advantage next to an ally.
+
+  **Part 2 decided while building** (the user's answers, 2026-11-21: monsters and the hero).
+  Fights already used blindsight / tremorsense / truesight for seeing; what was missing: the hero's
+  senses (`Buff::Sense`, `FeatureEffect::Sense`, `Sense` in `srd/conditions.rs`), finding the hidden
+  (`perceives`: blindsight and tremorsense in `ai_foes` and the attacker's unseen check), See
+  Invisibility, and noticing outside fights (`sense_tiles`, capped at the creature's sight range).
+  Darkvision from items and spells now counts in fights too. The Gem of Seeing stays a text: an
+  item's *use* spends no charge.
+
+  **Part 2 verified.** A/B autoplay with the wilds' bats at night: with blindsight they find the
+  sneaking hero 6 tiles away, without it they don't; in a fight the hero can't hide from them
+  ("Nowhere to hide here"); the invisible bridge troll unseen, then seen after *See Invisibility*;
+  *True Seeing* and *Darkvision* in `senses=`, the dim night bright with darkvision. A unit test (the
+  sense boon).
 
 - [ ] Spells completed — `feature/srd-spells-completed`
 

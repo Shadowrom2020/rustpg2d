@@ -572,6 +572,14 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   example. The import no longer replaces the riders a monster's attack already has (a Goblin
   Poisoner's arrows).
 
+### Senses (SRD 5.1)
+- Blindsight and tremorsense find hidden and invisible creatures in their range (no hiding from
+  them in fights), truesight sees the invisible and in darkness, and outside fights a sneaking or
+  invisible hero is noticed by them whatever the light (the example's bats).
+- The hero gets senses too: *Darkvision*, *See Invisibility* and *True Seeing* work (a new *Sense*
+  boon), magic items can give one (a *Sense* effect); darkvision from items now counts in fights.
+  `status` prints them in `senses=` (`see:`).
+
 ### Diseases (SRD 5.1)
 - **Diseases** (*Database › Diseases*, `defs/diseases.ron`): a save against catching them, an
   onset, then exhaustion, blocked or halved healing, a shrinking hit point maximum, failing sight

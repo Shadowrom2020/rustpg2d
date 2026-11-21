@@ -253,7 +253,9 @@ crates/engine/src/      library: everything shared by game and editor
                         hurt, sight penalty via Training.sight_penalty; status diseases=),
                         turns/monster_actions.rs (StatBlock actions / legendary / regeneration / pack_tactics in
                         fights: save actions as synthetic spells with Game.action_dc, recharge, legendary actions
-                        after turns, Legendary Resistance in who_check, troll regeneration; status monster_fx=)
+                        after turns, Legendary Resistance in who_check, troll regeneration; status monster_fx=),
+                        turns/vision.rs senses (sense_of / perceives: stat block senses text, Buff::Sense and
+                        FeatureEffect::Sense for the hero; stealth.rs sense_tiles for noticing outside fights)
   quest.rs, inventory.rs, entity.rs, path.rs (A*), render/ (Assets, chunked tile renderer;
                         lighting.rs = day/night ambient, LightPass light map, tile_lights;
                         parallax.rs = Map.parallax image layers behind / over the map)

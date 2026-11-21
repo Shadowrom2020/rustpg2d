@@ -82,9 +82,13 @@ impl Game {
 
     /// The hero's darkvision in feet (0 = none).
     pub(super) fn darkvision_ft(&self) -> u32 {
-        // (Or from an item: Goggles of Night.)
+        // (Or from an item: Goggles of Night; or a spell: Darkvision.)
         let items = self.hero_traits().map_or(0, |t| t.darkvision_ft);
-        self.player_race().map_or(0, |r| r.darkvision_ft).max(items)
+        let spell = crate::srd::conditions::buffs(&self.world.effects)
+            .filter_map(|b| if let crate::srd::conditions::Buff::Sense { sense: crate::srd::conditions::Sense::Darkvision, feet } = b { Some(*feet) } else { None })
+            .max()
+            .unwrap_or(0);
+        self.player_race().map_or(0, |r| r.darkvision_ft).max(items).max(spell)
     }
 
     /// The player's hitbox at their body's size (the player character's hitbox × the size of the

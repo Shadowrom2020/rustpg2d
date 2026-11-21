@@ -262,7 +262,12 @@ impl Game {
             return;
         }
         let name = self.entity_display_name(e.uid).unwrap_or_else(|| e.name.clone());
-        let target = e.name.clone();
+        // (A dead party member: no healing helps.)
+        if self.companion_dead_at(i).is_some() {
+            self.ui.toast(format!("{name}: {}", crate::lang::tr_ui("dead, healing doesn't help")));
+            return;
+        }
+        let target = self.loaded.entities[i].name.clone();
         let amount = self.heal_hook(&target, amount);
         if amount <= 0 {
             return;

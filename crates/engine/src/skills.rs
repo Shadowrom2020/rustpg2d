@@ -159,6 +159,10 @@ pub struct SpellDef {
     /// story's (divinations, summons, travel).
     #[serde(default)]
     pub story_only: bool,
+    /// A material component worth 10 gp or more: the caster needs these items, and casting uses
+    /// them up (cheaper components are the component pouch's or the focus's).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub costly: Option<Costly>,
     /// How it looks: a projectile flying to the target, an effect where it lands, a sound.
     #[serde(default, skip_serializing_if = "SpellVisual::is_empty")]
     pub visual: SpellVisual,
@@ -393,6 +397,22 @@ pub enum SpellPart {
     /// Counterspell: cast as a reaction when a creature in range casts a spell, it stops it (a
     /// spell of the slot's level or lower at once, a higher one with the check).
     Counter,
+    /// Brings back the fallen party member nearest the caster (within reach): one dead for at
+    /// most `within_hours` hours (Revivify 1 minute, Raise Dead 10 days) or only down, with 1 hit
+    /// point or all (`full`: Resurrection).
+    Revive {
+        within_hours: f32,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        full: bool,
+    },
+}
+
+/// A costly material component (Revivify's diamonds): `count` of item `item`.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Costly {
+    pub item: String,
+    pub count: u32,
 }
 
 /// What a lasting area does while it stays (a spell's [`SpellPart::Lasting`]). With `repeat` the
@@ -518,6 +538,7 @@ impl SpellDef {
             classes: Vec::new(),
             parts: Vec::new(),
             story_only: false,
+            costly: None,
             visual: SpellVisual::default(),
         }
     }
@@ -607,7 +628,7 @@ impl SpellDef {
 
     /// Whether it may be aimed at an empty tile (a summons, a teleport, Dispel Magic on an area).
     pub fn aims_at_tile(&self) -> bool {
-        self.parts.iter().any(|p| matches!(p, SpellPart::Summon { .. } | SpellPart::Teleport | SpellPart::Dispel))
+        self.parts.iter().any(|p| matches!(p, SpellPart::Summon { .. } | SpellPart::Teleport | SpellPart::Dispel | SpellPart::Revive { .. }))
     }
 
     pub fn offensive(&self) -> bool {

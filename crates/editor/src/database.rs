@@ -3963,7 +3963,7 @@ fn project_form(ed: &mut Editor, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             use rustpg2d_engine::project::DownRule;
             egui::ComboBox::from_id_salt("companion_down").selected_text(c.companion_down.label()).show_ui(ui, |ui| {
-                for r in [DownRule::StaysDown, DownRule::GetsUp { seconds: 30.0 }, DownRule::GoesHome] {
+                for r in [DownRule::StaysDown, DownRule::GetsUp { seconds: 30.0 }, DownRule::GoesHome, DownRule::Dead] {
                     let on = std::mem::discriminant(&c.companion_down) == std::mem::discriminant(&r);
                     if ui.selectable_label(on, r.label()).clicked() && !on {
                         c.companion_down = r;
@@ -5809,6 +5809,15 @@ fn spell_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::skills::SpellDef, cx: 
         ui.horizontal(|ui| {
             ui.add(egui::TextEdit::singleline(&mut d.components).desired_width(70.0).hint_text("V, S, M"));
             ui.add(egui::TextEdit::singleline(&mut d.material).desired_width(220.0).hint_text("material"));
+            // (A component worth 10 gp or more: items the caster needs and uses up.)
+            let mut costly = d.costly.is_some();
+            if ui.checkbox(&mut costly, "costly").on_hover_text("A material component worth 10 gp or more: the caster must carry these items, and casting uses them up (cheaper ones are the component pouch's)").changed() {
+                d.costly = costly.then(|| rustpg2d_engine::skills::Costly { item: String::new(), count: 1 });
+            }
+            if let Some(c) = &mut d.costly {
+                ui.add(egui::DragValue::new(&mut c.count).range(1..=99).prefix("x"));
+                widgets::suggest(ui, "spell_costly", &mut c.item, &cx.refs.items, 140.0);
+            }
         });
         ui.end_row();
         ui.label("Duration");
@@ -5990,6 +5999,11 @@ fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::Sp
                     ui.checkbox(&mut effect.wall, "wall");
                     ui.add(egui::DragValue::new(&mut effect.feet).range(0..=200).speed(5).suffix(" ft")).on_hover_text("Radius without an area (Spirit Guardians 15), a wall's length");
                 }
+                P::Revive { within_hours, full } => {
+                    ui.strong("Revive").on_hover_text("Brings back the fallen party member nearest the caster: one dead at most this long (Revivify 1 minute = 0.017 h, Raise Dead 240 h) or only down");
+                    ui.add(egui::DragValue::new(within_hours).range(0.0..=1_000_000.0).speed(0.1).suffix(" h"));
+                    ui.checkbox(full, "all hit points");
+                }
                 P::Dispel => {
                     ui.strong("Dispel").on_hover_text("Ends the spells on the target and the lasting areas at the aimed tile: up to the slot's level at once, a higher one with a check of the spellcasting ability against DC 10 + its level (Dispel Magic)");
                 }
@@ -6025,7 +6039,7 @@ fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::Sp
     }
     ui.horizontal(|ui| {
         ui.label("Add:");
-        let templates: [(&str, P); 21] = [
+        let templates: [(&str, P); 22] = [
             ("Attack", P::Attack { ranged: true }),
             ("Save", P::Save { ability: Ability::Dex, half: true }),
             ("Damage", P::Damage { by_level: vec![(1, "1d8".into())], damage_type: None }),
@@ -6044,6 +6058,7 @@ fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::Sp
             ("Teleport", P::Teleport),
             ("Dispel", P::Dispel),
             ("Counter", P::Counter),
+            ("Revive", P::Revive { within_hours: 1.0 / 60.0, full: false }),
             ("Lasting area", P::Lasting { effect: rustpg2d_engine::skills::Lasting { obscures: true, ..Default::default() } }),
             ("HP pool", P::HpPool { by_level: vec![(1, "5d8".into())], condition: Condition::Unconscious }),
             ("Mark", P::Mark { buff: B::HitDamage { dice: "1d6".into(), damage_type: None, mark: String::new(), once: false } }),

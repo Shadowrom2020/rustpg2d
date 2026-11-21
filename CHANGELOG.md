@@ -608,7 +608,14 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   Good*, *Protection from Energy*, *Death Ward*, *Warding Bond*, *Freedom of Movement*, *Mind
   Blank* (new boons), *Greater Restoration* (a Cure part ends a level of exhaustion), *Dispel Magic*
   (a new Dispel part) and **Counterspell** (a new Counter part, a reaction: the hero is asked in
-  the Reaction window, monsters counter by rule). 153 of the 319 spells act now.
+  the Reaction window, monsters counter by rule).
+- **Life and death**: *Database › Project › Companions at 0 HP* = *Dead*: a party member fallen
+  in a fight stays dead; *Revivify* (a minute), *Raise Dead* (ten days) and *Resurrection* (a new
+  Revive part) bring it back.
+- **Costly components**: spells with a material component worth 10 gp or more need it as items and
+  use them up (a spell's new *costly* field): diamonds, diamond dust, ruby dust, platinum rings,
+  incense, eye ointment and a pearl in the starter library; the example's dwarf merchant sells
+  diamonds. 156 of the 319 spells act now.
 
 ### Shapes and summons (SRD 5.1)
 - **Wild Shape** (the druid's class action, a new *Shape* class action effect): the hero picks a

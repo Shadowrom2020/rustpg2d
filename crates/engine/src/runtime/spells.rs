@@ -531,6 +531,9 @@ impl Game {
         if d.verbal() && self.silenced(Who::Player) {
             return Err("Silence: no words of magic here");
         }
+        if !free && !self.has_costly(Who::Player, &d) {
+            return Err("Its costly component is missing");
+        }
         // A ritual: no slot, ten minutes.
         let ritual = !free && d.ritual && self.spellcasting(Who::Player).is_some_and(|(_, sc, _)| sc.ritual) && self.known_or_prepared(Who::Player, id);
         let slot = if free || d.level == 0 || ritual {
@@ -549,6 +552,9 @@ impl Game {
         };
         if ritual {
             self.world.advance_hours(10.0 / 60.0);
+        }
+        if !free {
+            self.use_costly(Who::Player, &d);
         }
         self.resolve_spell(Who::Player, &d, slot, &[Who::Player], None);
         self.ui.toast(crate::lang::tr(&d.name));
@@ -734,6 +740,7 @@ impl Game {
                 P::Mark { buff } => out.push(Self::buff_summary(buff)),
                 P::Teleport => out.push(crate::lang::tr_ui("Teleport").into_owned()),
                 P::Dispel => out.push(crate::lang::tr_ui("Ends spells").into_owned()),
+                P::Revive { full, .. } => out.push(crate::lang::tr_ui(if *full { "Brings back the dead, healed" } else { "Brings back the dead" }).into_owned()),
                 P::Counter => out.push(crate::lang::tr_ui("Stops a spell being cast").into_owned()),
                 P::Lasting { effect } => {
                     let what = [(effect.obscures, "Fog"), (effect.dark, "Darkness"), (effect.difficult, "Difficult terrain"), (effect.silence, "Silence"), (effect.wall, "Wall"), (effect.repeat, "Lasting")];
@@ -771,4 +778,41 @@ impl Game {
         out.join(", ")
     }
 
+
+    /// Whether `who` carries spell `d`'s costly component (monsters' spells need none).
+    pub(super) fn has_costly(&self, who: Who, d: &SpellDef) -> bool {
+        let Some(c) = d.costly.as_ref().filter(|c| !c.item.is_empty() && c.count > 0) else { return true };
+        if self.monster_casting(who).is_some() {
+            return true;
+        }
+        let n = match who {
+            Who::Player => self.world.inventory.count(&c.item),
+            w => self.who_index(w).map_or(0, |i| self.loaded.entities[i].inventory.iter().filter(|s| s.item == c.item).map(|s| s.count).sum()),
+        };
+        n >= c.count
+    }
+
+    /// Casting spell `d` uses up its costly component.
+    pub(super) fn use_costly(&mut self, who: Who, d: &SpellDef) {
+        let Some(c) = d.costly.as_ref().filter(|c| !c.item.is_empty() && c.count > 0) else { return };
+        if self.monster_casting(who).is_some() {
+            return;
+        }
+        match who {
+            Who::Player => {
+                self.world.inventory.remove(&c.item, c.count);
+            }
+            w => {
+                if let Some(i) = self.who_index(w) {
+                    let mut left = c.count;
+                    for s in self.loaded.entities[i].inventory.iter_mut().filter(|s| s.item == c.item) {
+                        let n = s.count.min(left);
+                        s.count -= n;
+                        left -= n;
+                    }
+                    self.loaded.entities[i].inventory.retain(|s| s.count > 0);
+                }
+            }
+        }
+    }
 }

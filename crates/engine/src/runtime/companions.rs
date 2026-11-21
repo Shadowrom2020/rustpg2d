@@ -491,6 +491,8 @@ impl Game {
             self.dismiss(i, true);
             return;
         }
+        let dead = self.project.config.companion_down == crate::project::DownRule::Dead;
+        let now = self.world.game_hours();
         let name = self.display_name(i);
         let e = &mut self.loaded.entities[i];
         e.hp = 0;
@@ -506,8 +508,13 @@ impl Game {
         if let Some(c) = self.world.companions.iter_mut().find(|c| c.map == map && c.uid == uid) {
             c.down = Some([pos.x, pos.y]);
             c.hp = Some(0);
+            c.dead_at = dead.then_some(now);
         }
-        self.ui.toast(format!("{name} is down! Heal them to get them back up."));
+        if dead {
+            self.ui.toast(format!("{name} is dead. Only magic that brings back the dead can help now."));
+        } else {
+            self.ui.toast(format!("{name} is down! Heal them to get them back up."));
+        }
     }
 
     /// A knocked-down companion lies still (and gets up by itself if the project says so).
@@ -531,10 +538,30 @@ impl Game {
     /// After healing character `i`: a knocked-down companion with HP again gets up; a
     /// companion's HP is saved.
     pub(super) fn companion_healed(&mut self, i: usize) {
+        // (Dead: healing doesn't help, revival spells do.)
+        if self.companion_dead_at(i).is_some() {
+            self.loaded.entities[i].hp = 0;
+            return;
+        }
         if self.is_down(i) && self.loaded.entities[i].hp > 0 {
             self.get_up(i);
         }
         self.sync_companion_hp(i);
+    }
+
+    /// The game hour companion `i` died (`DownRule::Dead`), `None` alive or only down.
+    pub(super) fn companion_dead_at(&self, i: usize) -> Option<f64> {
+        let l = self.loaded.entities[i].companion.as_ref()?;
+        self.world.companions.iter().find(|c| c.map == l.map && c.uid == l.uid).and_then(|c| c.dead_at)
+    }
+
+    /// Companion `i` is no longer dead (a revival spell).
+    pub(super) fn companion_raised(&mut self, i: usize) {
+        let Some(l) = self.loaded.entities[i].companion.as_ref() else { return };
+        let (map, uid) = (l.map.clone(), l.uid);
+        if let Some(c) = self.world.companions.iter_mut().find(|c| c.map == map && c.uid == uid) {
+            c.dead_at = None;
+        }
     }
 
     fn get_up(&mut self, i: usize) {

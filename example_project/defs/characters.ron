@@ -3793,6 +3793,12 @@
                     price: 0,
                 ),
                 (
+                    item: "diamond",
+                    count: 3,
+                    unlimited: false,
+                    price: 0,
+                ),
+                (
                     item: "pickaxe",
                     count: 1,
                     unlimited: false,

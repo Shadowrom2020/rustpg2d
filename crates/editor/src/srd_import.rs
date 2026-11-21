@@ -866,6 +866,20 @@ fn spell_def(v: &Value) -> rustpg2d_engine::skills::SpellDef {
             _ => parts.retain(|p| !matches!(p, P::Damage { .. })),
         }
     }
+    // Costly components (10 gp or more) of the spells that act: library items, used up.
+    let costly = |item: &str, count: u32| Some(rustpg2d_engine::skills::Costly { item: item.into(), count });
+    d.costly = match index {
+        "revivify" => costly("diamond", 3),
+        "raise-dead" => costly("diamond", 5),
+        "resurrection" => costly("diamond", 10),
+        "greater-restoration" | "stoneskin" => costly("diamond-dust", 4),
+        "continual-flame" => costly("ruby-dust", 1),
+        "warding-bond" => costly("platinum-ring", 2),
+        "find-familiar" => costly("incense", 1),
+        "true-seeing" => costly("eye-ointment", 1),
+        "identify" => costly("pearl", 1),
+        _ => d.costly.take(),
+    };
     // (Misty Step's 30 feet are the teleport's, the data's range is the caster.)
     if index == "misty-step" {
         d.range = rustpg2d_engine::skills::SpellRange::Feet(30);
@@ -959,6 +973,10 @@ fn spell_extras(index: &str) -> Vec<rustpg2d_engine::skills::SpellPart> {
         "greater-restoration" => vec![P::Cure { conditions: vec![K::Charmed, K::Petrified], disease: false, exhaustion: true }],
         "dispel-magic" => vec![P::Dispel],
         "counterspell" => vec![P::Counter],
+        // (Bringing back the dead: within a minute, ten days, a century.)
+        "revivify" => vec![P::Revive { within_hours: 0.017, full: false }],
+        "raise-dead" => vec![P::Revive { within_hours: 240.0, full: false }],
+        "resurrection" => vec![P::Revive { within_hours: 876_000.0, full: true }],
         // (Lasting areas: the area stays; `repeat` = the parts act again.)
         "fog-cloud" => vec![lasting(L { obscures: true, ..Default::default() })],
         "darkness" => vec![lasting(L { dark: true, ..Default::default() })],

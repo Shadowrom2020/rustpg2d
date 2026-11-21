@@ -291,6 +291,25 @@ pub enum FeatureEffect {
     SongOfRest { die: u32 },
     /// Escape the Horde: opportunity attacks against it have disadvantage.
     EscapeTheHorde,
+    /// These spells are always prepared and don't count against the prepared ones (Domain and
+    /// Oath Spells).
+    AlwaysPrepared { spells: Vec<String> },
+    /// Arcane / Natural Recovery: once per its resource's rest, a short rest gives back spent slots
+    /// worth half the class level (rounded up), none of 6th level or higher.
+    SlotRecovery { resource: String },
+    /// Its spells' damage adds `ability`'s modifier: spell `spell` (Agonizing Blast: eldritch
+    /// blast, CHA) or every spell of school `school` (Empowered Evocation: evocation, INT).
+    SpellDamageBonus {
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        spell: String,
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        school: String,
+        ability: Ability,
+    },
+    /// Sculpt Spells: its allies in its spells of school `school` with a save take nothing.
+    Sculpt { school: String },
+    /// Potent Cantrip: a cantrip's saved damage is halved instead of none.
+    PotentCantrip,
 }
 
 /// What a flat bonus (`FeatureEffect::Bonus`) adds to.
@@ -439,6 +458,13 @@ pub enum ActEffect {
     Spell { spell: String, #[serde(default)] level: u32 },
     /// A boon on the user for `rounds` rounds (Divine Sense: sensing celestials, fiends and undead).
     Boon { buff: crate::srd::conditions::Buff, rounds: u32 },
+    /// Flexible Casting with points of resource `points` (sorcery points): `create` a spell slot
+    /// (the lowest spent one it can pay: 2, 3, 5, 6, 7 points for levels 1-5), or turn its lowest
+    /// slot into points (its level).
+    FlexibleCasting { points: String, create: bool },
+    /// Quickened Spell: for `cost` points of `points` the next spell of an action this turn is
+    /// cast with the bonus action.
+    Quicken { points: String, cost: i32 },
 }
 
 /// Who a class action is used on.

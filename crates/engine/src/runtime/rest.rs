@@ -88,6 +88,8 @@ impl Game {
             self.world.player_hp = Some(hp);
             self.ui.toast(format!("{} +{n}", crate::lang::tr_ui("Song of Rest")));
         }
+        // (Arcane / Natural Recovery: before the resources come back.)
+        self.slot_recovery();
         self.rest = None;
         self.rest_resources(false);
         self.rest_slots(false);

@@ -27,6 +27,8 @@ pub(in crate::runtime) struct ClassFx {
     pub frenzied: bool,
     /// Reckless Attack until its next turn.
     pub reckless: bool,
+    /// Quickened Spell: the next spell of an action this turn takes the bonus action.
+    pub quicken: bool,
     /// A Bardic Inspiration die it holds (its sides; 0 = none).
     pub inspiration: u32,
     /// Sacred Weapon: the attack bonus and the rounds left.
@@ -457,6 +459,36 @@ impl Game {
                 }
                 self.fight_log(format!("{name}: {act_name} ({n})"));
             }
+            ActEffect::FlexibleCasting { points, create } => {
+                let left = self.uses(me.who, points).map_or(0, |u| u.0);
+                if *create {
+                    let cost = |l: u32| [2, 3, 5, 6, 7][(l as usize - 1).min(4)];
+                    let spent = self.slots_spent_of(me.who);
+                    let level = (1..=5u32).find(|l| spent[*l as usize - 1] > 0 && cost(*l) <= left).ok_or("No slot to create")?;
+                    self.recover_slot(me.who, level);
+                    self.spend(me.who, points, cost(level));
+                    self.fight_log(format!("{name}: {act_name} ({} {level})", crate::lang::tr_ui("slot")));
+                } else {
+                    if self.spent_of(me.who).get(points.as_str()).copied().unwrap_or(0) <= 0 {
+                        return Err("Your points are full");
+                    }
+                    let slots = self.slots_left(me.who);
+                    let level = (1..=9u32).find(|l| slots[*l as usize - 1] > 0).ok_or("No spell slot left")?;
+                    self.spend_slot(me.who, level);
+                    self.spend(me.who, points, -(level as i32).min(self.spent_of(me.who).get(points.as_str()).copied().unwrap_or(0)));
+                    self.fight_log(format!("{name}: {act_name} (+{level})"));
+                }
+            }
+            ActEffect::Quicken { points, cost } => {
+                if self.uses(me.who, points).is_none_or(|u| u.0 < *cost) {
+                    return Err("Not enough points");
+                }
+                self.spend(me.who, points, *cost);
+                if let Some(fx) = self.fx_mut(me.who) {
+                    fx.quicken = true;
+                }
+                self.fight_log(format!("{name}: {act_name}"));
+            }
             ActEffect::Boon { buff, rounds } => {
                 if let Some(l) = self.who_conditions_mut(me.who) {
                     conditions::apply_buff(l, buff.clone(), (*rounds).max(1) as f32 * conditions::ROUND, &a.id);
@@ -530,6 +562,11 @@ impl Game {
         };
         let dc = 8 + self.who_mod(who, Ability::Con) + crate::srd::abilities::proficiency_bonus(level);
         Some(crate::srd::StatAction { name: "Breath Weapon".into(), area: Some(area), save, dc, dice, damage_type: Some(t), half: true, ..Default::default() })
+    }
+
+    /// Spends one use of resource `id` of `who`'s.
+    pub(in crate::runtime) fn pay_class_resource(&mut self, who: Who, id: &str) {
+        self.spend(who, id, 1);
     }
 
     /// Spends class action `id`'s use and its cost of the turn (in a fight).

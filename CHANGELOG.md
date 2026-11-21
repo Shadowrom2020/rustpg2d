@@ -625,6 +625,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **Divine Smite** asks after a paladin's melee hit (the Reaction window; by rule on critical
   hits), **Improved Divine Smite**, **Divine Sense** (a new *Boon* class action), **Song of Rest**,
   **Escape the Horde**, **Favored Enemy**'s Survival advantage.
+- Spell features: **Domain / Oath Spells** always prepared, **Arcane / Natural Recovery**,
+  **sorcery points** with *Create / Convert Spell Slot* and **Quickened Spell**, **Agonizing
+  Blast**, **Devil's Sight**, **Empowered Evocation**, **Sculpt Spells**, **Potent Cantrip**.
 
 ### Racial traits (SRD 5.1)
 - Racial traits act (a trait's new *effects*): **Lucky**, **Brave**, **Fey Ancestry**, **Gnome

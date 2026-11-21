@@ -1308,6 +1308,7 @@ fn feature_effects(id: &str) -> Vec<rustpg2d_engine::classes::FeatureEffect> {
     let pool = |id: &str, count: i32, number: &str, ability: Option<A>, per_level: i32, recharge: R| E::Resource { id: id.into(), count, number: number.into(), ability, per_level, recharge };
     let act = |id: &str, name: &str, cost: C, resource: &str, effect: X| E::Act { id: id.into(), name: name.into(), cost, resource: resource.into(), effect };
     let basic = |id: &str, name: &str, cost: C, resource: &str, what: &str| act(id, name, cost, resource, X::Basic { act: what.into() });
+    let always = |s: &[&str]| vec![E::AlwaysPrepared { spells: s.iter().map(|x| x.to_string()).collect() }];
     match id {
         "rage" => vec![pool("rage", 0, "rage_count", None, 0, R::LongRest), act("rage", "Rage", C::Bonus, "rage", X::Rage)],
         "reckless-attack" => vec![act("reckless-attack", "Reckless Attack", C::Free, "", X::Reckless)],
@@ -1353,6 +1354,24 @@ fn feature_effects(id: &str) -> Vec<rustpg2d_engine::classes::FeatureEffect> {
         "song-of-rest-d12" => vec![E::SongOfRest { die: 12 }],
         "defensive-tactics-escape-the-horde" => vec![E::EscapeTheHorde],
         "favored-enemy-1-type" => vec![E::CheckAdvantage { skill: "survival".into() }],
+        // (Spell features: always prepared, slots back, sorcery points, damage bonuses.)
+        "domain-spells-1" => always(&["bless", "cure-wounds"]),
+        "domain-spells-2" => always(&["lesser-restoration", "spiritual-weapon"]),
+        "domain-spells-3" => always(&["beacon-of-hope", "revivify"]),
+        "domain-spells-4" => always(&["death-ward", "guardian-of-faith"]),
+        "domain-spells-5" => always(&["mass-cure-wounds", "raise-dead"]),
+        "oath-spells" => always(&["protection-from-evil-and-good", "sanctuary", "lesser-restoration", "zone-of-truth", "beacon-of-hope", "dispel-magic", "freedom-of-movement", "guardian-of-faith", "commune", "flame-strike"]),
+        "arcane-recovery" => vec![pool("arcane-recovery", 1, "", None, 0, R::LongRest), E::SlotRecovery { resource: "arcane-recovery".into() }],
+        "natural-recovery" => vec![pool("natural-recovery", 1, "", None, 0, R::LongRest), E::SlotRecovery { resource: "natural-recovery".into() }],
+        "font-of-magic" => vec![pool("sorcery-points", 0, "sorcery_points", None, 0, R::LongRest)],
+        "flexible-casting-creating-spell-slots" => vec![act("create-spell-slot", "Create Spell Slot", C::Bonus, "", X::FlexibleCasting { points: "sorcery-points".into(), create: true })],
+        "flexible-casting-converting-spell-slot" => vec![act("convert-spell-slot", "Convert Spell Slot", C::Bonus, "", X::FlexibleCasting { points: "sorcery-points".into(), create: false })],
+        "metamagic-quickened-spell" => vec![act("quickened-spell", "Quickened Spell", C::Free, "", X::Quicken { points: "sorcery-points".into(), cost: 2 })],
+        "eldritch-invocation-agonizing-blast" => vec![E::SpellDamageBonus { spell: "eldritch-blast".into(), school: String::new(), ability: A::Cha }],
+        "eldritch-invocation-devils-sight" => vec![E::Darkvision { feet: 120 }],
+        "empowered-evocation" => vec![E::SpellDamageBonus { spell: String::new(), school: "evocation".into(), ability: A::Int }],
+        "sculpt-spells" => vec![E::Sculpt { school: "evocation".into() }],
+        "potent-cantrip" => vec![E::PotentCantrip],
         "divine-sense" => vec![
             pool("divine-sense", 1, "", Some(A::Cha), 0, R::LongRest),
             act("divine-sense", "Divine Sense", C::Action, "divine-sense", X::Boon { buff: rustpg2d_engine::srd::conditions::Buff::Detect { what: vec!["celestial".into(), "fiend".into(), "undead".into()] }, rounds: 1 }),

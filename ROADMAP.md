@@ -1271,8 +1271,8 @@ added here.
   and not with 14 and 6 (screenshot); leaving the guest room with the key (stuck on the old map, out
   and the key handed back at the stairs on the new one).
 
-- [ ] Objects, traps, poisons, diseases and madness — three parts (the user's decision, 2026-11-20;
-  madness left out: it stays a story tool):
+- [x] Objects, traps, poisons, diseases and madness — three parts (the user's decision, 2026-11-20;
+  madness left out: it stays a story tool), all merged (#253, #256, #257, #258):
   1. [x] **Objects** — `feature/srd-objects`.
   2. [x] **Traps** (zones and props) — `feature/srd-traps`.
   3. [x] **Poisons and diseases** — two pull requests: 3a poisons [x] `feature/srd-poisons`, 3b

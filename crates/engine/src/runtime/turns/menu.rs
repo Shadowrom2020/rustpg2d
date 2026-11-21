@@ -24,6 +24,8 @@ pub(in crate::runtime) enum MenuKind {
     Ready,
     /// A reaction the hero may take now (Shield, Protection…): the fight waits for it.
     Reaction,
+    /// The beast to become (Wild Shape, Polymorph on the hero).
+    Shape,
 }
 
 /// What picking a row does.
@@ -45,6 +47,8 @@ pub(in crate::runtime) enum MenuPick {
     ReadySpell(String, u32),
     /// The held attack goes on with this reaction (or none).
     React(super::reactions::ReactChoice),
+    /// Take this beast's shape (its character definition).
+    Shape(String),
 }
 
 /// The rows of the Kill / Knock out window.
@@ -85,6 +89,7 @@ impl MenuKind {
             MenuKind::Finish => "The foe falls: kill or knock out?",
             MenuKind::Ready => "Ready",
             MenuKind::Reaction => "Reaction",
+            MenuKind::Shape => "Which beast?",
         }
     }
 
@@ -96,6 +101,7 @@ impl MenuKind {
             MenuKind::Finish => "finish",
             MenuKind::Ready => "ready",
             MenuKind::Reaction => "reaction",
+            MenuKind::Shape => "shape",
         }
     }
 }
@@ -307,6 +313,7 @@ impl Game {
             MenuPick::ReadyAttack => self.ready_attack(),
             MenuPick::ReadySpell(id, slot) => self.ready_spell(&id, slot)?,
             MenuPick::React(r) => self.resume_reaction(r),
+            MenuPick::Shape(form) => self.pick_shape(&form),
         }
         Ok(())
     }
@@ -347,6 +354,9 @@ impl Game {
             // (Closing the Reaction window = no reaction.)
             if menu.kind == MenuKind::Reaction {
                 self.resume_reaction(super::reactions::ReactChoice::Pass);
+            }
+            if menu.kind == MenuKind::Shape {
+                self.shape_pick = None;
             }
         }
         true

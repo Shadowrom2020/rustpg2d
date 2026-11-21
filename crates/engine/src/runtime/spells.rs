@@ -356,6 +356,10 @@ impl Game {
     }
 
     pub(super) fn cast_options(&self, who: Who) -> Vec<(String, u32)> {
+        // (No spells in a beast's shape.)
+        if who == Who::Player && self.world.shape.is_some() {
+            return Vec::new();
+        }
         // (A monster's stat block spells: its slots and innate spells, no focus needed.)
         if let Some(sc) = self.monster_casting(who) {
             return self.monster_cast_options(who, &sc);
@@ -455,6 +459,8 @@ impl Game {
             Who::Npc(uid) => self.skills.npc_concentration.remove(&uid).map(|c| c.0),
         };
         let Some(source) = source else { return };
+        // (A Polymorph ends, conjured creatures go.)
+        self.end_shapes_of(&source);
         crate::srd::conditions::remove_source(&mut self.world.effects, &source);
         for e in &mut self.loaded.entities {
             crate::srd::conditions::remove_source(&mut e.effects, &source);
@@ -715,6 +721,11 @@ impl Game {
                     out.push(format!("{} {}", crate::lang::tr_ui("Ends"), what.join(" / ")));
                 }
                 P::Script { .. } => {}
+                P::Shape { .. } => out.push(crate::lang::tr_ui("A beast's shape").into_owned()),
+                P::Summon { creature, count } => {
+                    let name = self.project.db.character(creature).map_or(creature.clone(), |c| crate::lang::tr(&c.name));
+                    out.push(format!("{} {name}{}", crate::lang::tr_ui("Summons"), if *count > 1 { format!(" x{count}") } else { String::new() }));
+                }
             }
         }
         if d.story_only {

@@ -682,7 +682,9 @@ impl Game {
                 return;
             }
         }
-        let hp = (self.hp() - taken).max(0);
+        // (A beast's shape takes it: at 0 HP the hero is back, the rest carries over.)
+        let (before, taken) = self.shape_takes(self.hp(), taken);
+        let hp = (before - taken).max(0);
         self.world.player_hp = Some(hp);
         self.combat.invuln = HURT_INVULN;
         let away = (self.player.pos - from).try_normalize().unwrap_or(vec2(0.0, 1.0));

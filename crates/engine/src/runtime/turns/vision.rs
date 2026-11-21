@@ -74,7 +74,7 @@ impl Game {
     /// senses text's), a spell on a character.
     pub(in crate::runtime) fn darkvision_of(&self, who: Who) -> u32 {
         let own = match who {
-            Who::Player => self.darkvision_ft(),
+            Who::Player if self.world.shape.is_none() => self.darkvision_ft(),
             w => self.who_block(w).map_or(0, |b| b.darkvision_ft.max(sense_ft(&b.senses, "darkvision"))),
         };
         own.max(self.sense_of(who, Sense::Darkvision))
@@ -86,7 +86,7 @@ impl Game {
         let wide = |feet: u32| if feet == 0 { u32::MAX } else { feet };
         let spells = conditions::buffs(self.who_conditions(who)).filter_map(|b| if let conditions::Buff::Sense { sense: s, feet } = b { (*s == sense).then(|| wide(*feet)) } else { None }).max().unwrap_or(0);
         let own = match who {
-            Who::Player => self.hero_traits().map_or(0, |t| t.senses.iter().filter(|(s, _)| *s == sense).map(|(_, f)| wide(*f)).max().unwrap_or(0)),
+            Who::Player if self.world.shape.is_none() => self.hero_traits().map_or(0, |t| t.senses.iter().filter(|(s, _)| *s == sense).map(|(_, f)| wide(*f)).max().unwrap_or(0)),
             w if sense == Sense::SeeInvisible => self.who_block(w).map_or(0, |b| sense_ft(&b.senses, "see invisib")),
             w => self.who_block(w).map_or(0, |b| sense_ft(&b.senses, sense.id())),
         };

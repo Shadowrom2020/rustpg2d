@@ -52,7 +52,7 @@ impl Game {
     }
 
     /// An ability modifier of a combatant.
-    pub(super) fn who_mod(&self, who: Who, a: Ability) -> i32 {
+    pub(in crate::runtime) fn who_mod(&self, who: Who, a: Ability) -> i32 {
         match who {
             Who::Player => self.world.abilities.modifier(a),
             w => self.who_block(w).map_or(0, |b| b.abilities.modifier(a)),
@@ -236,6 +236,15 @@ impl Game {
     pub(super) fn class_act_ready(&self, who: Who, a: &ClassAct) -> Result<(), &'static str> {
         let Some(c) = &self.fight else { return Err("No fight") };
         let t = &c.turn;
+        // Wild Shape: the hero's only; in the shape it leaves it (a bonus action).
+        if matches!(a.effect, ActEffect::Shape { .. }) {
+            if who != Who::Player {
+                return Err("Only the hero takes shapes");
+            }
+            if self.world.shape.is_some() {
+                return if t.bonus { Err("Bonus action used") } else { Ok(()) };
+            }
+        }
         match a.cost {
             ActCost::Action if t.action => return Err("Action used"),
             ActCost::Bonus if t.bonus => return Err("Bonus action used"),
@@ -289,6 +298,17 @@ impl Game {
         let act_name = crate::lang::tr(&a.name);
         // Effects that can still fail spend nothing then.
         match &a.effect {
+            // (The beast is chosen in a window: the use and the action are spent then.)
+            ActEffect::Shape { .. } => {
+                let back = self.world.shape.is_some();
+                self.wild_shape(&a)?;
+                if back {
+                    if let Some(c) = &mut self.fight {
+                        c.turn.bonus = true;
+                    }
+                }
+                return Ok(());
+            }
             ActEffect::HealPool => {
                 let (hp, max) = self.who_hp(target);
                 let pool = self.uses(me.who, &a.resource).map_or(0, |u| u.0);
@@ -470,7 +490,27 @@ impl Game {
     /// Whether a class action's effect works outside a fight (healing, a script); the others
     /// (rage, extra actions, strikes, saves of foes, buffs that last rounds) need one.
     pub(in crate::runtime) fn works_outside(effect: &ActEffect) -> bool {
-        matches!(effect, ActEffect::Heal { .. } | ActEffect::HealPool | ActEffect::HealAllies { .. } | ActEffect::Script { .. })
+        matches!(effect, ActEffect::Heal { .. } | ActEffect::HealPool | ActEffect::HealAllies { .. } | ActEffect::Script { .. } | ActEffect::Shape { .. })
+    }
+
+    /// Spends class action `id`'s use and its cost of the turn (in a fight).
+    pub(in crate::runtime) fn pay_class_act(&mut self, who: Who, id: &str) {
+        let Some(a) = self.class_acts(who).into_iter().find(|a| a.id == id) else { return };
+        if !a.resource.is_empty() {
+            self.spend(who, &a.resource, 1);
+        }
+        if let Some(c) = &mut self.fight {
+            match a.cost {
+                ActCost::Action => c.turn.action = true,
+                ActCost::Bonus => c.turn.bonus = true,
+                ActCost::Reaction => {
+                    if let Some(f) = c.fighter_mut(who) {
+                        f.reacted = true;
+                    }
+                }
+                ActCost::Free => {}
+            }
+        }
     }
 
     /// The hero's class actions for the action bar outside fights, with why one can't be used now.
@@ -497,6 +537,10 @@ impl Game {
             return Err("In a fight: use the action bar");
         }
         let (a, why) = self.class_acts_outside().into_iter().find(|(a, _)| a.id == id).ok_or("No such class action")?;
+        // (Wild Shape: leaving the shape needs no use.)
+        if matches!(a.effect, ActEffect::Shape { .. }) && self.world.shape.is_some() {
+            return self.wild_shape(&a);
+        }
         if let Some(why) = why {
             return Err(why);
         }
@@ -539,6 +583,8 @@ impl Game {
                 }
                 self.ui.toast(format!("{act_name} +{healed}"));
             }
+            // (The beast is chosen in the action bar's list: the use is spent then.)
+            ActEffect::Shape { .. } => return self.wild_shape(&a),
             ActEffect::Script { function } => {
                 self.sync_script_player();
                 let t = self.player_tile();
@@ -598,7 +644,7 @@ impl Game {
 
     /// The attacks the Attack action makes (Extra Attack, Multiattack).
     pub(super) fn multiattack_of(&self, who: Who) -> u32 {
-        if who == Who::Player {
+        if who == Who::Player && self.world.shape.is_none() {
             self.hero_traits().map_or(1, |t| t.attacks.max(1))
         } else {
             self.who_block(who).map_or(1, |b| b.multiattack.max(1))

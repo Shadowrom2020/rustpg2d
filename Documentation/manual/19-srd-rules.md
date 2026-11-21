@@ -27,9 +27,11 @@ built into the engine; the editor shows them as hover texts.
 
 ## What is simplified
 
-- **Classes:** the domain and oath spells (always prepared) and Wild Shape (shapes and summons,
-  0.32) are text. Reactions (Uncanny Dodge, Deflect Missiles, Retaliation, Indomitable) are taken
-  as soon as they fit, without asking (a reaction prompt is 0.32). *Stunning Strike* spends its ki
+- **Classes:** the domain and oath spells (always prepared) are text. Wild Shape knows the beasts
+  in the bestiary and on the map, not every beast the hero has seen; worn equipment merges into
+  the shape. A summoned creature stays on its map. Of the reactions, Shield, Protection, Hellish Rebuke, Uncanny Dodge,
+  Deflect Missiles and a monster's Parry are asked or taken by rule (Options › Gameplay ›
+  Reactions); Retaliation and Indomitable are taken as soon as they fit. *Stunning Strike* spends its ki
   on the first melee hit of a turn, *Open Hand Technique* always knocks prone, a turned undead is
   frightened (and so runs), *Lay on Hands* heals all a creature lacks (as far as the pool goes).
   Party members' AI doesn't use *Frenzy* (its exhaustion). Features that need

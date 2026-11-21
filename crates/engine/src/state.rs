@@ -194,6 +194,25 @@ fn save_version<S: serde::Serializer>(_: &u32, s: S) -> Result<S::Ok, S::Error> 
     s.serialize_u32(SAVE_VERSION)
 }
 
+/// The hero in a beast's shape (Wild Shape, Polymorph): the beast's stat block (its hit points,
+/// AC, speeds, attacks, size, senses; STR, DEX and CON, all six scores with Polymorph) stands in
+/// for the hero's until it ends.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct HeroShape {
+    /// The beast's character definition.
+    pub form: String,
+    /// What gave it: a spell's source (`polymorph@player`), a class action (`wild-shape`).
+    pub source: String,
+    /// The beast's maximum hit points.
+    pub max_hp: i32,
+    /// The hero's own hit points and ability scores, back when the shape ends.
+    pub hero_hp: i32,
+    pub abilities: crate::srd::Abilities,
+    /// Seconds left (0 = until it ends otherwise: concentration, 0 hit points).
+    pub seconds: f32,
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct WorldState {
     /// [`SAVE_VERSION`] of the program that wrote the save (0: before 0.12).
@@ -361,6 +380,9 @@ pub struct WorldState {
     /// The spell the hero concentrates on: (its effects' source `spell@player`, seconds left).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub concentration: Option<(String, f32)>,
+    /// The beast shape the hero is in (Wild Shape, Polymorph), `None` in their own.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shape: Option<HeroShape>,
     /// The magic items the hero is attuned to (item ids, at most three).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub attuned: Vec<String>,

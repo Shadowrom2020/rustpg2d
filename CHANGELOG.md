@@ -592,6 +592,18 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   `react=`; autoplay `turn pick K` answers the window on any fighter's turn.
 - Esc closes a fight's choice window (Cast, Attack, Reaction…) instead of opening the pause menu.
 
+### Shapes and summons (SRD 5.1)
+- **Wild Shape** (the druid's class action, a new *Shape* class action effect): the hero picks a
+  beast they know (defeated or on the map) up to the CR their level allows and plays its stat
+  block (hit points, AC, speed, attacks, senses, STR / DEX / CON) until it ends, drops to 0 HP (the
+  rest of the damage carries over) or is left as a bonus action. Saved with the game.
+- **Polymorph** (a new *Shape* spell part): a foe failing its save becomes a weak beast, the hero
+  casting it on themselves chooses one; it ends with concentration or at 0 HP.
+- **Summons** (a new *Summon* spell part): *Find Familiar* (an owl) and *Conjure Animals* (two dire
+  wolves) in the starter library; the party's summons are AI companions (orders menu) that join
+  fights at once and vanish with the spell, at 0 HP or when the map is left. `status` prints
+  `shape=` and `summons=`.
+
 ### Diseases (SRD 5.1)
 - **Diseases** (*Database › Diseases*, `defs/diseases.ron`): a save against catching them, an
   onset, then exhaustion, blocked or halved healing, a shrinking hit point maximum, failing sight

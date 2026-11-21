@@ -584,6 +584,24 @@ impl Game {
     }
 }
 
+/// Turns a summoned creature into companion number `k`, played by the AI (not saved: it isn't
+/// in `WorldState::companions`).
+pub(super) fn make_summoned(rt: &mut RtEntity, k: usize) {
+    make_companion(rt, "", Vec::new(), k);
+    if let Some(l) = rt.companion.as_mut() {
+        l.ai = true;
+        // (Its own uid: a summon has no placed self.)
+        l.uid = rt.uid;
+    }
+}
+
+impl Game {
+    /// The next free companion number on this map (its runtime uid).
+    pub(super) fn next_companion_slot(&self) -> usize {
+        self.loaded.entities.iter().filter(|e| (COMPANION_UID_BASE..super::schedule::VISITOR_UID_BASE).contains(&e.uid)).map(|e| e.uid - COMPANION_UID_BASE + 1).max().unwrap_or(0) as usize
+    }
+}
+
 /// Turns a placed character's runtime entity into companion number `k`.
 fn make_companion(rt: &mut RtEntity, map: &str, triggers: Vec<Trigger>, k: usize) {
     let home_uid = rt.uid;

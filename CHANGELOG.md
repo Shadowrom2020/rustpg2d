@@ -592,6 +592,13 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   `react=`; autoplay `turn pick K` answers the window on any fighter's turn.
 - Esc closes a fight's choice window (Cast, Attack, Reaction…) instead of opening the pause menu.
 
+### More spells (SRD 5.1)
+- New spell parts: **Teleport** (*Misty Step*, *Dimension Door*), **HP pool** (*Sleep*, *Color
+  Spray*: the weakest first), **Mark** (*Hunter's Mark*, *True Strike*), and new boons: damage on
+  weapon hits (*Divine Favor*, *Branding Smite*), a die on the next check (*Guidance*), advantage on
+  checks (*Enhance Ability*), *Beacon of Hope*, AC at least (*Barkskin*), a weapon die
+  (*Shillelagh*). 134 of the 319 spells act now. Wren sells scrolls of Misty Step and Sleep.
+
 ### Shapes and summons (SRD 5.1)
 - **Wild Shape** (the druid's class action, a new *Shape* class action effect): the hero picks a
   beast they know (defeated or on the map) up to the CR their level allows and plays its stat

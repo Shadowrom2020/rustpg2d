@@ -120,6 +120,16 @@ impl Game {
         let roller = crate::srd::check::Roller { abilities: &block.abilities, proficiencies: &profs, level: block.proficiency_level(), training: None };
         let r = conditions::rules(self.who_conditions(who));
         let mode = if (save && r.save_disadvantage) || (!save && r.check_disadvantage) { class_mode.combine(Mode::Disadvantage) } else { class_mode };
+        // (Guidance's die, Enhance Ability's and Beacon of Hope's advantage.)
+        let (adv, dice, spent) = conditions::check_boons(self.who_conditions(who), spec.ability, save);
+        let mode = if adv { mode.combine(Mode::Advantage) } else { mode };
+        let die: i32 = dice.iter().map(|d| crate::srd::Expr::parse(d).map(|e| e.roll(&crate::srd::dice::NoMods).total).unwrap_or(0) as i32).sum();
+        if spent {
+            if let Some(l) = self.who_conditions_mut(who) {
+                conditions::spend_check_dice(l);
+            }
+        }
+        let aura = aura + die;
         let mut rec = spec.roll(&roller, dc - aura, mode);
         if aura != 0 {
             (rec.modifier, rec.total, rec.dc) = (rec.modifier + aura as i64, rec.total + aura as i64, dc);

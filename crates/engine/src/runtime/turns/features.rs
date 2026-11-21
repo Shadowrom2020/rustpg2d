@@ -133,7 +133,7 @@ impl Game {
         Some(((max - spent).max(0), max))
     }
 
-    fn who_abilities(&self, who: Who) -> crate::srd::Abilities {
+    pub(super) fn who_abilities(&self, who: Who) -> crate::srd::Abilities {
         match who {
             Who::Player => self.world.abilities,
             w => self.who_block(w).map(|b| b.abilities).unwrap_or_default(),

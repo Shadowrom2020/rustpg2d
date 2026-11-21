@@ -602,6 +602,19 @@ become SRD spells of level 1 (a bolt a cantrip) that every casting class has.
   two tiles opens), a beast's shape (*Polymorph*), summoned creatures (*Find Familiar*, *Conjure
   Animals*), a script function. The fight log tells each target's save and damage. See *Shapes and
   summons*.
+- **More spell parts** (0.32):
+  - **Teleport**: the caster to the aimed free tile within range (*Misty Step* 30 ft as a bonus
+    action, *Dimension Door*); cast outside a fight, as far as the range goes straight ahead.
+  - **HP pool**: the dice's total in hit points; the creatures in the area, the fewest hit points
+    first, get the condition while the pool covers them (*Sleep*: unconscious until hurt, undead and
+    those immune to charm are left out; *Color Spray*: blinded).
+  - **Mark**: a boon on the caster aimed at the target: *Hunter's Mark* (+1d6 on weapon hits against
+    it), *True Strike* (advantage on the next attack against it).
+  - **Boons**: damage on weapon hits (*Divine Favor* +1d4 radiant; *Branding Smite* 2d6 radiant on
+    the next hit), a die on the next ability check (*Guidance*), advantage on checks of the target's
+    best ability (*Enhance Ability*), *Beacon of Hope* (advantage on WIS and death saves, healing at
+    its most), AC at least 16 (*Barkskin*), *Shillelagh* (the melee weapon's die becomes 1d8, attacks
+    and damage use the spellcasting ability, the hits are magical).
 - **Concentration**: a concentration spell lasts while the caster keeps it: one at a time (a new one
   ends the old), and damage asks for a CON save (DC 10 or half the damage); a failure ends what the
   spell gave everyone.
@@ -617,11 +630,12 @@ become SRD spells of level 1 (a bolt a cantrip) that every casting class has.
 
 ![A Fireball aimed in a fight: its 20 ft sphere on the grid, the slot, the DEX DC](../images/game-spell-area.webp)
 
-**The 319 spells**: 113 act by their parts (the SRD data's attack, save, damage and healing, plus a
-table in the import for conditions, boons, light and Knock); the other 206 are **story only**
-(divination, summoning, travel, illusions: their text is shown, and only events and scripts cast
-them: *Cast spell*, `cast_spell`). The example's spells are Cure Wounds, Light, Fire Bolt, Burning
-Hands, Magic Missile and Fireball (its flying sprite and explosion are the spell's *Look*);
+**The 319 spells**: 134 act by their parts (the SRD data's attack, save, damage and healing, plus a
+table in the import for conditions, boons, light, Knock, shapes, summons, teleports and the rest
+below); the other 185 are **story only** (divination, travel, illusions: their text is shown, and
+only events and scripts cast them: *Cast spell*, `cast_spell`). The example's spells are Cure
+Wounds, Light, Fire Bolt, Burning Hands, Magic Missile, Fireball, Misty Step and Sleep (Wren the
+herbalist sells their scrolls; Fireball's flying sprite and explosion are the spell's *Look*);
 **Brother Ansel** is a cleric of the Life domain who heals a hurt hero with Cure Wounds once a day.
 
 Conditions: *Knows spell*. Actions: *Learn spell*, *Cast spell*, *Damage around player*, *Light

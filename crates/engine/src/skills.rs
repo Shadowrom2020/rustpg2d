@@ -370,6 +370,31 @@ pub enum SpellPart {
         #[serde(default = "one")]
         count: u32,
     },
+    /// The caster moves to the aimed free tile within range (Misty Step, Dimension Door); cast
+    /// outside a fight, as far as the range goes ahead of it.
+    Teleport,
+    /// `by_level` dice of hit points: the creatures in the area (or the targets), lowest current
+    /// hit points first, get `condition` for the spell's duration while the pool covers their hit
+    /// points (Sleep: unconscious, waking when hurt; Color Spray: blinded).
+    HpPool { by_level: Vec<(u32, String)>, condition: crate::srd::conditions::Condition },
+    /// A boon on the caster aimed at the target: its `mark` names the target (Hunter's Mark's
+    /// damage, True Strike's advantage).
+    Mark { buff: crate::srd::conditions::Buff },
+}
+
+/// An HP pool's victims (Sleep): of `(hit points, who)`, the lowest first while `pool` covers
+/// their hit points.
+pub fn hp_pool_pick<T>(mut list: Vec<(i32, T)>, mut pool: i32) -> Vec<T> {
+    list.sort_by_key(|x| x.0);
+    let mut out = Vec::new();
+    for (hp, t) in list {
+        if hp > pool {
+            break;
+        }
+        pool -= hp;
+        out.push(t);
+    }
+    out
 }
 
 fn one() -> u32 {
@@ -519,8 +544,13 @@ impl SpellDef {
     }
 
     /// Whether it is cast at foes (an attack, a save, damage).
+    /// Whether it may be aimed at an empty tile (a summons, a teleport).
+    pub fn aims_at_tile(&self) -> bool {
+        self.parts.iter().any(|p| matches!(p, SpellPart::Summon { .. } | SpellPart::Teleport))
+    }
+
     pub fn offensive(&self) -> bool {
-        self.parts.iter().any(|p| matches!(p, SpellPart::Attack { .. } | SpellPart::Save { .. } | SpellPart::Damage { .. }))
+        self.parts.iter().any(|p| matches!(p, SpellPart::Attack { .. } | SpellPart::Save { .. } | SpellPart::Damage { .. } | SpellPart::HpPool { .. }))
     }
     pub fn requires(mut self, skill: &str) -> Self {
         self.skill = skill.into();
@@ -577,5 +607,11 @@ mod tests {
         let s: SkillSettings = ron::from_str("(enabled: true, magic: true, start_points: 3, max_mana: 30)").unwrap();
         assert!(s.magic_on());
         assert_eq!(s.max_mana, 30);
+    }
+
+    #[test]
+    fn an_hp_pool_takes_the_weakest_first() {
+        assert_eq!(crate::skills::hp_pool_pick(vec![(15, "orc"), (7, "goblin"), (5, "rat"), (30, "ogre")], 22), vec!["rat", "goblin"]);
+        assert!(crate::skills::hp_pool_pick(vec![(15, "orc")], 14).is_empty());
     }
 }

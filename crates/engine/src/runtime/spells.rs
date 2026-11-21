@@ -667,6 +667,30 @@ impl Game {
         )
     }
 
+    /// A boon or bane in a few words ("+1d4 to attack rolls", "AC 16").
+    fn buff_summary(buff: &crate::srd::conditions::Buff) -> String {
+        use crate::srd::conditions::Buff as B;
+        match buff {
+                B::AttackDie { dice, minus } => format!("{}{dice} {}", if *minus { "-" } else { "+" }, crate::lang::tr_ui("to attack rolls")),
+                B::SaveDie { dice, minus } => format!("{}{dice} {}", if *minus { "-" } else { "+" }, crate::lang::tr_ui("to saving throws")),
+                B::Ac { bonus } => format!("AC {bonus:+}"),
+                B::AcBase { base } => format!("AC {base} + DEX"),
+                B::Speed { feet } => format!("{} {feet:+} ft", crate::lang::tr_ui("Speed")),
+                B::Haste => crate::lang::tr_ui("Haste").into_owned(),
+                B::Resistance { types } => format!("{} {}", crate::lang::tr_ui("Resistance"), types.join(", ")),
+                B::AbilityScore { ability, score } => format!("{} {score}", ability.short()),
+                B::PoisonSaves => crate::lang::tr_ui("Advantage on saves against poison").into_owned(),
+                B::Sense { sense, feet } => if *feet == 0 { crate::lang::tr_ui(sense.label()).into_owned() } else { format!("{} {feet} ft", crate::lang::tr_ui(sense.label())) },
+            B::HitDamage { dice, damage_type, .. } => format!("+{dice}{} {}", damage_type.map_or(String::new(), |t| format!(" {}", crate::lang::tr_ui(t.name()))), crate::lang::tr_ui("on hits")),
+            B::CheckDie { dice } => format!("+{dice} {}", crate::lang::tr_ui("to a check")),
+            B::CheckAdvantage { ability } => format!("{} {}", crate::lang::tr_ui("Advantage on checks"), ability.map_or(String::new(), |a| a.short().to_string())),
+            B::NextAttack { .. } => crate::lang::tr_ui("Advantage on the next attack").into_owned(),
+            B::Hope => crate::lang::tr_ui("Advantage on WIS and death saves, the most healing").into_owned(),
+            B::AcMin { ac } => format!("AC {ac}"),
+            B::WeaponDie { dice } => format!("{} {dice}", crate::lang::tr_ui("Weapon")),
+        }
+    }
+
     /// What a spell does, in a line: "Ranged spell attack, 1d10 fire", "DEX save for half, 8d6
     /// fire", "Heals 1d8+3", the conditions and buffs (the dice at `slot`, a cantrip's at the
     /// caster's level).
@@ -695,20 +719,13 @@ impl Game {
                 }
                 P::Condition { condition, .. } => out.push(crate::lang::tr_ui(condition.name()).into_owned()),
                 P::Targets { count, per_slot } => out.push(format!("x{}", count + per_slot * slot.saturating_sub(d.level.max(1)))),
-                P::Buff { buff } => {
-                    use crate::srd::conditions::Buff as B;
-                    out.push(match buff {
-                        B::AttackDie { dice, minus } => format!("{}{dice} {}", if *minus { "-" } else { "+" }, crate::lang::tr_ui("to attack rolls")),
-                        B::SaveDie { dice, minus } => format!("{}{dice} {}", if *minus { "-" } else { "+" }, crate::lang::tr_ui("to saving throws")),
-                        B::Ac { bonus } => format!("AC {bonus:+}"),
-                        B::AcBase { base } => format!("AC {base} + DEX"),
-                        B::Speed { feet } => format!("{} {feet:+} ft", crate::lang::tr_ui("Speed")),
-                        B::Haste => crate::lang::tr_ui("Haste").into_owned(),
-                        B::Resistance { types } => format!("{} {}", crate::lang::tr_ui("Resistance"), types.join(", ")),
-                        B::AbilityScore { ability, score } => format!("{} {score}", ability.short()),
-                        B::PoisonSaves => crate::lang::tr_ui("Advantage on saves against poison").into_owned(),
-                        B::Sense { sense, feet } => if *feet == 0 { crate::lang::tr_ui(sense.label()).into_owned() } else { format!("{} {feet} ft", crate::lang::tr_ui(sense.label())) },
-                    });
+                P::Buff { buff } => out.push(Self::buff_summary(buff)),
+                P::Mark { buff } => out.push(Self::buff_summary(buff)),
+                P::Teleport => out.push(crate::lang::tr_ui("Teleport").into_owned()),
+                P::HpPool { by_level, condition } => {
+                    if let Some(x) = crate::skills::dice_at(by_level, lvl) {
+                        out.push(format!("{} HP: {}", self.spell_dice(who, x), crate::lang::tr_ui(condition.name())));
+                    }
                 }
                 P::Light { .. } => out.push(crate::lang::tr_ui("Light").into_owned()),
                 P::Unlock => out.push(crate::lang::tr_ui("Opens locks").into_owned()),

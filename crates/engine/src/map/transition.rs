@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::events::Trigger;
 
+// (A trap's spec is the big one; a map has few zones.)
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ZoneKind {
     /// Named arrival point (`Zone::name` is the spawn name).

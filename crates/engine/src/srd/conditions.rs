@@ -414,6 +414,38 @@ pub enum Buff {
     /// A special sense this far (feet; 0 = as far as it sees): *See Invisibility*, *True
     /// Seeing*'s truesight, *Darkvision*.
     Sense { sense: Sense, feet: u32 },
+    /// More damage on its weapon hits (Divine Favor 1d4 radiant): only against the creature
+    /// `mark` names when set (Hunter's Mark), only the next hit with `once` (Branding Smite).
+    HitDamage {
+        dice: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        damage_type: Option<DamageType>,
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        mark: String,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        once: bool,
+    },
+    /// A die added to its next ability check (Guidance), then it ends.
+    CheckDie { dice: String },
+    /// Advantage on its ability checks with `ability` (Enhance Ability; `None` = its best score,
+    /// chosen when the spell lands).
+    CheckAdvantage {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        ability: Option<crate::srd::Ability>,
+    },
+    /// Advantage on its next attack roll (against the creature `mark` names when set: True
+    /// Strike), then it ends.
+    NextAttack {
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        mark: String,
+    },
+    /// Beacon of Hope: advantage on WIS saves and death saves; healing heals the most it can.
+    Hope,
+    /// Armor class at least `ac`, whatever it wears (Barkskin 16).
+    AcMin { ac: i32 },
+    /// Its melee weapon's damage die becomes `dice`, attacks and damage use its spellcasting
+    /// ability, and the hits are magical (Shillelagh 1d8).
+    WeaponDie { dice: String },
 }
 
 /// The SRD's special senses (a stat block's `senses` text names them; spells and items give the
@@ -469,6 +501,12 @@ impl Buff {
             Buff::Resistance { types } => types.first().map_or("RES".into(), |t| t.chars().take(3).collect::<String>().to_ascii_uppercase()),
             Buff::AbilityScore { ability, .. } => ability.short().to_string(),
             Buff::PoisonSaves => "PSN".into(),
+            Buff::HitDamage { .. } => "DMG".into(),
+            Buff::CheckDie { .. } | Buff::CheckAdvantage { .. } => "CHK".into(),
+            Buff::NextAttack { .. } => "ATK".into(),
+            Buff::Hope => "HOP".into(),
+            Buff::AcMin { .. } => "AC".into(),
+            Buff::WeaponDie { .. } => "WPN".into(),
             Buff::Sense { sense, .. } => match sense {
                 Sense::Darkvision => "DKV",
                 Sense::Blindsight => "BLS",
@@ -487,6 +525,29 @@ pub const BOON: &str = "boon";
 /// The buffs running in `list`.
 pub fn buffs(list: &[ActiveCondition]) -> impl Iterator<Item = &Buff> {
     list.iter().filter_map(|a| a.buff.as_ref())
+}
+
+/// What the buffs in `list` do to an ability check (`save` = false) or a saving throw of
+/// `ability`: advantage (Enhance Ability, Beacon of Hope on WIS saves) and the dice added
+/// (Guidance, spent by the check: `spent` is true then).
+pub fn check_boons(list: &[ActiveCondition], ability: crate::srd::Ability, save: bool) -> (bool, Vec<String>, bool) {
+    let mut adv = false;
+    let mut dice = Vec::new();
+    for b in buffs(list) {
+        match b {
+            Buff::CheckAdvantage { ability: a } if !save && a.is_none_or(|a| a == ability) => adv = true,
+            Buff::Hope if save && ability == crate::srd::Ability::Wis => adv = true,
+            Buff::CheckDie { dice: d } if !save => dice.push(d.clone()),
+            _ => {}
+        }
+    }
+    let spent = !dice.is_empty();
+    (adv, dice, spent)
+}
+
+/// Ends the one-use check dice (Guidance) once a check used them.
+pub fn spend_check_dice(list: &mut Vec<ActiveCondition>) {
+    list.retain(|a| !matches!(a.buff, Some(Buff::CheckDie { .. })));
 }
 
 /// Starts a buff for `seconds` (0 = until removed) from `source`; the same source's buff of the
@@ -1015,5 +1076,20 @@ mod tests {
         let a = ActiveCondition { condition: Some(Condition::Poisoned), level: 0, remaining: Some(3.0), ongoing: None, next_round: 0.0, source: String::new(), buff: None, by: String::new(), escape: 0 };
         let back: ActiveCondition = ron::from_str(&ron::to_string(&a).unwrap()).unwrap();
         assert_eq!(back, a);
+    }
+
+    #[test]
+    fn guidance_is_spent_and_enhance_ability_gives_advantage() {
+        let mut l = Vec::new();
+        apply_buff(&mut l, Buff::CheckDie { dice: "1d4".into() }, 60.0, "guidance@player");
+        apply_buff(&mut l, Buff::CheckAdvantage { ability: Some(crate::srd::Ability::Str) }, 60.0, "enhance-ability@player");
+        let (adv, dice, spent) = check_boons(&l, crate::srd::Ability::Str, false);
+        assert!(adv && dice == ["1d4"] && spent);
+        assert!(!check_boons(&l, crate::srd::Ability::Dex, false).0);
+        assert!(check_boons(&l, crate::srd::Ability::Str, true).1.is_empty(), "no die on saves");
+        spend_check_dice(&mut l);
+        assert_eq!(l.len(), 1);
+        apply_buff(&mut l, Buff::Hope, 60.0, "beacon-of-hope@player");
+        assert!(check_boons(&l, crate::srd::Ability::Wis, true).0);
     }
 }

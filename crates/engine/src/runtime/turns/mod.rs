@@ -348,7 +348,7 @@ impl Game {
         }
     }
 
-    fn who_hp(&self, who: Who) -> (i32, i32) {
+    pub(super) fn who_hp(&self, who: Who) -> (i32, i32) {
         match who {
             Who::Player => (self.hp(), self.player_max_hp()),
             Who::Npc(uid) => self.loaded.entities.iter().find(|e| e.uid == uid).map_or((0, 0), |e| (e.hp, e.max_hp)),
@@ -1337,8 +1337,16 @@ impl Game {
             Ability::Str
         };
         let mut m = self.world.abilities.modifier(ability);
+        // Shillelagh: a melee weapon's new die, the spellcasting ability, magical hits.
+        let shillelagh = if ranged || unarmed { None } else { conditions::buffs(&self.world.effects).find_map(|b| if let conditions::Buff::WeaponDie { dice } = b { Some(dice.clone()) } else { None }) };
+        if shillelagh.is_some() {
+            m = m.max(self.spell_mod(Who::Player));
+        }
         let free_hand = self.world.equipment.item(crate::defs::EquipSlot::Offhand).is_none();
         let mut base_dice = if !offhand && !thrown && w.has(P::Versatile) && !w.versatile.is_empty() && free_hand { w.versatile.clone() } else { w.damage_dice() };
+        if let Some(d) = &shillelagh {
+            base_dice = d.clone();
+        }
         // Martial Arts: an unarmed strike with DEX if better, the class's martial arts die.
         if unarmed && t.martial_arts {
             m = m.max(dex_m);
@@ -1365,7 +1373,7 @@ impl Game {
             }
         }
         let made = |f: &dyn Fn(&crate::defs::ItemDef) -> bool| made_of.iter().any(|id| self.project.db.item(id).is_some_and(f));
-        let hit = if made(&|d| d.magic.is_some()) {
+        let hit = if shillelagh.is_some() || made(&|d| d.magic.is_some()) {
             crate::srd::HitKind::Magical
         } else if made(&|d| d.silvered) {
             crate::srd::HitKind::Silvered
@@ -1570,6 +1578,8 @@ impl Game {
         let sit = self.situation(who, target, spec);
         let mut odds = rules::odds(&sit);
         odds.disadvantage |= protected;
+        // (True Strike: advantage, spent by this attack.)
+        odds.advantage |= self.take_next_attack(who, target);
         let mode = odds.mode();
         let cover = self.cover(who, target);
         let ac = self.who_ac(target) + cover.ac_bonus();
@@ -1672,6 +1682,13 @@ impl Game {
         for x in &spec.extra {
             let dice = if roll.crit { rules::crit_dice(&x.dice) } else { x.dice.clone() };
             parts.push((roll_damage(&dice, false), x.damage_type));
+        }
+        // The buffs' damage on weapon hits (Divine Favor, Hunter's Mark, a smite).
+        if !spec.spell {
+            for (dice, t) in self.hit_buffs(who, target) {
+                let dice = if roll.crit { rules::crit_dice(&dice) } else { dice };
+                parts.push((roll_damage(&dice, false), t.or(spec.damage_type)));
+            }
         }
         let total: i32 = parts.iter().map(|p| p.0).sum();
         // The damage onto the attack's line ("hit, 7"; before resistances).
@@ -2038,7 +2055,9 @@ impl Game {
 
     /// The current fighter is down: a death saving throw (into the roll log).
     fn death_save(&mut self, who: Who) {
-        let d = crate::srd::dice::die(20);
+        // (Beacon of Hope: advantage.)
+        let hope = conditions::buffs(self.who_conditions(who)).any(|b| matches!(b, conditions::Buff::Hope));
+        let d = if hope { crate::srd::dice::die(20).max(crate::srd::dice::die(20)) } else { crate::srd::dice::die(20) };
         let name = self.who_name(who);
         let Some(f) = self.fight.as_mut().and_then(|c| c.fighter_mut(who)) else { return };
         if f.saves.stable {

@@ -5975,6 +5975,22 @@ fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::Sp
                     ui.label("up to CR");
                     ui.add(egui::TextEdit::singleline(max_cr).desired_width(50.0).hint_text("level"));
                 }
+                P::Teleport => {
+                    ui.strong("Teleport").on_hover_text("The caster moves to the aimed free tile within range (Misty Step); outside a fight as far as the range goes straight ahead");
+                }
+                P::HpPool { by_level, condition } => {
+                    ui.strong("HP pool").on_hover_text("Creatures in the area, lowest hit points first, get the condition while the rolled pool covers their hit points (Sleep, Color Spray)");
+                    by(ui, by_level);
+                    egui::ComboBox::from_id_salt(("sp_pool", k)).selected_text(condition.name()).show_ui(ui, |ui| {
+                        for c in Condition::ALL.into_iter().filter(|c| *c != Condition::Any) {
+                            ui.selectable_value(condition, c, c.name());
+                        }
+                    });
+                }
+                P::Mark { buff } => {
+                    ui.strong("Mark").on_hover_text("A boon on the caster aimed at the target (Hunter's Mark's damage, True Strike's advantage)");
+                    widgets::buff_ui(ui, &format!("sp_mark{k}"), buff);
+                }
                 P::Summon { creature, count } => {
                     ui.strong("Summon").on_hover_text("Creatures appear next to the caster, on its side, for the spell's duration (instantaneous: until 0 HP or the map is left); the party's are companions the AI plays");
                     ui.add(egui::DragValue::new(count).range(1..=12).prefix("x"));
@@ -5988,7 +6004,7 @@ fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::Sp
     }
     ui.horizontal(|ui| {
         ui.label("Add:");
-        let templates: [(&str, P); 15] = [
+        let templates: [(&str, P); 18] = [
             ("Attack", P::Attack { ranged: true }),
             ("Save", P::Save { ability: Ability::Dex, half: true }),
             ("Damage", P::Damage { by_level: vec![(1, "1d8".into())], damage_type: None }),
@@ -6004,6 +6020,9 @@ fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::Sp
             ("Script", P::Script { function: String::new() }),
             ("Shape", P::Shape { max_cr: String::new() }),
             ("Summon", P::Summon { creature: String::new(), count: 1 }),
+            ("Teleport", P::Teleport),
+            ("HP pool", P::HpPool { by_level: vec![(1, "5d8".into())], condition: Condition::Unconscious }),
+            ("Mark", P::Mark { buff: B::HitDamage { dice: "1d6".into(), damage_type: None, mark: String::new(), once: false } }),
         ];
         for (name, t) in templates {
             if ui.small_button(name).clicked() {

@@ -1495,7 +1495,19 @@ added here.
   *True Seeing* and *Darkvision* in `senses=`, the dim night bright with darkvision. A unit test (the
   sense boon).
 
-- [ ] Spells completed — `feature/srd-spells-completed`
+- [~] Spells completed — five parts (the user's decision, 2026-11-21: merged one by one):
+  1. [x] **Teleports, HP pools, damage on hits, roll and AC boons** — `feature/srd-spells-1`.
+     Verified on a scratch copy: Sleep puts one orc warrior (15 HP) to sleep at 1st level and two
+     at 2nd, a hit wakes the sleeper (advantage and a critical hit against it); Misty Step to an
+     aimed tile in a fight and six tiles ahead outside one; Hunter's Mark adds its d6; Shillelagh
+     makes the dagger 1d8+WIS; Barkskin AC 16 (ending when Guidance takes the concentration);
+     Guidance's die on a search, spent; True Strike's advantage; Color Spray blinds.
+  2. [ ] **Lasting areas** (fights and exploring) — `feature/srd-spells-2`.
+  3. [ ] **Defences and ending effects** (Counterspell as a reaction) — `feature/srd-spells-3`.
+  4. [ ] **Life and death, priced components** (components under 10 gp dropped, the pouch or focus
+     covers them; costlier ones needed as items and used up; a dead party member by the project's
+     `companion_down` rule, *dead* a new option) — `feature/srd-spells-4`.
+  5. [ ] **Exploration** — `feature/srd-spells-5`.
 
   **Goal.** Most of the 206 spells imported as *story only* in 0.30 work by the rules (found in the
   2026-11-20 check: 113 of 319 act now).

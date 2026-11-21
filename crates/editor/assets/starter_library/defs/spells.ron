@@ -927,7 +927,14 @@
             "druid",
             "ranger",
         ],
-        story_only: true,
+        parts: [
+            Buff(
+                buff: AcMin(
+                    ac: 16,
+                ),
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "beacon-of-hope",
@@ -953,7 +960,16 @@
         classes: [
             "cleric",
         ],
-        story_only: true,
+        parts: [
+            Targets(
+                count: 6,
+                per_slot: 0,
+            ),
+            Buff(
+                buff: Hope,
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "bestow-curse",
@@ -1277,7 +1293,16 @@
         classes: [
             "paladin",
         ],
-        story_only: true,
+        parts: [
+            Buff(
+                buff: HitDamage(
+                    dice: "2d6",
+                    damage_type: Some(Radiant),
+                    once: true,
+                ),
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "burning-hands",
@@ -1713,7 +1738,23 @@
             "sorcerer",
             "wizard",
         ],
-        story_only: true,
+        parts: [
+            HpPool(
+                by_level: [
+                    (1, "6d10"),
+                    (2, "8d10"),
+                    (3, "10d10"),
+                    (4, "12d10"),
+                    (5, "14d10"),
+                    (6, "16d10"),
+                    (7, "18d10"),
+                    (8, "20d10"),
+                    (9, "22d10"),
+                ],
+                condition: Blinded,
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "command",
@@ -2919,7 +2960,10 @@
             "warlock",
             "wizard",
         ],
-        story_only: true,
+        parts: [
+            Teleport,
+        ],
+        story_only: false,
     ),
     (
         id: "disguise-self",
@@ -3104,7 +3148,15 @@
         classes: [
             "paladin",
         ],
-        story_only: true,
+        parts: [
+            Buff(
+                buff: HitDamage(
+                    dice: "1d4",
+                    damage_type: Some(Radiant),
+                ),
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "divine-word",
@@ -3404,7 +3456,12 @@
             "druid",
             "sorcerer",
         ],
-        story_only: true,
+        parts: [
+            Buff(
+                buff: CheckAdvantage(),
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "enlarge-reduce",
@@ -4991,7 +5048,14 @@
             "cleric",
             "druid",
         ],
-        story_only: true,
+        parts: [
+            Buff(
+                buff: CheckDie(
+                    dice: "1d4",
+                ),
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "guiding-bolt",
@@ -5584,7 +5648,14 @@
         classes: [
             "ranger",
         ],
-        story_only: true,
+        parts: [
+            Mark(
+                buff: HitDamage(
+                    dice: "1d6",
+                ),
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "hypnotic-pattern",
@@ -7091,7 +7162,7 @@
         effect: Parts,
         school: "conjuration",
         casting: Bonus,
-        range: Caster,
+        range: Feet(30),
         components: "V",
         ritual: false,
         concentration: false,
@@ -7102,7 +7173,10 @@
             "warlock",
             "wizard",
         ],
-        story_only: true,
+        parts: [
+            Teleport,
+        ],
+        story_only: false,
     ),
     (
         id: "modify-memory",
@@ -8883,7 +8957,14 @@
         classes: [
             "druid",
         ],
-        story_only: true,
+        parts: [
+            Buff(
+                buff: WeaponDie(
+                    dice: "1d8",
+                ),
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "shocking-grasp",
@@ -9049,7 +9130,23 @@
             "sorcerer",
             "wizard",
         ],
-        story_only: true,
+        parts: [
+            HpPool(
+                by_level: [
+                    (1, "5d8"),
+                    (2, "7d8"),
+                    (3, "9d8"),
+                    (4, "11d8"),
+                    (5, "13d8"),
+                    (6, "15d8"),
+                    (7, "17d8"),
+                    (8, "19d8"),
+                    (9, "21d8"),
+                ],
+                condition: Unconscious,
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "sleet-storm",
@@ -10168,7 +10265,12 @@
             "warlock",
             "wizard",
         ],
-        story_only: true,
+        parts: [
+            Mark(
+                buff: NextAttack(),
+            ),
+        ],
+        story_only: false,
     ),
     (
         id: "unseen-servant",

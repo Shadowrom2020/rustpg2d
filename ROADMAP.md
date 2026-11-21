@@ -1582,7 +1582,14 @@ added here.
      spent). Lucky, Brave, Fey Ancestry, Gnome Cunning, Halfling Nimbleness and Savage Attacks act
      through the rolls, saves and the fight grid (not played through). Infernal Legacy stays text
      (race traits have no levels; the new class action *Spell* casts without a slot).
-  2. [ ] **Class features on hits and checks** — `feature/srd-features-2`.
+  2. [x] **Class features on hits and checks** — `feature/srd-features-2`. Verified on a scratch
+     copy: a paladin's hit on an orc warrior opens the Reaction window (*Divine Smite*), picked it
+     adds 1d8+ radiant from a slot (6 and 11 on two seeds); Divine Sense spends a use and gives the
+     detection boon for a round. Song of Rest, Escape the Horde, Improved Divine Smite and Favored
+     Enemy act through the rest, the opportunity attacks and the hit's damage (not played
+     through). Left text: Cutting Words, Horde Breaker, Giant Killer, Multiattack Defense, Volley,
+     Whirlwind Attack, Stand Against the Tide, Quivering Palm, Stroke of Luck, Divine
+     Intervention, the capstones without numbers; the sheet's "story feature" note is left out.
   3. [ ] **Spell-related class features** — `feature/srd-features-3`.
 
   **Goal.** The class features and racial traits that are still only text (found in the

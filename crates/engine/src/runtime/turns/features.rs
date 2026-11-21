@@ -457,6 +457,12 @@ impl Game {
                 }
                 self.fight_log(format!("{name}: {act_name} ({n})"));
             }
+            ActEffect::Boon { buff, rounds } => {
+                if let Some(l) = self.who_conditions_mut(me.who) {
+                    conditions::apply_buff(l, buff.clone(), (*rounds).max(1) as f32 * conditions::ROUND, &a.id);
+                }
+                self.fight_log(format!("{name}: {act_name}"));
+            }
             ActEffect::Breath { by_level } => {
                 let a = self.breath_action(me.who, by_level).ok_or("No draconic ancestry")?;
                 self.use_action(me.who, &a, super::casting::CastAt::Tile(self.who_tile(target)));
@@ -503,7 +509,7 @@ impl Game {
     /// Whether a class action's effect works outside a fight (healing, a script); the others
     /// (rage, extra actions, strikes, saves of foes, buffs that last rounds) need one.
     pub(in crate::runtime) fn works_outside(effect: &ActEffect) -> bool {
-        matches!(effect, ActEffect::Heal { .. } | ActEffect::HealPool | ActEffect::HealAllies { .. } | ActEffect::Script { .. } | ActEffect::Shape { .. })
+        matches!(effect, ActEffect::Heal { .. } | ActEffect::HealPool | ActEffect::HealAllies { .. } | ActEffect::Script { .. } | ActEffect::Shape { .. } | ActEffect::Boon { .. })
     }
 
     /// A dragonborn's breath as a save action: its ancestry's damage type, shape and save, the
@@ -618,6 +624,10 @@ impl Game {
             }
             // (The beast is chosen in the action bar's list: the use is spent then.)
             ActEffect::Shape { .. } => return self.wild_shape(&a),
+            ActEffect::Boon { buff, rounds } => {
+                conditions::apply_buff(&mut self.world.effects, buff.clone(), (*rounds).max(1) as f32 * conditions::ROUND, &a.id);
+                self.ui.toast(act_name.to_string());
+            }
             ActEffect::Script { function } => {
                 self.sync_script_player();
                 let t = self.player_tile();
@@ -829,6 +839,41 @@ impl Game {
             }
         }
         extra
+    }
+
+    /// The damage parts a melee weapon hit gets from `who`'s features (Improved Divine Smite).
+    pub(super) fn melee_riders(&self, who: Who, spec: &AttackSpec, crit: bool) -> Vec<(i32, Option<DamageType>)> {
+        if spec.spell || spec.ranged {
+            return Vec::new();
+        }
+        let Some(t) = self.who_traits(who) else { return Vec::new() };
+        t.riders
+            .iter()
+            .filter_map(|r| if let FeatureEffect::MeleeDamage { dice, damage_type } = r { Some((dice.clone(), *damage_type)) } else { None })
+            .map(|(d, ty)| (roll_or_zero(&if crit { crate::srd::combat::crit_dice(&d) } else { d }), ty.or(spec.damage_type)))
+            .collect()
+    }
+
+    /// Divine Smite at `slot` on `target`: its radiant dice (2d8, 1d8 a level above 1st, at most
+    /// 5d8; 1d8 more against the feature's creature types; doubled on a critical hit), the slot
+    /// spent.
+    pub(super) fn smite_part(&mut self, who: Who, target: Who, slot: u32, crit: bool) -> (i32, Option<DamageType>) {
+        let Some((ty, against)) = self.who_rider(who, |e| if let FeatureEffect::Smite { damage_type, extra_against } = e { Some((*damage_type, extra_against.clone())) } else { None }) else { return (0, None) };
+        self.spend_slot(who, slot);
+        let kind = self.who_block(target).map(|b| b.creature_type.to_ascii_lowercase()).unwrap_or_default();
+        let more = !kind.is_empty() && against.iter().any(|a| kind.contains(&a.to_ascii_lowercase()));
+        let n = (1 + slot).min(5) + u32::from(more);
+        let n = if crit { n * 2 } else { n };
+        let d = roll_or_zero(&format!("{n}d8"));
+        self.fight_log(format!("{}: {} ({} {slot}) +{d}", self.who_name(who), crate::lang::tr_ui("Divine Smite"), crate::lang::tr_ui("slot")));
+        (d, ty)
+    }
+
+    /// Song of Rest: the best die of the party's bards (the hero's or a companion's), 0 = none.
+    pub(in crate::runtime) fn song_of_rest_die(&self) -> u32 {
+        let mut who = vec![Who::Player];
+        who.extend(self.loaded.entities.iter().filter(|e| e.active && e.companion.is_some()).map(|e| Who::Npc(e.uid)));
+        who.into_iter().filter_map(|w| self.who_rider(w, |e| if let FeatureEffect::SongOfRest { die } = e { Some(*die) } else { None })).max().unwrap_or(0)
     }
 
     /// The target's reaction to a hit's damage, `react` (chosen in `reactions.rs`): Deflect

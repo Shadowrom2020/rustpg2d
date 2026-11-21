@@ -272,6 +272,25 @@ pub enum FeatureEffect {
     /// Dropped to 0 hit points but not killed outright: 1 hit point instead, once per its
     /// resource's rest (Relentless Endurance).
     Endurance { resource: String },
+    /// Divine Smite: after a melee weapon hit, a spell slot for 2d8 more (1d8 a slot level above
+    /// 1st, at most 5d8; 1d8 more against the creature types `extra_against`): the hero is asked,
+    /// party members smite a critical hit.
+    Smite {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        damage_type: Option<crate::srd::DamageType>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        extra_against: Vec<String>,
+    },
+    /// `dice` more on every melee weapon hit (Improved Divine Smite's 1d8 radiant).
+    MeleeDamage {
+        dice: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        damage_type: Option<crate::srd::DamageType>,
+    },
+    /// Song of Rest: a short rest's hit dice heal 1d`die` more (the bard's or a bard in the party).
+    SongOfRest { die: u32 },
+    /// Escape the Horde: opportunity attacks against it have disadvantage.
+    EscapeTheHorde,
 }
 
 /// What a flat bonus (`FeatureEffect::Bonus`) adds to.
@@ -418,6 +437,8 @@ pub enum ActEffect {
     Breath { by_level: Vec<(u32, String)> },
     /// Casts spell `spell` at slot level `level` without a slot (Infernal Legacy's Darkness).
     Spell { spell: String, #[serde(default)] level: u32 },
+    /// A boon on the user for `rounds` rounds (Divine Sense: sensing celestials, fiends and undead).
+    Boon { buff: crate::srd::conditions::Buff, rounds: u32 },
 }
 
 /// Who a class action is used on.

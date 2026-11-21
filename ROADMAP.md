@@ -1271,8 +1271,8 @@ added here.
   and not with 14 and 6 (screenshot); leaving the guest room with the key (stuck on the old map, out
   and the key handed back at the stairs on the new one).
 
-- [ ] Objects, traps, poisons, diseases and madness — three parts (the user's decision, 2026-11-20;
-  madness left out: it stays a story tool):
+- [x] Objects, traps, poisons, diseases and madness — three parts (the user's decision, 2026-11-20;
+  madness left out: it stays a story tool), all merged (#253, #256, #257, #258):
   1. [x] **Objects** — `feature/srd-objects`.
   2. [x] **Traps** (zones and props) — `feature/srd-traps`.
   3. [x] **Poisons and diseases** — two pull requests: 3a poisons [x] `feature/srd-poisons`, 3b
@@ -1412,7 +1412,11 @@ added here.
   (8 psychic, incapacitated); Sight Rot's -2 on a Perception roll (the Rolls page) and blindness after
   four rests; a Cure part with a disease; Brother Ansel's offer and cure (30 to 5 gold).
 
-- [ ] Special abilities of monsters and classes — `feature/srd-special-abilities`
+- [ ] Special abilities of monsters and classes — four parts (2026-11-21):
+  1. [x] **Monster actions** — `feature/srd-monster-actions`.
+  2. [ ] **Senses** (blindsight, tremorsense, truesight) — `feature/srd-senses`.
+  3. [ ] **Reactions** (the prompt, the AI's by rule) — `feature/srd-reactions`.
+  4. [ ] **Shapes and summons** — `feature/srd-shapes`.
 
   **Goal.** What the stat block and spell vocabularies of 0.29 and 0.30 leave as text.
 
@@ -1440,6 +1444,30 @@ added here.
 
   **Verify.** Autoplay: a recharge action, a legendary action between turns, a troll regenerating
   until burnt, a wild shape and back, a *Shield* reaction prompt.
+
+  **Part 1 decided while building.** Save actions run as a spell of their own (`resolve_spell`
+  with the action's DC), so areas, cover and saves work as for spells. A condition-only action
+  without recharge (Frightful Presence) is used once a fight; per-day uses and Legendary
+  Resistance count per fight. The data's `success_type` is wrong for some breath weapons: the
+  text's "half as much" wins. Alchemist's fire and acid became consumable thrown weapons (a small
+  rule: consumable thrown items shatter) so every hero can stop a troll. Legendary points are there
+  from the start of the fight.
+
+  **Part 1 as built.** `StatBlock.actions` (`StatAction`), `legendary` (`StatLegendary`),
+  `legendary_points`, `legendary_resistance`, `regeneration` (`Regeneration`), `pack_tactics`;
+  `srd_import` (`save_action`, `action_area`, `monster_legendary`, `regeneration`; riders kept when
+  an attack has its own); `runtime/turns/monster_actions.rs` (`MonsterFx` on `Fighter.mon`,
+  `ai_action_step`, `monster_turn_start`, `legendary_step` in `next_turn`, `legendary_resist` in
+  `who_check`, `regeneration_hit` / `regeneration_falls` / `regenerating_down` in damage and
+  `check_over`, `pack_tactics` in `situation`, `monster_fx_status`); `Game.action_dc` in
+  `spell_dc`; `throwing.rs`: consumable thrown weapons shatter; editor `stat_abilities_ui`.
+
+  **Part 1 verified.** Unit tests (the parsers on a dragon's data, a troll's text, round trips), a UI
+  test (a wolf's Pack Tactics switched off). Autoplay on a scratch copy: a young red dragon's breath
+  (DEX saves for half, recharged on 6 and 5, spent in round 4); an adult red dragon's Frightful
+  Presence, Tail Attack as a legendary action after the hero's turn (from round 1), Legendary
+  Resistance turning two failed DC 30 saves; the bridge troll regenerating 10, falling at 0 and
+  getting up, and dying after alchemist's fire hit it while down; wolves' advantage next to an ally.
 
 - [ ] Spells completed — `feature/srd-spells-completed`
 

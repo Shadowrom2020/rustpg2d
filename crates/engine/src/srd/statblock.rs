@@ -70,6 +70,100 @@ pub struct StatBlock {
     /// Its spells (the SRD's *Spellcasting* and *Innate Spellcasting*): cast in fights by the AI.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub spellcasting: Option<StatSpellcasting>,
+    /// Its actions with a saving throw instead of an attack roll (a dragon's breath, a wing
+    /// beat): an area or a creature, the save, damage, a condition, recharge.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub actions: Vec<StatAction>,
+    /// Its legendary actions: taken at the end of other creatures' turns, `legendary_points` a
+    /// round.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub legendary: Vec<StatLegendary>,
+    #[serde(skip_serializing_if = "is_zero_u32")]
+    pub legendary_points: u32,
+    /// Legendary Resistance: failed saves it turns into successes, a day.
+    #[serde(skip_serializing_if = "is_zero_u32")]
+    pub legendary_resistance: u32,
+    /// Regeneration: hit points at the start of its turn.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub regeneration: Option<Regeneration>,
+    /// Pack Tactics: advantage on attacks when an ally stands next to the target.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub pack_tactics: bool,
+}
+
+/// An action with a saving throw (the SRD's breath weapons, a wing beat, a gaze): its area (or one
+/// creature in `range_ft`), the save, the damage and a condition on a failure, how it recharges.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct StatAction {
+    pub name: String,
+    /// Its area (`None` = one creature within `range_ft`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub area: Option<crate::skills::Area>,
+    /// A sphere around the creature itself ("each creature within 10 feet of the dragon")
+    /// rather than at a point in range.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub around: bool,
+    /// The range to its target or its point (cones and lines start at the creature).
+    #[serde(skip_serializing_if = "is_zero_u32")]
+    pub range_ft: u32,
+    pub save: super::Ability,
+    pub dc: i32,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub dice: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub damage_type: Option<super::DamageType>,
+    /// Half the damage on a successful save.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub half: bool,
+    /// A condition on a failed save, for some rounds (0 = until it ends).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub condition: Option<super::Condition>,
+    #[serde(skip_serializing_if = "is_zero_u32")]
+    pub rounds: u32,
+    /// *Recharge 5-6*: 5 (a d6 at the start of its turns brings it back); 0 = none.
+    #[serde(skip_serializing_if = "is_zero_u32")]
+    pub recharge: u32,
+    /// Uses a day (0 = unlimited unless it recharges).
+    #[serde(skip_serializing_if = "is_zero_u32")]
+    pub per_day: u32,
+    /// Only a legendary action (a dragon's wing attack), not one of its turn's actions.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub legendary_only: bool,
+}
+
+impl Default for StatAction {
+    fn default() -> Self {
+        StatAction { name: String::new(), area: None, around: false, range_ft: 0, save: super::Ability::Dex, dc: 10, dice: String::new(), damage_type: None, half: false, condition: None, rounds: 0, recharge: 0, per_day: 0, legendary_only: false }
+    }
+}
+
+/// A legendary action: one of its attacks or of its save actions, and its cost.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct StatLegendary {
+    pub name: String,
+    /// The attack it makes (one of `attacks`' names; "" = none).
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub attack: String,
+    /// The save action it takes (one of `actions`' names; "" = none).
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub action: String,
+    /// Legendary points it costs (1 unless "Costs 2 Actions").
+    pub cost: u32,
+}
+
+/// Regeneration: hit points at the start of its turn, unless it took one of `stopped_by` since
+/// (a troll's acid and fire).
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Regeneration {
+    pub hp: i32,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub stopped_by: Vec<super::DamageType>,
+    /// It dies only when it starts its turn at 0 hit points without regenerating (the troll).
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub revives: bool,
 }
 
 /// A stat block's spellcasting: its save DC and spell attack bonus, its spell slots and spells.
@@ -292,7 +386,7 @@ fn is_zero_i32(n: &i32) -> bool {
 
 impl Default for StatBlock {
     fn default() -> Self {
-        StatBlock { template: String::new(), name: String::new(), abilities: Abilities::default(), ac: 10, hp: 4, hit_dice: "1d8".into(), speed_ft: 30, darkvision_ft: 0, proficiencies: Vec::new(), languages: String::new(), alignment: String::new(), cr: "0".into(), xp: 10, resistances: Vec::new(), immunities: Vec::new(), vulnerabilities: Vec::new(), condition_immunities: Vec::new(), attacks: Vec::new(), multiattack: 0, size: Size::Medium, creature_type: String::new(), speeds: Speeds::default(), senses: String::new(), features: Vec::new(), spellcasting: None }
+        StatBlock { template: String::new(), name: String::new(), abilities: Abilities::default(), ac: 10, hp: 4, hit_dice: "1d8".into(), speed_ft: 30, darkvision_ft: 0, proficiencies: Vec::new(), languages: String::new(), alignment: String::new(), cr: "0".into(), xp: 10, resistances: Vec::new(), immunities: Vec::new(), vulnerabilities: Vec::new(), condition_immunities: Vec::new(), attacks: Vec::new(), multiattack: 0, size: Size::Medium, creature_type: String::new(), speeds: Speeds::default(), senses: String::new(), features: Vec::new(), spellcasting: None, actions: Vec::new(), legendary: Vec::new(), legendary_points: 0, legendary_resistance: 0, regeneration: None, pack_tactics: false }
     }
 }
 
@@ -359,6 +453,25 @@ pub fn npc_template(id: &str) -> Option<&'static StatBlock> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A stat block's special abilities save and load; one without them (0.31) reads as before.
+    #[test]
+    fn special_abilities_round_trip() {
+        let b = StatBlock {
+            actions: vec![StatAction { name: "Fire Breath".into(), area: Some(crate::skills::Area { shape: crate::skills::Shape::Cone, feet: 30 }), dice: "16d6".into(), half: true, recharge: 5, ..Default::default() }],
+            legendary: vec![StatLegendary { name: "Tail Attack".into(), attack: "Tail".into(), action: String::new(), cost: 1 }],
+            legendary_points: 3,
+            legendary_resistance: 3,
+            regeneration: Some(Regeneration { hp: 10, stopped_by: vec![super::super::DamageType::Fire], revives: true }),
+            pack_tactics: true,
+            ..Default::default()
+        };
+        let text = ron::to_string(&b).unwrap();
+        assert_eq!(ron::from_str::<StatBlock>(&text).unwrap(), b);
+        let plain = ron::to_string(&StatBlock::default()).unwrap();
+        assert!(!plain.contains("actions") && !plain.contains("pack_tactics"), "{plain}");
+        assert_eq!(ron::from_str::<StatBlock>("(ac: 12)").unwrap().actions, vec![]);
+    }
 
     #[test]
     fn the_srd_npcs_are_built_in() {

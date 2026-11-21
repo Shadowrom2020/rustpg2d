@@ -1030,6 +1030,26 @@ fn survival_rules_are_switched_on_in_the_project_form() {
     let _ = std::fs::remove_dir_all(&root);
 }
 
+/// Database › Characters: the wolf's stat block shows its special abilities; Pack Tactics
+/// switched off is saved.
+#[test]
+fn a_stat_blocks_special_abilities_are_edited() {
+    let root = example_copy("monster_abilities");
+    let db = Project::load(&root).unwrap().db;
+    let k = db.characters.iter().position(|c| c.id == "wolf").expect("the example's wolf");
+    assert!(db.characters[k].stats.as_ref().is_some_and(|s| s.pack_tactics), "the SRD's wolf hunts with Pack Tactics");
+    let mut h = harness(&root, Tab::Characters, k);
+    step(&mut h);
+    h.get_by(|n| n.label().as_deref().is_some_and(|l| l.starts_with("Special abilities"))).click();
+    step(&mut h);
+    h.get_by(|n| n.label().as_deref() == Some("Pack Tactics") && n.role() == Role::CheckBox).click();
+    step(&mut h);
+    assert!(!h.state().project.db.characters[k].stats.as_ref().unwrap().pack_tactics);
+    h.state_mut().save_all();
+    assert!(!Project::load(&root).unwrap().db.characters[k].stats.as_ref().unwrap().pack_tactics);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
 /// Database › Diseases: a new disease, failing sight ticked and its course set to worsen with
 /// each rest, saved into defs/diseases.ron.
 #[test]

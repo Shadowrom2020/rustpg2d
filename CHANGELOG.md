@@ -560,6 +560,18 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   and Antitoxin; the example's forest camp has a Goblin Poisoner, and Wren sells Antitoxin and
   basic poison. `status` prints `coating=`.
 
+### Monster abilities (SRD 5.1)
+- Monsters use what their stat blocks only described: **save actions** (a dragon's breath: an
+  area, a save for half, damage, a condition) with *Recharge 5-6* or uses a day; **legendary
+  actions** between other creatures' turns and **Legendary Resistance**; **Regeneration** (a troll
+  gets up from 0 hit points until fire or acid stops it); **Pack Tactics**. *Characters › Stat
+  block › Special abilities* edits them; the SRD import reads them (and the actions' usage);
+  `status` prints `monster_fx=`.
+- Consumable thrown weapons shatter instead of landing: the starter library's Alchemist's fire and
+  Acid are thrown like a dagger (fire burning three rounds, 2d6 acid); Wren sells them in the
+  example. The import no longer replaces the riders a monster's attack already has (a Goblin
+  Poisoner's arrows).
+
 ### Diseases (SRD 5.1)
 - **Diseases** (*Database › Diseases*, `defs/diseases.ron`): a save against catching them, an
   onset, then exhaustion, blocked or halved healing, a shrinking hit point maximum, failing sight

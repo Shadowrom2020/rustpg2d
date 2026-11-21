@@ -1477,6 +1477,22 @@
                 text: "The veteran exhales fire in a 15-foot cone. Each creature in that area must make a DC 15 Dexterity saving throw, taking 24 (7d6) fire damage on a failed save, or half as much damage on a successful one.",
             ),
         ],
+        actions: [
+            (
+                name: "Fire Breath",
+                area: Some((
+                    shape: Cone,
+                    feet: 15,
+                )),
+                range_ft: 15,
+                save: Dex,
+                dc: 15,
+                dice: "7d6",
+                damage_type: Some(Fire),
+                half: true,
+                recharge: 5,
+            ),
+        ],
     ),
     (
         template: "hobgoblin",
@@ -1656,6 +1672,7 @@
                 text: "Ranged Weapon Attack: +4 to hit, range 30/120 ft., one target. Hit: 4 (1d4 + 2) bludgeoning damage.",
             ),
         ],
+        pack_tactics: true,
     ),
     (
         template: "lizardfolk",
@@ -2387,6 +2404,7 @@
                 text: "Ranged Weapon Attack: +2 to hit, range 100/400 ft., one target. Hit: 5 (1d10) piercing damage.",
             ),
         ],
+        pack_tactics: true,
     ),
     (
         template: "tribal-warrior",
@@ -2428,6 +2446,7 @@
                 text: "Melee or Ranged Weapon Attack: +3 to hit, reach 5 ft. or range 20/60 ft., one target. Hit: 4 (1d6 + 1) piercing damage, or 5 (1d8 + 1) piercing damage if used with two hands to make a melee attack.",
             ),
         ],
+        pack_tactics: true,
     ),
     (
         template: "veteran",

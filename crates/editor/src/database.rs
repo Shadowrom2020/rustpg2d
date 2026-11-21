@@ -4292,8 +4292,132 @@ pub fn stat_block_ui(ui: &mut egui::Ui, salt: &str, stats: &mut Option<rustpg2d_
         }
     });
     stat_attacks_ui(ui, salt, s);
+    stat_abilities_ui(ui, salt, s);
     stat_spellcasting_ui(ui, salt, s);
     stat_features_ui(ui, salt, s);
+}
+
+/// A stat block's special abilities that act in fights: save actions (a breath: area, save,
+/// damage, condition, recharge or uses a day), legendary actions and points, Legendary
+/// Resistance, Regeneration, Pack Tactics.
+fn stat_abilities_ui(ui: &mut egui::Ui, salt: &str, s: &mut rustpg2d_engine::srd::StatBlock) {
+    use rustpg2d_engine::skills::{Area, Shape};
+    use rustpg2d_engine::srd::{Ability, Regeneration, StatAction, StatLegendary};
+    let title = format!("Special abilities ({} save actions, {} legendary)", s.actions.len(), s.legendary.len());
+    egui::CollapsingHeader::new(title).id_salt((salt, "abilities")).show(ui, |ui| {
+        ui.weak("Actions with a saving throw (a dragon's breath), legendary actions between other creatures' turns, and traits the fights act on. The SRD's monsters bring theirs.");
+        let mut remove = None;
+        for (k, a) in s.actions.iter_mut().enumerate() {
+            ui.horizontal_wrapped(|ui| {
+                ui.add(egui::TextEdit::singleline(&mut a.name).desired_width(110.0));
+                let shape = a.area.map_or("one creature", |x| match x.shape {
+                    Shape::Cone => "cone",
+                    Shape::Line => "line",
+                    Shape::Sphere if a.around => "around itself",
+                    Shape::Sphere | Shape::Cylinder => "sphere",
+                    Shape::Cube => "cube",
+                });
+                egui::ComboBox::from_id_salt((salt, "act_area", k)).width(100.0).selected_text(shape).show_ui(ui, |ui| {
+                    let feet = a.area.map_or(15, |x| x.feet);
+                    if ui.selectable_label(a.area.is_none(), "one creature").clicked() {
+                        (a.area, a.around) = (None, false);
+                    }
+                    for (label, sh, around) in [("cone", Shape::Cone, false), ("line", Shape::Line, false), ("sphere", Shape::Sphere, false), ("around itself", Shape::Sphere, true), ("cube", Shape::Cube, false)] {
+                        if ui.selectable_label(a.area.is_some_and(|x| x.shape == sh) && a.around == around, label).clicked() {
+                            (a.area, a.around) = (Some(Area { shape: sh, feet }), around);
+                        }
+                    }
+                });
+                if let Some(x) = a.area.as_mut() {
+                    ui.add(egui::DragValue::new(&mut x.feet).range(5..=300).speed(5).suffix(" ft"));
+                }
+                if !a.around && !a.area.is_some_and(|x| matches!(x.shape, Shape::Cone | Shape::Line)) {
+                    ui.add(egui::DragValue::new(&mut a.range_ft).range(5..=600).speed(5).prefix("range ").suffix(" ft"));
+                }
+                egui::ComboBox::from_id_salt((salt, "act_save", k)).width(55.0).selected_text(a.save.short()).show_ui(ui, |ui| {
+                    for ab in Ability::ALL {
+                        ui.selectable_value(&mut a.save, ab, ab.short());
+                    }
+                });
+                ui.add(egui::DragValue::new(&mut a.dc).range(1..=30).prefix("DC "));
+                ui.add(egui::TextEdit::singleline(&mut a.dice).desired_width(54.0).hint_text("16d6"));
+                widgets::damage_type_combo(ui, &format!("{salt}/act_dt{k}"), &mut a.damage_type, "untyped");
+                ui.checkbox(&mut a.half, "half on a save");
+                widgets::condition_combo(ui, &format!("{salt}/act_c{k}"), &mut a.condition, "no condition");
+                if a.condition.is_some() {
+                    ui.add(egui::DragValue::new(&mut a.rounds).range(0..=600).suffix(" rounds"));
+                }
+                ui.add(egui::DragValue::new(&mut a.recharge).range(0..=6).prefix("recharge ")).on_hover_text("5 = Recharge 5-6: a d6 at the start of its turns brings it back; 0 = none");
+                ui.add(egui::DragValue::new(&mut a.per_day).range(0..=9).suffix("/day")).on_hover_text("Uses a day (0 = no limit unless it recharges)");
+                ui.checkbox(&mut a.legendary_only, "legendary only");
+                if ui.small_button(ph::TRASH).on_hover_text("Remove this action").clicked() {
+                    remove = Some(k);
+                }
+            });
+        }
+        if let Some(k) = remove {
+            s.actions.remove(k);
+        }
+        if ui.small_button(crate::ui::t(ph::PLUS, "Save action")).clicked() {
+            s.actions.push(StatAction { name: "Breath".into(), area: Some(Area { shape: Shape::Cone, feet: 15 }), range_ft: 15, dc: 12, dice: "4d6".into(), half: true, recharge: 5, ..Default::default() });
+        }
+        ui.separator();
+        ui.horizontal(|ui| {
+            ui.label("Legendary actions");
+            ui.add(egui::DragValue::new(&mut s.legendary_points).range(0..=5).suffix(" a round"));
+            ui.label("Legendary Resistance");
+            ui.add(egui::DragValue::new(&mut s.legendary_resistance).range(0..=5).suffix("/day"));
+        });
+        let attacks: Vec<String> = s.attacks.iter().map(|a| a.name.clone()).collect();
+        let actions: Vec<String> = s.actions.iter().map(|a| a.name.clone()).collect();
+        let mut remove = None;
+        for (k, l) in s.legendary.iter_mut().enumerate() {
+            ui.horizontal(|ui| {
+                ui.add(egui::TextEdit::singleline(&mut l.name).desired_width(110.0));
+                ui.label("attack");
+                egui::ComboBox::from_id_salt((salt, "leg_at", k)).width(100.0).selected_text(if l.attack.is_empty() { "-" } else { l.attack.as_str() }).show_ui(ui, |ui| {
+                    ui.selectable_value(&mut l.attack, String::new(), "-");
+                    for a in &attacks {
+                        ui.selectable_value(&mut l.attack, a.clone(), a);
+                    }
+                });
+                ui.label("or action");
+                egui::ComboBox::from_id_salt((salt, "leg_ac", k)).width(100.0).selected_text(if l.action.is_empty() { "-" } else { l.action.as_str() }).show_ui(ui, |ui| {
+                    ui.selectable_value(&mut l.action, String::new(), "-");
+                    for a in &actions {
+                        ui.selectable_value(&mut l.action, a.clone(), a);
+                    }
+                });
+                ui.add(egui::DragValue::new(&mut l.cost).range(1..=3).prefix("costs "));
+                if ui.small_button(ph::TRASH).clicked() {
+                    remove = Some(k);
+                }
+            });
+        }
+        if let Some(k) = remove {
+            s.legendary.remove(k);
+        }
+        if ui.small_button(crate::ui::t(ph::PLUS, "Legendary action")).clicked() {
+            s.legendary.push(StatLegendary { name: "Attack".into(), attack: attacks.first().cloned().unwrap_or_default(), action: String::new(), cost: 1 });
+        }
+        ui.separator();
+        ui.horizontal_wrapped(|ui| {
+            let mut regen = s.regeneration.is_some();
+            if ui.checkbox(&mut regen, "Regeneration").on_hover_text("Hit points at the start of its turns, unless it took one of the damage types since (a troll: fire, acid)").changed() {
+                s.regeneration = regen.then(|| Regeneration { hp: 10, stopped_by: vec![rustpg2d_engine::srd::DamageType::Fire, rustpg2d_engine::srd::DamageType::Acid], revives: true });
+            }
+            if let Some(r) = s.regeneration.as_mut() {
+                ui.add(egui::DragValue::new(&mut r.hp).range(1..=100).suffix(" HP"));
+                let mut t = r.stopped_by.iter().map(|d| d.id()).collect::<Vec<_>>().join(", ");
+                ui.label("stopped by");
+                if ui.add(egui::TextEdit::singleline(&mut t).desired_width(110.0).hint_text("fire, acid")).changed() {
+                    r.stopped_by = t.split(',').filter_map(|x| rustpg2d_engine::srd::DamageType::parse(x.trim())).collect();
+                }
+                ui.checkbox(&mut r.revives, "gets up from 0 HP").on_hover_text("It dies only when it starts its turn at 0 hit points and doesn't regenerate (a troll)");
+            }
+            ui.checkbox(&mut s.pack_tactics, "Pack Tactics").on_hover_text("Advantage on attacks when an ally that can act stands next to the target (wolves)");
+        });
+    });
 }
 
 /// A stat block's *Spellcasting* (the fight AI casts from it): caster level, ability, save DC,

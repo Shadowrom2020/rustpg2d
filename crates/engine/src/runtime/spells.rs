@@ -121,6 +121,10 @@ impl Game {
     /// The spell save DC: 8 + proficiency + the spellcasting modifier.
     /// (A spell cast from an item with its own DC: that one.)
     pub(super) fn spell_dc(&self, who: Who) -> i32 {
+        // (A monster's save action: its own DC.)
+        if let Some(dc) = self.action_dc {
+            return dc;
+        }
         if let Some(dc) = self.item_dc() {
             return dc as i32;
         }

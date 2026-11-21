@@ -14,7 +14,7 @@ fn dist(a: TilePos, b: TilePos) -> i32 {
 
 impl Game {
     /// The living foes of `who` that can be attacked (not at 0 HP unless the attacker focuses).
-    fn ai_foes(&self, who: Who, side: Side) -> Vec<Who> {
+    pub(super) fn ai_foes(&self, who: Who, side: Side) -> Vec<Who> {
         let Some(c) = &self.fight else { return Vec::new() };
         let _ = who;
         c.order.iter().filter(|f| f.side != side && !f.out && !(f.hidden && side == Side::Enemy)).map(|f| f.who).collect()
@@ -89,6 +89,10 @@ impl Game {
         }
         // A party member's class actions (Rage, Second Wind, Action Surge, bonus strikes).
         if self.ai_class_step(me.who, me.side) {
+            return;
+        }
+        // A monster's save action (a dragon's breath) when it is charged and catches a foe.
+        if self.ai_action_step(me.who, me.side) {
             return;
         }
         // Its spells (a class's, a stat block's): a heal, an area, a condition, damage.

@@ -25,6 +25,7 @@ pub(in crate::runtime) enum ReactChoice {
     HellishRebuke,
     Protection,
     Counterspell,
+    Smite,
 }
 
 impl ReactChoice {
@@ -38,6 +39,7 @@ impl ReactChoice {
             ReactChoice::HellishRebuke => "Hellish Rebuke",
             ReactChoice::Protection => "Protection",
             ReactChoice::Counterspell => "Counterspell",
+            ReactChoice::Smite => "Divine Smite",
         }
     }
 
@@ -52,6 +54,7 @@ impl ReactChoice {
             ReactChoice::HellishRebuke => "hellish_rebuke",
             ReactChoice::Protection => "protection",
             ReactChoice::Counterspell => "counterspell",
+            ReactChoice::Smite => "smite",
         }
     }
 
@@ -65,6 +68,7 @@ impl ReactChoice {
             ReactChoice::HellishRebuke => "Fire at the attacker, DEX save for half",
             ReactChoice::Protection => "Disadvantage on the attack against your ally",
             ReactChoice::Counterspell => "Stop the spell being cast (a slot)",
+            ReactChoice::Smite => "2d8 radiant or more (a slot)",
         }
     }
 }
@@ -87,6 +91,15 @@ pub(super) enum ReactWhen {
     Hurt,
     /// A spell being cast (Counterspell).
     Cast,
+    /// The hero's own melee hit (Divine Smite).
+    Smite,
+}
+
+/// Whether a melee hit is smitten: no, waiting for the hero, or with this slot.
+pub(super) enum SmiteNow {
+    No,
+    Wait,
+    Yes(u32),
 }
 
 /// A spell held for the hero's Counterspell: what it would do.
@@ -111,6 +124,8 @@ pub(in crate::runtime) struct PendingReact {
     pub(super) options: Vec<ReactChoice>,
     /// The spell held (Counterspell).
     pub(super) cast: Option<PendingCast>,
+    /// The target's reaction already decided (a hit held for Divine Smite).
+    pub(super) react: Option<ReactChoice>,
 }
 
 /// What a reactor does now: nothing possible, waits for the hero's answer, or this one.
@@ -192,7 +207,7 @@ impl Game {
                 continue;
             }
             if g == Who::Player && !spec.spell && self.asks_reactions() {
-                self.ask_reaction(PendingReact { when: ReactWhen::Before, who, target, spec: spec.clone(), roll: None, logged: String::new(), options: Vec::new(), cast: None }, &[ReactChoice::Protection]);
+                self.ask_reaction(PendingReact { when: ReactWhen::Before, who, target, spec: spec.clone(), roll: None, logged: String::new(), options: Vec::new(), cast: None, react: None }, &[ReactChoice::Protection]);
                 return ReactNow::Wait;
             }
             self.react_log(g, ReactChoice::Protection);
@@ -231,7 +246,7 @@ impl Game {
         }
         // (A spell attack goes on at once: by rule.)
         if target == Who::Player && !spec.spell && self.asks_reactions() {
-            self.ask_reaction(PendingReact { when: ReactWhen::Hit, who, target, spec: spec.clone(), roll: Some(*roll), logged: logged.to_string(), options: Vec::new(), cast: None }, &options);
+            self.ask_reaction(PendingReact { when: ReactWhen::Hit, who, target, spec: spec.clone(), roll: Some(*roll), logged: logged.to_string(), options: Vec::new(), cast: None, react: None }, &options);
             return ReactNow::Wait;
         }
         ReactNow::Use(options[0])
@@ -247,7 +262,7 @@ impl Game {
             return;
         }
         if self.asks_reactions() {
-            self.ask_reaction(PendingReact { when: ReactWhen::Hurt, who, target, spec: AttackSpec::default(), roll: None, logged: String::new(), options: Vec::new(), cast: None }, &[ReactChoice::HellishRebuke]);
+            self.ask_reaction(PendingReact { when: ReactWhen::Hurt, who, target, spec: AttackSpec::default(), roll: None, logged: String::new(), options: Vec::new(), cast: None, react: None }, &[ReactChoice::HellishRebuke]);
             return;
         }
         self.cast_reaction(target, "hellish-rebuke", ReactChoice::HellishRebuke, &[who]);
@@ -294,6 +309,15 @@ impl Game {
                     self.cast_reaction(Who::Player, "hellish-rebuke", c, &[p.who]);
                 }
             }
+            ReactWhen::Smite => {
+                let Some(roll) = p.roll else { return };
+                if let Some(f) = &mut self.fight {
+                    f.smite_decided = Some(c == ReactChoice::Smite);
+                }
+                // (A Shield or Parry already took its turn: not again.)
+                let react = p.react.filter(|r| !matches!(r, ReactChoice::Shield | ReactChoice::Parry)).unwrap_or(ReactChoice::Pass);
+                self.land_attack(p.who, p.target, &p.spec, roll, p.logged, react);
+            }
             ReactWhen::Cast => {
                 let Some(cast) = p.cast else { return };
                 let Some(d) = self.project.db.spell(&cast.spell).cloned() else { return };
@@ -302,6 +326,27 @@ impl Game {
                     self.resolve_spell(p.who, &d, cast.slot, &cast.targets, Some(cast.point));
                 }
             }
+        }
+    }
+
+    /// After `who`'s melee weapon hit: Divine Smite with its lowest slot (the hero is asked; by
+    /// rule a critical hit is smitten).
+    pub(super) fn smite_check(&mut self, who: Who, target: Who, spec: &AttackSpec, roll: &AttackRoll, logged: &str, react: ReactChoice) -> SmiteNow {
+        if spec.ranged || spec.spell || self.who_rider(who, |e| matches!(e, FeatureEffect::Smite { .. }).then_some(())).is_none() {
+            return SmiteNow::No;
+        }
+        let Some(slot) = self.lowest_slot(who, 1) else { return SmiteNow::No };
+        if let Some(d) = self.fight.as_mut().and_then(|c| c.smite_decided.take()) {
+            return if d { SmiteNow::Yes(slot) } else { SmiteNow::No };
+        }
+        if who == Who::Player && self.asks_reactions() {
+            self.ask_reaction(PendingReact { when: ReactWhen::Smite, who, target, spec: spec.clone(), roll: Some(*roll), logged: logged.to_string(), options: Vec::new(), cast: None, react: Some(react) }, &[ReactChoice::Smite]);
+            return SmiteNow::Wait;
+        }
+        if roll.crit {
+            SmiteNow::Yes(slot)
+        } else {
+            SmiteNow::No
         }
     }
 
@@ -328,7 +373,7 @@ impl Game {
             }
             if w == Who::Player && self.asks_reactions() {
                 let cast = PendingCast { spell: d.id.clone(), slot, targets: targets.to_vec(), point };
-                self.ask_reaction(PendingReact { when: ReactWhen::Cast, who: caster, target: Who::Player, spec: AttackSpec::default(), roll: None, logged: String::new(), options: Vec::new(), cast: Some(cast) }, &[ReactChoice::Counterspell]);
+                self.ask_reaction(PendingReact { when: ReactWhen::Cast, who: caster, target: Who::Player, spec: AttackSpec::default(), roll: None, logged: String::new(), options: Vec::new(), cast: Some(cast), react: None }, &[ReactChoice::Counterspell]);
                 return true;
             }
             if d.level == 0 {

@@ -621,6 +621,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   Good* (what they sense glows; `status` `detect=`) and *Find Traps* (new boons and a Find traps
   part). 167 of the 319 spells act now.
 
+### Class features (SRD 5.1)
+- **Divine Smite** asks after a paladin's melee hit (the Reaction window; by rule on critical
+  hits), **Improved Divine Smite**, **Divine Sense** (a new *Boon* class action), **Song of Rest**,
+  **Escape the Horde**, **Favored Enemy**'s Survival advantage.
+
 ### Racial traits (SRD 5.1)
 - Racial traits act (a trait's new *effects*): **Lucky**, **Brave**, **Fey Ancestry**, **Gnome
   Cunning**, **Halfling Nimbleness**, **Relentless Endurance**, **Savage Attacks** and the

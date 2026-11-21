@@ -253,6 +253,8 @@ pub(super) struct Combat {
     pub pending_blow: Option<PendingBlow>,
     /// An attack held for the hero's reaction (the Reaction window).
     pub pending_react: Option<reactions::PendingReact>,
+    /// The hero's answer about Divine Smite for the hit being landed.
+    pub smite_decided: Option<bool>,
     /// The damage being dealt knocks out instead of killing.
     pub knocking: bool,
     /// The hero's ammunition shot in this fight (item, count): half is found again after it.
@@ -530,7 +532,7 @@ impl Game {
             }
         }
         let cursor = feet_tile(self.player.pos, ts);
-        let mut c = Combat { round: 1, order, current: 0, turn: Turn::default(), helped: Vec::new(), cursor, aim: Aim::Move, walking: Vec::new(), ai_t: 0.4, log: Vec::new(), fast: self.fight_fast, over: false, shove_push: false, selected: 0, then_attack: None, then_pick_up: None, reach: Default::default(), menu: None, attack_mode: None, reach_key: None, mouse_last: Vec2::ZERO, once: Vec::new(), scroll: None, item_cast: None, pending_blow: None, pending_react: None, knocking: false, shot: Vec::new(), ai_wrestled: Vec::new() };
+        let mut c = Combat { round: 1, order, current: 0, turn: Turn::default(), helped: Vec::new(), cursor, aim: Aim::Move, walking: Vec::new(), ai_t: 0.4, log: Vec::new(), fast: self.fight_fast, over: false, shove_push: false, selected: 0, then_attack: None, then_pick_up: None, reach: Default::default(), menu: None, attack_mode: None, reach_key: None, mouse_last: Vec2::ZERO, once: Vec::new(), scroll: None, item_cast: None, pending_blow: None, pending_react: None, smite_decided: None, knocking: false, shot: Vec::new(), ai_wrestled: Vec::new() };
         c.log(crate::lang::tr_ui("Fight! Initiative:").into_owned());
         let names: Vec<String> = first.iter().map(|(w, init)| format!("{} {init}", self.who_name(*w))).collect();
         c.log(names.join(", "));
@@ -1128,7 +1130,9 @@ impl Game {
                         }
                         let name = self.who_name(foe);
                         self.fight_log(format!("{name}: {}", crate::lang::tr_ui("opportunity attack")));
+                        self.opportunity = true;
                         self.make_attack(foe, who, &spec);
+                        self.opportunity = false;
                     }
                 }
             }
@@ -1593,6 +1597,8 @@ impl Game {
         // (True Strike: advantage, spent by this attack; Blur, Protection from Evil and Good.)
         odds.advantage |= self.take_next_attack(who, target);
         odds.disadvantage |= self.defence_disadvantage(who, target);
+        // (Escape the Horde: opportunity attacks at it have disadvantage.)
+        odds.disadvantage |= self.opportunity && self.who_traits(target).is_some_and(|t| t.riders.contains(&crate::classes::FeatureEffect::EscapeTheHorde));
         let mode = odds.mode();
         let cover = self.cover(who, target);
         let ac = self.who_ac(target) + cover.ac_bonus();
@@ -1681,6 +1687,12 @@ impl Game {
             self.miss_number(head);
             return false;
         }
+        // Divine Smite: the hero is asked (by rule a critical hit).
+        let smite = match self.smite_check(who, target, spec, &roll, &logged, react) {
+            reactions::SmiteNow::Wait => return true,
+            reactions::SmiteNow::Yes(slot) => Some(slot),
+            reactions::SmiteNow::No => None,
+        };
         let dice = if roll.crit { rules::crit_dice(&spec.dice) } else { spec.dice.clone() };
         // (A net does no damage: it restrains.)
         let mut amount = if spec.net { 0 } else { roll_damage(&dice, spec.reroll_low) };
@@ -1699,6 +1711,11 @@ impl Game {
         for x in &spec.extra {
             let dice = if roll.crit { rules::crit_dice(&x.dice) } else { x.dice.clone() };
             parts.push((roll_damage(&dice, false), x.damage_type));
+        }
+        // Improved Divine Smite; Divine Smite's slot.
+        parts.extend(self.melee_riders(who, spec, roll.crit));
+        if let Some(slot) = smite {
+            parts.push(self.smite_part(who, target, slot, roll.crit));
         }
         // The buffs' damage on weapon hits (Divine Favor, Hunter's Mark, a smite).
         if !spec.spell {

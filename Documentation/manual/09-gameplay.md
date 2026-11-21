@@ -306,6 +306,15 @@ character creator offers them on its third page; the hero then is a class at the
 
   ![A barbarian's turn: the Class entry chosen, Rage (a bonus action, 1 of 3 rages left) above the action bar](../images/game-class-actions.webp)
 
+- **Divine Smite** (paladins from level 2): after a melee weapon hit the hero is asked in the
+  Reaction window (*Divine Smite*: 2d8 radiant, 1d8 more a slot level above 1st, at most 5d8, 1d8
+  more against undead and fiends, doubled on a critical hit; the lowest slot is spent); with
+  *Options › Reactions: Auto*, and for party members, critical hits are smitten. *Improved Divine
+  Smite* adds 1d8 radiant to every melee weapon hit.
+- More class features that act (0.32): *Divine Sense* (an action, 1 + CHA a long rest: celestials,
+  fiends and undead within 30 ft glow for a round), *Song of Rest* (a short rest with hit dice
+  spent heals the bard's die more; a bard in the party counts), *Escape the Horde* (opportunity
+  attacks against the hunter have disadvantage), *Favored Enemy* (advantage on Survival checks).
 - **Riders and reactions** work by themselves: *Sneak Attack* (once a turn, extra d6s with a ranged
   or one-handed weapon when the rogue has advantage or an ally stands next to the target), *Colossus
   Slayer* and *Divine Strike* (extra dice once a turn), *Stunning Strike* (1 ki on the first melee

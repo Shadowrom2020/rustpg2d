@@ -564,6 +564,8 @@ pub struct Game {
     /// is against magic (Gnome Cunning).
     save_against: Option<crate::srd::Condition>,
     magic_save: bool,
+    /// An opportunity attack is being made (Escape the Horde).
+    opportunity: bool,
     poison_save: bool,
     /// A disease's fit is hurting the hero (`diseases.rs`: no fit of the fit).
     in_disease_fit: bool,
@@ -770,6 +772,7 @@ impl Game {
             poison_save: false,
             save_against: None,
             magic_save: false,
+            opportunity: false,
             in_disease_fit: false,
             comp_win: None,
             hud_bottom: std::cell::Cell::new(80.0),

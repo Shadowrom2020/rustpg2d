@@ -79,6 +79,15 @@ impl Game {
 
     /// Ends the short rest: an hour passes.
     fn finish_short_rest(&mut self) {
+        // (Song of Rest: hit dice spent heal one die more.)
+        let spent = self.rest.as_ref().is_some_and(|r| r.spent > 0);
+        let die = self.song_of_rest_die();
+        if spent && die > 0 && self.hp() < self.player_max_hp() {
+            let n = self.world.roll_dice(&format!("1d{die}")).map_or(0, |r| r.total.max(0) as i32);
+            let hp = (self.hp() + n).min(self.player_max_hp());
+            self.world.player_hp = Some(hp);
+            self.ui.toast(format!("{} +{n}", crate::lang::tr_ui("Song of Rest")));
+        }
         self.rest = None;
         self.rest_resources(false);
         self.rest_slots(false);

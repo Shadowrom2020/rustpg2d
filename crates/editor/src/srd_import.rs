@@ -973,6 +973,17 @@ fn spell_extras(index: &str) -> Vec<rustpg2d_engine::skills::SpellPart> {
         "greater-restoration" => vec![P::Cure { conditions: vec![K::Charmed, K::Petrified], disease: false, exhaustion: true }],
         "dispel-magic" => vec![P::Dispel],
         "counterspell" => vec![P::Counter],
+        // (Exploring.)
+        "feather-fall" => vec![buff(B::FeatherFall)],
+        "jump" => vec![buff(B::Jump { times: 3.0 })],
+        "spider-climb" => vec![buff(B::SpiderClimb)],
+        "fly" => vec![buff(B::Fly { feet: 60 })],
+        "comprehend-languages" | "tongues" => vec![buff(B::Tongues)],
+        "pass-without-trace" => vec![P::Targets { count: 6, per_slot: 0 }, buff(B::SkillBonus { skill: "stealth".into(), bonus: 10 })],
+        "detect-magic" => vec![buff(B::Detect { what: vec!["magic".into()] })],
+        "detect-poison-and-disease" => vec![buff(B::Detect { what: vec!["poison".into()] })],
+        "detect-evil-and-good" => vec![buff(B::Detect { what: ["aberration", "celestial", "elemental", "fey", "fiend", "undead"].map(String::from).to_vec() })],
+        "find-traps" => vec![P::RevealTraps],
         // (Bringing back the dead: within a minute, ten days, a century.)
         "revivify" => vec![P::Revive { within_hours: 0.017, full: false }],
         "raise-dead" => vec![P::Revive { within_hours: 240.0, full: false }],
@@ -2673,10 +2684,11 @@ mod tests {
         // Bless: three creatures and one a slot, a d4 on attacks and saves; Magic Missile hits.
         assert!(get("bless").parts.contains(&P::Buff { buff: Buff::AttackDie { dice: "1d4".into(), minus: false } }));
         assert!(matches!(&get("magic-missile").parts[..], [P::Damage { .. }]));
-        // Light without its save; Sleep's hit point pool; Detect Magic is the story's.
+        // Light without its save; Sleep's hit point pool; Detect Magic's glow.
         assert!(matches!(&get("light").parts[..], [P::Light { .. }]));
         assert!(matches!(&get("sleep").parts[..], [P::HpPool { condition: Condition::Unconscious, .. }]));
-        assert!(story.contains(&"detect-magic".to_string()) && !story.contains(&"sleep".to_string()));
+        assert!(matches!(&get("detect-magic").parts[..], [P::Buff { buff: Buff::Detect { .. } }]));
+        assert!(!story.contains(&"detect-magic".to_string()) && !story.contains(&"sleep".to_string()));
         // A second run changes nothing; an existing spell keeps its icon.
         spells.iter_mut().find(|d| d.id == "light").unwrap().icon = rustpg2d_engine::defs::SpriteRef::new("items", 27);
         let before = spells.clone();

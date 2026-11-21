@@ -1495,7 +1495,7 @@ added here.
   *True Seeing* and *Darkvision* in `senses=`, the dim night bright with darkvision. A unit test (the
   sense boon).
 
-- [~] Spells completed — five parts (the user's decision, 2026-11-21: merged one by one):
+- [x] Spells completed — five parts (the user's decision, 2026-11-21: merged one by one):
   1. [x] **Teleports, HP pools, damage on hits, roll and AC boons** — `feature/srd-spells-1`.
      Verified on a scratch copy: Sleep puts one orc warrior (15 HP) to sleep at 1st level and two
      at 2nd, a hit wakes the sleeper (advantage and a critical hit against it); Misty Step to an
@@ -1523,7 +1523,12 @@ added here.
      same) and Raise Dead with five more works; Greater Restoration without diamond dust is
      refused. Ansel's revival in the example is left out (the example keeps *Stays down*); the
      dwarf merchant sells diamonds.
-  5. [ ] **Exploration** — `feature/srd-spells-5`.
+  5. [x] **Exploration** — `feature/srd-spells-5`. Verified on a scratch copy: Detect Magic makes
+     the village's locked chest (the ring inside) glow (`detect=`); Comprehend Languages lets
+     `knows_language("giant")` answer yes; Fly gives the wizard 60 ft in a fight. Feather Fall,
+     Jump, Spider Climb and Find Traps act through the movement and trap code (not played
+     through). Identify stays the story's (items have no hidden properties), and Levitate, Water
+     Breathing / Walk.
 
   **Goal.** Most of the 206 spells imported as *story only* in 0.30 work by the rules (found in the
   2026-11-20 check: 113 of 319 act now).

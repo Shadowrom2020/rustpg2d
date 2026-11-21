@@ -1027,7 +1027,7 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     engine.register_fn("level_up_pending", with!(ctx, |c| !c.world.levelups.is_empty()));
     engine.register_fn("set_class", with!(ctx, |c, t: &str, class: &str| c.actions.push(Action::SetClass { target: t.into(), class: class.into(), level: 0 })));
     engine.register_fn("set_class", with!(ctx, |c, t: &str, class: &str, l: Dynamic| c.actions.push(Action::SetClass { target: t.into(), class: class.into(), level: num(&l).clamp(0.0, 20.0) as u32 })));
-    engine.register_fn("knows_language", with!(ctx, |c, id: &str| c.world.languages.contains(id.trim())));
+    engine.register_fn("knows_language", with!(ctx, |c, id: &str| c.world.knows_language(id)));
     engine.register_fn("has_resistance", with!(ctx, |c, kind: &str| c.world.resistances.contains(kind.trim())));
     engine.register_fn("background", with!(ctx, |c| c.world.player_background.clone()));
     engine.register_fn("race_choice", with!(ctx, |c, id: &str| c.world.choices.get(id).map_or(rhai::Array::new(), |v| v.iter().map(|s| Dynamic::from(s.clone())).collect())));

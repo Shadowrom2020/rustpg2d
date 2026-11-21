@@ -121,7 +121,7 @@ impl Game {
         let r = conditions::rules(self.who_conditions(who));
         let mode = if (save && r.save_disadvantage) || (!save && r.check_disadvantage) { class_mode.combine(Mode::Disadvantage) } else { class_mode };
         // (Guidance's die, Enhance Ability's and Beacon of Hope's advantage.)
-        let (adv, dice, spent) = conditions::check_boons(self.who_conditions(who), spec.ability, save);
+        let (adv, dice, spent) = conditions::check_boons(self.who_conditions(who), spec.ability, &spec.proficiency, save);
         let mode = if adv { mode.combine(Mode::Advantage) } else { mode };
         let die: i32 = dice.iter().map(|d| crate::srd::Expr::parse(d).map(|e| e.roll(&crate::srd::dice::NoMods).total).unwrap_or(0) as i32).sum();
         if spent {

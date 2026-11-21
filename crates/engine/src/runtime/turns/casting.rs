@@ -133,6 +133,10 @@ impl Game {
         if scroll && t.action {
             return Err("Action used");
         }
+        // (Silence: no verbal component inside.)
+        if d.verbal() && self.silenced(who) {
+            return Err("Silence: no words of magic here");
+        }
         if !scroll && !self.cast_options(who).iter().any(|(s, l)| s == id && *l == slot) {
             return Err(self.cast_refusal(who, id, "You can't cast that spell"));
         }
@@ -198,6 +202,12 @@ impl Game {
     /// conditions and buffs for its duration (with the spell as their source), light, unlocking,
     /// a script; concentration starts.
     pub(in crate::runtime) fn resolve_spell(&mut self, caster: Who, d: &SpellDef, slot: u32, targets: &[Who], point: Option<TilePos>) {
+        self.spell_on(caster, d, slot, targets, point, false);
+    }
+
+    /// [`Self::resolve_spell`]; `again`: a lasting area's parts acting again on `targets` (no new
+    /// concentration, nothing that acts once).
+    pub(in crate::runtime) fn spell_on(&mut self, caster: Who, d: &SpellDef, slot: u32, targets: &[Who], point: Option<TilePos>, again: bool) {
         let lvl = self.scale_level(caster, d, slot);
         let dice_of = |g: &Game, by: &[(u32, String)]| crate::skills::dice_at(by, lvl).map(|x| g.spell_dice(caster, x));
         let roll = |dice: &str| crate::srd::Expr::parse(dice).map(|e| e.roll(&crate::srd::dice::NoMods).total.max(0)).unwrap_or(0) as i32;
@@ -212,9 +222,12 @@ impl Game {
             (Some(_), Some((by, _))) => dice_of(self, by).map(|x| roll(&x)),
             _ => None,
         };
-        if d.concentration {
+        if d.concentration && !again {
             self.begin_concentration(caster, &source, secs);
         }
+        // (A lasting area whose parts act only later: Spirit Guardians, Spike Growth.)
+        let later = !again && d.parts.iter().any(|p| matches!(p, SpellPart::Lasting { effect } if effect.later));
+        let targets = if later { &[][..] } else { targets };
         for &t in targets {
             if self.fight.as_ref().and_then(|c| c.fighter(t)).is_some_and(|f| f.out) {
                 continue;
@@ -372,6 +385,9 @@ impl Game {
                 }
             }
         }
+        if again {
+            return;
+        }
         // Parts that act once, not per target.
         for part in &d.parts {
             match part {
@@ -386,6 +402,7 @@ impl Game {
                 }
                 SpellPart::Unlock => self.knock(),
                 SpellPart::Teleport => self.teleport(caster, d, point),
+                SpellPart::Lasting { effect } => self.start_area(caster, d, slot, point, effect, spell_secs(d)),
                 SpellPart::HpPool { by_level, condition } => {
                     let pool = dice_of(self, by_level).map_or(0, |x| roll(&x));
                     self.hp_pool(caster, targets, pool, *condition, secs, &source);

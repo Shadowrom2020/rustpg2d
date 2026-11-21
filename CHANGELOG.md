@@ -597,7 +597,13 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   Spray*: the weakest first), **Mark** (*Hunter's Mark*, *True Strike*), and new boons: damage on
   weapon hits (*Divine Favor*, *Branding Smite*), a die on the next check (*Guidance*), advantage on
   checks (*Enhance Ability*), *Beacon of Hope*, AC at least (*Barkskin*), a weapon die
-  (*Shillelagh*). 134 of the 319 spells act now. Wren sells scrolls of Misty Step and Sleep.
+  (*Shillelagh*). Wren sells scrolls of Misty Step and Sleep.
+- **Lasting areas** (a new *Lasting area* spell part): the spell's area stays for its duration in
+  fights and while exploring: fog and magical darkness hide who is inside (*Fog Cloud*,
+  *Darkness*), difficult terrain (*Spike Growth*, *Web*), damage again at the start of a turn or
+  on entering (*Spirit Guardians* around the cleric, *Moonbeam*, *Cloudkill*, *Spike Growth* per
+  tile), *Silence*, walls that block the way and sight (*Wall of Stone*, *Wall of Force*). `status`
+  prints `areas=`. 141 of the 319 spells act now.
 
 ### Shapes and summons (SRD 5.1)
 - **Wild Shape** (the druid's class action, a new *Shape* class action effect): the hero picks a

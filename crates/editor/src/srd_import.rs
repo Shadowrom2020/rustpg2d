@@ -860,7 +860,7 @@ fn spell_def(v: &Value) -> rustpg2d_engine::skills::SpellDef {
     let damaging = parts.iter().any(|p| matches!(p, P::Damage { .. }));
     if damaging && !parts.iter().any(|p| matches!(p, P::Attack { .. } | P::Save { .. })) {
         match index {
-            "magic-missile" => {}
+            "magic-missile" | "spike-growth" => {}
             "call-lightning" | "flaming-sphere" => parts.insert(0, P::Save { ability: rustpg2d_engine::srd::Ability::Dex, half: true }),
             "scorching-ray" => parts.insert(0, P::Attack { ranged: true }),
             _ => parts.retain(|p| !matches!(p, P::Damage { .. })),
@@ -892,6 +892,8 @@ fn spell_extras(index: &str) -> Vec<rustpg2d_engine::skills::SpellPart> {
     let cond = |c: K| P::Condition { condition: c, on_fail: true };
     let always = |c: K| P::Condition { condition: c, on_fail: false };
     let buff = |b: B| P::Buff { buff: b };
+    use rustpg2d_engine::skills::Lasting as L;
+    let lasting = |effect: L| P::Lasting { effect };
     match index {
         // (Magic Missile's darts: the data's dice are all of them together, at one target.)
         "bless" => vec![P::Targets { count: 3, per_slot: 1 }, buff(B::AttackDie { dice: "1d4".into(), minus: false }), buff(B::SaveDie { dice: "1d4".into(), minus: false })],
@@ -909,14 +911,16 @@ fn spell_extras(index: &str) -> Vec<rustpg2d_engine::skills::SpellPart> {
         "command" => vec![cond(K::Prone)],
         "hideous-laughter" => vec![cond(K::Prone), cond(K::Incapacitated)],
         "blindness-deafness" => vec![cond(K::Blinded)],
-        "entangle" | "web" => vec![cond(K::Restrained)],
+        "entangle" | "web" => vec![cond(K::Restrained), lasting(L { repeat: true, difficult: true, ..Default::default() })],
         "fear" => vec![cond(K::Frightened)],
         "charm-person" => vec![cond(K::Charmed)],
         "power-word-stun" => vec![always(K::Stunned)],
         "animal-friendship" | "dominate-beast" | "dominate-person" | "suggestion" => vec![cond(K::Charmed)],
         "hypnotic-pattern" => vec![cond(K::Charmed), cond(K::Incapacitated)],
-        "banishment" | "confusion" | "stinking-cloud" => vec![cond(K::Incapacitated)],
-        "grease" | "sleet-storm" => vec![cond(K::Prone)],
+        "banishment" | "confusion" => vec![cond(K::Incapacitated)],
+        "stinking-cloud" => vec![cond(K::Incapacitated), lasting(L { repeat: true, obscures: true, ..Default::default() })],
+        "grease" => vec![cond(K::Prone), lasting(L { repeat: true, difficult: true, ..Default::default() })],
+        "sleet-storm" => vec![cond(K::Prone), lasting(L { repeat: true, obscures: true, difficult: true, ..Default::default() })],
         "protection-from-poison" => vec![buff(B::Resistance { types: vec!["poison".into()] })],
         "magic-weapon" => vec![buff(B::AttackDie { dice: "1".into(), minus: false })],
         "invisibility" | "greater-invisibility" => vec![always(K::Invisible)],
@@ -942,6 +946,20 @@ fn spell_extras(index: &str) -> Vec<rustpg2d_engine::skills::SpellPart> {
         "true-strike" => vec![P::Mark { buff: B::NextAttack { mark: String::new() } }],
         "beacon-of-hope" => vec![P::Targets { count: 6, per_slot: 0 }, buff(B::Hope)],
         "barkskin" => vec![buff(B::AcMin { ac: 16 })],
+        // (Lasting areas: the area stays; `repeat` = the parts act again.)
+        "fog-cloud" => vec![lasting(L { obscures: true, ..Default::default() })],
+        "darkness" => vec![lasting(L { dark: true, ..Default::default() })],
+        "silence" => vec![lasting(L { silence: true, ..Default::default() })],
+        "wall-of-stone" | "wall-of-force" => vec![lasting(L { wall: true, feet: 50, ..Default::default() })],
+        "spike-growth" => vec![P::Damage { by_level: vec![(2, "2d4".into())], damage_type: Some(rustpg2d_engine::srd::DamageType::Piercing) }, lasting(L { difficult: true, repeat: true, per_tile: true, later: true, ..Default::default() })],
+        "spirit-guardians" => vec![
+            P::Save { ability: rustpg2d_engine::srd::Ability::Wis, half: true },
+            P::Damage { by_level: (3..=9).map(|l| (l, format!("{l}d8"))).collect(), damage_type: Some(rustpg2d_engine::srd::DamageType::Radiant) },
+            lasting(L { repeat: true, later: true, follows: true, foes_only: true, difficult: true, feet: 15, ..Default::default() }),
+        ],
+        "cloudkill" | "incendiary-cloud" => vec![lasting(L { repeat: true, obscures: true, ..Default::default() })],
+        "moonbeam" | "wall-of-fire" => vec![lasting(L { repeat: true, ..Default::default() })],
+        "insect-plague" | "black-tentacles" | "wall-of-thorns" | "blade-barrier" => vec![lasting(L { repeat: true, difficult: true, ..Default::default() })],
         _ => Vec::new(),
     }
 }

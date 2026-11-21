@@ -5975,6 +5975,20 @@ fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::Sp
                     ui.label("up to CR");
                     ui.add(egui::TextEdit::singleline(max_cr).desired_width(50.0).hint_text("level"));
                 }
+                P::Lasting { effect } => {
+                    ui.strong("Lasting area").on_hover_text("The spell's area stays for its duration; with 'acts again' its save, damage and condition hit a creature that starts its turn inside or enters it");
+                    ui.checkbox(&mut effect.obscures, "fog");
+                    ui.checkbox(&mut effect.dark, "darkness");
+                    ui.checkbox(&mut effect.difficult, "difficult");
+                    ui.checkbox(&mut effect.repeat, "acts again");
+                    ui.checkbox(&mut effect.per_tile, "per tile moved");
+                    ui.checkbox(&mut effect.later, "not when cast");
+                    ui.checkbox(&mut effect.follows, "moves with the caster");
+                    ui.checkbox(&mut effect.foes_only, "foes only");
+                    ui.checkbox(&mut effect.silence, "silence");
+                    ui.checkbox(&mut effect.wall, "wall");
+                    ui.add(egui::DragValue::new(&mut effect.feet).range(0..=200).speed(5).suffix(" ft")).on_hover_text("Radius without an area (Spirit Guardians 15), a wall's length");
+                }
                 P::Teleport => {
                     ui.strong("Teleport").on_hover_text("The caster moves to the aimed free tile within range (Misty Step); outside a fight as far as the range goes straight ahead");
                 }
@@ -6004,7 +6018,7 @@ fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::Sp
     }
     ui.horizontal(|ui| {
         ui.label("Add:");
-        let templates: [(&str, P); 18] = [
+        let templates: [(&str, P); 19] = [
             ("Attack", P::Attack { ranged: true }),
             ("Save", P::Save { ability: Ability::Dex, half: true }),
             ("Damage", P::Damage { by_level: vec![(1, "1d8".into())], damage_type: None }),
@@ -6021,6 +6035,7 @@ fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::Sp
             ("Shape", P::Shape { max_cr: String::new() }),
             ("Summon", P::Summon { creature: String::new(), count: 1 }),
             ("Teleport", P::Teleport),
+            ("Lasting area", P::Lasting { effect: rustpg2d_engine::skills::Lasting { obscures: true, ..Default::default() } }),
             ("HP pool", P::HpPool { by_level: vec![(1, "5d8".into())], condition: Condition::Unconscious }),
             ("Mark", P::Mark { buff: B::HitDamage { dice: "1d6".into(), damage_type: None, mark: String::new(), once: false } }),
         ];

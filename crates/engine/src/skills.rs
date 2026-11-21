@@ -380,6 +380,52 @@ pub enum SpellPart {
     /// A boon on the caster aimed at the target: its `mark` names the target (Hunter's Mark's
     /// damage, True Strike's advantage).
     Mark { buff: crate::srd::conditions::Buff },
+    /// The spell's area stays for its duration (Fog Cloud, Darkness, Spirit Guardians, Moonbeam,
+    /// Spike Growth, Silence, walls): see [`Lasting`].
+    Lasting { effect: Lasting },
+}
+
+/// What a lasting area does while it stays (a spell's [`SpellPart::Lasting`]). With `repeat` the
+/// spell's other parts (its save, damage, condition) act again on a creature that starts its turn
+/// in the area or enters it (once a turn; with `per_tile` on every tile it moves in it).
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Lasting {
+    /// Heavily obscured: who is inside can't be seen (Fog Cloud, Cloudkill).
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub obscures: bool,
+    /// Magical darkness: heavily obscured, darkvision doesn't see through it (Darkness).
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub dark: bool,
+    /// Difficult terrain (Spike Growth, Web; Spirit Guardians' half speed for foes).
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub difficult: bool,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub repeat: bool,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub per_tile: bool,
+    /// The parts don't act when it is cast, only later (Spirit Guardians, Spike Growth).
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub later: bool,
+    /// It moves with the caster (Spirit Guardians).
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub follows: bool,
+    /// Only the caster's foes are hindered and hurt.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub foes_only: bool,
+    /// No spell with a verbal component is cast inside (Silence).
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub silence: bool,
+    /// A wall across the aimed tile, `feet` long, that stops walking and sight (Wall of Stone).
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub wall: bool,
+    /// The radius in feet when the spell has no area (Spirit Guardians 15), a wall's length.
+    #[serde(skip_serializing_if = "is_zero_u32")]
+    pub feet: u32,
+}
+
+fn is_zero_u32(n: &u32) -> bool {
+    *n == 0
 }
 
 /// An HP pool's victims (Sleep): of `(hit points, who)`, the lowest first while `pool` covers
@@ -544,6 +590,11 @@ impl SpellDef {
     }
 
     /// Whether it is cast at foes (an attack, a save, damage).
+    /// Whether it has a verbal component (Silence stops it).
+    pub fn verbal(&self) -> bool {
+        self.components.split(',').any(|c| c.trim() == "V")
+    }
+
     /// Whether it may be aimed at an empty tile (a summons, a teleport).
     pub fn aims_at_tile(&self) -> bool {
         self.parts.iter().any(|p| matches!(p, SpellPart::Summon { .. } | SpellPart::Teleport))

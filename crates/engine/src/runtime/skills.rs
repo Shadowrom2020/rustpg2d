@@ -87,6 +87,7 @@ impl Game {
         if self.fight.is_none() {
             self.tick_concentration(dt);
             self.tick_shapes(dt, None);
+            self.tick_areas(dt, None);
         }
         self.drop_concentration_when_incapacitated();
     }

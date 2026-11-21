@@ -693,6 +693,9 @@ impl Game {
         self.damage_number(head, taken, NumberKind::Hurt);
         if hp == 0 {
             self.player_defeated();
+        } else {
+            // (Hurt and sick: a disease's fit, Cackle Fever's laughter.)
+            self.disease_fit();
         }
     }
 

@@ -892,6 +892,9 @@ tool (`"dex:thieves-tools"`, `"int:smiths-tools"`).
 | `trap_state(name)` | The state of the trap of the zone or prop of that name on this map: `"armed"`, `"found"` (noticed, still armed), `"disarmed"`, `"sprung"`; `""` without such a trap. *(since 0.32)* |
 | `disarm_trap(name)` | Disarms the trap of the zone or prop of that name on this map (a lever, a hidden switch): it no longer springs. *(since 0.32)* |
 | `poison(target, item)` | Exposes the hero (`"player"`), the script's owner (`"self"`) or a character to the poison of an item: its Constitution save, then its damage and conditions ([Gameplay › Poisons](09-gameplay.md#poisons)). A drugged ale, a gas trap. *(since 0.32)* |
+| `infect(disease)` | Exposes the hero to a disease (*Database › Diseases*): its saving throw, then its onset ([Gameplay › Diseases](09-gameplay.md#diseases)). A dirty well, a sick villager's cough. *(since 0.32)* |
+| `cure_disease(disease)` | Ends the hero's disease (`""` = every disease); its exhaustion stays for rests to take away. A healer, a remedy. *(since 0.32)* |
+| `has_disease(disease)` | Whether the hero has the disease, incubating or sick (`""` = any). *(since 0.32)* |
 | `prop_hp(target)` | A prop's hit points as an object (its name or `"self"`); `-1` without object statistics (*Object* in the prop form). *(since 0.32)* |
 | `damage_prop(target, amount)` | Damages a prop with object statistics past its damage threshold; at 0 hit points it breaks (disappears or takes its broken state, its lock gone, its *Defeated* triggers fire). *(since 0.32)* |
 | `damage_prop(target, amount, damage_type)` | Like `damage_prop`, of a damage type (`"fire"`); poison and psychic do nothing to objects. *(since 0.32)* |

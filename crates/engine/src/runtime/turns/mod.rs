@@ -1349,7 +1349,8 @@ impl Game {
         AttackSpec {
             name: String::new(),
             // (Archery: +2 to ranged attacks.)
-            bonus: m + prof + magic + t.bonus(crate::classes::BonusTo::Attack) + if w.ranged.is_some() && t.styles.contains(&F::Archery) { 2 } else { 0 },
+            // (Failing sight from a disease: its penalty.)
+            bonus: m + prof + magic + t.bonus(crate::classes::BonusTo::Attack) + if w.ranged.is_some() && t.styles.contains(&F::Archery) { 2 } else { 0 } - self.disease_sight_penalty(),
             dice,
             damage_type: w.damage_type,
             ranged,
@@ -1757,6 +1758,9 @@ impl Game {
                     self.dies_instantly(target);
                 } else if hp == 0 {
                     self.falls(target);
+                } else {
+                    // (Hurt and sick: a disease's fit, Cackle Fever's laughter.)
+                    self.disease_fit();
                 }
             }
             Who::Npc(_) => {

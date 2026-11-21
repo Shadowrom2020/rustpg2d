@@ -230,6 +230,7 @@ pub fn candidates(place: &Place, call: Option<&CallAt>, known: &Known, src: &str
                 Some(Arg::Prop) => db.props.iter().map(|q| c(&q.id, &q.name)).collect(),
                 Some(Arg::Common) => db.common_events.iter().map(|q| c(&q.id, &q.name)).collect(),
                 Some(Arg::Class) => db.classes.iter().map(|q| c(&q.id, &q.name)).collect(),
+                Some(Arg::Disease) => db.diseases.iter().map(|q| c(&q.id, &q.name)).collect(),
                 Some(Arg::Faction) => known.factions.iter().map(|f| c(f, "faction")).collect(),
                 Some(Arg::Recipe) => db.recipes.iter().map(|q| c(&q.id, db.item(&q.result).map_or(q.result.as_str(), |d| d.name.as_str()))).collect(),
                 Some(Arg::Station) => {

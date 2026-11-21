@@ -280,6 +280,10 @@ pub struct HitRider {
     /// A grapple's or restraint's escape DC (0 = none).
     #[serde(skip_serializing_if = "is_zero_i32")]
     pub escape_dc: i32,
+    /// A disease a failed save (or the hit, without a save) gives the hero (`defs/diseases.ron`;
+    /// "" = none): a diseased rat's bite.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub disease: String,
 }
 
 fn is_zero_i32(n: &i32) -> bool {

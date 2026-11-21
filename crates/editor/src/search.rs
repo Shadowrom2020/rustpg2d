@@ -457,6 +457,7 @@ impl Editor {
             RefKind::Prop => Some(rustpg2d_engine::script_refs::IdKind::Prop),
             RefKind::CommonEvent => Some(rustpg2d_engine::script_refs::IdKind::CommonEvent),
             RefKind::Class => Some(rustpg2d_engine::script_refs::IdKind::Class),
+            RefKind::Disease => Some(rustpg2d_engine::script_refs::IdKind::Disease),
             RefKind::Map => Some(rustpg2d_engine::script_refs::IdKind::Map),
             _ => None,
         };

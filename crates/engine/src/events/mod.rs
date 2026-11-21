@@ -363,6 +363,8 @@ pub enum Cond {
     Passive { what: String, dc: i32 },
     /// The hero's last search (the action bar's Search: Perception) reached `dc`.
     SearchRoll { dc: i32 },
+    /// The hero has this disease, caught and not cured ("" = any disease).
+    HasDisease { disease: String },
 }
 
 fn cmp_ge() -> CmpOp {
@@ -412,6 +414,7 @@ impl Cond {
             Cond::KnockedOut { .. } => "Was knocked out",
             Cond::Passive { .. } => "Passive check",
             Cond::SearchRoll { .. } => "Search found",
+            Cond::HasDisease { .. } => "Has disease",
         }
     }
     pub fn templates() -> Vec<Cond> {
@@ -442,6 +445,7 @@ impl Cond {
             Cond::KnockedOut { name: String::new() },
             Cond::Passive { what: "perception".into(), dc: 13 },
             Cond::SearchRoll { dc: 15 },
+            Cond::HasDisease { disease: String::new() },
         ]
     }
 }
@@ -498,6 +502,7 @@ impl Condition {
             Cond::KnockedOut { name } => world.was_knocked_out(name),
             Cond::Passive { what, dc } => world.passive(what).is_some_and(|v| v >= *dc as i64),
             Cond::SearchRoll { dc } => world.last_search.is_some_and(|v| v >= *dc as i64),
+            Cond::HasDisease { disease } => world.diseases.iter().any(|d| disease.is_empty() || d.id == *disease),
         };
         v != self.negate
     }
@@ -1026,6 +1031,12 @@ pub enum Action {
     /// The SRD's poisons: gives poison `item` (an item with a poison) to the hero or a character: its
     /// Constitution save, damage and conditions (a drugged ale, a gas trap).
     Poison { target: TargetName, item: String },
+    /// The SRD's diseases: the hero is exposed to `disease` (`defs/diseases.ron`): its saving throw
+    /// (`save`; else it is caught), then it waits for its onset.
+    ExposeDisease { disease: String, #[serde(default = "yes")] save: bool },
+    /// Ends the hero's disease `disease` ("" = every disease): its exhaustion stays, its other
+    /// symptoms end.
+    CureDisease { disease: String },
 }
 
 fn player_target() -> TargetName {
@@ -1242,6 +1253,8 @@ impl Action {
             Action::DamageProp { .. } => "Damage prop",
             Action::DisarmTrap { .. } => "Disarm trap",
             Action::Poison { .. } => "Expose to poison",
+            Action::ExposeDisease { .. } => "Expose to disease",
+            Action::CureDisease { .. } => "Cure disease",
         }
     }
 
@@ -1368,6 +1381,8 @@ impl Action {
             Action::DamageProp { target: "self".into(), amount: 5, damage_type: Some(crate::srd::DamageType::Bludgeoning) },
             Action::DisarmTrap { target: String::new() },
             Action::Poison { target: "player".into(), item: "poison-basic-vial".into() },
+            Action::ExposeDisease { disease: String::new(), save: true },
+            Action::CureDisease { disease: String::new() },
         ]
     }
 }

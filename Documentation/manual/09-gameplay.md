@@ -971,6 +971,35 @@ Serpent Venom, Torpor, Truth Serum, Wyvern Poison) and the Potion of Poison:
 
 `status` prints `coating=` (`POISON>ITEM[:SECONDSs]`, the poison on the hero's weapon, `-` without).
 
+## Diseases
+
+Diseases (*Database › Diseases*, since 0.32) are the SRD's; the starter library has Cackle Fever,
+Sewer Plague, Sight Rot and Rat-Bite Fever (the diseased giant rat's):
+
+- **Catching**: a monster's attack with a disease (a failed save against its bite), *Expose to
+  disease* or `infect()`: a Constitution save against the disease's DC (or none), then it incubates
+  until its onset (Cackle Fever 1d4 hours, Sewer Plague 1d4 days, Sight Rot a day, the rat's at once).
+  Only the hero catches diseases.
+- **Sick**: "You feel sick: Sewer Plague." Its exhaustion comes (and long rests don't take it
+  while it lasts), natural healing stops or halves (no hit points from long rests, half from hit
+  dice, or only magic heals), the hit point maximum drops every 24 hours (the rat's: 1d6; at 0 the
+  hero dies), sight fails (−1 to attack rolls and checks by sight, worse every long rest, blinded at
+  −5), or hurting the hero brings a fit (Cackle Fever: a CON save at its DC, else 1d10 psychic and
+  incapacitated for a minute).
+- **Course**: after each long rest a save against its DC: Cackle Fever's DC drops by 1d6 on a
+  success and it is over at 0; Sewer Plague takes a level of exhaustion on a success (over below one)
+  and adds one on a failure; Sight Rot gets worse.
+- **Cures**: *Lesser Restoration* (when the target has none of its conditions it ends one disease),
+  *Cure disease* and `cure_disease()`; the condition and blindness end, the lost hit point maximum
+  comes back, the exhaustion stays for rests. In the example a diseased giant rat lives in the
+  mine's rat nest, and Brother Ansel (the chapel's priest, at the graves in the afternoon) heals a
+  sick hero for 25 gold.
+- Simplified: Cackle Fever's three failed saves (madness) and its spread to others, Sight Rot's
+  Eyebright ointment.
+
+`status` prints `diseases=` (`id:onset@HOURS` while it incubates, `id:sick:DC/STAGE/-HP` when sick,
+`-` without).
+
 ## Lockpicking
 
 A lock with a **Pick DC** (*Database › Props › Lockable*, or a placed prop's lock) can be picked:

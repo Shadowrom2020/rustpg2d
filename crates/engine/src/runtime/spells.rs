@@ -702,7 +702,13 @@ impl Game {
                 P::Light { .. } => out.push(crate::lang::tr_ui("Light").into_owned()),
                 P::Unlock => out.push(crate::lang::tr_ui("Opens locks").into_owned()),
                 P::Stabilize => out.push(crate::lang::tr_ui("Stabilizes").into_owned()),
-                P::Cure { conditions } => out.push(format!("{} {}", crate::lang::tr_ui("Ends"), conditions.iter().map(|c| crate::lang::tr_ui(c.name()).into_owned()).collect::<Vec<_>>().join(" / "))),
+                P::Cure { conditions, disease } => {
+                    let mut what: Vec<String> = conditions.iter().map(|c| crate::lang::tr_ui(c.name()).into_owned()).collect();
+                    if *disease {
+                        what.push(crate::lang::tr_ui("a disease").into_owned());
+                    }
+                    out.push(format!("{} {}", crate::lang::tr_ui("Ends"), what.join(" / ")));
+                }
                 P::Script { .. } => {}
             }
         }

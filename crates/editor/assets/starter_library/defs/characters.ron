@@ -18123,6 +18123,13 @@
                     dice: "1d4+2",
                     damage_type: Some(Piercing),
                     reach_ft: 5,
+                    on_hit: [
+                        (
+                            save: Some(Con),
+                            dc: 10,
+                            disease: "rat_bite_fever",
+                        ),
+                    ],
                 ),
             ],
             size: Small,

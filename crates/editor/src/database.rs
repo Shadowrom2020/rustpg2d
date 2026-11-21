@@ -39,6 +39,7 @@ pub enum Tab {
     Backgrounds,
     Factions,
     Classes,
+    Diseases,
 }
 
 /// How many definitions the list of `tab` shows (0 for the tabs without a list).
@@ -63,6 +64,7 @@ pub fn tab_len(db: &rustpg2d_engine::defs::Database, tab: Tab) -> usize {
         Tab::CommonEvents => db.common_events.len(),
         Tab::Backgrounds => db.backgrounds.len(),
         Tab::Classes => db.classes.len(),
+        Tab::Diseases => db.diseases.len(),
         Tab::Project | Tab::Scripts | Tab::Factions => 0,
     }
 }
@@ -114,6 +116,7 @@ impl Tab {
             Tab::CommonEvents => RefKind::CommonEvent,
             Tab::Backgrounds => RefKind::Background,
             Tab::Classes => RefKind::Class,
+            Tab::Diseases => RefKind::Disease,
             Tab::Project | Tab::Scripts | Tab::Factions => return None,
         })
     }
@@ -140,6 +143,7 @@ impl Tab {
             RefKind::CommonEvent => Tab::CommonEvents,
             RefKind::Background => Tab::Backgrounds,
             RefKind::Class => Tab::Classes,
+            RefKind::Disease => Tab::Diseases,
             RefKind::Map | RefKind::Skill => return None,
         })
     }
@@ -256,6 +260,7 @@ fn tab_icon(t: Tab) -> &'static str {
         Tab::CommonEvents => ph::LIGHTNING,
         Tab::Backgrounds => ph::IDENTIFICATION_CARD,
         Tab::Classes => ph::SWORD,
+        Tab::Diseases => ph::VIRUS,
         Tab::Factions => ph::FLAG,
         Tab::Project => ph::GEAR,
         Tab::Scripts => ph::CODE,
@@ -356,6 +361,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             (Tab::Races, "Races"),
             (Tab::Backgrounds, "Backgrounds"),
             (Tab::Classes, "Classes"),
+            (Tab::Diseases, "Diseases"),
             (Tab::Factions, "Factions"),
             (Tab::Models, "3D models"),
             (Tab::Materials, "Materials"),
@@ -420,6 +426,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             Tab::CommonEvents => db.common_events.get(i).map(|d| (RefKind::CommonEvent, d.id.clone())),
             Tab::Backgrounds => db.backgrounds.get(i).map(|d| (RefKind::Background, d.id.clone())),
             Tab::Classes => db.classes.get(i).map(|d| (RefKind::Class, d.id.clone())),
+            Tab::Diseases => db.diseases.get(i).map(|d| (RefKind::Disease, d.id.clone())),
             _ => None,
         };
         if !library {
@@ -441,6 +448,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                 Tab::CommonEvents => Some(RefKind::CommonEvent),
                 Tab::Backgrounds => Some(RefKind::Background),
                 Tab::Classes => Some(RefKind::Class),
+                Tab::Diseases => Some(RefKind::Disease),
                 _ => None,
             };
             if kind.is_some() {
@@ -625,6 +633,14 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     |ids| rustpg2d_engine::classes::ClassDef::fresh(&unique("class", ids)),
                     |d| &mut d.id,
                 ),
+                Tab::Diseases => list_ui(
+                    ui,
+                    &mut db.diseases,
+                    sel, |_| true,
+                    |d| format!("{}  ({})", d.name, d.id),
+                    |ids| rustpg2d_engine::diseases::DiseaseDef::fresh(&unique("disease", ids)),
+                    |d| &mut d.id,
+                ),
                 Tab::Materials => list_ui(
                     ui,
                     &mut db.materials,
@@ -807,6 +823,11 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     Tab::Classes => {
                         if let Some(d) = db.classes.get_mut(i) {
                             class_form(ui, d, &mut cx);
+                        }
+                    }
+                    Tab::Diseases => {
+                        if let Some(d) = db.diseases.get_mut(i) {
+                            disease_form(ui, d, &mut cx);
                         }
                     }
                     Tab::Structures => {
@@ -3032,6 +3053,105 @@ fn class_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::classes::ClassDef, cx:
     });
 }
 
+/// A disease (the SRD's *Diseases*): catching it, its symptoms and its course over long rests.
+fn disease_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::diseases::DiseaseDef, cx: &mut Cx) {
+    use rustpg2d_engine::diseases::{Course, WhenHurt};
+    use rustpg2d_engine::srd::Ability;
+    ui.heading("Disease");
+    rename_row(ui, RefKind::Disease, &d.id, cx.rename);
+    name_row(ui, &mut d.name);
+    ui.label("Description");
+    text_box(ui, &mut d.description, 3, "");
+    ui.weak("The hero catches it from a monster's attack (a stat block attack's disease), an Expose to disease action or infect() in scripts; Cure disease, cure_disease() or a spell with a Cure part (Lesser Restoration) end it. The SRD's Cackle Fever, Sewer Plague and Sight Rot come from the starter library.");
+    egui::Grid::new("disease").num_columns(2).show(ui, |ui| {
+        ui.label("Save against catching it");
+        ui.horizontal(|ui| {
+            egui::ComboBox::from_id_salt("dis_save").width(60.0).selected_text(d.save.short()).show_ui(ui, |ui| {
+                for a in Ability::ALL {
+                    ui.selectable_value(&mut d.save, a, a.short());
+                }
+            });
+            ui.add(egui::DragValue::new(&mut d.dc).range(0..=30).prefix("DC ")).on_hover_text("0 = no save: it is caught. Its course's saves start at this DC too.");
+        });
+        ui.end_row();
+        ui.label("Symptoms after");
+        ui.horizontal(|ui| {
+            ui.add(egui::TextEdit::singleline(&mut d.onset).desired_width(60.0).hint_text("at once"));
+            ui.selectable_value(&mut d.onset_days, false, "hours");
+            ui.selectable_value(&mut d.onset_days, true, "days");
+        });
+        ui.end_row();
+        ui.label("Exhaustion");
+        ui.horizontal(|ui| {
+            ui.add(egui::DragValue::new(&mut d.exhaustion).range(0..=5).suffix(" level(s)")).on_hover_text("Given when the symptoms show");
+            ui.checkbox(&mut d.keeps_exhaustion, "rests don't lower it");
+        });
+        ui.end_row();
+        ui.label("Healing");
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut d.no_natural_healing, "only by magic").on_hover_text("No hit points from long rests and hit dice");
+            ui.checkbox(&mut d.no_rest_healing, "none from long rests");
+            ui.checkbox(&mut d.half_hit_dice, "half from hit dice");
+        });
+        ui.end_row();
+        ui.label("Hit point maximum");
+        ui.horizontal(|ui| {
+            ui.add(egui::TextEdit::singleline(&mut d.max_hp_loss).desired_width(60.0).hint_text("1d6"));
+            ui.weak("less every 24 hours (at 0 the hero dies)");
+        });
+        ui.end_row();
+        ui.label("Sight");
+        ui.checkbox(&mut d.sight, "failing: -1 to attacks and sight checks, worse each long rest, blinded at -5");
+        ui.end_row();
+        ui.label("Condition while sick");
+        widgets::condition_combo(ui, "dis_cond", &mut d.condition, "none");
+        ui.end_row();
+        ui.label("A fit when hurt");
+        ui.horizontal(|ui| {
+            let mut on = d.when_hurt.is_some();
+            if ui.checkbox(&mut on, "").on_hover_text("When the hero takes damage: a save at the disease's current DC, else damage and a condition (Cackle Fever's laughter)").changed() {
+                d.when_hurt = on.then(WhenHurt::default);
+            }
+            if let Some(w) = d.when_hurt.as_mut() {
+                ui.add(egui::TextEdit::singleline(&mut w.damage).desired_width(50.0));
+                widgets::damage_type_combo(ui, "dis_hurt_dt", &mut w.damage_type, "untyped");
+                widgets::condition_combo(ui, "dis_hurt_cond", &mut w.condition, "none");
+                ui.add(egui::DragValue::new(&mut w.seconds).range(0.0..=3600.0).suffix(" s"));
+            }
+        });
+        ui.end_row();
+        ui.label("After each long rest");
+        ui.horizontal(|ui| {
+            let mut kind = match d.course {
+                Course::None => 0,
+                Course::ShrinkingDc { .. } => 1,
+                Course::Exhaustion => 2,
+                Course::Worsens => 3,
+            };
+            let before = kind;
+            let names = [Course::None.label(), "Saves lower the DC", Course::Exhaustion.label(), Course::Worsens.label()];
+            egui::ComboBox::from_id_salt("dis_course").selected_text(names[kind]).show_ui(ui, |ui| {
+                for (i, n) in names.iter().enumerate() {
+                    ui.selectable_value(&mut kind, i, *n);
+                }
+            });
+            if kind != before {
+                d.course = match kind {
+                    1 => Course::ShrinkingDc { dice: "1d6".into() },
+                    2 => Course::Exhaustion,
+                    3 => Course::Worsens,
+                    _ => Course::None,
+                };
+            }
+            if let Course::ShrinkingDc { dice } = &mut d.course {
+                ui.label("by");
+                ui.add(egui::TextEdit::singleline(dice).desired_width(50.0));
+            }
+        });
+        ui.end_row();
+    });
+}
+
 fn background_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::backgrounds::BackgroundDef, cx: &mut Cx) {
     ui.heading("Background");
     rename_row(ui, RefKind::Background, &d.id, cx.rename);
@@ -4309,6 +4429,8 @@ fn stat_hit_ui(ui: &mut egui::Ui, salt: &str, a: &mut rustpg2d_engine::srd::Stat
             ui.add(egui::TextEdit::singleline(&mut r.dice).desired_width(54.0).hint_text("2d8")).on_hover_text("Damage on a failed save (empty = none)");
             widgets::damage_type_combo(ui, &format!("{salt}/d{k}"), &mut r.damage_type, "untyped");
             ui.checkbox(&mut r.half, "half on a save");
+            ui.label("disease");
+            ui.add(egui::TextEdit::singleline(&mut r.disease).desired_width(110.0).hint_text("none")).on_hover_text("A disease id (Database › Diseases) a failed save (or the hit, without a save) gives the hero: a diseased rat's bite");
             if ui.small_button(ph::TRASH).on_hover_text("Remove this effect").clicked() {
                 gone = Some(k);
             }
@@ -5703,7 +5825,8 @@ fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::Sp
                 P::Stabilize => {
                     ui.strong("Stabilizes").on_hover_text("A creature at 0 hit points stops making death saving throws (Spare the Dying)");
                 }
-                P::Cure { conditions } => {
+                P::Cure { conditions, disease } => {
+                    ui.checkbox(disease, "or a disease").on_hover_text("When the target has none of the conditions: one of the hero's diseases ends (Lesser Restoration)");
                     ui.strong("Ends").on_hover_text("Ends the first of these conditions the target has (Lesser Restoration: blinded, deafened, paralyzed or poisoned)");
                     ui.horizontal_wrapped(|ui| {
                         for c in Condition::ALL.into_iter().filter(|c| !matches!(c, Condition::Any | Condition::Exhaustion)) {
@@ -5743,7 +5866,7 @@ fn spell_parts_ui(ui: &mut egui::Ui, parts: &mut Vec<rustpg2d_engine::skills::Sp
             ("Light", P::Light { radius: 4.0 }),
             ("Unlock", P::Unlock),
             ("Stabilize", P::Stabilize),
-            ("Cure", P::Cure { conditions: vec![Condition::Poisoned] }),
+            ("Cure", P::Cure { conditions: vec![Condition::Poisoned], disease: false }),
             ("Script", P::Script { function: String::new() }),
         ];
         for (name, t) in templates {

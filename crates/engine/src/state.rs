@@ -391,6 +391,9 @@ pub struct WorldState {
     /// The poison on the hero's weapon or ammunition (one dose).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub coating: Option<crate::srd::poisons::Coating>,
+    /// The diseases the hero caught (incubating or sick).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub diseases: Vec<crate::diseases::ActiveDisease>,
     /// Food, water and the march of the day (the survival rules; untouched while they are off).
     #[serde(default, skip_serializing_if = "is_default_survival")]
     pub survival: crate::srd::survival::Survival,
@@ -803,7 +806,13 @@ impl WorldState {
             return None;
         };
         let (mode, fails, helper) = self.check_terms(&spec, mode);
-        let mut rec = spec.roll(&self.roller(), dc, mode);
+        // (Failing sight takes its penalty off checks by sight: rolled against a higher DC, shown
+        // as a lower total.)
+        let pen = if !save && crate::srd::conditions::needs_sight(&spec.proficiency) { self.training.sight_penalty.max(0) } else { 0 };
+        let mut rec = spec.roll(&self.roller(), dc + pen, mode);
+        if pen > 0 {
+            (rec.modifier, rec.total, rec.dc) = (rec.modifier - pen as i64, rec.total - pen as i64, dc);
+        }
         if let Some(h) = helper {
             rec.label = format!("{} ({h} helps)", rec.label);
         }

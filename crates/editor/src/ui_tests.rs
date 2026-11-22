@@ -768,10 +768,54 @@ fn dialog_codes_are_inserted_and_the_box_placed() {
 }
 
 #[test]
+fn a_character_gets_a_piece_and_an_item_a_shown_style() {
+    let root = example_copy("pieces");
+    let db = Project::load(&root).unwrap().db;
+    let k = db.characters.iter().position(|c| c.id == "hero").expect("the example's hero");
+    assert!(db.characters[k].appearance.parts.is_empty());
+    let mut h = harness(&root, Tab::Characters, k);
+    step(&mut h);
+    // The character editor's Pieces section: the hero's figure has no beard of its own; a long one.
+    beside(&h, "Beard", |n| n.role() == Role::ComboBox).click();
+    step(&mut h);
+    h.get_by(|n| n.label().as_deref() == Some("Long") && n.role() != Role::ComboBox).click();
+    step(&mut h);
+    let beard = |db: &rustpg2d_engine::defs::Database| db.characters[k].appearance.parts.get("beard").cloned();
+    assert_eq!(beard(&h.state().project.db).as_deref(), Some("kit_beard_long_10"));
+    h.state_mut().save_all();
+    assert_eq!(beard(&Project::load(&root).unwrap().db).as_deref(), Some("kit_beard_long_10"));
+    // What it wears: the figure's own clothes and hair, and now the beard.
+    let db = Project::load(&root).unwrap().db;
+    let look = &db.characters[k].appearance;
+    let parts = rustpg2d_engine::render::model::parts_of(&db, &look.model, look, &Default::default());
+    assert_eq!(parts, ["kit_beard_long_10", "kit_hair_short_10", "kit_clothes_medium_m"]);
+    // "None" takes a piece off (the cloak slot: the label "Hair" is also a colour's).
+    beside(&h, "Cloak", |n| n.role() == Role::ComboBox).click();
+    step(&mut h);
+    h.get_by(|n| n.label().as_deref() == Some("None") && n.role() != Role::ComboBox).click();
+    step(&mut h);
+    assert_eq!(h.state().project.db.characters[k].appearance.parts.get("cloak").map(String::as_str), Some(rustpg2d_engine::defs::NO_PART));
+    let _ = std::fs::remove_dir_all(&root);
+    // An item's "Shown as": the example's leather armour shows the leather armour style.
+    let root = example_copy("pieces_item");
+    let db = Project::load(&root).unwrap().db;
+    let i = db.items.iter().position(|d| d.id == "leather_armor").expect("the example's leather armour");
+    assert_eq!(db.items[i].wear, "leather_armor");
+    let mut h = harness(&root, Tab::Items, i);
+    step(&mut h);
+    beside(&h, "Shown as", |n| n.role() == Role::ComboBox).click();
+    step(&mut h);
+    h.get_by(|n| n.label().as_deref() == Some("plate_armor") && n.role() != Role::ComboBox).click();
+    step(&mut h);
+    assert_eq!(h.state().project.db.items[i].wear, "plate_armor");
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn colour_feature_default_is_set_and_cleared() {
     let root = example_copy("feature_default");
     let db = Project::load(&root).unwrap().db;
-    let k = db.models.iter().position(|m| m.id == "elf_f").expect("the example's elf woman");
+    let k = db.models.iter().position(|m| m.id == "heroine").expect("the example's heroine");
     let skin = |db: &rustpg2d_engine::defs::Database| db.models[k].features.iter().find(|f| f.name == "skin").unwrap().clone();
     assert_eq!(skin(&db).default, None);
     let mut h = harness(&root, Tab::Models, k);

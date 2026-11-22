@@ -326,6 +326,10 @@ impl Renamer<'_> {
     fn look(&mut self, a: &mut crate::defs::Appearance) {
         self.fix(RefKind::Model, &mut a.body);
         self.fix(RefKind::Model, &mut a.model);
+        // Its chosen pieces (model ids; a style name or "-" is no reference).
+        for p in a.parts.values_mut().filter(|p| p.as_str() != crate::defs::NO_PART) {
+            self.fix(RefKind::Model, p);
+        }
     }
 
     /// Items worn and carried.
@@ -657,6 +661,12 @@ fn db_pass(db: &mut Database, config: &mut ProjectConfig, kind: RefKind, old: &s
         if let Some(rig) = &mut d.rig {
             r.fix(RefKind::Model, &mut rig.template);
         }
+        for p in &mut d.parts {
+            r.fix(RefKind::Model, p);
+        }
+        for f in d.part.iter_mut().flat_map(|p| &mut p.fits) {
+            r.fix(RefKind::Model, f);
+        }
     }
     for d in &mut db.materials {
         r.fix(RefKind::Sound, &mut d.step);
@@ -811,8 +821,10 @@ pub fn refs_of_material(d: &crate::ground::MaterialDef) -> Vec<(RefKind, String)
     if d.step.is_empty() { vec![] } else { vec![(RefKind::Sound, d.step.clone())] }
 }
 
+/// A model needs its rig template and, a body, its own pieces. (A piece doesn't need the bodies
+/// it fits.)
 pub fn refs_of_model(d: &crate::defs::ModelDef) -> Vec<(RefKind, String)> {
-    d.rig.iter().filter(|r| !r.template.is_empty()).map(|r| (RefKind::Model, r.template.clone())).collect()
+    d.rig.iter().filter(|r| !r.template.is_empty()).map(|r| r.template.clone()).chain(d.parts.iter().cloned()).map(|id| (RefKind::Model, id)).collect()
 }
 
 pub fn refs_of_item(d: &crate::defs::ItemDef) -> Vec<(RefKind, String)> {

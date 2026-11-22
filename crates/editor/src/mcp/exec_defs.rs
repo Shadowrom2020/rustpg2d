@@ -424,6 +424,136 @@ impl Editor {
         text(msg)
     }
 
+    /// `model_sheet`: the model as the game draws it.
+    pub(crate) fn mcp_model_sheet(&mut self, p: ModelSheetParams) -> Result<Reply, String> {
+        use rustpg2d_engine::entity::Facing;
+        self.mcp_need_project()?;
+        let db = &self.project.db;
+        let d = db.model(&p.model).ok_or_else(|| format!("no model \"{}\"{}", p.model, suggestions(&p.model, db.models.iter().map(|m| m.id.as_str()))))?;
+        let mut look = rustpg2d_engine::defs::Appearance::default();
+        // A piece: on the first figure it fits, in its own slot.
+        match &d.part {
+            Some(part) => {
+                look.model = part.fits.iter().find(|b| db.model(b).is_some()).cloned().ok_or("the piece lists no figure of this project under the figures it fits: nothing to show it on")?;
+                look.parts.insert(part.slot.clone(), d.id.clone());
+            }
+            None => look.model = d.id.clone(),
+        }
+        look.parts.extend(p.parts.clone().unwrap_or_default());
+        for (name, hex) in p.colors.clone().unwrap_or_default() {
+            let v = u32::from_str_radix(hex.trim_start_matches('#'), 16).map_err(|_| format!("colour \"{hex}\": RRGGBB expected"))?;
+            look.colors.insert(name, [(v >> 16) as u8, (v >> 8) as u8, v as u8]);
+        }
+        for item in p.worn.iter().flatten().chain(&p.weapon).chain(&p.offhand) {
+            if db.item(item).is_none() {
+                return Err(format!("no item \"{item}\"{}", suggestions(item, db.items.iter().map(|i| i.id.as_str()))));
+            }
+        }
+        let gear = rustpg2d_engine::render::model::Gear { weapon: p.weapon.clone(), offhand: p.offhand.clone(), worn: p.worn.clone().unwrap_or_default(), ready: true, ..Default::default() };
+        let anims = p.anims.clone().unwrap_or_else(|| vec!["idle".into(), "walk".into(), "attack".into()]);
+        let facings: Vec<Facing> = match &p.facings {
+            None => vec![Facing::Down, Facing::Left, Facing::Right, Facing::Up],
+            Some(f) => f
+                .iter()
+                .map(|f| match f.as_str() {
+                    "down" => Ok(Facing::Down),
+                    "left" => Ok(Facing::Left),
+                    "right" => Ok(Facing::Right),
+                    "up" => Ok(Facing::Up),
+                    other => Err(format!("facing \"{other}\": down, left, right or up")),
+                })
+                .collect::<Result<_, _>>()?,
+        };
+        let moments = p.moments.unwrap_or(4).clamp(1, 8) as usize;
+        let zoom = p.zoom.unwrap_or(2).clamp(1, 4);
+        let ground = macroquad::color::Color::from_rgba(74, 112, 62, 255);
+        let (img, cell) = self.assets.models.sheet(db, &self.assets.sheets, &look, &gear, &anims, &facings, moments, ground).ok_or_else(|| {
+            let err = self.assets.models.errors.iter().find(|e| e.contains(&format!("model {}:", look.model))).cloned();
+            err.unwrap_or_else(|| format!("{} isn't loaded, or the sheet would be larger than 8192 pixels (fewer animations or moments)", look.model))
+        })?;
+        let (w, h) = (img.width() as u32, img.height() as u32);
+        let mut out = rustpg2d_engine::imageio::Rgba::new(w * zoom, h * zoom);
+        for y in 0..h * zoom {
+            for x in 0..w * zoom {
+                let i = ((y / zoom * w + x / zoom) * 4) as usize;
+                let o = ((y * w * zoom + x) * 4) as usize;
+                out.px[o..o + 4].copy_from_slice(&img.bytes[i..i + 4]);
+            }
+        }
+        let png = out.encode().map_err(|e| format!("{e:#}"))?;
+        let parts = rustpg2d_engine::render::model::parts_of(db, &look.model, &look, &gear);
+        let note = format!(
+            "{} as the game draws it, enlarged {zoom}x: rows {} (top to bottom), columns {} with {moments} moments each; cells of {}x{} px. Pieces shown: {}.",
+            look.model,
+            anims.join(", "),
+            facings.iter().map(|f| format!("{f:?}").to_lowercase()).collect::<Vec<_>>().join(", "),
+            cell.0 * zoom,
+            cell.1 * zoom,
+            if parts.is_empty() { "none".to_string() } else { parts.join(", ") }
+        );
+        Ok(Reply::TextImages(note, vec![png]))
+    }
+
+    /// `model_check`: what is wrong with a model, and its measures.
+    pub(crate) fn mcp_model_check(&mut self, p: ModelCheckParams) -> Result<Reply, String> {
+        self.mcp_need_project()?;
+        let db = &self.project.db;
+        let d = db.model(&p.model).ok_or_else(|| format!("no model \"{}\"{}", p.model, suggestions(&p.model, db.models.iter().map(|m| m.id.as_str()))))?;
+        let Some(lines) = self.assets.models.check(db, &d.id) else {
+            let err = self.assets.models.errors.iter().find(|e| e.contains(&format!("model {}:", d.id))).cloned();
+            return Err(err.unwrap_or_else(|| format!("{} isn't loaded (its file {})", d.id, d.file)));
+        };
+        let problems = lines.iter().filter(|l| l.starts_with('!')).count();
+        let size = std::fs::metadata(self.project.root.join(&d.file)).map(|m| m.len() / 1024).unwrap_or(0);
+        text(format!("{} ({}), {} ({size} KB): {}\n{}", d.label(), d.id, d.file, if problems == 0 { "no problems".to_string() } else { format!("{problems} problem(s), marked !") }, lines.join("\n")))
+    }
+
+    /// `kit_build`: runs the figure kit's build script and takes its models into the project.
+    pub(crate) fn mcp_kit_build(&mut self, p: KitBuildParams) -> Result<Reply, String> {
+        self.mcp_writable()?;
+        let kit = std::env::var_os("RUSTPG2D_KIT").map(std::path::PathBuf::from).or_else(|| crate::repo_mode::root().map(|r| r.join("scripts/art/kit"))).filter(|k| k.join("build.py").is_file());
+        let kit = kit.ok_or("the figure kit's sources (scripts/art/kit with build.py) aren't here: start the editor in the R(ust)PG2D repository, or set RUSTPG2D_KIT to the kit's folder")?;
+        let out = std::env::temp_dir().join(format!("rustpg2d-kit-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&out);
+        let python = std::env::var("RUSTPG2D_PYTHON").unwrap_or_else(|_| "python3".into());
+        let ids = p.ids.clone().unwrap_or_default();
+        let run = std::process::Command::new(&python).arg(kit.join("build.py")).arg("--out").arg(&out).args(&ids).output().map_err(|e| format!("starting {python}: {e} (the kit needs python3 with numpy)"))?;
+        let said = format!("{}{}", String::from_utf8_lossy(&run.stdout), String::from_utf8_lossy(&run.stderr));
+        if !run.status.success() {
+            let _ = std::fs::remove_dir_all(&out);
+            return Err(format!("the kit's build failed:\n{}", said.trim()));
+        }
+        let take = || -> Result<(usize, Vec<rustpg2d_engine::defs::ModelDef>), String> {
+            let defs: Vec<rustpg2d_engine::defs::ModelDef> = serde_json::from_str(&std::fs::read_to_string(out.join("kit.json")).map_err(|e| format!("reading kit.json: {e}"))?).map_err(|e| format!("kit.json: {e}"))?;
+            let dir = self.project.root.join("models");
+            std::fs::create_dir_all(&dir).map_err(|e| format!("creating {}: {e}", dir.display()))?;
+            let mut files = 0;
+            for f in std::fs::read_dir(out.join("models")).map_err(|e| e.to_string())?.flatten() {
+                std::fs::copy(f.path(), dir.join(f.file_name())).map_err(|e| format!("copying {}: {e}", f.path().display()))?;
+                files += 1;
+            }
+            Ok((files, defs))
+        };
+        let taken = take();
+        let _ = std::fs::remove_dir_all(&out);
+        let (files, defs) = taken?;
+        if !ids.is_empty() && defs.is_empty() {
+            return Err(format!("the kit has no model named {}", ids.join(", ")));
+        }
+        let names: Vec<String> = defs.iter().map(|d| d.id.clone()).collect();
+        for d in defs {
+            match self.project.db.models.iter_mut().find(|m| m.id == d.id) {
+                Some(m) => *m = d,
+                None => self.project.db.models.push(d),
+            }
+        }
+        self.project.db.reindex();
+        self.defs_dirty = true;
+        self.reload_assets();
+        let shown = if names.len() > 12 { format!("{} … ({} models)", names[..12].join(", "), names.len()) } else { names.join(", ") };
+        self.mcp_after_write(format!("Built {files} files of the figure kit and wrote their definitions: {shown}. Look at one with model_sheet and check it with model_check."))
+    }
+
     pub(crate) fn mcp_model_info(&mut self, p: ModelInfoParams) -> Result<Reply, String> {
         self.mcp_need_project()?;
         let d = self.project.db.model(&p.model).ok_or_else(|| format!("no model \"{}\"{}", p.model, suggestions(&p.model, self.project.db.models.iter().map(|m| m.id.as_str()))))?.clone();
@@ -1057,15 +1187,19 @@ impl Editor {
         let font = rel.starts_with("fonts/") && (lower.ends_with(".ttf") || lower.ends_with(".otf"));
         let licence = rel.starts_with("fonts/") && lower.ends_with(".txt");
         let media = ["sprites/", "sounds/", "materials/"].iter().any(|f| rel.starts_with(f)) && (image || lower.ends_with(".wav") || lower.ends_with(".ogg"));
-        if !(media || font || licence) || rel.split('/').any(|c| c.is_empty() || c == "." || c == "..") {
-            return Err(format!("\"{rel}\": give a path under sprites/, materials/ or sounds/ ending in .png, .wav or .ogg, or under fonts/ ending in .ttf, .otf or .txt (a font's licence)"));
+        let model = rel.starts_with("models/") && lower.ends_with(".glb");
+        if !(media || font || licence || model) || rel.split('/').any(|c| c.is_empty() || c == "." || c == "..") {
+            return Err(format!("\"{rel}\": give a path under sprites/, materials/ or sounds/ ending in .png, .wav or .ogg, under models/ ending in .glb, or under fonts/ ending in .ttf, .otf or .txt (a font's licence)"));
         }
         let bytes = match (&p.base64, &p.source) {
             (Some(b), None) => rustpg2d_engine::hash::base64_decode(b).ok_or("base64 is not valid Base64")?,
             (None, Some(src)) => std::fs::read(src).map_err(|e| format!("reading {src}: {e}"))?,
             _ => return Err("give either base64 or source".into()),
         };
-        let what = if font {
+        let what = if model {
+            let clips = rustpg2d_engine::model::clip_names(&bytes).map_err(|e| format!("not a glTF binary (.glb): {e:#}"))?;
+            format!("3D model file, {} clips", clips.len())
+        } else if font {
             let n = rustpg2d_engine::fonts::Coverage::of(&bytes).ok_or("not a TTF / OTF font")?.len();
             format!("font, {n} characters")
         } else if licence {
@@ -1084,21 +1218,26 @@ impl Editor {
             std::fs::create_dir_all(dir).map_err(|e| format!("creating {}: {e}", dir.display()))?;
         }
         std::fs::write(&path, &bytes).map_err(|e| format!("writing {}: {e}", path.display()))?;
-        self.reload_assets();
         let db = &self.project.db;
         let users: Vec<String> = db
             .materials
             .iter()
             .filter(|d| d.texture == rel)
             .map(|d| format!("material {}", d.id))
+            .chain(db.models.iter().filter(|d| d.file == rel || d.clip_paths().any(|f| *f == rel)).map(|d| format!("model {}", d.id)))
+            .chain(db.items.iter().filter(|d| d.model.as_ref().is_some_and(|m| m.file == rel)).map(|d| format!("item {}", d.id)))
             .chain(db.sheets.iter().filter(|d| d.image == rel).map(|d| format!("sheet {}", d.id)))
             .chain(db.sounds.iter().filter(|d| d.file == rel).map(|d| format!("sound {}", d.id)))
             .chain(db.fonts.iter().filter(|d| d.file == rel || d.license == rel).map(|d| format!("font {}", d.id)))
             .collect();
+        // A model file nothing uses yet is read when its definition arrives.
+        if !(model && users.is_empty()) {
+            self.reload_assets();
+        }
         text(format!(
             "{} {rel} ({what}). {}",
             if existed { "Replaced" } else { "Wrote" },
-            if users.is_empty() { "No definition uses it yet: add one with upsert_def (materials / sheets / sounds / fonts).".to_string() } else { format!("Used by {}; the art was reloaded.", users.join(", ")) }
+            if users.is_empty() { "No definition uses it yet: add one with upsert_def (materials / sheets / sounds / fonts / models).".to_string() } else { format!("Used by {}; the art was reloaded.", users.join(", ")) }
         ))
     }
 }

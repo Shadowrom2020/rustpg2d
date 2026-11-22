@@ -309,6 +309,30 @@ impl Model {
         }));
     }
 
+    /// For a piece worn on `body`: each of this model's joints as the body's node of the same
+    /// name (None = the body has no such bone; its vertices then stay where they were bound).
+    pub fn bind_to(&self, body: &Model) -> Vec<Option<usize>> {
+        self.joints.iter().map(|&j| self.nodes.get(j).filter(|n| !n.name.is_empty()).and_then(|n| body.nodes.iter().position(|b| b.name == n.name))).collect()
+    }
+
+    /// As [`Model::skin`] for a piece: deformed by `world`, the node transforms of the body it
+    /// is worn on, through `bind` ([`Model::bind_to`]).
+    pub fn skin_on(&self, world: &[Mat4], bind: &[Option<usize>], out: &mut Vec<(Vec3, Vec3)>) {
+        let mats: Vec<Mat4> = bind.iter().zip(&self.inverse_bind).map(|(b, ib)| b.and_then(|n| world.get(n)).map_or(Mat4::IDENTITY, |w| *w * *ib)).collect();
+        out.clear();
+        out.extend(self.vertices.iter().map(|v| {
+            let mut m = Mat4::ZERO;
+            for k in 0..4 {
+                if v.weights[k] > 0.0 {
+                    if let Some(j) = mats.get(v.joints[k] as usize) {
+                        m += *j * v.weights[k];
+                    }
+                }
+            }
+            (m.transform_point3(v.pos), m.transform_vector3(v.normal).normalize_or_zero())
+        }));
+    }
+
     /// The direction a clip's body faces on average, as a turn about the up axis (radians, 0 =
     /// facing +Z, the glTF front): square to the line through the hips and the shoulders. None
     /// without such bones. Turning by its negative makes the clip face the front.
@@ -1424,6 +1448,29 @@ mod tests {
         let (g, a, f) = estimate_hold(&shield, &[], HoldStyle::Strap);
         assert_eq!((a, f), ([0.0, 1.0, 0.0], [0.0, 0.0, -1.0]));
         assert!(g[2].abs() < 1e-6, "the back, away from the boss: {g:?}");
+    }
+
+    #[test]
+    fn a_piece_moves_with_the_bodys_bones_of_the_same_names() {
+        // The same two-bone model stands in for the body and for the piece.
+        let body = Model::load(&fixture()).unwrap();
+        let mut piece = Model::load(&fixture()).unwrap();
+        let bind = piece.bind_to(&body);
+        assert_eq!(bind, piece.joints.iter().map(|j| Some(*j)).collect::<Vec<_>>());
+        // Skinned through the body's pose it lands where the body's own mesh does.
+        let world = body.pose(body.clips.first(), 0.3);
+        let (mut a, mut b) = (Vec::new(), Vec::new());
+        body.skin(&world, &mut a);
+        piece.skin_on(&world, &bind, &mut b);
+        assert_eq!(a.len(), b.len());
+        assert!(a.iter().zip(&b).all(|(x, y)| (x.0 - y.0).length() < 1e-5));
+        // A bone the body lacks leaves its vertices where they were bound.
+        let j = piece.joints[1];
+        piece.nodes[j].name = "tail".into();
+        let bind = piece.bind_to(&body);
+        assert_eq!(bind[1], None);
+        piece.skin_on(&world, &bind, &mut b);
+        assert!(b.iter().all(|(p, _)| p.is_finite()));
     }
 
     #[test]

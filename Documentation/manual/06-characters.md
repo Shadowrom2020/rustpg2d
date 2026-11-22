@@ -16,8 +16,10 @@ furniture, the activities (`fish`, `farm`, `craft`, `chop`, `mine`, `sweep`, `re
 cropped or laid down). Dialog portraits show its head close up. A character without a model of its
 own shows as the **mannequin** (a plain wooden figure; the engine has one built in).
 
-The example's and the starter library's cast were modelled with Meshy from the hand-drawn figures
-of earlier versions: 47 people and 9 animals, and 16 items' 3D models.
+The starter library's **playable races** are voxel figures built by script, the **figure kit**
+([below](#pieces-hair-outfits-and-shown-equipment)); the rest of the example's and the library's
+cast was modelled with Meshy from the hand-drawn figures of earlier versions, as were 9 animals
+and 16 items' 3D models.
 
 - *Database › 3D models › Import model…* takes a rigged `.glb` (Meshy, Blender, Mixamo…): it is
   copied into `models/` (made smaller: textures as the game uses them, clip files without their
@@ -49,6 +51,45 @@ of earlier versions: 47 people and 9 animals, and 16 items' 3D models.
   out when it loads.
 - **Generate art** makes 3D characters, creatures and items' models with Meshy ([Art and sound ›
   Generate art](10-art-and-sound.md#generate-art-with-meshy)), and adds clips to a model.
+
+### Pieces: hair, outfits and shown equipment
+
+A figure doesn't have to be one model. A **piece** is a 3D model that other models wear: hair, a
+beard, an outfit, a helmet, a cloak. It has the same bones as the figure (matched by name), so the
+game draws figure and pieces in one pose, and they move together in every animation.
+
+On a model's form (*Database › 3D models*):
+
+- **Piece › Worn by other models** makes it a piece, with:
+  - its **slot** (`outfit`, `hair`, `beard`, `headwear`, `cloak` or a name of your own): a figure
+    wears one piece per slot;
+  - its **style** (`leather_armor`, `hair_ponytail`): what it is across figures, each of which has
+    its own piece of the style;
+  - the figures it **fits** (none listed: every figure);
+  - the slots it **hides** while worn (a helmet hides the hair);
+  - **Offered**: the character creator lets players choose it.
+- **Own pieces** on a figure: what it wears unless something else says otherwise.
+- **Figure height**: for a figure whose file holds only its head (the clothes are pieces), the
+  standing height in the model's own units, so the game knows how tall the whole figure is.
+
+What a figure wears is decided in this order, each replacing the one before in the same slot: the
+figure's **own pieces**, the pieces **chosen** for the character (the character editor's *Pieces*,
+the creator's *Hair style* and *Beard*), and its **equipment**: an item whose form says *Shown as*
+a style puts that style's piece on the figure while it is worn in the clothing, body armour, feet,
+hands, cloak or head slot. So a hero who puts on plate armour and a helmet looks it.
+
+Colour features work across figure and pieces by name: *Hair* colours the hair and the beard,
+*Clothing* the outfit and the hood. A piece takes the figure's default for a feature (an orc's
+green skin on the hands of its clothes).
+
+The *3D models* list shows *All*, *Figures* or *Pieces*.
+
+**The figure kit.** The starter library's playable races (human, elf, dwarf, halfling, half-orc,
+tiefling, dragonborn; men and women) are built this way, as voxel figures: 14 bodies, five outfits
+(clothes, leather armour, chain mail, plate armour, robe), five hair styles, two beards, a helmet,
+a hood and a cloak, 80 models in 7 MB that share one file of animations. Their sources are scripts
+in the R(ust)PG2D repository (`scripts/art/kit`, with a style guide), not generated art: a new
+outfit or hair style is a change there and a rebuild.
 
 ### Weapon animations
 
@@ -111,10 +152,14 @@ can't attack (*Put down what you carry first.*). What the player carries is save
 **preview** that walks, breathes, attacks or flinches (*Walk*, *Idle*, *Attack*, *Hurt*; facing
 buttons, *turn around*, and the four standing directions); on the right:
 
-- **Model**: cards of the project's 3D models; *Playable* lets players choose it in the creator;
-- **Colours**: for each colour feature of the model, *As made*, the feature's colours and any
-  other colour;
-- **Equipment**: weapon, left hand, head, body armor and clothing (they count in play);
+- **Model**: cards of the project's 3D models (figures, not pieces); *Playable* lets players
+  choose it in the creator;
+- **Pieces** (when the model can wear some): per slot the model's own piece, none, or another
+  that fits it ([Pieces](#pieces-hair-outfits-and-shown-equipment));
+- **Colours**: for each colour feature of the model and its pieces, *As made*, the feature's
+  colours and any other colour;
+- **Equipment**: weapon, left hand, head, body armor and clothing (they count in play; an item
+  that is *Shown as* a style changes the figure);
 - **Carried items**.
 
 **Random colours** picks an offered colour for each feature. **Start from…** copies the model and
@@ -434,7 +479,9 @@ is. *Next* goes on, *Back* (or Esc) goes back, and *Start adventure* on the last
    male* / *Always female*), a **race** when the project has several playable races
    ([Races](#races)), a **look** (a model) among the race's models of that sex (without races: the
    project's default model for that sex and the other models of that sex marked *Playable*; the row
-   shows only when there is a choice), a **colour row for each colour feature** of that model that
+   shows only when there is a choice), **Hair style** and **Beard** when the model has pieces to
+   choose from (those marked *Offered*; *None* leaves the slot empty), a **colour row for each
+   colour feature** of that model and its pieces that
    offers colours (*Skin*, *Hair*, *Clothing*…: *As drawn*, *The race's* colour, or one of the
    feature's colours) and a race's choice that colours the model (the dragonborn's ancestry). An
    animated preview walks through all four directions; under it the race's ability increases, size,

@@ -318,6 +318,32 @@ impl Editor {
 mod tests {
     use super::*;
 
+    /// The figure kit's models in the starter library and the example are what its sources
+    /// build: `scripts/art/kit/manifest.json` (written by `build.py`) names the sources' hash and
+    /// every output's. No Python here: the hashes say whether someone rebuilt and applied.
+    #[test]
+    fn the_figure_kit_is_built_and_applied() {
+        let repo = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let kit = repo.join("scripts/art/kit");
+        let hex = |b: &[u8]| rustpg2d_engine::hash::sha256(b).iter().map(|x| format!("{x:02x}")).collect::<String>();
+        let manifest: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(kit.join("manifest.json")).expect("scripts/art/kit/manifest.json")).unwrap();
+        let mut all = Vec::new();
+        for f in manifest["source_files"].as_array().unwrap() {
+            let f = f.as_str().unwrap();
+            all.extend_from_slice(f.as_bytes());
+            all.push(0);
+            all.extend(std::fs::read(kit.join(f)).unwrap_or_else(|e| panic!("kit source {f}: {e}")));
+        }
+        assert_eq!(hex(&all), manifest["sources"].as_str().unwrap(), "the kit's sources changed: run `python3 scripts/art/kit/build.py --out DIR` and `apply.py` (scripts/art/kit/README.md)");
+        for (file, facts) in manifest["files"].as_object().unwrap() {
+            for root in [crate::repo_mode::STARTER, "example_project"] {
+                let path = repo.join(root).join(file);
+                let got = std::fs::read(&path).unwrap_or_else(|e| panic!("{}: {e} (apply the kit: scripts/art/kit/apply.py)", path.display()));
+                assert_eq!(hex(&got), facts["sha256"].as_str().unwrap(), "{} isn't what the kit builds: run build.py and apply.py", path.display());
+            }
+        }
+    }
+
     #[test]
     fn starter_history_covers_the_starter() {
         let s = crate::starter::current().expect("the starter library (the source folder)");

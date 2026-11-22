@@ -243,13 +243,12 @@
         name: "Halfling",
         playable: false,
         bodies_male: [
-            "hero",
+            "halfling",
         ],
         bodies_female: [
-            "heroine",
+            "halfling_f",
         ],
         faction: "humans",
-        size: 0.75,
         ability_bonuses: {
             "dex": 2,
         },
@@ -442,13 +441,12 @@
         name: "Gnome",
         playable: false,
         bodies_male: [
-            "dwarf",
+            "halfling",
         ],
         bodies_female: [
-            "dwarf_f",
+            "halfling_f",
         ],
         faction: "dwarves",
-        size: 0.75,
         ability_bonuses: {
             "int": 2,
         },
@@ -663,10 +661,10 @@
         name: "Tiefling",
         playable: true,
         bodies_male: [
-            "hero",
+            "tiefling",
         ],
         bodies_female: [
-            "heroine",
+            "tiefling_f",
         ],
         faction: "humans",
         ability_bonuses: {

@@ -110,6 +110,12 @@ two-handed weapons in both, a tool in the right hand while it is used. Items wit
   grip axis; setting it off the picture's length tilts the item, as the fishing rod held 40° up),
   the **size** and the **hand** (*By its kind* or right, left, both).
 
+**On the figure › Shown as** (clothing, armour, boots, gloves, cloaks and headgear, when the
+project has pieces) names the
+**style** a character's figure shows while it wears the item: an armour, a helmet, a cloak. Each
+figure wears its own piece of that style ([Characters › Pieces](06-characters.md#pieces-hair-outfits-and-shown-equipment));
+figures without one look as before.
+
 The **3D model** section gives the item a model (a `.glb`, copied into `models/`) for characters
 made of 3D models ([Characters › 3D models](06-characters.md#how-characters-look)). Choosing one
 sets everything from the item's kind and the model's shape; then check the big **preview** (four

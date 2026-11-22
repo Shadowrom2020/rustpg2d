@@ -276,7 +276,7 @@ place is named under the list (*R2 is also Switch weapon*).
 - **Character creator** (after *New game*, when the game has one), step by step: Up / Down
   choose a row, Left / Right change it, Enter goes on, Esc goes back a step.
   1. *Who*: type a name, then your race (its ability increases, speed and traits show under the
-     picture), sex, body and colours (skin, hair, clothing…).
+     picture), sex, body, hair style and beard (when the game offers some) and colours (skin, hair, clothing…).
   2. *Class*: your class, its skills and level 1's choices (a fighting style, a domain…).
   3. *Ability scores*: the standard array placed for your class, point buy with 27 points, or 4d6
      rolls (Left / Right swap or raise a score), and what your race lets you choose (skills, a

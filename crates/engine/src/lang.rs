@@ -516,6 +516,10 @@ pub fn content_texts(project: &crate::project::Project) -> std::collections::BTr
     for f in db.models.iter().flat_map(|m| &m.features).filter(|f| !f.colors.is_empty()) {
         add(&f.label());
     }
+    // Pieces the character creator offers: their names in its rows.
+    for p in db.models.iter().filter_map(|m| m.part.as_ref()).filter(|p| p.offer) {
+        add(&p.label());
+    }
     // Every trigger of the definitions and the maps, and the lock / container texts of props and
     // placed entities.
     project.for_each_trigger(&mut |site, ts| {

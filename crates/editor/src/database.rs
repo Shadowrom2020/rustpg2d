@@ -165,6 +165,8 @@ pub struct DbState {
     pub search: String,
     /// The Items tab's category filter.
     pub item_filter: crate::item_category::ItemFilter,
+    /// The 3D models tab's filter: 0 = all, 1 = figures, 2 = pieces (hair, outfits…).
+    pub model_filter: u8,
     /// How many definitions the list shows of how many (status `dblist=`).
     pub list_shown: (usize, usize),
     pub script_file: Option<std::path::PathBuf>,
@@ -500,6 +502,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
         let db = &mut ed.project.db;
         let sel = &mut ed.db.sel;
         let item_filter = &mut ed.db.item_filter;
+        let model_filter = &mut ed.db.model_filter;
         LIST_SEARCH.with(|q| *q.borrow_mut() = std::mem::take(&mut ed.db.search));
         egui::SidePanel::left("db_left").resizable(true).default_width(220.0).show_inside(ui, |ui| {
             list_changed = match tab {
@@ -570,7 +573,22 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     if ui.button(ui::t(ph::UPLOAD_SIMPLE, "Import model…")).on_hover_text("A rigged .glb (Meshy, Blender, Mixamo…): copied into models/, its clips matched to the animations by name").clicked() {
                         ed.browse_request = Some(Purpose::ModelFile { id: String::new(), clips: false });
                     }
-                    list_ui(ui, &mut db.models, sel, |_| true, |d| format!("{}  ({}){}", d.label(), d.id, if d.playable { "  - playable" } else { "" }), |ids| rustpg2d_engine::defs::ModelDef::new(&unique("model", ids), ""), |d| &mut d.id)
+                    if db.models.iter().any(|m| m.part.is_some()) {
+                        ui.horizontal(|ui| {
+                            for (k, label, tip) in [(0u8, "All", "Every 3D model"), (1, "Figures", "Models that stand for a character on their own"), (2, "Pieces", "Hair, outfits, headwear…: worn by figures")] {
+                                if ui.selectable_label(*model_filter == k, label).on_hover_text(tip).clicked() {
+                                    *model_filter = k;
+                                }
+                            }
+                        });
+                    }
+                    let f = *model_filter;
+                    let note = |d: &rustpg2d_engine::defs::ModelDef| match (&d.part, d.playable) {
+                        (Some(p), _) => format!("  - {}", p.slot),
+                        (None, true) => "  - playable".to_string(),
+                        _ => String::new(),
+                    };
+                    list_ui(ui, &mut db.models, sel, |d| f == 0 || (f == 2) == d.part.is_some(), |d| format!("{}  ({}){}", d.label(), d.id, note(d)), |ids| rustpg2d_engine::defs::ModelDef::new(&unique("model", ids), ""), |d| &mut d.id)
                 }
                 Tab::Races => list_ui(ui, &mut db.races, sel, |_| true, |d| format!("{}  ({}){}", d.name, d.id, if d.playable { "" } else { "  - not playable" }), |ids| rustpg2d_engine::races::RaceDef::fresh(&unique("race", ids)), |d| &mut d.id),
                 Tab::Recipes => {
@@ -1492,6 +1510,25 @@ fn item_form(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
     ui.heading("Icon");
     widgets::sprite_field(ui, "item_icon", &mut d.icon, cx.tex, cx.assets, cx.db, false);
     art_buttons(ui, cx, "icon", (1, 1));
+    // What a figure wearing it shows (clothing, armour, boots, gloves, cloaks, headgear).
+    if d.armor.as_ref().is_some_and(|a| matches!(a.slot, EquipSlot::Clothing | EquipSlot::Body | EquipSlot::Feet | EquipSlot::Hands | EquipSlot::Cloak | EquipSlot::Head)) || !d.wear.is_empty() {
+        let mut styles: Vec<String> = cx.db.models.iter().filter_map(|m| m.part.as_ref()).map(|p| p.style.clone()).filter(|s| !s.is_empty()).collect();
+        styles.sort();
+        styles.dedup();
+        if !styles.is_empty() || !d.wear.is_empty() {
+            ui.separator();
+            ui.heading("On the figure");
+            ui.horizontal(|ui| {
+                ui.label("Shown as").on_hover_text("The piece style a 3D model character shows while it wears the item (an armour, a helmet, a cloak): each figure wears its own piece of that style, in the piece's slot");
+                egui::ComboBox::from_id_salt(("item_wear", &d.id)).selected_text(if d.wear.is_empty() { "(nothing changes on the figure)" } else { d.wear.as_str() }).height(300.0).show_ui(ui, |ui| {
+                    ui.selectable_value(&mut d.wear, String::new(), "(nothing changes on the figure)");
+                    for s in &styles {
+                        ui.selectable_value(&mut d.wear, s.clone(), s);
+                    }
+                });
+            });
+        }
+    }
     let holdable = d.weapon.is_some() || !d.tool.is_empty() || d.armor.as_ref().is_some_and(|a| matches!(a.slot, EquipSlot::Offhand | EquipSlot::Back));
     if holdable {
         ui.separator();
@@ -6297,6 +6334,30 @@ fn rig_template_ui(ui: &mut egui::Ui, d: &mut rustpg2d_engine::defs::ModelDef, c
     });
 }
 
+/// A list of ids as removable chips and an *Add* chooser of `options` (id, label).
+fn pick_list(ui: &mut egui::Ui, salt: impl std::hash::Hash, list: &mut Vec<String>, options: &[(String, String)]) {
+    ui.horizontal_wrapped(|ui| {
+        let mut remove = None;
+        for (k, id) in list.iter().enumerate() {
+            if ui.small_button(format!("{id}  {}", ph::X)).on_hover_text("Remove").clicked() {
+                remove = Some(k);
+            }
+        }
+        if let Some(k) = remove {
+            list.remove(k);
+        }
+        let mut add: Option<String> = None;
+        egui::ComboBox::from_id_salt(salt).selected_text(ui::t(ph::PLUS, "Add")).height(300.0).show_ui(ui, |ui| {
+            for (id, label) in options.iter().filter(|o| !list.contains(&o.0)) {
+                ui.selectable_value(&mut add, Some(id.clone()), label);
+            }
+        });
+        if let Some(a) = add {
+            list.push(a);
+        }
+    });
+}
+
 fn model_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::defs::ModelDef, cx: &mut Cx) {
     use rustpg2d_engine::defs::{Appearance, ClipMap};
     use rustpg2d_engine::entity::Facing;
@@ -6376,6 +6437,58 @@ fn model_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::defs::ModelDef, cx: &m
             ui.checkbox(&mut d.female, "Female").on_hover_text("Offered to female player characters");
         });
         ui.end_row();
+        ui.label("Figure height");
+        ui.add(egui::DragValue::new(&mut d.stand).range(0.0..=50.0).speed(0.01))
+            .on_hover_text("The standing figure's height in the model's own units when the file holds only a piece of the figure (a body whose clothes are pieces); 0 = the mesh's own height");
+        ui.end_row();
+        let pieces: Vec<(String, String)> = cx.db.models.iter().filter(|m| m.part.is_some() && m.id != d.id).map(|m| (m.id.clone(), format!("{} ({})", m.label(), m.id))).collect();
+        if d.part.is_none() && (!pieces.is_empty() || !d.parts.is_empty()) {
+            ui.label("Own pieces").on_hover_text("What the figure wears unless a character chose otherwise or its equipment shows: one piece per slot (hair, outfit…)");
+            pick_list(ui, ("model_parts", &d.id), &mut d.parts, &pieces);
+            ui.end_row();
+        }
+        ui.label("Piece");
+        ui.vertical(|ui| {
+            let mut on = d.part.is_some();
+            if ui.checkbox(&mut on, "Worn by other models").on_hover_text("Hair, an outfit, a helmet: drawn on a figure in the figure's pose. Its bones must have the names of the figure's bones.").changed() {
+                d.part = on.then(Default::default);
+            }
+            if let Some(p) = &mut d.part {
+                let slots: Vec<String> = {
+                    let mut v: Vec<String> = ["outfit", "hair", "beard", "headwear", "cloak"].iter().map(|s| s.to_string()).chain(cx.db.models.iter().filter_map(|m| m.part.as_ref()).map(|x| x.slot.clone())).collect();
+                    v.sort();
+                    v.dedup();
+                    v
+                };
+                egui::Grid::new(("model_piece", &d.id)).num_columns(2).show(ui, |ui| {
+                    ui.label("Slot").on_hover_text("Where it goes: a figure wears one piece per slot");
+                    ui.horizontal(|ui| {
+                        ui.add(egui::TextEdit::singleline(&mut p.slot).desired_width(120.0));
+                        egui::ComboBox::from_id_salt(("piece_slot", &d.id)).selected_text("").width(20.0).show_ui(ui, |ui| {
+                            for s in &slots {
+                                ui.selectable_value(&mut p.slot, s.clone(), s);
+                            }
+                        });
+                    });
+                    ui.end_row();
+                    ui.label("Style").on_hover_text("What it is across figures (\"leather_armor\", \"hair_ponytail\"): an item's \"Shown as\" names the style, and each figure has its own piece of it");
+                    ui.add(egui::TextEdit::singleline(&mut p.style).desired_width(160.0));
+                    ui.end_row();
+                    ui.label("Fits").on_hover_text("The figures that can wear it (none listed: every figure)");
+                    let figures: Vec<(String, String)> = cx.db.models.iter().filter(|m| m.part.is_none()).map(|m| (m.id.clone(), format!("{} ({})", m.label(), m.id))).collect();
+                    pick_list(ui, ("piece_fits", &d.id), &mut p.fits, &figures);
+                    ui.end_row();
+                    ui.label("Hides").on_hover_text("Slots it hides while worn (a helmet hides the hair)");
+                    let opts: Vec<(String, String)> = slots.iter().filter(|s| **s != p.slot).map(|s| (s.clone(), s.clone())).collect();
+                    pick_list(ui, ("piece_hides", &d.id), &mut p.hides, &opts);
+                    ui.end_row();
+                    ui.label("Character creator");
+                    ui.checkbox(&mut p.offer, "Offered").on_hover_text("Players may choose it in the character creator (its Hair style and Beard rows)");
+                    ui.end_row();
+                });
+            }
+        });
+        ui.end_row();
     });
     let info = cx.assets.models.info(&d.id);
     match &info {
@@ -6404,50 +6517,53 @@ fn model_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::defs::ModelDef, cx: &m
     cx.assets.models.set_def(d);
     // Animations: the clip each plays.
     let clips: Vec<(String, f32)> = info.as_ref().map(|i| i.clips.clone()).unwrap_or_default();
-    ui.separator();
-    ui.heading("Animations");
-    ui.weak("The clip each animation plays (12 frames a second unless set). Characters without a clip for an animation play idle; walking, idle, attacks and being hit are used by everyone, sitting and sleeping on furniture, the rest by activities. The weapon animations (attack_1h…) are played holding items that name them (Database › Items › Animations), else the plain ones; Hit is where in the clip the blow lands or the guard is up.");
-    egui::Grid::new("model_clips").num_columns(4).show(ui, |ui| {
-        for anim in rustpg2d_engine::model::all_anims() {
-            if anim == rustpg2d_engine::defs::STANDARD_ANIMS[0] {
-                ui.strong("Weapons");
-                ui.end_row();
-            }
-            ui.label(anim);
-            let cur = d.clip_of(anim).map(|c| c.clip.clone()).unwrap_or_default();
-            let mut pick = cur.clone();
-            egui::ComboBox::from_id_salt(("model_clip", anim)).width(220.0).selected_text(if pick.is_empty() { "(none: idle)".to_string() } else { pick.clone() }).show_ui(ui, |ui| {
-                ui.selectable_value(&mut pick, String::new(), "(none: idle)");
-                for (c, secs) in &clips {
-                    ui.selectable_value(&mut pick, c.clone(), format!("{c}  ({secs:.1} s)"));
+    // (A piece plays the clips of the figure that wears it.)
+    if d.part.is_none() {
+        ui.separator();
+        ui.heading("Animations");
+        ui.weak("The clip each animation plays (12 frames a second unless set). Characters without a clip for an animation play idle; walking, idle, attacks and being hit are used by everyone, sitting and sleeping on furniture, the rest by activities. The weapon animations (attack_1h…) are played holding items that name them (Database › Items › Animations), else the plain ones; Hit is where in the clip the blow lands or the guard is up.");
+        egui::Grid::new("model_clips").num_columns(4).show(ui, |ui| {
+            for anim in rustpg2d_engine::model::all_anims() {
+                if anim == rustpg2d_engine::defs::STANDARD_ANIMS[0] {
+                    ui.strong("Weapons");
+                    ui.end_row();
                 }
-            });
-            if pick != cur {
-                d.clips.retain(|c| c.anim != anim);
-                if !pick.is_empty() {
-                    d.clips.push(ClipMap { anim: anim.into(), clip: pick, fps: 12.0, hit: None });
+                ui.label(anim);
+                let cur = d.clip_of(anim).map(|c| c.clip.clone()).unwrap_or_default();
+                let mut pick = cur.clone();
+                egui::ComboBox::from_id_salt(("model_clip", anim)).width(220.0).selected_text(if pick.is_empty() { "(none: idle)".to_string() } else { pick.clone() }).show_ui(ui, |ui| {
+                    ui.selectable_value(&mut pick, String::new(), "(none: idle)");
+                    for (c, secs) in &clips {
+                        ui.selectable_value(&mut pick, c.clone(), format!("{c}  ({secs:.1} s)"));
+                    }
+                });
+                if pick != cur {
+                    d.clips.retain(|c| c.anim != anim);
+                    if !pick.is_empty() {
+                        d.clips.push(ClipMap { anim: anim.into(), clip: pick, fps: 12.0, hit: None });
+                    }
                 }
-            }
-            match d.clips.iter_mut().find(|c| c.anim == anim) {
-                Some(c) => {
-                    ui.add(egui::DragValue::new(&mut c.fps).range(1.0..=30.0).suffix(" fps"));
-                    if rustpg2d_engine::model::has_hit(anim) {
-                        let mut hit = c.hit_point();
-                        if ui.add(egui::DragValue::new(&mut hit).range(0.05..=0.95).speed(0.01).prefix("hit ")).on_hover_text("Where in the clip (0 = start, 1 = end) the blow lands, or the guard is up").changed() {
-                            c.hit = Some(hit);
+                match d.clips.iter_mut().find(|c| c.anim == anim) {
+                    Some(c) => {
+                        ui.add(egui::DragValue::new(&mut c.fps).range(1.0..=30.0).suffix(" fps"));
+                        if rustpg2d_engine::model::has_hit(anim) {
+                            let mut hit = c.hit_point();
+                            if ui.add(egui::DragValue::new(&mut hit).range(0.05..=0.95).speed(0.01).prefix("hit ")).on_hover_text("Where in the clip (0 = start, 1 = end) the blow lands, or the guard is up").changed() {
+                                c.hit = Some(hit);
+                            }
+                        } else {
+                            ui.label("");
                         }
-                    } else {
+                    }
+                    None => {
+                        ui.label("");
                         ui.label("");
                     }
                 }
-                None => {
-                    ui.label("");
-                    ui.label("");
-                }
+                ui.end_row();
             }
-            ui.end_row();
-        }
-    });
+        });
+    }
     // Preview: turning (or one facing), playing the chosen animation, and the four facings.
     ui.separator();
     let pid = egui::Id::new(("model_preview", &d.id));

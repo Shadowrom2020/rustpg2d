@@ -169,6 +169,28 @@ impl Game {
         out
     }
 
+    /// `parts=` for `status`: the pieces the player's figure and those of the characters within 8
+    /// tiles show, as `who:style+style` (hair, outfit, headwear…; a piece without a style by its
+    /// id). Figures without pieces are left out.
+    pub(super) fn parts_status(&self) -> Vec<String> {
+        let db = &self.project.db;
+        let line = |who: &str, a: &Appearance, gear: &Gear| -> Option<String> {
+            let look = self.look(a);
+            let parts = crate::render::model::parts_of(db, &look.model, &look, gear);
+            let names: Vec<String> = parts.iter().map(|id| db.model(id).and_then(|m| m.part.as_ref()).map(|p| p.style.clone()).filter(|s| !s.is_empty()).unwrap_or_else(|| id.clone())).collect();
+            (!names.is_empty()).then(|| format!("{who}:{}", names.join("+")))
+        };
+        let mut out: Vec<String> = self.player_appearance().and_then(|a| line("player", &a, &self.player_gear())).into_iter().collect();
+        let ts = self.ts();
+        for (i, e) in self.loaded.entities.iter().enumerate() {
+            if e.active && e.kind == crate::entity::EntityKind::Character && e.body.pos.distance(self.player.pos) < 8.0 * ts {
+                let who = if e.name.is_empty() { &e.def } else { &e.name };
+                out.extend(line(who, &e.appearance, &self.character_gear(&e.equipment, &e.carrying, self.activity_tool(i).as_deref())));
+            }
+        }
+        out
+    }
+
     /// `held=` for `status`: what the player and the characters within 8 tiles hold, as
     /// `who:item@hand` (`R`, `L`, `B` = both; `/back` behind a figure), a sheathed weapon as
     /// `who:item@hip` and a backpack as `who:item@back`.

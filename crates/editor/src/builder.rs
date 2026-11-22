@@ -44,7 +44,8 @@ pub fn request_playable(model: &str, on: bool) {
 /// Cards of the project's 3D models (standing, facing the front); playable ones marked. Returns the
 /// clicked id.
 pub fn model_cards(ui: &mut Ui, cx: &Cx, base: &Appearance, current: &str) -> Option<String> {
-    let ids: Vec<String> = cx.db.models.iter().map(|m| m.id.clone()).collect();
+    // (Pieces aren't figures of their own.)
+    let ids: Vec<String> = cx.db.models.iter().filter(|m| m.part.is_none()).map(|m| m.id.clone()).collect();
     model_cards_of(ui, cx, &ids, None, base, current)
 }
 
@@ -212,7 +213,42 @@ fn paint_holding(ui: &Ui, cx: &Cx, a: &Appearance, eq: &Equipment, (facing, anim
 
 /// The colour features of a look's model.
 pub fn look_features(db: &Database, a: &Appearance) -> Vec<ColorFeature> {
-    db.model(&a.model).map(|m| m.features.clone()).unwrap_or_default()
+    // The model's, then those of the pieces it wears (a feature counts once; the first colours
+    // offered for it are its swatches).
+    let mut out: Vec<ColorFeature> = db.model(&a.model).map(|m| m.features.clone()).unwrap_or_default();
+    for id in rustpg2d_engine::render::model::parts_of(db, &a.model, a, &Default::default()) {
+        for f in db.model(&id).map_or(&[][..], |m| &m.features[..]) {
+            match out.iter_mut().find(|o| o.name == f.name) {
+                Some(o) if o.colors.is_empty() => o.colors = f.colors.clone(),
+                Some(_) => {}
+                None => out.push(f.clone()),
+            }
+        }
+    }
+    out
+}
+
+/// A slot a model can wear a piece in: its name, the pieces that fit the model (id, label) and
+/// the model's own piece of that slot.
+pub type PieceSlot = (String, Vec<(String, String)>, Option<String>);
+
+/// The slots model `body` can wear a piece in.
+pub fn piece_slots(db: &Database, body: &str) -> Vec<PieceSlot> {
+    let mut slots: Vec<PieceSlot> = Vec::new();
+    for m in &db.models {
+        let Some(p) = m.part.as_ref().filter(|p| p.fits.is_empty() || p.fits.iter().any(|f| f == body)) else { continue };
+        let label = if p.style.is_empty() { m.label().to_string() } else { p.label() };
+        match slots.iter_mut().find(|s| s.0 == p.slot) {
+            Some(s) => s.1.push((m.id.clone(), label)),
+            None => slots.push((p.slot.clone(), vec![(m.id.clone(), label)], None)),
+        }
+    }
+    let own: Vec<&String> = db.model(body).map_or(Vec::new(), |b| b.parts.iter().collect());
+    for s in &mut slots {
+        s.2 = s.1.iter().find(|(id, _)| own.contains(&id)).map(|(id, _)| id.clone());
+    }
+    slots.sort_by(|a, b| a.0.cmp(&b.0));
+    slots
 }
 
 /// World size of a look's frame.
@@ -293,8 +329,9 @@ pub fn builder_ui(ui: &mut Ui, id: &str, p: Parts, cx: &Cx) -> Out {
             section(ui, "Model", true, &mut |ui| {
                 if let Some(m) = model_cards(ui, cx, a, &a.model) {
                     if m != a.model {
-                        // Another model has other features.
+                        // Another model has other features and other pieces.
                         a.colors.clear();
+                        a.parts.clear();
                     }
                     a.model = m;
                     a.body.clear();
@@ -311,6 +348,47 @@ pub fn builder_ui(ui: &mut Ui, id: &str, p: Parts, cx: &Cx) -> Out {
                     ui.colored_label(Color32::YELLOW, "No 3D models in this project: import one in Database › 3D models, generate one (New character… › AI) or add some from the asset library. Until then characters show as the mannequin.");
                 }
             });
+            let slots = piece_slots(cx.db, &a.model);
+            if !slots.is_empty() {
+                section(ui, "Pieces", true, &mut |ui| {
+                    ui.weak("Hair, outfit, headwear… that this model can wear. Equipment that shows on the figure (an armour, a helmet, a cloak) takes its slot while it is worn.");
+                    egui::Grid::new((id, "pieces")).num_columns(2).show(ui, |ui| {
+                        for (slot, pieces, own) in &slots {
+                            let mut c = slot.replace('_', " ");
+                            if let Some(f) = c.get_mut(0..1) {
+                                f.make_ascii_uppercase();
+                            }
+                            ui.label(c);
+                            let own_label = match own.as_ref().and_then(|o| pieces.iter().find(|p| p.0 == *o)) {
+                                Some((_, l)) => format!("The model's own ({l})"),
+                                None => "The model's own (none)".to_string(),
+                            };
+                            let chosen = a.parts.get(slot).cloned();
+                            let shown = match chosen.as_deref() {
+                                None => own_label.clone(),
+                                Some(rustpg2d_engine::defs::NO_PART) => "None".to_string(),
+                                Some(c) => pieces.iter().find(|p| p.0 == c).map_or_else(|| c.to_string(), |p| p.1.clone()),
+                            };
+                            let mut pick = chosen.clone();
+                            egui::ComboBox::from_id_salt((id, "piece", slot)).selected_text(shown).width(220.0).show_ui(ui, |ui| {
+                                ui.selectable_value(&mut pick, None, own_label);
+                                ui.selectable_value(&mut pick, Some(rustpg2d_engine::defs::NO_PART.to_string()), "None");
+                                for (pid, label) in pieces {
+                                    ui.selectable_value(&mut pick, Some(pid.clone()), label);
+                                }
+                            });
+                            if pick != chosen {
+                                match pick {
+                                    Some(p) => a.parts.insert(slot.clone(), p),
+                                    None => a.parts.remove(slot),
+                                };
+                                out.changed = true;
+                            }
+                            ui.end_row();
+                        }
+                    });
+                });
+            }
             section(ui, "Colours", true, &mut |ui| {
                 if features.is_empty() {
                     ui.weak("This model has no colour features. Pick its skin, hair, clothing… in Database › 3D models › Colour features to recolour it.");
@@ -320,7 +398,7 @@ pub fn builder_ui(ui: &mut Ui, id: &str, p: Parts, cx: &Cx) -> Out {
                 }
             });
             section(ui, "Equipment", !eq.is_empty(), &mut |ui| {
-                ui.weak("Counts in play (damage, defense, what it drops). Weapons and left-hand items show in the hands (as their 3D model or their picture), a backpack on the back; worn armour shows only in the model's art.");
+                ui.weak("Counts in play (damage, defense, what it drops). Weapons and left-hand items show in the hands (as their 3D model or their picture), a backpack on the back; armour, headgear and cloaks show when the item names a style (its *Shown as*) that this model has a piece of.");
                 for slot in [EquipSlot::Weapon, EquipSlot::Offhand, EquipSlot::Head, EquipSlot::Body, EquipSlot::Clothing, EquipSlot::Back] {
                     ui.label(match slot {
                         EquipSlot::Body => "Body armor",
@@ -697,6 +775,7 @@ impl Editor {
                 }
                 if p.appearance.model != id {
                     p.appearance.colors.clear();
+                    p.appearance.parts.clear();
                 }
                 p.appearance.model = id.to_string();
                 p.appearance.body.clear();
@@ -708,6 +787,20 @@ impl Editor {
                     p.appearance.colors.remove(feature);
                 } else {
                     p.appearance.colors.insert(feature.to_string(), rgb(c.trim()).ok_or("color: RRGGBB expected")?);
+                }
+            }
+            // `part SLOT ID` (a piece's model id or style; `-`: none, `own`: as the model has it).
+            "part" => {
+                let (slot, piece) = value.split_once(' ').ok_or("part: SLOT ID|-|own expected")?;
+                let piece = piece.trim();
+                if piece == "own" {
+                    p.appearance.parts.remove(slot);
+                } else {
+                    let known = piece == rustpg2d_engine::defs::NO_PART || db.models.iter().any(|m| m.part.as_ref().is_some_and(|x| x.slot == slot && (m.id == piece || x.style == piece)));
+                    if !known {
+                        return Err(format!("no piece '{piece}' for slot '{slot}'"));
+                    }
+                    p.appearance.parts.insert(slot.to_string(), piece.to_string());
                 }
             }
             "clothing" | "head" | "armor" | "body_armor" | "weapon" | "offhand" => {
@@ -734,7 +827,8 @@ impl Editor {
             Some(b) => {
                 let worn: Vec<&str> = b.equipment.stacks().map(|s| s.item.as_str()).collect();
                 let colors: Vec<String> = b.appearance.colors.iter().map(|(k, v)| format!("{k}:{:02x}{:02x}{:02x}", v[0], v[1], v[2])).collect();
-                format!("{:?} source={:?} id={} name={} model={} colors={{{}}} worn={} carried={} err={:?}", b.target, b.source, b.id, b.name, b.appearance.model, colors.join(" "), worn.join(","), b.inventory.len(), b.error)
+                let parts: Vec<String> = b.appearance.parts.iter().map(|(k, v)| format!("{k}:{v}")).collect();
+                format!("{:?} source={:?} id={} name={} model={} colors={{{}}} parts={{{}}} worn={} carried={} err={:?}", b.target, b.source, b.id, b.name, b.appearance.model, colors.join(" "), parts.join(" "), worn.join(","), b.inventory.len(), b.error)
             }
         }
     }

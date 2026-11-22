@@ -1485,4 +1485,10 @@
         frame_w: 96,
         frame_h: 96,
     ),
+    (
+        id: "spell_icons",
+        image: "sprites/spell_icons.png",
+        frame_w: 32,
+        frame_h: 32,
+    ),
 ]

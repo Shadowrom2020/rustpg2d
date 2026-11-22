@@ -702,6 +702,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   thorns, shields, symbols such as a Z for Sleep or a heart for Charm Person, in the colours of its
   damage type or school), an area's effect as big as the area, a flying sprite for the 19 bolts and
   rays, and a sound for some (fire and big areas, healing and protective spells, Knock).
+- **An icon for every spell** (starter library and example, one sheet `spell_icons`): a badge in
+  its school's colour with a glyph for what it does in its element's colours (a flame, a
+  snowflake, a heart, a skull, a shield…), a small second glyph, and its level as pips.
 
 ### Art
 - The **hero** (the male human hero, the starter library's *Hero* character) has a new model with

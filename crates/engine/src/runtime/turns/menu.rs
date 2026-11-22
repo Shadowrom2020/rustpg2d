@@ -333,11 +333,8 @@ impl Game {
         }
         // A long list scrolls: the wheel moves it, and the selection stays in view.
         let shown = self.fight_menu_shown(&menu);
-        let mut scroll = menu.scroll;
-        let wheel = input::wheel();
-        if wheel != 0.0 {
-            scroll = if wheel > 0.0 { scroll.saturating_sub(1) } else { scroll + 1 };
-        }
+        let mut scroll = menu.scroll.min(n.saturating_sub(shown));
+        crate::runtime::ui::wheel_list(&mut sel, &mut scroll, n, shown, input::wheel());
         let (_, rects) = self.fight_menu_layout(&FightMenu { scroll, ..menu.clone() });
         let mouse = input::mouse_pos();
         let hovered = rects.iter().position(|r| r.contains(mouse)).map(|k| k + scroll.min(n.saturating_sub(shown)));

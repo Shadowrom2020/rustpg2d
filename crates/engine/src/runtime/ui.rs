@@ -494,6 +494,17 @@ pub(super) fn clamp_list(sel: &mut usize, scroll: &mut usize, len: usize, visibl
     }
 }
 
+/// The mouse wheel over a list of `len` rows, `visible` at a time: scrolls it a row (`wheel` > 0 =
+/// up) and takes the selection along when it would leave the view, so a list whose first or last
+/// row is selected still scrolls (the selection isn't left off screen).
+pub(super) fn wheel_list(sel: &mut usize, scroll: &mut usize, len: usize, visible: usize, wheel: f32) {
+    if wheel == 0.0 || len == 0 || visible == 0 {
+        return;
+    }
+    *scroll = if wheel > 0.0 { scroll.saturating_sub(1) } else { (*scroll + 1).min(len.saturating_sub(visible)) };
+    *sel = (*sel).clamp(*scroll, (*scroll + visible).min(len) - 1);
+}
+
 /// Rows with a selection, a scroll offset and double-click detection: the trade window's two
 /// lists and the crafting window. Row `k` is drawn at `row_rect(k - scroll)` while visible.
 #[derive(Clone, Debug, Default)]
@@ -659,4 +670,39 @@ pub(super) fn item_stats_line(d: &crate::defs::ItemDef) -> Option<String> {
 /// A window or menu panel in the skin's look ([`super::skin::panel`]).
 pub(super) fn panel(x: f32, y: f32, w: f32, h: f32) {
     super::skin::panel(x, y, w, h);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_wheel_takes_the_selection_along_at_the_ends() {
+        // 20 rows, 5 shown, the first selected: scrolling down moves the mark with the view.
+        let (mut sel, mut scroll) = (0, 0);
+        wheel_list(&mut sel, &mut scroll, 20, 5, -1.0);
+        assert_eq!((sel, scroll), (1, 1));
+        // The last row selected at the bottom: scrolling up takes it along too.
+        let (mut sel, mut scroll) = (19, 15);
+        wheel_list(&mut sel, &mut scroll, 20, 5, 1.0);
+        assert_eq!((sel, scroll), (18, 14));
+        // A selection in the middle of the view stays; the list stops at its ends.
+        let (mut sel, mut scroll) = (7, 5);
+        wheel_list(&mut sel, &mut scroll, 20, 5, -1.0);
+        assert_eq!((sel, scroll), (7, 6));
+        let (mut sel, mut scroll) = (2, 0);
+        wheel_list(&mut sel, &mut scroll, 20, 5, 1.0);
+        assert_eq!((sel, scroll), (2, 0));
+        // A list that fits doesn't move.
+        let (mut sel, mut scroll) = (0, 0);
+        wheel_list(&mut sel, &mut scroll, 3, 5, -1.0);
+        assert_eq!((sel, scroll), (0, 0));
+        // And the selection then stays in view (no snapping back).
+        let (mut sel, mut scroll) = (0, 0);
+        for _ in 0..4 {
+            wheel_list(&mut sel, &mut scroll, 20, 5, -1.0);
+            clamp_list(&mut sel, &mut scroll, 20, 5);
+        }
+        assert_eq!((sel, scroll), (4, 4));
+    }
 }

@@ -57,6 +57,7 @@ mod widgets;
 use std::collections::VecDeque;
 
 use app::{Editor, Mode, Pending, Selection, Tool};
+use art::Locked;
 use macroquad::prelude::*;
 
 thread_local! {
@@ -1164,12 +1165,12 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         },
         "artjobs" => {
             for j in &ed.art.jobs {
-                println!("[art] {}", j.lock().unwrap().line());
+                println!("[art] {}", j.locked().line());
             }
         }
         "artapply" => {
             let job = num(1) as u32;
-            let id = if arg(2).is_empty() { ed.art.job(job).map(|j| j.lock().unwrap().req.id.clone()).unwrap_or_default() } else { arg(2).to_string() };
+            let id = if arg(2).is_empty() { ed.art.job(job).map(|j| j.locked().req.id.clone()).unwrap_or_default() } else { arg(2).to_string() };
             match ed.apply_art(job, &id) {
                 Ok(m) => println!("[art] {m}"),
                 Err(e) => println!("[art] apply refused: {e:#}"),

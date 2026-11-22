@@ -280,7 +280,7 @@ impl Game {
             return Err("Takes minutes");
         }
         let shield = self.project.db.item(item).and_then(|d| d.armor.as_ref()).is_some_and(|a| a.category == Some(crate::defs::ArmorCategory::Shield));
-        let c = self.fight.as_mut().unwrap();
+        let c = self.fight.as_mut().ok_or("No fight")?;
         if shield || c.turn.interacted {
             if c.turn.action {
                 return Err("Action used");

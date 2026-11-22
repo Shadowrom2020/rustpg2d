@@ -783,6 +783,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **Undo steps of definitions keep what changed**, not a copy of all definitions each: the lists
   that changed, and of a list in which one definition changed only that one (100 steps of a big
   project could hold hundreds of megabytes).
+- **Possible crashes taken out**: the fight's code assumed in 68 places that
+  the fight still exists (the hero's death ends it in the middle of an action); every place now
+  stops quietly when it doesn't. The editor's art jobs and the game's sound loading keep going
+  when one of their threads fails, instead of taking the editor or the game down.
 - Casting *Find Familiar* a second time gave a second owl. A caster's summoning spell cast again
   now replaces the creatures of its earlier casting.
 - A summoned creature that vanishes (0 hit points, its time, the spell's end) stays in the map's

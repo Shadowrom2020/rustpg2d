@@ -1,7 +1,7 @@
 //! The agent server's `art_*` tools: Generate art for AI agents, with the creator's money
 //! guarded (the price must be confirmed per call, the session budget holds).
 
-use super::{api_key, meshy, ArtKind, ArtRequest, Stage, ATTACKS};
+use super::{api_key, meshy, ArtKind, ArtRequest, Locked, Stage, ATTACKS};
 use crate::app::Editor;
 use crate::mcp::exec::{text, Reply};
 use crate::mcp::tools::{ArtApplyParams, ArtJobParams, ArtRedoParams, GenerateArtParams};
@@ -10,7 +10,7 @@ impl Editor {
     pub(crate) fn mcp_art_settings(&mut self) -> Result<Reply, String> {
         let s = &self.art_settings;
         let has = !api_key().is_empty() || std::env::var_os("RUSTPG2D_MESHY_FAKE").is_some();
-        let spent = *self.art.spent.lock().unwrap();
+        let spent = *self.art.spent.locked();
         text(format!(
             "Meshy key: {}. Model: {} ({} credits a picture: icons, props, portraits, pictures). Session budget: {} credits, {} used, {} left. 3D: a model {} credits, a rig {}, each animation clip {} (a 3D character = turnaround picture + model + rig + 4-5 clips, about {} credits; a creature = picture + model; an item's model = model).\nAttacks of 3D characters: {}.\nExtra animations: {}.\nClips for an existing rigged model (kind clips: a rig {} + {} per clip): {}.",
             if has { "set" } else { "not set (the person enters it in Edit › Settings… › Meshy)" },
@@ -69,12 +69,12 @@ impl Editor {
         if self.art.jobs.is_empty() {
             return text("No art jobs this session.");
         }
-        let lines: Vec<String> = self.art.jobs.iter().map(|j| j.lock().unwrap().line()).collect();
+        let lines: Vec<String> = self.art.jobs.iter().map(|j| j.locked().line()).collect();
         text(lines.join("\n"))
     }
 
     pub(crate) fn mcp_art_result(&mut self, p: ArtJobParams) -> Result<Reply, String> {
-        let j = self.art.job(p.job).ok_or_else(|| format!("no art job {}", p.job))?.lock().unwrap().clone();
+        let j = self.art.job(p.job).ok_or_else(|| format!("no art job {}", p.job))?.locked().clone();
         match &j.stage {
             Stage::Drawing | Stage::Converting => return text(format!("{} (not finished yet)", j.line())),
             Stage::Failed(_) => return text(j.line()),
@@ -106,7 +106,7 @@ impl Editor {
         self.mcp_need_project()?;
         let id = match p.id {
             Some(id) => id,
-            None => self.art.job(p.job).ok_or_else(|| format!("no art job {}", p.job))?.lock().unwrap().req.id.clone(),
+            None => self.art.job(p.job).ok_or_else(|| format!("no art job {}", p.job))?.locked().req.id.clone(),
         };
         let msg = self.apply_art(p.job, &id).map_err(|e| format!("{e:#}"))?;
         self.watch_resnapshot();
@@ -114,7 +114,7 @@ impl Editor {
     }
 
     pub(crate) fn mcp_art_redo(&mut self, p: ArtRedoParams) -> Result<Reply, String> {
-        let job = self.art.job(p.job).ok_or_else(|| format!("no art job {}", p.job))?.lock().unwrap().clone();
+        let job = self.art.job(p.job).ok_or_else(|| format!("no art job {}", p.job))?.locked().clone();
         let steps = super::ArtState::redo_steps(&job, &p.picture);
         let cost = super::ArtState::redo_cost(&job, &p.picture);
         let what = if job.req.kind.is_3d() { format!("making the {} again", steps.join(", ")) } else { format!("drawing the {} picture again", p.picture) };

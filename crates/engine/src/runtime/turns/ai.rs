@@ -44,19 +44,21 @@ impl Game {
         if self.ai_flees(me.who) {
             if !turn.action {
                 let speed = self.who_speed_now(me.who);
-                let c = self.fight.as_mut().unwrap();
+                let Some(c) = self.fight.as_mut() else { return };
                 c.turn.action = true;
                 c.turn.speed += speed;
                 let name = self.who_name(me.who);
                 self.fight_log(format!("{name}: {}", crate::lang::tr_ui("flees")));
             }
-            if !self.fight.as_ref().unwrap().turn.ai_walked {
+            if self.fight.as_ref().is_some_and(|c| !c.turn.ai_walked) {
                 let foes: Vec<TilePos> = self.ai_foes(me.who, me.side).into_iter().map(|w| self.who_tile(w)).collect();
                 let reach = self.reachable(me.who);
                 let best = reach.keys().copied().max_by_key(|t| (foes.iter().map(|f| dist(*t, *f)).min().unwrap_or(0), -(reach[t].0 as i32)));
                 if let Some(goal) = best.filter(|g| *g != here) {
                     let path = Self::path_to(&reach, here, goal);
-                    self.fight.as_mut().unwrap().turn.ai_walked = true;
+                    if let Some(c) = &mut self.fight {
+                        c.turn.ai_walked = true;
+                    }
                     self.walk(path);
                     return;
                 }
@@ -82,7 +84,9 @@ impl Game {
         if !turn.action {
             if let Some(i) = self.who_index(me.who) {
                 if self.npc_drink_now(i) {
-                    self.fight.as_mut().unwrap().turn.action = true;
+                    if let Some(c) = &mut self.fight {
+                        c.turn.action = true;
+                    }
                     return;
                 }
             }
@@ -249,7 +253,9 @@ impl Game {
             if let Some(t) = mine {
                 best = Some((0, t));
             }
-            self.fight.as_mut().unwrap().turn.ai_walked = true;
+            if let Some(c) = &mut self.fight {
+                c.turn.ai_walked = true;
+            }
             if let Some((_, goal)) = best.filter(|b| b.1 != here) {
                 let path = Self::path_to(&reach, here, goal);
                 if !path.is_empty() {

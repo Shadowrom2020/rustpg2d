@@ -1138,5 +1138,7 @@
         "Gear": "Снаряжение",
         "Nothing here.": "Здесь ничего нет.",
         "Click price / {key:confirm}: trade one   {key:run}: ten   {key:up} / {key:down}: select   {key:left} / {key:right}: switch side   {key:next_tab} / 1-6: filter   {key:cancel}: close": "Щелчок по цене / {key:confirm}: обмен одного   {key:run}: десяти   {key:up} / {key:down}: выбор   {key:left} / {key:right}: другая сторона   {key:next_tab} / 1-6: фильтр   {key:cancel}: закрыть",
+        "Unnoticed": "Незамеченным",
+        "No enemy in sight": "Врагов не видно",
     },
 )

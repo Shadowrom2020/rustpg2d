@@ -1,8 +1,9 @@
 //! Sneaking: the player toggles it (Act::Sneak: Left Ctrl / V, the left stick) and walks at half
-//! speed (a model's "sneak" clip, else the walk slowed down). Enemies (`ai.rs`) notice the player
-//! within [`Game::player_sight`] of their sight: half while sneaking, and less in the dark (the map's
-//! light by the clock and the light sources near the player, the player's own lantern included),
-//! but always within [`NEAR_NOTICE`]. A hit on an enemy that hasn't noticed the player is a sneak
+//! speed (a model's "sneak" clip, else the walk slowed down). Starting to sneak rolls the hero's
+//! Stealth once (the SRD's hiding). Enemies (`ai.rs`) notice the player within [`Game::player_sight`]
+//! of their sight, less in the dark (the map's light by the clock and the light sources near the
+//! player, the player's own lantern included); a sneaking hero only when their passive Perception
+//! reaches the Stealth roll. Within [`NEAR_NOTICE`] they always do (bumping into them). A hit on an enemy that hasn't noticed the player is a sneak
 //! attack: double damage, more with *Sneak attack* skills, shown like a critical hit.
 
 use macroquad::prelude::*;
@@ -11,8 +12,6 @@ use super::input::{self, Act};
 use super::text::draw_text;
 use super::Game;
 
-/// Sight range while sneaking (times the enemy's sight).
-const SNEAK_SIGHT: f32 = 0.5;
 /// Sight range in full darkness (times the enemy's sight; 1 in full light).
 const DARK_SIGHT: f32 = 0.4;
 /// Enemies notice the player within this many tiles however careful they are (also behind walls):
@@ -32,7 +31,35 @@ impl Game {
     pub(super) fn update_sneak(&mut self, key_consumed: bool) {
         if !key_consumed && input::act_pressed(Act::Sneak) && !self.player_stunned() {
             self.combat.sneak = !self.combat.sneak;
+            self.combat.sneak_roll = 0;
+            // (Hiding: one Stealth roll for as long as the sneaking lasts; a plain roll, no DC.)
+            if self.combat.sneak {
+                self.combat.sneak_roll = self.who_check(super::turns::Who::Player, "stealth", 0, false).map_or(0, |r| r.total as i32);
+                if let Some(r) = self.world.rolls.last_mut() {
+                    (r.success, r.dc) = (None, 0);
+                }
+            }
         }
+    }
+
+    /// Whether enemy `i`, with `sight` tiles of sight, notices the hero now: within its sight
+    /// (shorter in the dark; behind walls and trees within half of it) and, while the hero
+    /// sneaks, when its passive Perception reaches the hero's Stealth roll; always within
+    /// [`NEAR_NOTICE`] tiles or its blindsight, tremorsense or truesight.
+    pub(super) fn notices_hero(&self, i: usize, sight: f32) -> bool {
+        let e = &self.loaded.entities[i];
+        let ts = self.ts();
+        let pos = e.body.pos;
+        let near = self.player.pos.distance(pos) <= NEAR_NOTICE.min(sight).max(self.sense_tiles(i).min(sight)) * ts;
+        if near {
+            return true;
+        }
+        let eye = pos - vec2(0.0, e.body.hitbox.y / 2.0 + 2.0);
+        let mid = self.player.pos - vec2(0.0, self.player.hitbox.y / 2.0);
+        let range = self.player_sight(sight);
+        let d = self.player.pos.distance(pos);
+        let in_sight = d <= range && (d <= range * 0.5 || self.line_clear(eye, mid));
+        in_sight && (!self.sneaking() || self.passive_of(super::turns::Who::Npc(e.uid)) >= self.combat.sneak_roll)
     }
 
     /// How lit the player is: 0 (dark) to 1 (daylight, a lamp right beside them). The map's
@@ -61,16 +88,15 @@ impl Game {
         (ambient + lit).clamp(0.0, 1.0)
     }
 
-    /// How far (pixels) an enemy with `sight` tiles of sight notices the player: less while
-    /// sneaking and in the dark, never under [`NEAR_NOTICE`] tiles.
+    /// How far (pixels) an enemy with `sight` tiles of sight notices the player: less in the
+    /// dark, never under [`NEAR_NOTICE`] tiles (sneaking adds the Stealth roll: [`Game::notices_hero`]).
     pub(super) fn player_sight(&self, sight: f32) -> f32 {
         // Invisible: only noticed up close.
         if crate::srd::conditions::has(&self.world.effects, crate::srd::Condition::Invisible) {
             return 0.0;
         }
         let light = DARK_SIGHT + (1.0 - DARK_SIGHT) * self.light_at_player();
-        let sneak = if self.sneaking() { SNEAK_SIGHT } else { 1.0 };
-        (sight * light * sneak).max(NEAR_NOTICE.min(sight)) * self.ts()
+        (sight * light).max(NEAR_NOTICE.min(sight)) * self.ts()
     }
 
     /// How far (tiles) character `i` notices the hero whatever the light, sneaking or
@@ -106,9 +132,10 @@ impl Game {
         }
     }
 
-    /// `sneak=` for `status`: on / off, the light at the player and how far a 10-tile enemy
-    /// would notice them (tiles).
+    /// `sneak=` for `status`: on / off, the light at the player, how far a 10-tile enemy would
+    /// notice them (tiles) and, sneaking, the Stealth roll its passive Perception has to reach.
     pub(super) fn sneak_status(&self) -> String {
-        format!("{}:light{:.2}:sight10={:.1}", if self.sneaking() { "on" } else { "off" }, self.light_at_player(), self.player_sight(10.0) / self.ts())
+        let roll = if self.sneaking() { format!(":stealth={}", self.combat.sneak_roll) } else { String::new() };
+        format!("{}:light{:.2}:sight10={:.1}{roll}", if self.sneaking() { "on" } else { "off" }, self.light_at_player(), self.player_sight(10.0) / self.ts())
     }
 }

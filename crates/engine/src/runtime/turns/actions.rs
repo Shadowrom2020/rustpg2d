@@ -313,7 +313,7 @@ impl Game {
 
     /// A combatant's passive Perception: 10 + its Perception modifier (the hero −5 when the fight
     /// finds them running: the fast pace).
-    pub(super) fn passive_of(&self, who: Who) -> i32 {
+    pub(in crate::runtime) fn passive_of(&self, who: Who) -> i32 {
         10 + self.check_bonus(who, "perception") as i32 - if who == Who::Player && self.hero_fast_pace() { 5 } else { 0 }
     }
 
@@ -324,6 +324,23 @@ impl Game {
     /// passive Perception is below every roll is surprised.
     pub(super) fn roll_surprise(&mut self, struck: bool, ambush: bool) {
         let Some(c) = &self.fight else { return };
+        // The hero struck without sneaking: who hadn't noticed them is surprised (no roll).
+        if struck && !self.sneaking() {
+            let unnoticed = c.unnoticed.clone();
+            let surprised: Vec<Who> = c.order.iter().filter(|f| f.side == Side::Enemy && matches!(f.who, Who::Npc(u) if unnoticed.contains(&u))).map(|f| f.who).collect();
+            if surprised.is_empty() {
+                return;
+            }
+            if let Some(c) = &mut self.fight {
+                for f in c.order.iter_mut() {
+                    f.surprised = surprised.contains(&f.who);
+                }
+            }
+            let names: Vec<String> = surprised.iter().map(|w| self.who_name(*w)).collect();
+            let line = format!("{}: {} {}", crate::lang::tr_ui("Unnoticed"), names.join(", "), crate::lang::tr_ui("surprised"));
+            self.fight_log(line);
+            return;
+        }
         let (hiders, seekers): (Vec<Who>, Vec<Who>) = if struck && self.sneaking() {
             (c.order.iter().filter(|f| f.side == Side::Party).map(|f| f.who).collect(), c.order.iter().filter(|f| f.side == Side::Enemy).map(|f| f.who).collect())
         } else if ambush {
@@ -336,10 +353,21 @@ impl Game {
         if hiders.is_empty() || (ambush && hiders.len() < c.order.iter().filter(|f| f.side == Side::Enemy).count()) {
             return;
         }
-        let rolls: Vec<(Who, i32)> = hiders.iter().map(|w| (*w, self.who_check(*w, "stealth", 0, false).map_or(0, |r| r.total as i32))).collect();
+        // (A sneaking hero keeps the Stealth roll made when the sneaking began.)
+        let kept = if struck && self.sneaking() && self.combat.sneak_roll > 0 { Some(self.combat.sneak_roll) } else { None };
+        let mut n = 0;
+        let rolls: Vec<(Who, i32)> = hiders
+            .iter()
+            .map(|w| match (w, kept) {
+                (Who::Player, Some(r)) => (*w, r),
+                _ => {
+                    n += 1;
+                    (*w, self.who_check(*w, "stealth", 0, false).map_or(0, |r| r.total as i32))
+                }
+            })
+            .collect();
         let lowest = rolls.iter().map(|r| r.1).min().unwrap_or(0);
         // (The Stealth rolls have no DC of their own: plain rolls in the log.)
-        let n = hiders.len();
         let len = self.world.rolls.len();
         for r in self.world.rolls.iter_mut().skip(len.saturating_sub(n)) {
             (r.success, r.dc) = (None, 0);
@@ -351,10 +379,16 @@ impl Game {
             super::vision::Sight::Dim(_) => g.passive_of(s) - 5 >= roll,
             super::vision::Sight::Unseen(_) => false,
         };
+        let all = seekers.len();
         let surprised: Vec<Who> = seekers.into_iter().filter(|s| !rolls.iter().any(|(h, r)| notices(self, *s, *h, *r))).collect();
+        // (A sneaking hero no one noticed is still hidden: their first attack has advantage.)
+        let unseen = struck && kept.is_some() && surprised.len() == all;
         if let Some(c) = &mut self.fight {
             for f in c.order.iter_mut() {
                 f.surprised = surprised.contains(&f.who);
+                if unseen && f.who == Who::Player {
+                    f.hidden = true;
+                }
             }
         }
         let names: Vec<String> = surprised.iter().map(|w| self.who_name(*w)).collect();

@@ -712,6 +712,18 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   class picks and prepares from the full lists in its levels; with the Owl (Find Familiar) and the
   priced components ruby dust, platinum rings and incense. All in German too.
 
+### Surprise attacks
+- The hero can **start a fight by surprise**: by sneaking up on an enemy and attacking, by a shot
+  from afar, or by **casting a combat spell** at an enemy outside a fight (the action bar's *Cast*
+  and the Spells tab no longer refuse them: *No enemy in sight* when there is none). The move
+  waits for the hero's first turn, aimed at that enemy (initiative as the SRD has it).
+- **Surprise without sneaking:** enemies that hadn't noticed the hero (out of their sight, in the
+  dark, behind a corner) are surprised when the hero strikes first (*Unnoticed* in the fight log).
+- **Sneaking is a Stealth roll:** starting to sneak rolls Stealth once; enemies in sight notice a
+  sneaking hero only when their passive Perception reaches it (it used to halve their sight
+  range), so a good roll lets the hero walk right up to them. A hero no one noticed starts the
+  fight hidden: the first attack has advantage. `status` prints `sneak=…:stealth=ROLL`.
+
 ### Art
 - **Chairs** (example and starter library) are redrawn for sitting characters: the seat at the
   height of the thighs and the back right behind them in all four facings. Sideways, the sitter

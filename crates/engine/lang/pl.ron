@@ -1138,5 +1138,7 @@
         "Gear": "Wyposażenie",
         "Nothing here.": "Nic tu nie ma.",
         "Click price / {key:confirm}: trade one   {key:run}: ten   {key:up} / {key:down}: select   {key:left} / {key:right}: switch side   {key:next_tab} / 1-6: filter   {key:cancel}: close": "Kliknij cenę / {key:confirm}: wymień jeden   {key:run}: dziesięć   {key:up} / {key:down}: wybierz   {key:left} / {key:right}: zmień stronę   {key:next_tab} / 1-6: filtruj   {key:cancel}: zamknij",
+        "Unnoticed": "Niezauważony",
+        "No enemy in sight": "Brak wroga w zasięgu wzroku",
     },
 )

@@ -1656,8 +1656,8 @@ A content release for the starter library. Generating 3D models costs Meshy cred
   and sandstone tiles. The 28 props are pixel art drawn by a script on one sheet (`biomes`), lit and
   outlined like the existing ones; glowing mushrooms and blue crystals carry a light. Eight scatter
   sets and eight structures (one or two per landscape). The cave level is a map of its own, *The
-  Deep Caves* (`mine_depths`), reached through a crack in the mine's rat nest; its giant spider is a
-  mannequin until *Creatures from the kit*.
+  Deep Caves* (`mine_depths`), reached through a crack in the mine's rat nest; its giant spider got
+  its model with *Creatures from the kit*.
 
   **Engine.** None (content).
 
@@ -1732,7 +1732,7 @@ A content release for the starter library. Generating 3D models costs Meshy cred
 
   **Verify.** `model_sheet` with each item held; the icons; a scene in autoplay.
 
-- [ ] Creatures from the kit — `feature/kit-creatures`
+- [x] Creatures from the kit — `feature/kit-creatures`
 
   **Goal.** Animals and the SRD monsters imported in 0.29 get models with walk, idle, attack and
   hurt animations, built by script instead of generated (this replaces *Models for the SRD
@@ -1743,10 +1743,28 @@ A content release for the starter library. Generating 3D models costs Meshy cred
   bodies; beasts are voxel bodies on the rig templates, with headless Blender for new body plans'
   clips. Models are shared where the SRD has variants (a wolf and a dire wolf scaled).
 
-  **Engine.** Large creatures may pass the 32,768 vertices of one draw: drawing a model in
-  several pieces if so.
+  **Decided while building.**
+  - **Sculpted in Python**, not Blender: `creatures.py` shapes voxels from balls and tapered
+    limbs and says where each joint of the rig template belongs (`ModelDef.rig.joints`). The five
+    existing templates animate every body plan (spiders and crabs walk on the quadruped's legs,
+    snakes, worms and plants squash like the blob, fish and trees sway like the floating rig), so
+    no new clips were needed.
+  - **One file, many models:** 58 files serve 187 creature models by size and one colour feature.
+  - **People-shaped monsters are figures of the cast** (80, on four new heads, with wings as a
+    piece in the cloak's slot).
+  - **Sizes:** the library's monsters keep their SRD size class (the character's *Size*); a
+    model's height is the drawn height divided by it.
+  - **No engine change:** the largest sculpt has 28,875 vertices, under the 32,768 of one draw.
+    Bigger creatures are smaller sculpts drawn larger.
+  - **Stand-ins** where a monster has no sculpt of its own (listed in `kit.py`); a look of
+    their own is a sculpt added later.
+  - **Not done here:** the manual's screenshots still show the old figures; they are retaken in
+    the pull request that follows (`feature/kit-screenshots`).
 
-  **Verify.** `model_sheet` contact sheets; each one fights in autoplay.
+  **Engine.** None.
+
+  **Verify.** Contact sheets of every sculpt and of the monster figures (`model_sheet`); a test
+  map with creatures of every size class in the game; the kit's manifest test.
 
 - [ ] Music and sounds — `feature/more-audio`
 

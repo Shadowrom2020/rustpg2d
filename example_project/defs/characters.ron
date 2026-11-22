@@ -4248,7 +4248,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "giant_rat",
             body: "",
             size: 75,
         ),
@@ -4578,7 +4578,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "giant_rat",
             body: "",
             size: 75,
         ),
@@ -5249,7 +5249,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "owl",
             body: "",
             size: 50,
         ),
@@ -5327,7 +5327,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "giant_spider",
             body: "",
             size: 150,
         ),

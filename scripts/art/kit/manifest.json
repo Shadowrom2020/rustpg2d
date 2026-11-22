@@ -1,10 +1,31 @@
 {
  "files": {
+  "models/air_elemental.glb": {
+   "colors": 4,
+   "creature": true,
+   "sha256": "6be57e7d52d8b844c720ac6a958defd1ce13eb4aa63b2573330cc55614e1b90d",
+   "triangles": 5166,
+   "vertices": 9456
+  },
+  "models/ape.glb": {
+   "colors": 5,
+   "creature": true,
+   "sha256": "554cb99da7c7a4a3bc499f389f0f02b1377b163612fe8280a514c380f2522c16",
+   "triangles": 6028,
+   "vertices": 10998
+  },
   "models/axe.glb": {
    "colors": 5,
    "sha256": "d265db652e60daeaadf791d38065cc422ee62648a4b440305c75689fb8ec26ec",
    "triangles": 148,
    "vertices": 276
+  },
+  "models/axe_beak.glb": {
+   "colors": 4,
+   "creature": true,
+   "sha256": "2dc1488e352672f75f577b7002fb3dd646f2a4d0903bd2d4545b01c5a8307231",
+   "triangles": 2660,
+   "vertices": 4852
   },
   "models/backpack_big.glb": {
    "colors": 4,
@@ -24,6 +45,41 @@
    "triangles": 90,
    "vertices": 166
   },
+  "models/bat.glb": {
+   "colors": 4,
+   "creature": true,
+   "sha256": "5f255035b0ae1f2b1d06ddcfb847856209fd3894e6aadebef22bbc62fef71ba5",
+   "triangles": 1032,
+   "vertices": 1900
+  },
+  "models/bear.glb": {
+   "colors": 5,
+   "creature": true,
+   "sha256": "c9fb1fe916bc23075e980dc2c7a1f2f31d617ee6493ea1cd38fe8cd5c5dbb9cb",
+   "triangles": 8792,
+   "vertices": 15957
+  },
+  "models/big_cat.glb": {
+   "colors": 5,
+   "creature": true,
+   "sha256": "39ae79e77dc60450840226e30be0fa580fcd6c67ef1f92275ebdfe5605816d43",
+   "triangles": 6206,
+   "vertices": 11311
+  },
+  "models/bird.glb": {
+   "colors": 5,
+   "creature": true,
+   "sha256": "d070d618ab6dededffc69dd00cfb641e87427454f221d88026ad2776f2b97fc3",
+   "triangles": 1230,
+   "vertices": 2303
+  },
+  "models/boar.glb": {
+   "colors": 6,
+   "creature": true,
+   "sha256": "2562688d05e53b04e8be0d295837fa5d027f23f698769820d4e57cdda0fb8b82",
+   "triangles": 5264,
+   "vertices": 9602
+  },
   "models/bow.glb": {
    "colors": 3,
    "sha256": "5ca2e0c9ce0f076997871ece9848fc101d18e90b915b0682ea686f32f614f43c",
@@ -35,6 +91,55 @@
    "sha256": "10a08d3069084f0bb01374f07c92ee8cdc02ffe3fe39beb241a8c5b22e3919c4",
    "triangles": 404,
    "vertices": 648
+  },
+  "models/cat.glb": {
+   "colors": 5,
+   "creature": true,
+   "sha256": "e563ecd7d3631855f330695c07b3e0617c5936d12457b984c71aca8aa49588bc",
+   "triangles": 1310,
+   "vertices": 2443
+  },
+  "models/centaur.glb": {
+   "colors": 6,
+   "creature": true,
+   "sha256": "4690a75f9ed48f10e4b341e9b11169483c90f0be3f96099ed024dfdcb8a42bec",
+   "triangles": 7104,
+   "vertices": 12899
+  },
+  "models/chicken.glb": {
+   "colors": 5,
+   "creature": true,
+   "sha256": "f4314cfa7f93ea73affeb3a4d60f879f68e4b85ab41bd11d9bf80f0c9bcbe5a3",
+   "triangles": 1764,
+   "vertices": 3204
+  },
+  "models/cobra.glb": {
+   "colors": 5,
+   "creature": true,
+   "sha256": "0c74e2178cc9549c28acaa05804e345171ab7bd7f37cf4faa4e75f210720d01b",
+   "triangles": 4546,
+   "vertices": 8345
+  },
+  "models/cow.glb": {
+   "colors": 5,
+   "creature": true,
+   "sha256": "d6e3501ac5061be89ee0f7fefeef9eaa953fd313ef57ba39a96c0404327491f4",
+   "triangles": 8802,
+   "vertices": 15934
+  },
+  "models/crab.glb": {
+   "colors": 3,
+   "creature": true,
+   "sha256": "450f609b650ea1d5e8c50038bba2215fc3f681a535c4de16e89b29a4a4229d15",
+   "triangles": 6740,
+   "vertices": 12216
+  },
+  "models/crocodile.glb": {
+   "colors": 5,
+   "creature": true,
+   "sha256": "35bd3765c99816abbf4b83d17c1358e8c4d7b7b17e400baa4764b842750a0354",
+   "triangles": 3992,
+   "vertices": 7340
   },
   "models/crossbow.glb": {
    "colors": 5,
@@ -48,6 +153,34 @@
    "triangles": 236,
    "vertices": 458
   },
+  "models/deer.glb": {
+   "colors": 7,
+   "creature": true,
+   "sha256": "90e9b897e61ac10a25a65d48174c8995ca7e015b0d0833a996c9c6c9cab39836",
+   "triangles": 3712,
+   "vertices": 6816
+  },
+  "models/dog.glb": {
+   "colors": 5,
+   "creature": true,
+   "sha256": "faaf1611c3f142accc3c9e5bab91238ba08b99006f907fba0b44056ec05fae94",
+   "triangles": 2348,
+   "vertices": 4264
+  },
+  "models/dragon_wyrmling.glb": {
+   "colors": 5,
+   "creature": true,
+   "sha256": "b26321fd40528dc561aad542a9a24532348c30a9c8cd83fbcb87c342edc5ddf4",
+   "triangles": 6948,
+   "vertices": 12817
+  },
+  "models/dragon_young.glb": {
+   "colors": 5,
+   "creature": true,
+   "sha256": "1fc9fcc1d3b2144f752b91b05e300ceb9f4b4ce6f525e54c5f495f0811ba0d41",
+   "triangles": 14514,
+   "vertices": 26701
+  },
   "models/dragonborn.glb": {
    "colors": 4,
    "sha256": "730bdac51cdf614d1fb6902025e7c5993154dfea1dbb8c79eb2bc5446abbd238",
@@ -59,6 +192,20 @@
    "sha256": "7681c0f107ab9ce20f3837898f06eb49f62d567bfbb0ba7c719b6fa3fe75bc31",
    "triangles": 570,
    "vertices": 1114
+  },
+  "models/drake.glb": {
+   "colors": 5,
+   "creature": true,
+   "sha256": "ad40b4eb994d676bd37782972aae53b88ffa89387cb7c8427feaf10577c41479",
+   "triangles": 7608,
+   "vertices": 13815
+  },
+  "models/drider.glb": {
+   "colors": 7,
+   "creature": true,
+   "sha256": "ee762588606a32b4275c875830e3ca0dcce2f4bfdc4c5e6ee4cf7bf498a5aa28",
+   "triangles": 7648,
+   "vertices": 13855
   },
   "models/dwarf.glb": {
    "colors": 3,
@@ -72,6 +219,20 @@
    "triangles": 124,
    "vertices": 219
   },
+  "models/earth_elemental.glb": {
+   "colors": 4,
+   "creature": true,
+   "sha256": "b89456875e3189f43336556e343e95e566f73aae782c42a65932d07dba69afca",
+   "triangles": 6198,
+   "vertices": 11243
+  },
+  "models/elephant.glb": {
+   "colors": 4,
+   "creature": true,
+   "sha256": "eb1ad28e90989ece87f607903decf79205f4c1b7e10e0955b308083cffc714bf",
+   "triangles": 15806,
+   "vertices": 28875
+  },
   "models/elf.glb": {
    "colors": 3,
    "sha256": "30e0ac5e1b36032db54fc5441f8acfd2d36f134d004140bc3b921d4c22ce63a6",
@@ -84,17 +245,71 @@
    "triangles": 212,
    "vertices": 379
   },
+  "models/fiend.glb": {
+   "colors": 4,
+   "sha256": "9f81f54dc0c0792dac5e9fe6463416d58d3663b075a9fab9afc159dda685bcdb",
+   "triangles": 438,
+   "vertices": 843
+  },
   "models/fine_iron_sword.glb": {
    "colors": 4,
    "sha256": "26a2686079a88bec8fd1775be0299c20ca85060f1771daf9a168008bf6af7e27",
    "triangles": 82,
    "vertices": 160
   },
+  "models/fire_elemental.glb": {
+   "colors": 4,
+   "creature": true,
+   "sha256": "c17704a069f8d23b17c8acea343795088c2b518aa9bfa0c197bff1eec2936fae",
+   "triangles": 3802,
+   "vertices": 7058
+  },
   "models/fishing_rod.glb": {
    "colors": 5,
    "sha256": "3c16015b71a9c2fc104145a8aa4b2aab7625ca9976c23832ec0ace501744ef5e",
    "triangles": 58,
    "vertices": 114
+  },
+  "models/flying_sword.glb": {
+   "colors": 4,
+   "creature": true,
+   "sha256": "c0d0b0d09b35458f3914c22e75613188c381a3681e6644e693cc9459013064ce",
+   "triangles": 160,
+   "vertices": 303
+  },
+  "models/frog.glb": {
+   "colors": 5,
+   "creature": true,
+   "sha256": "b18f5b507a4678d02dfc1cac661f093555dd216024bc92930bd53a36508521c4",
+   "triangles": 2944,
+   "vertices": 5406
+  },
+  "models/gel_cube.glb": {
+   "colors": 3,
+   "creature": true,
+   "sha256": "bfc9aa933d5016d984121df65efbad7d3c84ef69604d9d9962f1b0dcf63fb0e2",
+   "triangles": 68,
+   "vertices": 108
+  },
+  "models/ghost.glb": {
+   "colors": 3,
+   "creature": true,
+   "sha256": "6334d24b79e48dc2510e85bfa809eff1b0bc30ca58ff35323647c6df340f86d7",
+   "triangles": 2824,
+   "vertices": 5087
+  },
+  "models/giant.glb": {
+   "colors": 3,
+   "sha256": "0a829a6d8e6449091dbbec82860abdd412005f99ff0333cf3a74ec407d81d249",
+   "triangles": 124,
+   "vertices": 219
+  },
+  "models/goat.glb": {
+   "colors": 6,
+   "creature": true,
+   "sha256": "9e105cc9de2679391e47cf5fb599f2c03458d26dfafbf17053132c125f4c6e9c",
+   "triangles": 2644,
+   "vertices": 4862
   },
   "models/goblin.glb": {
    "colors": 3,
@@ -107,6 +322,13 @@
    "sha256": "64eab6792e5b94b09204036c1a55a172cfae969d6ce72a4bae8e03e3dc5ff4fc",
    "triangles": 228,
    "vertices": 420
+  },
+  "models/griffon.glb": {
+   "colors": 7,
+   "creature": true,
+   "sha256": "9214df0ad7e37a556a71679dacd5bed0cd3d7f675b1372ac45f0e4bb42c4f3d7",
+   "triangles": 14188,
+   "vertices": 26230
   },
   "models/halfling.glb": {
    "colors": 3,
@@ -143,6 +365,19 @@
    "sha256": "ecc576a04c9dc2f498588418d38c487ae98a0b46a9f7402b47f9715b51623ff9",
    "triangles": 58,
    "vertices": 112
+  },
+  "models/horse.glb": {
+   "colors": 5,
+   "creature": true,
+   "sha256": "5adcf39a2e7edc8566c0b2dcd942018c294cc90035522da75b9c279938442848",
+   "triangles": 9264,
+   "vertices": 16730
+  },
+  "models/imp.glb": {
+   "colors": 4,
+   "sha256": "b17a998892bebadf66bd1e133b666132669ae4ab92d03b51f859f1b9d55cf4cb",
+   "triangles": 422,
+   "vertices": 823
   },
   "models/iron_sword.glb": {
    "colors": 4,
@@ -873,6 +1108,102 @@
    "triangles": 1120,
    "vertices": 2200
   },
+  "models/kit_wings_bat_dwarf_f.glb": {
+   "colors": 2,
+   "sha256": "85458656d1bc76c690d6f93b4d737f33698cf046db1eff445f9eddab1212b7d4",
+   "triangles": 530,
+   "vertices": 974
+  },
+  "models/kit_wings_bat_dwarf_m.glb": {
+   "colors": 2,
+   "sha256": "1b4d3765687e62ff4346c905f7339ddefe8fae4850c23197be49fd10a466a7e5",
+   "triangles": 538,
+   "vertices": 990
+  },
+  "models/kit_wings_bat_large_f.glb": {
+   "colors": 2,
+   "sha256": "5e29586756a511560ed8ce21bbf81598885072d1824e86e26f5b575583ef8d95",
+   "triangles": 574,
+   "vertices": 1074
+  },
+  "models/kit_wings_bat_large_m.glb": {
+   "colors": 2,
+   "sha256": "1ec4639878aa2bf47478b0aaab0a91e24f5b5f3e5f07c3baae6e01205319f49a",
+   "triangles": 574,
+   "vertices": 1074
+  },
+  "models/kit_wings_bat_medium_f.glb": {
+   "colors": 2,
+   "sha256": "01acc7838fc941ed36961f515bd59419dbf4dae95ae3252337bd8115e0683b08",
+   "triangles": 562,
+   "vertices": 1040
+  },
+  "models/kit_wings_bat_medium_m.glb": {
+   "colors": 2,
+   "sha256": "a8b447efcac4aff5bdef71e8baeb835d772b243ada439ba22ae89d0cf49fe12d",
+   "triangles": 562,
+   "vertices": 1040
+  },
+  "models/kit_wings_bat_small_f.glb": {
+   "colors": 2,
+   "sha256": "9aa31e9c134811c1cc71d45fc995913e9356dd37340574af62c30b7dd98e4796",
+   "triangles": 534,
+   "vertices": 986
+  },
+  "models/kit_wings_bat_small_m.glb": {
+   "colors": 2,
+   "sha256": "e2ef72deeb9fe6e00edeae897648601be39288ef8518aa5da336974834e51ceb",
+   "triangles": 534,
+   "vertices": 986
+  },
+  "models/kit_wings_feather_dwarf_f.glb": {
+   "colors": 2,
+   "sha256": "dc547e29869a00ffe2b239ef2bbefeb4a355f009d025a799e50ee30820ddbaf0",
+   "triangles": 1398,
+   "vertices": 2308
+  },
+  "models/kit_wings_feather_dwarf_m.glb": {
+   "colors": 2,
+   "sha256": "e5eca11a3640b0d12b82762207bbad4270a5ae272b430283363663c089d927f9",
+   "triangles": 1368,
+   "vertices": 2280
+  },
+  "models/kit_wings_feather_large_f.glb": {
+   "colors": 2,
+   "sha256": "e9de54f14ba18426a477e3023ff189d22168a28833d30f78cc8f9310252e8b32",
+   "triangles": 1442,
+   "vertices": 2390
+  },
+  "models/kit_wings_feather_large_m.glb": {
+   "colors": 2,
+   "sha256": "a291663b33d6d9d4223b0a65297bccdf38132669241a227b9fee4a4e7f35d54c",
+   "triangles": 1446,
+   "vertices": 2418
+  },
+  "models/kit_wings_feather_medium_f.glb": {
+   "colors": 2,
+   "sha256": "3e55d9ff7e2fe9ce010c4eb7ae6bc78c05eeb888ad2864e54d908f297a3d85cd",
+   "triangles": 1400,
+   "vertices": 2298
+  },
+  "models/kit_wings_feather_medium_m.glb": {
+   "colors": 2,
+   "sha256": "c84b96229021163224b277193a7b6afa5f84cc963d15a2557ab03b725eba7d9b",
+   "triangles": 1400,
+   "vertices": 2298
+  },
+  "models/kit_wings_feather_small_f.glb": {
+   "colors": 2,
+   "sha256": "bb281b82da2eff325aa440f29e285f8e814313997aed3f49a4926ed41474e410",
+   "triangles": 1318,
+   "vertices": 2220
+  },
+  "models/kit_wings_feather_small_m.glb": {
+   "colors": 2,
+   "sha256": "3f13086ba1c5b9634fdcb739bb2a5e17a104525f18367bfb00674965f5f5492d",
+   "triangles": 1318,
+   "vertices": 2220
+  },
   "models/kit_wizard_hat_10.glb": {
    "colors": 3,
    "sha256": "b6dfeea6e69e37c00803321120ff6ffbc54c8ec65c9953452c04d50d4881b665",
@@ -885,11 +1216,45 @@
    "triangles": 376,
    "vertices": 696
   },
+  "models/kobold.glb": {
+   "colors": 4,
+   "sha256": "6f1efc1c0d0d05322a5b86dfe98f5297d3be985d1f2d4feb892b6e8c8f3e72ce",
+   "triangles": 552,
+   "vertices": 1082
+  },
   "models/lantern.glb": {
    "colors": 3,
    "sha256": "3278e19cfaa9899e8aed47755f51a293790099ffac482bb4dd0cb19d5c1f8808",
    "triangles": 120,
    "vertices": 208
+  },
+  "models/lion.glb": {
+   "colors": 5,
+   "creature": true,
+   "sha256": "df2bec1da10f8eee69754e565a0a80f2f2ab8b898ad0203a621170e2369d7ce6",
+   "triangles": 7076,
+   "vertices": 12883
+  },
+  "models/mimic.glb": {
+   "colors": 7,
+   "creature": true,
+   "sha256": "940c6064b60a6c56216d55a94a1129a9a1676191d68e448ac25fe21c0c623452",
+   "triangles": 1372,
+   "vertices": 2587
+  },
+  "models/mushroom.glb": {
+   "colors": 4,
+   "creature": true,
+   "sha256": "3f18a313739ba9224b206217db58d1bd2620ce66b6c7d8fcef8988a4e4b989ef",
+   "triangles": 2538,
+   "vertices": 4653
+  },
+  "models/octopus.glb": {
+   "colors": 3,
+   "creature": true,
+   "sha256": "61088ecf5cc4cb3a0410381780b2edbcd3cf9b4496c6fabb94ba48dedb533677",
+   "triangles": 4298,
+   "vertices": 7781
   },
   "models/orc.glb": {
    "colors": 4,
@@ -903,6 +1268,20 @@
    "triangles": 146,
    "vertices": 264
   },
+  "models/owlbear.glb": {
+   "colors": 8,
+   "creature": true,
+   "sha256": "e83c3706ce3e125866c700e5481dc1f5dd3f6b02ea29af1c8bbc7b3d4a7bafc1",
+   "triangles": 8784,
+   "vertices": 15972
+  },
+  "models/pegasus.glb": {
+   "colors": 7,
+   "creature": true,
+   "sha256": "d124fd3102a4fc30f3d2a3d23e9c99405129c4094f2009186c4da49250cbfa55",
+   "triangles": 15176,
+   "vertices": 27816
+  },
   "models/pickaxe.glb": {
    "colors": 3,
    "sha256": "082df9f278d5fc858653557bfab2fe576503988fb38d5936410fff7f854538f7",
@@ -914,6 +1293,55 @@
    "sha256": "137c744cce4958a5eba286f88e286218b124e66558a8d9a80cbeba03a5a8e0a1",
    "triangles": 52,
    "vertices": 100
+  },
+  "models/rat.glb": {
+   "colors": 5,
+   "creature": true,
+   "sha256": "261e8b0306c499b96ad08148860a831f6bf456ab30d82d9c7fd487147b556a25",
+   "triangles": 998,
+   "vertices": 1856
+  },
+  "models/rhino.glb": {
+   "colors": 4,
+   "creature": true,
+   "sha256": "5d31197dda764f8a8fae1b84950ba081f8adcb91638bb36d87ec268f175bb596",
+   "triangles": 10608,
+   "vertices": 19206
+  },
+  "models/rug.glb": {
+   "colors": 3,
+   "creature": true,
+   "sha256": "c2a2c3c81924e6af1174b97e18700fcf705d1de469768758373289cadc031f22",
+   "triangles": 846,
+   "vertices": 1540
+  },
+  "models/scorpion.glb": {
+   "colors": 3,
+   "creature": true,
+   "sha256": "455ab7bfe37f4da7efd71a29c1bf5b9d3b5f7dd3f15a25d391354b31c10ec2d6",
+   "triangles": 7364,
+   "vertices": 13341
+  },
+  "models/shark.glb": {
+   "colors": 4,
+   "creature": true,
+   "sha256": "80b3c2a4e8b058482966c0dbee807f5bda32b5134b0998ab72067bc2e0d3a64d",
+   "triangles": 1660,
+   "vertices": 3056
+  },
+  "models/sheep.glb": {
+   "colors": 5,
+   "creature": true,
+   "sha256": "4d054247db97ce186e35a6419be59747883fe95de4b3ab6b05781882f49c91a5",
+   "triangles": 6520,
+   "vertices": 11874
+  },
+  "models/shrub.glb": {
+   "colors": 4,
+   "creature": true,
+   "sha256": "04274efef812bcff7ac483dc84d4ae3d50f5f07163285eba8d3efe93504bb06a",
+   "triangles": 5618,
+   "vertices": 10096
   },
   "models/skeleton.glb": {
    "colors": 2,
@@ -927,11 +1355,32 @@
    "triangles": 152,
    "vertices": 268
   },
+  "models/slime.glb": {
+   "colors": 4,
+   "creature": true,
+   "sha256": "cb8fbabbd06ec7b0663b0cc3efefc6820ea8aad2c734617ea5bd97bb213b2b27",
+   "triangles": 3334,
+   "vertices": 6017
+  },
+  "models/snake.glb": {
+   "colors": 5,
+   "creature": true,
+   "sha256": "18ad4c0cb671185be6ece445b30230387d6e1a46a16eebb04a2faa1352f0320a",
+   "triangles": 4496,
+   "vertices": 8261
+  },
   "models/spear.glb": {
    "colors": 3,
    "sha256": "9541c0ad351595536a88dd0aa257a730c06a75ba2735cc84406050eda4059adf",
    "triangles": 92,
    "vertices": 176
+  },
+  "models/spider.glb": {
+   "colors": 4,
+   "creature": true,
+   "sha256": "c73d62acf9630bd3d710a8c3787bf3e224b1c5361cb01c13f5ae58c1d02807a8",
+   "triangles": 6180,
+   "vertices": 11188
   },
   "models/sword.glb": {
    "colors": 3,
@@ -951,11 +1400,32 @@
    "triangles": 438,
    "vertices": 843
   },
+  "models/tiger.glb": {
+   "colors": 6,
+   "creature": true,
+   "sha256": "67d7495a0a338b29083aa3c7998e84fbdaf980445f4a8f5e4691d35c3d09a489",
+   "triangles": 7066,
+   "vertices": 12989
+  },
   "models/torch.glb": {
    "colors": 4,
    "sha256": "223391ffc87ce71166bdc2fa5b482f628151e363b5439036f5f95d6f87e313dd",
    "triangles": 130,
    "vertices": 235
+  },
+  "models/tree.glb": {
+   "colors": 6,
+   "creature": true,
+   "sha256": "4009f299cd48dd745be00f637387dc9dd55225624e103a1fdd8e1cafeaf6e331",
+   "triangles": 12610,
+   "vertices": 23153
+  },
+  "models/triceratops.glb": {
+   "colors": 6,
+   "creature": true,
+   "sha256": "31491ed0ba01451b617310f801a9de650d7d7b0702c11e778d5086362e2e9dd1",
+   "triangles": 11098,
+   "vertices": 20130
   },
   "models/troll.glb": {
    "colors": 4,
@@ -963,11 +1433,67 @@
    "triangles": 160,
    "vertices": 296
   },
+  "models/tyrant_lizard.glb": {
+   "colors": 5,
+   "creature": true,
+   "sha256": "c49b59dc5559d4324e979c9ea1336604a7f522f7acdfd40bb6b004f1e5e1a616",
+   "triangles": 6772,
+   "vertices": 12419
+  },
+  "models/unicorn.glb": {
+   "colors": 6,
+   "creature": true,
+   "sha256": "9220aadebf5fbeaef8d2df714b2a43bb31a6e6bae4a7d80202c981b39f3e23cf",
+   "triangles": 9328,
+   "vertices": 16856
+  },
+  "models/wasp.glb": {
+   "colors": 6,
+   "creature": true,
+   "sha256": "24376b4592691af5f2061c565130d75c00dab1ea70ea30533c2aeb5530b58b81",
+   "triangles": 974,
+   "vertices": 1824
+  },
+  "models/water_elemental.glb": {
+   "colors": 4,
+   "creature": true,
+   "sha256": "a2b5a7e2eafa90713392afa5f1ceeb265ce3ae86a28145770aa28102cc4c80cf",
+   "triangles": 3682,
+   "vertices": 6804
+  },
+  "models/winged_lion.glb": {
+   "colors": 7,
+   "creature": true,
+   "sha256": "3be3b000509c161eeca28954ff69406a4e99fcbf868b5ceacbe53d146cf9c29d",
+   "triangles": 13278,
+   "vertices": 24405
+  },
+  "models/wisp.glb": {
+   "colors": 1,
+   "creature": true,
+   "sha256": "4f733d73601d630bdd6575064dfd6d310b3db5cbbda46843f81ec74d3627121b",
+   "triangles": 504,
+   "vertices": 816
+  },
+  "models/wolf.glb": {
+   "colors": 5,
+   "creature": true,
+   "sha256": "b9f4da8a944c6fbfae5a8a42d6d0d2a3f41cf293172ecead3b0aa265bb7d183a",
+   "triangles": 4476,
+   "vertices": 8147
+  },
   "models/wooden_shield.glb": {
    "colors": 4,
    "sha256": "923ead06008a30d09e79ad99034884a426c17dd35943a5125a3f2b91898937a2",
    "triangles": 526,
    "vertices": 1018
+  },
+  "models/worm.glb": {
+   "colors": 4,
+   "creature": true,
+   "sha256": "3286384de492175728e81d9fbd41be96af16bf3f39360804e87723ffffadacfa",
+   "triangles": 6742,
+   "vertices": 12254
   }
  },
  "source_files": [
@@ -975,8 +1501,9 @@
   "figure.py",
   "kit.py",
   "gear.py",
+  "creatures.py",
   "build.py",
   "rig/human.glb"
  ],
- "sources": "a5a18ea19ffffa3a482d3fef9eb2812eb7075b1fcdfbc39ad44787b372953371"
+ "sources": "c7cde2fadc19baf8aac424db490d311c2cdb986be39840256a8c63e65125faaf"
 }

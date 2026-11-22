@@ -30,7 +30,6 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
     keep working.
   - **Sources:** `scripts/art/kit` (plain Python with numpy; `build.py`, `apply.py`, a style
     guide). A test fails when the kit changed and the library was not rebuilt.
-  - **Not yet:** animals still have their old models.
 - **Gear from the kit.** The 20 item models are voxel models at the figures' pixel size: three
   swords, spear, quarterstaff, axe, hammer, pickaxe, hoe, broom, fishing rod, torch, lantern, two
   bows, crossbow, round shield and three backpacks. The kit sets how each is held (hold point,
@@ -51,6 +50,29 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   - **Removed:** the old models of these characters and their clip files (140 files; the model
     folders of the library and the example shrink from 49 MB and 37 MB to 24 MB), and the three
     *realistic* characters of the library, which the kit replaces.
+- **Creatures from the kit.** Every animal and monster of the starter library has a model now:
+  the 302 characters that stood in as a grey mannequin (the SRD monsters) or kept an old model.
+  - **58 sculpted creatures** in voxels at the figures' pixel size, animated by the rig
+    templates: wolf, dog, cat, rat, bear, boar, sheep, cow, horse, deer, goat, elephant,
+    rhinoceros, triceratops, crocodile, frog, ape, big cats (lion, tiger), dragons (wyrmling,
+    young, wingless), griffon, pegasus, unicorn, winged lion, owlbear, centaur, spider, crab,
+    scorpion, drider, chicken, tyrant lizard, axe beak, bat, bird, wasp, snake, cobra, worm,
+    shark, octopus, slime, gelatinous cube, ghost, wisp, four elementals, tree, shrub, mushroom,
+    mimic, rug and flying sword.
+  - **187 creature models** over these files: a model names a file, its size and the colour of
+    its fur, skin, feathers or body. A dire wolf is the wolf, bigger and darker; the forty
+    dragons are two files in ten colours.
+  - **80 people-shaped monsters** as figures of the cast: giants, golems, devils, demons,
+    angels, hags, lycanthropes, undead, drow, duergar, kobolds, lizardfolk and more. New heads
+    (giant, fiend, imp, kobold), and **wings** (feathered or a bat's) worn in the cloak's place.
+  - **Sizes** follow the SRD: a model's height times its character's size class (Tiny to
+    Gargantuan) gives the drawn size, so an ancient dragon towers and a sprite is knee-high.
+  - **Stand-ins:** some monsters share the nearest shape (a hydra is a wingless dragon, a
+    bulette a large crocodile, a roper an octopus of stone). `MONSTERS` in the kit's `kit.py`
+    says which.
+  - **The example** carries only the creatures its characters use (`apply.py --used-creatures`);
+    its giant rats, owl and the giant spider of the Deep Caves have their models.
+  - **Size:** 58 creature files in 17 MB; the library's models are 256 files in 35 MB.
 - **AI agent server:**
   - `model_sheet` returns a picture of a model as the game draws it (animations, facings, pieces,
     worn and held items, a backpack, colours);

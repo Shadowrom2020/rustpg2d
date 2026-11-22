@@ -6,7 +6,10 @@ listens on 127.0.0.1:PORT (start the editor with `mcp on PORT`).
   definitions and how each item model is held;
 - the project's armour, clothing, cloaks, helmets and hoods get the style they show when worn
   (`wear`), by the kit's table and, for items without a style, by their slot and name;
+- the library's monsters and animals get the kit's models (`MONSTERS` and `MONSTER_CAST` in kit.py);
 - the small races and the tiefling are pointed at their bodies, and what the kit retired is removed;
+- with `--used-creatures`, the creature models no character of the project uses are removed
+  again (a game carries the creatures it shows; the asset library keeps them all);
 - with `--library`, the models are also sent to the editor's asset library."""
 import json
 import os
@@ -105,6 +108,32 @@ def main():
             if re.search(rf"(?m)^{ident}:", listed):
                 ed.call("delete_def", kind=kind, id=ident, force=True)
                 print(f"removed {kind[:-1]} {ident}")
+    # The library's monsters and animals get their models (those the project has).
+    chars = f"{root.group(1).strip()}/defs/characters.ron" if root else ""
+    if os.path.exists(chars):
+        n = 0
+        wanted = {**kit.MONSTERS, **kit.MONSTER_CAST}
+        for entry in re.split(r"(?m)^(?=    \(\n        id: )", open(chars).read())[1:]:
+            ident = re.search(r'id: "([^"]+)"', entry).group(1)
+            has = re.search(r'appearance: \(\s*model: "([^"]*)"', entry)
+            if ident in wanted and not (has and has.group(1) == wanted[ident]):
+                ed.call("upsert_def", kind="characters", merge=True, **{"def": {"id": ident, "appearance": {"model": wanted[ident]}}})
+                n += 1
+        print(f"{n} monsters and animals got their model")
+    # A game carries the creatures it shows: with --used-creatures, those no character uses go
+    # (the library keeps them all; `kit_build` brought every one).
+    if "--used-creatures" in sys.argv and os.path.exists(chars):
+        used = set(re.findall(r'model: "([^"]*)"', open(chars).read()))
+        gone = [m for m in kit.CREATURE_MODELS if m not in used]
+        for m in gone:
+            ed.call("delete_def", kind="models", id=m, force=True)
+        keep = {kit.CREATURE_MODELS[m]["file"] for m in kit.CREATURE_MODELS if m in used}
+        files = {c["file"] for c in kit.CREATURE_MODELS.values()} - keep
+        for f in files:
+            path = f"{root.group(1).strip()}/models/{f}.glb"
+            if os.path.exists(path):
+                os.remove(path)
+        print(f"removed {len(gone)} creature models no character uses ({len(files)} files)")
     races = ed.call("list_defs", kind="races")
     for race, (m, f) in kit.RACE_BODIES.items():
         if re.search(rf"(?m)^\W*{race}\b", races):

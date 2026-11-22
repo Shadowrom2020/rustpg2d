@@ -38,17 +38,24 @@ def build(out, only=None):
     for mid, make, d in models:
         if only and mid not in only:
             continue
-        path = f"{out}/models/{mid}.glb"
-        st = make().export(path)
-        d = dict(d, file=f"models/{mid}.glb")
-        feats = [kit.feature(name, shades, st["colors"], colors, default) for name, shades, colors, default in d.pop("_features")]
+        d = dict(d, file=f"models/{d.pop('_file', mid)}.glb")
+        head = d.pop("_head", None)
+        if make:
+            path = f"{out}/models/{mid}.glb"
+            st = make().export(path)
+            used = st["colors"]
+            files[f"models/{mid}.glb"] = dict(sha256=sha(path), vertices=st["vertices"], triangles=st["triangles"], colors=len(used))
+        else:
+            # A figure of the cast: it reuses a head's file, so that head's colours are its own.
+            b, female, race = head
+            used = ["#%02x%02x%02x" % c for c in fig(b, female).body(**race).prims]
+        feats = [kit.feature(name, shades, used, colors, default) for name, shades, colors, default in d.pop("_features")]
         d["features"] = [f for f in feats if f]
         if "_stand" in d:
             stand = fig(*d.pop("_stand")).stand()
             d["stand"] = round(stand, 4)
             d["height"] = round(40 * stand / 1.70 * 2) / 2
         defs.append(d)
-        files[f"models/{mid}.glb"] = dict(sha256=sha(path), vertices=st["vertices"], triangles=st["triangles"], colors=len(st["colors"]))
     if not only:
         shutil.copy(RIG, f"{out}/{kit.CLIP_FILE}")
         files[kit.CLIP_FILE] = dict(sha256=sha(f"{out}/{kit.CLIP_FILE}"))

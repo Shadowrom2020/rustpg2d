@@ -36,6 +36,18 @@
    "triangles": 212,
    "vertices": 379
   },
+  "models/goblin.glb": {
+   "colors": 3,
+   "sha256": "e3ddc4b761eb1f17eb4e40a74d29687b3734dffb1325646a57f3362887504f66",
+   "triangles": 228,
+   "vertices": 420
+  },
+  "models/goblin_scout.glb": {
+   "colors": 3,
+   "sha256": "64eab6792e5b94b09204036c1a55a172cfae969d6ce72a4bae8e03e3dc5ff4fc",
+   "triangles": 228,
+   "vertices": 420
+  },
   "models/halfling.glb": {
    "colors": 3,
    "sha256": "6fdbf2ef0d25f3e418bf5a1301021d20e98d924bba41dabdb0a7a772a268daa0",
@@ -60,6 +72,54 @@
    "triangles": 124,
    "vertices": 219
   },
+  "models/kit_apron_dwarf_f.glb": {
+   "colors": 6,
+   "sha256": "f463c7a7615843b8fd5a0375a510ca9c4790718e5bc67232b00bd40d40699613",
+   "triangles": 1108,
+   "vertices": 2128
+  },
+  "models/kit_apron_dwarf_m.glb": {
+   "colors": 6,
+   "sha256": "db6017195aa389ab891827922adf9bbbc1207f37f2fea2c6f2ea23a4e6783113",
+   "triangles": 1018,
+   "vertices": 1964
+  },
+  "models/kit_apron_large_f.glb": {
+   "colors": 6,
+   "sha256": "c0770cd4d02a93c0927d98d6eaa0596099679091f72ad6662099f963268e37f4",
+   "triangles": 1120,
+   "vertices": 2148
+  },
+  "models/kit_apron_large_m.glb": {
+   "colors": 6,
+   "sha256": "51ee408278dd41343cc4661369fee287c940a66325f728696c6c01231f7b9367",
+   "triangles": 1034,
+   "vertices": 1984
+  },
+  "models/kit_apron_medium_f.glb": {
+   "colors": 6,
+   "sha256": "ae16044cf8f587c43f6a1e4c457248782f5d0c50c2533144e5df287122e0e58a",
+   "triangles": 942,
+   "vertices": 1824
+  },
+  "models/kit_apron_medium_m.glb": {
+   "colors": 6,
+   "sha256": "05de980659413ef8b7791cddaed2013f3e3d263a186a2002793bcac7e01484ee",
+   "triangles": 974,
+   "vertices": 1900
+  },
+  "models/kit_apron_small_f.glb": {
+   "colors": 6,
+   "sha256": "2400482617a406c192d20860f3c3938a0e22fec163f02a780e94835b1656380d",
+   "triangles": 722,
+   "vertices": 1390
+  },
+  "models/kit_apron_small_m.glb": {
+   "colors": 6,
+   "sha256": "9cd0ce227668245bfad1f9822043e2647d7ecdf0aff95915a6d520f885c367a7",
+   "triangles": 828,
+   "vertices": 1626
+  },
   "models/kit_beard_long_10.glb": {
    "colors": 1,
    "sha256": "ac4919e18447a1a74ae1182bb730df90ce8616a1eda8972e6ce0a4214c8e9b3c",
@@ -83,6 +143,18 @@
    "sha256": "f61d10f753cc0d750b374190ee52cc47217d4015aa57a955d4a06853a111065d",
    "triangles": 56,
    "vertices": 104
+  },
+  "models/kit_bones_medium_f.glb": {
+   "colors": 1,
+   "sha256": "b18648aab025b26e0131a3be0e84334952556826e276972811789c316bccd91d",
+   "triangles": 976,
+   "vertices": 1882
+  },
+  "models/kit_bones_medium_m.glb": {
+   "colors": 1,
+   "sha256": "2237fa7a03507b9ada94456519d32e8097dd670ec53b1b8839a6eda6a4391586",
+   "triangles": 988,
+   "vertices": 1908
   },
   "models/kit_chain_mail_dwarf_f.glb": {
    "colors": 8,
@@ -131,6 +203,18 @@
    "sha256": "0b5433615fa05e4d5b53e8174d7d0d0f647fbf4bc805b336d886bb7029bea0a3",
    "triangles": 1162,
    "vertices": 2286
+  },
+  "models/kit_chef_hat_10.glb": {
+   "colors": 2,
+   "sha256": "d5888eb134259045dfea8c1f5afdf67b37e2618ed2db575f3a3480892744b680",
+   "triangles": 216,
+   "vertices": 394
+  },
+  "models/kit_chef_hat_8.glb": {
+   "colors": 2,
+   "sha256": "830901dd68975f9d1cc3ae23cf6d50d3adc4a9911c745ce28b44a51dfae41704",
+   "triangles": 236,
+   "vertices": 426
   },
   "models/kit_clips.glb": {
    "sha256": "6cd459bf7881288a17062f70fb42134577a5ed6a50b57e7425323c02e6903166"
@@ -230,6 +314,78 @@
    "sha256": "622c88c80c4ea649c0dd569cc84f9291e06c761f4d5a7332b3efcbb2e0b8452c",
    "triangles": 830,
    "vertices": 1622
+  },
+  "models/kit_doublet_dwarf_f.glb": {
+   "colors": 6,
+   "sha256": "644f78fa62954875ffdae74aa9b1f403ba5da4781a5d3a452cf116eccc61c5ef",
+   "triangles": 1348,
+   "vertices": 2547
+  },
+  "models/kit_doublet_dwarf_m.glb": {
+   "colors": 6,
+   "sha256": "c111acc9e3e08db799a4c32e1b7a42eacf00a4c666acc74611e644532353447c",
+   "triangles": 1244,
+   "vertices": 2357
+  },
+  "models/kit_doublet_large_f.glb": {
+   "colors": 6,
+   "sha256": "f9a74f1dfd68986994198f34a486272f28d778361f8178a10419a2c673a8910e",
+   "triangles": 1326,
+   "vertices": 2509
+  },
+  "models/kit_doublet_large_m.glb": {
+   "colors": 6,
+   "sha256": "0e4bef6121cf49d0a378c92e87527ec1510e4f81aba233f2671977fbf9705ac8",
+   "triangles": 1260,
+   "vertices": 2375
+  },
+  "models/kit_doublet_medium_f.glb": {
+   "colors": 6,
+   "sha256": "6bd45ad77ed37dbe3db6505b26c8a0a05c8ec3036468fe55d43730715dddcf32",
+   "triangles": 1174,
+   "vertices": 2249
+  },
+  "models/kit_doublet_medium_m.glb": {
+   "colors": 6,
+   "sha256": "502745699e9cf0bedf727319bba79a5876f1617dd864bee99cff266eb3f1cb41",
+   "triangles": 1216,
+   "vertices": 2339
+  },
+  "models/kit_doublet_small_f.glb": {
+   "colors": 6,
+   "sha256": "a8ee1e5c0799c341cbfad356833a95f57f8812adadbb1c6b5c40723687f55841",
+   "triangles": 902,
+   "vertices": 1726
+  },
+  "models/kit_doublet_small_m.glb": {
+   "colors": 6,
+   "sha256": "0175e80e67e77265c2518ae26b7801823c066d0e8c3f96547ab324f7c78ebdb7",
+   "triangles": 1026,
+   "vertices": 1985
+  },
+  "models/kit_dress_dwarf_f.glb": {
+   "colors": 4,
+   "sha256": "7e377588894767f60e80b780a37f3788b419884eaaeb698edac0f532b8d25a8f",
+   "triangles": 1192,
+   "vertices": 2244
+  },
+  "models/kit_dress_large_f.glb": {
+   "colors": 4,
+   "sha256": "bb36401f531f74e355963a969a134b18dc7a89f1b2270a084d0f2ba6e3b791b1",
+   "triangles": 1198,
+   "vertices": 2254
+  },
+  "models/kit_dress_medium_f.glb": {
+   "colors": 4,
+   "sha256": "43a4a76fe878bcb735cdfe6ed1431bf23b59e60ea9106168813dfe913aa419c8",
+   "triangles": 1020,
+   "vertices": 1948
+  },
+  "models/kit_dress_small_f.glb": {
+   "colors": 4,
+   "sha256": "70257367be10b9955c0a375b3f9b019af2593e035ec4e286dc918205f6f3e4a0",
+   "triangles": 806,
+   "vertices": 1522
   },
   "models/kit_hair_bun_10.glb": {
    "colors": 1,
@@ -363,6 +519,30 @@
    "triangles": 1244,
    "vertices": 2381
   },
+  "models/kit_loincloth_large_f.glb": {
+   "colors": 3,
+   "sha256": "b04aa3d326cc21a94740e89d54afdc7b484be3e205c9075ec3561428f3d17464",
+   "triangles": 1370,
+   "vertices": 2575
+  },
+  "models/kit_loincloth_large_m.glb": {
+   "colors": 3,
+   "sha256": "3cb9c6f69e0f4abdf170f6d6d1e73031e6a9a6a879f5812a5a92fa3632bff42d",
+   "triangles": 1286,
+   "vertices": 2415
+  },
+  "models/kit_loincloth_medium_f.glb": {
+   "colors": 3,
+   "sha256": "f5240c2824ce9bafee57a4c1bdbb6fcec1da04aeb8299bb358fdde0534663ab6",
+   "triangles": 1072,
+   "vertices": 2044
+  },
+  "models/kit_loincloth_medium_m.glb": {
+   "colors": 3,
+   "sha256": "9da2f7584f532106e9b916e33242d3df445722c62fac1c5f932afe09e87f4e8a",
+   "triangles": 1104,
+   "vertices": 2116
+  },
   "models/kit_plate_armor_dwarf_f.glb": {
    "colors": 3,
    "sha256": "20b274d0801a6db27c8efd445848156a47e062f7da9b320876b299c01bf54c05",
@@ -411,53 +591,221 @@
    "triangles": 1110,
    "vertices": 2170
   },
+  "models/kit_rags_dwarf_f.glb": {
+   "colors": 3,
+   "sha256": "c64cb3c8ce2121805e4f42a3bfa35a9e8c22cd45f8292ee4caf4ae617153137b",
+   "triangles": 1418,
+   "vertices": 2659
+  },
+  "models/kit_rags_dwarf_m.glb": {
+   "colors": 3,
+   "sha256": "b67194e33fa3df806360a95995cc1c2335eef631d83c52145745033206aa0cce",
+   "triangles": 1322,
+   "vertices": 2487
+  },
+  "models/kit_rags_large_f.glb": {
+   "colors": 3,
+   "sha256": "f720e0020dc6c3dfa991ec59b0751e318f3514a2874bc6e9bced8a77ae3e6223",
+   "triangles": 1380,
+   "vertices": 2593
+  },
+  "models/kit_rags_large_m.glb": {
+   "colors": 3,
+   "sha256": "67f575b96f49ab93d122e11482c259e7bf7d3109da432f880249511197940991",
+   "triangles": 1294,
+   "vertices": 2431
+  },
+  "models/kit_rags_medium_f.glb": {
+   "colors": 3,
+   "sha256": "aceca9f615ddc1f3f682a10f77e6d325b3f9c203925d02e550aa87305315414f",
+   "triangles": 1080,
+   "vertices": 2060
+  },
+  "models/kit_rags_medium_m.glb": {
+   "colors": 3,
+   "sha256": "eab8f7d12525de559c11d51bd82b5de6bfc665c9f840121f092a96b15c5a7019",
+   "triangles": 1112,
+   "vertices": 2132
+  },
+  "models/kit_rags_small_f.glb": {
+   "colors": 3,
+   "sha256": "a5a07d717a953cdf0e62cd8a5b3c45d0d53cb3f40d03e56285a13e85ec6a5426",
+   "triangles": 842,
+   "vertices": 1583
+  },
+  "models/kit_rags_small_m.glb": {
+   "colors": 3,
+   "sha256": "fba11168fa6b4f86b6f0fabae488b04e6b92fd42811df766153ca2ac2629af1a",
+   "triangles": 942,
+   "vertices": 1811
+  },
   "models/kit_robe_dwarf_f.glb": {
    "colors": 5,
-   "sha256": "58164c48b2184294779692934c9654e59461099fc19e6ad9312dc3d87c434c40",
-   "triangles": 1308,
-   "vertices": 2456
+   "sha256": "141fee0f3b56976504fec2c8265e2351cf39a9d4136fa37a060fbfd3cba40bb4",
+   "triangles": 1272,
+   "vertices": 2396
   },
   "models/kit_robe_dwarf_m.glb": {
    "colors": 5,
-   "sha256": "179064736eafe91b5b611cab80c9e95efb56236c4349c126d201be2d580f7aca",
-   "triangles": 1212,
-   "vertices": 2284
+   "sha256": "c29cd38b340033bce1002e7d9521a7cf39440d96a843179b3dbc3261e23f332d",
+   "triangles": 1176,
+   "vertices": 2224
   },
   "models/kit_robe_large_f.glb": {
    "colors": 5,
-   "sha256": "4ba4e7ed90ef43123ce5538d03d97856bf04f52546eb3faac02fa413fa319e08",
-   "triangles": 1314,
-   "vertices": 2466
+   "sha256": "1e47519966b175e3007984584e8fb1fc2bf022316e23b32d766bdd8ce6d6606d",
+   "triangles": 1278,
+   "vertices": 2406
   },
   "models/kit_robe_large_m.glb": {
    "colors": 5,
-   "sha256": "d391e7d308df8477621b6281ace124d5397d2ff4879ed1d65a69ac298f535005",
-   "triangles": 1228,
-   "vertices": 2304
+   "sha256": "6d660aaeabf59fe2946e6d064805649d27b1684a5171dcee04619d605dcba452",
+   "triangles": 1192,
+   "vertices": 2244
   },
   "models/kit_robe_medium_f.glb": {
    "colors": 5,
-   "sha256": "52c2fb4504bde9c7aed595b11c375d432637ec60e41666a0cb355af02e604b9a",
-   "triangles": 1136,
-   "vertices": 2160
+   "sha256": "1812ce3570e5e3180fe2a2e77958784d786d8f24079f0488cfa5c12e843ec0a8",
+   "triangles": 1100,
+   "vertices": 2100
   },
   "models/kit_robe_medium_m.glb": {
    "colors": 5,
-   "sha256": "d5d65075311cf956d7bef841ba356cd763d7647a153ad4da63424c37a5f435c1",
-   "triangles": 1136,
-   "vertices": 2188
+   "sha256": "8a9e83b654d13ebe9e9efeb696f85d02179d1cb513b65ffaffc651dbd9112f74",
+   "triangles": 1132,
+   "vertices": 2172
   },
   "models/kit_robe_small_f.glb": {
    "colors": 5,
-   "sha256": "edf38c8d9c6059e28fe60b0f36e7c0446dffd175255898f6946aa0812178591c",
-   "triangles": 946,
-   "vertices": 1790
+   "sha256": "edae7b2c114c3180f650e6ab47b8825dc9f819833ede2889aa8aae42d578014f",
+   "triangles": 910,
+   "vertices": 1730
   },
   "models/kit_robe_small_m.glb": {
    "colors": 5,
-   "sha256": "74d41d82903104143d443bb174471a13c1d43dfed608786e74ba30235133d5fe",
-   "triangles": 990,
-   "vertices": 1918
+   "sha256": "13c2f6dee939d8a62291380ce042d1cb883d5bbaacd53bdc22508d9ccd03a3ba",
+   "triangles": 986,
+   "vertices": 1902
+  },
+  "models/kit_smith_apron_dwarf_f.glb": {
+   "colors": 5,
+   "sha256": "8c0ca5ae41e654dcf1bdfa66a8e5dee4b63faa8fb7ec095d3334c42ae42c5859",
+   "triangles": 1114,
+   "vertices": 2140
+  },
+  "models/kit_smith_apron_dwarf_m.glb": {
+   "colors": 5,
+   "sha256": "f9838cda93ac91942d5e40a137e659c08edbe42ba97fec37717a262008531410",
+   "triangles": 1030,
+   "vertices": 1988
+  },
+  "models/kit_smith_apron_large_f.glb": {
+   "colors": 5,
+   "sha256": "b3853ef60d15f9ba7e7d2b0d4035948f3f5a116b8f572b47580ca5aa9752a0ff",
+   "triangles": 1132,
+   "vertices": 2170
+  },
+  "models/kit_smith_apron_large_m.glb": {
+   "colors": 5,
+   "sha256": "02795fae3266e22f50711d846af310e684140c6b39be25f63185d0eeda4b82e0",
+   "triangles": 1040,
+   "vertices": 1996
+  },
+  "models/kit_smith_apron_medium_f.glb": {
+   "colors": 5,
+   "sha256": "4f85011aab80e29a2df3812f2bf07ccedd3ebc67401e75769d8154aa3790968f",
+   "triangles": 954,
+   "vertices": 1848
+  },
+  "models/kit_smith_apron_medium_m.glb": {
+   "colors": 5,
+   "sha256": "f738c4a484f8da333c86c0b79139919aa50c8e63d0ef51e22fd5ddfa1bf43176",
+   "triangles": 980,
+   "vertices": 1912
+  },
+  "models/kit_smith_apron_small_f.glb": {
+   "colors": 5,
+   "sha256": "995c3ef42b2a2cd0ae61487f2a99c8c30590baa1a4c8c4b42286e8acf1f19bc9",
+   "triangles": 702,
+   "vertices": 1346
+  },
+  "models/kit_smith_apron_small_m.glb": {
+   "colors": 5,
+   "sha256": "008d5ee0ff1f0bb455fb2973a963758db6469cbe227fd82c629c388640c210a6",
+   "triangles": 840,
+   "vertices": 1650
+  },
+  "models/kit_straw_hat_10.glb": {
+   "colors": 2,
+   "sha256": "f55d8e003a5e07ef7a628afb89d902798fbaebe92342616ae24dbce5d753e7a4",
+   "triangles": 238,
+   "vertices": 452
+  },
+  "models/kit_straw_hat_8.glb": {
+   "colors": 2,
+   "sha256": "93e0d94f0fe995cab27d0cf381e84e27880408b9041d270049baa81a0dae5d49",
+   "triangles": 272,
+   "vertices": 506
+  },
+  "models/kit_tabard_dwarf_f.glb": {
+   "colors": 9,
+   "sha256": "4eabf86ab67dc4e19bc8309f818eeb0632c3917b76e2e57472e28e464556e1f6",
+   "triangles": 1486,
+   "vertices": 2882
+  },
+  "models/kit_tabard_dwarf_m.glb": {
+   "colors": 9,
+   "sha256": "a8bd07575efe851bcb34937882ff2e6c02ac2932b637887e9824218dea44e060",
+   "triangles": 1360,
+   "vertices": 2652
+  },
+  "models/kit_tabard_large_f.glb": {
+   "colors": 9,
+   "sha256": "8bf3eb633c4d9e79c030b88cf685419a25b52e2551240cf56a7eff1cf1d46b92",
+   "triangles": 1528,
+   "vertices": 2968
+  },
+  "models/kit_tabard_large_m.glb": {
+   "colors": 9,
+   "sha256": "ba48f8e70e49e972490d1c6a8610908dae764cab9f06cdf873c1d8f6c240ed80",
+   "triangles": 1432,
+   "vertices": 2788
+  },
+  "models/kit_tabard_medium_f.glb": {
+   "colors": 9,
+   "sha256": "c9fbb9eeb8808f83df0db834da87df6e0d650f879e654698128f1d2be415a91a",
+   "triangles": 1304,
+   "vertices": 2556
+  },
+  "models/kit_tabard_medium_m.glb": {
+   "colors": 9,
+   "sha256": "887bbdf29ba0c13fc1ae159a8b18276a4bab5c5b423f9b57030db823504ee044",
+   "triangles": 1344,
+   "vertices": 2636
+  },
+  "models/kit_tabard_small_f.glb": {
+   "colors": 9,
+   "sha256": "193a679d4855a079f5bd786f9af024cd8fbd14cc718913e18e4b2047658e8c3a",
+   "triangles": 1010,
+   "vertices": 1978
+  },
+  "models/kit_tabard_small_m.glb": {
+   "colors": 9,
+   "sha256": "f73e2db05bf00d1684fe612380a42959fad1f875f36bceb3bc0ce85b420fe179",
+   "triangles": 1120,
+   "vertices": 2200
+  },
+  "models/kit_wizard_hat_10.glb": {
+   "colors": 3,
+   "sha256": "b6dfeea6e69e37c00803321120ff6ffbc54c8ec65c9953452c04d50d4881b665",
+   "triangles": 354,
+   "vertices": 663
+  },
+  "models/kit_wizard_hat_8.glb": {
+   "colors": 3,
+   "sha256": "2d87019197e2bf610ac0f52dc9a9ccde06253476725b4a0e432f8ed72d9575f6",
+   "triangles": 376,
+   "vertices": 696
   },
   "models/orc.glb": {
    "colors": 4,
@@ -471,6 +819,18 @@
    "triangles": 146,
    "vertices": 264
   },
+  "models/skeleton.glb": {
+   "colors": 2,
+   "sha256": "1ad466628313689cfcbea60d79ad25b4a4987b5e61b32a6afde81576f686374d",
+   "triangles": 152,
+   "vertices": 268
+  },
+  "models/skeleton_f.glb": {
+   "colors": 2,
+   "sha256": "9cf29fba7e7b833514b628d58b89c278bca5fa9ecae60017ce7e8dcccd0484ff",
+   "triangles": 152,
+   "vertices": 268
+  },
   "models/tiefling.glb": {
    "colors": 4,
    "sha256": "0f0c054e3495c762755c9ef7203926d116269cb6283c2b8082ed8075a988a30e",
@@ -482,6 +842,12 @@
    "sha256": "c2d235b5e37c55cf6ae344c8a4ffe4590929351105acfad122396db3ea288476",
    "triangles": 438,
    "vertices": 843
+  },
+  "models/troll.glb": {
+   "colors": 4,
+   "sha256": "15f72833bbbd71b2c43b8b8b6edba134d2efaabb97513327badba378ce3ad092",
+   "triangles": 160,
+   "vertices": 296
   }
  },
  "source_files": [
@@ -491,5 +857,5 @@
   "build.py",
   "rig/human.glb"
  ],
- "sources": "817b1285e07bc6768e833fbaf22642572cd049092c7b3d5f5cdef59483c40d57"
+ "sources": "f70dcdfcd630e25bfc0f3147de2a5b6e0a418ce0393a44f90973a8a28557bc72"
 }

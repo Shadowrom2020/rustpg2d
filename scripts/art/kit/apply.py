@@ -7,17 +7,17 @@ whose AI agent server listens on 127.0.0.1:PORT (start the editor with `mcp on P
   (`wear`), unless they already name one;
 - with `--library`, the models are also sent to the editor's asset library.
 
-BUILT_DIR is what `build.py --out` wrote (default: a fresh build in a temporary folder)."""
+Without BUILT_DIR the editor builds the kit itself (its `kit_build` tool: it must find the kit's
+sources, so start it in the repository or with RUSTPG2D_KIT); with it, the files `build.py --out`
+wrote are sent one by one."""
 import json
 import os
 import re
 import sys
-import tempfile
 import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import build  # noqa: E402
 import kit  # noqa: E402
 
 
@@ -81,34 +81,44 @@ def main():
     if not args:
         raise SystemExit(__doc__)
     ed = Editor(args[0])
-    tmp = None
-    if len(args) > 1:
-        built = args[1]
-    else:
-        tmp = tempfile.TemporaryDirectory()
-        built = tmp.name
-        build.build(built)
-    defs = json.load(open(f"{built}/kit.json"))
     info = ed.call("project_info")
     root = re.search(r" at (.+?) \(engine build", info)
-    files = sorted(os.listdir(f"{built}/models"))
-    for f in files:
-        ed.call("write_asset", path=f"models/{f}", source=os.path.abspath(f"{built}/models/{f}"))
-    # Pieces first: a body names the pieces it wears.
-    for d in sorted(defs, key=lambda d: "part" not in d):
-        ed.call("upsert_def", kind="models", **{"def": d})
-    print(f"{len(files)} files and {len(defs)} model definitions sent")
+    if len(args) > 1:
+        # Files built before: sent one by one (slower: the editor reads its models again and again).
+        built = args[1]
+        defs = json.load(open(f"{built}/kit.json"))
+        files = sorted(os.listdir(f"{built}/models"))
+        for f in files:
+            ed.call("write_asset", path=f"models/{f}", source=os.path.abspath(f"{built}/models/{f}"))
+        # Pieces first: a body names the pieces it wears.
+        for d in sorted(defs, key=lambda d: "part" not in d):
+            ed.call("upsert_def", kind="models", **{"def": d})
+        print(f"{len(files)} files and {len(defs)} model definitions sent")
+    else:
+        # The editor builds the kit itself and takes everything in one go.
+        print(ed.call("kit_build").splitlines()[0][:200])
+        defs = [dict(id=m[0]) for m in kit.everything()[0]]
     if root and os.path.exists(f"{root.group(1).strip()}/defs/items.ron"):
         text = open(f"{root.group(1).strip()}/defs/items.ron").read()
         n = 0
         for entry in re.split(r"(?m)^(?=    \(\n        id: )", text)[1:]:
             ident, wear = wear_of(entry)
-            if wear and not re.search(r"(?m)^        wear: ", entry):
+            has = re.search(r'(?m)^        wear: "([^"]*)"', entry)
+            # The kit's own table decides; the rule only fills in items without a style.
+            wear = kit.ITEM_WEAR.get(ident, None if has else wear)
+            if wear and not (has and has.group(1) == wear):
                 ed.call("upsert_def", kind="items", merge=True, **{"def": {"id": ident, "wear": wear}})
                 n += 1
         print(f"{n} items show a style when worn")
     else:
         print("the project's folder wasn't found in project_info: items left as they are")
+    # What the kit replaced without a figure of the same id.
+    for kind in ("characters", "models"):
+        listed = ed.call("list_defs", kind=kind)
+        for ident in kit.RETIRED:
+            if re.search(rf"(?m)^{ident}:", listed):
+                ed.call("delete_def", kind=kind, id=ident, force=True)
+                print(f"removed {kind[:-1]} {ident}")
     races = ed.call("list_defs", kind="races")
     for race, (m, f) in kit.RACE_BODIES.items():
         if re.search(rf"(?m)^\W*{race}\b", races):

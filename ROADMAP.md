@@ -1692,19 +1692,29 @@ A content release for the starter library. Generating 3D models costs Meshy cred
   with hair, beard and six races; armour and a helmet shown (`parts=`); the tools through an MCP
   client.
 
-- [ ] The cast from the kit — `feature/kit-cast`
+- [x] The cast from the kit — `feature/kit-cast`
 
   **Goal.** Every other person of the library and the example is a kit figure, so one style
   remains.
 
-  **Design.** Outfits for the trades (apron, smock, dress, uniform, rags), the goblins, orcs,
-  skeletons and the troll as kit bodies; characters keep their ids. The old models retire through
-  *Update asset library*.
+  **Decided while building:**
+  - **A figure of the cast has no file of its own.** It is a model definition that names a
+    head's file (`HEADS` in `kit.py`), its pieces and its default hair and clothing colours
+    (`CAST`); pieces take a figure's feature defaults. 53 figures use 141 files.
+  - **New pieces:** outfits for the trades (apron, smith's apron, dress, tabard, doublet, rags,
+    loincloth, bones), three hats that bring the hair under them, heads for goblins, the troll
+    and skeletons.
+  - **Clothing items name their style** by a table in the kit (`ITEM_WEAR`), so what a character
+    wears and what its figure shows agree.
+  - **Retired:** the old models with their clips (140 files) and the library's three *realistic*
+    characters.
+  - **Screenshots** of the manual are retaken once, after gear and creatures.
 
-  **Engine.** None (content).
+  **Engine.** None, except that a model definition changed through the agent server now takes
+  effect at once (it used to need a reload).
 
-  **Verify.** The village and the forest in autoplay; `model_check` on every model; screenshots
-  for the manual.
+  **Verify.** Every figure through `model_sheet`; the village and a forest fight in autoplay
+  (`parts=`); the kit's manifest test.
 
 - [ ] Gear from the kit — `feature/kit-gear`
 

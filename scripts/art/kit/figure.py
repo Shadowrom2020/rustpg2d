@@ -17,6 +17,7 @@ CLOTH, CLOTH_DARK, TROUSERS, BOOTS = "#3f6fb0", "#2c4c7c", "#6b5a48", "#4a3526"
 LEATHER, LEATHER_DARK = "#9a6a3c", "#5e3e24"
 METAL, METAL_DARK, MAIL, MAIL_DARK, TRIM = "#aab4c2", "#6c7686", "#8d949f", "#70767f", "#c9a03c"
 IVORY, HORN, DRAGON_EYE, CLOAK = "#efe8d0", "#d8cfae", "#f2c84b", "#3d5a3a"
+APRON, RAG, STRAW = "#e4dccb", "#7a6248", "#d6b25c"
 
 
 def shade(h, k):
@@ -81,10 +82,50 @@ def robe():
                 shin=[(0, CLOTH_DARK), (.7, BOOTS)], foot=BOOTS, skirt=CLOTH, hem=TRIM)
 
 
-OUTFITS = dict(clothes=clothes, leather_armor=leather_armor, chain_mail=chain_mail, plate_armor=plate_armor, robe=robe)
+def apron():
+    """A shirt and trousers under a pale apron (bakers, innkeepers, millers)."""
+    return dict(clothes(), buckle=None, panel=dict(color=APRON, top=.82, legs=.6))
+
+
+def smith_apron():
+    """Bare arms, thick gloves and a leather apron."""
+    return dict(pelvis=TROUSERS, waist=CLOTH, chest=CLOTH, belt=LEATHER_DARK, neckline=True, upper=[(0, CLOTH), (.3, SKIN)], fore=[(0, SKIN), (.55, LEATHER_DARK)], hand=LEATHER_DARK,
+                thigh=[(0, TROUSERS)], shin=[(0, TROUSERS), (.45, BOOTS)], foot=BOOTS, panel=dict(color=LEATHER_DARK, top=.8, legs=.75))
+
+
+def dress():
+    """A bodice with short sleeves and a long skirt."""
+    return dict(pelvis=CLOTH, waist=CLOTH, chest=CLOTH, belt=CLOTH_DARK, neckline=True, upper=[(0, CLOTH), (.55, SKIN)], fore=[(0, SKIN)], thigh=[(0, CLOTH_DARK)],
+                shin=[(0, CLOTH_DARK), (.7, BOOTS)], foot=BOOTS, skirt=CLOTH, hem=CLOTH_DARK)
+
+
+def tabard():
+    """Mail under a tabard in the wearer's colour (guards)."""
+    return dict(chain_mail(), upper=[(0, MAIL)], fore=[(0, MAIL), (.55, LEATHER_DARK)], thigh=[(0, MAIL), (.3, TROUSERS)], panel=dict(color=CLOTH, top=1.0, legs=.45, back=True, trim=TRIM))
+
+
+def doublet():
+    """A fitted jacket with buttons, hose and boots (merchants, nobles, the crier)."""
+    return dict(pelvis=CLOTH, waist=CLOTH, chest=CLOTH, belt=LEATHER, buckle=TRIM, collar=CLOTH_DARK, buttons=TRIM, upper=[(0, CLOTH)], pauldron={(0, .2): CLOTH_DARK}, fore=[(0, CLOTH), (.8, TRIM)],
+                thigh=[(0, CLOTH), (.2, CLOTH_DARK)], shin=[(0, CLOTH_DARK), (.5, BOOTS)], foot=BOOTS)
+
+
+def rags():
+    """A torn tunic, bare arms and feet (goblins)."""
+    return dict(pelvis=RAG, waist=RAG, chest=RAG, belt=LEATHER_DARK, neckline=True, upper=[(0, RAG), (.25, SKIN)], fore=[(0, SKIN)], thigh=[(0, RAG), (.35, SKIN)], shin=[(0, SKIN)], foot=SKIN,
+                ragged=True)
+
+
+def loincloth():
+    """A bare chest and a cloth round the hips (trolls, ogres)."""
+    return dict(pelvis=RAG, waist=SKIN, chest=SKIN, belt=LEATHER_DARK, upper=[(0, SKIN)], fore=[(0, SKIN), (.7, LEATHER_DARK)], thigh=[(0, RAG), (.3, SKIN)], shin=[(0, SKIN)], foot=SKIN, ragged=True)
+
+
+OUTFITS = dict(clothes=clothes, leather_armor=leather_armor, chain_mail=chain_mail, plate_armor=plate_armor, robe=robe, apron=apron, smith_apron=smith_apron, dress=dress, tabard=tabard,
+               doublet=doublet, rags=rags, loincloth=loincloth)
 HAIR_STYLES = ("short", "long", "ponytail", "bun", "mohawk")
 BEARDS = ("short", "long")
-HEADWEAR = ("helmet", "hood")
+HEADWEAR = ("helmet", "hood", "straw_hat", "chef_hat", "wizard_hat")
 
 
 class Figure:
@@ -125,6 +166,8 @@ class Figure:
                     for k in range(-TH, w + TH):
                         if (i, j, k) not in v.cells and min(i + TH, w + TH - 1 - i) + min(k + TH, w + TH - 1 - k) >= TH:
                             v.set(i, j, k, c)
+        v.rows, v.w = rows, w
+        return v
 
     def torso(self):
         """Rows of the torso: (width, depth, zone) from the crotch up, and where they are."""
@@ -164,7 +207,7 @@ class Figure:
         return self._head
 
     # ---- pieces
-    def body(self, ears=False, tusks=False, dragon=False, tail=False, horns=False):
+    def body(self, ears=False, tusks=False, dragon=False, tail=False, horns=False, goblin=False, troll=False, skull=False):
         """The head and neck, with what a race adds to them."""
         m = Mesh(self.rig)
         hd = self.head()
@@ -192,21 +235,54 @@ class Figure:
             for k in range(0, n - cc):
                 for i in (n // 2 - 1, n // 2) if n % 2 == 0 else (n // 2,):
                     v.set(i, n, k, HORN)
+        elif skull:
+            # Eye sockets, a nose hole and teeth; hollow cheeks.
+            for i0 in (hd["l0"], hd["r0"]):
+                for i in range(i0, i0 + ew):
+                    for j in range(e - 1, e + eh):
+                        v.set(i, j, front, EYE)
+            for i in (n // 2 - 1, n // 2) if n % 2 == 0 else (n // 2,):
+                v.set(i, e - 2, front, EYE)
+            for i in range(2, n - 2):
+                if i % 2 == 0:
+                    v.set(i, hd["mouth"] - 1, front, EYE)
+            for i in (0, n - 1):
+                for j in range(1, e - 1):
+                    for k in range(n // 2, n - 1):
+                        v.cells.pop((i, j, k), None)
         else:
             for i0 in (hd["l0"], hd["r0"]):
                 for i in range(i0, i0 + ew):
                     for j in range(e, e + eh):
-                        v.set(i, j, front, EYE)
+                        v.set(i, j, front, DRAGON_EYE if goblin else EYE)
             for i in range(n // 2 - u(.5), n - (n // 2 - u(.5))):
                 v.set(i, hd["mouth"], front, MOUTH)
+        if goblin or troll:
+            # A big nose, and a heavy brow on a troll.
+            for i in (n // 2 - 1, n // 2) if n % 2 == 0 else (n // 2,):
+                for j in range(e - u(1), e):
+                    v.set(i, j, n, SKIN)
+                    if troll:
+                        v.set(i, j, n + 1, SKIN)
+            if troll:
+                for i in range(1, n - 1):
+                    v.set(i, e + eh, n, MOUTH)
+        if goblin:
+            # Long ears, pointing out and back.
+            for i0, d in ((-1, -1), (n, 1)):
+                for step in range(u(2.5)):
+                    for k in (n // 2 - step // 2, n // 2 - step // 2 - 1):
+                        v.set(i0 + d * step, e + step // 3, k, SKIN)
+                        if step < u(1.5):
+                            v.set(i0 + d * step, e + step // 3 - 1, k, SKIN)
         if ears:
             for i0, d in ((-1, -1), (n, 1)):
                 for step in range(u(1.5)):
                     for k in (n // 2 - step, n // 2 - step - 1):
                         v.set(i0 + d * (step // 2), e + step, k, SKIN)
-        if tusks:
+        if tusks or troll:
             for i in (hd["l0"] + ew - 1, hd["r0"]):
-                for j in range(u(1), u(1) + u(1)):
+                for j in range(u(1), u(1) + u(1.5 if troll else 1)):
                     v.set(i, j, n, IVORY)
         if horns:
             for i0, d in ((1, -1), (n - 2, 1)):
@@ -290,6 +366,22 @@ class Figure:
             for step, j in enumerate(range(n - 1, n - 1 - u(1), -1)):
                 for i in range(-u(.5) + step, u(.5) - step):
                     front(j, i, SKIN)
+        if o.get("buttons"):
+            for j in range(belt0 + u(1), n - u(1), 2):
+                front(j, 0, o["buttons"])
+        panel = o.get("panel")
+        if panel:
+            # An apron or a tabard: the middle of the front (and back) from the hips up.
+            for j in range(0, rnd(panel["top"] * n)):
+                if o.get("belt") and belt0 <= j < belt0 + u(1):
+                    continue
+                w = dims[j][0]
+                for i in range(-w // 2 + 1, w // 2 - 1):
+                    edge = panel.get("trim") and (i in (-w // 2 + 1, w // 2 - 2) or j == rnd(panel["top"] * n) - 1)
+                    front(j, i, panel["trim"] if edge else panel["color"], back=panel.get("back", False))
+        if o.get("ragged"):
+            for (i, j, k) in [c for c in vox[0].cells if c[1] == 0 and (c[0] * 7 + c[2] * 3) % 4 == 0]:
+                vox[0].cells.pop((i, j, k))
         blocks = list(vox)
         if o.get("skirt"):
             blocks.append(self.skirt(o["skirt"], o.get("hem")))
@@ -299,7 +391,14 @@ class Figure:
             self.limb(blocks, b, hnd, self.aw, f"{s}ForeArm", o["fore"], o.get("cuff"))
             self.limb(blocks, hnd, hnd + norm(end - hnd) * .09, self.aw, f"{s}Hand", [(0, o.get("hand", SKIN))])
             a, b, f = (rig.p(f"{s}{nm}") for nm in ("UpLeg", "Leg", "Foot"))
-            self.limb(blocks, a, b, self.lw, f"{s}UpLeg", o["thigh"], o.get("thigh_shell"))
+            thigh = self.limb(blocks, a, b, self.lw, f"{s}UpLeg", o["thigh"], o.get("thigh_shell"))
+            if panel and not o.get("skirt"):
+                # The apron's or tabard's flap over the thighs (the block's front is its last layer).
+                for j in range(0, rnd(panel["legs"] * thigh.rows)):
+                    for i in range(thigh.w):
+                        for k in [thigh.w - 1] + ([0] if panel.get("back") else []):
+                            if (i, j, k) in thigh.cells:
+                                thigh.set(i, j, k, panel["color"])
             self.limb(blocks, b, f, self.lw, f"{s}Leg", o["shin"], o.get("shin_shell"))
             w = self.lw
             rows, length, toe = max(2, rnd(f[1] / V)), w + u(2), u(1.5)
@@ -318,6 +417,46 @@ class Figure:
             v.emit(m)
         return m
 
+    def bones(self):
+        """A skeleton below the neck: a spine, ribs, a pelvis and thin limbs, in the skin colour (a
+        skeleton's "skin" is bone), with the dark between the ribs left open."""
+        m = Mesh(self.rig)
+        rig, t = self.rig, self.torso()
+        n, dims, h = t["n"], t["dims"], t["h"]
+        bones = ["Hips", "Spine02", {"Spine01": .5, "Spine": .5}]
+        vox = [Vox(t["ctr"], X, Y, Z, (V, h, V), bone) for bone in bones]
+        for j, (w, d, z) in enumerate(dims):
+            rib = z == 2 and (n - 1 - j) % 3 != 2          # two rows of rib, one gap
+            hip = j < u(1.5)
+            for i in range(-w // 2, w // 2):
+                for k in range(-d // 2, d // 2):
+                    spine = abs(i + .5) < 1.5 and k < -d // 2 + 3
+                    shell = min(i + w // 2, w // 2 - 1 - i) < 1 or min(k + d // 2, d // 2 - 1 - k) < 1
+                    corner = min(i + w // 2, w // 2 - 1 - i) + min(k + d // 2, d // 2 - 1 - k) < 1
+                    if spine or ((rib or hip) and shell and not corner and not (rib and abs(i + .5) < 1 and k > 0)):
+                        vox[z].set(i, j, k, SKIN)
+        blocks = list(vox)
+        aw, lw = max(2, self.aw - 2), max(2, self.lw - 3)
+        for s in ("Left", "Right"):
+            a, b, hnd, end = (rig.p(f"{s}{nm}") for nm in ("Arm", "ForeArm", "Hand", "Hand_End"))
+            self.limb(blocks, a, b, aw, f"{s}Arm", [(0, SKIN)], {(0, .12): SKIN, (.9, 1): SKIN})
+            self.limb(blocks, b, hnd, aw, f"{s}ForeArm", [(0, SKIN)])
+            self.limb(blocks, hnd, hnd + norm(end - hnd) * .09, aw + 1, f"{s}Hand", [(0, SKIN)])
+            a, b, f = (rig.p(f"{s}{nm}") for nm in ("UpLeg", "Leg", "Foot"))
+            self.limb(blocks, a, b, lw, f"{s}UpLeg", [(0, SKIN)], {(.9, 1): SKIN})
+            self.limb(blocks, b, f, lw, f"{s}Leg", [(0, SKIN)])
+            rows, length = max(2, rnd(f[1] / V)), lw + u(2)
+            fv = Vox(np.array([f[0] - lw * V / 2, 0.0, f[2] + .045 - length * V / 2]), X, Y, Z, (V, f[1] / rows, V), f"{s}Foot")
+            for j in range(rows):
+                for i in range(lw):
+                    for k in range(length):
+                        if j < max(1, rows // 2) or k < lw:
+                            fv.set(i, j, k, SKIN)
+            blocks.append(fv)
+        for v in blocks:
+            v.emit(m)
+        return m
+
     def skirt(self, color, hem):
         rig, t = self.rig, self.torso()
         hips = rig.p("Hips")
@@ -328,7 +467,7 @@ class Figure:
         v = Vox(np.array([hips[0], low, t["ctr"][2]]), X, Y, Z, (V, (top - low) / rows, V), "Hips")
         for j in range(rows):
             f = 1 - j / max(1, rows - 1)                       # 1 at the hem
-            w, d = ev(w0 + u(2) * (.6 + .6 * f)), ev(d0 + u(3) * (.7 + .5 * f))
+            w, d = ev(w0 + u(2) * (.7 + .5 * f)), ev(d0 + u(3) * (.9 + .4 * f))
             col = hem if hem and j < max(1, u(.5)) else color
             for i in range(-w // 2, w // 2):
                 for k in range(-d // 2, d // 2):
@@ -439,6 +578,42 @@ class Figure:
                 for k in range(-t, n):
                     for j in range(n + t, n + t + u(1.5) - (1 if k in (-t, n - 1) else 0)):
                         v.set(i, j, k, TRIM)
+        elif kind in ("straw_hat", "chef_hat", "wizard_hat"):
+            col = dict(straw_hat=STRAW, chef_hat=APRON, wizard_hat=CLOTH)[kind]
+            brim = n - u(1.5)
+            # The hair that shows under the hat: at the back and the sides.
+            for i in range(-t, n + t):
+                for k in range(-t, n - u(2)):
+                    for j in range(n - u(3.5), brim):
+                        if (i, j, k) not in head.cells and (i < 0 or i >= n or k < 0) and min(i + t, n + t - 1 - i) + (k + t) >= 1:
+                            v.set(i, j, k, HAIR)
+            self.cap(v, col, brim)
+            for i in range(-t, n + t):                              # the crown's front
+                for j in range(brim, n + t):
+                    for k in range(n, n + 1):
+                        if min(i + t, n + t - 1 - i) + (n + t - 1 - j) >= 2:
+                            v.set(i, j, k, col)
+            if kind != "chef_hat":
+                b = u(2) if kind == "straw_hat" else u(1.5)
+                for i in range(-t - b, n + t + b):
+                    for k in range(-t - b, n + 1 + b):
+                        if min(i + t + b, n + t + b - 1 - i) + min(k + t + b, n + b - k) >= b and (i, brim, k) not in head.cells:
+                            v.set(i, brim, k, col)
+            if kind == "chef_hat":
+                for j in range(n + t, n + t + u(2.5)):               # the puffed top
+                    top = j == n + t + u(2.5) - 1
+                    for i in range(-t - 1, n + t + 1):
+                        for k in range(-t - 1, n + 2):
+                            if min(i + t + 1, n + t - i) + min(k + t + 1, n + 1 - k) >= (2 if top else 1):
+                                v.set(i, j, k, col)
+            if kind == "wizard_hat":
+                steps = u(5)
+                for s in range(steps):                               # the cone, its tip bent back
+                    half = (n / 2 + t) * (1 - (s + 1) / (steps + 1))
+                    lean = rnd(s * s * .08 * R)
+                    for i in range(rnd(n / 2 - half), rnd(n / 2 + half)):
+                        for k in range(rnd(n / 2 - half) - lean, rnd(n / 2 + half) - lean):
+                            v.set(i, n + t + s, k, TRIM if s == 0 else col)
         else:
             self.cap(v, CLOTH, n - u(1), back=-u(1.5), sides=-u(1.5))
             for i in range(-t, n + t):

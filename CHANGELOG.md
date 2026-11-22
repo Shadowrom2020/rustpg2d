@@ -30,13 +30,29 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
     keep working.
   - **Sources:** `scripts/art/kit` (plain Python with numpy; `build.py`, `apply.py`, a style
     guide). A test fails when the kit changed and the library was not rebuilt.
-  - **Not yet:** the townspeople, enemies, weapons and animals still have their old models.
+  - **Not yet:** weapons and animals still have their old models.
+- **The whole cast is from the kit.** Townspeople, guards, bandits, merchants, wizards, nomads,
+  nobles, children, goblins, the troll and skeletons are kit figures now, so the people of a game
+  share one look:
+  - **New outfits:** apron, smith's apron, dress, tabard, doublet, rags, loincloth, and a
+    skeleton's bones.
+  - **New head pieces:** straw hat, baker's hat, wizard's hat (a hat brings the hair that shows
+    under it).
+  - **New heads:** goblin, troll, skeleton.
+  - **A figure of the cast needs no file of its own:** it names a head's file, its pieces and its
+    default hair and clothing colours. 53 figures use 141 files (14 MB).
+  - **Clothing items show their style:** a guard's uniform is a tabard, a baker's whites an
+    apron, a dress a dress.
+  - **Removed:** the old models of these characters and their clip files (140 files; the model
+    folders of the library and the example shrink from 49 MB and 37 MB to 24 MB), and the three
+    *realistic* characters of the library, which the kit replaces.
 - **AI agent server:**
   - `model_sheet` returns a picture of a model as the game draws it (animations, facings, pieces,
     worn and held items, colours);
   - `model_check` lists what is wrong with a model and its measures;
   - `kit_build` builds kit models and puts them into the project;
-  - `write_asset` also takes model files (`models/*.glb`);
+  - `write_asset` also takes model files (`models/*.glb`); a model definition changed through
+    `upsert_def` takes effect at once;
   - the kit's style guide is the resource `rustpg2d://docs/figure-kit`.
 - **A model too large to draw is reported.** A model with more vertices or triangles than the
   engine draws in one piece used to lose parts silently; now it is named when it loads and in

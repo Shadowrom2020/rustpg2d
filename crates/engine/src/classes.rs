@@ -32,6 +32,15 @@ pub struct ClassDef {
     /// Starting equipment (the library's items for the SRD's).
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub equipment: Vec<ItemStack>,
+    /// The gold a new hero of the class starts with instead of its equipment when the creator
+    /// has a starter store (0.32): dice and a multiplier, `5d4x10` (the average is given); "" =
+    /// the equipment, no store.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub starting_gold: String,
+    /// The abilities in the order the creator places the standard array (15, 14, 13, 12, 10, 8)
+    /// for the class (0.32: `str`, `con`, `dex`…); missing ones follow in the usual order.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub ability_order: Vec<String>,
     /// Multiclassing's prerequisites (0.32): an ability and the score it needs.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub multiclass: Vec<(String, i32)>,
@@ -533,6 +542,44 @@ pub struct HeroClass {
 }
 
 impl ClassDef {
+    /// The starting gold's average in copper pieces (`5d4x10` = 125 gp = 12500 cp; 0 = none or
+    /// unreadable).
+    pub fn starting_gold_cp(&self) -> u32 {
+        let t = self.starting_gold.trim().to_ascii_lowercase();
+        if t.is_empty() {
+            return 0;
+        }
+        let (dice, times) = match t.split_once(['x', '*']) {
+            Some((d, m)) => (d.trim(), m.trim().parse::<f32>().unwrap_or(1.0)),
+            None => (t.as_str(), 1.0),
+        };
+        let avg = match dice.split_once('d') {
+            Some((n, sides)) => {
+                let n = if n.is_empty() { 1.0 } else { n.parse::<f32>().unwrap_or(0.0) };
+                n * (sides.parse::<f32>().unwrap_or(0.0) + 1.0) / 2.0
+            }
+            None => dice.parse::<f32>().unwrap_or(0.0),
+        };
+        (avg * times * 100.0).round().max(0.0) as u32
+    }
+
+    /// The standard array placed by the class's ability order (`ability_order`; the rest in the
+    /// usual order).
+    pub fn standard_array(&self) -> crate::srd::Abilities {
+        let mut order: Vec<Ability> = self.ability_order.iter().filter_map(|a| Ability::parse(a)).collect();
+        for a in Ability::ALL {
+            if !order.contains(&a) {
+                order.push(a);
+            }
+        }
+        let mut scores = [8; 6];
+        for (k, a) in order.iter().take(6).enumerate() {
+            let at = Ability::ALL.iter().position(|x| x == a).unwrap_or(0);
+            scores[at] = [15, 14, 13, 12, 10, 8][k];
+        }
+        crate::srd::Abilities(scores)
+    }
+
     /// The editor's "+ New" value.
     pub fn fresh(id: &str) -> ClassDef {
         ClassDef { id: id.into(), name: "New class".into(), hit_die: 8, subclass_level: 3, levels: (0..20).map(|_| ClassLevel::default()).collect(), ..Default::default() }
@@ -756,6 +803,22 @@ impl ClassTraits {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn starting_gold_and_the_standard_array_follow_the_class() {
+        let mut c = ClassDef { starting_gold: "5d4x10".into(), ability_order: vec!["int".into(), "con".into(), "dex".into()], ..Default::default() };
+        assert_eq!(c.starting_gold_cp(), 12500);
+        c.starting_gold = "5d4".into();
+        assert_eq!(c.starting_gold_cp(), 1250);
+        c.starting_gold = "2d4 x 10".into();
+        assert_eq!(c.starting_gold_cp(), 5000);
+        c.starting_gold = String::new();
+        assert_eq!(c.starting_gold_cp(), 0);
+        // INT 15, CON 14, DEX 13, then STR, WIS, CHA in the usual order.
+        assert_eq!(c.standard_array().0, [12, 13, 14, 15, 10, 8]);
+        // Old classes (no order) keep the array as it is.
+        assert_eq!(ClassDef::default().standard_array().0, crate::srd::Abilities::STANDARD.0);
+    }
     use super::*;
 
     #[test]

@@ -199,6 +199,11 @@ pub struct CharacterCreation {
     /// project's *Rules* scores).
     #[serde(default = "all_ability_methods")]
     pub ability_methods: Vec<crate::srd::abilities::AbilityMethod>,
+    /// The creator's starter store (0.32): the character whose shop's stock a new hero buys
+    /// from with the class's starting gold (`ClassDef::starting_gold`) instead of getting the
+    /// class's equipment; "" = no store.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub store: String,
 }
 
 fn all_ability_methods() -> Vec<crate::srd::abilities::AbilityMethod> {
@@ -207,7 +212,7 @@ fn all_ability_methods() -> Vec<crate::srd::abilities::AbilityMethod> {
 
 impl Default for CharacterCreation {
     fn default() -> Self {
-        CharacterCreation { enabled: false, sex: SexChoice::default(), default_name: String::new(), body_male: String::new(), body_female: String::new(), ability_methods: all_ability_methods() }
+        CharacterCreation { enabled: false, sex: SexChoice::default(), default_name: String::new(), body_male: String::new(), body_female: String::new(), ability_methods: all_ability_methods(), store: String::new() }
     }
 }
 

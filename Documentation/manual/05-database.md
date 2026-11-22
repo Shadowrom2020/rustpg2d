@@ -190,13 +190,16 @@ See [Characters › Races](06-characters.md#races).
 ## Backgrounds
 
 What the hero did before the adventure: proficiencies, languages to choose, starting items and a
-feature. The creator offers them on its second page. See
+feature. The creator offers them on its *Background* step. See
 [Characters › Backgrounds](06-characters.md#backgrounds).
 
 ## Classes
 
 The SRD's twelve classes: hit die, saving throws, proficiencies, skills to choose, starting
-equipment, subclasses and their features by level. The creator offers them on its third page;
+equipment, **starting gold** (`5d4x10`: what a new hero gets instead of the equipment when the
+project has a starter store), the **ability order** (where the creator places the standard array:
+`int, con, dex…`), subclasses and their features by level. The creator offers them on its *Class*
+step;
 characters have one as party members. See [Characters › Classes](06-characters.md#classes).
 
 ## Diseases
@@ -500,7 +503,7 @@ quests.
 |---|---|
 | **Project** | Name; start map and start spawn; pixel scale; inventory slots; the clock's **day length** (real minutes per in-game day, default 24; 0 = time stands still) and the hour **new games start at** |
 | **Player character** | The character definition the player is, and the **player portrait** |
-| **Character creator** | Whether it's shown at a new game, the player character's sex (*Player chooses*, *Always male*, *Always female*), the default name, the playable models and the default model per sex (the colour rows come from the models' colour features), and the **ability score** methods of its second page (standard array, point buy, 4d6) ([Characters › The player](06-characters.md#the-player-character-and-the-character-creator)) |
+| **Character creator** | Whether it's shown at a new game, the player character's sex (*Player chooses*, *Always male*, *Always female*), the default name, the playable models and the default model per sex (the colour rows come from the models' colour features), the **ability score** methods (standard array, point buy, 4d6) and the **starter store** (a character whose shop stock a new hero buys gear from with the class's starting gold; the example's *Outfitter*) ([Characters › The player](06-characters.md#the-player-character-and-the-character-creator)) |
 | **Dialog portraits** | Show the speaker's portrait in dialogs (on by default) |
 | **Eight facings** | Characters walking diagonally are drawn turned diagonally (on by default); off, they show the four facings only (fewer poses to render) |
 | **Character pose memory** | GPU memory for the rendered poses of 3D characters, 8 to 128 MB (default 32). When it is full, the poses drawn longest ago are rendered again when needed: raise it for many different characters on screen at once, lower it for small GPUs |

@@ -251,13 +251,17 @@ The SRD's twelve **classes** (barbarian, bard, cleric, druid, fighter, monk, pal
 sorcerer, warlock, wizard) are definitions (*Database › Classes*,
 [Characters › Classes](06-characters.md#classes)) with their subclass, hit die, saving throws,
 proficiencies, skills to choose, starting equipment and their features from level 1 to 20. The
-character creator offers them on its third page; the hero then is a class at their level, and
+character creator offers them on its *Class* step (with level 1's choices and spells, and the
+starter store's gear instead of the starting equipment when the project has one); the hero then is
+a class at their level, and
 *Set class* / `set_class()` give or change one in play.
 
 - **Starting**: the class's saving throws and armor, weapon and tool proficiencies, the skills
   picked in the creator and its starting equipment in the inventory (the SRD's first options,
   mapped to the library's items: a fighter's chain mail, iron sword, wooden shield, crossbow and
-  bolts).
+  bolts). With a starter store in the creator, the class's **starting gold** (the average of its
+  dice, `5d4x10` = 125 gp) buys gear there instead, and the rest stays in the purse; level 1's
+  choices and spells are picked in the creator too.
 - **Levelling**: every level the hit die adds hit points. When a level brings **choices**, the
   **level-up window** opens as soon as nothing else is going on (no fight, dialog or cut-scene):
   the **subclass** at its level (a fighter's *Martial Archetype* at 3, a cleric's *Divine Domain* at

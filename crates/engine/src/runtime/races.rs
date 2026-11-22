@@ -23,6 +23,12 @@ pub(super) struct HeroChoices {
     /// The class ("" = none) and the class skills picked.
     pub class: String,
     pub class_skills: Vec<String>,
+    /// Level 1's class choices made in the creator (feature -> option ids, `cantrips` / `spells`
+    /// for the spells picked); empty = the level-up window asks.
+    pub level_picks: BTreeMap<String, Vec<String>>,
+    /// The starter store's purchases and the gold left (copper pieces) instead of the class's
+    /// equipment (`None` = the equipment).
+    pub store: Option<(Vec<(String, u32)>, u32)>,
 }
 
 impl Game {
@@ -68,9 +74,21 @@ impl Game {
             for s in &c.class_skills {
                 self.world.set_proficient(s, true);
             }
-            let gear: Vec<(String, u32)> = self.project.db.class(&c.class).map(|cl| cl.equipment.iter().filter(|s| !s.item.is_empty() && s.count > 0).map(|s| (s.item.clone(), s.count)).collect()).unwrap_or_default();
+            // (Bought in the creator's store instead: the purchases and the gold left.)
+            let gear: Vec<(String, u32)> = match &c.store {
+                Some((bought, _)) => bought.clone(),
+                None => self.project.db.class(&c.class).map(|cl| cl.equipment.iter().filter(|s| !s.item.is_empty() && s.count > 0).map(|s| (s.item.clone(), s.count)).collect()).unwrap_or_default(),
+            };
             for (item, n) in gear {
                 self.world.give_item(&item, n);
+            }
+            if let Some((_, gold)) = &c.store {
+                self.give_cp(*gold);
+            }
+            // Level 1's choices made in the creator: no level-up window for them.
+            if !c.level_picks.is_empty() {
+                self.apply_level_picks("player", c.level_picks.clone());
+                self.world.levelups.retain(|p| !(p.who == "player" && p.level == 1));
             }
         }
         self.init_skills(false);

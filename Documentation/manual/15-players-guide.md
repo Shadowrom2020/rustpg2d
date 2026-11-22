@@ -267,12 +267,19 @@ place is named under the list (*R2 is also Switch weapon*).
 
 ## Menus
 
-- **Character creator** (after *New game*, when the game has one): type a name, then Up / Down
-  choose a row and Left / Right change it: race (its ability increases, speed and traits show
-  under the picture), sex, body and colours (skin, hair, clothing…). Enter goes on to the second
-  page: your ability scores (the standard array, point buy with 27 points, or 4d6 rolls; Left /
-  Right swap or raise a score), what your race lets you choose (skills, a language, a dragon
-  ancestor…) and your background. Enter starts the adventure, Esc goes back a page.
+- **Character creator** (after *New game*, when the game has one), step by step: Up / Down
+  choose a row, Left / Right change it, Enter goes on, Esc goes back a step.
+  1. *Who*: type a name, then your race (its ability increases, speed and traits show under the
+     picture), sex, body and colours (skin, hair, clothing…).
+  2. *Class*: your class, its skills and level 1's choices (a fighting style, a domain…).
+  3. *Ability scores*: the standard array placed for your class, point buy with 27 points, or 4d6
+     rolls (Left / Right swap or raise a score), and what your race lets you choose (skills, a
+     language…).
+  4. *Background*: your background, its languages, a rogue's expertise.
+  5. *Spells* (casters): pick your cantrips and spells (a wizard's spellbook) with Enter or a click.
+  6. *Starting equipment*: buy gear with your class's starting gold (Right / Enter / + buys one,
+     Left / − puts it back); what you don't spend stays in your purse. Enter on *Start adventure*
+     starts the game.
 - **Title screen**: *New game*, *Continue* (the latest save), *Load game*, *Options*, *Achievements*
   (if the game has them), *Exit*. A game may order them differently, leave some out, add a
   *Credits* page (Up / Down or the wheel scroll it) and entries of its own.

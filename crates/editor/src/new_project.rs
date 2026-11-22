@@ -170,6 +170,8 @@ impl Editor {
             default_name: w.default_name.trim().to_string(),
             body_male: if has("hero") { "hero".into() } else { String::new() },
             body_female: if has("heroine") { "heroine".into() } else { String::new() },
+            // (The starter library's outfitter: the creator's starter store.)
+            store: if project.db.character("outfitter").is_some_and(|d| d.shop.is_some()) { "outfitter".into() } else { String::new() },
             ..Default::default()
         };
         if w.sex == SexChoice::Female {

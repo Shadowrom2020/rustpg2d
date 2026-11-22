@@ -375,7 +375,8 @@ scripts/art/kit/        the figure kit: the starter library's voxel people built
                         guide, served as the agent resource rustpg2d://docs/figure-kit): kitlib.py (skeleton from
                         rig/human.glb, voxel blocks with merged faces, the .glb writer), figure.py (a build's body,
                         outfits, hair, beards, headwear, cloak as separate meshes on the same bones), kit.py (builds,
-                        bodies, pieces and their model definitions), build.py (--out DIR, --check; writes
+                        heads, pieces, the cast as definitions over the heads' files, items' shown styles), gear.py (item
+                        models: weapons, shields, tools, backpacks, each with its hold point, direction and front), build.py (--out DIR, --check; writes
                         manifest.json, compared by the editor test the_figure_kit_is_built_and_applied), apply.py PORT
                         (through an editor's agent server: files, model defs, items' wear, race bodies). After a change:
                         build, apply to the example (repository mode) and to the starter library (opened as a project),

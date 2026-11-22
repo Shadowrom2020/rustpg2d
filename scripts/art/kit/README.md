@@ -46,6 +46,19 @@ body and its pieces in one pose and recolours them together.
 - **Not every outfit is built for every build** (`OUTFIT_ONLY` in `kit.py`): dresses for women,
   loincloths for the medium and large builds, bones for the medium build.
 
+## Gear
+
+`gear.py` builds the item models: weapons, shields, tools, lights and backpacks. An item `size`
+world pixels long is 2 x `size` voxels long, so its voxels are the figures' size. Every item stands
+along +Y with its handle at the bottom and is thin along Z; its builder returns the voxels and
+how it is held: the hold point, the direction from it to the far end, and the front (a blade's
+edge, an axe's head, a bow's back, a shield's face). The front also decides how the inventory icon
+shows it: the icon looks at the plane of the direction and the front. `kit_build` gives these to
+every item that uses the model file; the items keep their size and their hold style.
+
+After changing an item model, render its icon again (the item form's *Render icon*, or the editor
+script command `itemicon ITEM`).
+
 ## Colours
 
 Colour features recolour exact colours, so pieces share the constants in `figure.py`:
@@ -103,6 +116,8 @@ An agent connected to the editor can do the same without a shell: `kit_build` bu
 - **Clothing items:** `ITEM_WEAR` in `kit.py` names the style of clothing whose look its name
   doesn't tell (`guard_uniform` is a tabard).
 - **A build:** an entry in `BUILDS`. Every outfit and cloak is then built for it too.
+- **An item model:** a builder in `gear.py` and its file name in `GEAR`; then give the item the
+  model in the editor (*Choose a model…*, which sets its size and hold style) and build again.
 
 Then look before you keep it: build, apply or `kit_build`, and `model_sheet` with a walk and an
 attack. Check these at game size, not enlarged:

@@ -250,6 +250,47 @@ class Mesh:
         return dict(vertices=nv, triangles=nt, colors=["#%02x%02x%02x" % c for c in sorted(self.prims)], lo=[round(float(v), 4) for v in lo], hi=[round(float(v), 4) for v in hi])
 
 
+class StaticMesh(Mesh):
+    """Triangles in plain colours without bones: an item's model."""
+
+    def __init__(self):
+        self.rig = None
+        self.prims = {}
+
+    def w(self, spec):
+        return ()
+
+    def export(self, path):
+        out = Bin()
+        prims, mats = [], []
+        nv = nt = 0
+        for color in sorted(self.prims):
+            index, pos, nor, idx = {}, [], [], []
+            for pts, n, _ in self.prims[color]:
+                ids = []
+                for p in pts:
+                    key = (tuple(np.round(p, 5)), tuple(np.round(n, 3)))
+                    i = index.get(key)
+                    if i is None:
+                        i = index[key] = len(pos)
+                        pos.append(p)
+                        nor.append(n)
+                    ids.append(i)
+                idx += [ids[0], ids[1], ids[2], ids[0], ids[2], ids[3]]
+            attrs = {"POSITION": out.add(np.array(pos, np.float32), "VEC3", 5126, 34962, True), "NORMAL": out.add(np.array(nor, np.float32), "VEC3", 5126, 34962)}
+            prims.append({"attributes": attrs, "indices": out.add(np.array(idx, np.uint16), "SCALAR", 5123, 34963), "material": len(mats)})
+            mats.append({"name": "#%02x%02x%02x" % color, "pbrMetallicRoughness": {"baseColorFactor": [round(c / 255, 6) for c in color] + [1.0], "metallicFactor": 0.0, "roughnessFactor": 1.0}})
+            nv += len(pos)
+            nt += len(idx) // 3
+        if nv > MAX_VERTICES or nt > MAX_TRIANGLES:
+            raise SystemExit(f"{path}: {nv} vertices and {nt} triangles, more than the engine draws in one piece ({MAX_VERTICES} / {MAX_TRIANGLES})")
+        doc = {"asset": {"version": "2.0", "generator": GENERATOR}, "scene": 0, "scenes": [{"nodes": [0]}], "nodes": [{"name": "item", "mesh": 0}], "meshes": [{"primitives": prims}],
+               "materials": mats, "buffers": [{"byteLength": len(out.data)}], "bufferViews": out.views, "accessors": out.accs}
+        write_glb(path, doc, out.data)
+        lo, hi = self.bounds()
+        return dict(vertices=nv, triangles=nt, colors=["#%02x%02x%02x" % c for c in sorted(self.prims)], lo=[round(float(v), 4) for v in lo], hi=[round(float(v), 4) for v in hi])
+
+
 class Vox:
     """A block of voxels bound to one bone (or a blend of two). Cell (i, j, k) is the box from
     origin + i·sx·ax + j·sy·ay + k·sz·az to the next cell."""

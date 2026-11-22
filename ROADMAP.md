@@ -1716,15 +1716,21 @@ A content release for the starter library. Generating 3D models costs Meshy cred
   **Verify.** Every figure through `model_sheet`; the village and a forest fight in autoplay
   (`parts=`); the kit's manifest test.
 
-- [ ] Gear from the kit — `feature/kit-gear`
+- [x] Gear from the kit — `feature/kit-gear`
 
   **Goal.** Weapons, shields, tools and backpacks are voxel models in the kit's look.
 
-  **Design.** Item models built by script at the kit's voxel size; hold points set as today.
+  **Decided while building:**
+  - **The same file names**, so items keep their models; the kit says how each is held (hold
+    point, direction, front) and `kit_build` gives that to every item using the file. Items keep
+    their size and hold style.
+  - **Voxel size:** an item `size` pixels long is built 2 x `size` voxels long.
+  - **Icons** are rendered again from the new models into the same cells of `icons_3d`.
 
-  **Engine.** None (content).
+  **Engine.** None (the `kit_build` tool reads the kit's `gear.json`; `model_sheet` takes a
+  backpack).
 
-  **Verify.** `model_sheet` with each item held; a fight in autoplay.
+  **Verify.** `model_sheet` with each item held; the icons; a scene in autoplay.
 
 - [ ] Creatures from the kit — `feature/kit-creatures`
 

@@ -257,7 +257,9 @@ state back into `world.entities[map]`.
 `Game::frame` polls the gamepad, takes `dt = frame time, capped at 50 ms` (variable step), then
 `update(dt)` and `draw()`. `update` runs, in order:
 
-1. screen shake, thumbnail capture, the script-side player mirror;
+1. summoned creatures that vanished last frame leave the entity list (`RtEntity::gone`: nothing
+   holds an entity's index at this point, as it may deep inside a fight's damage), the occupancy
+   grid, screen shake, thumbnail capture, the script-side player mirror;
 2. modal screens that pause the world and return early: console, character creator, minigame,
    sleeping, "heal whom?", orders menu, pause menu, world map;
 3. play time, achievements, the clock (`advance_hours`, crops regrow), *Time reached* triggers;

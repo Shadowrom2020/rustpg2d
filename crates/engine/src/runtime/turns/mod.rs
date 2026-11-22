@@ -297,7 +297,8 @@ impl Game {
     pub(super) fn who_index(&self, who: Who) -> Option<usize> {
         match who {
             Who::Player => None,
-            Who::Npc(uid) => self.loaded.entities.iter().position(|e| e.uid == uid),
+            // (Not a summoned creature that vanished this frame: it is gone for the fight.)
+            Who::Npc(uid) => self.loaded.entities.iter().position(|e| e.uid == uid && !e.gone),
         }
     }
 

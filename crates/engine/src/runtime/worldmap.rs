@@ -51,6 +51,9 @@ pub(super) struct WorldMap {
     drag: Option<Drag>,
     /// Fog of war: one pixel per tile, opaque where unexplored (`None` on maps without fog).
     fog: Option<Texture2D>,
+    /// What the fog texture shows: the map (name, size) and its explored tiles then. The
+    /// texture is made again only when they differ.
+    fog_of: Option<(String, u32, u32, Option<crate::fog::Explored>)>,
     /// The map the picture shows (minimaps render it again on another map) and when the fog
     /// texture was last made for them (`get_time`).
     picture_of: String,
@@ -85,6 +88,26 @@ fn button_rect(b: Button) -> Rect {
     // Right to left: close, +, -, Center.
     let right = p.right() - 12.0 - k * 38.0 - if k >= 3.0 { 62.0 } else { 0.0 };
     Rect::new(right - w, p.y + 12.0, w, 30.0)
+}
+
+/// A map's fog of war as a picture, one pixel per tile: opaque where unexplored (slightly
+/// mottled, like clouds on a map), clear where explored.
+fn fog_image(width: u32, height: u32, explored: Option<&crate::fog::Explored>) -> Image {
+    let mut bytes = vec![0u8; width as usize * height as usize * 4];
+    for y in 0..height {
+        let row = &mut bytes[(y * width) as usize * 4..][..width as usize * 4];
+        for (x, px) in row.as_chunks_mut::<4>().0.iter_mut().enumerate() {
+            let x = x as u32;
+            if explored.is_some_and(|e| e.get(x as i32, y as i32)) {
+                continue;
+            }
+            let n = ((x.wrapping_mul(73856093) ^ y.wrapping_mul(19349663)) % 1000) as f32 / 1000.0;
+            let v = 0.13 + n * 0.035;
+            let grey = (v * 255.0) as u8;
+            *px = [grey, grey, ((v + 0.03) * 255.0) as u8, 255];
+        }
+    }
+    Image { bytes, width: width as u16, height: height as u16 }
 }
 
 /// Scrollbar tracks below and right of the view.
@@ -153,29 +176,31 @@ impl Game {
         (n > 0.0).then(|| sum / n)
     }
 
-    /// The fog texture of the current map (`None` without fog of war).
-    fn build_fog(&self) -> Option<Texture2D> {
+    /// Brings the fog texture of the current map up to date (none without fog of war). Painting
+    /// a big map's fog takes milliseconds, so it happens only when the explored tiles changed,
+    /// into the texture there is.
+    fn refresh_fog(&mut self) {
         let m = &self.loaded.map;
         if !m.fog {
-            return None;
+            (self.worldmap.fog, self.worldmap.fog_of) = (None, None);
+            return;
         }
         let explored = self.world.explored.get(&m.name);
-        let mut img = Image::gen_image_color(m.width as u16, m.height as u16, Color::new(0.0, 0.0, 0.0, 0.0));
-        for y in 0..m.height {
-            for x in 0..m.width {
-                if explored.is_some_and(|e| e.get(x as i32, y as i32)) {
-                    continue;
-                }
-                // Slightly mottled, like clouds on a map.
-                let n = ((x.wrapping_mul(73856093) ^ y.wrapping_mul(19349663)) % 1000) as f32 / 1000.0;
-                let v = 0.13 + n * 0.035;
-                img.set_pixel(x, y, Color::new(v, v, v + 0.03, 1.0));
+        let same = self.worldmap.fog.is_some() && self.worldmap.fog_of.as_ref().is_some_and(|(name, w, h, e)| *name == m.name && (*w, *h) == (m.width, m.height) && e.as_ref() == explored);
+        if same {
+            return;
+        }
+        let img = fog_image(m.width, m.height, explored);
+        match &self.worldmap.fog {
+            Some(t) if t.size() == vec2(m.width as f32, m.height as f32) => t.update(&img),
+            _ => {
+                let t = Texture2D::from_image(&img);
+                // Soft edges between explored and unexplored tiles.
+                t.set_filter(FilterMode::Linear);
+                self.worldmap.fog = Some(t);
             }
         }
-        let t = Texture2D::from_image(&img);
-        // Soft edges between explored and unexplored tiles.
-        t.set_filter(FilterMode::Linear);
-        Some(t)
+        self.worldmap.fog_of = Some((m.name.clone(), m.width, m.height, explored.cloned()));
     }
 
     /// Keeps the view on the map; an axis that fits completely is centered.
@@ -381,7 +406,7 @@ impl Game {
             self.worldmap.fog_at = 0.0;
         }
         if get_time() - self.worldmap.fog_at > 1.0 {
-            self.worldmap.fog = self.build_fog();
+            self.refresh_fog();
             self.worldmap.fog_at = get_time();
         }
     }
@@ -447,7 +472,7 @@ impl Game {
         }
         if self.worldmap.redraw || self.worldmap.picture.is_none() {
             self.render_map_picture();
-            self.worldmap.fog = self.build_fog();
+            self.refresh_fog();
             self.worldmap.redraw = false;
         }
         let (sw, sh) = (screen_width(), screen_height());
@@ -613,5 +638,32 @@ impl Game {
         }
         let explored = self.world.explored.get(&self.loaded.map.name).map_or(0, |e| e.count());
         format!("open zoom={} center={:.1},{:.1} fog={} explored={explored}", wm.zoom, wm.center.x, wm.center.y, self.loaded.map.fog)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_fog_picture_is_opaque_where_unexplored() {
+        let mut explored = crate::fog::Explored::new(6, 4);
+        explored.reveal(1.5, 1.5, 1.0);
+        let img = fog_image(6, 4, Some(&explored));
+        assert_eq!((img.width, img.height, img.bytes.len()), (6, 4, 6 * 4 * 4));
+        for y in 0..4 {
+            for x in 0..6 {
+                let px = &img.bytes[(y * 6 + x) * 4..][..4];
+                if explored.get(x as i32, y as i32) {
+                    assert_eq!(px, [0, 0, 0, 0], "explored tile {x},{y} is clear");
+                } else {
+                    // (As `Color::new(v, v, v + 0.03, 1.0)` of v in 0.13..0.165 comes out in bytes.)
+                    assert!(px[3] == 255 && (33..=42).contains(&px[0]) && px[0] == px[1] && px[2] > px[0], "fog at {x},{y}: {px:?}");
+                }
+            }
+        }
+        assert!(explored.count() > 0 && explored.count() < 24);
+        // Never explored: fog everywhere.
+        assert!(fog_image(6, 4, None).bytes.as_chunks::<4>().0.iter().all(|px| px[3] == 255));
     }
 }

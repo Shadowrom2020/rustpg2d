@@ -50,23 +50,38 @@ impl Game {
         let e = &self.loaded.entities[i];
         let ts = self.ts();
         let pos = e.body.pos;
-        let near = self.player.pos.distance(pos) <= NEAR_NOTICE.min(sight).max(self.sense_tiles(i).min(sight)) * ts;
-        if near {
+        let d = self.player.pos.distance(pos);
+        // Beyond its sight nothing notices (its senses reach no farther either): most of a big
+        // map's creatures stop here, every frame, so the cheap answers come first.
+        if d > sight * ts {
+            return false;
+        }
+        if d <= NEAR_NOTICE.min(sight) * ts {
             return true;
         }
         let eye = pos - vec2(0.0, e.body.hitbox.y / 2.0 + 2.0);
         let mid = self.player.pos - vec2(0.0, self.player.hitbox.y / 2.0);
         let range = self.player_sight(sight);
-        let d = self.player.pos.distance(pos);
         let in_sight = d <= range && (d <= range * 0.5 || self.line_clear(eye, mid));
-        in_sight && (!self.sneaking() || self.passive_of(super::turns::Who::Npc(e.uid)) >= self.combat.sneak_roll)
+        if in_sight && (!self.sneaking() || self.passive_of(super::turns::Who::Npc(e.uid)) >= self.combat.sneak_roll) {
+            return true;
+        }
+        d <= self.sense_tiles(i).min(sight) * ts
     }
 
     /// How lit the player is: 0 (dark) to 1 (daylight, a lamp right beside them). The map's
     /// ambient light by the clock plus every light source in reach (as drawn: full at its
     /// middle, nothing at its radius).
     pub(super) fn light_at_player(&self) -> f32 {
-        self.light_level(self.player.pos - vec2(0.0, self.ts() * 0.5))
+        // Once a frame: every enemy with the hero in sight asks, and the answer adds up every
+        // light source on the map.
+        let key = (self.player.pos, self.world.hour);
+        if let Some((_, light)) = self.light_here.get().filter(|(k, _)| *k == key) {
+            return light;
+        }
+        let light = self.light_level(self.player.pos - vec2(0.0, self.ts() * 0.5));
+        self.light_here.set(Some((key, light)));
+        light
     }
 
     /// How lit a spot is: 0 (dark) to 1 (daylight): the map's ambient light by the clock plus
@@ -135,6 +150,8 @@ impl Game {
     /// `sneak=` for `status`: on / off, the light at the player, how far a 10-tile enemy would
     /// notice them (tiles) and, sneaking, the Stealth roll its passive Perception has to reach.
     pub(super) fn sneak_status(&self) -> String {
+        // (As it is now: a script command may have changed a light since the frame.)
+        self.light_here.set(None);
         let roll = if self.sneaking() { format!(":stealth={}", self.combat.sneak_roll) } else { String::new() };
         format!("{}:light{:.2}:sight10={:.1}{roll}", if self.sneaking() { "on" } else { "off" }, self.light_at_player(), self.player_sight(10.0) / self.ts())
     }

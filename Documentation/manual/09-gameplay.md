@@ -1179,7 +1179,8 @@ tile, or next to the caster, on its side. The party's are companions the AI play
 menu, G, works; their HUD rows show), joining a fight at once with their own initiative; a foe's
 fight for it. They stay for the spell's duration or while it is concentrated on, an instantaneous
 spell's until they drop to 0 hit points (they vanish, nothing is left) or the hero leaves the map;
-they aren't saved. In the starter library *Find Familiar* summons an owl, *Conjure Animals* two
+they aren't saved. A caster who casts the spell again replaces the creatures of the earlier casting
+(one familiar at a time). In the starter library *Find Familiar* summons an owl, *Conjure Animals* two
 dire wolves; the druid's Wild Shape is in the library's and the example's classes.
 
 The hero's shape is saved with the game. `status` prints `shape=` (`player>wolf:11/11:7199s`, a

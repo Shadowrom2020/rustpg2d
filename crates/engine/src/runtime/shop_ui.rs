@@ -10,13 +10,17 @@ use super::input::{self, Act};
 use super::ui::{panel, ListClick, ScrollList, PAD};
 use super::{skin, Game};
 use crate::defs::{ShopEntry, ShopSpec};
-use crate::render::wrap_text;
 use super::text::{draw_text, measure_text};
+use crate::item_category::StoreTab;
 
 const ROW: f32 = 44.0;
 const ROWS: usize = 8;
 const COL_W: f32 = 380.0;
 const TITLE_H: f32 = 44.0;
+/// The window's help line.
+const HINT: &str = "Click price / {key:confirm}: trade one   {key:run}: ten   {key:up} / {key:down}: select   {key:left} / {key:right}: switch side   {key:next_tab} / 1-6: filter   {key:cancel}: close";
+/// The filter tabs' row above each list.
+const TABS_H: f32 = 30.0;
 const FOOT_H: f32 = 96.0;
 const BTN_W: f32 = 108.0;
 
@@ -47,6 +51,8 @@ pub(super) struct ShopUi {
     side: Option<ShopSide>,
     /// The merchant's and the player's list.
     lists: [ScrollList; 2],
+    /// Each list's filter tab.
+    tabs: [StoreTab; 2],
     /// Result of the last trade (shown in the footer) and when it happened.
     msg: Option<(String, bool, f64)>,
     /// Prices the `buy` / `sell` script hooks set, by (merchant side, item): worked out when the
@@ -83,15 +89,15 @@ struct Layout {
 fn layout() -> Layout {
     let (sw, sh) = (screen_width(), screen_height());
     let w = 2.0 * COL_W + 3.0 * PAD;
-    let h = TITLE_H + ROWS as f32 * ROW + FOOT_H + 3.0 * PAD;
+    let h = TITLE_H + TABS_H + ROWS as f32 * ROW + FOOT_H + 3.0 * PAD;
     let x = ((sw - w) / 2.0).max(4.0).round();
     let y = ((sh - h) / 2.0).max(4.0).round();
-    let list = |k: f32| Rect::new(x + PAD + k * (COL_W + PAD), y + TITLE_H + PAD, COL_W, ROWS as f32 * ROW);
+    let list = |k: f32| Rect::new(x + PAD + k * (COL_W + PAD), y + TITLE_H + TABS_H + PAD, COL_W, ROWS as f32 * ROW);
     Layout {
         panel: Rect::new(x, y, w, h),
         lists: [list(0.0), list(1.0)],
         close: Rect::new(x + w - 30.0, y + 8.0, 22.0, 22.0),
-        foot: Rect::new(x + PAD, y + TITLE_H + 2.0 * PAD + ROWS as f32 * ROW, w - 2.0 * PAD, FOOT_H),
+        foot: Rect::new(x + PAD, y + TITLE_H + TABS_H + 2.0 * PAD + ROWS as f32 * ROW, w - 2.0 * PAD, FOOT_H),
     }
 }
 
@@ -202,7 +208,24 @@ impl Game {
         self.shop.msg = Some((text, ok, get_time()));
     }
 
+    /// The rows of a side under its filter tab.
     fn shop_rows(&self, side: ShopSide) -> Vec<Row> {
+        let tab = self.shop.tabs[side.idx()];
+        let ammo = crate::item_category::ammo_of(&self.project.db);
+        let mut rows = self.shop_rows_all(side);
+        rows.retain(|r| tab.keeps(crate::item_category::category_of(&self.project.db, &r.item, &ammo)));
+        rows
+    }
+
+    /// The filter tabs a side offers (none when its items fit under one).
+    fn shop_tabs(&self, side: ShopSide) -> Vec<StoreTab> {
+        let ammo = crate::item_category::ammo_of(&self.project.db);
+        let cats: Vec<_> = self.shop_rows_all(side).iter().map(|r| crate::item_category::category_of(&self.project.db, &r.item, &ammo)).collect();
+        StoreTab::offered(&cats)
+    }
+
+    /// Every row of a side.
+    fn shop_rows_all(&self, side: ShopSide) -> Vec<Row> {
         let Some(uid) = self.shop.open else { return Vec::new() };
         let Some(spec) = self.shop_spec(uid) else { return Vec::new() };
         let empty = Vec::new();
@@ -259,7 +282,7 @@ impl Game {
                 continue;
             }
             let side = if merchant_side { ShopSide::Merchant } else { ShopSide::Player };
-            for row in self.shop_rows(side) {
+            for row in self.shop_rows_all(side) {
                 let price = row.price.map_or(-1, |p| p as i64);
                 let m = self.hook(hook, map([("item", row.item.clone().into()), ("price", price.into()), ("merchant", merchant.clone().into())]));
                 let p = int(&m, "price", price);
@@ -409,13 +432,43 @@ impl Game {
         }
     }
 
+    /// Shows a side's items under filter tab `t` (from the top of the list).
+    fn set_shop_tab(&mut self, side: ShopSide, t: StoreTab) {
+        let s = side.idx();
+        if self.shop.tabs[s] != t {
+            self.shop.tabs[s] = t;
+            self.shop.lists[s] = Default::default();
+        }
+        self.clamp_selection();
+    }
+
+    /// The filter tabs of a side above its list, sized to their names.
+    fn shop_tab_rects(&self, side: ShopSide, l: &Layout) -> Vec<(StoreTab, Rect)> {
+        let tabs = self.shop_tabs(side);
+        let list = l.lists[side.idx()];
+        tab_rects(&tabs, Rect::new(list.x, list.y - TABS_H - 2.0, list.w, TABS_H - 4.0))
+    }
+
+    /// Screen position of a filter tab (`all`, `weapons`…) of the open shop's merchant list or,
+    /// with `sell`, of the player's (for automated play-throughs).
+    pub fn shop_tab_pos(&self, id: &str, sell: bool) -> Option<Vec2> {
+        self.shop.open?;
+        let side = if sell { ShopSide::Player } else { ShopSide::Merchant };
+        self.shop_tab_rects(side, &layout()).into_iter().find(|(t, _)| t.id() == id).map(|(_, r)| r.center())
+    }
+
     /// Open merchant and its stock (for automated play-throughs).
     pub(super) fn shop_status(&self) -> Option<String> {
         let uid = self.shop.open?;
         let stock = self.saved_stock(uid)?;
         let list: Vec<String> = stock.iter().map(|e| if e.unlimited { format!("{}:inf", e.item) } else { format!("{}:{}", e.item, e.count) }).collect();
         let msg = self.shop.msg.as_ref().map_or("", |m| m.0.as_str());
-        Some(format!("{} [{}] msg={msg:?} side={:?} sel={:?} scroll={:?}", self.shop_title(uid), list.join(" "), self.shop.side, self.shop.lists.each_ref().map(|l| l.sel), self.shop.lists.each_ref().map(|l| l.scroll)))
+        let tabs = |side: ShopSide| {
+            // (The chosen tab in capitals.)
+            let v: Vec<String> = self.shop_tabs(side).iter().map(|t| if *t == self.shop.tabs[side.idx()] { t.id().to_uppercase() } else { t.id().to_string() }).collect();
+            format!("{}:{}", v.join("/"), self.shop_rows(side).len())
+        };
+        Some(format!("{} [{}] msg={msg:?} side={:?} sel={:?} scroll={:?} tabs={}|{}", self.shop_title(uid), list.join(" "), self.shop.side, self.shop.lists.each_ref().map(|l| l.sel), self.shop.lists.each_ref().map(|l| l.scroll), tabs(ShopSide::Merchant), tabs(ShopSide::Player)))
     }
 
     /// Screen position of a row's trade button (for automated play-throughs):
@@ -437,6 +490,7 @@ impl Game {
             self.shop.open = Some(uid);
             self.shop.side = Some(ShopSide::Merchant);
             self.shop.lists = Default::default();
+            self.shop.tabs = Default::default();
             self.shop.msg = None;
             self.refresh_shop_prices();
             self.audio.play(&self.project.config.sfx.open_container);
@@ -451,11 +505,26 @@ impl Game {
             return (true, true);
         }
         let side = self.shop.side.unwrap_or(ShopSide::Merchant);
-        if input::any_act_pressed(&[Act::NextTab, Act::PrevTab, Act::Left, Act::Right]) {
+        if input::any_act_pressed(&[Act::Left, Act::Right]) {
             self.shop.side = Some(side.other());
         }
         let side = self.shop.side.unwrap_or(ShopSide::Merchant);
         let s = side.idx();
+        // The active list's filter: Tab / Shift+Tab (LB / RB) step through its tabs, 1-6 pick one.
+        let tabs = self.shop_tabs(side);
+        if !tabs.is_empty() {
+            let at = tabs.iter().position(|t| *t == self.shop.tabs[s]).unwrap_or(0);
+            let pick = if input::act_pressed(Act::NextTab) {
+                Some((at + 1) % tabs.len())
+            } else if input::act_pressed(Act::PrevTab) {
+                Some((at + tabs.len() - 1) % tabs.len())
+            } else {
+                Act::QUICK.iter().position(|a| input::act_pressed(*a)).filter(|k| *k < tabs.len())
+            };
+            if let Some(k) = pick {
+                self.set_shop_tab(side, tabs[k]);
+            }
+        }
         if input::act_pressed(Act::Down) {
             self.shop.lists[s].sel += 1;
         }
@@ -480,6 +549,10 @@ impl Game {
         }
         if input::mouse_pressed(MouseButton::Left) {
             for side in [ShopSide::Merchant, ShopSide::Player] {
+                if let Some((t, _)) = self.shop_tab_rects(side, &l).into_iter().find(|(_, r)| r.contains(m)) {
+                    self.shop.side = Some(side);
+                    self.set_shop_tab(side, t);
+                }
                 let list = l.lists[side.idx()];
                 let n = self.shop_rows(side).len();
                 match self.shop.lists[side.idx()].click(m, n, ROWS, |vis| row_rect(list, vis), button_rect) {
@@ -510,8 +583,11 @@ impl Game {
             let title_col = if this == side { skin::highlight() } else { skin::text(skin::Text::Dim, Color::new(0.85, 0.8, 0.6, 1.0)) };
             draw_text(&titles[s], list.x, p.y + 32.0, 28.0, title_col);
             draw_rectangle(list.x, list.y, list.w, list.h, Color::new(0.0, 0.0, 0.0, 0.25));
+            draw_tabs(&self.shop_tab_rects(this, &l), self.shop.tabs[s], m);
             let rows = self.shop_rows(this);
-            if rows.is_empty() {
+            if rows.is_empty() && self.shop.tabs[s] != StoreTab::All {
+                draw_text("Nothing here.", list.x + 12.0, list.y + 28.0, 22.0, skin::disabled());
+            } else if rows.is_empty() {
                 let msg = if this == ShopSide::Merchant { "Sold out." } else { "Nothing to sell." };
                 draw_text(msg, list.x + 12.0, list.y + 28.0, 22.0, skin::disabled());
             }
@@ -594,9 +670,12 @@ impl Game {
         draw_text(&mt, f.x + f.w - 116.0, f.y + 30.0, size, skin::highlight());
         let sel = self.shop_rows(side).into_iter().nth(self.shop.lists[side.idx()].sel);
         if let Some(d) = sel.as_ref().and_then(|r| self.project.db.item(&r.item)) {
-            draw_text(&d.name, f.x + 10.0, f.y + 24.0, 22.0, skin::highlight());
-            for (k, line) in wrap_text(&super::glyphs::expand_keys(&d.description), 18, f.w - 190.0).iter().take(2).enumerate() {
-                draw_text(line, f.x + 10.0, f.y + 46.0 + k as f32 * 18.0, 18.0, skin::dim());
+            // (Content: translated already.)
+            super::text::draw_plain(&d.name, f.x + 10.0, f.y + 24.0, 22.0, skin::highlight());
+            // (One line when the hint below needs two.)
+            let lines = if super::glyphs::hint_lines_in(HINT, 16.0, f.w - 20.0) > 1 { 1 } else { 2 };
+            for (k, line) in super::text::wrap(&super::glyphs::expand_keys(&d.description), 18.0, f.w - 190.0).iter().take(lines).enumerate() {
+                super::text::draw_plain(line, f.x + 10.0, f.y + 46.0 + k as f32 * 18.0, 18.0, skin::dim());
             }
         }
         if let Some((text, ok, t)) = &self.shop.msg {
@@ -605,11 +684,10 @@ impl Game {
                 let a = (4.0 - age).min(1.0);
                 let c = if *ok { skin::text(skin::Text::Positive, Color::new(0.6, 0.95, 0.6, a)) } else { skin::text(skin::Text::Negative, Color::new(1.0, 0.55, 0.5, a)) };
                 let tw = measure_text(text, None, 20, 1.0).width;
-                draw_text(text, f.x + f.w - tw - 10.0, f.y + 62.0, 20.0, c);
+                draw_text(text, f.x + f.w - tw - 10.0, f.y + 54.0, 20.0, c);
             }
         }
-        let hint = "Click price / {key:confirm}: trade one   {key:run}: ten   Wheel / {key:up} / {key:down}: select   {key:next_tab}: switch side   {key:cancel}: close";
-        super::glyphs::draw_hint_in(hint, f.x + 10.0, skin::hint_baseline(f.y + f.h), 16.0, f.w - 20.0, skin::disabled());
+        super::glyphs::draw_hint_in(HINT, f.x + 10.0, skin::hint_baseline(f.y + f.h), 16.0, f.w - 20.0, skin::disabled());
     }
 }
 
@@ -626,6 +704,48 @@ fn apply_stock(stock: &mut Vec<ShopEntry>, item: &str, op: crate::events::VarOp,
         (Some(k), VarOp::Add) => stock[k].count = stock[k].count.saturating_add(count),
         (None, _) if count > 0 => stock.push(ShopEntry { item: item.to_string(), count, unlimited: false, price }),
         (None, _) => {}
+    }
+}
+
+/// Filter tab buttons across `row`, as wide as their names (the names cut when they don't fit).
+pub(super) fn tab_rects(tabs: &[StoreTab], row: Rect) -> Vec<(StoreTab, Rect)> {
+    if tabs.is_empty() {
+        return Vec::new();
+    }
+    let _font = super::text::role(super::text::Role::Ui);
+    let gap = 4.0;
+    let widths: Vec<f32> = tabs.iter().map(|t| super::text::measure_plain(&crate::lang::tr_ui(t.label()), TAB_FONT).width + 16.0).collect();
+    let total: f32 = widths.iter().sum::<f32>() + gap * (tabs.len() - 1) as f32;
+    // (Too wide: every tab gets the same share.)
+    let share = (row.w - gap * (tabs.len() - 1) as f32) / tabs.len() as f32;
+    let mut x = row.x;
+    tabs.iter()
+        .zip(widths)
+        .map(|(t, w)| {
+            let w = if total > row.w { share } else { w };
+            let r = Rect::new(x, row.y, w, row.h);
+            x += w + gap;
+            (*t, r)
+        })
+        .collect()
+}
+
+/// The filter tabs' text size.
+const TAB_FONT: f32 = 16.0;
+
+/// Draws filter tabs (`on` lit).
+pub(super) fn draw_tabs(tabs: &[(StoreTab, Rect)], on: StoreTab, m: Vec2) {
+    let _font = super::text::role(super::text::Role::Ui);
+    for (t, r) in tabs {
+        let lit = *t == on;
+        let hot = lit || r.contains(m);
+        if !skin::button_picture(*r, hot) {
+            draw_rectangle(r.x, r.y, r.w, r.h, skin::button_fill(hot, if lit { Color::new(0.45, 0.35, 0.12, 1.0) } else { Color::new(0.12, 0.12, 0.2, 0.9) }));
+            draw_rectangle_lines(r.x, r.y, r.w, r.h, if lit { 2.0 } else { 1.0 }, if lit { skin::highlight() } else { skin::line(0.6) });
+        }
+        let label = super::text::fit_plain(&crate::lang::tr_ui(t.label()), TAB_FONT, r.w - 6.0);
+        let tw = super::text::measure_plain(&label, TAB_FONT).width;
+        super::text::draw_plain(&label, r.x + (r.w - tw) / 2.0, r.y + r.h / 2.0 + TAB_FONT / 3.0, TAB_FONT, if lit { skin::highlight() } else { skin::normal() });
     }
 }
 

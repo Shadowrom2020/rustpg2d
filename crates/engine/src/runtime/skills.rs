@@ -510,7 +510,8 @@ impl Game {
         let Some(d) = self.project.db.spell(id) else { return };
         super::text::draw_plain(&crate::lang::tr(&d.name), x, y, 28.0, skin::highlight());
         y += 26.0;
-        let level = if d.level == 0 { format!("{} {}", d.school, crate::lang::tr_ui("cantrip")) } else { format!("{} {}, {}", crate::lang::tr_ui("Level"), d.level, d.school) };
+        let school = crate::lang::tr_ui(&d.school);
+        let level = if d.level == 0 { format!("{school} {}", crate::lang::tr_ui("cantrip")) } else { format!("{} {}, {school}", crate::lang::tr_ui("Level"), d.level) };
         let mut info = vec![level, d.casting.label(), d.range.label()];
         if let Some(a) = d.area {
             info.push(a.label());

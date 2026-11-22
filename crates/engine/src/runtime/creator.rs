@@ -35,6 +35,7 @@ use super::text::{draw_plain, draw_text, fit_plain, fit_size, measure_plain};
 use super::{ui::panel, Game};
 use crate::classes::{ClassDef, HeroClass};
 use crate::defs::Appearance;
+use crate::item_category::StoreTab;
 use crate::races::{ChoiceKind, RaceDef};
 use crate::srd::abilities::{self, Ability, AbilityMethod};
 use crate::srd::Abilities;
@@ -159,6 +160,8 @@ pub(super) struct Creator {
     spells: Vec<String>,
     /// The store's cart: item id -> how many.
     cart: BTreeMap<String, u32>,
+    /// The store's filter tab.
+    store_tab: StoreTab,
     /// The first list row shown (spells, the store).
     scroll: usize,
     /// A line under the page (a pick that isn't possible) and how long it stays.
@@ -512,7 +515,46 @@ impl Game {
 
     /// The starter store's stock: item id and price in copper pieces (the shop's price, else
     /// the item's cost); empty when the project has no store or the class no starting gold.
+    /// The starter store's stock under the chosen filter tab.
     fn creator_store(&self, c: &Creator) -> Vec<(String, u32)> {
+        let ammo = crate::item_category::ammo_of(&self.project.db);
+        let mut v = self.creator_store_all(c);
+        v.retain(|(id, _)| c.store_tab.keeps(crate::item_category::category_of(&self.project.db, id, &ammo)));
+        v
+    }
+
+    /// The filter tabs the starter store offers.
+    fn creator_store_tabs(&self, c: &Creator) -> Vec<StoreTab> {
+        let ammo = crate::item_category::ammo_of(&self.project.db);
+        let cats: Vec<_> = self.creator_store_all(c).iter().map(|(id, _)| crate::item_category::category_of(&self.project.db, id, &ammo)).collect();
+        StoreTab::offered(&cats)
+    }
+
+    /// The starter store's filter tabs on screen.
+    fn creator_store_tab_rects(&self, c: &Creator) -> Vec<(StoreTab, Rect)> {
+        let p = Self::creator_panel();
+        super::shop_ui::tab_rects(&self.creator_store_tabs(c), Rect::new(p.x + 30.0, p.y + 110.0, 470.0, 26.0))
+    }
+
+    /// Shows the store's items under tab `t` (from the top of the list).
+    fn set_creator_store_tab(&mut self, t: StoreTab) {
+        if let Some(c) = &mut self.creator {
+            if c.store_tab != t {
+                c.store_tab = t;
+                c.scroll = 0;
+                c.row = 0;
+            }
+        }
+    }
+
+    /// Screen position of the starter store's filter tab `id` (for automated play-throughs).
+    pub fn creator_tab_pos(&self, id: &str) -> Option<Vec2> {
+        let c = self.creator.as_ref().filter(|c| c.page == Page::Store)?;
+        self.creator_store_tab_rects(c).into_iter().find(|(t, _)| t.id() == id).map(|(_, r)| r.center())
+    }
+
+    /// The starter store's whole stock.
+    fn creator_store_all(&self, c: &Creator) -> Vec<(String, u32)> {
         if self.creator_class(c).is_none_or(|cl| cl.starting_gold_cp() == 0) {
             return Vec::new();
         }
@@ -523,7 +565,7 @@ impl Game {
     /// The starting gold (cp) and what the cart costs.
     fn creator_purse(&self, c: &Creator) -> (u32, u32) {
         let gold = self.creator_class(c).map_or(0, |cl| cl.starting_gold_cp());
-        let prices: BTreeMap<String, u32> = self.creator_store(c).into_iter().collect();
+        let prices: BTreeMap<String, u32> = self.creator_store_all(c).into_iter().collect();
         let spent = c.cart.iter().map(|(id, n)| prices.get(id).copied().unwrap_or(0) * n).sum();
         (gold, spent)
     }
@@ -545,7 +587,7 @@ impl Game {
         if !self.creator_spell_list(c).is_empty() {
             v.push(Page::Spells);
         }
-        if !self.creator_store(c).is_empty() {
+        if !self.creator_store_all(c).is_empty() {
             v.push(Page::Store);
         }
         v
@@ -689,6 +731,7 @@ impl Game {
             level: Vec::new(),
             spells: Vec::new(),
             cart: BTreeMap::new(),
+            store_tab: StoreTab::All,
             scroll: 0,
             message: None,
         });
@@ -976,7 +1019,7 @@ impl Game {
         let class_skills = self.creator_class_skills(&c);
         let level_picks = self.creator_level_picks(&c);
         // The store: what was bought and the gold left, instead of the class's equipment.
-        let store = (!self.creator_store(&c).is_empty()).then(|| {
+        let store = (!self.creator_store_all(&c).is_empty()).then(|| {
             let (gold, spent) = self.creator_purse(&c);
             (c.cart.iter().map(|(id, n)| (id.clone(), *n)).collect(), gold.saturating_sub(spent))
         });
@@ -996,8 +1039,10 @@ impl Game {
     }
 
     /// How many list rows (spells, the store) show at once.
-    fn creator_list_shown() -> usize {
-        ((H - 110.0 - 90.0) / LIST_H).floor() as usize
+    fn creator_list_shown(page: Page) -> usize {
+        let n = ((H - 110.0 - 90.0) / LIST_H).floor() as usize;
+        // (The store's filter tabs take a row.)
+        if page == Page::Store { n - 1 } else { n }
     }
 
     /// The control rectangles of the current page's choice rows (rows before Start / Back).
@@ -1038,11 +1083,11 @@ impl Game {
             }
             // A scrolling list on the left (under a line of counts).
             Page::Spells | Page::Store => {
-                let shown = Self::creator_list_shown();
-                let w = if c.page == Page::Spells { 400.0 } else { 470.0 };
+                let shown = Self::creator_list_shown(c.page);
+                let (w, first) = if c.page == Page::Spells { (400.0, top + 30.0) } else { (470.0, top + 30.0 + LIST_H) };
                 (0..n)
                     .map(|k| match k.checked_sub(c.scroll).filter(|v| *v < shown) {
-                        Some(v) => Rect::new(p.x + 30.0, top + 30.0 + v as f32 * LIST_H, w, LIST_H - 2.0),
+                        Some(v) => Rect::new(p.x + 30.0, first + v as f32 * LIST_H, w, LIST_H - 2.0),
                         None => Rect::default(),
                     })
                     .collect()
@@ -1059,7 +1104,8 @@ impl Game {
 
     /// Keeps the selected list row in view.
     fn creator_keep_in_view(&mut self, rows: &[Row]) {
-        let shown = Self::creator_list_shown();
+        let Some(page) = self.creator.as_ref().map(|c| c.page) else { return };
+        let shown = Self::creator_list_shown(page);
         let Some(c) = &mut self.creator else { return };
         let n = rows.iter().filter(|r| matches!(r, Row::Spell(_) | Row::Item(_))).count();
         if let Some(Row::Spell(k) | Row::Item(k)) = rows.get(c.row) {
@@ -1112,6 +1158,24 @@ impl Game {
             row = step(row, n - 1);
         }
         let (left, right) = (input::nav_pressed(Act::Left), input::nav_pressed(Act::Right));
+        // The store's filter: Tab / Shift+Tab (LB / RB) step through its tabs, 1-6 pick one.
+        if c.page == Page::Store {
+            let tabs = self.creator_store_tabs(c);
+            if !tabs.is_empty() {
+                let at = tabs.iter().position(|t| *t == c.store_tab).unwrap_or(0);
+                let pick = if input::act_pressed(Act::NextTab) {
+                    Some((at + 1) % tabs.len())
+                } else if input::act_pressed(Act::PrevTab) {
+                    Some((at + tabs.len() - 1) % tabs.len())
+                } else {
+                    Act::QUICK.iter().position(|a| input::act_pressed(*a)).filter(|k| *k < tabs.len())
+                };
+                if let Some(k) = pick {
+                    self.set_creator_store_tab(tabs[k]);
+                    return true;
+                }
+            }
+        }
         if let Some(c) = &mut self.creator {
             c.row = row;
             // The wheel scrolls a list.
@@ -1119,7 +1183,7 @@ impl Game {
             if wheel != 0.0 {
                 c.scroll = if wheel > 0.0 { c.scroll.saturating_sub(1) } else { c.scroll + 1 };
                 let lists = rows.iter().filter(|r| matches!(r, Row::Spell(_) | Row::Item(_))).count();
-                c.scroll = c.scroll.min(lists.saturating_sub(Self::creator_list_shown()));
+                c.scroll = c.scroll.min(lists.saturating_sub(Self::creator_list_shown(c.page)));
             } else {
                 self.creator_keep_in_view(&rows);
             }
@@ -1156,6 +1220,7 @@ impl Game {
             let choice_rows: Vec<Row> = rows.iter().copied().filter(|r| !matches!(r, Row::Start | Row::Back)).collect();
             let l = self.creator_layout(c, &rows);
             let m = input::mouse_pos();
+            let tab_hit = if c.page == Page::Store { self.creator_store_tab_rects(c).into_iter().find(|(_, r)| r.contains(m)).map(|(t, _)| t) } else { None };
             for (k, r) in l.rows.iter().enumerate() {
                 if r.w <= 0.0 || !r.contains(m) {
                     continue;
@@ -1188,6 +1253,10 @@ impl Game {
                         self.change_row(other, if prev.contains(m) { -1 } else { 1 });
                     }
                 }
+            }
+            if let Some(t) = tab_hit {
+                self.set_creator_store_tab(t);
+                return true;
             }
             if l.start.contains(m) {
                 self.creator_forward();
@@ -1222,7 +1291,7 @@ impl Game {
         let pages = self.creator_pages(c);
         let at = pages.iter().position(|p| *p == c.page).unwrap_or(0);
         Some(format!(
-            "{}|{}|{:?}|{}|p{}/{} {} {} base {} total {} picks[{}] bg:{} class:{} spells[{}] gold:{}/{} cart[{}]{}",
+            "{}|{}|{:?}|{}|p{}/{} {} {} base {} total {} picks[{}] bg:{} class:{} spells[{}] gold:{}/{} cart[{}] tab:{}/{}{}",
             c.name,
             race,
             c.sex,
@@ -1240,6 +1309,8 @@ impl Game {
             gold.saturating_sub(spent),
             gold,
             cart.join(" "),
+            c.store_tab.id(),
+            self.creator_store(c).len(),
             c.message.as_ref().map_or(String::new(), |(m, _)| format!(" msg:{m}"))
         ))
     }
@@ -1283,7 +1354,7 @@ impl Game {
         let hint = match c.page {
             Page::Who => "Type a name  -  {key:up}/{key:down}: select  -  {key:left}/{key:right}: change  -  Enter: next  -  {key:cancel}: back",
             Page::Spells => "{key:up}/{key:down}: select  -  Enter / click: pick or drop  -  {key:cancel}: back",
-            Page::Store => "{key:up}/{key:down}: select  -  {key:right} / Enter / +: buy one  -  {key:left} / -: put back  -  {key:cancel}: back",
+            Page::Store => "{key:up}/{key:down}: select  -  {key:right} / Enter / +: buy one  -  {key:left} / -: put back  -  {key:next_tab} / 1-6: filter  -  {key:cancel}: back",
             _ if last => "{key:up}/{key:down}: select  -  {key:left}/{key:right}: change  -  Enter: start  -  {key:cancel}: back",
             _ => "{key:up}/{key:down}: select  -  {key:left}/{key:right}: change  -  Enter: next  -  {key:cancel}: back",
         };
@@ -1469,7 +1540,7 @@ impl Game {
         y = wrapped(&format!("{} d{}   {} {}", crate::lang::tr_ui("Hit die"), cl.hit_die, crate::lang::tr_ui("Saves"), saves.join(", ")), x, y, w, 18.0, skin::highlight(), 1) + 4.0;
         let order: Vec<&str> = ability_order(Some(cl)).iter().take(3).map(|a| a.short()).collect();
         y = wrapped(&format!("{} {}", crate::lang::tr_ui("Best abilities:"), order.join(", ")), x, y, w, 16.0, skin::dim(), 1) + 2.0;
-        if !self.creator_store(c).is_empty() {
+        if !self.creator_store_all(c).is_empty() {
             y = wrapped(&format!("{} {}", crate::lang::tr_ui("Starting gold:"), Self::format_cp(cl.starting_gold_cp())), x, y, w, 16.0, skin::dim(), 1) + 2.0;
         }
         let profs: Vec<String> = cl.proficiencies.iter().map(|id| crate::lang::tr_ui(&abilities::proficiency_name(id)).into_owned()).collect();
@@ -1688,7 +1759,7 @@ impl Game {
             draw_plain(&tail, r.right() - tw - 8.0, r.y + 19.0, 15.0, skin::dim());
         }
         // A list longer than the page: which rows show.
-        let shown = Self::creator_list_shown();
+        let shown = Self::creator_list_shown(c.page);
         if list.len() > shown {
             let t = crate::lang::tr_ui("{}-{} of {}").replacen("{}", &(c.scroll + 1).to_string(), 1).replacen("{}", &(c.scroll + shown).min(list.len()).to_string(), 1).replacen("{}", &list.len().to_string(), 1);
             let tw = measure_plain(&t, 15.0).width;
@@ -1733,6 +1804,10 @@ impl Game {
         };
         let line = crate::lang::tr_ui("Gold left: {} of {}").replacen("{}", &Self::format_cp(gold.saturating_sub(spent)), 1).replacen("{}", &Self::format_cp(gold), 1);
         draw_plain(&fit_plain(&line, 18.0, 470.0), p.x + 30.0, p.y + 100.0, 18.0, skin::highlight());
+        super::shop_ui::draw_tabs(&self.creator_store_tab_rects(c), c.store_tab, m);
+        if stock.is_empty() {
+            draw_text("Nothing here.", p.x + 42.0, p.y + 170.0, 20.0, skin::disabled());
+        }
         for (k, row) in choice_rows.iter().enumerate() {
             let r = l.rows[k];
             let Row::Item(i) = row else { continue };
@@ -1761,7 +1836,7 @@ impl Game {
             button(minus, "-", false, false, minus.contains(m));
             button(plus, "+", false, false, plus.contains(m));
         }
-        let shown = Self::creator_list_shown();
+        let shown = Self::creator_list_shown(c.page);
         if stock.len() > shown {
             let t = crate::lang::tr_ui("{}-{} of {}").replacen("{}", &(c.scroll + 1).to_string(), 1).replacen("{}", &(c.scroll + shown).min(stock.len()).to_string(), 1).replacen("{}", &stock.len().to_string(), 1);
             let tw = measure_plain(&t, 15.0).width;

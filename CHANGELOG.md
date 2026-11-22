@@ -680,8 +680,15 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   order (also set by the SRD import). The example sells from it in its creator and gains the
   remaining SRD weapons and armour, focuses, kits, and 30 cantrips and 1st-level spells, so every
   caster has spells to choose (all translated into German).
-- Status: `creator=` shows the step, the class's level-1 picks, the spells, the gold left and the
-  cart.
+- Status: `creator=` shows the step, the class's level-1 picks, the spells, the gold left, the
+  cart and the store's filter tab.
+- **Filter tabs** in shops and the creator's store: *All*, *Weapons* (with ammunition), *Armor*
+  (with shields), *Tools*, *Gear* and *Magic*, only those the list has things for; click one, or
+  Tab / Shift+Tab (LB / RB) and 1-6. In shops each side has its own; Left / Right switch sides.
+  The categories are the SRD's the editor's item lists filter by (now in the engine:
+  `item_category`). Autoplay `filter TAB [sell]`; `status` prints `shop=… tabs=`.
+- **Spell schools** are translated (the Spells tab, the creator's spells step) in the nine
+  built-in languages.
 
 ### Art
 - The male **dragonborn** has a new model (example and starter library) with its own walk, idle,

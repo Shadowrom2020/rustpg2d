@@ -522,6 +522,16 @@ impl Autoplay {
                     click(&mut self.mouse_frames, p, MouseButton::Left);
                     return true;
                 }
+                // filter ID [sell]: click a filter tab (all, weapons, armor, tools, gear, magic) of the
+                // open shop's merchant list (the player's with `sell`) or of the creator's store
+                "filter" => {
+                    let Some(p) = game.shop_tab_pos(arg(1), arg(2) == "sell").or_else(|| game.creator_tab_pos(arg(1))) else {
+                        say!("[autoplay] filter: no tab {}", arg(1));
+                        continue;
+                    };
+                    click(&mut self.mouse_frames, p, MouseButton::Left);
+                    return true;
+                }
                 // minigame bite: press E when a fish bites; waits up to 8 s (the lockpicking game
                 // of 0.27 and older became a DEX check)
                 "minigame" => {

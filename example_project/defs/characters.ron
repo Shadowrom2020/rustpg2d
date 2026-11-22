@@ -1562,10 +1562,6 @@
                         level: 0,
                     ),
                     (
-                        spell: "thaumaturgy",
-                        level: 0,
-                    ),
-                    (
                         spell: "cure-wounds",
                         level: 1,
                     ),
@@ -4393,10 +4389,6 @@
                     ),
                     (
                         spell: "sacred-flame",
-                        level: 0,
-                    ),
-                    (
-                        spell: "thaumaturgy",
                         level: 0,
                     ),
                     (

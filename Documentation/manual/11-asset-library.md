@@ -19,7 +19,7 @@ trader and an elven herbalist, a wolf, a bat and a ghost; the six races of the e
 female version), three **realistic** figures in another style than the example's chibi cast (*Hero
 (realistic)*, *Elf (realistic)*, *Elf woman (realistic)*, drawn at 115 %) and more structures (town
 houses, city walls, dungeon rooms). The starter library
-also includes the SRD's 319 spells (the example's with their icons; Fireball with its flying sprite
+also includes the SRD's 159 spells that act in play (the example's with their icons; Fireball with its flying sprite
 and explosion), a **Locked Chest** (DC 12 to
 pick), and
 fonts: **monogram** (the example's pixel font: Latin, Cyrillic, Greek) and **Fusion Pixel** in its
@@ -121,10 +121,10 @@ The starter library's races (with their subraces, traits and choices), the Acoly
 the twelve classes with their subclasses, levels, features and spellcasting ([Characters ›
 Classes](06-characters.md#classes); the features that act get their effects from a table in the
 import, the starting equipment is the SRD's: the first option of each choice, a focus for casters
-that would start without one), the 319 spells ([Gameplay ›
+that would start without one), the SRD's spells ([Gameplay ›
 Spellcasting](09-gameplay.md#spellcasting): attacks, saves, damage and healing from the data,
-conditions, boons, light and Knock from a table in the import, the rest story only; a spell the
-library had keeps its icon and look), the 334 monsters ([Characters ›
+conditions, boons, light and Knock from a table in the import; the library keeps the 159 that act
+in play, without the story-only ones and Comprehend Languages, Tongues, Detect Poison and Disease, Detect Evil and Good, Animal Friendship, Dream, Plane Shift and Control Water; a spell the library had keeps its icon and look), the 334 monsters ([Characters ›
 Monsters](06-characters.md#monsters); every damage part of an attack, and what a hit does read from its
 text: 67 attacks with more damage of other types, 85 effects on a hit in 65 attacks, such as a save
 against a condition or poison, or a grapple's escape DC; the 36 casters' spellcasting from the

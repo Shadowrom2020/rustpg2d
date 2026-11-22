@@ -690,6 +690,14 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **Spell schools** are translated (the Spells tab, the creator's spells step) in the nine
   built-in languages.
 
+### Spells refined
+- The starter library keeps the 159 SRD spells that act in play: the 152 **story-only** spells
+  (only their text: Wish, Mending, Prestidigitation, Identify…) and eight working ones of little use
+  in this kind of game (Comprehend Languages, Tongues, Detect Poison and Disease, Detect Evil and
+  Good, Animal Friendship, Dream, Plane Shift, Control Water) are gone, from the example too.
+  Monsters' spell lists, the high elf's cantrip choice, the paladin's oath spells and the Ring of
+  Animal Influence lost the removed spells.
+
 ### Art
 - The **hero** (the male human hero, the starter library's *Hero* character) has a new model with
   its own clips for every animation: walking, idle, sitting, sneaking, hurt and the weapon

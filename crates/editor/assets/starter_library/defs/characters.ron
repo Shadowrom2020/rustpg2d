@@ -1551,10 +1551,6 @@
                         level: 0,
                     ),
                     (
-                        spell: "thaumaturgy",
-                        level: 0,
-                    ),
-                    (
                         spell: "cure-wounds",
                         level: 1,
                     ),
@@ -5241,10 +5237,6 @@
                     ),
                     (
                         spell: "sacred-flame",
-                        level: 0,
-                    ),
-                    (
-                        spell: "thaumaturgy",
                         level: 0,
                     ),
                     (
@@ -9368,15 +9360,7 @@
                         level: 0,
                     ),
                     (
-                        spell: "thaumaturgy",
-                        level: 0,
-                    ),
-                    (
                         spell: "command",
-                        level: 1,
-                    ),
-                    (
-                        spell: "detect-evil-and-good",
                         level: 1,
                     ),
                     (
@@ -9388,15 +9372,7 @@
                         level: 2,
                     ),
                     (
-                        spell: "zone-of-truth",
-                        level: 2,
-                    ),
-                    (
                         spell: "dispel-magic",
-                        level: 3,
-                    ),
-                    (
-                        spell: "tongues",
                         level: 3,
                     ),
                     (
@@ -9414,10 +9390,6 @@
                     (
                         spell: "greater-restoration",
                         level: 5,
-                    ),
-                    (
-                        spell: "heroes-feast",
-                        level: 6,
                     ),
                 ],
             )),
@@ -9792,10 +9764,6 @@
                 ],
                 spells: [
                     (
-                        spell: "disguise-self",
-                        level: 1,
-                    ),
-                    (
                         spell: "invisibility",
                         level: 2,
                     ),
@@ -9808,23 +9776,11 @@
                         level: 0,
                     ),
                     (
-                        spell: "mage-hand",
-                        level: 0,
-                    ),
-                    (
-                        spell: "prestidigitation",
-                        level: 0,
-                    ),
-                    (
                         spell: "shocking-grasp",
                         level: 0,
                     ),
                     (
                         spell: "detect-magic",
-                        level: 1,
-                    ),
-                    (
-                        spell: "identify",
                         level: 1,
                     ),
                     (
@@ -9834,10 +9790,6 @@
                     (
                         spell: "magic-missile",
                         level: 1,
-                    ),
-                    (
-                        spell: "detect-thoughts",
-                        level: 2,
                     ),
                     (
                         spell: "mirror-image",
@@ -9864,10 +9816,6 @@
                         level: 4,
                     ),
                     (
-                        spell: "fire-shield",
-                        level: 4,
-                    ),
-                    (
                         spell: "stoneskin",
                         level: 4,
                     ),
@@ -9876,28 +9824,12 @@
                         level: 5,
                     ),
                     (
-                        spell: "scrying",
-                        level: 5,
-                    ),
-                    (
                         spell: "wall-of-force",
                         level: 5,
                     ),
                     (
-                        spell: "globe-of-invulnerability",
-                        level: 6,
-                    ),
-                    (
-                        spell: "teleport",
-                        level: 7,
-                    ),
-                    (
                         spell: "mind-blank",
                         level: 8,
-                    ),
-                    (
-                        spell: "time-stop",
-                        level: 9,
                     ),
                 ],
             )),
@@ -13216,24 +13148,6 @@
                         innate: true,
                         per_day: 3,
                     ),
-                    (
-                        spell: "telekinesis",
-                        level: 5,
-                        innate: true,
-                        per_day: 3,
-                    ),
-                    (
-                        spell: "control-weather",
-                        level: 8,
-                        innate: true,
-                        per_day: 1,
-                    ),
-                    (
-                        spell: "gaseous-form",
-                        level: 3,
-                        innate: true,
-                        per_day: 1,
-                    ),
                 ],
             )),
         )),
@@ -13654,29 +13568,13 @@
                 attack: 6,
                 spells: [
                     (
-                        spell: "detect-evil-and-good",
-                        level: 1,
-                        innate: true,
-                    ),
-                    (
                         spell: "detect-magic",
                         level: 1,
                         innate: true,
                     ),
                     (
-                        spell: "detect-thoughts",
-                        level: 2,
-                        innate: true,
-                    ),
-                    (
                         spell: "bless",
                         level: 1,
-                        innate: true,
-                        per_day: 3,
-                    ),
-                    (
-                        spell: "create-food-and-water",
-                        level: 3,
                         innate: true,
                         per_day: 3,
                     ),
@@ -13711,19 +13609,7 @@
                         per_day: 3,
                     ),
                     (
-                        spell: "dream",
-                        level: 5,
-                        innate: true,
-                        per_day: 1,
-                    ),
-                    (
                         spell: "greater-restoration",
-                        level: 5,
-                        innate: true,
-                        per_day: 1,
-                    ),
-                    (
-                        spell: "scrying",
                         level: 5,
                         innate: true,
                         per_day: 1,
@@ -13976,10 +13862,6 @@
                     ),
                     (
                         spell: "sacred-flame",
-                        level: 0,
-                    ),
-                    (
-                        spell: "thaumaturgy",
                         level: 0,
                     ),
                     (
@@ -14326,11 +14208,6 @@
                 attack: 3,
                 spells: [
                     (
-                        spell: "nondetection",
-                        level: 3,
-                        innate: true,
-                    ),
-                    (
                         spell: "blindness-deafness",
                         level: 2,
                         innate: true,
@@ -14339,12 +14216,6 @@
                     (
                         spell: "blur",
                         level: 2,
-                        innate: true,
-                        per_day: 1,
-                    ),
-                    (
-                        spell: "disguise-self",
-                        level: 1,
                         innate: true,
                         per_day: 1,
                     ),
@@ -14529,17 +14400,6 @@
                 dc: 17,
                 attack: 9,
                 spells: [
-                    (
-                        spell: "detect-evil-and-good",
-                        level: 1,
-                        innate: true,
-                    ),
-                    (
-                        spell: "commune",
-                        level: 5,
-                        innate: true,
-                        per_day: 1,
-                    ),
                     (
                         spell: "raise-dead",
                         level: 5,
@@ -14737,11 +14597,6 @@
                 attack: 9,
                 spells: [
                     (
-                        spell: "detect-evil-and-good",
-                        level: 1,
-                        innate: true,
-                    ),
-                    (
                         spell: "detect-magic",
                         level: 1,
                         innate: true,
@@ -14752,56 +14607,8 @@
                         innate: true,
                     ),
                     (
-                        spell: "create-food-and-water",
-                        level: 3,
-                        innate: true,
-                        per_day: 3,
-                    ),
-                    (
-                        spell: "tongues",
-                        level: 3,
-                        innate: true,
-                        per_day: 3,
-                    ),
-                    (
-                        spell: "wind-walk",
-                        level: 6,
-                        innate: true,
-                        per_day: 3,
-                    ),
-                    (
-                        spell: "conjure-elemental",
-                        level: 5,
-                        innate: true,
-                        per_day: 1,
-                    ),
-                    (
-                        spell: "creation",
-                        level: 5,
-                        innate: true,
-                        per_day: 1,
-                    ),
-                    (
-                        spell: "gaseous-form",
-                        level: 3,
-                        innate: true,
-                        per_day: 1,
-                    ),
-                    (
                         spell: "invisibility",
                         level: 2,
-                        innate: true,
-                        per_day: 1,
-                    ),
-                    (
-                        spell: "major-image",
-                        level: 3,
-                        innate: true,
-                        per_day: 1,
-                    ),
-                    (
-                        spell: "plane-shift",
-                        level: 7,
                         innate: true,
                         per_day: 1,
                     ),
@@ -15358,12 +15165,6 @@
                         innate: true,
                         per_day: 1,
                     ),
-                    (
-                        spell: "faerie-fire",
-                        level: 1,
-                        innate: true,
-                        per_day: 1,
-                    ),
                 ],
             )),
         )),
@@ -15481,12 +15282,6 @@
                         innate: true,
                         per_day: 1,
                     ),
-                    (
-                        spell: "faerie-fire",
-                        level: 1,
-                        innate: true,
-                        per_day: 1,
-                    ),
                 ],
             )),
         )),
@@ -15564,10 +15359,6 @@
                 ],
                 spells: [
                     (
-                        spell: "druidcraft",
-                        level: 0,
-                    ),
-                    (
                         spell: "produce-flame",
                         level: 0,
                     ),
@@ -15584,16 +15375,8 @@
                         level: 1,
                     ),
                     (
-                        spell: "speak-with-animals",
-                        level: 1,
-                    ),
-                    (
                         spell: "thunderwave",
                         level: 1,
-                    ),
-                    (
-                        spell: "animal-messenger",
-                        level: 2,
                     ),
                     (
                         spell: "barkskin",
@@ -15695,18 +15478,7 @@
                 attack: 6,
                 spells: [
                     (
-                        spell: "druidcraft",
-                        level: 0,
-                        innate: true,
-                    ),
-                    (
                         spell: "entangle",
-                        level: 1,
-                        innate: true,
-                        per_day: 3,
-                    ),
-                    (
-                        spell: "goodberry",
                         level: 1,
                         innate: true,
                         per_day: 3,
@@ -16241,44 +16013,8 @@
                         innate: true,
                     ),
                     (
-                        spell: "enlarge-reduce",
-                        level: 2,
-                        innate: true,
-                        per_day: 3,
-                    ),
-                    (
-                        spell: "tongues",
-                        level: 3,
-                        innate: true,
-                        per_day: 3,
-                    ),
-                    (
-                        spell: "conjure-elemental",
-                        level: 5,
-                        innate: true,
-                        per_day: 1,
-                    ),
-                    (
-                        spell: "gaseous-form",
-                        level: 3,
-                        innate: true,
-                        per_day: 1,
-                    ),
-                    (
                         spell: "invisibility",
                         level: 2,
-                        innate: true,
-                        per_day: 1,
-                    ),
-                    (
-                        spell: "major-image",
-                        level: 3,
-                        innate: true,
-                        per_day: 1,
-                    ),
-                    (
-                        spell: "plane-shift",
-                        level: 7,
                         innate: true,
                         per_day: 1,
                     ),
@@ -21187,11 +20923,6 @@
                         innate: true,
                     ),
                     (
-                        spell: "minor-illusion",
-                        level: 0,
-                        innate: true,
-                    ),
-                    (
                         spell: "vicious-mockery",
                         level: 0,
                         innate: true,
@@ -21579,15 +21310,7 @@
                 ],
                 spells: [
                     (
-                        spell: "mending",
-                        level: 0,
-                    ),
-                    (
                         spell: "sacred-flame",
-                        level: 0,
-                    ),
-                    (
-                        spell: "thaumaturgy",
                         level: 0,
                     ),
                     (
@@ -21603,20 +21326,8 @@
                         level: 1,
                     ),
                     (
-                        spell: "calm-emotions",
-                        level: 2,
-                    ),
-                    (
                         spell: "hold-person",
                         level: 2,
-                    ),
-                    (
-                        spell: "bestow-curse",
-                        level: 3,
-                    ),
-                    (
-                        spell: "clairvoyance",
-                        level: 3,
                     ),
                     (
                         spell: "banishment",
@@ -21628,10 +21339,6 @@
                     ),
                     (
                         spell: "flame-strike",
-                        level: 5,
-                    ),
-                    (
-                        spell: "geas",
                         level: 5,
                     ),
                     (
@@ -21770,23 +21477,7 @@
                 ],
                 spells: [
                     (
-                        spell: "mage-hand",
-                        level: 0,
-                    ),
-                    (
-                        spell: "minor-illusion",
-                        level: 0,
-                    ),
-                    (
-                        spell: "prestidigitation",
-                        level: 0,
-                    ),
-                    (
                         spell: "detect-magic",
-                        level: 1,
-                    ),
-                    (
-                        spell: "identify",
                         level: 1,
                     ),
                     (
@@ -21798,23 +21489,11 @@
                         level: 2,
                     ),
                     (
-                        spell: "locate-object",
-                        level: 2,
-                    ),
-                    (
                         spell: "suggestion",
                         level: 2,
                     ),
                     (
                         spell: "dispel-magic",
-                        level: 3,
-                    ),
-                    (
-                        spell: "remove-curse",
-                        level: 3,
-                    ),
-                    (
-                        spell: "tongues",
                         level: 3,
                     ),
                     (
@@ -21824,10 +21503,6 @@
                     (
                         spell: "greater-invisibility",
                         level: 4,
-                    ),
-                    (
-                        spell: "legend-lore",
-                        level: 5,
                     ),
                 ],
             )),
@@ -24249,16 +23924,6 @@
                 attack: 5,
                 spells: [
                     (
-                        spell: "disguise-self",
-                        level: 1,
-                        innate: true,
-                    ),
-                    (
-                        spell: "major-image",
-                        level: 3,
-                        innate: true,
-                    ),
-                    (
                         spell: "charm-person",
                         level: 1,
                         innate: true,
@@ -24271,22 +23936,10 @@
                         per_day: 3,
                     ),
                     (
-                        spell: "scrying",
-                        level: 5,
-                        innate: true,
-                        per_day: 3,
-                    ),
-                    (
                         spell: "suggestion",
                         level: 2,
                         innate: true,
                         per_day: 3,
-                    ),
-                    (
-                        spell: "geas",
-                        level: 5,
-                        innate: true,
-                        per_day: 1,
                     ),
                 ],
             )),
@@ -24522,14 +24175,6 @@
                 ],
                 spells: [
                     (
-                        spell: "mage-hand",
-                        level: 0,
-                    ),
-                    (
-                        spell: "prestidigitation",
-                        level: 0,
-                    ),
-                    (
                         spell: "ray-of-frost",
                         level: 0,
                     ),
@@ -24554,20 +24199,12 @@
                         level: 2,
                     ),
                     (
-                        spell: "detect-thoughts",
-                        level: 2,
-                    ),
-                    (
                         spell: "invisibility",
                         level: 2,
                     ),
                     (
                         spell: "mirror-image",
                         level: 2,
-                    ),
-                    (
-                        spell: "animate-dead",
-                        level: 3,
                     ),
                     (
                         spell: "counterspell",
@@ -24594,15 +24231,7 @@
                         level: 5,
                     ),
                     (
-                        spell: "scrying",
-                        level: 5,
-                    ),
-                    (
                         spell: "disintegrate",
-                        level: 6,
-                    ),
-                    (
-                        spell: "globe-of-invulnerability",
                         level: 6,
                     ),
                     (
@@ -24610,20 +24239,8 @@
                         level: 7,
                     ),
                     (
-                        spell: "plane-shift",
-                        level: 7,
-                    ),
-                    (
-                        spell: "dominate-monster",
-                        level: 8,
-                    ),
-                    (
                         spell: "power-word-stun",
                         level: 8,
-                    ),
-                    (
-                        spell: "power-word-kill",
-                        level: 9,
                     ),
                 ],
             )),
@@ -25022,14 +24639,6 @@
                     ),
                     (
                         spell: "light",
-                        level: 0,
-                    ),
-                    (
-                        spell: "mage-hand",
-                        level: 0,
-                    ),
-                    (
-                        spell: "prestidigitation",
                         level: 0,
                     ),
                     (
@@ -26580,10 +26189,6 @@
                         level: 0,
                     ),
                     (
-                        spell: "thaumaturgy",
-                        level: 0,
-                    ),
-                    (
                         spell: "command",
                         level: 1,
                     ),
@@ -26608,16 +26213,8 @@
                         level: 2,
                     ),
                     (
-                        spell: "animate-dead",
-                        level: 3,
-                    ),
-                    (
                         spell: "dispel-magic",
                         level: 3,
-                    ),
-                    (
-                        spell: "divination",
-                        level: 4,
                     ),
                     (
                         spell: "guardian-of-faith",
@@ -26929,12 +26526,6 @@
                         spell: "magic-missile",
                         level: 1,
                         innate: true,
-                    ),
-                    (
-                        spell: "plane-shift",
-                        level: 7,
-                        innate: true,
-                        per_day: 2,
                     ),
                     (
                         spell: "ray-of-enfeeblement",
@@ -27520,12 +27111,6 @@
                     (
                         spell: "cone-of-cold",
                         level: 5,
-                        innate: true,
-                        per_day: 1,
-                    ),
-                    (
-                        spell: "gaseous-form",
-                        level: 3,
                         innate: true,
                         per_day: 1,
                     ),
@@ -28366,11 +27951,6 @@
                 attack: 12,
                 spells: [
                     (
-                        spell: "detect-evil-and-good",
-                        level: 1,
-                        innate: true,
-                    ),
-                    (
                         spell: "invisibility",
                         level: 2,
                         innate: true,
@@ -28378,12 +27958,6 @@
                     (
                         spell: "blade-barrier",
                         level: 6,
-                        innate: true,
-                        per_day: 3,
-                    ),
-                    (
-                        spell: "dispel-evil-and-good",
-                        level: 5,
                         innate: true,
                         per_day: 3,
                     ),
@@ -28398,18 +27972,6 @@
                         level: 5,
                         innate: true,
                         per_day: 3,
-                    ),
-                    (
-                        spell: "commune",
-                        level: 5,
-                        innate: true,
-                        per_day: 1,
-                    ),
-                    (
-                        spell: "control-weather",
-                        level: 8,
-                        innate: true,
-                        per_day: 1,
                     ),
                     (
                         spell: "insect-plague",
@@ -29195,26 +28757,6 @@
                 attack: 10,
                 spells: [
                     (
-                        spell: "detect-thoughts",
-                        level: 2,
-                        innate: true,
-                    ),
-                    (
-                        spell: "disguise-self",
-                        level: 1,
-                        innate: true,
-                    ),
-                    (
-                        spell: "mage-hand",
-                        level: 0,
-                        innate: true,
-                    ),
-                    (
-                        spell: "minor-illusion",
-                        level: 0,
-                        innate: true,
-                    ),
-                    (
                         spell: "charm-person",
                         level: 1,
                         innate: true,
@@ -29233,12 +28775,6 @@
                         per_day: 3,
                     ),
                     (
-                        spell: "major-image",
-                        level: 3,
-                        innate: true,
-                        per_day: 3,
-                    ),
-                    (
                         spell: "suggestion",
                         level: 2,
                         innate: true,
@@ -29253,12 +28789,6 @@
                     (
                         spell: "fly",
                         level: 3,
-                        innate: true,
-                        per_day: 1,
-                    ),
-                    (
-                        spell: "plane-shift",
-                        level: 7,
                         innate: true,
                         per_day: 1,
                     ),
@@ -31473,11 +31003,6 @@
                 attack: 17,
                 spells: [
                     (
-                        spell: "detect-evil-and-good",
-                        level: 1,
-                        innate: true,
-                    ),
-                    (
                         spell: "invisibility",
                         level: 2,
                         innate: true,
@@ -31489,28 +31014,10 @@
                         per_day: 3,
                     ),
                     (
-                        spell: "dispel-evil-and-good",
-                        level: 5,
-                        innate: true,
-                        per_day: 3,
-                    ),
-                    (
                         spell: "resurrection",
                         level: 7,
                         innate: true,
                         per_day: 3,
-                    ),
-                    (
-                        spell: "commune",
-                        level: 5,
-                        innate: true,
-                        per_day: 1,
-                    ),
-                    (
-                        spell: "control-weather",
-                        level: 8,
-                        innate: true,
-                        per_day: 1,
                     ),
                 ],
             )),
@@ -31832,14 +31339,6 @@
                 ],
                 spells: [
                     (
-                        spell: "mage-hand",
-                        level: 0,
-                    ),
-                    (
-                        spell: "minor-illusion",
-                        level: 0,
-                    ),
-                    (
                         spell: "ray-of-frost",
                         level: 0,
                     ),
@@ -31856,19 +31355,11 @@
                         level: 1,
                     ),
                     (
-                        spell: "detect-thoughts",
-                        level: 2,
-                    ),
-                    (
                         spell: "hold-person",
                         level: 2,
                     ),
                     (
                         spell: "lightning-bolt",
-                        level: 3,
-                    ),
-                    (
-                        spell: "water-breathing",
                         level: 3,
                     ),
                     (
@@ -32608,26 +32099,9 @@
                         innate: true,
                     ),
                     (
-                        spell: "levitate",
-                        level: 2,
-                        innate: true,
-                    ),
-                    (
                         spell: "light",
                         level: 0,
                         innate: true,
-                    ),
-                    (
-                        spell: "control-weather",
-                        level: 8,
-                        innate: true,
-                        per_day: 3,
-                    ),
-                    (
-                        spell: "water-breathing",
-                        level: 3,
-                        innate: true,
-                        per_day: 3,
                     ),
                 ],
             )),
@@ -34476,31 +33950,9 @@
                 attack: 6,
                 spells: [
                     (
-                        spell: "detect-evil-and-good",
-                        level: 1,
-                        innate: true,
-                    ),
-                    (
-                        spell: "druidcraft",
-                        level: 0,
-                        innate: true,
-                    ),
-                    (
                         spell: "pass-without-trace",
                         level: 2,
                         innate: true,
-                    ),
-                    (
-                        spell: "calm-emotions",
-                        level: 2,
-                        innate: true,
-                        per_day: 1,
-                    ),
-                    (
-                        spell: "dispel-evil-and-good",
-                        level: 5,
-                        innate: true,
-                        per_day: 1,
                     ),
                     (
                         spell: "entangle",

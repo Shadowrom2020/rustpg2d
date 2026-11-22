@@ -277,13 +277,15 @@ impl Game {
     fn list_rects(&self, list: &BarList) -> (Rect, Vec<Rect>) {
         let _font = text::role(Role::Hud);
         let title = self.entry_text(&list.entry);
-        let hint = super::glyphs::expand_keys(&crate::lang::tr_ui(LIST_HINT));
-        let width = list.rows.iter().map(|r| measure_plain(&format!("{}    {}", r.label, row_tail(r)), FONT).width).fold(measure_plain(&title, FONT).width, f32::max).max(measure_text(&hint, None, 14, 1.0).width) + 40.0;
+        let inset = skin::inset();
+        let width = list.rows.iter().map(|r| measure_plain(&format!("{}    {}", r.label, row_tail(r)), FONT).width).fold(measure_plain(&title, FONT).width, f32::max).max(super::glyphs::measure_hint(LIST_HINT, 14.0)) + 2.0 * inset + 12.0;
         let w = width.min(screen_width() - 32.0);
-        let h = 34.0 + list.rows.len() as f32 * ROW_H + 30.0;
+        // (Title, rows, the hint line; the frame's border around them.)
+        let head = (inset + 22.0).max(34.0);
+        let h = head + list.rows.len() as f32 * ROW_H + 18.0 + inset;
         let bottom = self.bar_top() - 10.0;
         let panel = Rect::new((screen_width() - w) / 2.0, (bottom - h).max(40.0), w, h);
-        let rows = (0..list.rows.len()).map(|k| Rect::new(panel.x + 8.0, panel.y + 34.0 + k as f32 * ROW_H, panel.w - 16.0, ROW_H)).collect();
+        let rows = (0..list.rows.len()).map(|k| Rect::new(panel.x + inset.max(8.0), panel.y + head + k as f32 * ROW_H, panel.w - 2.0 * inset.max(8.0), ROW_H)).collect();
         (panel, rows)
     }
 
@@ -437,7 +439,8 @@ impl Game {
         if let Some(list) = &self.bar.list {
             let (panel, rects) = self.list_rects(list);
             skin::panel(panel.x, panel.y, panel.w, panel.h);
-            draw_plain(&self.entry_text(&list.entry), panel.x + 14.0, panel.y + 24.0, FONT, skin::highlight());
+            let head = rects.first().map_or(panel.y + 34.0, |r| r.y);
+            draw_plain(&self.entry_text(&list.entry), panel.x + skin::inset().max(14.0), head - 8.0, FONT, skin::highlight());
             for (k, (row, r)) in list.rows.iter().zip(&rects).enumerate() {
                 if k == list.sel {
                     skin::cursor(*r, Color::new(1.0, 0.86, 0.45, 1.0));
@@ -448,8 +451,8 @@ impl Game {
                 let tw = measure_plain(&tail, FONT - 2.0).width;
                 draw_plain(&tail, r.right() - tw - 8.0, r.y + 17.0, FONT - 2.0, if row.why.is_some() { skin::disabled() } else { skin::dim() });
             }
-            let hint = crate::lang::tr_ui(LIST_HINT);
-            draw_text(super::glyphs::expand_keys(&hint), panel.x + 14.0, panel.bottom() - 10.0, 14.0, skin::dim());
+            let x = panel.x + skin::inset().max(14.0);
+            super::glyphs::draw_hint_in(LIST_HINT, x, panel.bottom() - skin::inset() - 4.0, 14.0, panel.right() - skin::inset().max(14.0) - x, skin::dim());
         }
     }
 

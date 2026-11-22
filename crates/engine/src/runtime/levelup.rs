@@ -176,7 +176,7 @@ impl Game {
         // Mouse: a click on a row's arrows, on Done.
         let m = input::mouse_pos();
         if input::mouse_pressed(MouseButton::Left) {
-            let (rects, done) = levelup_layout(rows.len());
+            let (rects, done) = levelup_layout(&rows.iter().map(|r| tr_any(&r.label)).collect::<Vec<_>>());
             for (k, r) in rects.iter().enumerate() {
                 if r.contains(m) {
                     let len = rows[k].options.len().max(1) as i32;
@@ -327,7 +327,7 @@ impl Game {
         let Some((c, hc, name, _, profs)) = self.levelup_subject(&p.who) else { return };
         let _font = super::text::role(super::text::Role::Dialog);
         let rows = self.levelup_rows(&p.who, &c, &hc, p.level, &profs);
-        let (rects, done) = levelup_layout(rows.len());
+        let (rects, done) = levelup_layout(&rows.iter().map(|r| tr_any(&r.label)).collect::<Vec<_>>());
         let panel = levelup_panel(rows.len());
         draw_rectangle(0.0, 0.0, screen_width(), screen_height(), Color::new(0.0, 0.0, 0.0, 0.5));
         skin::panel(panel.x, panel.y, panel.w, panel.h);
@@ -358,12 +358,17 @@ impl Game {
         }
         for (k, (row, r)) in rows.iter().zip(&rects).enumerate() {
             let active = k == w.sel;
-            draw_plain(&tr_any(&row.label), panel.x + 24.0, r.y + 24.0, 20.0, if active { skin::highlight() } else { skin::dim() });
+            // (Smaller, then cut, when it would reach the value box: "Valeur de caractéristique".)
+            let label = tr_any(&row.label);
+            let room = r.x - panel.x - 34.0;
+            let size = super::text::fit_size(&label, 20.0, room, 14.0);
+            draw_plain(&super::text::fit_plain(&label, size, room), panel.x + 24.0, r.y + 24.0, size, if active { skin::highlight() } else { skin::dim() });
             draw_rectangle(r.x, r.y, r.w, r.h, skin::button_fill(active, Color::new(0.12, 0.12, 0.18, 0.9)));
             if active {
                 skin::cursor(*r, Color::new(1.0, 0.86, 0.45, 1.0));
             }
             let value = row.options.get(w.picks.get(k).copied().unwrap_or(0)).map_or(String::new(), |o| tr_any(&o.1));
+            let value = super::text::fit_plain(&value, 20.0, r.w - 24.0 - super::text::measure_plain("<    >", 20.0).width);
             draw_plain(&format!("<  {value}  >"), r.x + 12.0, r.y + 24.0, 20.0, skin::normal());
         }
         let active = w.sel >= rows.len();
@@ -372,16 +377,22 @@ impl Game {
             skin::cursor(done, Color::new(1.0, 0.86, 0.45, 1.0));
         }
         draw_text("Done", done.x + 20.0, done.y + 26.0, 22.0, skin::normal());
-        super::glyphs::draw_hint_in("{key:up}/{key:down}: select  -  {key:left}/{key:right}: change  -  {key:confirm}: next / done", panel.x + 24.0, panel.bottom() - 10.0, 16.0, W - 48.0, skin::disabled());
+        super::glyphs::draw_hint_in("{key:up}/{key:down}: select  -  {key:left}/{key:right}: change  -  {key:confirm}: next / done", panel.x + 24.0, skin::hint_baseline(panel.bottom()), 16.0, W - 48.0, skin::disabled());
     }
 }
 
-/// The rows' value boxes and the Done button (screen pixels).
-fn levelup_layout(n: usize) -> (Vec<Rect>, Rect) {
+/// The rows' value boxes and the Done button (screen pixels) for rows with these labels (in the
+/// player's language): the boxes start right of the longest label, keeping 300 px for the value.
+fn levelup_layout(labels: &[String]) -> (Vec<Rect>, Rect) {
+    let n = labels.len();
     let panel = levelup_panel(n);
     let top = panel.y + 220.0;
-    let rows = (0..n).map(|k| Rect::new(panel.x + 260.0, top + k as f32 * 38.0, 420.0, 34.0)).collect();
-    let done = Rect::new(panel.x + 260.0, (top + n as f32 * 38.0 + 10.0).min(panel.bottom() - 60.0), 160.0, 38.0);
+    let _font = super::text::role(super::text::Role::Dialog);
+    let longest = labels.iter().map(|l| super::text::measure_plain(l, 20.0).width).fold(0.0, f32::max);
+    let x = (longest + 44.0).clamp(260.0, W - 340.0);
+    let w = (W - x - 40.0).min(420.0);
+    let rows = (0..n).map(|k| Rect::new(panel.x + x, top + k as f32 * 38.0, w, 34.0)).collect();
+    let done = Rect::new(panel.x + x, (top + n as f32 * 38.0 + 10.0).min(panel.bottom() - 60.0), 160.0, 38.0);
     (rows, done)
 }
 

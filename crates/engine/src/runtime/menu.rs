@@ -1350,10 +1350,6 @@ impl Game {
             for (k, l) in lines.iter().skip(self.menu.credits_scroll).take(self.credits_shown()).enumerate() {
                 super::text::draw_plain(l, p.x + 24.0, top + 20.0 + k as f32 * CREDITS_LINE, 20.0, skin::normal());
             }
-            if lines.len() > self.credits_shown() {
-                let more = format!("{}-{} of {}", self.menu.credits_scroll + 1, (self.menu.credits_scroll + self.credits_shown()).min(lines.len()), lines.len());
-                draw_text(&more, p.x + p.w - 110.0, p.y + 42.0, 16.0, skin::disabled());
-            }
         }
 
         if self.menu.page == Page::Options {
@@ -1407,9 +1403,10 @@ impl Game {
             let disabled = self.menu.saves.is_empty() && matches!(rows[idx].0, Row::Continue | Row::LastSave);
             let c = if disabled { skin::disabled() } else if selected { skin::highlight() } else { skin::normal() };
             if self.page_opts().is_some() {
-                draw_text(label, r.x + 14.0, r.y + 26.0, 24.0, c);
+                let (prev, next) = opt_arrows(*r);
+                let label_room = if detail.is_empty() { r.w - 28.0 } else { prev.x - r.x - 20.0 };
+                super::text::draw_plain(&super::text::fit_ui(label, 24.0, label_room), r.x + 14.0, r.y + 26.0, 24.0, c);
                 if !detail.is_empty() {
-                    let (prev, next) = opt_arrows(*r);
                     let base = if selected { skin::normal() } else { skin::dim() };
                     for (a, txt) in [(prev, "<"), (next, ">")] {
                         let hot = a.contains(m);
@@ -1420,8 +1417,9 @@ impl Game {
                         draw_text(txt, a.x + (a.w - aw) / 2.0, r.y + 26.0, 24.0, if hot { skin::highlight() } else { base });
                     }
                     // The value centered between the arrows.
-                    let vw = measure_text(detail, None, 22, 1.0).width;
-                    draw_text(detail, (prev.right() + next.x - vw) / 2.0, r.y + 25.0, 22.0, base);
+                    let value = super::text::fit_ui(detail, 22.0, next.x - prev.right() - 4.0);
+                    let vw = super::text::measure_plain(&value, 22.0).width;
+                    super::text::draw_plain(&value, (prev.right() + next.x - vw) / 2.0, r.y + 25.0, 22.0, base);
                 }
             } else if self.menu.page == Page::Controls && !detail.is_empty() {
                 // Action left, keys right (orange where they clash with another action).
@@ -1459,8 +1457,8 @@ impl Game {
                 draw_rectangle_lines(t.x, t.y, t.w, t.h, 1.0, skin::border(Color::new(0.85, 0.72, 0.38, if unlocked { 1.0 } else { 0.35 })));
                 let tx = t.right() + 12.0;
                 let room = r.right() - tx - 8.0;
-                draw_text(fit(label, 22, room), tx, r.y + 24.0, 22.0, if unlocked { c } else { skin::disabled() });
-                draw_text(fit(detail, 16, room), tx, r.y + 44.0, 16.0, if unlocked { skin::dim() } else { skin::disabled() });
+                super::text::draw_plain(&super::text::fit_ui(label, 22.0, room), tx, r.y + 24.0, 22.0, if unlocked { c } else { skin::disabled() });
+                super::text::draw_plain(&super::text::fit_ui(detail, 16.0, room), tx, r.y + 44.0, 16.0, if unlocked { skin::dim() } else { skin::disabled() });
             } else if let (true, Row::Slot(slot)) = (self.save_page(), &rows[idx].0) {
                 // A save: its thumbnail (or a placeholder), then name and details.
                 let th = r.h - 10.0;
@@ -1475,8 +1473,9 @@ impl Game {
                 }
                 draw_rectangle_lines(t.x, t.y, t.w, t.h, 1.0, skin::border(Color::new(0.85, 0.72, 0.38, if selected { 1.0 } else { 0.5 })));
                 let tx = t.right() + 12.0;
-                draw_text(label, tx, r.y + 24.0, 22.0, c);
-                draw_text(detail, tx, r.y + 44.0, 16.0, skin::dim());
+                let room = r.right() - tx - 8.0;
+                super::text::draw_plain(&super::text::fit_ui(label, 22.0, room), tx, r.y + 24.0, 22.0, c);
+                super::text::draw_plain(&super::text::fit_ui(detail, 16.0, room), tx, r.y + 44.0, 16.0, skin::dim());
             } else if detail.is_empty() {
                 // Centered in the row (the Save page's rows are taller).
                 draw_text(label, r.x + 14.0, r.y + r.h / 2.0 + 8.0, 26.0, c);
@@ -1485,8 +1484,18 @@ impl Game {
                 draw_text(detail, r.x + 14.0, r.y + 33.0, 16.0, skin::dim());
             }
         }
-        if rows.len() > self.max_rows() {
-            draw_text(format!("{}-{} of {}", self.menu.scroll + 1, (self.menu.scroll + self.max_rows()).min(rows.len()), rows.len()), p.x + p.w - 110.0, p.y + 42.0, 16.0, skin::disabled());
+        // How far the list is scrolled: at the bottom right, beside the hint (the title can be wide).
+        let counter = if rows.len() > self.max_rows() {
+            Some(crate::lang::tr_ui("{}-{} of {}").replacen("{}", &(self.menu.scroll + 1).to_string(), 1).replacen("{}", &(self.menu.scroll + self.max_rows()).min(rows.len()).to_string(), 1).replacen("{}", &rows.len().to_string(), 1))
+        } else if self.menu.page == Page::Credits && self.credits_lines().len() > self.credits_shown() {
+            let n = self.credits_lines().len();
+            Some(crate::lang::tr_ui("{}-{} of {}").replacen("{}", &(self.menu.credits_scroll + 1).to_string(), 1).replacen("{}", &(self.menu.credits_scroll + self.credits_shown()).min(n).to_string(), 1).replacen("{}", &n.to_string(), 1))
+        } else {
+            None
+        };
+        let counter_w = counter.as_ref().map_or(0.0, |c| super::text::measure_plain(c, 16.0).width + 12.0);
+        if let Some(c) = &counter {
+            super::text::draw_plain(c, p.right() - 16.0 - counter_w + 12.0, skin::hint_baseline(p.bottom()), 16.0, skin::disabled());
         }
         let hint = match self.menu.page {
             Page::Title => "{key:up}/{key:down} + {key:confirm} or click",
@@ -1509,28 +1518,16 @@ impl Game {
             _ => None,
         };
         if let Some(msg) = self.menu.message.as_ref().or(clash.as_ref()) {
-            draw_text(msg, p.x + 16.0, p.y + p.h - 34.0, 18.0, skin::text(skin::Text::Negative, Color::new(1.0, 0.5, 0.5, 1.0)));
+            draw_text(msg, p.x + 16.0, skin::hint_baseline(p.bottom()) - 18.0, 18.0, skin::text(skin::Text::Negative, Color::new(1.0, 0.5, 0.5, 1.0)));
         }
-        super::glyphs::draw_hint_in(hint, p.x + 16.0, p.y + p.h - 12.0, 16.0, p.w - 32.0, skin::disabled());
+        super::glyphs::draw_hint_in(hint, p.x + 16.0, skin::hint_baseline(p.bottom()), 16.0, p.w - 32.0 - counter_w, skin::disabled());
     }
-}
-
-/// `text` cut to `width` pixels at font size `size` ("..." at the end when cut).
-fn fit(text: &str, size: u16, width: f32) -> String {
-    if measure_text(text, None, size, 1.0).width <= width {
-        return text.to_string();
-    }
-    let mut cut: String = text.to_string();
-    while !cut.is_empty() && measure_text(format!("{cut}...").as_str(), None, size, 1.0).width > width {
-        cut.pop();
-    }
-    format!("{}...", cut.trim_end())
 }
 
 /// Click areas of the "<" (previous value) and ">" (next value) arrows of an Options row.
 fn opt_arrows(r: Rect) -> (Rect, Rect) {
     const AW: f32 = 30.0; // arrow width
-    const VALUE_W: f32 = 100.0; // room for the value between the arrows
+    const VALUE_W: f32 = 150.0; // room for the value between the arrows ("Automatisch", "Спрашивать")
     let next = Rect::new(r.x + r.w - AW - 6.0, r.y, AW, r.h);
     let prev = Rect::new(next.x - VALUE_W - AW, r.y, AW, r.h);
     (prev, next)

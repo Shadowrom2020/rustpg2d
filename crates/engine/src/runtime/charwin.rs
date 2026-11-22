@@ -228,9 +228,16 @@ impl Game {
                     draw_rectangle(r.x + 3.0, r.y + r.h - 3.0, r.w - 6.0, 6.0, skin::button_fill(true, Color::new(0.06, 0.06, 0.12, 1.0)));
                 }
             }
-            let label = t.label();
-            let tw = super::glyphs::measure_hint(label, 22.0);
-            super::glyphs::draw_hint(label, r.x + (r.w - tw) / 2.0, r.y + 23.0, 22.0, if on { skin::highlight() } else { skin::dim() });
+            // (A translation wider than the tab loses its key, "(C)", then gets a smaller font:
+            // pixel fonts have few sizes, so the font is the last resort.)
+            let full = crate::lang::tr_ui(t.label()).into_owned();
+            let label = if super::glyphs::measure_hint(&full, 22.0) > r.w - 12.0 { full.rsplit_once(" (").map_or(full.clone(), |(a, _)| a.to_string()) } else { full };
+            let mut size = 22.0;
+            while size > 14.0 && super::glyphs::measure_hint(&label, size) > r.w - 12.0 {
+                size -= 1.0;
+            }
+            let tw = super::glyphs::measure_hint(&label, size);
+            super::glyphs::draw_hint(&label, r.x + (r.w - tw) / 2.0, r.y + 23.0 - (22.0 - size) / 2.0, size, if on { skin::highlight() } else { skin::dim() });
         }
         let x = self.window_close();
         let hover = x.contains(m);

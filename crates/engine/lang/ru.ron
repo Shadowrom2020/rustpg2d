@@ -375,6 +375,7 @@
         // ---- shop, crafting
         "Merchant": "Торговец",
         "Not enough {}.": "Не хватает: {}.",
+        "Not enough money.": "Недостаточно денег.",
         "Bought {} {}": "Куплено: {} {}",
         "Bought {}": "Куплено: {}",
         "{} isn't interested in that.": "{} это не интересует.",

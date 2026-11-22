@@ -327,6 +327,23 @@ pub fn draw_hint_in(template: &str, x: f32, y: f32, size: f32, width: f32, color
     n
 }
 
+/// How many lines [`draw_hint_in`] needs for `template` in `width` (1, or 2+ when it wraps).
+pub fn hint_lines_in(template: &str, size: f32, width: f32) -> usize {
+    let segs = segments(template);
+    let min = (size * 0.7).floor().max(10.0);
+    let mut s = size.floor();
+    if segs_width(&segs, s) <= width {
+        return 1;
+    }
+    while s > min {
+        s -= 1.0;
+        if segs_width(&segs, s) <= width {
+            return 1;
+        }
+    }
+    hint_lines(segs, s, width).len()
+}
+
 /// Draws a hint line with its text baseline at `y`; returns its width.
 pub fn draw_hint(template: &str, x: f32, y: f32, size: f32, color: Color) -> f32 {
     draw_segs(&segments(template), x, y, size, color)

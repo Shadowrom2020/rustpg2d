@@ -226,6 +226,34 @@ pub fn measure_plain(text: &str, font_size: f32) -> TextDimensions {
     })
 }
 
+/// `text` (already in the player's language) cut to `width` pixels at `font_size`, with "..."
+/// at the end when cut.
+pub fn fit_plain(text: &str, font_size: f32, width: f32) -> String {
+    if measure_plain(text, font_size).width <= width {
+        return text.to_string();
+    }
+    let mut cut: Vec<char> = text.chars().collect();
+    while !cut.is_empty() && measure_plain(&format!("{}...", cut.iter().collect::<String>()), font_size).width > width {
+        cut.pop();
+    }
+    format!("{}...", cut.into_iter().collect::<String>().trim_end())
+}
+
+/// The font size at most `size` (down to `min`, whole pixels) at which `text` (in the player's
+/// language) is no wider than `width`: labels that would overflow their box get smaller.
+pub fn fit_size(text: &str, size: f32, width: f32, min: f32) -> f32 {
+    let mut s = size.floor();
+    while s > min && measure_plain(text, s).width > width {
+        s -= 1.0;
+    }
+    s
+}
+
+/// A runtime text translated, then cut like [`fit_plain`] (draw it with [`draw_plain`]).
+pub fn fit_ui(text: &str, font_size: f32, width: f32) -> String {
+    fit_plain(&crate::lang::tr_ui(text), font_size, width)
+}
+
 /// Whether `c` is written without spaces between words (Chinese, Japanese): a line may break
 /// before and after it. Korean, which puts spaces between words, wraps at its spaces.
 pub fn breaks_anywhere(c: char) -> bool {

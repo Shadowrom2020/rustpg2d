@@ -199,6 +199,17 @@ pub fn panel(x: f32, y: f32, w: f32, h: f32) {
     draw_rectangle_lines(x, y, w, h, 3.0, over(a.def.border, Color::new(0.85, 0.8, 0.6, 1.0)));
 }
 
+/// How far a panel's frame reaches into it (screen pixels): text inside a panel keeps this far
+/// from its edges. The frame picture's corner, else the built-in 3 px border plus a little air.
+pub fn inset() -> f32 {
+    cur().frame.as_ref().map_or(5.0, |p| (p.corner * p.scale).max(5.0))
+}
+
+/// The baseline of a panel's bottom hint line (16 px text): clear of the frame at `bottom`.
+pub fn hint_baseline(bottom: f32) -> f32 {
+    bottom - inset() - 3.0
+}
+
 /// Whether panels have a frame picture (places that draw extra lines on a panel skip them).
 pub fn framed() -> bool {
     cur().frame.is_some()

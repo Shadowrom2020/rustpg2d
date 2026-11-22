@@ -355,6 +355,6 @@ impl Game {
                 draw_text(text, f.x + f.w - tw - 10.0, f.y + 22.0, 20.0, c);
             }
         }
-        super::glyphs::draw_hint_in("Make / {key:confirm}: make one   {key:run}: ten   Wheel / {key:up} / {key:down}: select   {key:cancel}: close", f.x + 10.0, f.y + f.h - 8.0, 16.0, f.w - 20.0, skin::disabled());
+        super::glyphs::draw_hint_in("Make / {key:confirm}: make one   {key:run}: ten   Wheel / {key:up} / {key:down}: select   {key:cancel}: close", f.x + 10.0, skin::hint_baseline(f.y + f.h), 16.0, f.w - 20.0, skin::disabled());
     }
 }

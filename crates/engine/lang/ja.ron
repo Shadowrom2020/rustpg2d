@@ -375,6 +375,7 @@
         // ---- shop, crafting
         "Merchant": "商人",
         "Not enough {}.": "{} が足りない。",
+        "Not enough money.": "お金が足りません。",
         "Bought {} {}": "{} {} を買った",
         "Bought {}": "{} を買った",
         "{} isn't interested in that.": "{} はそれに興味がない。",

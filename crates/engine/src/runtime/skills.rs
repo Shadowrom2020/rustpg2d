@@ -455,7 +455,7 @@ impl Game {
         }
         super::text::draw_plain(&head, r.x + PAD, r.y + 32.0, 19.0, skin::dim());
         let help = "{key:up}/{key:down}: select   {key:left}/{key:right}: slot   {key:confirm}: cast   P: prepare   {key:spells} / {key:cancel}: close";
-        super::glyphs::draw_hint_in(help, r.x + PAD, r.y + r.h - 14.0, 16.0, r.w - 2.0 * PAD, skin::disabled());
+        super::glyphs::draw_hint_in(help, r.x + PAD, skin::hint_baseline(r.y + r.h), 16.0, r.w - 2.0 * PAD, skin::disabled());
         draw_line(r.x + LIST_W + 8.0, r.y + LIST_TOP, r.x + LIST_W + 8.0, r.y + r.h - 40.0, 1.0, skin::line(0.4));
 
         let rows = self.skill_rows();
@@ -640,12 +640,14 @@ impl Game {
             let tw = super::text::measure_text(&xp, None, 17, 1.0).width;
             draw_text(&xp, r.right() - PAD - tw, r.y + 56.0, 17.0, skin::dim());
         }
-        super::glyphs::draw_hint_in("{key:up}/{key:down}: features   R: short rest   {key:next_tab}: next tab   {key:skills} / {key:cancel}: close", r.x + PAD, r.y + r.h - 14.0, 16.0, r.w - 2.0 * PAD, skin::disabled());
+        super::glyphs::draw_hint_in("{key:up}/{key:down}: features   R: short rest   {key:next_tab}: next tab   {key:skills} / {key:cancel}: close", r.x + PAD, skin::hint_baseline(r.y + r.h), 16.0, r.w - 2.0 * PAD, skin::disabled());
 
         // Left: abilities with modifier and save, then the numbers of a stat block.
         let mut y = top;
         draw_text("Ability", lx, y, 15.0, skin::disabled());
-        draw_text("Saving throw", lx + 170.0, y, 15.0, skin::disabled());
+        // (Smaller when a translation would reach the skills column: "Jet de sauvegarde".)
+        let save_head = crate::lang::tr_ui("Saving throw");
+        super::text::draw_plain(&save_head, lx + 170.0, y, super::text::fit_size(&save_head, 15.0, mx - lx - 180.0, 11.0), skin::disabled());
         for a in Ability::ALL {
             y += 28.0;
             let score = w.abilities.score(a);

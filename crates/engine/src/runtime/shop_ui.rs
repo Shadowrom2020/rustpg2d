@@ -18,7 +18,7 @@ const ROWS: usize = 8;
 const COL_W: f32 = 380.0;
 const TITLE_H: f32 = 44.0;
 const FOOT_H: f32 = 96.0;
-const BTN_W: f32 = 92.0;
+const BTN_W: f32 = 108.0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum ShopSide {
@@ -295,7 +295,9 @@ impl Game {
         while bought < n && row.count.is_none_or(|c| bought < c) {
             if money < price {
                 if bought == 0 {
-                    self.shop_msg(format!("Not enough {}.", self.item_name(&cur).to_lowercase()), false);
+                    // (Coins: money; an old project's currency item: its name.)
+                    let msg = if self.currency_worth(&cur) > 0 { "Not enough money.".to_string() } else { format!("Not enough {}.", self.item_name(&cur).to_lowercase()) };
+                    self.shop_msg(msg, false);
                 }
                 break;
             }
@@ -533,15 +535,23 @@ impl Game {
                     None => "in stock".to_string(),
                     Some(c) => format!("x{c}"),
                 };
-                draw_text(self.item_name(&row.item), r.x + 44.0, r.y + 18.0, 21.0, skin::normal());
-                draw_text(&count, r.x + 44.0, r.y + 36.0, 17.0, skin::dim());
-                // Price button.
+                // Price button; the name (content) cut short before it.
                 let b = button_rect(r);
-                let (label, ok) = match (this, row.price) {
-                    (ShopSide::Merchant, Some(pr)) => (format!("Buy {}", self.price_text(&cur, pr)), money >= pr),
-                    (ShopSide::Player, Some(pr)) => (format!("Sell {}", self.price_text(&cur, pr)), true),
-                    (_, None) => ("-".to_string(), false),
+                // (Smaller first, so two long names stay apart: "Schriftrolle des Schlafs".)
+                let (name, room) = (self.item_name(&row.item), b.x - r.x - 50.0);
+                let size = super::text::fit_size(&name, 21.0, room, 12.0);
+                super::text::draw_plain(&super::text::fit_plain(&name, size, room), r.x + 44.0, r.y + 18.0, size, skin::normal());
+                draw_text(&count, r.x + 44.0, r.y + 36.0, 17.0, skin::dim());
+                let (label, price, ok) = match (this, row.price) {
+                    (ShopSide::Merchant, Some(pr)) => (crate::lang::tr_ui(&format!("Buy {}", self.price_text(&cur, pr))).into_owned(), self.price_text(&cur, pr), money >= pr),
+                    (ShopSide::Player, Some(pr)) => (crate::lang::tr_ui(&format!("Sell {}", self.price_text(&cur, pr))).into_owned(), self.price_text(&cur, pr), true),
+                    (_, None) => ("-".to_string(), "-".to_string(), false),
                 };
+                // (A smaller font when it is wider than the button; only the price when even
+                // that is too wide: "Verkaufen 12 GM 5 SM".)
+                let room = b.w - 8.0;
+                let size = super::text::fit_size(&label, 18.0, room, 13.0);
+                let (label, size) = if super::text::measure_plain(&label, size).width <= room { (label, size) } else { (price.clone(), super::text::fit_size(&price, 18.0, room, 11.0)) };
                 let hot = ok && b.contains(m);
                 if !skin::button_picture(b, hot) {
                     let fill = if !ok {
@@ -554,8 +564,8 @@ impl Game {
                     draw_rectangle(b.x, b.y, b.w, b.h, fill);
                     draw_rectangle_lines(b.x, b.y, b.w, b.h, 1.0, skin::line(0.8));
                 }
-                let tw = measure_text(&label, None, 18, 1.0).width;
-                draw_text(&label, b.x + (b.w - tw) / 2.0, b.y + b.h / 2.0 + 6.0, 18.0, if ok { skin::normal() } else { skin::text(skin::Text::Negative, Color::new(0.9, 0.5, 0.5, 1.0)) });
+                let tw = super::text::measure_plain(&label, size).width;
+                super::text::draw_plain(&label, b.x + (b.w - tw) / 2.0, b.y + b.h / 2.0 + size / 3.0, size, if ok { skin::normal() } else { skin::text(skin::Text::Negative, Color::new(0.9, 0.5, 0.5, 1.0)) });
             }
             // Scroll hints.
             if scroll > 0 {
@@ -599,7 +609,7 @@ impl Game {
             }
         }
         let hint = "Click price / {key:confirm}: trade one   {key:run}: ten   Wheel / {key:up} / {key:down}: select   {key:next_tab}: switch side   {key:cancel}: close";
-        super::glyphs::draw_hint_in(hint, f.x + 10.0, f.y + f.h - 8.0, 16.0, f.w - 20.0, skin::disabled());
+        super::glyphs::draw_hint_in(hint, f.x + 10.0, skin::hint_baseline(f.y + f.h), 16.0, f.w - 20.0, skin::disabled());
     }
 }
 

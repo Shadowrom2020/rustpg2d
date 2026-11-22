@@ -3,7 +3,6 @@
 use macroquad::prelude::*;
 
 use super::input;
-use crate::render::wrap_text;
 use crate::state::WorldState;
 use super::text::{draw_plain, draw_text, measure_plain, measure_text, Role};
 use crate::dialog_codes::{self, BoxAt, Code, Piece};
@@ -400,7 +399,7 @@ pub(super) const SLOT: f32 = 48.0;
 pub(super) const GAP: f32 = 6.0;
 pub(super) const PAD: f32 = 14.0;
 pub(super) const TITLE_H: f32 = 40.0;
-const DETAIL_H: f32 = 84.0;
+const DETAIL_H: f32 = 100.0;
 
 /// The details footer's height, grown with the text size (Options › Accessibility).
 pub(super) fn detail_h() -> f32 {
@@ -553,9 +552,10 @@ pub(super) fn draw_item_detail(db: &crate::defs::Database, d: Rect, pad: f32, st
         let title = if s.count > 1 { format!("{name}  x{}", s.count) } else { name.to_string() };
         let s = text_scale();
         let (big, small) = ((22.0 * s).round(), (18.0 * s).round());
-        draw_text(&title, d.x + pad, d.y + 24.0 * s, big, super::skin::normal());
+        // (The name and the description are content, translated already.)
+        super::text::draw_plain(&title, d.x + pad, d.y + 24.0 * s, big, super::skin::normal());
         if let Some(def) = def {
-            let tw = measure_text(&title, None, big as u16, 1.0).width;
+            let tw = super::text::measure_plain(&title, big).width;
             let magic = magic_line(def, spent, attuned);
             let line = match (item_stats_line(def), magic) {
                 (Some(a), Some(b)) => Some(format!("{a} · {b}")),
@@ -565,13 +565,19 @@ pub(super) fn draw_item_detail(db: &crate::defs::Database, d: Rect, pad: f32, st
                 draw_text(&line, d.x + pad + tw + 16.0, d.y + 23.0 * s, small, super::skin::highlight());
             }
             let desc = if contrast() { WHITE } else { super::skin::dim() };
-            for (k, line) in wrap_text(&super::glyphs::expand_keys(&def.description), small as u16, d.w - 2.0 * pad).iter().take(2).enumerate() {
-                draw_text(line, d.x + pad, d.y + 44.0 * s + k as f32 * small, small, desc);
+            // Two lines, or one when the hint below needs two (the last one shown cut short).
+            let hint_lines = super::glyphs::hint_lines_in(hint, 16.0, d.w - 2.0 * pad);
+            let room = super::skin::hint_baseline(d.y + d.h) - (hint_lines as f32 - 1.0) * 18.0 - 16.0 - (d.y + 44.0 * s);
+            let n = ((room / small).floor() as usize + 1).clamp(1, 2);
+            let lines = super::text::wrap(&super::glyphs::expand_keys(&def.description), small, d.w - 2.0 * pad);
+            for (k, line) in lines.iter().take(n).enumerate() {
+                let line = if k + 1 == n && lines.len() > n { super::text::fit_plain(&format!("{line} ..."), small, d.w - 2.0 * pad) } else { line.clone() };
+                super::text::draw_plain(&line, d.x + pad, d.y + 44.0 * s + k as f32 * small, small, desc);
             }
         }
     }
     // (The largest size up to 16 that fits; too long even at 70 %: two lines.)
-    super::glyphs::draw_hint_in(hint, d.x + pad, d.y + d.h - 8.0, 16.0, d.w - 2.0 * pad, super::skin::disabled());
+    super::glyphs::draw_hint_in(hint, d.x + pad, super::skin::hint_baseline(d.y + d.h), 16.0, d.w - 2.0 * pad, super::skin::disabled());
 }
 
 /// A magic item's part of the numbers: its +N, rarity, attunement and charges left

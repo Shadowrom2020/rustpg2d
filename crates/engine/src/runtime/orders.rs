@@ -268,7 +268,7 @@ impl Game {
         }
         let hint = if lay.who.is_empty() { HINT } else { HINT_MANY };
         let hw = super::glyphs::measure_hint(hint, 16.0);
-        super::glyphs::draw_hint(hint, p.x + (p.w - hw) / 2.0, p.bottom() - 10.0, 16.0, skin::dim());
+        super::glyphs::draw_hint(hint, p.x + (p.w - hw) / 2.0, skin::hint_baseline(p.bottom()), 16.0, skin::dim());
     }
 
     /// `status()`: the open menu's choice (`orders=<who>:<order>`), else `-`.

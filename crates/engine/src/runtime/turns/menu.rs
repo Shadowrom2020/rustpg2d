@@ -75,6 +75,8 @@ pub(in crate::runtime) struct FightMenu {
     pub kind: MenuKind,
     pub rows: Vec<MenuRow>,
     pub sel: usize,
+    /// The first row shown (a long list scrolls).
+    pub scroll: usize,
 }
 
 const ROW_H: f32 = 24.0;
@@ -274,7 +276,7 @@ impl Game {
         }
         let sel = rows.iter().position(|r| r.why.is_none()).unwrap_or(0);
         if let Some(c) = &mut self.fight {
-            c.menu = Some(FightMenu { kind, rows, sel });
+            c.menu = Some(FightMenu { kind, rows, sel, scroll: 0 });
         }
         true
     }
@@ -329,17 +331,29 @@ impl Game {
         if input::act_pressed(Act::Down) {
             sel = (sel + 1) % n;
         }
-        let (_, rects) = self.fight_menu_layout(&menu);
+        // A long list scrolls: the wheel moves it, and the selection stays in view.
+        let shown = self.fight_menu_shown(&menu);
+        let mut scroll = menu.scroll;
+        let wheel = input::wheel();
+        if wheel != 0.0 {
+            scroll = if wheel > 0.0 { scroll.saturating_sub(1) } else { scroll + 1 };
+        }
+        let (_, rects) = self.fight_menu_layout(&FightMenu { scroll, ..menu.clone() });
         let mouse = input::mouse_pos();
-        let hovered = rects.iter().position(|r| r.contains(mouse));
+        let hovered = rects.iter().position(|r| r.contains(mouse)).map(|k| k + scroll.min(n.saturating_sub(shown)));
         let moved = self.fight.as_ref().is_some_and(|c| c.mouse_last != mouse);
         if let (Some(h), true) = (hovered, input::mouse_pressed(MouseButton::Left) || moved) {
             sel = h;
         }
+        if sel != menu.sel {
+            scroll = scroll.min(sel).max((sel + 1).saturating_sub(shown));
+        }
+        scroll = scroll.min(n.saturating_sub(shown));
         if let Some(c) = &mut self.fight {
             c.mouse_last = mouse;
             if let Some(m) = &mut c.menu {
                 m.sel = sel;
+                m.scroll = scroll;
             }
         }
         let pick = input::act_pressed(Act::Confirm) || input::act_pressed(Act::Attack) || (input::mouse_pressed(MouseButton::Left) && hovered.is_some());
@@ -362,15 +376,37 @@ impl Game {
         true
     }
 
-    /// The window's panel and its rows' rects (above the action bar, centred).
+    /// The bottom of the window: above the action bar.
+    fn fight_menu_bottom(&self) -> f32 {
+        self.bar_layout().first().map_or(screen_height() - 40.0, |r| r.y) - 34.0
+    }
+
+    /// The window's head (its title) and the room under the rows (the frame).
+    fn fight_menu_frame() -> (f32, f32) {
+        let inset = skin::inset();
+        ((inset + 22.0).max(34.0), (inset + 2.0).max(10.0))
+    }
+
+    /// How many rows the window shows at once (from 60 px under the top of the screen down to
+    /// the action bar; more scroll).
+    fn fight_menu_shown(&self, menu: &FightMenu) -> usize {
+        let (head, foot) = Self::fight_menu_frame();
+        let room = self.fight_menu_bottom() - 60.0 - head - foot;
+        ((room / ROW_H).floor().max(3.0) as usize).min(menu.rows.len())
+    }
+
+    /// The window's panel and the rects of the rows shown (from `menu.scroll`; above the action
+    /// bar, centred).
     fn fight_menu_layout(&self, menu: &FightMenu) -> (Rect, Vec<Rect>) {
         let _font = text::role(Role::Hud);
-        let width = menu.rows.iter().map(|r| measure_plain(&format!("{}    {}", r.label, row_tail(r)), FONT).width).fold(measure_plain(&crate::lang::tr_ui(menu.kind.title()), FONT).width, f32::max) + 40.0;
+        let (head, foot) = Self::fight_menu_frame();
+        let inset = skin::inset().max(8.0);
+        let width = menu.rows.iter().map(|r| measure_plain(&format!("{}    {}", r.label, row_tail(r)), FONT).width).fold(measure_plain(&crate::lang::tr_ui(menu.kind.title()), FONT).width + 90.0, f32::max) + 2.0 * inset + 24.0;
         let w = width.min(screen_width() - 32.0);
-        let h = 34.0 + menu.rows.len() as f32 * ROW_H + 10.0;
-        let bottom = self.bar_layout().first().map_or(screen_height() - 40.0, |r| r.y) - 34.0;
-        let panel = Rect::new((screen_width() - w) / 2.0, (bottom - h).max(60.0), w, h);
-        let rows = (0..menu.rows.len()).map(|k| Rect::new(panel.x + 8.0, panel.y + 34.0 + k as f32 * ROW_H, panel.w - 16.0, ROW_H)).collect();
+        let shown = self.fight_menu_shown(menu);
+        let h = head + shown as f32 * ROW_H + foot;
+        let panel = Rect::new((screen_width() - w) / 2.0, (self.fight_menu_bottom() - h).max(60.0), w, h);
+        let rows = (0..shown).map(|k| Rect::new(panel.x + inset, panel.y + head + k as f32 * ROW_H, panel.w - 2.0 * inset, ROW_H)).collect();
         (panel, rows)
     }
 
@@ -380,15 +416,25 @@ impl Game {
         let _font = text::role(Role::Hud);
         let (panel, rects) = self.fight_menu_layout(menu);
         skin::panel(panel.x, panel.y, panel.w, panel.h);
-        draw_plain(&crate::lang::tr_ui(menu.kind.title()), panel.x + 14.0, panel.y + 24.0, FONT, skin::highlight());
-        for (k, (row, r)) in menu.rows.iter().zip(&rects).enumerate() {
+        let (head, _) = Self::fight_menu_frame();
+        let x = panel.x + skin::inset().max(14.0);
+        draw_plain(&crate::lang::tr_ui(menu.kind.title()), x, panel.y + head - 10.0, FONT, skin::highlight());
+        // A list longer than the window: which rows show (it scrolls).
+        let scroll = menu.scroll.min(menu.rows.len().saturating_sub(rects.len()));
+        if rects.len() < menu.rows.len() {
+            let t = crate::lang::tr_ui("{}-{} of {}").replacen("{}", &(scroll + 1).to_string(), 1).replacen("{}", &(scroll + rects.len()).to_string(), 1).replacen("{}", &menu.rows.len().to_string(), 1);
+            let tw = measure_plain(&t, FONT - 4.0).width;
+            draw_plain(&t, panel.right() - skin::inset().max(14.0) - tw, panel.y + head - 10.0, FONT - 4.0, skin::disabled());
+        }
+        for ((k, row), r) in menu.rows.iter().enumerate().skip(scroll).zip(&rects) {
             if k == menu.sel {
                 skin::cursor(*r, Color::new(1.0, 0.86, 0.45, 1.0));
             }
             let color = if row.why.is_some() { skin::disabled() } else { skin::normal() };
-            draw_plain(&row.label, r.x + 8.0, r.y + 17.0, FONT, color);
             let tail = row_tail(row);
             let tw = measure_plain(&tail, FONT - 2.0).width;
+            // (A label cut short rather than under its detail on a narrow screen.)
+            draw_plain(&text::fit_plain(&row.label, FONT, r.w - tw - 28.0), r.x + 8.0, r.y + 17.0, FONT, color);
             draw_plain(&tail, r.right() - tw - 8.0, r.y + 17.0, FONT - 2.0, if row.why.is_some() { skin::disabled() } else { skin::dim() });
         }
     }

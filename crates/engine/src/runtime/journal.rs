@@ -329,7 +329,7 @@ impl Game {
         } else {
             "{key:up}/{key:down} or click: select   {key:next_tab}: next tab   {key:journal} / {key:cancel}: close"
         };
-        super::glyphs::draw_hint_in(hint, r.x + PAD, r.y + r.h - 14.0, 16.0, r.w - 2.0 * PAD, skin::disabled());
+        super::glyphs::draw_hint_in(hint, r.x + PAD, skin::hint_baseline(r.y + r.h), 16.0, r.w - 2.0 * PAD, skin::disabled());
         for (t, tr) in tab_rects(r) {
             let on = self.journal.tab == t;
             if !skin::button_picture(tr, on || tr.contains(m)) {
@@ -354,7 +354,7 @@ impl Game {
 
         let entries = self.journal_entries();
         if entries.is_empty() {
-            draw_text("No quests yet. Talk to people - someone may need your help.", r.x + PAD, r.y + 80.0, 22.0, skin::dim());
+            Self::draw_empty_page("No quests yet. Talk to people - someone may need your help.", r);
             return;
         }
         draw_line(r.x + LIST_W + 8.0, r.y + 50.0, r.x + LIST_W + 8.0, r.y + r.h - 40.0, 1.0, skin::line(0.4));
@@ -467,7 +467,7 @@ impl Game {
         let m = input::mouse_pos();
         let entries = self.bestiary_entries();
         if entries.is_empty() {
-            draw_text("No creatures yet. Every kind you defeat is described here.", r.x + PAD, r.y + 80.0, 22.0, skin::dim());
+            Self::draw_empty_page("No creatures yet. Every kind you defeat is described here.", r);
             return;
         }
         draw_line(r.x + LIST_W + 8.0, r.y + 50.0, r.x + LIST_W + 8.0, r.y + r.h - 40.0, 1.0, skin::line(0.4));
@@ -618,7 +618,7 @@ impl Game {
         // (Names in the current language: "elder" is the elder's character name "Elder".)
         let friends: Vec<(String, i64)> = self.friends().into_iter().map(|(n, p)| (crate::lang::tr(&n), p)).collect();
         if friends.is_empty() {
-            draw_text("No friends yet. Talk to people, help them, bring them gifts they like.", r.x + PAD, r.y + 80.0, 22.0, skin::dim());
+            Self::draw_empty_page("No friends yet. Talk to people, help them, bring them gifts they like.", r);
             return;
         }
         let col_w = (r.w - PAD * 3.0) / 2.0;
@@ -647,7 +647,7 @@ impl Game {
     fn draw_dialog_log(&self, r: Rect) {
         let log = &self.world.dialog_log;
         if log.is_empty() {
-            draw_text("Nothing said yet. Conversations you have are kept here.", r.x + PAD, r.y + 80.0, 22.0, skin::dim());
+            Self::draw_empty_page("Nothing said yet. Conversations you have are kept here.", r);
             return;
         }
         let (top, bottom) = (r.y + 56.0, r.y + r.h - 44.0);
@@ -725,6 +725,16 @@ impl Game {
         let below = log.len() - 1 - last_shown;
         if below > 0 {
             draw_text(&format!("{below} newer line(s) below - Down / End")[..], x, r.y + r.h - 32.0, 16.0, skin::text(skin::Text::Dim, Color::new(0.85, 0.8, 0.6, 0.9)));
+        }
+    }
+}
+
+impl Game {
+    /// A journal page's text while it has no entries, wrapped to the page.
+    fn draw_empty_page(text: &str, r: Rect) {
+        let t = crate::lang::tr_ui(text);
+        for (k, line) in super::text::wrap(&t, 22.0, r.w - 2.0 * PAD).iter().enumerate() {
+            super::text::draw_plain(line, r.x + PAD, r.y + 80.0 + k as f32 * 26.0, 22.0, skin::dim());
         }
     }
 }

@@ -269,7 +269,7 @@ impl Game {
                     bar(y + 46.0, f.tension, tc, "Tension");
                     bar(y + 70.0, f.progress, Color::new(0.35, 0.6, 0.95, 1.0), "Reeled");
                 }
-                super::glyphs::draw_hint_in(hint, x + 18.0, y + h - 12.0, 16.0, w - 36.0, skin::disabled());
+                super::glyphs::draw_hint_in(hint, x + 18.0, skin::hint_baseline(y + h), 16.0, w - 36.0, skin::disabled());
             }
         }
         if let Some((won, _, msg)) = &m.done {

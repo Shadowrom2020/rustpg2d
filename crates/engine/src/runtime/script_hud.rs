@@ -224,7 +224,7 @@ impl Game {
                 }
             }
         }
-        super::glyphs::draw_hint_in("{key:up}/{key:down} + {key:confirm} or click · {key:cancel}: close", p.x + 20.0, p.bottom() - 12.0, 16.0, p.w - 40.0, skin::disabled());
+        super::glyphs::draw_hint_in("{key:up}/{key:down} + {key:confirm} or click · {key:cancel}: close", p.x + 20.0, skin::hint_baseline(p.bottom()), 16.0, p.w - 40.0, skin::disabled());
     }
 
     /// For `Game::status()`: `hud=[id:kind@anchor+x,y …]` (bars with value/max) and the open

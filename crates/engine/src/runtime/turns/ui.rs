@@ -8,7 +8,7 @@ use super::{Aim, Side, TurnAct, Who};
 use crate::grid::TilePos;
 use crate::runtime::input::{self, Act};
 use crate::runtime::skin;
-use crate::runtime::text::{self, draw_plain, draw_text, measure_plain, measure_text, Role};
+use crate::runtime::text::{self, draw_plain, draw_text, measure_plain, Role};
 use crate::runtime::Game;
 
 const BAR_FONT: f32 = 18.0;
@@ -230,11 +230,17 @@ impl Game {
     pub(in crate::runtime) fn bar_layout(&self) -> Vec<Rect> {
         let _font = text::role(Role::Hud);
         let gap = 4.0;
-        let widths: Vec<f32> = TurnAct::BAR.iter().enumerate().map(|(k, a)| measure_text(&self.bar_text(k, *a), None, BAR_FONT as u16, 1.0).width + 16.0).collect();
-        let total: f32 = widths.iter().sum::<f32>() + gap * (widths.len() as f32 - 1.0);
-        // Two rows when the screen is narrow.
-        let rows = if total > screen_width() - 32.0 { 2 } else { 1 };
-        let per = TurnAct::BAR.len().div_ceil(rows);
+        let widths: Vec<f32> = TurnAct::BAR.iter().enumerate().map(|(k, a)| measure_plain(&self.bar_text(k, *a), BAR_FONT).width + 16.0).collect();
+        // More rows when a row would reach under the HUD buttons in the corner (a narrow screen,
+        // a language with long words).
+        let room = (2.0 * self.hud_buttons_left() - screen_width() - 16.0).max(200.0);
+        let n = widths.len();
+        let row_width = |rows: usize| {
+            let per = n.div_ceil(rows);
+            widths.chunks(per).map(|ws| ws.iter().sum::<f32>() + gap * (ws.len() as f32 - 1.0)).fold(0.0, f32::max)
+        };
+        let rows = (1..=3).find(|r| row_width(*r) <= room).unwrap_or(3);
+        let per = n.div_ceil(rows);
         let h = 28.0;
         let mut out = Vec::new();
         for r in 0..rows {
@@ -406,7 +412,7 @@ impl Game {
             if picked {
                 skin::cursor(*r, Color::new(1.0, 0.86, 0.45, 1.0));
             }
-            draw_text(self.bar_text(k, *act), r.x + 8.0, r.y + 19.0, BAR_FONT, if ok || picked { skin::normal() } else { skin::disabled() });
+            draw_plain(&self.bar_text(k, *act), r.x + 8.0, r.y + 19.0, BAR_FONT, if ok || picked { skin::normal() } else { skin::disabled() });
         }
         let top = rects.first().map_or(screen_height() - 40.0, |r| r.y) - 8.0;
         let t = &c.turn;

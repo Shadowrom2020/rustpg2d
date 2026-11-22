@@ -715,7 +715,10 @@ illusions: only their text) and eight working ones of little use here (Comprehen
 project's own spell can still be *Story only* (its text shown, cast by events and scripts: *Cast
 spell*, `cast_spell`). The example's spells are Cure
 Wounds, Light, Fire Bolt, Burning Hands, Magic Missile, Fireball, Misty Step and Sleep (Wren the
-herbalist sells their scrolls; Fireball's flying sprite and explosion are the spell's *Look*);
+herbalist sells their scrolls). Every spell of the starter library and the example has a
+**look** of its own (*Look* in the spell's form): an animated impact where it lands (an area's
+the size of the area), a flying sprite for the bolts and rays (Fire Bolt, Ray of Frost, Magic
+Missile, Eldritch Blast…) and for some a sound; Fireball keeps its hand-made sprite and explosion.
 **Brother Ansel** is a cleric of the Life domain who heals a hurt hero with Cure Wounds once a day.
 
 Conditions: *Knows spell*. Actions: *Learn spell*, *Cast spell*, *Damage around player*, *Light

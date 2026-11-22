@@ -43,6 +43,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_cure-wounds",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "light",
@@ -78,6 +83,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_light",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "fire-bolt",
@@ -119,6 +129,14 @@
             ),
         ],
         story_only: false,
+        visual: (
+            projectile: Some((
+                sheet: "fxp_fire-bolt",
+                frame: 0,
+            )),
+            impact: "fx_fire-bolt",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "burning-hands",
@@ -170,6 +188,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_burning-hands",
+            impact_scale: 1.0,
+            sound: "fireball",
+        ),
     ),
     (
         id: "fireball",
@@ -272,6 +295,14 @@
             ),
         ],
         story_only: false,
+        visual: (
+            projectile: Some((
+                sheet: "fxp_magic-missile",
+                frame: 0,
+            )),
+            impact: "fx_magic-missile",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "command",
@@ -309,6 +340,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_command",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "hold-person",
@@ -351,6 +386,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_hold-person",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "inflict-wounds",
@@ -396,6 +435,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_inflict-wounds",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "sacred-flame",
@@ -437,6 +480,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_sacred-flame",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "misty-step",
@@ -468,6 +515,10 @@
             Teleport,
         ],
         story_only: false,
+        visual: (
+            impact: "fx_misty-step",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "sleep",
@@ -517,6 +568,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_sleep",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "acid-splash",
@@ -559,6 +614,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_acid-splash",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "bless",
@@ -605,6 +664,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_bless",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "charm-person",
@@ -645,6 +709,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_charm-person",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "chill-touch",
@@ -687,6 +755,14 @@
             ),
         ],
         story_only: false,
+        visual: (
+            projectile: Some((
+                sheet: "fxp_chill-touch",
+                frame: 0,
+            )),
+            impact: "fx_chill-touch",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "color-spray",
@@ -735,6 +811,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_color-spray",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "dancing-lights",
@@ -769,6 +849,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_dancing-lights",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "detect-magic",
@@ -814,6 +899,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_detect-magic",
+            impact_scale: 1.5,
+            sound: "chime",
+        ),
     ),
     (
         id: "eldritch-blast",
@@ -854,6 +944,14 @@
             ),
         ],
         story_only: false,
+        visual: (
+            projectile: Some((
+                sheet: "fxp_eldritch-blast",
+                frame: 0,
+            )),
+            impact: "fx_eldritch-blast",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "entangle",
@@ -900,6 +998,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_entangle",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "false-life",
@@ -956,6 +1058,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_false-life",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "feather-fall",
@@ -990,6 +1096,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_feather-fall",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "fog-cloud",
@@ -1030,6 +1140,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_fog-cloud",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "grease",
@@ -1077,6 +1191,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_grease",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "guidance",
@@ -1111,6 +1229,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_guidance",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "guiding-bolt",
@@ -1156,6 +1279,14 @@
             ),
         ],
         story_only: false,
+        visual: (
+            projectile: Some((
+                sheet: "fxp_guiding-bolt",
+                frame: 0,
+            )),
+            impact: "fx_guiding-bolt",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "healing-word",
@@ -1199,6 +1330,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_healing-word",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "hellish-rebuke",
@@ -1245,6 +1381,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_hellish-rebuke",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "hideous-laughter",
@@ -1287,6 +1427,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_hideous-laughter",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "hunters-mark",
@@ -1320,6 +1464,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_hunters-mark",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "mage-armor",
@@ -1355,6 +1503,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_mage-armor",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "poison-spray",
@@ -1399,6 +1552,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_poison-spray",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "produce-flame",
@@ -1439,6 +1596,14 @@
             ),
         ],
         story_only: false,
+        visual: (
+            projectile: Some((
+                sheet: "fxp_produce-flame",
+                frame: 0,
+            )),
+            impact: "fx_produce-flame",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "ray-of-frost",
@@ -1485,6 +1650,14 @@
             ),
         ],
         story_only: false,
+        visual: (
+            projectile: Some((
+                sheet: "fxp_ray-of-frost",
+                frame: 0,
+            )),
+            impact: "fx_ray-of-frost",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "resistance",
@@ -1521,6 +1694,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_resistance",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "shield",
@@ -1555,6 +1733,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_shield",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "shocking-grasp",
@@ -1596,6 +1779,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_shocking-grasp",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "spare-the-dying",
@@ -1625,6 +1812,11 @@
             Stabilize,
         ],
         story_only: false,
+        visual: (
+            impact: "fx_spare-the-dying",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "thunderwave",
@@ -1678,6 +1870,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_thunderwave",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "vicious-mockery",
@@ -1719,5 +1915,9 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_vicious-mockery",
+            impact_scale: 1.0,
+        ),
     ),
 ]

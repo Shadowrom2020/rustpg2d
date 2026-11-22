@@ -981,4 +981,10 @@
         frame_w: 32,
         frame_h: 32,
     ),
+    (
+        id: "biomes",
+        image: "sprites/biomes.png",
+        frame_w: 32,
+        frame_h: 32,
+    ),
 ]

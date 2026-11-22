@@ -347,4 +347,14 @@
         walk: Walk,
         step: "step_wood",
     ),
+    (
+        id: "cave_rock",
+        name: "Cave Rock",
+        texture: "materials/cave_rock.png",
+        edge: Crisp,
+        edge_noise: 2.0,
+        edge_pixel: 2,
+        priority: 22,
+        walk: Walk,
+    ),
 ]

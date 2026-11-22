@@ -272,7 +272,10 @@ The props the Decorations tool's **scatter brush** places at random ([Maps › D
 | **Layer** | *Flat*, *Sorted* or *Above* |
 | **Mirror half of them** | Every other one at random is mirrored left to right |
 
-The starter library brings *Forest* (oaks and pines), *Rocks* and *Wild plants*.
+The starter library brings *Forest* (oaks and pines), *Rocks* and *Wild plants*, and for other
+landscapes *Snowy woods* and *Snow ground*, *Desert plants* and *Desert stones*, *Cave floor*,
+*Swamp growth* and *Swamp water plants* (lily pads and reeds, for the water itself) and *Dungeon
+debris*.
 
 ## Sprite sheets
 

@@ -1644,16 +1644,25 @@ added here.
 
 A content release for the starter library. Generating 3D models costs Meshy credits: ask first.
 
-- [ ] Material and decoration sets — `feature/biome-sets`
+- [x] Material and decoration sets — `feature/biome-sets`
 
   **Goal.** More worlds than a green valley.
 
   **Design.** Snow, desert, dungeon, cave and swamp: materials, props, scatter sets and
   structures for each. The example gets a cave level in the mine with them.
 
+  **Decided while building.** The library already had most grounds (snow, snowfield, frozen lake,
+  sand, hardpan, oasis, swamp water, lava, the dungeon floors), so three are new: mud, cave rock
+  and sandstone tiles. The 28 props are pixel art drawn by a script on one sheet (`biomes`), lit and
+  outlined like the existing ones; glowing mushrooms and blue crystals carry a light. Eight scatter
+  sets and eight structures (one or two per landscape). The cave level is a map of its own, *The
+  Deep Caves* (`mine_depths`), reached through a crack in the mine's rat nest; its giant spider is a
+  mannequin until *Models for the SRD monsters*.
+
   **Engine.** None (content).
 
-  **Verify.** A screenshot of each set on a test map; the example's cave in autoplay.
+  **Verify.** A test map with every structure and scatter set (screenshots); the example's cave in
+  autoplay: down from the mine, lit by the mushrooms, a fight in the spider's lair.
 
 - [ ] Models for the SRD monsters — `feature/bestiary`
 

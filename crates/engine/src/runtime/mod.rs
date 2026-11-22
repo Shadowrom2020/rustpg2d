@@ -2663,6 +2663,7 @@ impl Game {
 
     fn update_entities(&mut self, dt: f32, frozen: bool) {
         let ts = self.ts();
+        let look = self.frame_look();
         for i in 0..self.loaded.entities.len() {
             let e = &self.loaded.entities[i];
             if e.away && !frozen {
@@ -2707,7 +2708,7 @@ impl Game {
                 continue;
             }
             let dt = dt * f;
-            if self.companion_step(i, dt) || self.chase(i, dt) {
+            if self.companion_step(i, dt) || self.chase(i, dt, &look) {
                 continue;
             }
             let sched = self.schedule_step(i, dt);

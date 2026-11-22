@@ -773,6 +773,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   hero, however far away, and every question added up all the map's lights and read the creature's
   senses. A creature farther than its sight now stops at once, and the light at the hero is worked
   out once a frame.
+- A smaller cost of big maps, found the same way: every hunting creature went through all of the
+  map's entities each frame, looking for party members and for characters of hostile factions.
+  Both lists are made once a frame now.
 - **A hitch once a second on big maps with a minimap**: the fog of war's picture was painted and
   uploaded anew each second (a million tiles in the wilds). It is made again only when the hero
   explored something, into the texture there is.

@@ -713,9 +713,10 @@ damage and healing, plus a table in the import for conditions, boons, light, Kno
 summons, teleports and the rest below). The SRD's 152 **story-only** spells (divination, travel,
 illusions: only their text) and eight working ones of little use here (Comprehend Languages, Tongues, Detect Poison and Disease, Detect Evil and Good, Animal Friendship, Dream, Plane Shift and Control Water) are left out; a
 project's own spell can still be *Story only* (its text shown, cast by events and scripts: *Cast
-spell*, `cast_spell`). The example's spells are Cure
-Wounds, Light, Fire Bolt, Burning Hands, Magic Missile, Fireball, Misty Step and Sleep (Wren the
-herbalist sells their scrolls). Every spell of the starter library and the example has a
+spell*, `cast_spell`). The example has every spell of levels 0 to 2 from the starter library (85,
+all a hero can pick or prepare in its levels), and Fireball and a few others for its scrolls and
+monsters; Wren the herbalist sells scrolls of Cure Wounds, Light, Fire Bolt, Burning Hands, Magic
+Missile, Fireball, Misty Step and Sleep. Every spell of the starter library and the example has a
 **look** of its own (*Look* in the spell's form): an animated impact where it lands (an area's
 the size of the area), a flying sprite for the bolts and rays (Fire Bolt, Ray of Frost, Magic
 Missile, Eldritch Blast…) and for some a sound; Fireball keeps its hand-made sprite and explosion.

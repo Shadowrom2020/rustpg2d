@@ -705,6 +705,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **An icon for every spell** (starter library and example, one sheet `spell_icons`): a badge in
   its school's colour with a glyph for what it does in its element's colours (a flame, a
   snowflake, a heart, a skull, a shield…), a small second glyph, and its level as pips.
+- The example has **every spell of levels 0 to 2** from the starter library (44 more: Shillelagh,
+  Bane, Heroism, Shield of Faith, Scorching Ray, Spiritual Weapon, Web, Invisibility…), so every
+  class picks and prepares from the full lists in its levels; with the Owl (Find Familiar) and the
+  priced components ruby dust, platinum rings and incense. All in German too.
 
 ### Art
 - The **hero** (the male human hero, the starter library's *Hero* character) has a new model with

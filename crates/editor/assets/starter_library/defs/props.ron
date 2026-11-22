@@ -187,8 +187,8 @@
         id: "chair",
         name: "Chair",
         sprite: (
-            sheet: "props",
-            frame: 73,
+            sheet: "chairs",
+            frame: 0,
         ),
         solid: true,
         default_state: "default",
@@ -199,7 +199,7 @@
         lock: None,
         use_spot: Some((
             pose: Sit,
-            offset: (0.0, 2.0),
+            offset: (0.0, 1.0),
             facing: Down,
             sleep_until: 7.0,
             cover: (
@@ -213,8 +213,8 @@
         id: "chair_up",
         name: "Chair (facing up)",
         sprite: (
-            sheet: "props",
-            frame: 78,
+            sheet: "chairs",
+            frame: 1,
         ),
         solid: true,
         default_state: "default",
@@ -229,8 +229,8 @@
             facing: Up,
             sleep_until: 7.0,
             cover: (
-                sheet: "props",
-                frame: 79,
+                sheet: "chairs",
+                frame: 2,
             ),
         )),
         low: true,
@@ -239,8 +239,8 @@
         id: "chair_left",
         name: "Chair (facing left)",
         sprite: (
-            sheet: "props",
-            frame: 86,
+            sheet: "chairs",
+            frame: 3,
         ),
         solid: true,
         default_state: "default",
@@ -251,7 +251,7 @@
         lock: None,
         use_spot: Some((
             pose: Sit,
-            offset: (0.0, 2.0),
+            offset: (2.0, -1.0),
             facing: Left,
             sleep_until: 7.0,
             cover: (
@@ -265,8 +265,8 @@
         id: "chair_right",
         name: "Chair (facing right)",
         sprite: (
-            sheet: "props",
-            frame: 87,
+            sheet: "chairs",
+            frame: 4,
         ),
         solid: true,
         default_state: "default",
@@ -277,7 +277,7 @@
         lock: None,
         use_spot: Some((
             pose: Sit,
-            offset: (0.0, 2.0),
+            offset: (-2.0, -1.0),
             facing: Right,
             sleep_until: 7.0,
             cover: (

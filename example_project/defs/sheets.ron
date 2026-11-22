@@ -975,4 +975,10 @@
         frame_w: 128,
         frame_h: 128,
     ),
+    (
+        id: "chairs",
+        image: "sprites/chairs.png",
+        frame_w: 32,
+        frame_h: 32,
+    ),
 ]

@@ -1491,4 +1491,10 @@
         frame_w: 32,
         frame_h: 32,
     ),
+    (
+        id: "chairs",
+        image: "sprites/chairs.png",
+        frame_w: 32,
+        frame_h: 32,
+    ),
 ]

@@ -261,6 +261,11 @@ pub(super) struct Combat {
     pub shot: Vec<(String, u32)>,
     /// The AI shoved or grappled these (target, round): once per target and round.
     pub ai_wrestled: Vec<(Who, u32)>,
+    /// The move the hero started the fight with and its target: aimed when the hero's first
+    /// turn comes (the SRD's initiative decides when that is).
+    pub opening: Option<(Aim, Option<u32>)>,
+    /// The enemies that hadn't noticed the hero when the hero started the fight (uids).
+    pub unnoticed: Vec<u32>,
 }
 
 /// What a fight log keeps.
@@ -470,6 +475,7 @@ impl Game {
         let fighter = |who, side, ai| Fighter { who, key: String::new(), side, init: 0, dex: 0, surprised: false, ai, saves: DeathSaves::default(), down: false, out: false, dodging: false, hidden: false, reacted: false, readied: false, readied_spell: None, grappling: None, fx: Default::default(), thrown: Vec::new(), mon: Default::default() };
         order.push(fighter(Who::Player, Side::Party, false));
         let mut enemies = Vec::new();
+        let mut unnoticed = Vec::new();
         for i in 0..self.loaded.entities.len() {
             let e = &self.loaded.entities[i];
             if !e.active || e.kind != EntityKind::Character || e.max_hp <= 0 || e.hp <= 0 || !near(e.body.pos) {
@@ -481,6 +487,10 @@ impl Game {
             } else if e.hostile {
                 if aware && !self.takes_part(i, surprise) {
                     continue;
+                }
+                // (The hero started it: who hadn't noticed them yet.)
+                if surprise && !self.aware_of_party(i) {
+                    unnoticed.push(e.uid);
                 }
                 // (Who is surprised is decided once the fight is set up: Stealth rolls.)
                 order.push(fighter(Who::Npc(e.uid), Side::Enemy, true));
@@ -532,7 +542,7 @@ impl Game {
             }
         }
         let cursor = feet_tile(self.player.pos, ts);
-        let mut c = Combat { round: 1, order, current: 0, turn: Turn::default(), helped: Vec::new(), cursor, aim: Aim::Move, walking: Vec::new(), ai_t: 0.4, log: Vec::new(), fast: self.fight_fast, over: false, shove_push: false, selected: 0, then_attack: None, then_pick_up: None, reach: Default::default(), menu: None, attack_mode: None, reach_key: None, mouse_last: Vec2::ZERO, once: Vec::new(), scroll: None, item_cast: None, pending_blow: None, pending_react: None, smite_decided: None, knocking: false, shot: Vec::new(), ai_wrestled: Vec::new() };
+        let mut c = Combat { round: 1, order, current: 0, turn: Turn::default(), helped: Vec::new(), cursor, aim: Aim::Move, walking: Vec::new(), ai_t: 0.4, log: Vec::new(), fast: self.fight_fast, over: false, shove_push: false, selected: 0, then_attack: None, then_pick_up: None, reach: Default::default(), menu: None, attack_mode: None, reach_key: None, mouse_last: Vec2::ZERO, once: Vec::new(), scroll: None, item_cast: None, pending_blow: None, pending_react: None, smite_decided: None, knocking: false, shot: Vec::new(), ai_wrestled: Vec::new(), opening: self.opening.take(), unnoticed };
         c.log(crate::lang::tr_ui("Fight! Initiative:").into_owned());
         let names: Vec<String> = first.iter().map(|(w, init)| format!("{} {init}", self.who_name(*w))).collect();
         c.log(names.join(", "));
@@ -833,6 +843,28 @@ impl Game {
         }
         let cursor = feet_tile(self.who_pos(me.who), self.ts());
         self.fight.as_mut().unwrap().cursor = cursor;
+        // The hero's first turn: the move that started the fight, aimed at its target.
+        if me.who == Who::Player {
+            if let Some((aim, target)) = self.fight.as_mut().and_then(|c| c.opening.take()) {
+                self.aim_opening(aim, target);
+            }
+        }
+    }
+
+    /// Aims the hero's opening move at its target (when it is still in the fight; else at the
+    /// nearest foe, as choosing it from the action bar would).
+    fn aim_opening(&mut self, aim: Aim, target: Option<u32>) {
+        match &aim {
+            Aim::Cast(id, slot) => self.aim_spell(id, *slot),
+            _ => self.set_aim(aim.clone()),
+        }
+        let alive = target.map(Who::Npc).filter(|w| self.fight.as_ref().is_some_and(|c| c.fighter(*w).is_some_and(|f| !f.out && !f.down)));
+        if let Some(w) = alive {
+            let t = self.who_tile(w);
+            if let Some(c) = &mut self.fight {
+                c.cursor = t;
+            }
+        }
     }
 
     /// Ends the current turn: the next one in initiative order (a new round after the last).

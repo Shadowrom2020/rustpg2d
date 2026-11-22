@@ -82,8 +82,10 @@ pub(super) struct PlayerCombat {
     pub swing: f32,
     pub invuln: f32,
     pub knock: Vec2,
-    /// Sneaking (`stealth.rs`).
+    /// Sneaking (`stealth.rs`), and the Stealth roll made when it began (enemies' passive
+    /// Perception has to reach it).
     pub sneak: bool,
+    pub sneak_roll: i32,
     /// The attack animation: seconds left of it, and how long it lasts (the weapon's cooldown,
     /// 0.3 to 0.6 s; melee and shots alike).
     pub strike: f32,
@@ -107,6 +109,7 @@ impl PlayerCombat {
             invuln: 0.0,
             knock: Vec2::ZERO,
             sneak: false,
+            sneak_roll: 0,
             strike: 0.0,
             strike_len: 0.5,
             swing_dir: vec2(0.0, 1.0),
@@ -262,8 +265,14 @@ impl Game {
             self.combat.cooldown = 0.5;
             return;
         }
-        if self.hostile_in_sight(ATTACK_SIGHT) && self.start_combat(true, true) {
-            return;
+        if self.hostile_in_sight(ATTACK_SIGHT) {
+            // The attack waits, aimed at the enemy it was meant for, for the hero's first turn.
+            let target = self.opening_target(aim, ATTACK_SIGHT);
+            self.opening = Some((super::turns::Aim::Attack, target));
+            if self.start_combat(true, true) {
+                return;
+            }
+            self.opening = None;
         }
         let weapon = self.attack_weapon();
         let cooldown = weapon.cooldown.max(0.05);
@@ -309,6 +318,28 @@ impl Game {
         let e = &self.loaded.entities[i];
         let eye = self.player.pos - vec2(0.0, self.player.hitbox.y / 2.0);
         e.body.pos.distance(self.player.pos) <= ATTACK_SIGHT * self.ts() && self.line_clear(eye, e.body.pos - vec2(0.0, e.body.hitbox.y / 2.0))
+    }
+
+    /// The enemy an opening move outside a fight is meant for: the one nearest the aim (a
+    /// world point: the mouse), else in front of the hero, else the nearest; within `tiles` and
+    /// in sight.
+    pub(super) fn opening_target(&self, aim: Option<Vec2>, tiles: f32) -> Option<u32> {
+        let ts = self.ts();
+        let eye = self.player.pos - vec2(0.0, self.player.hitbox.y / 2.0);
+        let ahead = vec2(self.player.facing.dir().0, self.player.facing.dir().1);
+        let foes: Vec<(u32, Vec2)> = self
+            .loaded
+            .entities
+            .iter()
+            .filter(|e| e.active && e.hostile && e.max_hp > 0 && e.hp > 0 && e.kind == crate::entity::EntityKind::Character && e.body.pos.distance(self.player.pos) <= tiles * ts && self.line_clear(eye, e.body.pos - vec2(0.0, e.body.hitbox.y / 2.0)))
+            .map(|e| (e.uid, e.body.pos))
+            .collect();
+        let score = |p: Vec2| match aim {
+            Some(a) => p.distance(a),
+            // (In front first: a foe behind counts as twice as far.)
+            None => p.distance(self.player.pos) * if (p - self.player.pos).dot(ahead) >= 0.0 { 1.0 } else { 2.0 },
+        };
+        foes.into_iter().min_by(|a, b| score(a.1).total_cmp(&score(b.1))).map(|(u, _)| u)
     }
 
     /// A hostile character that can fight within `tiles` and in a clear line.

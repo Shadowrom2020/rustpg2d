@@ -468,6 +468,9 @@ pub struct Game {
     combat: PlayerCombat,
     /// The turn-based fight going on (`turns/`; not saved: saving waits for its end).
     fight: Option<Box<turns::Combat>>,
+    /// The hero's move that is starting a fight (an attack, a combat spell) and its target: it
+    /// waits, aimed, for the hero's first turn (`turns::Combat::opening`).
+    opening: Option<(turns::Aim, Option<u32>)>,
     /// A spell being cast from an item (its DC; charges spent when cast).
     casting_item: Option<magic_items::ItemCast>,
     /// A monster's save action resolving: its DC (`turns/monster_actions.rs`).
@@ -729,6 +732,7 @@ impl Game {
             effects: Vec::new(),
             projectiles: Vec::new(),
             fight: None,
+            opening: None,
             casting_item: None,
             action_dc: None,
             magic_key: 0,

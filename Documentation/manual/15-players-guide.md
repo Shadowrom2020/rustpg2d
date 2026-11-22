@@ -224,11 +224,15 @@ standing, the fight is lost. When the fight is won, those still down get up.
 You can't save during a fight; the game autosaves when it is over.
 
 **Sneak**: Left Ctrl or V (gamepad: left stick click) switches sneaking on and off; *Sneaking*
-shows under your HP bar. You walk at half speed and quietly, and enemies notice you only within half
-their sight, less still in the dark (at night, in dark places, away from torches and lamps; your own
-lantern or light spell gives you away). One you bump into notices you anyway. Attack while
-sneaking and your party rolls Stealth: enemies whose passive Perception is below every roll are
-**surprised** and lose the first round of the fight. Monsters you can't see can surprise you too.
+shows under your HP bar. You walk at half speed and quietly and roll Stealth once: enemies in sight
+of you (less far in the dark: at night, in dark places, away from torches and lamps; your own
+lantern or light spell gives you away) notice you only when their passive Perception reaches your
+roll. One you bump into notices you anyway. Attack while sneaking: enemies whose passive Perception
+is below your party's Stealth are **surprised** and lose the first round, and if none noticed you,
+your first attack has advantage. A shot or a combat spell from where enemies haven't noticed you
+(far away, in the dark, around a corner) surprises them too. Starting a fight by an attack, a shot
+or a spell (*Cast* in the action bar or the Spells tab), your move waits for your first turn,
+already aimed at that enemy. Monsters you can't see can surprise you too.
 
 ## Gamepad
 

@@ -578,7 +578,29 @@ impl Game {
         if self.fight.is_some() {
             return Err("In a fight: use the action bar");
         }
+        // A combat spell at an enemy in sight starts a fight: the spell waits, aimed at the
+        // nearest enemy, for the hero's first turn (its slot is spent when it is cast).
         if d.offensive() && !d.heals() {
+            if free {
+                return Err("Only in a fight");
+            }
+            if !self.can_cast(Who::Player, id) && d.level > 0 {
+                return Err(self.cast_refusal(Who::Player, id, "You can't cast that spell"));
+            }
+            let reach = match d.range {
+                crate::skills::SpellRange::Feet(f) => (f as f32 / 5.0).max(1.0),
+                _ => 1.5,
+            }
+            .min(super::combat::ATTACK_SIGHT);
+            if !self.hostile_in_sight(super::combat::ATTACK_SIGHT) {
+                return Err("No enemy in sight");
+            }
+            let target = self.opening_target(None, reach).or_else(|| self.opening_target(None, super::combat::ATTACK_SIGHT));
+            self.opening = Some((super::turns::Aim::Cast(id.to_string(), slot.unwrap_or(d.level)), target));
+            if self.start_combat(true, true) {
+                return Ok(());
+            }
+            self.opening = None;
             return Err("Only in a fight");
         }
         if d.story_only && !free {

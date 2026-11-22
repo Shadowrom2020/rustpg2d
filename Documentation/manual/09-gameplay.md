@@ -15,8 +15,12 @@ Fights follow the SRD 5.1's combat rules **in turns**, on the map where they hap
 stays real-time ([Player's guide › Fighting](15-players-guide.md#fighting)).
 
 - **A fight starts** when a hostile character notices the player or a companion (within its
-  *Sight*; sneaking and darkness shorten it), when the player attacks one in sight (Attack, or a
-  click on it), or with the *Start fight* action / `start_combat()`. Every character within 12
+  *Sight*; darkness shortens it, and a sneaking hero has to beat its Perception), when the player
+  attacks one in sight (Attack, or a click on it), shoots at it, casts a combat spell at it (the
+  action bar's *Cast*, the Spells tab), or with the *Start fight* action / `start_combat()`. A fight
+  the hero starts keeps their move: when their first turn comes (by initiative, as the SRD has it),
+  it is aimed at the enemy it was meant for (the attack, or the spell with its area), one confirm
+  away; the spell's slot is spent when it is cast. Every character within 12
   tiles that is hostile to the player **and knows of the party** joins: it is hunting already, or it
   notices the hero or a companion now (within its *Sight*, behind trees and walls only when closer
   than half of it; when the hero strikes first, also those the hero sees). The others go on with
@@ -24,8 +28,12 @@ stays real-time ([Player's guide › Fighting](15-players-guide.md#fighting)).
   every hostile character near. The companions and characters of factions hostile to the enemies
   (the village guards against bandits) fight on the player's side.
 - **Surprise** (the SRD's rule: a creature that notices no threat): when the player strikes first
-  **while sneaking**, everyone of the party rolls Stealth, and each enemy whose passive Perception is
-  below every roll is surprised: it loses the first round. Without sneaking nobody is surprised.
+  **while sneaking**, the hero's Stealth roll (made when the sneaking began) and the companions'
+  count, and each enemy whose passive Perception is below every roll is surprised: it loses the
+  first round. When none noticed them, the hero is still **hidden**: their first attack has
+  advantage. Striking first **without sneaking** (a shot or a spell from afar, at night, from behind
+  a corner), the enemies that hadn't noticed the hero (not hunting, the hero beyond their sight)
+  are surprised; those that see them aren't (*Unnoticed* in the fight log).
   The other way round, when monsters start a fight while the hero can't see any of them (behind
   walls or trees), they roll Stealth against each party member's passive Perception. The fight log
   shows the lowest roll and who is surprised.
@@ -189,15 +197,17 @@ stays real-time ([Player's guide › Fighting](15-players-guide.md#fighting)).
   none in its properties) and back when it is over, with the *Victory* fanfare when enemies were
   defeated. The example plays *Steel in the Woods* (`music_battle`, in the starter library).
 - **Sneaking** (Left Ctrl / V, gamepad left stick click): the player walks at half speed and
-  quietly, and a hostile character notices them within half of its *Sight*, times 0.4 (dark) to 1
-  (lit) by the light at the player: the map's lighting by the clock plus the light sources around
-  them, their own lantern included. That applies sneaking or not (at night everyone is harder to
-  see); behind walls the usual half of that, and within three quarters of a tile always. An enemy
-  that notices none of the party when they attack while sneaking is **surprised** (Stealth against
-  passive Perception, see *Surprise* above). Models play their **sneak** clip
+  quietly, and starting to sneak rolls their **Stealth** once (a roll line, no DC). A hostile
+  character sees the player within its *Sight*, times 0.4 (dark) to 1 (lit) by the light at the
+  player: the map's lighting by the clock plus the light sources around them, their own lantern
+  included (at night everyone is harder to see); behind walls the usual half of that. A sneaking
+  player it notices there only when its **passive Perception** reaches the Stealth roll, so a good
+  roll lets them walk right up to an enemy; within three quarters of a tile (bumping into it), or
+  within its blindsight or tremorsense, it always does. An enemy that notices none of the party
+  when they attack while sneaking is **surprised** (see *Surprise* above). Models play their **sneak** clip
   while sneaking (*Database › 3D models*; every playable model of the example has a creeping walk),
   others their walk, slowed. Scripts ask `is_sneaking()`; `status` prints
-  `sneak=on|off:light…:sight10=…`. In the example a sign on the way to the bandits' camp in
+  `sneak=on|off:light…:sight10=…[:stealth=ROLL]`. In the example a sign on the way to the bandits' camp in
   Whisperwood hints at a night approach.
 - **Outside fights** the Attack key swings at trees and ore veins in front ([Gathering and
   mining](#gathering-and-mining)); scripted damage (traps, *Damage area*) subtracts the target's
@@ -854,8 +864,8 @@ it shows the project's entries (*Database › Project › Menus › Action bar*;
 Use, Cast, Class, Search, Rest, Sneak, Party):
 
 - **Use**: the usable items in the bag (consumables, items with *Use* triggers, scrolls, items that
-  cast spells); **Cast**: the spells castable now (attack spells greyed: *Only in a fight*; the lowest
-  slot is spent); **Class**: the hero's class actions that work outside fights (Second Wind, Lay on
+  cast spells); **Cast**: the spells castable now (the lowest slot is spent; a combat spell starts a
+  fight with an enemy in sight, greyed *No enemy in sight* without one); **Class**: the hero's class actions that work outside fights (Second Wind, Lay on
   Hands with *Heal whom?* when companions are hurt, Preserve Life, script actions; the others greyed:
   *Only in a fight*; a use of the resource, no action).
 - **Search**: the hero rolls Perception (dim light, darkness and a helping companion count) and a

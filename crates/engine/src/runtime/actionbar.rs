@@ -234,8 +234,9 @@ impl Game {
                     if out.iter().any(|o| o.pick == pick) {
                         continue;
                     }
+                    // (A combat spell starts a fight with an enemy in sight: without one it waits.)
                     let attack = matches!(&pick, BarPick::Spell(id) if self.project.db.spell(id).is_some_and(|d| d.offensive() && !d.heals()));
-                    let why = r.why.or(attack.then_some("Only in a fight"));
+                    let why = r.why.or((attack && !self.hostile_in_sight(super::combat::ATTACK_SIGHT)).then_some("No enemy in sight"));
                     out.push(BarRow { label: r.label, detail: r.detail, why, pick });
                 }
                 out

@@ -1138,5 +1138,7 @@
         "Gear": "装備品",
         "Nothing here.": "何もありません。",
         "Click price / {key:confirm}: trade one   {key:run}: ten   {key:up} / {key:down}: select   {key:left} / {key:right}: switch side   {key:next_tab} / 1-6: filter   {key:cancel}: close": "値段をクリック / {key:confirm}：1個取引   {key:run}：10個   {key:up} / {key:down}：選択   {key:left} / {key:right}：反対側へ   {key:next_tab} / 1-6：絞り込み   {key:cancel}：閉じる",
+        "Unnoticed": "気づかれずに",
+        "No enemy in sight": "見える敵がいない",
     },
 )

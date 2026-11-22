@@ -1138,5 +1138,7 @@
         "Gear": "装备",
         "Nothing here.": "这里什么都没有。",
         "Click price / {key:confirm}: trade one   {key:run}: ten   {key:up} / {key:down}: select   {key:left} / {key:right}: switch side   {key:next_tab} / 1-6: filter   {key:cancel}: close": "点击价格 / {key:confirm}：交易一个   {key:run}：十个   {key:up} / {key:down}：选择   {key:left} / {key:right}：切换一侧   {key:next_tab} / 1-6：筛选   {key:cancel}：关闭",
+        "Unnoticed": "未被察觉",
+        "No enemy in sight": "视野内没有敌人",
     },
 )

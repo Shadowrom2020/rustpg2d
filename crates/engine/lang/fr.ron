@@ -374,6 +374,7 @@
         // ---- shop, crafting
         "Merchant": "Marchand",
         "Not enough {}.": "Pas assez de {}.",
+        "Not enough money.": "Pas assez d'argent.",
         "Bought {} {}": "Acheté {} {}",
         "Bought {}": "Acheté {}",
         "{} isn't interested in that.": "{} n'est pas intéressé.",

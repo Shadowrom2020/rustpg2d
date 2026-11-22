@@ -568,15 +568,18 @@ impl Game {
                     }
                 }
                 Button::Center => {
-                    let tw = measure_text("Center", None, 20, 1.0).width;
-                    draw_text("Center", c.x - tw / 2.0, c.y + 6.0, 20.0, skin::normal());
+                    // (Smaller when the translation is wider than the button: "Zentrieren".)
+                    let t = crate::lang::tr_ui("Center");
+                    let size = super::text::fit_size(&t, 20.0, r.w - 8.0, 12.0);
+                    let tw = super::text::measure_plain(&t, size).width;
+                    super::text::draw_plain(&t, c.x - tw / 2.0, c.y + size * 0.3, size, skin::normal());
                 }
             }
         }
         super::glyphs::draw_hint_in(
             "Arrows / WASD, drag or wheel ({key:run}: sideways): scroll   {key:zoom_in} / {key:zoom_out}: zoom   {key:map_center}: center on you   {key:map} / {key:cancel}: close",
             p.x + 16.0,
-            p.bottom() - 12.0,
+            skin::hint_baseline(p.bottom()),
             16.0,
             p.w - 32.0,
             skin::disabled(),

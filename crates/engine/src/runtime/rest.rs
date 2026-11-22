@@ -159,7 +159,7 @@ impl Game {
             let c = if k == 0 && !can { skin::disabled() } else if k == r.sel { skin::highlight() } else { skin::normal() };
             draw_text(label, row.x + 12.0, row.y + 21.0, 20.0, c);
         }
-        super::glyphs::draw_hint_in("{key:up}/{key:down} + {key:confirm} or click · {key:cancel}: done", p.x + 24.0, p.bottom() - 12.0, 16.0, W - 48.0, skin::disabled());
+        super::glyphs::draw_hint_in("{key:up}/{key:down} + {key:confirm} or click · {key:cancel}: done", p.x + 24.0, skin::hint_baseline(p.bottom()), 16.0, W - 48.0, skin::disabled());
     }
 
     /// For `status()`: `closed`, or `short:LEFT/LEVEL` while the window is open.

@@ -448,10 +448,13 @@ impl Game {
         draw_rectangle(0.0, 0.0, screen_width(), screen_height(), Color::new(0.0, 0.0, 0.0, 0.35));
         let e = &self.loaded.entities[i];
         let name = self.entity_display_name(e.uid).unwrap_or_else(|| e.name.clone());
-        let titles = [name.clone(), format!("{name}'s bag"), format!("Inventory  {}/{}", self.world.inventory.used_slots(), self.world.inventory.capacity())];
-        for (p, t) in l.panels.iter().zip(&titles) {
+        let titles = [name.clone(), crate::lang::tr_ui(&format!("{name}'s bag")).into_owned(), crate::lang::tr_ui(&format!("Inventory  {}/{}", self.world.inventory.used_slots(), self.world.inventory.capacity())).into_owned()];
+        for (k, (p, t)) in l.panels.iter().zip(&titles).enumerate() {
             panel(p.x, p.y, p.w, p.h);
-            draw_text(t, p.x + PAD, p.y + 28.0, 24.0, skin::highlight());
+            // (Smaller, then cut, when wider than its panel; the last one has the close button.)
+            let room = p.w - 2.0 * PAD - if k + 1 == l.panels.len() { 30.0 } else { 0.0 };
+            let size = super::text::fit_size(t, 24.0, room, 16.0);
+            super::text::draw_plain(&super::text::fit_plain(t, size, room), p.x + PAD, p.y + 28.0, size, skin::highlight());
         }
         // The companion as dressed now, its HP, defense and weapon.
         let pr = Rect::new(l.panels[0].x + PAD, l.panels[0].y + 50.0, 96.0, 150.0);
@@ -468,7 +471,11 @@ impl Game {
             let key = (Pane::Gear, k);
             self.comp_slot_frame(r, hover == Some(key), w.sel == key);
             let slot = GEAR[k];
-            draw_text(slot.label(), r.x + r.w + 6.0, r.y + 18.0, 16.0, skin::dim());
+            // (Smaller, then cut, when it would reach the panel's edge: "Second ring".)
+            let label = crate::lang::tr_ui(slot.label());
+            let room = l.panels[0].right() - skin::inset().max(PAD) - (r.x + r.w + 6.0);
+            let size = super::text::fit_size(&label, 16.0, room, 11.0);
+            super::text::draw_plain(&super::text::fit_plain(&label, size, room), r.x + r.w + 6.0, r.y + 18.0, size, skin::dim());
             match e.equipment.get(slot).and_then(|s| self.project.db.item(&s.item)) {
                 Some(d) => {
                     let tint = if dragging == Some(key) { Color::new(1.0, 1.0, 1.0, 0.3) } else { WHITE };

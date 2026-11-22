@@ -339,7 +339,11 @@ impl Game {
             self.draw_entity_portrait(e.uid, head);
             let name = self.entity_display_name(e.uid).unwrap_or_else(|| e.name.clone());
             let tx = head.right() + 6.0;
-            draw_text(&name, tx, r.y + 14.0, 16.0, Color::new(1.0, 0.86, 0.45, 1.0));
+            let (hp, hp_col) = if self.is_down(i) { (crate::lang::tr_ui("DOWN").into_owned(), skin::text(skin::Text::Negative, Color::new(1.0, 0.35, 0.35, 1.0))) } else { (format!("{}/{}", e.hp, e.max_hp), skin::dim()) };
+            let hp_w = super::text::measure_plain(&hp, 14.0).width;
+            // (The name, content, cut short before the HP: "Elfischer Waldläufer".)
+            let name = super::text::fit_plain(&name, 16.0, r.right() - hp_w - 12.0 - tx);
+            super::text::draw_plain(&name, tx, r.y + 14.0, 16.0, Color::new(1.0, 0.86, 0.45, 1.0));
             // Its orders, when not the usual (attack, following).
             if let Some(l) = &e.companion {
                 let mut tag = match l.order {
@@ -349,9 +353,11 @@ impl Game {
                 if l.post.is_some() {
                     tag = if tag.is_empty() { "STAY".into() } else { format!("{tag} STAY") };
                 }
-                if !tag.is_empty() {
-                    let nw = measure_text(&name, None, 16, 1.0).width;
-                    draw_text(&tag, tx + nw + 6.0, r.y + 13.0, 12.0, Color::new(0.55, 0.8, 1.0, 1.0));
+                // (Only when it fits between the name and the HP.)
+                let tag = crate::lang::tr_ui(&tag).into_owned();
+                let nw = super::text::measure_plain(&name, 16.0).width;
+                if !tag.is_empty() && tx + nw + 6.0 + super::text::measure_plain(&tag, 12.0).width <= r.right() - hp_w - 10.0 {
+                    super::text::draw_plain(&tag, tx + nw + 6.0, r.y + 13.0, 12.0, Color::new(0.55, 0.8, 1.0, 1.0));
                 }
             }
             let (bw, by) = (r.right() - tx - 6.0, r.y + 20.0);
@@ -375,9 +381,7 @@ impl Game {
                 }
                 draw_text(format!("x{n}"), ax + 24.0, r.y + 22.0, 16.0, if n == 0 { Color::new(1.0, 0.35, 0.35, 1.0) } else { skin::normal() });
             }
-            let (hp, col) = if self.is_down(i) { ("DOWN".to_string(), skin::text(skin::Text::Negative, Color::new(1.0, 0.35, 0.35, 1.0))) } else { (format!("{}/{}", e.hp, e.max_hp), skin::dim()) };
-            let w = measure_text(&hp, None, 14, 1.0).width;
-            draw_text(&hp, r.right() - w - 6.0, r.y + 14.0, 14.0, col);
+            super::text::draw_plain(&hp, r.right() - hp_w - 6.0, r.y + 14.0, 14.0, hp_col);
         }
     }
 
@@ -430,7 +434,7 @@ impl Game {
             draw_text(n, r.x + 12.0, r.y + 20.0, 20.0, skin::normal());
         }
         let hw = super::glyphs::measure_hint(HINT, 16.0);
-        super::glyphs::draw_hint(HINT, p.x + (p.w - hw) / 2.0, p.y + p.h - 10.0, 16.0, skin::dim());
+        super::glyphs::draw_hint(HINT, p.x + (p.w - hw) / 2.0, skin::hint_baseline(p.y + p.h), 16.0, skin::dim());
         // The chosen character on the map.
         let pos = match pick.choices[pick.sel] {
             None => Some(self.player.pos),

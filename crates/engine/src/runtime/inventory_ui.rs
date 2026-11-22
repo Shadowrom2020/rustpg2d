@@ -138,6 +138,12 @@ impl Game {
         [HudButton::Window, HudButton::Map].into_iter().enumerate().map(|(k, b)| (b, Rect::new(sw - 64.0 - k as f32 * 60.0, sh - 64.0, 52.0, 52.0))).collect()
     }
 
+    /// The left edge of the HUD buttons in the bottom-right corner: bars centred at the bottom
+    /// stay narrower than the room between them and the screen's middle.
+    pub(super) fn hud_buttons_left(&self) -> f32 {
+        self.hud_buttons().iter().map(|(_, r)| r.x).fold(screen_width(), f32::min)
+    }
+
     /// Screen position of a HUD button ("window" - also "character", "bag", "skills" - or
     /// "map") for automated play-throughs.
     pub fn hud_button_pos(&self, name: &str) -> Option<Vec2> {
@@ -209,7 +215,7 @@ const EQUIP_TOP: f32 = 50.0;
 const WORN_TOP: f32 = EQUIP_TOP + 4.0 * EQUIP_STEP - 6.0;
 
 /// Height of the character sheet panel.
-const SHEET_H: f32 = 560.0;
+const SHEET_H: f32 = 544.0;
 
 /// Container panels are at least this wide (title + "Take all" button).
 const MIN_CONTAINER_W: f32 = 300.0;
@@ -850,11 +856,17 @@ impl Game {
                 }
             }
             // The caption under it (the item's name and numbers are in the details line).
-            let caption = equip_caption(slot);
-            let size = if slot.worn() { 13 } else { 15 };
-            let w = measure_text(caption, None, size, 1.0).width;
+            // (Smaller, then cut, when it is wider than its room; kept inside the panel.)
+            let caption = crate::lang::tr_ui(equip_caption(slot));
+            let size = if slot.worn() { 13.0 } else { 15.0 };
+            let room = if slot.worn() { WORN_SLOT + WORN_GAP - 2.0 } else { SLOT + 2.0 * PAD - 8.0 };
+            let fs = super::text::fit_size(&caption, size, room, 10.0);
+            let caption = super::text::fit_plain(&caption, fs, room);
+            let w = super::text::measure_plain(&caption, fs).width;
+            let edge = skin::inset().min(12.0) - 2.0;
+            let x = (r.x + r.w / 2.0 - w / 2.0).clamp(p.x + edge, (p.right() - edge - w).max(p.x + edge));
             let colour = if item.is_some() { skin::dim() } else { skin::disabled() };
-            draw_text(caption, (r.x + r.w / 2.0 - w / 2.0).round(), r.y + r.h + size as f32 - 1.0, size as f32, colour);
+            super::text::draw_plain(&caption, x.round(), r.y + r.h + size - 1.0, fs, colour);
         }
         let st = self.stats();
         let hp = self.hp();
@@ -877,11 +889,19 @@ impl Game {
         }
         let y0 = p.y + WORN_TOP + WORN_SLOT + 28.0;
         draw_line(p.x + PAD, y0 - 12.0, p.x + p.w - PAD, y0 - 12.0, 1.0, skin::line(0.4));
-        // (Taller fallback glyphs, e.g. Japanese labels, get the room they need.)
-        let mut y = y0 + 8.0;
+        // The lines share the room down to the frame (smaller when there are many), and a line
+        // wider than the panel gets a smaller font. (Taller fallback glyphs, e.g. Japanese labels,
+        // get the room they need.)
+        let first = y0 + 8.0;
+        let room = p.bottom() - skin::inset() - 4.0 - first;
+        let step = (room / (lines.len().max(2) - 1) as f32).clamp(16.0, 22.0);
+        let size = (step - 3.0).min(19.0);
+        let mut y = first;
         for l in &lines {
-            draw_text(l, p.x + PAD, y, 19.0, skin::normal());
-            y += super::text::line_step(&crate::lang::tr_ui(l), 19.0, 22.0);
+            let t = crate::lang::tr_ui(l);
+            let s = super::text::fit_size(&t, size, p.w - 2.0 * PAD, 12.0);
+            super::text::draw_plain(&t, p.x + PAD, y, s, skin::normal());
+            y += super::text::line_step(&t, s, step);
         }
     }
 }

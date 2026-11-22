@@ -375,6 +375,7 @@
         // ---- shop, crafting
         "Merchant": "商人",
         "Not enough {}.": "{} 不够。",
+        "Not enough money.": "钱不够。",
         "Bought {} {}": "买了 {} {}",
         "Bought {}": "买了 {}",
         "{} isn't interested in that.": "{} 对这个不感兴趣。",

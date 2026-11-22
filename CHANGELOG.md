@@ -672,6 +672,23 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   which locked the door on the hero standing in it. It now goes back at the stairs.
 - Translated runtime texts with a value starting with a letter of several bytes ("Überzeugen")
   weren't translated.
+- **Text that overflowed its window** in longer languages (German, French, Russian…), found by
+  checking every game window in four languages:
+  - Hint lines no longer sit on a skinned window's frame (menus, character window, journal, map,
+    shop, crafting, level-up, input boxes, rest, the action bar's lists).
+  - Options: a wider value column ("Automatisch", "Спрашивать"); long labels end in "...".
+  - Character window: the stats fit the panel, slot captions stay inside it, and a tab drops its
+    key ("(C)") when its name is too wide; the item details give the hint room.
+  - Fights: the action bar wraps to more rows instead of running under the map and character
+    buttons; the Cast, Class and Reaction windows scroll (with "1-20 of 22") when they have more
+    rows than the screen holds; a companion's long name is cut before its HP.
+  - Shop: long item names get smaller, then cut, before the price button; a price that doesn't
+    fit with "Buy" / "Sell" shows alone; "Not enough money." for coins.
+  - Level-up: the value boxes move right of long labels ("Valeur de caractéristique").
+  - Companion window, sheet, journal, map, achievements: titles, labels and the "Center" button fit;
+    the empty journal page wraps; the achievements' counter moved next to the hint.
+  - Item names and descriptions in the details box, and the shop's names, are no longer run
+    through the runtime translation a second time.
 
 ## 0.27.0 — 2026-11-18
 

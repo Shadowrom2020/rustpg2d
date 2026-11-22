@@ -142,7 +142,7 @@ impl Game {
             Ask::Number { .. } => "Type a number · {key:up}/{key:down}: one more / less · Enter or {key:confirm}: done",
             Ask::Text { .. } => "Type · Backspace: delete · Enter: done",
         };
-        super::glyphs::draw_hint_in(hint, p.x + 24.0, p.bottom() - 14.0, 16.0, W - 48.0, skin::disabled());
+        super::glyphs::draw_hint_in(hint, p.x + 24.0, skin::hint_baseline(p.bottom()), 16.0, W - 48.0, skin::disabled());
     }
 
     /// For `status()`: `number:VAR=value` / `text:VAR="value"`, `-` when closed.

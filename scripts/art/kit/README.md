@@ -26,7 +26,8 @@ agent server serves it as `rustpg2d://docs/figure-kit`).
 |---|---|---|
 | The skeleton and the 14 clips | `rig/human.glb` (the hero's rig; `rig/extract.py` wrote it) | `models/kit_clips.glb`, shared by every body (`shared_clips`: fitted to each body's bone lengths) |
 | A **build**: proportions | `BUILDS` in `kit.py` (medium, dwarf, small, large; each for men and women) | bone lengths of the body and of its outfits |
-| A **body**: head, neck and what the race adds (ears, tusks, a dragon's head, horns, a tail) | `BODIES` in `kit.py`, `Figure.body` | a 3D model that is a figure, with its own pieces (`parts`) |
+| A **head**: head, neck and what the race adds (ears, tusks, a dragon's head, horns, a tail, a skull) | `HEADS` in `kit.py`, `Figure.body` | a 3D model that is a figure, with its own pieces (`parts`); the playable ones are the races' bodies |
+| A **figure of the cast**: a head's file, what it wears, its colours | `CAST` in `kit.py` | a 3D model definition without a file of its own: it names the head's file, its pieces and default colours |
 | A **piece**: an outfit, hair, a beard, headwear, a cloak | `Figure.outfit`, `hair`, `beard`, `headwear`, `cloak` | a 3D model with `part` (its slot, its style, the bodies it fits) |
 
 A piece is bound to the same bones as the body, so it moves with every clip. The engine draws the
@@ -37,8 +38,13 @@ body and its pieces in one pose and recolours them together.
   headwear come in two sizes and fit every body with that head.
 - **Slots:** `outfit`, `hair`, `beard`, `headwear`, `cloak`. A figure wears one piece per slot.
 - **Styles** name a piece across bodies: `clothes`, `leather_armor`, `chain_mail`, `plate_armor`,
-  `robe`, `hair_short`, `beard_long`, `helmet`, `hood`, `cloak`. An item's *Shown as* names a
-  style; each body then wears its own piece of it.
+  `robe`, `apron`, `smith_apron`, `dress`, `tabard`, `doublet`, `rags`, `loincloth`, `bones`,
+  `hair_short`, `beard_long`, `helmet`, `hood`, `straw_hat`, `chef_hat`, `wizard_hat`, `cloak`. An
+  item's *Shown as* names a style; each body then wears its own piece of it.
+- **Hats hide the hair slot and bring their own hair**: the hair that shows under a hat is part
+  of the hat, in the hair colour, so it is recoloured like any hair.
+- **Not every outfit is built for every build** (`OUTFIT_ONLY` in `kit.py`): dresses for women,
+  loincloths for the medium and large builds, bones for the medium build.
 
 ## Colours
 
@@ -49,6 +55,8 @@ Colour features recolour exact colours, so pieces share the constants in `figure
   of the body's skin feature, and the engine gives it to the body's pieces too.
 - `HAIR` is the feature **hair** of hair and beards.
 - `CLOTH` and `CLOTH_DARK` are the feature **clothing**.
+- A figure of the cast sets the **defaults** of these features (its hair and clothing colour); its
+  pieces take them, so one outfit file serves the green villager and the pale baker.
 - Leather, metal, mail, trim, boots and horn are fixed.
 
 Keep a piece under about a dozen colours. A new colour that should be recoloured needs a feature
@@ -60,14 +68,17 @@ in `kit.py`.
 python3 scripts/art/kit/build.py --out DIR            # everything: DIR/models/*.glb, DIR/kit.json
 python3 scripts/art/kit/build.py --out DIR hero kit_hair_bun_10   # only these
 python3 scripts/art/kit/build.py --check              # do the outputs still match manifest.json?
-python3 scripts/art/kit/apply.py PORT DIR             # into the project open in an editor
+python3 scripts/art/kit/apply.py PORT [DIR]           # into the project open in an editor
 ```
 
 Needs `python3` with numpy. The same sources always give the same bytes.
 
-`apply.py` talks to an editor whose AI agent server listens on `PORT` (`mcp on PORT`). It writes
-the files and the model definitions, gives armour, clothing, cloaks, helmets and hoods the style
-they show when worn, and points the small races and the tiefling at their bodies. Run it twice:
+`apply.py` talks to an editor whose AI agent server listens on `PORT` (`mcp on PORT`). Without
+`DIR` it asks the editor to build the kit itself (`kit_build`: seconds; the editor must find these
+sources, so start it in the repository or with `RUSTPG2D_KIT=<this folder>`). It then gives
+armour, clothing, cloaks, helmets and hoods the style they show when worn, points the small races
+and the tiefling at their bodies and removes what the kit retired. Model files nothing uses any
+more are deleted by hand afterwards. Run it twice:
 once for the example (the editor started in the repository root) and once for the starter library
 (the editor opened on `crates/editor/assets/starter_library` with `RUSTPG2D_FOLDER_PROJECTS=1`).
 
@@ -85,8 +96,12 @@ An agent connected to the editor can do the same without a shell: `kit_build` bu
   `HAIR_STYLES` / `BEARDS`. It is built for both head sizes.
 - **An outfit:** a function in `figure.py` that returns its colours by zone (see `clothes`), its
   name in `OUTFITS` and in `OUTFIT_NAMES` of `kit.py`. It is built for every build.
-- **A race:** a line in `BODIES` (its build, what it adds to the head, its skin colours). What it
+- **A race:** a line in `HEADS` (its build, what it adds to the head, its skin colours). What it
   adds is drawn in `Figure.body`.
+- **A townsperson:** a line in `CAST` (a head, an outfit, hair, beard, headwear, a cloak, colours).
+  No new file is built for it.
+- **Clothing items:** `ITEM_WEAR` in `kit.py` names the style of clothing whose look its name
+  doesn't tell (`guard_uniform` is a tabard).
 - **A build:** an entry in `BUILDS`. Every outfit and cloak is then built for it too.
 
 Then look before you keep it: build, apply or `kit_build`, and `model_sheet` with a walk and an

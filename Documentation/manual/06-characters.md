@@ -16,10 +16,10 @@ furniture, the activities (`fish`, `farm`, `craft`, `chop`, `mine`, `sweep`, `re
 cropped or laid down). Dialog portraits show its head close up. A character without a model of its
 own shows as the **mannequin** (a plain wooden figure; the engine has one built in).
 
-The starter library's **playable races** are voxel figures built by script, the **figure kit**
-([below](#pieces-hair-outfits-and-shown-equipment)); the rest of the example's and the library's
-cast was modelled with Meshy from the hand-drawn figures of earlier versions, as were 9 animals
-and 16 items' 3D models.
+The starter library's and the example's **people** are voxel figures built by script, the
+**figure kit** ([below](#pieces-hair-outfits-and-shown-equipment)): the playable races, the
+townspeople, guards, bandits, goblins, the troll and skeletons. The 9 animals and 16 items' 3D
+models were modelled with Meshy from hand-drawn pictures of earlier versions.
 
 - *Database › 3D models › Import model…* takes a rigged `.glb` (Meshy, Blender, Mixamo…): it is
   copied into `models/` (made smaller: textures as the game uses them, clip files without their
@@ -84,12 +84,20 @@ green skin on the hands of its clothes).
 
 The *3D models* list shows *All*, *Figures* or *Pieces*.
 
-**The figure kit.** The starter library's playable races (human, elf, dwarf, halfling, half-orc,
-tiefling, dragonborn; men and women) are built this way, as voxel figures: 14 bodies, five outfits
-(clothes, leather armour, chain mail, plate armour, robe), five hair styles, two beards, a helmet,
-a hood and a cloak, 80 models in 7 MB that share one file of animations. Their sources are scripts
-in the R(ust)PG2D repository (`scripts/art/kit`, with a style guide), not generated art: a new
-outfit or hair style is a change there and a rebuild.
+**The figure kit.** The starter library's people are built this way, as voxel figures:
+
+- **Heads** of the races (human, elf, dwarf, halfling, half-orc, tiefling, dragonborn, goblin,
+  troll, skeleton; men and women where it matters): 19 files.
+- **Outfits:** clothes, leather armour, chain mail, plate armour, robe, apron, smith's apron,
+  dress, tabard, doublet, rags, loincloth and a skeleton's bones, for each build that wears them.
+- **Head pieces:** five hair styles, two beards, a helmet, a hood, a straw hat, a baker's hat and
+  a wizard's hat.
+- **Cloaks.**
+
+The 53 figures of the cast are definitions over these: a baker is the human head with an apron,
+a baker's hat, a short beard and pale clothing. Together 141 files in 14 MB that share one file of
+animations. Their sources are scripts in the R(ust)PG2D repository (`scripts/art/kit`, with a
+style guide), not generated art: a new outfit, hat or townsperson is a change there and a rebuild.
 
 ### Weapon animations
 

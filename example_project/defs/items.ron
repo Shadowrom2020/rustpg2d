@@ -2186,7 +2186,7 @@
         )),
         max_stack: 1,
         value: 0,
-        wear: "clothes",
+        wear: "robe",
     ),
     (
         id: "villager_clothes",
@@ -2234,7 +2234,7 @@
         )),
         max_stack: 1,
         value: 0,
-        wear: "clothes",
+        wear: "dress",
     ),
     (
         id: "guard_uniform",
@@ -2258,7 +2258,7 @@
         )),
         max_stack: 1,
         value: 0,
-        wear: "clothes",
+        wear: "tabard",
     ),
     (
         id: "goblin_rags",
@@ -2282,7 +2282,7 @@
         )),
         max_stack: 1,
         value: 0,
-        wear: "clothes",
+        wear: "rags",
     ),
     (
         id: "baker_whites",
@@ -2306,7 +2306,7 @@
         )),
         max_stack: 1,
         value: 0,
-        wear: "clothes",
+        wear: "apron",
     ),
     (
         id: "innkeeper_dress",
@@ -2330,7 +2330,7 @@
         )),
         max_stack: 1,
         value: 0,
-        wear: "clothes",
+        wear: "dress",
     ),
     (
         id: "herbalist_robe",
@@ -2402,7 +2402,7 @@
         )),
         max_stack: 1,
         value: 0,
-        wear: "clothes",
+        wear: "apron",
     ),
     (
         id: "fisher_coat",
@@ -2450,7 +2450,7 @@
         )),
         max_stack: 1,
         value: 0,
-        wear: "clothes",
+        wear: "doublet",
     ),
     (
         id: "farmer_clothes",
@@ -2498,7 +2498,7 @@
         )),
         max_stack: 1,
         value: 0,
-        wear: "clothes",
+        wear: "dress",
     ),
     (
         id: "smith_apron",
@@ -2522,7 +2522,7 @@
         )),
         max_stack: 1,
         value: 0,
-        wear: "clothes",
+        wear: "smith_apron",
     ),
     (
         id: "villager_dress",
@@ -2546,7 +2546,7 @@
         )),
         max_stack: 1,
         value: 0,
-        wear: "clothes",
+        wear: "dress",
     ),
     (
         id: "crude_bow",

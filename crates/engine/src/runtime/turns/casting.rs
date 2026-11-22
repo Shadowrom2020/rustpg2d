@@ -570,7 +570,7 @@ impl Game {
         let selfish = d.as_ref().is_some_and(|d| d.range == SpellRange::Caster);
         let friendly = d.as_ref().is_some_and(|d| d.heals() || (!d.offensive() && d.parts.iter().any(|p| matches!(p, SpellPart::Buff { .. } | SpellPart::TempHp { .. }))));
         let near = c.order.iter().filter(|f| !f.out && (friendly || f.who != me.who) && ((f.side == me.side) == friendly)).map(|f| self.who_tile(f.who)).min_by_key(|t| t.0.abs_diff(here.0).max(t.1.abs_diff(here.1)));
-        let c = self.fight.as_mut().unwrap();
+        let Some(c) = self.fight.as_mut() else { return };
         c.aim = super::Aim::Cast(id.to_string(), slot);
         c.cursor = if selfish { here } else { near.unwrap_or(here) };
     }

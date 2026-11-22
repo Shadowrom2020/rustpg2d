@@ -18,10 +18,23 @@ pub mod convert;
 pub mod meshy;
 pub mod ui;
 
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use anyhow::{anyhow, Result};
 use rustpg2d_engine::imageio::Rgba;
+
+/// Locks a job (or the credits spent), also when a job's thread panicked while holding the
+/// lock: what it guards is plain state, and a poisoned lock must not take the editor down with
+/// the user's unsaved work.
+pub trait Locked<T> {
+    fn locked(&self) -> MutexGuard<'_, T>;
+}
+
+impl<T> Locked<T> for Mutex<T> {
+    fn locked(&self) -> MutexGuard<'_, T> {
+        self.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+}
 
 /// What to draw.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -432,12 +445,12 @@ fn fake_dir() -> Option<std::path::PathBuf> {
 /// Draws one picture: starts the task, waits for it, downloads it.
 fn draw(job: &Arc<Mutex<Job>>, k: usize, key: &str, model: &str, req: meshy::Request, i2i: bool) -> Result<()> {
     let set = |f: &dyn Fn(&mut Picture)| {
-        let mut j = job.lock().unwrap();
+        let mut j = job.locked();
         f(&mut j.pictures[k]);
         j.version += 1;
     };
     if let Some(dir) = fake_dir() {
-        let name = job.lock().unwrap().pictures[k].name;
+        let name = job.locked().pictures[k].name;
         std::thread::sleep(std::time::Duration::from_millis(300));
         let png = std::fs::read(dir.join(format!("{name}.png")))?;
         let credits = meshy::model_cost(model);
@@ -519,18 +532,18 @@ fn file3d(step: &str) -> &'static str {
 /// Runs one 3D step of a job: starts its Meshy task (from the previous step's), waits for it and
 /// downloads its file.
 fn step3d(job: &Arc<Mutex<Job>>, k: usize, key: &str, req: &ArtRequest, refs: &References) -> Result<()> {
-    let name = job.lock().unwrap().pictures[k].name;
+    let name = job.locked().pictures[k].name;
     let set = |f: &dyn Fn(&mut Picture)| {
-        let mut j = job.lock().unwrap();
+        let mut j = job.locked();
         f(&mut j.pictures[k]);
         j.version += 1;
     };
     let file = file3d(name);
-    let task_of = |n: &str| job.lock().unwrap().made.tasks.iter().find(|(t, _)| *t == n).map(|(_, id)| id.clone());
+    let task_of = |n: &str| job.locked().made.tasks.iter().find(|(t, _)| *t == n).map(|(_, id)| id.clone());
     let (path, body) = match (name, req.kind) {
         ("model", ArtKind::Model3d) => {
             let views = if req.from.is_empty() {
-                let png = job.lock().unwrap().pictures.iter().find(|p| p.name == "views").and_then(|p| p.png.clone()).ok_or_else(|| anyhow!("the turnaround picture is missing"))?;
+                let png = job.locked().pictures.iter().find(|p| p.name == "views").and_then(|p| p.png.clone()).ok_or_else(|| anyhow!("the turnaround picture is missing"))?;
                 split_views(&png)?
             } else {
                 refs.views.clone()
@@ -539,12 +552,12 @@ fn step3d(job: &Arc<Mutex<Job>>, k: usize, key: &str, req: &ArtRequest, refs: &R
         }
         ("model", ArtKind::Creature3d) if !req.from.is_empty() => ("multi-image-to-3d", serde_json::json!({ "image_urls": refs.views, "should_texture": true, "should_remesh": true, "target_polycount": 5000 })),
         ("model", ArtKind::Creature3d) => {
-            let png = job.lock().unwrap().pictures.iter().find(|p| p.name == "views").and_then(|p| p.png.clone()).ok_or_else(|| anyhow!("the picture is missing"))?;
+            let png = job.locked().pictures.iter().find(|p| p.name == "views").and_then(|p| p.png.clone()).ok_or_else(|| anyhow!("the picture is missing"))?;
             ("image-to-3d", serde_json::json!({ "image_url": meshy::data_uri(&png), "should_texture": true, "should_remesh": true, "target_polycount": 6000 }))
         }
         ("model", _) => {
             // From the picture drawn first, else from the icon.
-            let drawn = job.lock().unwrap().pictures.iter().find(|p| p.name == "views").and_then(|p| p.png.clone());
+            let drawn = job.locked().pictures.iter().find(|p| p.name == "views").and_then(|p| p.png.clone());
             match drawn {
                 Some(png) => ("image-to-3d", serde_json::json!({ "image_url": meshy::data_uri(&png), "should_texture": true, "should_remesh": true, "target_polycount": 4000, "texture_prompt": req.description.trim() })),
                 None => {
@@ -564,7 +577,7 @@ fn step3d(job: &Arc<Mutex<Job>>, k: usize, key: &str, req: &ArtRequest, refs: &R
         std::thread::sleep(std::time::Duration::from_millis(300));
         let bytes = std::fs::read(dir.join(file))?;
         let credits = req.step_cost(name, 0);
-        let mut j = job.lock().unwrap();
+        let mut j = job.locked();
         j.made.tasks.push((name, format!("fake-{name}")));
         j.made.files.push((file, bytes));
         let p = &mut j.pictures[k];
@@ -589,7 +602,7 @@ fn step3d(job: &Arc<Mutex<Job>>, k: usize, key: &str, req: &ArtRequest, refs: &R
             "SUCCEEDED" => {
                 let url = t.files.iter().find(|(n, _)| *n == file).map(|(_, u)| u.clone()).ok_or_else(|| anyhow!("the finished task has no {file}"))?;
                 let bytes = meshy::download(&url)?;
-                let mut j = job.lock().unwrap();
+                let mut j = job.locked();
                 j.made.tasks.push((name, task.clone()));
                 j.made.files.push((file, bytes));
                 return Ok(());
@@ -603,7 +616,7 @@ fn step3d(job: &Arc<Mutex<Job>>, k: usize, key: &str, req: &ArtRequest, refs: &R
 /// Converts a job's pictures into its result.
 fn convert_job(job: &Arc<Mutex<Job>>) -> Result<()> {
     let (req, pics) = {
-        let j = job.lock().unwrap();
+        let j = job.locked();
         (j.req.clone(), j.pictures.clone())
     };
     let png = |name: &str| pics.iter().find(|p| p.name == name).and_then(|p| p.png.clone()).ok_or_else(|| anyhow!("the {name} picture is missing"));
@@ -633,7 +646,7 @@ fn convert_job(job: &Arc<Mutex<Job>>) -> Result<()> {
         }
     };
     let bytes = img.encode()?;
-    let mut j = job.lock().unwrap();
+    let mut j = job.locked();
     j.result = Some(bytes);
     j.frame = frame;
     j.stage = Stage::Done;
@@ -649,7 +662,7 @@ impl ArtState {
 
     /// Books `cost` credits of the session's budget (refused beyond it).
     fn reserve(&self, cost: u32, budget: u32) -> Result<()> {
-        let mut spent = self.spent.lock().unwrap();
+        let mut spent = self.spent.locked();
         if *spent + cost > budget {
             return Err(anyhow!("this costs {cost} credits, but only {} of this session's budget of {budget} are left (Edit › Settings › Meshy)", budget.saturating_sub(*spent)));
         }
@@ -659,7 +672,7 @@ impl ArtState {
 
     /// Credits the budget still allows.
     pub fn budget_left(&self, settings: &ArtSettings) -> u32 {
-        settings.budget.saturating_sub(*self.spent.lock().unwrap())
+        settings.budget.saturating_sub(*self.spent.locked())
     }
 
     /// Starts a job (after the caller confirmed its cost); refuses without a key or past the
@@ -701,7 +714,7 @@ impl ArtState {
     pub fn redo(&mut self, id: u32, name: &str, settings: &ArtSettings, refs: References) -> Result<()> {
         let job = self.job(id).ok_or_else(|| anyhow!("no job {id}"))?;
         let (steps, cost) = {
-            let j = job.lock().unwrap();
+            let j = job.locked();
             if !j.pictures.iter().any(|p| p.name == name) {
                 return Err(anyhow!("job {id} has no {name} picture (it has {})", j.pictures.iter().map(|p| p.name).collect::<Vec<_>>().join(", ")));
             }
@@ -712,7 +725,7 @@ impl ArtState {
         };
         self.reserve(cost, settings.budget)?;
         {
-            let mut j = job.lock().unwrap();
+            let mut j = job.locked();
             j.stage = Stage::Drawing;
             j.told = false;
             j.applied = None;
@@ -739,24 +752,24 @@ impl ArtState {
     pub fn status(&self) -> String {
         let (mut run, mut done, mut failed) = (0, 0, 0);
         for j in &self.jobs {
-            match j.lock().unwrap().stage {
+            match j.locked().stage {
                 Stage::Drawing | Stage::Converting => run += 1,
                 Stage::Done => done += 1,
                 Stage::Failed(_) => failed += 1,
             }
         }
-        format!("{run}/{done}/{failed}:{}cr", *self.spent.lock().unwrap())
+        format!("{run}/{done}/{failed}:{}cr", *self.spent.locked())
     }
 
     pub fn job(&self, id: u32) -> Option<Arc<Mutex<Job>>> {
-        self.jobs.iter().find(|j| j.lock().unwrap().id == id).cloned()
+        self.jobs.iter().find(|j| j.locked().id == id).cloned()
     }
 }
 
 /// A job's worker: draws its pictures in order (only `only` when redoing), converts.
 fn run(job: Arc<Mutex<Job>>, key: String, refs: References, only: Option<Vec<&'static str>>, spent: Arc<Mutex<u32>>) {
     let (req, model, names) = {
-        let j = job.lock().unwrap();
+        let j = job.locked();
         (j.req.clone(), j.model.clone(), j.pictures.iter().map(|p| p.name).collect::<Vec<_>>())
     };
     for (k, name) in names.iter().enumerate() {
@@ -771,10 +784,10 @@ fn run(job: Arc<Mutex<Job>>, key: String, refs: References, only: Option<Vec<&'s
             draw(&job, k, &key, &model, r, i2i)
         };
         if let Err(e) = result {
-            let mut j = job.lock().unwrap();
+            let mut j = job.locked();
             // A failed step costs nothing: give its reservation back.
             let back = req.step_cost(name, meshy::model_cost(&model)).saturating_sub(j.pictures[k].credits);
-            let mut s = spent.lock().unwrap();
+            let mut s = spent.locked();
             *s = s.saturating_sub(back);
             j.pictures[k].status = "FAILED".into();
             j.stage = Stage::Failed(format!("{e:#}"));
@@ -782,9 +795,9 @@ fn run(job: Arc<Mutex<Job>>, key: String, refs: References, only: Option<Vec<&'s
             return;
         }
     }
-    job.lock().unwrap().stage = Stage::Converting;
+    job.locked().stage = Stage::Converting;
     if let Err(e) = convert_job(&job) {
-        let mut j = job.lock().unwrap();
+        let mut j = job.locked();
         j.stage = Stage::Failed(format!("converting: {e:#}"));
         j.version += 1;
     }
@@ -806,7 +819,7 @@ mod tests {
         s.reserve(6, 8).unwrap();
         assert!(s.reserve(3, 8).is_err(), "6 + 3 is past a budget of 8");
         s.reserve(2, 8).unwrap();
-        assert_eq!(*s.spent.lock().unwrap(), 8);
+        assert_eq!(*s.spent.locked(), 8);
     }
 
     #[test]

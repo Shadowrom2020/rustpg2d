@@ -198,7 +198,7 @@ impl Game {
     /// Search, End turn); targeted ones set the cursor's aim.
     pub(in crate::runtime) fn take_act(&mut self, act: TurnAct) -> Result<(), &'static str> {
         self.act_ready(act)?;
-        let who = self.fight.as_ref().unwrap().current().who;
+        let who = self.fight.as_ref().ok_or("No fight")?.current().who;
         let name = self.who_name(who);
         let say = |g: &mut Game, what: &str| g.fight_log(format!("{name}: {}", crate::lang::tr_ui(what)));
         match act {
@@ -247,11 +247,11 @@ impl Game {
             }
             TurnAct::Dash => {
                 let speed = self.who_speed_now(who);
-                self.fight.as_mut().unwrap().turn.speed += speed;
+                self.fight.as_mut().ok_or("No fight")?.turn.speed += speed;
                 say(self, "dashes");
             }
             TurnAct::Disengage => {
-                self.fight.as_mut().unwrap().turn.disengaged = true;
+                self.fight.as_mut().ok_or("No fight")?.turn.disengaged = true;
                 say(self, "disengages");
             }
             TurnAct::Dodge => {
@@ -270,13 +270,13 @@ impl Game {
             TurnAct::Hide => {
                 // Only out of plain sight: obscured (dim light, darkness, fog, foliage) or behind
                 // three-quarters cover from every foe that could see it.
-                let side = self.fight.as_ref().unwrap().current().side;
-                let foes: Vec<Who> = self.fight.as_ref().unwrap().order.iter().filter(|f| f.side != side && !f.out && !f.down).map(|f| f.who).collect();
+                let side = self.fight.as_ref().ok_or("No fight")?.current().side;
+                let foes: Vec<Who> = self.fight.as_ref().ok_or("No fight")?.order.iter().filter(|f| f.side != side && !f.out && !f.down).map(|f| f.who).collect();
                 if foes.iter().any(|f| self.sees(*f, who) == super::vision::Sight::Clear && self.cover(*f, who) < super::Cover::ThreeQuarters) {
                     return Err("Nowhere to hide here");
                 }
                 // Stealth against the best passive Perception of the foes.
-                let side = self.fight.as_ref().unwrap().current().side;
+                let side = self.fight.as_ref().ok_or("No fight")?.current().side;
                 let dc = self.passive_perception(side);
                 let ok = self.who_check(who, "stealth", dc, false).is_some_and(|r| r.success == Some(true));
                 if let Some(f) = self.fight.as_mut().and_then(|c| c.fighter_mut(who)) {
@@ -286,8 +286,8 @@ impl Game {
             }
             TurnAct::Search => {
                 // Perception against the hidden foes' Stealth (their passive: 10 + DEX).
-                let side = self.fight.as_ref().unwrap().current().side;
-                let hidden: Vec<Who> = self.fight.as_ref().unwrap().order.iter().filter(|f| f.side != side && f.hidden && !f.out).map(|f| f.who).collect();
+                let side = self.fight.as_ref().ok_or("No fight")?.current().side;
+                let hidden: Vec<Who> = self.fight.as_ref().ok_or("No fight")?.order.iter().filter(|f| f.side != side && f.hidden && !f.out).map(|f| f.who).collect();
                 let roll = self.who_check(who, "perception", 10, false).map_or(0, |r| r.total as i32);
                 let mut found = 0;
                 for h in hidden {
@@ -301,7 +301,7 @@ impl Game {
                 say(self, if found > 0 { "finds a hidden foe" } else { "searches" });
             }
         }
-        self.fight.as_mut().unwrap().turn.action = true;
+        self.fight.as_mut().ok_or("No fight")?.turn.action = true;
         Ok(())
     }
 
@@ -398,8 +398,8 @@ impl Game {
 
     /// The cursor's aim, and the cursor onto the nearest fitting target.
     pub(super) fn set_aim(&mut self, aim: Aim) {
-        let who = self.fight.as_ref().unwrap().current().who;
-        let side = self.fight.as_ref().unwrap().current().side;
+        let Some(who) = self.fight.as_ref().map(|c| c.current().who) else { return };
+        let Some(side) = self.fight.as_ref().map(|c| c.current().side) else { return };
         let here = self.who_tile(who);
         let feature = match &aim {
             Aim::Feature(id) => self.class_acts(who).into_iter().find(|a| a.id == *id).map(|a| a.effect.target()),
@@ -408,21 +408,13 @@ impl Game {
         let allies = matches!(feature, Some(crate::classes::ActTarget::Ally { .. }));
         // (A class action used on itself: the cursor on the user.)
         if matches!(feature, Some(crate::classes::ActTarget::Myself)) {
-            let c = self.fight.as_mut().unwrap();
+            let Some(c) = self.fight.as_mut() else { return };
             c.aim = aim;
             c.cursor = here;
             return;
         }
-        let near = self
-            .fight
-            .as_ref()
-            .unwrap()
-            .order
-            .iter()
-            .filter(|f| !f.out && f.who != who && (f.side == side) == allies)
-            .map(|f| self.who_tile(f.who))
-            .min_by_key(|t| t.0.abs_diff(here.0).max(t.1.abs_diff(here.1)));
-        let c = self.fight.as_mut().unwrap();
+        let near = self.fight.as_ref().and_then(|c| c.order.iter().filter(|f| !f.out && f.who != who && (f.side == side) == allies).map(|f| self.who_tile(f.who)).min_by_key(|t| t.0.abs_diff(here.0).max(t.1.abs_diff(here.1))));
+        let Some(c) = self.fight.as_mut() else { return };
         c.aim = aim;
         if let Some(t) = near {
             c.cursor = t;
@@ -458,7 +450,7 @@ impl Game {
                     return Err("Out of ammunition");
                 }
                 self.make_attack(me.who, target, &spec);
-                let c = self.fight.as_mut().unwrap();
+                let c = self.fight.as_mut().ok_or("No fight")?;
                 c.attack_mode = None;
                 c.turn.attacked = true;
                 // (A loading weapon: one attack with it per action.)
@@ -473,25 +465,25 @@ impl Game {
                 let spec = self.hero_spec(&w, true);
                 self.can_attack(me.who, target, &spec)?;
                 self.make_attack(me.who, target, &spec);
-                self.fight.as_mut().unwrap().turn.bonus = true;
+                self.fight.as_mut().ok_or("No fight")?.turn.bonus = true;
                 Ok(())
             }
             Aim::Help => {
-                if self.fight.as_ref().unwrap().turn.action {
+                if self.fight.as_ref().ok_or("No fight")?.turn.action {
                     return Err("Action used");
                 }
                 // An ally at 0 HP next to it: first aid (a healer's kit, else Medicine DC 10).
-                let down = self.fight.as_ref().unwrap().fighter(target).is_some_and(|f| f.down && !f.saves.stable);
+                let down = self.fight.as_ref().ok_or("No fight")?.fighter(target).is_some_and(|f| f.down && !f.saves.stable);
                 if !foe && down && dist <= 1 {
                     self.first_aid(me.who, target);
-                    self.fight.as_mut().unwrap().turn.action = true;
+                    self.fight.as_mut().ok_or("No fight")?.turn.action = true;
                     return Ok(());
                 }
                 if !foe || dist > 1 {
                     return Err("Help against a foe next to you");
                 }
                 let name = self.who_name(me.who);
-                let c = self.fight.as_mut().unwrap();
+                let c = self.fight.as_mut().ok_or("No fight")?;
                 c.helped.push(target);
                 c.turn.action = true;
                 c.log(format!("{name}: {}", crate::lang::tr_ui("helps")));
@@ -499,11 +491,11 @@ impl Game {
             }
             Aim::Grapple | Aim::Shove => {
                 // Grapple on the one it holds: lets go (free).
-                if *aim == Aim::Grapple && self.fight.as_ref().unwrap().fighter(me.who).is_some_and(|f| f.grappling == Some(target)) {
+                if *aim == Aim::Grapple && self.fight.as_ref().ok_or("No fight")?.fighter(me.who).is_some_and(|f| f.grappling == Some(target)) {
                     self.release_grapple(me.who);
                     return Ok(());
                 }
-                if self.fight.as_ref().unwrap().turn.action {
+                if self.fight.as_ref().ok_or("No fight")?.turn.action {
                     return Err("Action used");
                 }
                 if !foe || dist > 1 {
@@ -516,7 +508,7 @@ impl Game {
                 // Athletics against the target's Athletics or Acrobatics (its better one).
                 let theirs = self.contest_roll(target);
                 let ok = self.who_check(me.who, "athletics", theirs + 1, false).is_some_and(|r| r.success == Some(true));
-                self.fight.as_mut().unwrap().turn.action = true;
+                self.fight.as_mut().ok_or("No fight")?.turn.action = true;
                 let name = self.who_name(me.who);
                 if !ok {
                     self.fight_log(format!("{name}: {}", crate::lang::tr_ui("fails")));
@@ -745,7 +737,7 @@ impl Game {
         if c.turn.action {
             return Err("Action used");
         }
-        self.fight.as_mut().unwrap().turn.action = true;
+        self.fight.as_mut().ok_or("No fight")?.turn.action = true;
         Ok(())
     }
 }

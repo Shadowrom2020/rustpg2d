@@ -225,7 +225,7 @@ impl Audio {
                 std::thread::spawn(move || {
                     for (id, path) in long {
                         let res = std::fs::read(&path).map_err(|e| e.to_string()).and_then(|b| loop_ready(&b));
-                        out.lock().unwrap().insert(id, res);
+                        out.lock().unwrap_or_else(std::sync::PoisonError::into_inner).insert(id, res);
                     }
                 });
             }
@@ -265,7 +265,7 @@ impl Audio {
             self.loops.entry(id.to_string()).or_insert(Loop::Whole);
         }
         if !self.loops.contains_key(id) {
-            let ready = self.prepared.lock().unwrap().remove(id);
+            let ready = self.prepared.lock().unwrap_or_else(std::sync::PoisonError::into_inner).remove(id);
             let wav = match ready {
                 Some(r) => r,
                 None => self.files.get(id).ok_or_else(|| "no file".to_string()).and_then(|p| crate::sys::read(p).map_err(|e| e.to_string())).and_then(|b| loop_ready(&b)),

@@ -824,7 +824,7 @@ impl Game {
         // (Extra Attack: the hero's class; Multiattack, a party member's Extra Attack: the block.)
         let multi = self.multiattack_of(me.who);
         let act = conditions::can_act(self.who_conditions(me.who));
-        let c = self.fight.as_mut().unwrap();
+        let Some(c) = self.fight.as_mut() else { return };
         c.turn.speed = speed;
         c.turn.attacks_left = multi;
         c.ai_t = if c.fast { 0.0 } else { 0.35 };
@@ -839,11 +839,13 @@ impl Game {
             if let Some(l) = self.who_conditions_mut(me.who) {
                 conditions::remove(l, Condition::Prone);
             }
-            let c = self.fight.as_mut().unwrap();
+            let Some(c) = self.fight.as_mut() else { return };
             c.turn.moved = c.turn.speed / 2;
         }
         let cursor = feet_tile(self.who_pos(me.who), self.ts());
-        self.fight.as_mut().unwrap().cursor = cursor;
+        if let Some(c) = &mut self.fight {
+            c.cursor = cursor;
+        }
         // The hero's first turn: the move that started the fight, aimed at its target.
         if me.who == Who::Player {
             if let Some((aim, target)) = self.fight.as_mut().and_then(|c| c.opening.take()) {
@@ -936,7 +938,7 @@ impl Game {
         }
         // A right-click on items out of reach: picked up once next to them.
         if let Some(t) = self.fight.as_mut().and_then(|c| c.then_pick_up.take()) {
-            let me = self.fight.as_ref().unwrap().current().who;
+            let Some(me) = self.fight.as_ref().map(|c| c.current().who) else { return };
             let here = self.who_tile(me);
             if here.0.abs_diff(t.0) <= 1 && here.1.abs_diff(t.1) <= 1 {
                 self.pick_up_at(me, t);
@@ -949,7 +951,7 @@ impl Game {
         }
         let ai = self.fight.as_ref().is_some_and(|c| c.current().ai);
         if ai {
-            let c = self.fight.as_mut().unwrap();
+            let Some(c) = self.fight.as_mut() else { return };
             c.ai_t -= dt;
             if c.ai_t > 0.0 {
                 return;
@@ -2270,7 +2272,7 @@ impl Game {
         }
         // The fight log's last lines (newest last).
         if arg(0) == "log" {
-            let c = self.fight.as_ref().unwrap();
+            let Some(c) = self.fight.as_ref() else { return "no fight".into() };
             let n: usize = arg(1).parse().unwrap_or(8);
             return c.log[c.log.len().saturating_sub(n)..].join(" | ");
         }
@@ -2293,7 +2295,7 @@ impl Game {
         match arg(0) {
             "move" => {
                 let t = (arg(1).parse().unwrap_or(-1), arg(2).parse().unwrap_or(-1));
-                let c = self.fight.as_ref().unwrap();
+                let Some(c) = self.fight.as_ref() else { return "no fight".into() };
                 if !c.reach.contains_key(&t) || self.who_at(t).is_some() {
                     return "Too far".into();
                 }
@@ -2307,7 +2309,7 @@ impl Game {
             "attack" => match target(self, 1) {
                 Ok(t) => {
                     let tile = self.who_tile(t);
-                    let c = self.fight.as_mut().unwrap();
+                    let Some(c) = self.fight.as_mut() else { return "no fight".into() };
                     c.menu = None;
                     c.cursor = tile;
                     match arg(2) {
@@ -2340,8 +2342,8 @@ impl Game {
             }
             // `release`: the current fighter lets go of the creature it grapples.
             "release" => {
-                let who = self.fight.as_ref().unwrap().current().who;
-                if self.fight.as_ref().unwrap().current().grappling.is_none() {
+                let Some(who) = self.fight.as_ref().map(|c| c.current().who) else { return "no fight".into() };
+                if self.fight.as_ref().is_some_and(|c| c.current().grappling.is_none()) {
                     return "not grappling".into();
                 }
                 self.release_grapple(who);
@@ -2364,7 +2366,7 @@ impl Game {
             },
             "aim" => {
                 // `aim SPELL [slot N] [X Y]`: the spell aimed, the cursor on the tile (screenshots).
-                let me = self.fight.as_ref().unwrap().current().who;
+                let Some(me) = self.fight.as_ref().map(|c| c.current().who) else { return "no fight".into() };
                 let level = self.project.db.spell(arg(1)).map_or(1, |d| d.level);
                 let mut words: Vec<&str> = a[2..].to_vec();
                 let mut slot = None;
@@ -2381,7 +2383,7 @@ impl Game {
             }
             "cast" => {
                 // `cast SPELL [NAME | X Y] [slot N]`: at a fighter, a tile, or the cursor's aim.
-                let me = self.fight.as_ref().unwrap().current().who;
+                let Some(me) = self.fight.as_ref().map(|c| c.current().who) else { return "no fight".into() };
                 let words: Vec<&str> = a[2..].to_vec();
                 let (rest, slot) = match words.iter().position(|w| *w == "slot") {
                     Some(k) => (words[..k].to_vec(), words.get(k + 1).and_then(|n| n.parse::<u32>().ok())),
@@ -2393,7 +2395,7 @@ impl Game {
                 let at = match rest.as_slice() {
                     [] => {
                         self.aim_spell(id, slot);
-                        let cur = self.fight.as_ref().unwrap().cursor;
+                        let Some(cur) = self.fight.as_ref().map(|c| c.cursor) else { return "no fight".into() };
                         if self.project.db.spell(id).is_some_and(|d| d.area.is_some() || d.range == crate::skills::SpellRange::Caster) { CastAt::Tile(cur) } else { CastAt::On(self.who_at(cur).unwrap_or(me)) }
                     }
                     [x, y] if x.parse::<i32>().is_ok() => CastAt::Tile((x.parse().unwrap_or(0), y.parse().unwrap_or(0))),
@@ -2412,7 +2414,7 @@ impl Game {
             }
             "class" => {
                 // A class action: on the named fighter, else the nearest fitting one, else itself.
-                let me = self.fight.as_ref().unwrap().current().who;
+                let Some(me) = self.fight.as_ref().map(|c| c.current().who) else { return "no fight".into() };
                 let t = if arg(2).is_empty() { self.class_act_default_target(arg(1)).unwrap_or(me) } else { match target(self, 2) { Ok(t) => t, Err(e) => return e } };
                 done(self.use_class_act(arg(1), t))
             }

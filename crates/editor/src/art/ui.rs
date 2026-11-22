@@ -5,7 +5,7 @@ use egui_macroquad::egui::{self, Color32};
 use rustpg2d_engine::defs::{CharacterDef, ItemDef, PropDef, SheetDef, SpriteRef};
 use rustpg2d_engine::imageio::Rgba;
 
-use super::{api_key, meshy, save_key, ArtKind, ArtRequest, Job, References, Stage, ATTACKS};
+use super::{api_key, meshy, save_key, ArtKind, ArtRequest, Job, Locked, References, Stage, ATTACKS};
 use crate::app::Editor;
 use crate::ui::{self, ph};
 
@@ -115,7 +115,7 @@ impl Editor {
     }
 
     pub fn redo_art(&mut self, job: u32, picture: &str) -> anyhow::Result<()> {
-        let req = self.art.job(job).ok_or_else(|| anyhow::anyhow!("no job {job}"))?.lock().unwrap().req.clone();
+        let req = self.art.job(job).ok_or_else(|| anyhow::anyhow!("no job {job}"))?.locked().req.clone();
         let refs = self.art_references_for(&req)?;
         let settings = self.art_settings.clone();
         self.art.redo(job, picture, &settings, refs)
@@ -128,7 +128,7 @@ impl Editor {
         if self.library_mode {
             anyhow::bail!("add art to a project, not the library");
         }
-        let j = self.art.job(job).ok_or_else(|| anyhow::anyhow!("no job {job}"))?.lock().unwrap().clone();
+        let j = self.art.job(job).ok_or_else(|| anyhow::anyhow!("no job {job}"))?.locked().clone();
         let png = j.result.clone().filter(|_| j.stage == Stage::Done).ok_or_else(|| anyhow::anyhow!("job {job} isn't finished"))?;
         let id = id.trim();
         if id.is_empty() || !id.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
@@ -187,7 +187,7 @@ impl Editor {
         self.save_defs();
         self.reload_assets();
         if let Some(job) = self.art.job(job) {
-            job.lock().unwrap().applied = Some(id.to_string());
+            job.locked().applied = Some(id.to_string());
         }
         let msg = format!("Added {}", added.join(", "));
         self.set_status(msg.clone());
@@ -259,7 +259,7 @@ impl Editor {
             }
         }
         if let Some(job) = self.art.job(j.id) {
-            job.lock().unwrap().applied = Some(id.to_string());
+            job.locked().applied = Some(id.to_string());
         }
         let msg = added.join("; ");
         self.set_status(msg.clone());
@@ -270,7 +270,7 @@ impl Editor {
     pub fn art_tick(&mut self) {
         let mut news = Vec::new();
         for j in &self.art.jobs {
-            let mut j = j.lock().unwrap();
+            let mut j = j.locked();
             let end = matches!(j.stage, Stage::Done | Stage::Failed(_));
             if end && !j.told {
                 j.told = true;
@@ -342,7 +342,7 @@ impl Editor {
                 changed |= ui.checkbox(&mut s.ask, "the Art window asks before each job").changed();
                 ui.end_row();
             });
-            let spent = *self.art.spent.lock().unwrap();
+            let spent = *self.art.spent.locked();
             ui.weak(format!("This session: {spent} of {} credits used. A character costs 1 picture (2 with an attack), anything else 1.", self.art_settings.budget));
         });
         if changed {
@@ -355,7 +355,7 @@ impl Editor {
 
     /// *Assets › Generate art…*.
     pub fn art_window(&mut self, ctx: &egui::Context) {
-        let any_running = self.art.jobs.iter().any(|j| matches!(j.lock().unwrap().stage, Stage::Drawing | Stage::Converting));
+        let any_running = self.art.jobs.iter().any(|j| matches!(j.locked().stage, Stage::Drawing | Stage::Converting));
         if any_running {
             ctx.request_repaint_after(std::time::Duration::from_millis(500));
         }
@@ -367,7 +367,7 @@ impl Editor {
         let mut edit_sheet: Option<String> = None;
         let mut redo: Option<(u32, &'static str)> = None;
         let mut apply: Option<(u32, String)> = None;
-        let jobs: Vec<Job> = self.art.jobs.iter().rev().map(|j| j.lock().unwrap().clone()).collect();
+        let jobs: Vec<Job> = self.art.jobs.iter().rev().map(|j| j.locked().clone()).collect();
         let cost = super::ArtState::cost(&self.req_from_form(), &self.art_settings.model);
         let left = self.art.budget_left(&self.art_settings);
         let has_key = !api_key().is_empty() || std::env::var_os("RUSTPG2D_MESHY_FAKE").is_some();

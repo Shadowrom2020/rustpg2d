@@ -37,15 +37,15 @@ impl Game {
         }
         let n = TurnAct::BAR.len();
         if input::act_pressed(Act::NextTab) {
-            let c = self.fight.as_mut().unwrap();
+            let Some(c) = self.fight.as_mut() else { return };
             c.selected = (c.selected + 1) % n;
         }
         if input::act_pressed(Act::PrevTab) {
-            let c = self.fight.as_mut().unwrap();
+            let Some(c) = self.fight.as_mut() else { return };
             c.selected = (c.selected + n - 1) % n;
         }
         if input::act_pressed(Act::Attack) {
-            let k = self.fight.as_ref().unwrap().selected;
+            let Some(k) = self.fight.as_ref().map(|c| c.selected) else { return };
             self.pick_act(k);
             return;
         }
@@ -67,10 +67,12 @@ impl Game {
             }
         }
         if input::mouse_pressed(MouseButton::Right) || input::act_pressed(Act::Cancel) {
-            self.fight.as_mut().unwrap().aim = Aim::Move;
+            if let Some(c) = &mut self.fight {
+                c.aim = Aim::Move;
+            }
         }
         // The cursor.
-        let c = self.fight.as_mut().unwrap();
+        let Some(c) = self.fight.as_mut() else { return };
         let mut moved = false;
         for (act, d) in [(Act::Left, (-1, 0)), (Act::Right, (1, 0)), (Act::Up, (0, -1)), (Act::Down, (0, 1))] {
             if input::act_pressed(act) {
@@ -79,7 +81,7 @@ impl Game {
             }
         }
         let world = self.mouse_world_at(mouse);
-        let c = self.fight.as_mut().unwrap();
+        let Some(c) = self.fight.as_mut() else { return };
         if !moved && (mouse != c.mouse_last || input::mouse_pressed(MouseButton::Left)) && mouse != Vec2::ZERO {
             c.cursor = ((world.x / ts).floor() as i32, (world.y / ts).floor() as i32);
         }
@@ -92,18 +94,20 @@ impl Game {
     /// Items on tile `t` for the current fighter: taken at once from its tile or next to it, else
     /// it walks next to them and takes them there.
     pub(super) fn pick_up_or_walk(&mut self, t: TilePos) {
-        let me = self.fight.as_ref().unwrap().current().who;
+        let Some(me) = self.fight.as_ref().map(|c| c.current().who) else { return };
         let here = self.who_tile(me);
         if here.0.abs_diff(t.0) <= 1 && here.1.abs_diff(t.1) <= 1 {
             self.pick_up_at(me, t);
             return;
         }
-        let reach = self.fight.as_ref().unwrap().reach.clone();
+        let Some(reach) = self.fight.as_ref().map(|c| c.reach.clone()) else { return };
         let goal = reach.iter().filter(|(p, _)| p.0.abs_diff(t.0) <= 1 && p.1.abs_diff(t.1) <= 1).min_by_key(|(_, (cost, _))| *cost).map(|(p, _)| *p);
         match goal {
             Some(g) => {
                 let path = Self::path_to(&reach, here, g);
-                self.fight.as_mut().unwrap().then_pick_up = Some(t);
+                if let Some(c) = &mut self.fight {
+                    c.then_pick_up = Some(t);
+                }
                 self.walk(path);
             }
             None => self.ui.toast(crate::lang::tr_ui("Too far").into_owned()),
@@ -121,6 +125,13 @@ impl Game {
         }
     }
 
+    /// The cursor is back to walking (after an action aimed with it).
+    fn aim_move(&mut self) {
+        if let Some(c) = &mut self.fight {
+            c.aim = Aim::Move;
+        }
+    }
+
     /// Confirm on the cursor: the aimed act on whoever stands there; without an aim, walk there
     /// (a foe: attack it, walking into reach first).
     pub(super) fn confirm_cursor(&mut self) {
@@ -131,7 +142,7 @@ impl Game {
         if let Aim::Feature(id) = &aim {
             let on = self.who_at(cursor).or_else(|| self.class_act_default_target(id)).unwrap_or(me.who);
             match self.use_class_act(id, on) {
-                Ok(()) => self.fight.as_mut().unwrap().aim = Aim::Move,
+                Ok(()) => self.aim_move(),
                 Err(why) => self.ui.toast(crate::lang::tr_ui(why).into_owned()),
             }
             return;
@@ -139,7 +150,7 @@ impl Game {
         // A spell: at the creature or tile under the cursor.
         if let Aim::Cast(id, slot) = &aim {
             match self.confirm_spell(id, *slot) {
-                Ok(()) => self.fight.as_mut().unwrap().aim = Aim::Move,
+                Ok(()) => self.aim_move(),
                 Err(why) => self.ui.toast(crate::lang::tr_ui(why).into_owned()),
             }
             return;
@@ -148,14 +159,14 @@ impl Game {
         if aim != Aim::Move {
             match target {
                 Some(t) => match self.act_on(&aim, t) {
-                    Ok(()) => self.fight.as_mut().unwrap().aim = Aim::Move,
+                    Ok(()) => self.aim_move(),
                     Err(why) => self.ui.toast(crate::lang::tr_ui(why).into_owned()),
                 },
                 None => self.ui.toast(crate::lang::tr_ui("No one there").into_owned()),
             }
             return;
         }
-        let foe = target.filter(|t| self.fight.as_ref().unwrap().fighter(*t).is_some_and(|f| f.side != me.side));
+        let foe = target.filter(|t| self.fight.as_ref().and_then(|c| c.fighter(*t)).is_some_and(|f| f.side != me.side));
         if let Some(t) = foe {
             if self.act_ready(TurnAct::Attack).is_err() {
                 self.ui.toast(crate::lang::tr_ui("Action used").into_owned());
@@ -170,7 +181,7 @@ impl Game {
                 return;
             }
             // Walk next to it first, then attack.
-            let reach = self.fight.as_ref().unwrap().reach.clone();
+            let Some(reach) = self.fight.as_ref().map(|c| c.reach.clone()) else { return };
             let here = self.who_tile(me.who);
             // (Spaces next to each other: big movers and targets too.)
             let (mn, ta, tn) = (self.space_n(me.who), self.space_anchor(t), self.space_n(t));
@@ -178,7 +189,9 @@ impl Game {
             match goal {
                 Some(g) => {
                     let path = Self::path_to(&reach, here, g);
-                    self.fight.as_mut().unwrap().then_attack = Some(t);
+                    if let Some(c) = &mut self.fight {
+                        c.then_attack = Some(t);
+                    }
                     self.walk(path);
                 }
                 None => self.ui.toast(crate::lang::tr_ui("Out of reach").into_owned()),
@@ -193,7 +206,7 @@ impl Game {
             self.pick_up_or_walk(cursor);
             return;
         }
-        let reach = self.fight.as_ref().unwrap().reach.clone();
+        let Some(reach) = self.fight.as_ref().map(|c| c.reach.clone()) else { return };
         if reach.contains_key(&cursor) {
             let here = self.who_tile(me.who);
             let path = Self::path_to(&reach, here, cursor);
@@ -219,7 +232,7 @@ impl Game {
             return;
         }
         let reach = self.reachable(who);
-        let c = self.fight.as_mut().unwrap();
+        let Some(c) = self.fight.as_mut() else { return };
         c.reach = reach;
         c.reach_key = Some(key);
     }

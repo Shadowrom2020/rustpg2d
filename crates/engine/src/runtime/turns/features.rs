@@ -276,7 +276,7 @@ impl Game {
         let a = self.class_acts(me.who).into_iter().find(|a| a.id == id).ok_or("No such class action")?;
         self.class_act_ready(me.who, &a)?;
         let dist = self.who_dist(me.who, target);
-        let ally = self.fight.as_ref().unwrap().fighter(target).is_some_and(|f| f.side == me.side);
+        let ally = self.fight.as_ref().ok_or("No fight")?.fighter(target).is_some_and(|f| f.side == me.side);
         let target = match a.effect.target() {
             ActTarget::Myself => me.who,
             ActTarget::Ally { tiles, myself } => {
@@ -329,7 +329,7 @@ impl Game {
             }
             ActEffect::HealAllies { feet, per_level } => {
                 let mut pool = per_level * level;
-                let mut allies: Vec<Who> = self.fight.as_ref().unwrap().order.iter().filter(|f| f.side == me.side && !f.out).map(|f| f.who).filter(|w| self.tiles_between(me.who, *w) * 5 <= *feet as i32).collect();
+                let mut allies: Vec<Who> = self.fight.as_ref().ok_or("No fight")?.order.iter().filter(|f| f.side == me.side && !f.out).map(|f| f.who).filter(|w| self.tiles_between(me.who, *w) * 5 <= *feet as i32).collect();
                 allies.sort_by_key(|w| self.who_hp(*w).0);
                 let mut healed = 0;
                 for w in allies {
@@ -348,7 +348,7 @@ impl Game {
             }
             ActEffect::ExtraAction => {
                 let multi = self.multiattack_of(me.who);
-                let c = self.fight.as_mut().unwrap();
+                let c = self.fight.as_mut().ok_or("No fight")?;
                 c.once.push((me.who, "surge"));
                 c.turn.action = false;
                 c.turn.attacks_left = multi;
@@ -385,9 +385,9 @@ impl Game {
                 match act.as_str() {
                     "dash" => {
                         let speed = self.who_speed_now(me.who);
-                        self.fight.as_mut().unwrap().turn.speed += speed;
+                        self.fight.as_mut().ok_or("No fight")?.turn.speed += speed;
                     }
-                    "disengage" => self.fight.as_mut().unwrap().turn.disengaged = true,
+                    "disengage" => self.fight.as_mut().ok_or("No fight")?.turn.disengaged = true,
                     "dodge" => {
                         if let Some(f) = self.fight.as_mut().and_then(|c| c.fighter_mut(me.who)) {
                             f.dodging = true;
@@ -417,7 +417,7 @@ impl Game {
                 let foes: Vec<Who> = if *single {
                     vec![target]
                 } else {
-                    self.fight.as_ref().unwrap().order.iter().filter(|f| f.side != me.side && !f.out && !f.down).map(|f| f.who).filter(|w| self.tiles_between(me.who, *w) <= tiles).collect()
+                    self.fight.as_ref().ok_or("No fight")?.order.iter().filter(|f| f.side != me.side && !f.out && !f.down).map(|f| f.who).filter(|w| self.tiles_between(me.who, *w) <= tiles).collect()
                 };
                 let foes: Vec<Who> = foes.into_iter().filter(|w| types.is_empty() || self.who_block(*w).is_some_and(|b| types.iter().any(|t| b.creature_type.to_ascii_lowercase().contains(t.as_str())))).collect();
                 self.fight_log(format!("{name}: {act_name} (DC {dc})"));

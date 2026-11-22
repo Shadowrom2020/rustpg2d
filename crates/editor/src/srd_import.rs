@@ -769,6 +769,8 @@ impl SrdData {
                 story.push(def.id.clone());
             }
             match spells.iter_mut().find(|d| d.id == def.id) {
+                // (A spell the project made act stays as it is: the data would make it text only.)
+                Some(old) if def.story_only && !old.story_only => {}
                 Some(old) => {
                     def.icon = old.icon.clone();
                     def.visual = old.visual.clone();
@@ -2012,8 +2014,82 @@ pub fn update_monsters_in(checkout: &Path, root: &Path) -> Result<usize> {
     // The magic items it shows (and its potion as the Potion of Healing).
     let wanted: Vec<String> = EXAMPLE_MAGIC.iter().map(|x| x.to_string()).collect();
     data.import_magic_items(&mut p.db.items, &p.db.spells, false, &wanted);
+    drop_unused_spells(&mut p.db, &data.unused_spells());
+    std::fs::write(root.join("defs/characters.ron"), rustpg2d_engine::project::ron_text(&p.db.characters)?)?;
+    std::fs::write(root.join("defs/classes.ron"), rustpg2d_engine::project::ron_text(&p.db.classes)?)?;
     write_items(&mut p, root)?;
     Ok(updated)
+}
+
+/// The SRD spells that do nothing in play (only their text: divination, travel, illusions…): the
+/// import leaves them out.
+const STORY_SPELLS: [&str; 152] = [
+    "alarm", "alter-self", "animal-messenger", "animal-shapes", "animate-dead", "animate-objects", "antilife-shell", "antimagic-field",
+    "antipathy-sympathy", "arcane-eye", "arcane-hand", "arcane-lock", "arcanists-magic-aura", "astral-projection", "augury", "awaken",
+    "bestow-curse", "blink", "calm-emotions", "clairvoyance", "clone", "commune", "commune-with-nature", "compulsion", "conjure-celestial",
+    "conjure-elemental", "conjure-fey", "conjure-minor-elementals", "conjure-woodland-beings", "contact-other-plane", "contingency",
+    "control-weather", "create-food-and-water", "create-or-destroy-water", "create-undead", "creation", "demiplane", "detect-thoughts",
+    "disguise-self", "dispel-evil-and-good", "divination", "divine-word", "dominate-monster", "druidcraft", "earthquake", "enlarge-reduce",
+    "enthrall", "etherealness", "expeditious-retreat", "eyebite", "fabricate", "faerie-fire", "find-steed", "find-the-path", "fire-shield",
+    "flame-blade", "flesh-to-stone", "floating-disk", "forbiddance", "forcecage", "foresight", "gaseous-form", "gate", "geas", "gentle-repose",
+    "giant-insect", "glibness", "globe-of-invulnerability", "glyph-of-warding", "goodberry", "guards-and-wards", "gust-of-wind", "hallow",
+    "hallucinatory-terrain", "heroes-feast", "holy-aura", "identify", "illusory-script", "imprisonment", "instant-summons", "irresistible-dance",
+    "legend-lore", "levitate", "locate-animals-or-plants", "locate-creature", "locate-object", "mage-hand", "magic-circle", "magic-jar",
+    "magic-mouth", "magnificent-mansion", "major-image", "mass-suggestion", "maze", "meld-into-stone", "mending", "message", "minor-illusion",
+    "mirage-arcane", "mislead", "modify-memory", "move-earth", "nondetection", "passwall", "phantom-steed", "planar-ally", "planar-binding",
+    "plant-growth", "power-word-kill", "prestidigitation", "prismatic-wall", "private-sanctum", "programmed-illusion", "project-image",
+    "purify-food-and-drink", "reincarnate", "remove-curse", "resilient-sphere", "reverse-gravity", "rope-trick", "scrying", "secret-chest",
+    "seeming", "sending", "sequester", "shapechange", "silent-image", "simulacrum", "speak-with-animals", "speak-with-dead", "speak-with-plants",
+    "stone-shape", "symbol", "telekinesis", "telepathic-bond", "teleport", "teleportation-circle", "thaumaturgy", "time-stop", "tiny-hut",
+    "transport-via-plants", "tree-stride", "true-polymorph", "true-resurrection", "unseen-servant", "water-breathing", "water-walk", "weird",
+    "wind-walk", "wish", "word-of-recall", "zone-of-truth",
+];
+
+/// Working spells of little use in this kind of game (languages, detecting alignments, other
+/// planes): the import leaves them out like the story-only ones.
+const UNUSED_SPELLS: [&str; 8] = ["comprehend-languages", "tongues", "detect-poison-and-disease", "detect-evil-and-good", "animal-friendship", "dream", "plane-shift", "control-water"];
+
+impl SrdData {
+    /// The SRD's spells the import leaves out: [`STORY_SPELLS`] and [`UNUSED_SPELLS`].
+    fn unused_spells(&self) -> std::collections::HashSet<String> {
+        STORY_SPELLS.iter().chain(UNUSED_SPELLS.iter()).map(|s| s.to_string()).collect()
+    }
+}
+
+/// Leaves out the `unused` spells and every mention of them: monsters' spell lists, races'
+/// cantrip choices, classes' always prepared spells, magic items' spells. Returns how many spells
+/// it removed.
+fn drop_unused_spells(db: &mut rustpg2d_engine::defs::Database, unused: &std::collections::HashSet<String>) -> usize {
+    use rustpg2d_engine::classes::FeatureEffect;
+    let before = db.spells.len();
+    db.spells.retain(|d| !unused.contains(&d.id));
+    let known = |id: &String| !unused.contains(id);
+    for c in &mut db.characters {
+        if let Some(sc) = c.stats.as_mut().and_then(|b| b.spellcasting.as_mut()) {
+            sc.spells.retain(|x| known(&x.spell));
+        }
+    }
+    for r in &mut db.races {
+        for ch in r.choices.iter_mut().filter(|ch| ch.kind == ChoiceKind::Cantrip) {
+            ch.options.retain(known);
+            ch.names.retain(|o, _| known(o));
+        }
+    }
+    for cl in &mut db.classes {
+        for f in &mut cl.features {
+            for e in &mut f.effects {
+                if let FeatureEffect::AlwaysPrepared { spells } = e {
+                    spells.retain(known);
+                }
+            }
+        }
+    }
+    for i in &mut db.items {
+        if let Some(m) = i.magic.as_mut() {
+            m.spells.retain(|x| known(&x.spell));
+        }
+    }
+    before - db.spells.len()
 }
 
 /// Writes `defs/items.ron` and, when an item shows a generic equipment icon, adds the
@@ -2043,26 +2119,28 @@ pub fn import_into(checkout: &Path, root: &Path) -> Result<String> {
     let (s_added, s_updated, story) = data.import_spells(&mut p.db.spells);
     let (e_added, e_updated) = data.import_equipment(&mut p.db.items, true, &[]);
     let (mi_added, mi_updated, mi_story) = data.import_magic_items(&mut p.db.items, &p.db.spells, true, &[]);
-    if e_added + e_updated + mi_added + mi_updated > 0 {
+    let dropped = drop_unused_spells(&mut p.db, &data.unused_spells());
+    if e_added + e_updated + mi_added + mi_updated + dropped > 0 {
         write_items(&mut p, root)?;
     }
     let defs = root.join("defs");
-    if s_added + s_updated > 0 {
+    if s_added + s_updated + dropped > 0 {
         std::fs::write(defs.join("spells.ron"), rustpg2d_engine::project::ron_text(&p.db.spells)?)?;
     }
     std::fs::write(defs.join("races.ron"), rustpg2d_engine::project::ron_text(&p.db.races)?)?;
     std::fs::write(defs.join("backgrounds.ron"), rustpg2d_engine::project::ron_text(&p.db.backgrounds)?)?;
-    if m_added + m_updated > 0 {
+    if m_added + m_updated + dropped > 0 {
         std::fs::write(defs.join("characters.ron"), rustpg2d_engine::project::ron_text(&p.db.characters)?)?;
     }
     std::fs::write(defs.join("classes.ron"), rustpg2d_engine::project::ron_text(&p.db.classes)?)?;
     Ok(format!(
-        "{}: {added} added, {updated} updated ({} races, {} backgrounds); monsters: {m_added} added, {m_updated} characters updated ({} characters); classes: {c_added} added, {c_updated} updated (starting equipment without a library item: {}); spells: {s_added} added, {s_updated} updated, {} of {} story only; equipment: {e_added} added, {e_updated} updated; magic items: {mi_added} added, {mi_updated} updated, {mi_story} story only",
+        "{}: {added} added, {updated} updated ({} races, {} backgrounds); monsters: {m_added} added, {m_updated} characters updated ({} characters); classes: {c_added} added, {c_updated} updated (starting equipment without a library item: {}); spells: {} added, {s_updated} updated, {dropped} left out ({} of {} story only); equipment: {e_added} added, {e_updated} updated; magic items: {mi_added} added, {mi_updated} updated, {mi_story} story only",
         root.display(),
         p.db.races.len(),
         p.db.backgrounds.len(),
         p.db.characters.len(),
         if unmapped.is_empty() { "-".to_string() } else { unmapped.join(", ") },
+        s_added.saturating_sub(dropped),
         story.len(),
         data.spells.len()
     ))

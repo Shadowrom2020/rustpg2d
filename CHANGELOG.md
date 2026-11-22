@@ -696,7 +696,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   in this kind of game (Comprehend Languages, Tongues, Detect Poison and Disease, Detect Evil and
   Good, Animal Friendship, Dream, Plane Shift, Control Water) are gone, from the example too.
   Monsters' spell lists, the high elf's cantrip choice, the paladin's oath spells and the Ring of
-  Animal Influence lost the removed spells.
+  Animal Influence lost the removed spells. The SRD import (`cargo run -p rustpg2d-editor
+  --example srd_import`) leaves them out too, and keeps a spell a project made act instead of
+  turning it back into text.
 - **A visual effect for every spell** (starter library and example): each of the 159 spells has
   its own animated impact (drawn as pixel art: bursts, rings, pillars of light, clouds, webs,
   thorns, shields, symbols such as a Z for Sleep or a heart for Charm Person, in the colours of its

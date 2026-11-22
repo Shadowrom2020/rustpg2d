@@ -123,8 +123,9 @@ Classes](06-characters.md#classes); the features that act get their effects from
 import, the starting equipment is the SRD's: the first option of each choice, a focus for casters
 that would start without one), the SRD's spells ([Gameplay ›
 Spellcasting](09-gameplay.md#spellcasting): attacks, saves, damage and healing from the data,
-conditions, boons, light and Knock from a table in the import; the library keeps the 159 that act
-in play, without the story-only ones and Comprehend Languages, Tongues, Detect Poison and Disease, Detect Evil and Good, Animal Friendship, Dream, Plane Shift and Control Water; a spell the library had keeps its icon and look), the 334 monsters ([Characters ›
+conditions, boons, light and Knock from a table in the import; the import leaves out the 152
+story-only spells (and their mentions in monsters, races, classes and magic items) and Comprehend Languages, Tongues, Detect Poison and Disease, Detect Evil and Good, Animal Friendship, Dream, Plane Shift and Control Water, so the library has the 159 that act in play; a spell the library
+had keeps its icon and look, and one it made act stays as it is), the 334 monsters ([Characters ›
 Monsters](06-characters.md#monsters); every damage part of an attack, and what a hit does read from its
 text: 67 attacks with more damage of other types, 85 effects on a hit in 65 attacks, such as a save
 against a condition or poison, or a grapple's escape DC; the 36 casters' spellcasting from the

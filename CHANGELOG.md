@@ -5,6 +5,47 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 
 ## Unreleased
 
+### A Bigger Library: the figure kit
+- **Figures from pieces.** A 3D model can be a **piece** that other models wear: hair, a beard, an
+  outfit, headwear, a cloak. It has the figure's bones, so both are drawn in one pose and move
+  together.
+  - **On the model form:** *Piece* (slot, style, the figures it fits, the slots it hides,
+    *Offered* in the creator), a figure's *Own pieces* and *Figure height*. The *3D models* list
+    shows *All*, *Figures* or *Pieces*.
+  - **Chosen per character:** the character editor's new *Pieces* section; in the character
+    creator the rows **Hair style** and **Beard**.
+  - **Colours** work across a figure and its pieces by feature name.
+- **Worn equipment shows.** An item's new *Shown as* names a piece style. While the item is worn
+  (clothing, body armour, feet, hands, cloak, head), the figure wears its own piece of that style:
+  the hero in plate armour and a helmet looks it. The library's armours, clothes, robes, cloaks,
+  helmets and hoods have their style.
+- **The figure kit.** The playable races of the starter library and the example are now voxel
+  figures built by script, one voxel per pixel of the drawn figure:
+  - **Races:** human, elf, dwarf, halfling (new bodies; gnomes use them too), half-orc, tiefling
+    (new bodies) and dragonborn, men and women.
+  - **Pieces:** clothes, leather armour, chain mail, plate armour, robe; five hair styles, two
+    beards; helmet, hood, cloak.
+  - **Size:** 80 models in 7 MB sharing one file of animations. The old models of these races and
+    their 13 clip files are gone from the library; their ids stay, so characters and save games
+    keep working.
+  - **Sources:** `scripts/art/kit` (plain Python with numpy; `build.py`, `apply.py`, a style
+    guide). A test fails when the kit changed and the library was not rebuilt.
+  - **Not yet:** the townspeople, enemies, weapons and animals still have their old models.
+- **AI agent server:**
+  - `model_sheet` returns a picture of a model as the game draws it (animations, facings, pieces,
+    worn and held items, colours);
+  - `model_check` lists what is wrong with a model and its measures;
+  - `kit_build` builds kit models and puts them into the project;
+  - `write_asset` also takes model files (`models/*.glb`);
+  - the kit's style guide is the resource `rustpg2d://docs/figure-kit`.
+- **A model too large to draw is reported.** A model with more vertices or triangles than the
+  engine draws in one piece used to lose parts silently; now it is named when it loads and in
+  *Problems*.
+- **For testing:** `status` prints `parts=`; the creator's status shows the chosen pieces; editor
+  script commands `charset part SLOT ID|-|own`, `itemwear ITEM STYLE|-` and
+  `modelfilter all|figures|pieces`; `model_sheet` (the engine example) takes `--part`, `--shared`
+  and `--stand`.
+
 ### A Bigger Library: landscapes
 - **Snow, desert, caves, swamp and dungeons** in the starter library, each with props, ground,
   scatter sets and structures:

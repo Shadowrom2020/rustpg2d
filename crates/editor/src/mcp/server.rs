@@ -82,6 +82,7 @@ pub const DOCS: &[(&str, &str, &str, &str)] = &[
     ("rustpg2d://docs/scripting", "scripting", "The Rhai scripting API of games (functions, events, examples)", include_str!("../../../../Documentation/manual/08-scripting.md")),
     ("rustpg2d://docs/events", "events", "Triggers, conditions and actions: events, owners, patterns (the events_reference tool prints the JSON shapes)", include_str!("../../../../Documentation/manual/07-events.md")),
     ("rustpg2d://docs/autoplay", "autoplay", "The autoplay commands play_test accepts and the status fields it prints", include_str!("../../../../Documentation/manual/17-testing.md")),
+    ("rustpg2d://docs/figure-kit", "figure-kit", "The figure kit's style guide and build manual: voxel figures from pieces on one skeleton (kit_build, model_sheet, model_check)", include_str!("../../../../scripts/art/kit/README.md")),
 ];
 const PROJECT_URI: &str = "rustpg2d://project";
 

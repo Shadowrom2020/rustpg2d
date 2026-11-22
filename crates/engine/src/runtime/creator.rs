@@ -97,8 +97,11 @@ enum Row {
     Sex,
     /// Playable figures of the chosen sex (only when there is more than one).
     Body,
-    /// A colour feature of the chosen figure (index into its features) that offers colours.
+    /// A colour feature of the chosen figure and its pieces (index into `creator_all_features`)
+    /// that offers colours.
     Feature(usize),
+    /// A piece the player may choose (index into `CHOSEN_SLOTS`: hair, beard).
+    Part(usize),
     /// How the scores are set.
     Method,
     /// An ability's base score (index into `Ability::ALL`).
@@ -132,9 +135,11 @@ pub(super) struct Creator {
     sex: Sex,
     /// Chosen figure per sex (index into `creator_bodies`).
     body: [usize; 2],
-    /// Chosen colour per feature of the figure: 0 = as drawn (or the race's colour), k = the
-    /// feature's colour k - 1.
-    colors: Vec<usize>,
+    /// Chosen colour per feature (by name) of the figure: 0 = as drawn (or the race's colour),
+    /// k = the feature's colour k - 1.
+    colors: BTreeMap<String, usize>,
+    /// Chosen piece per slot: an index into `creator_part_options` (none = the figure's own).
+    parts: BTreeMap<String, usize>,
     row: usize,
     time: f32,
     page: Page,
@@ -318,14 +323,73 @@ impl Game {
     /// The chosen figure's colour features that offer colours: (feature index, name, colours,
     /// label).
     fn creator_features(&self, c: &Creator) -> Vec<(usize, String, Vec<[u8; 3]>, String)> {
-        let body = self.creator_body(c);
-        let features = match self.project.db.model(&body) {
-            Some(m) => &m.features,
-            _ => return Vec::new(),
-        };
+        let features = self.creator_all_features(c);
         // (Features a race's choice colours, a dragonborn's ancestry, get no row of their own.)
         let chosen: Vec<String> = self.creator_race(c).map_or(Vec::new(), |r| r.choices.iter().flat_map(|ch| ch.colors.values().flat_map(|m| m.keys().cloned())).collect());
         features.iter().enumerate().filter(|(_, f)| !f.colors.is_empty() && !chosen.contains(&f.name)).map(|(k, f)| (k, f.name.clone(), f.colors.clone(), f.label())).collect()
+    }
+
+    /// The colour features of the chosen figure and of the pieces it wears: a feature counts once
+    /// (the body's, else the first piece's that has it), with the first colours offered for it.
+    fn creator_all_features(&self, c: &Creator) -> Vec<crate::defs::ColorFeature> {
+        let db = &self.project.db;
+        let body = self.creator_body(c);
+        let mut out: Vec<crate::defs::ColorFeature> = db.model(&body).map_or(Vec::new(), |m| m.features.clone());
+        let look = Appearance { model: body.clone(), parts: self.creator_parts(c), ..Default::default() };
+        for id in crate::render::model::parts_of(db, &body, &look, &Default::default()) {
+            for f in db.model(&id).map_or(&[][..], |m| &m.features[..]) {
+                match out.iter_mut().find(|o| o.name == f.name) {
+                    Some(o) if o.colors.is_empty() => o.colors = f.colors.clone(),
+                    Some(_) => {}
+                    None => out.push(f.clone()),
+                }
+            }
+        }
+        out
+    }
+
+    /// What the player may wear in `slot` on figure `body`: no piece, then the offered pieces
+    /// that fit it (model ids); and which of them the figure has of its own.
+    fn creator_part_options(&self, body: &str, slot: &str) -> (Vec<String>, usize) {
+        let db = &self.project.db;
+        let mut ids = vec![crate::defs::NO_PART.to_string()];
+        ids.extend(db.models.iter().filter(|m| m.part.as_ref().is_some_and(|p| p.slot == slot && p.offer && (p.fits.is_empty() || p.fits.iter().any(|f| f == body)))).map(|m| m.id.clone()));
+        let own = db.model(body).and_then(|b| b.parts.iter().find(|id| db.model(id).and_then(|m| m.part.as_ref()).is_some_and(|p| p.slot == slot)).cloned());
+        let own = match own {
+            Some(o) => ids.iter().position(|i| *i == o).unwrap_or_else(|| {
+                ids.push(o);
+                ids.len() - 1
+            }),
+            None => 0,
+        };
+        (ids, own)
+    }
+
+    /// The slots the creator has a row for: those with a piece to choose for the chosen figure.
+    fn creator_part_rows(&self, c: &Creator) -> Vec<usize> {
+        let body = self.creator_body(c);
+        (0..crate::defs::CHOSEN_SLOTS.len()).filter(|k| self.creator_part_options(&body, crate::defs::CHOSEN_SLOTS[*k]).0.len() > 1).collect()
+    }
+
+    /// The pieces the player chose that differ from the figure's own (a look's `parts`).
+    fn creator_parts(&self, c: &Creator) -> BTreeMap<String, String> {
+        let body = self.creator_body(c);
+        let mut out = BTreeMap::new();
+        for (slot, k) in &c.parts {
+            let (ids, own) = self.creator_part_options(&body, slot);
+            if k % ids.len() != own {
+                out.insert(slot.clone(), ids[k % ids.len()].clone());
+            }
+        }
+        out
+    }
+
+    /// The name of a piece in the creator's row ("Ponytail"; "None" for no piece).
+    fn creator_part_label(&self, id: &str) -> String {
+        match self.project.db.model(id).and_then(|m| m.part.as_ref()) {
+            Some(p) => crate::lang::tr(&p.label()),
+            None => crate::lang::tr_ui("None").into_owned(),
+        }
     }
 
     /// The race's choices that colour the model (picked on page 1): their indices.
@@ -602,6 +666,7 @@ impl Game {
             Row::Sex => ui("Sex"),
             Row::Body => ui("Body"),
             Row::Feature(k) => self.creator_features(c).into_iter().find(|f| f.0 == k).map_or(String::new(), |f| crate::lang::tr(&f.3)),
+            Row::Part(k) => ui(if crate::defs::CHOSEN_SLOTS[k] == "hair" { "Hair style" } else { "Beard" }),
             Row::Method => ui("Scores"),
             Row::Ability(i) => Ability::ALL[i].short().into(),
             // (Page 1: a choice that colours the model, "Ancestry".)
@@ -626,6 +691,7 @@ impl Game {
                     rows.push(Row::Body);
                 }
                 rows.extend(self.color_choices(c).into_iter().map(|ci| Row::Choice(ci, 0)));
+                rows.extend(self.creator_part_rows(c).into_iter().map(Row::Part));
                 rows.extend(self.creator_features(c).into_iter().map(|f| Row::Feature(f.0)));
             }
             Page::Class => {
@@ -677,9 +743,10 @@ impl Game {
         }
         a.model = body;
         a.body.clear();
+        a.parts = self.creator_parts(c);
         let race = self.creator_race(c);
-        for (k, name, colors, _) in self.creator_features(c) {
-            match c.colors.get(k).copied().unwrap_or(0) {
+        for (_, name, colors, _) in self.creator_features(c) {
+            match c.colors.get(&name).copied().unwrap_or(0) {
                 0 => {
                     if let Some(col) = race.as_ref().and_then(|r| r.colors.get(&name)) {
                         a.colors.insert(name, *col);
@@ -716,7 +783,8 @@ impl Game {
             race,
             sex,
             body: [0, 0],
-            colors: Vec::new(),
+            colors: BTreeMap::new(),
+            parts: BTreeMap::new(),
             row: 0,
             time: 0.0,
             page: Page::Who,
@@ -753,6 +821,7 @@ impl Game {
             Row::Body => self.creator_bodies(race.as_ref(), c.sex).len(),
             // "As drawn" and the feature's colours.
             Row::Feature(k) => self.creator_features(c).into_iter().find(|f| f.0 == k).map_or(0, |f| f.2.len() + 1),
+            Row::Part(k) => self.creator_part_options(&self.creator_body(c), crate::defs::CHOSEN_SLOTS[k]).0.len(),
             Row::Method => self.creator_methods().len(),
             Row::Background => self.project.db.backgrounds.len() + 1,
             Row::Class => self.project.db.classes.len(),
@@ -772,6 +841,14 @@ impl Game {
         let level_picks: Vec<usize> = (0..level.len()).map(|k| Self::level_pick(c, &level, k)).collect();
         let fixed = self.project.config.creation.sex.fixed().is_some();
         let classes = self.project.db.classes.clone();
+        let feature = match row {
+            Row::Feature(k) => self.creator_features(c).into_iter().find(|f| f.0 == k).map(|f| f.1),
+            _ => None,
+        };
+        let own_part = match row {
+            Row::Part(k) => self.creator_part_options(&self.creator_body(c), crate::defs::CHOSEN_SLOTS[k]).1,
+            _ => 0,
+        };
         let c = self.creator.as_mut().unwrap();
         let cycle = |v: &mut usize| *v = (*v as i32 + step).rem_euclid(n) as usize;
         // The next option no other slot of a choice holds.
@@ -790,6 +867,7 @@ impl Game {
                 // Another race has other figures, colours and choices.
                 c.body = [0, 0];
                 c.colors.clear();
+                c.parts.clear();
                 c.picks.clear();
                 c.bg_langs.clear();
                 c.level.clear();
@@ -797,17 +875,19 @@ impl Game {
             Row::Sex if !fixed => {
                 c.sex = if c.sex == Sex::Male { Sex::Female } else { Sex::Male };
                 c.colors.clear();
+                c.parts.clear();
             }
             Row::Body => {
                 cycle(&mut c.body[c.sex as usize]);
                 c.colors.clear();
+                c.parts.clear();
             }
-            Row::Feature(k) => {
-                if c.colors.len() <= k {
-                    c.colors.resize(k + 1, 0);
+            Row::Feature(_) => {
+                if let Some(name) = feature {
+                    cycle(c.colors.entry(name).or_insert(0));
                 }
-                cycle(&mut c.colors[k]);
             }
+            Row::Part(k) => cycle(c.parts.entry(crate::defs::CHOSEN_SLOTS[k].to_string()).or_insert(own_part)),
             Row::Method => {
                 cycle(&mut c.method);
                 c.base = Self::method_start(methods[c.method % methods.len()], classes.get(c.class));
@@ -1246,6 +1326,7 @@ impl Game {
                         if c.sex != sex {
                             c.sex = sex;
                             c.colors.clear();
+                            c.parts.clear();
                         }
                     }
                     Row::Reroll => self.change_row(Row::Reroll, 1),
@@ -1290,7 +1371,8 @@ impl Game {
         let a = self.chosen_appearance(c);
         let rows: Vec<String> = self.creator_rows(c).iter().map(|r| self.creator_label(c, *r)).filter(|l| !l.is_empty()).collect();
         let colors: Vec<String> = a.colors.iter().map(|(k, v)| format!("{k}:{:02x}{:02x}{:02x}", v[0], v[1], v[2])).collect();
-        let look = format!("{} colors{{{}}} rows {}", a.body, colors.join(" "), rows.join("/"));
+        let parts: Vec<String> = a.parts.iter().map(|(k, v)| format!("{k}:{v}")).collect();
+        let look = format!("{} colors{{{}}} parts{{{}}} rows {}", a.body, colors.join(" "), parts.join(" "), rows.join("/"));
         let race = self.creator_race(c).map_or("-".to_string(), |r| r.id.clone());
         let hero = self.creator_hero(c);
         let picks: Vec<String> = self.creator_choices(c).iter().map(|(k, v)| format!("{k}={}", v.join("+"))).collect();
@@ -1444,13 +1526,18 @@ impl Game {
                         }
                         Row::Feature(f) => {
                             let (name, colors) = features.iter().find(|x| x.0 == *f).map(|x| (x.1.clone(), x.2.clone())).unwrap_or_default();
-                            match c.colors.get(*f).copied().unwrap_or(0) {
+                            match c.colors.get(&name).copied().unwrap_or(0) {
                                 0 => match race.as_ref().and_then(|r| r.colors.get(&name)) {
                                     Some(col) => (crate::lang::tr_ui("The race's").into_owned(), Some(*col)),
-                                    None => (crate::lang::tr_ui("As drawn").into_owned(), self.project.db.model(&self.creator_body(c)).and_then(|m| m.features.get(*f)).and_then(|x| x.default)),
+                                    None => (crate::lang::tr_ui("As drawn").into_owned(), self.creator_all_features(c).get(*f).and_then(|x| x.default)),
                                 },
                                 n => (format!("{}/{}", (n - 1) % colors.len().max(1) + 1, colors.len()), colors.get((n - 1) % colors.len().max(1)).copied()),
                             }
+                        }
+                        Row::Part(k) => {
+                            let slot = crate::defs::CHOSEN_SLOTS[*k];
+                            let (ids, own) = self.creator_part_options(&self.creator_body(c), slot);
+                            (self.creator_part_label(&ids[c.parts.get(slot).copied().unwrap_or(own) % ids.len()]), None)
                         }
                         // A choice that colours the model: the pick's name ("Red") and its first colour.
                         Row::Choice(ci, _) => match race.as_ref().and_then(|r| r.choices.get(*ci)) {

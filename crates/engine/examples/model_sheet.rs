@@ -4,7 +4,7 @@
 //!
 //! `cargo run -p rustpg2d-engine --example model_sheet -- OUT.png MODEL.glb [--clips FILE.glb]…
 //! [--template TEMPLATE.glb [--turn DEGREES]] [--height PIXELS] [--anims walk,idle,…] [--facing left]
-//! [--moments N] [--clip ANIM=CLIP]…` (`--clip` maps an animation name to a clip by its name in the
+//! [--moments N] [--clip ANIM=CLIP]… [--shared CLIPS.glb]… [--stand UNITS] [--part PIECE.glb]…` (`--clip` maps an animation name to a clip by its name in the
 //! files, for clips the standard names don't find, e.g. `--clip attack_2h=Armature|Heavy_Hammer_Swing|baselayer`)
 use std::collections::HashMap;
 
@@ -39,13 +39,19 @@ async fn main() {
     let clip_files: Vec<String> = args.windows(2).filter(|w| w[0] == "--clips").map(|w| w[1].clone()).collect();
     let mut def = ModelDef { clip_files: clip_files.clone(), ..ModelDef::new("m", file) };
     def.height = opt("--height").and_then(|h| h.parse().ok()).unwrap_or(40.0);
+    // `--shared FILE`: clips of another model of the same bone names, fitted to this one's bones;
+    // `--stand UNITS`: the standing height when the file is only a piece of the figure;
+    // `--part FILE`: a piece it wears (hair, an outfit), drawn in its pose.
+    def.shared_clips = args.windows(2).filter(|w| w[0] == "--shared").map(|w| w[1].clone()).collect();
+    def.stand = opt("--stand").and_then(|h| h.parse().ok()).unwrap_or(0.0);
+    let pieces: Vec<String> = args.windows(2).filter(|w| w[0] == "--part").map(|w| w[1].clone()).collect();
     let mut db = Database::default();
     if let Some(t) = opt("--template") {
         db.models.push(ModelDef { clips: guess_clips(&clip_names(&t)), ..ModelDef::new("t", &t) });
         def.rig = Some(RigFit { template: "t".into(), turn: opt("--turn").and_then(|v| v.parse().ok()).unwrap_or(0.0), joints: Vec::new() });
     } else {
         let mut names = clip_names(file);
-        for f in &clip_files {
+        for f in clip_files.iter().chain(&def.shared_clips) {
             names.extend(clip_names(f));
         }
         def.clips = guess_clips(&names);
@@ -55,6 +61,11 @@ async fn main() {
             def.clips.retain(|c| c.anim != anim);
             def.clips.push(rustpg2d_engine::defs::ClipMap { anim: anim.into(), clip: clip.into(), fps: 12.0, hit: None });
         }
+    }
+    for (k, f) in pieces.iter().enumerate() {
+        let id = format!("piece{k}");
+        db.models.push(ModelDef { part: Some(rustpg2d_engine::defs::ModelPart { slot: id.clone(), ..Default::default() }), ..ModelDef::new(&id, f) });
+        def.parts.push(id);
     }
     db.models.push(def);
     db.reindex();

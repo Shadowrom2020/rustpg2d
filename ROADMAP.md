@@ -1657,41 +1657,80 @@ A content release for the starter library. Generating 3D models costs Meshy cred
   outlined like the existing ones; glowing mushrooms and blue crystals carry a light. Eight scatter
   sets and eight structures (one or two per landscape). The cave level is a map of its own, *The
   Deep Caves* (`mine_depths`), reached through a crack in the mine's rat nest; its giant spider is a
-  mannequin until *Models for the SRD monsters*.
+  mannequin until *Creatures from the kit*.
 
   **Engine.** None (content).
 
   **Verify.** A test map with every structure and scatter set (screenshots); the example's cave in
   autoplay: down from the mine, lit by the mushrooms, a fight in the spider's lair.
 
-- [ ] Models for the SRD monsters — `feature/bestiary`
+- [x] The figure kit: pieces on a shared skeleton — `feature/model-parts`
 
-  **Goal.** The SRD monsters imported in 0.29 get 3D models with walk, idle, attack and hurt
-  animations.
+  **Goal.** The library's people are built by script from swappable pieces, in a look of the
+  engine's own, without a generation per character. The character generator changes shapes, not
+  only colours, and worn equipment shows.
 
-  **Design.** By how often games use them: wolves, bats, rats, spiders, skeletons, zombies,
-  goblins, orcs, ogres, giants, dragons (wyrmlings first), elementals, animals. Each one costs
-  Meshy credits (ask); models are shared where the SRD has variants (a wolf and a dire wolf
-  scaled).
+  **Decided while building** (after a look study of low-poly and voxel figures beside the old
+  cast):
+  - **The look:** voxel figures, one voxel per pixel of the drawn figure, realistic proportions,
+    flat colours.
+  - **Pieces are 3D models** (`ModelDef.part`: slot, style, fits, hides, offered) drawn on a
+    figure in its pose, their joints matched to its bones by name. A figure lists its own pieces
+    (`ModelDef.parts`); a look chooses others (`Appearance.parts`); an item names the style it
+    shows while worn (`ItemDef.wear`). Races differ by their bodies, so no race field was needed.
+  - **Outfits are per build** (medium, dwarf, small, large; men and women), head pieces per head
+    size; colours carry across pieces by feature name, and a piece takes the figure's default.
+  - **The kit** lives in `scripts/art/kit` (plain Python with numpy, no Blender needed for
+    people); `build.py` and `apply.py` put it into the library through the agent server, and a
+    manifest test tells when it was not rebuilt.
+  - **Agent tools:** `model_sheet`, `model_check`, `kit_build`; `write_asset` takes model files.
+  - **Left for the next items:** the rest of the cast, gear and creatures. Women play the men's
+    clips (one skeleton). Converting smooth models to voxels automatically was tried and left
+    out: fine for a wolf, poor for a textured troll.
+
+  **Verify.** Unit tests (joints by name, the order of pieces, colours); the creator in autoplay
+  with hair, beard and six races; armour and a helmet shown (`parts=`); the tools through an MCP
+  client.
+
+- [ ] The cast from the kit — `feature/kit-cast`
+
+  **Goal.** Every other person of the library and the example is a kit figure, so one style
+  remains.
+
+  **Design.** Outfits for the trades (apron, smock, dress, uniform, rags), the goblins, orcs,
+  skeletons and the troll as kit bodies; characters keep their ids. The old models retire through
+  *Update asset library*.
 
   **Engine.** None (content).
 
+  **Verify.** The village and the forest in autoplay; `model_check` on every model; screenshots
+  for the manual.
+
+- [ ] Gear from the kit — `feature/kit-gear`
+
+  **Goal.** Weapons, shields, tools and backpacks are voxel models in the kit's look.
+
+  **Design.** Item models built by script at the kit's voxel size; hold points set as today.
+
+  **Engine.** None (content).
+
+  **Verify.** `model_sheet` with each item held; a fight in autoplay.
+
+- [ ] Creatures from the kit — `feature/kit-creatures`
+
+  **Goal.** Animals and the SRD monsters imported in 0.29 get models with walk, idle, attack and
+  hurt animations, built by script instead of generated (this replaces *Models for the SRD
+  monsters* and its Meshy credits).
+
+  **Design.** By how often games use them: wolves, bats, rats, spiders, skeletons, zombies,
+  goblins, orcs, ogres, giants, dragons (wyrmlings first), elementals, animals. Humanoids are kit
+  bodies; beasts are voxel bodies on the rig templates, with headless Blender for new body plans'
+  clips. Models are shared where the SRD has variants (a wolf and a dire wolf scaled).
+
+  **Engine.** Large creatures may pass the 32,768 vertices of one draw: drawing a model in
+  several pieces if so.
+
   **Verify.** `model_sheet` contact sheets; each one fights in autoplay.
-
-- [ ] Swappable hair and clothing — `feature/model-parts`
-
-  **Goal.** The character generator changes shapes, not only colours.
-
-  **Design.**
-  - **Parts:** an `Appearance` gets parts (a hair model and an outfit model) skinned to the same
-    rig as the body.
-  - **Drawing:** `render/model.rs` draws them in one pose.
-  - **Creator:** offers parts per sex.
-
-  **Engine.** Parts on a shared skeleton in `model.rs` / `render/model.rs`, the appearance field,
-  the creator and editor choosers. Generating the parts costs Meshy credits.
-
-  **Verify.** Contact sheets with three hair styles; the creator in autoplay.
 
 - [ ] Music and sounds — `feature/more-audio`
 

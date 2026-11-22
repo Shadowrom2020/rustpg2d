@@ -436,7 +436,23 @@ the hand-moved offsets, joint translations are solved down the tree keeping the 
 rotations (so its clips mean the same), each vertex is bound to the four nearest bones
 (1 / distance⁴) and the clips' translations are rescaled to the height. `Loaded` keeps the
 unfitted mesh and the template, so the editor's joint dragging refits without reading files
-(`set_def`). The editor shows rendered poses
+(`set_def`).
+
+**Figures from pieces.** A model with `ModelDef.part` is a piece (hair, an outfit, a helmet): it is
+never a figure of its own, it is worn. `parts_of` decides what a figure shows, per slot: its own
+pieces (`ModelDef.parts`), replaced by the look's choices (`Appearance.parts`: a piece's id, a
+style, or none) and then by worn items whose `ItemDef.wear` names a style (`Gear.worn`); a piece's
+`hides` removes other slots. In `render`, the figure's pose is computed once; each piece is skinned
+with those node transforms through `Model::bind_to` (its joints as the figure's nodes of the same
+names, cached per figure) and drawn in the same pass with its own palette texture, recoloured by
+the same feature names (a piece takes the figure's feature default before its own). The pose key
+includes the pieces. A figure whose file is only its head sets `ModelDef.stand`, the whole
+figure's height, which the frame, the scale and the hand grip use. A model with more vertices or
+triangles than one draw takes is listed in `Models.warnings` (`oversize`). The starter library's
+playable races are built this way by `scripts/art/kit` (the figure kit: voxel blocks on the
+hero's skeleton, one shared clip file fitted to each build by `shared_clips`).
+
+The editor shows rendered poses
 without copying them: `widgets::paint_model` hands egui the atlas page's OpenGL texture
 (`TextureId::User`, which egui-miniquad draws as a raw GL texture).
 

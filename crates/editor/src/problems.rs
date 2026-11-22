@@ -356,7 +356,27 @@ impl Editor {
                         }
                     }
                 }
+                if let Some(m) = db.model(&id).filter(|_| k == RefKind::Model) {
+                    // Too large for one draw: parts of it won't show.
+                    if let Some(w) = self.assets.models.warnings.iter().find(|w| w.starts_with(&format!("model {id}:"))) {
+                        out.push(Problem { severity: Severity::Error, area: Area::Definitions, place: place.clone(), text: w.split_once(": ").map_or(w.as_str(), |x| x.1).to_string(), target: target.clone() });
+                    }
+                    // Pieces: what they fit and what a figure wears must exist and be the right kind.
+                    for b in m.part.iter().flat_map(|p| &p.fits).filter(|b| db.model(b).is_none_or(|x| x.part.is_some())) {
+                        out.push(Problem { severity: Severity::Warning, area: Area::Definitions, place: place.clone(), text: format!("fits {b}, which is no figure of this project"), target: target.clone() });
+                    }
+                    if m.part.as_ref().is_some_and(|p| p.slot.is_empty()) {
+                        out.push(Problem { severity: Severity::Error, area: Area::Definitions, place: place.clone(), text: "is a piece without a slot (it never shows)".into(), target: target.clone() });
+                    }
+                    for p in m.parts.iter().filter(|p| db.model(p).is_none_or(|x| x.part.is_none())) {
+                        out.push(Problem { severity: Severity::Error, area: Area::Definitions, place: place.clone(), text: format!("wears {p}, which is no piece of this project"), target: target.clone() });
+                    }
+                }
                 if let Some(item) = db.item(&id).filter(|_| k == RefKind::Item) {
+                    // A style no piece has: nothing would show.
+                    if !item.wear.is_empty() && !db.models.iter().any(|m| m.part.as_ref().is_some_and(|p| p.style == item.wear)) {
+                        out.push(Problem { severity: Severity::Warning, area: Area::Definitions, place: place.clone(), text: format!("is shown as {}, a style no piece of this project has", item.wear), target: target.clone() });
+                    }
                     // Animation names no model maps: characters play their plain animation.
                     let a = &item.anims;
                     for name in [&a.attack, &a.idle, &a.walk, &a.block].into_iter().filter(|n| !n.is_empty()) {

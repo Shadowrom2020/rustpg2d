@@ -574,6 +574,7 @@
         )),
         max_stack: 1,
         value: 45,
+        wear: "helmet",
     ),
     (
         id: "leather_armor",
@@ -597,6 +598,7 @@
         )),
         max_stack: 1,
         value: 35,
+        wear: "leather_armor",
         srd: "leather-armor",
         cost_cp: 1000,
         weight: 10.0,
@@ -624,6 +626,7 @@
         )),
         max_stack: 1,
         value: 90,
+        wear: "chain_mail",
         srd: "chain-mail",
         cost_cp: 7500,
         weight: 55.0,
@@ -2111,6 +2114,7 @@
         )),
         max_stack: 1,
         value: 0,
+        wear: "clothes",
     ),
     (
         id: "tunic_green",
@@ -2134,6 +2138,7 @@
         )),
         max_stack: 1,
         value: 25,
+        wear: "clothes",
     ),
     (
         id: "tunic_red",
@@ -2157,6 +2162,7 @@
         )),
         max_stack: 1,
         value: 25,
+        wear: "clothes",
     ),
     (
         id: "elder_garb",
@@ -2180,6 +2186,7 @@
         )),
         max_stack: 1,
         value: 0,
+        wear: "clothes",
     ),
     (
         id: "villager_clothes",
@@ -2203,6 +2210,7 @@
         )),
         max_stack: 1,
         value: 0,
+        wear: "clothes",
     ),
     (
         id: "merchant_dress",
@@ -2226,6 +2234,7 @@
         )),
         max_stack: 1,
         value: 0,
+        wear: "clothes",
     ),
     (
         id: "guard_uniform",
@@ -2249,6 +2258,7 @@
         )),
         max_stack: 1,
         value: 0,
+        wear: "clothes",
     ),
     (
         id: "goblin_rags",
@@ -2272,6 +2282,7 @@
         )),
         max_stack: 1,
         value: 0,
+        wear: "clothes",
     ),
     (
         id: "baker_whites",
@@ -2295,6 +2306,7 @@
         )),
         max_stack: 1,
         value: 0,
+        wear: "clothes",
     ),
     (
         id: "innkeeper_dress",
@@ -2318,6 +2330,7 @@
         )),
         max_stack: 1,
         value: 0,
+        wear: "clothes",
     ),
     (
         id: "herbalist_robe",
@@ -2341,6 +2354,7 @@
         )),
         max_stack: 1,
         value: 0,
+        wear: "robe",
     ),
     (
         id: "priest_robe",
@@ -2364,6 +2378,7 @@
         )),
         max_stack: 1,
         value: 0,
+        wear: "robe",
     ),
     (
         id: "miller_smock",
@@ -2387,6 +2402,7 @@
         )),
         max_stack: 1,
         value: 0,
+        wear: "clothes",
     ),
     (
         id: "fisher_coat",
@@ -2410,6 +2426,7 @@
         )),
         max_stack: 1,
         value: 0,
+        wear: "clothes",
     ),
     (
         id: "crier_coat",
@@ -2433,6 +2450,7 @@
         )),
         max_stack: 1,
         value: 0,
+        wear: "clothes",
     ),
     (
         id: "farmer_clothes",
@@ -2456,6 +2474,7 @@
         )),
         max_stack: 1,
         value: 0,
+        wear: "clothes",
     ),
     (
         id: "farm_dress",
@@ -2479,6 +2498,7 @@
         )),
         max_stack: 1,
         value: 0,
+        wear: "clothes",
     ),
     (
         id: "smith_apron",
@@ -2502,6 +2522,7 @@
         )),
         max_stack: 1,
         value: 0,
+        wear: "clothes",
     ),
     (
         id: "villager_dress",
@@ -2525,6 +2546,7 @@
         )),
         max_stack: 1,
         value: 0,
+        wear: "clothes",
     ),
     (
         id: "crude_bow",
@@ -3321,6 +3343,7 @@
         )),
         max_stack: 1,
         value: 50,
+        wear: "chain_mail",
         srd: "scale-mail",
         cost_cp: 5000,
         weight: 45.0,
@@ -5419,6 +5442,7 @@
         )),
         max_stack: 1,
         value: 5,
+        wear: "leather_armor",
         srd: "padded-armor",
         cost_cp: 500,
         weight: 8.0,
@@ -5445,6 +5469,7 @@
         )),
         max_stack: 1,
         value: 45,
+        wear: "leather_armor",
         srd: "studded-leather-armor",
         cost_cp: 4500,
         weight: 13.0,
@@ -5472,6 +5497,7 @@
         )),
         max_stack: 1,
         value: 10,
+        wear: "chain_mail",
         srd: "hide-armor",
         cost_cp: 1000,
         weight: 12.0,
@@ -5499,6 +5525,7 @@
         )),
         max_stack: 1,
         value: 50,
+        wear: "chain_mail",
         srd: "chain-shirt",
         cost_cp: 5000,
         weight: 20.0,
@@ -5526,6 +5553,7 @@
         )),
         max_stack: 1,
         value: 400,
+        wear: "plate_armor",
         srd: "breastplate",
         cost_cp: 40000,
         weight: 20.0,
@@ -5553,6 +5581,7 @@
         )),
         max_stack: 1,
         value: 750,
+        wear: "plate_armor",
         srd: "half-plate-armor",
         cost_cp: 75000,
         weight: 40.0,
@@ -5580,6 +5609,7 @@
         )),
         max_stack: 1,
         value: 30,
+        wear: "chain_mail",
         srd: "ring-mail",
         cost_cp: 3000,
         weight: 40.0,
@@ -5607,6 +5637,7 @@
         )),
         max_stack: 1,
         value: 200,
+        wear: "plate_armor",
         srd: "splint-armor",
         cost_cp: 20000,
         weight: 60.0,
@@ -5634,6 +5665,7 @@
         )),
         max_stack: 1,
         value: 1500,
+        wear: "plate_armor",
         srd: "plate-armor",
         cost_cp: 150000,
         weight: 65.0,

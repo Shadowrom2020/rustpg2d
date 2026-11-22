@@ -220,6 +220,10 @@ pub struct Appearance {
     /// characters and the player (the player character's definition) take it from there.
     #[serde(skip_serializing_if = "is_zero_u16")]
     pub size: u16,
+    /// Pieces chosen for this look: slot -> a piece's style or model id ([`NO_PART`] = none).
+    /// A slot not listed keeps the body's own piece.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub parts: BTreeMap<String, String>,
 }
 
 fn is_zero_u16(v: &u16) -> bool {
@@ -350,7 +354,54 @@ pub struct ModelDef {
     /// skeleton fitted to it, and that model's clips.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rig: Option<RigFit>,
+    /// The standing figure's height in the model's own units when its file holds only a piece
+    /// of the figure (a body whose clothes are pieces); 0 = the mesh's own height.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub stand: f32,
+    /// A piece of other models (hair, an outfit, a helmet), drawn on a body with the body's pose.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub part: Option<ModelPart>,
+    /// A body's own pieces (model ids): what it wears unless a look or its equipment says otherwise.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub parts: Vec<String>,
 }
+
+/// What makes a model a piece ([`ModelDef::part`]): its bones are the body's (matched by name),
+/// so it moves with every clip the body plays.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct ModelPart {
+    /// Where it goes ("outfit", "hair", "beard", "headwear", "cloak", "ears", "tail"…): a figure
+    /// has one piece per slot.
+    pub slot: String,
+    /// What it is across bodies ("leather_armor", "ponytail"): an item's [`ItemDef::wear`] and a
+    /// look's choice name the style, each body has its own piece of it.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub style: String,
+    /// The bodies (model ids) it fits.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fits: Vec<String>,
+    /// Slots it hides while worn (a helmet hides the hair).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub hides: Vec<String>,
+    /// Offered by the character creator.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub offer: bool,
+}
+
+impl ModelPart {
+    /// What players read for a piece ("hair_ponytail" in slot "hair" -> "Ponytail"): the style
+    /// without its slot, as a label (translatable content).
+    pub fn label(&self) -> String {
+        let s = self.style.strip_prefix(&format!("{}_", self.slot)).unwrap_or(&self.style).replace('_', " ");
+        let mut c = s.chars();
+        c.next().map(|f| f.to_uppercase().chain(c).collect()).unwrap_or_default()
+    }
+}
+
+/// The slots whose pieces the character creator lets the player choose, in its order.
+pub const CHOSEN_SLOTS: [&str; 2] = ["hair", "beard"];
+/// A look's choice of no piece in a slot.
+pub const NO_PART: &str = "-";
 
 /// A rig template fitted to an unrigged model ([`crate::model::Model::fit_rig`]): the template's
 /// skeleton is stretched over the model's bounds, then single joints are moved.
@@ -416,7 +467,7 @@ fn clip_fps() -> f32 {
 
 impl ModelDef {
     pub fn new(id: &str, file: &str) -> ModelDef {
-        ModelDef { id: id.into(), name: String::new(), file: file.into(), clip_files: Vec::new(), shared_clips: Vec::new(), height: model_height(), clips: Vec::new(), features: Vec::new(), playable: false, female: false, rig: None }
+        ModelDef { id: id.into(), name: String::new(), file: file.into(), clip_files: Vec::new(), shared_clips: Vec::new(), height: model_height(), clips: Vec::new(), features: Vec::new(), playable: false, female: false, rig: None, stand: 0.0, part: None, parts: Vec::new() }
     }
 
     /// Every clip file it reads: its own and the shared ones.
@@ -927,6 +978,10 @@ pub struct ItemDef {
     /// Its 3D model, held by 3D model characters (else they hold its picture).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<ItemModel>,
+    /// The piece style a 3D model character shows while it wears the item (an armour, a helmet,
+    /// a cloak: [`ModelPart::style`]); "" = nothing changes on the figure.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub wear: String,
     /// Using the item teaches this spell (scrolls, spell books); "" = none.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub teaches: String,
@@ -1072,6 +1127,7 @@ impl Default for ItemDef {
             light: None,
             held: None,
             model: None,
+            wear: String::new(),
             teaches: String::new(),
             tool: String::new(),
             use_on: UseTarget::default(),
@@ -2660,7 +2716,12 @@ impl Database {
 
     /// The definitions `id` refers to directly (none for kinds without references, or an unknown id).
     pub fn refs_of(&self, kind: crate::refactor::RefKind, id: &str) -> Vec<(crate::refactor::RefKind, String)> {
-        crate::with_def_kind!(kind, |T| self.get::<T>(id).map(|d| d.refs()).unwrap_or_default(), else => Vec::new())
+        let mut refs = crate::with_def_kind!(kind, |T| self.get::<T>(id).map(|d| d.refs()).unwrap_or_default(), else => Vec::new());
+        // An item that shows on the figure needs the pieces of its style (every body's).
+        if let Some(it) = self.item(id).filter(|i| kind == crate::refactor::RefKind::Item && !i.wear.is_empty()) {
+            refs.extend(self.models.iter().filter(|m| m.part.as_ref().is_some_and(|p| p.style == it.wear)).map(|m| (crate::refactor::RefKind::Model, m.id.clone())));
+        }
+        refs
     }
 }
 

@@ -2754,6 +2754,7 @@
         ),
         "item:adamantine-armor": (
             defs: [
+                1248583393657948162,
                 3092609522987138701,
             ],
         ),
@@ -2846,16 +2847,19 @@
         ),
         "item:armor-of-invulnerability": (
             defs: [
+                9220316107000310209,
                 17924218379802183164,
             ],
         ),
         "item:armor-of-resistance": (
             defs: [
                 563599233971381459,
+                3143219559395267228,
             ],
         ),
         "item:armor-of-vulnerability": (
             defs: [
+                6894412338368204455,
                 11240461324328544776,
             ],
         ),
@@ -2942,6 +2946,7 @@
         ),
         "item:baker_whites": (
             defs: [
+                5085958604316926912,
                 12343167838220547775,
             ],
         ),
@@ -3211,6 +3216,7 @@
         "item:breastplate": (
             defs: [
                 717228912277317009,
+                10736853227629545976,
             ],
         ),
         "item:brewers-supplies": (
@@ -3286,6 +3292,7 @@
         ),
         "item:cape-of-the-mountebank": (
             defs: [
+                14985726306180062806,
                 16655957053277716465,
             ],
         ),
@@ -3377,12 +3384,14 @@
         ),
         "item:chain-mail-plus-1": (
             defs: [
+                6730927210192225401,
                 6828618203448355621,
             ],
         ),
         "item:chain-shirt": (
             defs: [
                 14596208568517326094,
+                14940302191121866374,
             ],
         ),
         "item:chainmail": (
@@ -3390,6 +3399,7 @@
                 1106910442626816886,
                 8944362543168538440,
                 8978681804080709809,
+                11864569786852209158,
             ],
         ),
         "item:chalk-1-piece": (
@@ -3431,31 +3441,37 @@
         ),
         "item:cloak-of-arachnida": (
             defs: [
+                6238030542611826661,
                 8118740795462580336,
             ],
         ),
         "item:cloak-of-displacement": (
             defs: [
+                1065685261464235288,
                 11131429142050977091,
             ],
         ),
         "item:cloak-of-elvenkind": (
             defs: [
+                723847212047980966,
                 6534668234632545531,
             ],
         ),
         "item:cloak-of-protection": (
             defs: [
                 8228769780932010960,
+                16951989643548326941,
             ],
         ),
         "item:cloak-of-the-bat": (
             defs: [
+                11782039366332959033,
                 15995839940804205974,
             ],
         ),
         "item:cloak-of-the-manta-ray": (
             defs: [
+                2248691452050634260,
                 8984936499415991383,
             ],
         ),
@@ -3536,6 +3552,7 @@
         "item:crier_coat": (
             defs: [
                 2751658018186332761,
+                4341970022301417494,
             ],
         ),
         "item:crossbow": (
@@ -3668,6 +3685,7 @@
         "item:demon-armor": (
             defs: [
                 4428112748145988493,
+                7497651736334281638,
             ],
         ),
         "item:diamond": (
@@ -3708,50 +3726,60 @@
         "item:dragon-scale-mail-black": (
             defs: [
                 2007585279194320506,
+                17473240553783339142,
             ],
         ),
         "item:dragon-scale-mail-blue": (
             defs: [
+                220518783601999508,
                 9983406662350442620,
             ],
         ),
         "item:dragon-scale-mail-brass": (
             defs: [
+                6923484197110685670,
                 15169045775360180334,
             ],
         ),
         "item:dragon-scale-mail-bronze": (
             defs: [
                 808840515865509604,
+                2466191760436740748,
             ],
         ),
         "item:dragon-scale-mail-copper": (
             defs: [
                 5350107485708924186,
+                8523090794413941862,
             ],
         ),
         "item:dragon-scale-mail-gold": (
             defs: [
+                3973098648164446896,
                 10132403840019994776,
             ],
         ),
         "item:dragon-scale-mail-green": (
             defs: [
+                14016462559850566854,
                 16751481579528599958,
             ],
         ),
         "item:dragon-scale-mail-red": (
             defs: [
                 8173718239942286406,
+                15136518369656102350,
             ],
         ),
         "item:dragon-scale-mail-silver": (
             defs: [
+                388687488582282540,
                 1146587317523187044,
             ],
         ),
         "item:dragon-scale-mail-white": (
             defs: [
+                3448078030007877246,
                 3644802942658386310,
             ],
         ),
@@ -3797,6 +3825,7 @@
         ),
         "item:dwarven-plate": (
             defs: [
+                3227219210300394135,
                 6048047711331085954,
             ],
         ),
@@ -3824,6 +3853,7 @@
         "item:elder_garb": (
             defs: [
                 3372072678152796982,
+                8781780542183082107,
             ],
         ),
         "item:electrum-piece": (
@@ -3866,6 +3896,7 @@
         "item:elven-chain": (
             defs: [
                 8806246967328893061,
+                12999195257798901977,
             ],
         ),
         "item:emblem": (
@@ -3916,11 +3947,13 @@
         "item:farm_dress": (
             defs: [
                 57311152070992974,
+                14319068539536472115,
             ],
         ),
         "item:farmer_clothes": (
             defs: [
                 11855543885936935807,
+                14677557799190338688,
             ],
         ),
         "item:feather-token-anchor": (
@@ -4025,6 +4058,7 @@
         "item:fisher_coat": (
             defs: [
                 11115654516026247223,
+                16793022993029098808,
             ],
         ),
         "item:fishing_rod": (
@@ -4150,6 +4184,7 @@
         ),
         "item:glamoured-studded-leather-armor": (
             defs: [
+                1208711804355656238,
                 3833286663578691924,
             ],
         ),
@@ -4171,6 +4206,7 @@
         "item:goblin_rags": (
             defs: [
                 6899919585634454055,
+                15600802927069255272,
             ],
         ),
         "item:goggles-of-night": (
@@ -4214,6 +4250,7 @@
         "item:guard_uniform": (
             defs: [
                 1823631167764328240,
+                11214660477778775601,
             ],
         ),
         "item:halberd": (
@@ -4224,6 +4261,7 @@
         "item:half-plate-armor": (
             defs: [
                 16040919738012095060,
+                16059077279268611843,
             ],
         ),
         "item:hammer": (
@@ -4274,21 +4312,25 @@
         "item:helm-of-brilliance": (
             defs: [
                 7525066258051736702,
+                12027733832198914102,
             ],
         ),
         "item:helm-of-comprehending-languages": (
             defs: [
                 762597988058662064,
+                15102449172790267472,
             ],
         ),
         "item:helm-of-telepathy": (
             defs: [
+                1270700496545308521,
                 14869266900046376853,
             ],
         ),
         "item:helm-of-teleportation": (
             defs: [
                 7914197207847157435,
+                9398093349196713323,
             ],
         ),
         "item:herb": (
@@ -4304,12 +4346,14 @@
         ),
         "item:herbalist_robe": (
             defs: [
+                9092902120790835789,
                 9678746703363733270,
             ],
         ),
         "item:hide-armor": (
             defs: [
                 1282382926894620426,
+                13397727812988463054,
             ],
         ),
         "item:hoe": (
@@ -4421,6 +4465,7 @@
         "item:innkeeper_dress": (
             defs: [
                 2276903842559971691,
+                14789305929730919580,
             ],
         ),
         "item:instant-fortress": (
@@ -4510,6 +4555,7 @@
         ),
         "item:iron_helmet": (
             defs: [
+                2344986685787007082,
                 14022018746822037747,
                 18245415690616960814,
             ],
@@ -4605,6 +4651,7 @@
         ),
         "item:leather_armor": (
             defs: [
+                4050705147953694095,
                 4149849167820050395,
                 5948188153753569319,
                 17566958857754828803,
@@ -4729,6 +4776,7 @@
         ),
         "item:mantle-of-spell-resistance": (
             defs: [
+                1096587710119579565,
                 8109716394823121894,
             ],
         ),
@@ -4794,6 +4842,7 @@
         ),
         "item:merchant_dress": (
             defs: [
+                10378383534399153193,
                 15218212732913996584,
             ],
         ),
@@ -4817,6 +4866,7 @@
         "item:miller_smock": (
             defs: [
                 3334330666647084268,
+                4713827389303123357,
             ],
         ),
         "item:mirror-of-life-trapping": (
@@ -4831,6 +4881,7 @@
         ),
         "item:mithral-armor": (
             defs: [
+                11497424482277548509,
                 14984250678819693152,
             ],
         ),
@@ -4940,82 +4991,98 @@
         ),
         "item:outfit_bandit": (
             defs: [
+                4269024368947655375,
                 7595187284818299274,
             ],
         ),
         "item:outfit_bandit_f": (
             defs: [
+                11596697131859311757,
                 12893849053651339484,
             ],
         ),
         "item:outfit_blacksmith_f": (
             defs: [
+                2798836934439968877,
                 5185488814821414972,
             ],
         ),
         "item:outfit_elder_f": (
             defs: [
+                4161421054044017793,
                 10087575817203041536,
             ],
         ),
         "item:outfit_goblin_f": (
             defs: [
                 3308686913105729266,
+                14589028302679354455,
             ],
         ),
         "item:outfit_guard": (
             defs: [
+                9582382839192941861,
                 16091976464585263764,
             ],
         ),
         "item:outfit_hero_f": (
             defs: [
                 11569925773373260443,
+                12649027195195283660,
             ],
         ),
         "item:outfit_merchant": (
             defs: [
                 67579284793576215,
+                10932544916240093592,
             ],
         ),
         "item:outfit_merchant_f": (
             defs: [
+                2964419993927840904,
                 8673583198069506247,
             ],
         ),
         "item:outfit_noble": (
             defs: [
                 7673014886070896941,
+                15736554886882620618,
             ],
         ),
         "item:outfit_noble_m": (
             defs: [
+                4325649563953763907,
                 17331830581609271390,
             ],
         ),
         "item:outfit_nomad": (
             defs: [
+                5647887837976158526,
                 10715888577435804609,
             ],
         ),
         "item:outfit_nomad_f": (
             defs: [
                 3692926979431985535,
+                14887827136283227776,
             ],
         ),
         "item:outfit_wizard": (
             defs: [
+                3281277939257814774,
                 9786127993278222521,
             ],
         ),
         "item:outfit_wizard_f": (
             defs: [
                 3402091893374634721,
+                12622880900083927262,
             ],
         ),
         "item:padded-armor": (
             defs: [
                 652761765213586514,
+                14422556872684619676,
             ],
         ),
         "item:painters-supplies": (
@@ -5117,11 +5184,13 @@
         "item:plate-armor": (
             defs: [
                 15947646604268856553,
+                16794647112230447282,
             ],
         ),
         "item:plate-armor-of-etherealness": (
             defs: [
                 4636550223920988302,
+                11489297560021223865,
             ],
         ),
         "item:platinum-piece": (
@@ -5348,6 +5417,7 @@
         "item:priest_robe": (
             defs: [
                 5557237959999284530,
+                6171048844686937681,
             ],
         ),
         "item:priests-pack": (
@@ -5425,6 +5495,7 @@
         ),
         "item:ring-mail": (
             defs: [
+                7743698617077436870,
                 8176105162778045374,
             ],
         ),
@@ -5601,27 +5672,32 @@
         ),
         "item:robe-of-eyes": (
             defs: [
+                4591223136856775932,
                 10490820700448779983,
             ],
         ),
         "item:robe-of-scintillating-colors": (
             defs: [
                 2960815586311874135,
+                10989760860687874938,
             ],
         ),
         "item:robe-of-stars": (
             defs: [
+                13053323842130691118,
                 14345004740516286247,
             ],
         ),
         "item:robe-of-the-archmagi": (
             defs: [
                 4533923407942114737,
+                14384465327346698774,
             ],
         ),
         "item:robe-of-useful-items": (
             defs: [
                 8325841025720570297,
+                16070069945395690364,
             ],
         ),
         "item:robes": (
@@ -5736,6 +5812,7 @@
         ),
         "item:scale-mail": (
             defs: [
+                14460842186731200617,
                 18400732981712236409,
             ],
         ),
@@ -5886,6 +5963,7 @@
         ),
         "item:smith_apron": (
             defs: [
+                8417726449887511759,
                 11957597614888296330,
             ],
         ),
@@ -5947,6 +6025,7 @@
         ),
         "item:splint-armor": (
             defs: [
+                15235829121461714658,
                 17292422050930137339,
             ],
         ),
@@ -6052,6 +6131,7 @@
         ),
         "item:studded-leather-armor": (
             defs: [
+                3485482874826514936,
                 8396060068764340836,
             ],
         ),
@@ -6206,15 +6286,18 @@
         "item:tunic_blue": (
             defs: [
                 2243058423708723469,
+                17271572430008726826,
             ],
         ),
         "item:tunic_green": (
             defs: [
                 1320651636084527404,
+                11298244231336573405,
             ],
         ),
         "item:tunic_red": (
             defs: [
+                6641368908998381741,
                 14488492670864628860,
             ],
         ),
@@ -6241,11 +6324,13 @@
         "item:villager_clothes": (
             defs: [
                 1618587942988122689,
+                13660255763061539006,
             ],
         ),
         "item:villager_dress": (
             defs: [
                 13281295101739668514,
+                18267711517315332167,
             ],
         ),
         "item:viol": (
@@ -7682,6 +7767,7 @@
             defs: [
                 536543856995119876,
                 4397228450511393514,
+                4796043599966904009,
             ],
             files: {
                 "models/anim_attack_2h.glb": [
@@ -7713,7 +7799,11 @@
                 ],
                 "models/dragonborn.glb": [
                     1947605836899106603,
+                    13559236015187238675,
                     14457558718781712771,
+                ],
+                "models/kit_clips.glb": [
+                    4427178136836124499,
                 ],
                 "models/orc_clips.glb": [
                     12139219298659468497,
@@ -7725,6 +7815,7 @@
         ),
         "model:dragonborn_f": (
             defs: [
+                6713313698598086007,
                 12524024605276632714,
             ],
             files: {
@@ -7757,6 +7848,10 @@
                 ],
                 "models/dragonborn_f.glb": [
                     6055229818070628184,
+                    6683502328480001559,
+                ],
+                "models/kit_clips.glb": [
+                    4427178136836124499,
                 ],
                 "models/orc_f_clips.glb": [
                     7725501264060280147,
@@ -7771,6 +7866,7 @@
                 2489684520567074831,
                 6911598387656153857,
                 13962642280429993239,
+                14071076400896555161,
                 15174322663833951194,
             ],
             files: {
@@ -7805,6 +7901,7 @@
                     14878042099145158477,
                 ],
                 "models/dwarf.glb": [
+                    424178797032133644,
                     11170685868919633368,
                 ],
                 "models/dwarf_attack.glb": [
@@ -7817,6 +7914,9 @@
                 "models/dwarf_sneak.glb": [
                     5063392885625302285,
                 ],
+                "models/kit_clips.glb": [
+                    4427178136836124499,
+                ],
             },
         ),
         "model:dwarf_f": (
@@ -7825,6 +7925,7 @@
                 879534278144563794,
                 1259843321120400338,
                 2019980339135381340,
+                7244810008224723777,
                 13146562197306336207,
             ],
             files: {
@@ -7859,6 +7960,7 @@
                     14878042099145158477,
                 ],
                 "models/dwarf_f.glb": [
+                    391930978659104553,
                     5919682010861945341,
                     9197187788498721585,
                 ],
@@ -7872,6 +7974,9 @@
                 ],
                 "models/dwarf_f_sneak.glb": [
                     10636156420146591970,
+                ],
+                "models/kit_clips.glb": [
+                    4427178136836124499,
                 ],
             },
         ),
@@ -8019,6 +8124,7 @@
                 3153153074798316974,
                 7038770363978577854,
                 8564049600907803733,
+                12003444349216734158,
                 17969997879250909923,
             ],
             files: {
@@ -8054,6 +8160,7 @@
                 ],
                 "models/elf.glb": [
                     6572195881102096583,
+                    10098373465509499773,
                     13998438066525336717,
                 ],
                 "models/elf_clips.glb": [
@@ -8063,10 +8170,14 @@
                 "models/elf_sneak.glb": [
                     7897985072998748102,
                 ],
+                "models/kit_clips.glb": [
+                    4427178136836124499,
+                ],
             },
         ),
         "model:elf_f": (
             defs: [
+                253358795578302147,
                 2427489227579561239,
                 4968899309258934057,
                 7090424797299848658,
@@ -8106,6 +8217,7 @@
                 ],
                 "models/elf_f.glb": [
                     6885911917218911819,
+                    11996413663157919905,
                     17645921973962922906,
                 ],
                 "models/elf_f_clips.glb": [
@@ -8114,6 +8226,9 @@
                 ],
                 "models/elf_f_sneak.glb": [
                     11741238491098824528,
+                ],
+                "models/kit_clips.glb": [
+                    4427178136836124499,
                 ],
             },
         ),
@@ -8599,6 +8714,32 @@
                 ],
             },
         ),
+        "model:halfling": (
+            defs: [
+                1164281307344258730,
+            ],
+            files: {
+                "models/halfling.glb": [
+                    1619548288020633313,
+                ],
+                "models/kit_clips.glb": [
+                    4427178136836124499,
+                ],
+            },
+        ),
+        "model:halfling_f": (
+            defs: [
+                9808851731669704562,
+            ],
+            files: {
+                "models/halfling_f.glb": [
+                    16041155975103294596,
+                ],
+                "models/kit_clips.glb": [
+                    4427178136836124499,
+                ],
+            },
+        ),
         "model:herbalist": (
             defs: [
                 7176304107521609136,
@@ -8648,6 +8789,7 @@
         "model:hero": (
             defs: [
                 1962567968425893326,
+                3977272544613741766,
                 4038184589586136626,
                 7565331601259662516,
                 12577727776325004684,
@@ -8686,6 +8828,7 @@
                     14878042099145158477,
                 ],
                 "models/hero.glb": [
+                    1693680511197471657,
                     6347797663469618997,
                     6549839687145438815,
                     7978321078589228095,
@@ -8696,6 +8839,9 @@
                 ],
                 "models/hero_sneak.glb": [
                     5238877261140995753,
+                ],
+                "models/kit_clips.glb": [
+                    4427178136836124499,
                 ],
             },
         ),
@@ -8747,6 +8893,7 @@
         "model:heroine": (
             defs: [
                 753055912309829408,
+                840076563560973879,
                 9699647637860816660,
                 13166304378384186249,
                 14076096469421110054,
@@ -8786,6 +8933,7 @@
                 "models/heroine.glb": [
                     861602036266101418,
                     14044516350426097749,
+                    15905441605439750615,
                 ],
                 "models/heroine_clips.glb": [
                     2694370036122420566,
@@ -8793,6 +8941,9 @@
                 ],
                 "models/heroine_sneak.glb": [
                     2013102464967046116,
+                ],
+                "models/kit_clips.glb": [
+                    4427178136836124499,
                 ],
             },
         ),
@@ -8839,6 +8990,666 @@
                 "models/innkeeper_clips.glb": [
                     12330740584774174989,
                     18330244698903665512,
+                ],
+            },
+        ),
+        "model:kit_beard_long_10": (
+            defs: [
+                2425369766706432063,
+            ],
+            files: {
+                "models/kit_beard_long_10.glb": [
+                    2926540955751891941,
+                ],
+            },
+        ),
+        "model:kit_beard_long_8": (
+            defs: [
+                15586468926884984745,
+            ],
+            files: {
+                "models/kit_beard_long_8.glb": [
+                    7500071555929402773,
+                ],
+            },
+        ),
+        "model:kit_beard_short_10": (
+            defs: [
+                1416059303367484177,
+            ],
+            files: {
+                "models/kit_beard_short_10.glb": [
+                    6246947459528685080,
+                ],
+            },
+        ),
+        "model:kit_beard_short_8": (
+            defs: [
+                10734680480036244911,
+            ],
+            files: {
+                "models/kit_beard_short_8.glb": [
+                    395450509606951246,
+                ],
+            },
+        ),
+        "model:kit_chain_mail_dwarf_f": (
+            defs: [
+                5877263754230066975,
+            ],
+            files: {
+                "models/kit_chain_mail_dwarf_f.glb": [
+                    11329375722408563515,
+                ],
+            },
+        ),
+        "model:kit_chain_mail_dwarf_m": (
+            defs: [
+                9744206840367434881,
+            ],
+            files: {
+                "models/kit_chain_mail_dwarf_m.glb": [
+                    389687843395305400,
+                ],
+            },
+        ),
+        "model:kit_chain_mail_large_f": (
+            defs: [
+                13155985919040320849,
+            ],
+            files: {
+                "models/kit_chain_mail_large_f.glb": [
+                    7811084338651980657,
+                ],
+            },
+        ),
+        "model:kit_chain_mail_large_m": (
+            defs: [
+                1469046861963519356,
+            ],
+            files: {
+                "models/kit_chain_mail_large_m.glb": [
+                    4307581235333587098,
+                ],
+            },
+        ),
+        "model:kit_chain_mail_medium_f": (
+            defs: [
+                9789659172434654298,
+            ],
+            files: {
+                "models/kit_chain_mail_medium_f.glb": [
+                    15661513725635288073,
+                ],
+            },
+        ),
+        "model:kit_chain_mail_medium_m": (
+            defs: [
+                12598725507390235771,
+            ],
+            files: {
+                "models/kit_chain_mail_medium_m.glb": [
+                    4753325613425337593,
+                ],
+            },
+        ),
+        "model:kit_chain_mail_small_f": (
+            defs: [
+                4903652606534202933,
+            ],
+            files: {
+                "models/kit_chain_mail_small_f.glb": [
+                    1479318985137938316,
+                ],
+            },
+        ),
+        "model:kit_chain_mail_small_m": (
+            defs: [
+                16660240356755283209,
+            ],
+            files: {
+                "models/kit_chain_mail_small_m.glb": [
+                    14336243667547876464,
+                ],
+            },
+        ),
+        "model:kit_cloak_dwarf_f": (
+            defs: [
+                17997918073782235323,
+            ],
+            files: {
+                "models/kit_cloak_dwarf_f.glb": [
+                    7632833755622572089,
+                ],
+            },
+        ),
+        "model:kit_cloak_dwarf_m": (
+            defs: [
+                11137734227635383103,
+            ],
+            files: {
+                "models/kit_cloak_dwarf_m.glb": [
+                    2920864467965549781,
+                ],
+            },
+        ),
+        "model:kit_cloak_large_f": (
+            defs: [
+                8924893035826608135,
+            ],
+            files: {
+                "models/kit_cloak_large_f.glb": [
+                    17868610775317745263,
+                ],
+            },
+        ),
+        "model:kit_cloak_large_m": (
+            defs: [
+                14993984740695604692,
+            ],
+            files: {
+                "models/kit_cloak_large_m.glb": [
+                    475086292110677232,
+                ],
+            },
+        ),
+        "model:kit_cloak_medium_f": (
+            defs: [
+                6036999795105825136,
+            ],
+            files: {
+                "models/kit_cloak_medium_f.glb": [
+                    1502229364294055631,
+                ],
+            },
+        ),
+        "model:kit_cloak_medium_m": (
+            defs: [
+                14737582370052628603,
+            ],
+            files: {
+                "models/kit_cloak_medium_m.glb": [
+                    18283938130193173586,
+                ],
+            },
+        ),
+        "model:kit_cloak_small_f": (
+            defs: [
+                11354335901354459811,
+            ],
+            files: {
+                "models/kit_cloak_small_f.glb": [
+                    17583099273660832466,
+                ],
+            },
+        ),
+        "model:kit_cloak_small_m": (
+            defs: [
+                10806597750137096705,
+            ],
+            files: {
+                "models/kit_cloak_small_m.glb": [
+                    11356184637944042385,
+                ],
+            },
+        ),
+        "model:kit_clothes_dwarf_f": (
+            defs: [
+                3931329591545819358,
+            ],
+            files: {
+                "models/kit_clothes_dwarf_f.glb": [
+                    17293296410059704280,
+                ],
+            },
+        ),
+        "model:kit_clothes_dwarf_m": (
+            defs: [
+                16316223636525506088,
+            ],
+            files: {
+                "models/kit_clothes_dwarf_m.glb": [
+                    1401256941566301034,
+                ],
+            },
+        ),
+        "model:kit_clothes_large_f": (
+            defs: [
+                2904603924660976782,
+            ],
+            files: {
+                "models/kit_clothes_large_f.glb": [
+                    3754007926340838923,
+                ],
+            },
+        ),
+        "model:kit_clothes_large_m": (
+            defs: [
+                1750974669611411499,
+            ],
+            files: {
+                "models/kit_clothes_large_m.glb": [
+                    11871971755279610121,
+                ],
+            },
+        ),
+        "model:kit_clothes_medium_f": (
+            defs: [
+                13579068693905754505,
+            ],
+            files: {
+                "models/kit_clothes_medium_f.glb": [
+                    9091540671698473663,
+                ],
+            },
+        ),
+        "model:kit_clothes_medium_m": (
+            defs: [
+                5796952389909124198,
+            ],
+            files: {
+                "models/kit_clothes_medium_m.glb": [
+                    4131913850072756571,
+                ],
+            },
+        ),
+        "model:kit_clothes_small_f": (
+            defs: [
+                13634092460622848166,
+            ],
+            files: {
+                "models/kit_clothes_small_f.glb": [
+                    11561535199747166887,
+                ],
+            },
+        ),
+        "model:kit_clothes_small_m": (
+            defs: [
+                4586282474681132742,
+            ],
+            files: {
+                "models/kit_clothes_small_m.glb": [
+                    9926205917975037355,
+                ],
+            },
+        ),
+        "model:kit_hair_bun_10": (
+            defs: [
+                8330057576779013235,
+            ],
+            files: {
+                "models/kit_hair_bun_10.glb": [
+                    464505422684333044,
+                ],
+            },
+        ),
+        "model:kit_hair_bun_8": (
+            defs: [
+                2171903917431271327,
+            ],
+            files: {
+                "models/kit_hair_bun_8.glb": [
+                    3014414008869590461,
+                ],
+            },
+        ),
+        "model:kit_hair_long_10": (
+            defs: [
+                17924592235763752901,
+            ],
+            files: {
+                "models/kit_hair_long_10.glb": [
+                    7072283771964234503,
+                ],
+            },
+        ),
+        "model:kit_hair_long_8": (
+            defs: [
+                5197471995809778921,
+            ],
+            files: {
+                "models/kit_hair_long_8.glb": [
+                    17398088274104411087,
+                ],
+            },
+        ),
+        "model:kit_hair_mohawk_10": (
+            defs: [
+                13586536916233582153,
+            ],
+            files: {
+                "models/kit_hair_mohawk_10.glb": [
+                    15707829049309693071,
+                ],
+            },
+        ),
+        "model:kit_hair_mohawk_8": (
+            defs: [
+                16484073704369852097,
+            ],
+            files: {
+                "models/kit_hair_mohawk_8.glb": [
+                    11470438533435871921,
+                ],
+            },
+        ),
+        "model:kit_hair_ponytail_10": (
+            defs: [
+                13924702413890545029,
+            ],
+            files: {
+                "models/kit_hair_ponytail_10.glb": [
+                    10609744087853892751,
+                ],
+            },
+        ),
+        "model:kit_hair_ponytail_8": (
+            defs: [
+                17738274858700309313,
+            ],
+            files: {
+                "models/kit_hair_ponytail_8.glb": [
+                    12175604064064198333,
+                ],
+            },
+        ),
+        "model:kit_hair_short_10": (
+            defs: [
+                2866997151062504099,
+            ],
+            files: {
+                "models/kit_hair_short_10.glb": [
+                    1955933793684276432,
+                ],
+            },
+        ),
+        "model:kit_hair_short_8": (
+            defs: [
+                3688733041385401731,
+            ],
+            files: {
+                "models/kit_hair_short_8.glb": [
+                    767597163692395026,
+                ],
+            },
+        ),
+        "model:kit_helmet_10": (
+            defs: [
+                9423536221669115467,
+            ],
+            files: {
+                "models/kit_helmet_10.glb": [
+                    7603555381359027461,
+                ],
+            },
+        ),
+        "model:kit_helmet_8": (
+            defs: [
+                14944931195499527451,
+            ],
+            files: {
+                "models/kit_helmet_8.glb": [
+                    11167426481436639434,
+                ],
+            },
+        ),
+        "model:kit_hood_10": (
+            defs: [
+                17097675813566945937,
+            ],
+            files: {
+                "models/kit_hood_10.glb": [
+                    2284622663849749769,
+                ],
+            },
+        ),
+        "model:kit_hood_8": (
+            defs: [
+                8202576502543263655,
+            ],
+            files: {
+                "models/kit_hood_8.glb": [
+                    2782888083173056010,
+                ],
+            },
+        ),
+        "model:kit_leather_armor_dwarf_f": (
+            defs: [
+                7978860315332639590,
+            ],
+            files: {
+                "models/kit_leather_armor_dwarf_f.glb": [
+                    10225527747107711292,
+                ],
+            },
+        ),
+        "model:kit_leather_armor_dwarf_m": (
+            defs: [
+                9744954551322225394,
+            ],
+            files: {
+                "models/kit_leather_armor_dwarf_m.glb": [
+                    2910274712363999170,
+                ],
+            },
+        ),
+        "model:kit_leather_armor_large_f": (
+            defs: [
+                3416324114491566756,
+            ],
+            files: {
+                "models/kit_leather_armor_large_f.glb": [
+                    12933442306134508847,
+                ],
+            },
+        ),
+        "model:kit_leather_armor_large_m": (
+            defs: [
+                15386551070298198523,
+            ],
+            files: {
+                "models/kit_leather_armor_large_m.glb": [
+                    3965347414319661336,
+                ],
+            },
+        ),
+        "model:kit_leather_armor_medium_f": (
+            defs: [
+                17383011108362769907,
+            ],
+            files: {
+                "models/kit_leather_armor_medium_f.glb": [
+                    457194765735045162,
+                ],
+            },
+        ),
+        "model:kit_leather_armor_medium_m": (
+            defs: [
+                1773022713319592082,
+            ],
+            files: {
+                "models/kit_leather_armor_medium_m.glb": [
+                    15668867002681152156,
+                ],
+            },
+        ),
+        "model:kit_leather_armor_small_f": (
+            defs: [
+                9620070559802373020,
+            ],
+            files: {
+                "models/kit_leather_armor_small_f.glb": [
+                    17452264632297306789,
+                ],
+            },
+        ),
+        "model:kit_leather_armor_small_m": (
+            defs: [
+                12507801301744006774,
+            ],
+            files: {
+                "models/kit_leather_armor_small_m.glb": [
+                    8798627012520823849,
+                ],
+            },
+        ),
+        "model:kit_plate_armor_dwarf_f": (
+            defs: [
+                1829330626128665510,
+            ],
+            files: {
+                "models/kit_plate_armor_dwarf_f.glb": [
+                    4868116706926368602,
+                ],
+            },
+        ),
+        "model:kit_plate_armor_dwarf_m": (
+            defs: [
+                13731884937354354298,
+            ],
+            files: {
+                "models/kit_plate_armor_dwarf_m.glb": [
+                    11470732414304951114,
+                ],
+            },
+        ),
+        "model:kit_plate_armor_large_f": (
+            defs: [
+                8951336747083757660,
+            ],
+            files: {
+                "models/kit_plate_armor_large_f.glb": [
+                    2645471311177775318,
+                ],
+            },
+        ),
+        "model:kit_plate_armor_large_m": (
+            defs: [
+                5523418010478772587,
+            ],
+            files: {
+                "models/kit_plate_armor_large_m.glb": [
+                    10603386115063683330,
+                ],
+            },
+        ),
+        "model:kit_plate_armor_medium_f": (
+            defs: [
+                14283526297479371711,
+            ],
+            files: {
+                "models/kit_plate_armor_medium_f.glb": [
+                    12461028280370907662,
+                ],
+            },
+        ),
+        "model:kit_plate_armor_medium_m": (
+            defs: [
+                2974808572451272702,
+            ],
+            files: {
+                "models/kit_plate_armor_medium_m.glb": [
+                    7336216279122594987,
+                ],
+            },
+        ),
+        "model:kit_plate_armor_small_f": (
+            defs: [
+                10704749770095841316,
+            ],
+            files: {
+                "models/kit_plate_armor_small_f.glb": [
+                    1854422087421624096,
+                ],
+            },
+        ),
+        "model:kit_plate_armor_small_m": (
+            defs: [
+                2551805109737361150,
+            ],
+            files: {
+                "models/kit_plate_armor_small_m.glb": [
+                    646562771983692949,
+                ],
+            },
+        ),
+        "model:kit_robe_dwarf_f": (
+            defs: [
+                13127679180487032715,
+            ],
+            files: {
+                "models/kit_robe_dwarf_f.glb": [
+                    8390375550285618691,
+                ],
+            },
+        ),
+        "model:kit_robe_dwarf_m": (
+            defs: [
+                721724929928574757,
+            ],
+            files: {
+                "models/kit_robe_dwarf_m.glb": [
+                    13068436399106763037,
+                ],
+            },
+        ),
+        "model:kit_robe_large_f": (
+            defs: [
+                11279009658102865773,
+            ],
+            files: {
+                "models/kit_robe_large_f.glb": [
+                    5454680549062418279,
+                ],
+            },
+        ),
+        "model:kit_robe_large_m": (
+            defs: [
+                321462510988643384,
+            ],
+            files: {
+                "models/kit_robe_large_m.glb": [
+                    2372911134138201182,
+                ],
+            },
+        ),
+        "model:kit_robe_medium_f": (
+            defs: [
+                3598448495609504418,
+            ],
+            files: {
+                "models/kit_robe_medium_f.glb": [
+                    14561243456773344511,
+                ],
+            },
+        ),
+        "model:kit_robe_medium_m": (
+            defs: [
+                13185657307870912863,
+            ],
+            files: {
+                "models/kit_robe_medium_m.glb": [
+                    11351747330460949755,
+                ],
+            },
+        ),
+        "model:kit_robe_small_f": (
+            defs: [
+                7138805938893437281,
+            ],
+            files: {
+                "models/kit_robe_small_f.glb": [
+                    690257004909605931,
+                ],
+            },
+        ),
+        "model:kit_robe_small_m": (
+            defs: [
+                4083965881227407589,
+            ],
+            files: {
+                "models/kit_robe_small_m.glb": [
+                    11229511878022791456,
                 ],
             },
         ),
@@ -9214,6 +10025,7 @@
             defs: [
                 7955045494834981007,
                 8223679273655009535,
+                10533117213217943130,
                 13374234658757463270,
                 13855367579357348309,
             ],
@@ -9248,8 +10060,12 @@
                 "models/anim_idle_bow.glb": [
                     14878042099145158477,
                 ],
+                "models/kit_clips.glb": [
+                    4427178136836124499,
+                ],
                 "models/orc.glb": [
                     5989790890612465775,
+                    7964658973413105345,
                 ],
                 "models/orc_clips.glb": [
                     3212693760188782627,
@@ -9311,6 +10127,7 @@
         ),
         "model:orc_f": (
             defs: [
+                1614606242127463519,
                 8054662933898501445,
                 9473985814702569456,
                 15149750469627559481,
@@ -9347,7 +10164,11 @@
                 "models/anim_idle_bow.glb": [
                     14878042099145158477,
                 ],
+                "models/kit_clips.glb": [
+                    4427178136836124499,
+                ],
                 "models/orc_f.glb": [
+                    6953199684872774700,
                     12604647201897477198,
                 ],
                 "models/orc_f_clips.glb": [
@@ -9615,6 +10436,32 @@
             files: {
                 "models/slime.glb": [
                     3537037851781626801,
+                ],
+            },
+        ),
+        "model:tiefling": (
+            defs: [
+                15598312647445721217,
+            ],
+            files: {
+                "models/kit_clips.glb": [
+                    4427178136836124499,
+                ],
+                "models/tiefling.glb": [
+                    4221110440098429080,
+                ],
+            },
+        ),
+        "model:tiefling_f": (
+            defs: [
+                15289130335847731054,
+            ],
+            files: {
+                "models/kit_clips.glb": [
+                    4427178136836124499,
+                ],
+                "models/tiefling_f.glb": [
+                    235880690495497781,
                 ],
             },
         ),
@@ -11686,6 +12533,7 @@
         "race:gnome": (
             defs: [
                 5691044385957392459,
+                8673313904549974538,
                 12234528070266340751,
             ],
         ),
@@ -11712,6 +12560,7 @@
         "race:halfling": (
             defs: [
                 10813399491503161713,
+                11456789475201687885,
                 12132369256207398822,
             ],
         ),
@@ -11757,6 +12606,7 @@
         "race:tiefling": (
             defs: [
                 5559140748472047204,
+                15046041161305785529,
             ],
         ),
         "race:troll": (

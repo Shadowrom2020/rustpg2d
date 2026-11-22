@@ -254,6 +254,42 @@ pub struct ModelInfoParams {
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ModelSheetParams {
+    /// The 3D model's id: a figure, or a piece (shown on the first figure it fits).
+    pub model: String,
+    /// Animations, a row each (default: idle, walk, attack).
+    pub anims: Option<Vec<String>>,
+    /// Facings in column order: down, left, right, up (default: all four).
+    pub facings: Option<Vec<String>>,
+    /// Moments of each animation per facing, 1-8 (default 4).
+    pub moments: Option<u32>,
+    /// Pieces to wear: slot -> a piece's id or style ("-" = none). Other slots keep the figure's own.
+    pub parts: Option<std::collections::BTreeMap<String, String>>,
+    /// Worn items (ids): those with a "Shown as" style change the figure.
+    pub worn: Option<Vec<String>>,
+    /// The weapon it holds (an item id).
+    pub weapon: Option<String>,
+    /// Its left-hand item (an item id).
+    pub offhand: Option<String>,
+    /// Colours per colour feature: name -> "RRGGBB".
+    pub colors: Option<std::collections::BTreeMap<String, String>>,
+    /// Enlargement, 1-4 (default 2).
+    pub zoom: Option<u32>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ModelCheckParams {
+    /// The 3D model's id.
+    pub model: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct KitBuildParams {
+    /// The kit models to build (their ids); none = the whole kit.
+    pub ids: Option<Vec<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct FitRigParams {
     /// The unrigged 3D model (an animal, a monster).
     pub model: String,
@@ -759,6 +795,15 @@ with_params {
     /// A 3D model: triangles, bones, hands, its clips with their length, which clip each animation plays, and its texture's colours (most used first, the shades for colour features: upsert_def model `features: [{name, shades, colors, default}]`; `default` = the colour a look without one gets).
     #[tool(annotations(read_only_hint = true))]
     model_info: ModelInfo(p: ModelInfoParams) => ed.mcp_model_info(p);
+    /// A picture of a 3D model as the game draws it: a contact sheet with a row per animation and the chosen moments of it per facing, with the pieces it wears, what worn items show, what it holds and its colours. Look at it after building or changing a model.
+    #[tool(annotations(read_only_hint = true))]
+    model_sheet: ModelSheet(p: ModelSheetParams) => ed.mcp_model_sheet(p);
+    /// Checks a 3D model before it is used: its vertices and triangles against what the engine draws in one piece, its colours and colour features, its bones, hands and animations, its finest detail against a pixel of the drawn figure, and for a piece the bones the figures it fits lack. Lines starting with "!" are problems.
+    #[tool(annotations(read_only_hint = true))]
+    model_check: ModelCheck(p: ModelCheckParams) => ed.mcp_model_check(p);
+    /// Builds models of the figure kit (the scripted voxel figures: bodies, outfits, hair, headwear; sources in scripts/art/kit of the R(ust)PG2D repository) and puts them into the project: the files under models/ and their definitions. Needs the kit's sources (the editor started in the repository, or RUSTPG2D_KIT) and python3 with numpy. Saves.
+    #[tool]
+    kit_build: KitBuild(p: KitBuildParams) => ed.mcp_kit_build(p);
     /// Animates an unrigged model (an animal, a monster: Meshy rigs only people) with a rig template: the template's skeleton is stretched over the model and its walk, idle, attack and hurt clips play. Also turns the model to face the front and moves single joints. Returns the fitted joints; check the result with a play test or the Models tab. Saves.
     #[tool]
     fit_rig: FitRig(p: FitRigParams) => ed.mcp_fit_rig(p);
@@ -909,7 +954,7 @@ with_params {
     /// Sends project assets (and everything they need) to the shared asset library; with replace, the library's versions of the same ids are updated.
     #[tool]
     library_send: LibrarySend(p: LibrarySendParams) => ed.mcp_library_send(p);
-    /// Writes an image (PNG) or sound (WAV / Ogg Vorbis) file into the project (sprites/, materials/, sounds/) and reloads the art; then point a definition at it with upsert_def.
+    /// Writes an image (PNG) or sound (WAV / Ogg Vorbis) file into the project (sprites/, materials/, sounds/), a 3D model or clip file (.glb, under models/) or a font, and reloads the art; then point a definition at it with upsert_def.
     #[tool]
     write_asset: WriteAsset(p: WriteAssetParams) => ed.mcp_write_asset(p), summary = format!("{} ({})", p.path, if p.base64.is_some() { "base64" } else { "copy" });
 }

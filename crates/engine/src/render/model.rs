@@ -54,6 +54,9 @@ pub struct Gear {
     /// In combat (`runtime/battle.rs`): the weapon's stance and a one-handed weapon in the hand;
     /// out of it the plain idle and walk, and a one-handed weapon hangs at the hip.
     pub ready: bool,
+    /// Worn items whose [`crate::defs::ItemDef::wear`] may show on the figure: clothing, body
+    /// armour, cloak, headgear, in that order (a later one takes a slot from an earlier one).
+    pub worn: Vec<String>,
 }
 
 impl Gear {
@@ -66,6 +69,7 @@ impl Gear {
             carrying: carrying.to_string(),
             back: eq.item(EquipSlot::Back).map(str::to_string),
             ready: false,
+            worn: [EquipSlot::Clothing, EquipSlot::Body, EquipSlot::Feet, EquipSlot::Hands, EquipSlot::Cloak, EquipSlot::Head].into_iter().filter_map(|s| eq.item(s)).map(str::to_string).collect(),
         }
     }
 
@@ -218,6 +222,8 @@ struct PoseKey {
     model: String,
     colors: u64,
     gear: u64,
+    /// The pieces shown ([`parts_of`]).
+    parts: u64,
     anim: String,
     frame: u32,
     facing: u8,
@@ -253,6 +259,50 @@ struct Loaded {
     /// Rig templates: the unfitted model, the template and the template's clip map (refitting
     /// when the fit is edited).
     fitted: Option<Box<Fitted>>,
+    /// A piece's joints as nodes of the bodies it was worn on (by body id; [`Model::bind_to`]).
+    binds: RefCell<HashMap<String, std::rc::Rc<Vec<Option<usize>>>>>,
+}
+
+/// The pieces the figure of `look` shows on body model `body`, as model ids in slot order: the
+/// body's own ([`ModelDef::parts`]), replaced per slot by the look's choices
+/// ([`Appearance::parts`]) and then by what it wears ([`Gear::worn`] items with a
+/// [`crate::defs::ItemDef::wear`] style); pieces hidden by another ([`crate::defs::ModelPart::hides`]) are left out.
+/// A piece is named by its model id or by its style (the body's own piece of that style).
+pub fn parts_of(db: &Database, body: &str, look: &Appearance, gear: &Gear) -> Vec<String> {
+    let Some(def) = db.model(body) else { return Vec::new() };
+    if def.parts.is_empty() && look.parts.is_empty() && gear.worn.is_empty() {
+        return Vec::new();
+    }
+    let fits = |m: &ModelDef| m.part.as_ref().is_some_and(|p| p.fits.is_empty() || p.fits.iter().any(|f| f == body));
+    let styled = |style: &str| db.models.iter().find(|m| m.part.as_ref().is_some_and(|p| !p.style.is_empty() && p.style == style) && fits(m));
+    let piece = |name: &str| -> Option<&ModelDef> {
+        match db.model(name).filter(|m| m.part.is_some()) {
+            Some(m) if fits(m) => Some(m),
+            // Another body's piece: this body's piece of the same style.
+            Some(m) => m.part.as_ref().filter(|p| !p.style.is_empty()).and_then(|p| styled(&p.style)),
+            None => styled(name),
+        }
+    };
+    let mut slots: std::collections::BTreeMap<&str, &ModelDef> = std::collections::BTreeMap::new();
+    for name in &def.parts {
+        if let Some(m) = piece(name) {
+            slots.insert(m.part.as_ref().map_or("", |p| p.slot.as_str()), m);
+        }
+    }
+    for (slot, name) in &look.parts {
+        if name.is_empty() || name == crate::defs::NO_PART {
+            slots.remove(slot.as_str());
+        } else if let Some(m) = piece(name) {
+            slots.insert(m.part.as_ref().map_or("", |p| p.slot.as_str()), m);
+        }
+    }
+    for item in &gear.worn {
+        if let Some(m) = db.item(item).filter(|i| !i.wear.is_empty()).and_then(|i| piece(&i.wear)) {
+            slots.insert(m.part.as_ref().map_or("", |p| p.slot.as_str()), m);
+        }
+    }
+    let hidden: Vec<&str> = slots.values().flat_map(|m| m.part.iter().flat_map(|p| p.hides.iter().map(String::as_str))).collect();
+    slots.iter().filter(|(slot, _)| !hidden.contains(slot)).map(|(_, m)| m.id.clone()).collect()
 }
 
 /// The upper back of a model: the spine bone nearest the shoulders and, in its own space, the
@@ -395,6 +445,8 @@ pub struct Models {
     items: HashMap<String, ItemMesh>,
     cache: RefCell<Cache>,
     pub errors: Vec<String>,
+    /// Models that loaded but won't draw whole (more vertices than one draw takes).
+    pub warnings: Vec<String>,
 }
 
 const VERTEX: &str = r#"#version 100
@@ -457,6 +509,10 @@ impl Models {
         for def in &db.models {
             match load_one(def, db, read) {
                 Ok(l) => {
+                    if let Some(w) = oversize(&def.id, &l.model) {
+                        eprintln!("[models] {w}");
+                        m.warnings.push(w);
+                    }
                     m.loaded.insert(def.id.clone(), l);
                 }
                 Err(e) => {
@@ -643,13 +699,133 @@ impl Models {
         Some(out)
     }
 
+    /// A contact sheet of `look` as the game draws it: a row per animation, `moments` moments of
+    /// it per facing, on `ground` (image pixels, [`PX`] per world pixel; cells of `cell` pixels
+    /// with the feet at the same place in each). Rendered now, whatever the frame's budget.
+    #[allow(clippy::too_many_arguments)]
+    pub fn sheet(&self, db: &Database, sheets: &HashMap<String, super::SheetTex>, look: &Appearance, gear: &Gear, anims: &[String], facings: &[Facing], moments: usize, ground: Color) -> Option<(Image, (u32, u32))> {
+        let look = self.look_of(look);
+        let (fw, fh) = self.loaded.get(&look.model)?.frame;
+        // Room for swings and for what the figure holds.
+        let (cw, ch) = (fw * 2, fh * 3 / 2);
+        let (cols, rows) = ((facings.len() * moments).max(1) as u32, anims.len().max(1) as u32);
+        if cols * cw > 8192 || rows * ch > 8192 {
+            return None;
+        }
+        let mut out = Image::gen_image_color((cols * cw) as u16, (rows * ch) as u16, ground);
+        for (r, anim) in anims.iter().enumerate() {
+            for (fi, facing) in facings.iter().enumerate() {
+                for m in 0..moments {
+                    let req = PoseReq { look: &look, gear, anim, time: (m as f32 + 0.5) / moments as f32, once: true, facing: *facing, turn: 0, bust: false };
+                    let Some(cell) = self.pose_with(db, sheets, &req, false) else { continue };
+                    // (Read at once: a later pose may reuse the page.)
+                    let c = self.cache.borrow();
+                    let Some(page) = c.pages.get(cell.page) else { continue };
+                    let all = page.rt.texture.get_texture_data();
+                    let feet = ivec2(((fi * moments + m) as u32 * cw + cw / 2) as i32, (r as u32 * ch + ch - 8) as i32);
+                    let top_left = feet - ivec2(cell.feet.x as i32, cell.feet.y as i32);
+                    for y in 0..cell.rect.h as i32 {
+                        for x in 0..cell.rect.w as i32 {
+                            let (ox, oy) = (top_left.x + x, top_left.y + y);
+                            let px = all.get_pixel(cell.rect.x as u32 + x as u32, cell.rect.y as u32 + y as u32);
+                            if px.a > 0.5 && ox >= 0 && oy >= 0 && (ox as u32) < cols * cw && (oy as u32) < rows * ch {
+                                out.set_pixel(ox as u32, oy as u32, px);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Some((out, (cw, ch)))
+    }
+
+    /// What to know before using model `id`: its size against what one draw takes, its colours and
+    /// colour features, its bones and animations, and for a piece the bones the figures it fits
+    /// lack. Lines starting with `!` are problems. None = the model isn't loaded.
+    pub fn check(&self, db: &Database, id: &str) -> Option<Vec<String>> {
+        let l = self.loaded.get(id)?;
+        let m = &l.model;
+        let mut out = Vec::new();
+        let (v, t) = (m.vertices.len(), m.indices.len() / 3);
+        out.push(format!("{}{v} vertices, {t} triangles (one draw takes {DRAW_VERTICES} vertices and {} triangles{})", if oversize(id, m).is_some() { "! " } else { "" }, DRAW_INDICES / 3, if oversize(id, m).is_some() { ": parts of it will be missing" } else { "" }));
+        let colors: std::collections::HashSet<[u8; 3]> = l.texture.as_ref().map_or_else(Default::default, |t| t.bytes.as_chunks::<4>().0.iter().filter(|p| p[3] > 0).map(|p| [p[0], p[1], p[2]]).collect());
+        out.push(match colors.len() {
+            0 => "! no texture and no coloured materials".to_string(),
+            n if n > 64 => format!("! {n} colours in its texture: colour features match exact colours, reduce it to a small palette (32 or fewer)"),
+            n => format!("{n} colours"),
+        });
+        for f in &l.def.features {
+            for s in f.shades.iter().filter(|s| !colors.contains(*s)) {
+                out.push(format!("! colour feature {}: its shade #{:02x}{:02x}{:02x} is no colour of the model", f.name, s[0], s[1], s[2]));
+            }
+        }
+        // The size of one pixel of the drawn figure in the model's units, and the model's finest
+        // detail against it (the shortest edge of a triangle).
+        let figure = match &l.def.part {
+            Some(p) => p.fits.iter().find_map(|b| self.loaded.get(b)),
+            None => Some(l),
+        };
+        let edge = m.indices.as_chunks::<3>().0.iter().flat_map(|t| [(t[0], t[1]), (t[1], t[2]), (t[2], t[0])]).map(|(a, b)| (m.vertices[a as usize].pos - m.vertices[b as usize].pos).length()).filter(|d| *d > 1e-6).fold(f32::MAX, f32::min);
+        if let Some(f) = figure.filter(|_| edge < f32::MAX) {
+            let px = edge * f.ppu;
+            out.push(format!("its finest detail is {px:.2} pixels of the drawn figure{}", if px < 0.75 { " (finer than a pixel: it won't show)" } else { "" }));
+        }
+        match &l.def.part {
+            Some(p) => {
+                out.push(format!("a piece: slot \"{}\"{}, {}", p.slot, if p.style.is_empty() { String::new() } else { format!(", style \"{}\"", p.style) }, if p.fits.is_empty() { "fits every figure".to_string() } else { format!("fits {}", p.fits.join(", ")) }));
+                if p.slot.is_empty() {
+                    out.push("! it has no slot: it never shows".to_string());
+                }
+                for b in &p.fits {
+                    match self.loaded.get(b) {
+                        None => out.push(format!("! it fits {b}, which isn't a loaded model")),
+                        Some(body) => {
+                            let bind = m.bind_to(&body.model);
+                            let used: std::collections::HashSet<usize> = m.vertices.iter().flat_map(|v| (0..4).filter(|k| v.weights[*k] > 0.0).map(|k| v.joints[k] as usize)).collect();
+                            let missing: Vec<&str> = bind.iter().enumerate().filter(|(k, b)| b.is_none() && used.contains(k)).filter_map(|(k, _)| m.joints.get(k).and_then(|j| m.nodes.get(*j)).map(|n| n.name.as_str())).collect();
+                            if !missing.is_empty() {
+                                out.push(format!("! on {b} the bones {} are missing: what hangs on them stays in place", missing.join(", ")));
+                            }
+                        }
+                    }
+                }
+            }
+            None => {
+                out.push(format!("a figure {} px tall ({:.3} of its own units), {} bones, hands: {}", l.def.height, l.height, m.joints.len(), match (l.hands[0].is_some(), l.hands[1].is_some()) {
+                    (true, true) => "both",
+                    (true, false) => "right only",
+                    (false, true) => "left only",
+                    _ => "none (it can't hold items)",
+                }));
+                // (Work animations, sitting and weapon stances are extras; these four every figure plays.)
+                for anim in ["walk", "idle", "attack", "hurt"] {
+                    match l.def.clip_of(anim) {
+                        None => out.push(format!("! no clip for the animation {anim}")),
+                        Some(c) if m.clip(&c.clip).is_none() => out.push(format!("! the animation {anim} plays the clip {}, which its files don't have", c.clip)),
+                        _ => {}
+                    }
+                }
+                for p in &l.def.parts {
+                    match db.model(p).and_then(|d| d.part.as_ref()) {
+                        None => out.push(format!("! it wears {p}, which is no piece")),
+                        Some(part) if !(part.fits.is_empty() || part.fits.iter().any(|f| f == id)) => out.push(format!("! it wears {p}, which doesn't list it under the figures it fits")),
+                        _ => {}
+                    }
+                }
+            }
+        }
+        Some(out)
+    }
+
     /// [`Self::pose`], within the frame's render budget or (`budget` false) rendering now.
     fn pose_with(&self, db: &Database, sheets: &HashMap<String, super::SheetTex>, req: &PoseReq, budget: bool) -> Option<Cell> {
         let l = self.loaded.get(&req.look.model)?;
         // Busts use the rest pose: the head straight, facing the front.
         let (clip_name, frame, time) = if req.bust { (None, 0, 0.0) } else { clip_frame(l, req) };
         let anim = if req.bust { "@bust" } else { req.anim };
-        let key = PoseKey { model: req.look.model.clone(), colors: hash(&req.look.colors), gear: hash(req.gear), anim: anim.to_string(), frame, facing: req.facing as u8, turn: if req.bust { 0 } else { req.turn } };
+        let part_ids = parts_of(db, &req.look.model, req.look, req.gear);
+        let parts: Vec<&Loaded> = part_ids.iter().filter_map(|id| self.loaded.get(id)).collect();
+        let key = PoseKey { model: req.look.model.clone(), colors: hash(&req.look.colors), gear: hash(req.gear), parts: hash(&part_ids), anim: anim.to_string(), frame, facing: req.facing as u8, turn: if req.bust { 0 } else { req.turn } };
         let mut c = self.cache.borrow_mut();
         if let Some(cell) = c.poses.get(&key).cloned() {
             c.touch(&cell);
@@ -665,7 +841,7 @@ impl Models {
         }
         c.renders += 1;
         c.renders_total += 1;
-        let cell = render(&mut c, l, &self.items, db, sheets, req, clip_name.as_deref(), time);
+        let cell = render(&mut c, l, &parts, &self.items, db, sheets, req, clip_name.as_deref(), time);
         c.poses.insert(key, cell.clone());
         Some(cell)
     }
@@ -798,13 +974,14 @@ impl Models {
                 Ok(m) => l.model = m,
                 Err(_) => return false,
             }
-            let (lo, hi) = l.model.bounds();
-            l.height = (hi.y - lo.y).max(1e-3);
         }
+        l.height = standing(def, &l.model);
         (l.frame, l.ppu, l.target_y) = layout(def, l.height);
+        // A piece shows on other models' poses, and a body's own pieces are part of its poses.
+        let pieces = def.part.is_some() || l.def.part != def.part || l.def.parts != def.parts;
         l.def = effective(def, l.fitted.as_deref());
         l.textures.borrow_mut().clear();
-        self.cache.borrow_mut().poses.retain(|k, _| k.model != def.id);
+        self.cache.borrow_mut().poses.retain(|k, _| !pieces && k.model != def.id);
         true
     }
 
@@ -924,6 +1101,14 @@ fn hash<T: Hash>(v: &T) -> u64 {
     h.finish()
 }
 
+/// What is wrong with a model too large for one draw (None = it fits): the rest of its
+/// triangles would silently be left out.
+pub fn oversize(id: &str, model: &Model) -> Option<String> {
+    (model.vertices.len() > DRAW_VERTICES || model.indices.len() > DRAW_INDICES).then(|| {
+        format!("model {id}: {} vertices and {} triangles, more than the {DRAW_VERTICES} vertices / {} triangles drawn in one piece: parts of it will be missing", model.vertices.len(), model.indices.len() / 3, DRAW_INDICES / 3)
+    })
+}
+
 fn load_one(def: &ModelDef, db: &Database, read: &dyn Fn(&str) -> std::io::Result<Vec<u8>>) -> anyhow::Result<Loaded> {
     use anyhow::Context;
     let load = |def: &ModelDef| -> anyhow::Result<Model> {
@@ -968,11 +1153,20 @@ fn load_one(def: &ModelDef, db: &Database, read: &dyn Fn(&str) -> std::io::Resul
     let hands = [hand("right"), hand("left")];
     let back = back_bone(&model, &rest);
     let hip = hip_bone(&model, &rest);
-    let (lo, hi) = model.bounds();
-    let height = (hi.y - lo.y).max(1e-3);
+    let height = standing(def, &model);
     let (frame, ppu, target_y) = layout(def, height);
     let texture = model.texture.clone();
-    Ok(Loaded { def: effective(def, fitted.as_deref()), model, texture, align, hands, back, hip, frame, height, ppu, target_y, textures: RefCell::new(HashMap::new()), fitted })
+    Ok(Loaded { def: effective(def, fitted.as_deref()), model, texture, align, hands, back, hip, frame, height, ppu, target_y, textures: RefCell::new(HashMap::new()), fitted, binds: RefCell::new(HashMap::new()) })
+}
+
+/// The standing figure's height in model units: [`ModelDef::stand`] when the file is only a
+/// piece of it, else the mesh's own.
+fn standing(def: &ModelDef, model: &Model) -> f32 {
+    if def.stand > 0.0 {
+        return def.stand;
+    }
+    let (lo, hi) = model.bounds();
+    (hi.y - lo.y).max(1e-3)
 }
 
 /// A model's frame (image pixels), pixels per model unit and camera target height: the standing
@@ -1106,18 +1300,22 @@ fn alloc(c: &mut Cache, w: u32, h: u32) -> (usize, Rect) {
 
 /// The colour features of `def` that `look` recolours, with their colours: the look's own
 /// colour, else the feature's default.
-fn feature_colors<'a>(def: &'a ModelDef, look: &Appearance) -> Vec<(&'a [[u8; 3]], [u8; 3])> {
-    def.features.iter().filter_map(|f| look.colors.get(&f.name).or(f.default.as_ref()).map(|c| (f.shades.as_slice(), *c))).collect()
+/// A piece worn on `body` takes the body's default for a feature of the same name before its
+/// own (an orc's green skin on the hands of its clothes).
+fn feature_colors<'a>(def: &'a ModelDef, look: &Appearance, body: Option<&ModelDef>) -> Vec<(&'a [[u8; 3]], [u8; 3])> {
+    let of_body = |name: &str| body.and_then(|b| b.features.iter().find(|f| f.name == name)).and_then(|f| f.default);
+    def.features.iter().filter_map(|f| look.colors.get(&f.name).copied().or_else(|| of_body(&f.name)).or(f.default).map(|c| (f.shades.as_slice(), c))).collect()
 }
 
 /// The texture of `l` in the colours of `look` (its colour features recoloured).
-fn texture_for(l: &Loaded, look: &Appearance) -> Option<Texture2D> {
-    let key = hash(&look.colors);
+/// `body`: the model a piece is worn on.
+fn texture_for(l: &Loaded, look: &Appearance, body: Option<&ModelDef>) -> Option<Texture2D> {
+    let key = hash(&(&look.colors, body.map(|b| &b.id)));
     if let Some(t) = l.textures.borrow().get(&key) {
         return Some(t.clone());
     }
     let mut img = l.texture.clone()?;
-    let features = feature_colors(&l.def, look);
+    let features = feature_colors(&l.def, look, body);
     if !features.is_empty() {
         super::recolor::recolor(&mut img.bytes, &features);
     }
@@ -1129,7 +1327,7 @@ fn texture_for(l: &Loaded, look: &Appearance) -> Option<Texture2D> {
 
 /// Renders one pose into the atlas.
 #[allow(clippy::too_many_arguments)]
-fn render(c: &mut Cache, l: &Loaded, items: &HashMap<String, ItemMesh>, db: &Database, sheets: &HashMap<String, super::SheetTex>, req: &PoseReq, clip: Option<&str>, time: f32) -> Cell {
+fn render(c: &mut Cache, l: &Loaded, parts: &[&Loaded], items: &HashMap<String, ItemMesh>, db: &Database, sheets: &HashMap<String, super::SheetTex>, req: &PoseReq, clip: Option<&str>, time: f32) -> Cell {
     let (w, h) = if req.bust { (BUST, BUST) } else { l.frame };
     let clip_ref = clip.and_then(|n| l.model.clip(n));
     let world = l.model.pose(clip_ref, time);
@@ -1144,6 +1342,23 @@ fn render(c: &mut Cache, l: &Loaded, items: &HashMap<String, ItemMesh>, db: &Dat
         .map(|((p, n), v)| {
             let n = turn.transform_vector3(*n);
             Vertex { position: turn.transform_point3(*p), uv: v.uv, color: [255; 4], normal: vec4(n.x, n.y, n.z, 0.0) }
+        })
+        .collect();
+    // The pieces it wears, in the body's pose.
+    let pieces: Vec<Mesh> = parts
+        .iter()
+        .map(|p| {
+            let bind = p.binds.borrow_mut().entry(l.def.id.clone()).or_insert_with(|| std::rc::Rc::new(p.model.bind_to(&l.model))).clone();
+            p.model.skin_on(&world, &bind, &mut skinned);
+            let vertices = skinned
+                .iter()
+                .zip(&p.model.vertices)
+                .map(|((q, n), v)| {
+                    let n = turn.transform_vector3(*n);
+                    Vertex { position: turn.transform_point3(*q), uv: v.uv, color: [255; 4], normal: vec4(n.x, n.y, n.z, 0.0) }
+                })
+                .collect();
+            Mesh { vertices, indices: p.model.indices.clone(), texture: texture_for(p, req.look, Some(&l.def)) }
         })
         .collect();
     let e = ELEVATION.to_radians();
@@ -1298,7 +1513,7 @@ fn render(c: &mut Cache, l: &Loaded, items: &HashMap<String, ItemMesh>, db: &Dat
         (0, 0, 0, 0)
     } else {
         let (mut lo, mut hi) = (vec2(0.0, 0.0), vec2(w as f32, h as f32));
-        let points = vertices.iter().map(|v| v.position).chain(held.iter().flat_map(|(m, ..)| m.vertices.iter().map(|v| v.position)));
+        let points = vertices.iter().map(|v| v.position).chain(pieces.iter().flat_map(|m| m.vertices.iter().map(|v| v.position))).chain(held.iter().flat_map(|(m, ..)| m.vertices.iter().map(|v| v.position)));
         for p in points {
             let s = to_px0(p);
             (lo, hi) = (lo.min(s), hi.max(s));
@@ -1329,7 +1544,10 @@ fn render(c: &mut Cache, l: &Loaded, items: &HashMap<String, ItemMesh>, db: &Dat
     let light = vec3(-0.45, 0.75, 0.55).normalize();
     mat.set_uniform("LightDir", light);
     mat.set_uniform("Shade", 1.0f32);
-    draw_mesh(&Mesh { vertices, indices: l.model.indices.clone(), texture: texture_for(l, req.look) });
+    draw_mesh(&Mesh { vertices, indices: l.model.indices.clone(), texture: texture_for(l, req.look, None) });
+    for m in &pieces {
+        draw_mesh(m);
+    }
     let mut tips = Vec::new();
     for (mesh, shaded, id, tip) in &held {
         mat.set_uniform("Shade", if *shaded { 1.0f32 } else { 0.0 });
@@ -1455,16 +1673,70 @@ mod tests {
         let def = ModelDef { features: vec![skin, hair], ..ModelDef::new("m", "models/m.glb") };
         // No colours chosen: the skin takes its default, the hair stays as drawn.
         let none = Appearance::default();
-        assert_eq!(feature_colors(&def, &none), vec![(&[[195u8, 152, 90]][..], [194, 152, 120])]);
+        assert_eq!(feature_colors(&def, &none, None), vec![(&[[195u8, 152, 90]][..], [194, 152, 120])]);
         // A chosen colour wins over the default.
         let mut look = Appearance::default();
         look.colors.insert("skin".into(), [90, 58, 36]);
         look.colors.insert("hair".into(), [30, 22, 18]);
-        assert_eq!(feature_colors(&def, &look), vec![(&[[195u8, 152, 90]][..], [90, 58, 36]), (&[[249u8, 187, 47]][..], [30, 22, 18])]);
+        assert_eq!(feature_colors(&def, &look, None), vec![(&[[195u8, 152, 90]][..], [90, 58, 36]), (&[[249u8, 187, 47]][..], [30, 22, 18])]);
         // Files without the field load (None), and None isn't written.
         let f: ColorFeature = ron::from_str(r#"(name: "skin", shades: [(1, 2, 3)])"#).unwrap();
         assert_eq!(f.default, None);
         assert!(!ron::to_string(&f).unwrap().contains("default"));
+    }
+
+    fn piece(id: &str, slot: &str, style: &str, fits: &[&str], hides: &[&str]) -> ModelDef {
+        let part = crate::defs::ModelPart { slot: slot.into(), style: style.into(), fits: fits.iter().map(|s| s.to_string()).collect(), hides: hides.iter().map(|s| s.to_string()).collect(), offer: false };
+        ModelDef { part: Some(part), ..ModelDef::new(id, &format!("models/{id}.glb")) }
+    }
+
+    #[test]
+    fn a_figure_wears_its_bodys_pieces_then_its_choices_then_its_equipment() {
+        let mut db = Database::default();
+        db.models.push(ModelDef { parts: vec!["clothes_m".into(), "hair_short".into()], ..ModelDef::new("hero", "models/hero.glb") });
+        db.models.push(ModelDef { parts: vec!["clothes_d".into()], ..ModelDef::new("dwarf", "models/dwarf.glb") });
+        db.models.push(piece("clothes_m", "outfit", "clothes", &["hero"], &[]));
+        db.models.push(piece("clothes_d", "outfit", "clothes", &["dwarf"], &[]));
+        db.models.push(piece("plate_m", "outfit", "plate_armor", &["hero"], &[]));
+        db.models.push(piece("plate_d", "outfit", "plate_armor", &["dwarf"], &[]));
+        db.models.push(piece("hair_short", "hair", "hair_short", &["hero", "dwarf"], &[]));
+        db.models.push(piece("hair_long", "hair", "hair_long", &["hero", "dwarf"], &[]));
+        db.models.push(piece("helmet", "headwear", "helmet", &["hero", "dwarf"], &["hair"]));
+        db.items.push(crate::defs::ItemDef { wear: "plate_armor".into(), ..crate::defs::ItemDef::fresh("plate") });
+        db.items.push(crate::defs::ItemDef { wear: "helmet".into(), ..crate::defs::ItemDef::fresh("helm") });
+        db.reindex();
+        let (plain, none) = (Appearance { model: "hero".into(), ..Default::default() }, Gear::default());
+        assert_eq!(parts_of(&db, "hero", &plain, &none), ["hair_short", "clothes_m"]);
+        // A look's choice by style or by id replaces the body's piece; "-" takes it off.
+        let mut look = plain.clone();
+        look.parts.insert("hair".into(), "hair_long".into());
+        assert_eq!(parts_of(&db, "hero", &look, &none), ["hair_long", "clothes_m"]);
+        look.parts.insert("hair".into(), crate::defs::NO_PART.into());
+        assert_eq!(parts_of(&db, "hero", &look, &none), ["clothes_m"]);
+        // Worn armour shows as the body's own piece of the item's style; a helmet hides the hair.
+        let armoured = Gear { worn: vec!["plate".into()], ..Default::default() };
+        assert_eq!(parts_of(&db, "hero", &plain, &armoured), ["hair_short", "plate_m"]);
+        assert_eq!(parts_of(&db, "dwarf", &Appearance { model: "dwarf".into(), ..Default::default() }, &armoured), ["plate_d"]);
+        let helmed = Gear { worn: vec!["plate".into(), "helm".into()], ..Default::default() };
+        assert_eq!(parts_of(&db, "hero", &plain, &helmed), ["helmet", "plate_m"]);
+        // Another body's piece named by id: this body's piece of that style.
+        let mut borrowed = Appearance { model: "dwarf".into(), ..Default::default() };
+        borrowed.parts.insert("outfit".into(), "plate_m".into());
+        assert_eq!(parts_of(&db, "dwarf", &borrowed, &none), ["plate_d"]);
+        // A model without pieces and nothing worn: nothing to look up.
+        assert!(parts_of(&db, "helmet", &plain, &none).is_empty());
+    }
+
+    #[test]
+    fn a_piece_takes_the_bodys_default_colour_before_its_own() {
+        let skin = |default| crate::defs::ColorFeature { name: "skin".into(), shades: vec![[224, 172, 132]], colors: vec![], default };
+        let orc = ModelDef { features: vec![skin(Some([125, 154, 98]))], ..ModelDef::new("orc", "models/orc.glb") };
+        let clothes = ModelDef { features: vec![skin(None)], ..ModelDef::new("clothes", "models/clothes.glb") };
+        let mut look = Appearance::default();
+        assert!(feature_colors(&clothes, &look, None).is_empty());
+        assert_eq!(feature_colors(&clothes, &look, Some(&orc)), vec![(&[[224u8, 172, 132]][..], [125, 154, 98])]);
+        look.colors.insert("skin".into(), [90, 58, 36]);
+        assert_eq!(feature_colors(&clothes, &look, Some(&orc)), vec![(&[[224u8, 172, 132]][..], [90, 58, 36])]);
     }
 
     #[test]

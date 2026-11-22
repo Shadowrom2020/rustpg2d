@@ -440,6 +440,20 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         "modelcompact" => println!("[script] {}", ed.compact_models()),
         // itemmodel ITEM FILE: the item's 3D model (where it is held estimated).
         "itemmodel" => ed.handle_file(files::Purpose::ItemModel(arg(1).into()), arg(2).into()),
+        // itemwear ITEM STYLE|-: the piece style a figure shows while it wears the item (the item
+        // form's "Shown as").
+        "itemwear" => match ed.project.db.items.iter_mut().find(|d| d.id == arg(1)) {
+            Some(d) => {
+                d.wear = if arg(2) == "-" { String::new() } else { arg(2).to_string() };
+                ed.defs_dirty = true;
+            }
+            None => println!("[script] itemwear: no item '{}'", arg(1)),
+        },
+        // modelfilter all|figures|pieces: the 3D models list's filter.
+        "modelfilter" => match ["all", "figures", "pieces"].iter().position(|f| *f == arg(1)) {
+            Some(k) => ed.db.model_filter = k as u8,
+            None => println!("[script] modelfilter: all, figures or pieces"),
+        },
         // itemicon ITEM: its inventory icon rendered from its 3D model.
         "itemicon" => {
             let m = ed.render_item_icon(arg(1));

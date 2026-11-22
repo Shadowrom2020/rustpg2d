@@ -100,6 +100,22 @@ a baker's hat, a short beard and pale clothing. Together 141 files in 14 MB that
 animations. Their sources are scripts in the R(ust)PG2D repository (`scripts/art/kit`, with a
 style guide), not generated art: a new outfit, hat or townsperson is a change there and a rebuild.
 
+**Creatures.** The library's animals and monsters come from the same kit:
+
+- **Sculpted creatures** (58 files): farm animals, wolves, bears, big cats, horses, deer,
+  elephants, crocodiles, dragons, griffons, spiders, scorpions, snakes, worms, sharks, bats, birds,
+  slimes, ghosts, elementals, walking trees, mimics and more. They are unrigged models animated by
+  the rig templates (see *How characters look* above).
+- **Creature models** (187) name one of these files, a height and the colour of its one colour
+  feature (*fur*, *skin*, *feathers*, *body*): a polar bear is the bear in white, the ten kinds of
+  dragon are one file in ten colours.
+- **People-shaped monsters** (80) are figures like the cast: giants, golems, devils, angels,
+  undead. Winged ones wear *wings* as their cloak piece (the feature *wings* colours them).
+- **Size:** a monster's *Size* (its SRD size class: 50 for Tiny up to 300 for Gargantuan) scales
+  its model, so the model's height is the height at size 100. A character of your own that uses
+  the horse's model wants *Size* 150 like the library's horses.
+- Some monsters stand in for others of a similar shape (a hydra uses the wingless dragon).
+
 ### Weapon animations
 
 What a character does with its hands depends on what it holds: a spear thrusts, a bow is drawn, a

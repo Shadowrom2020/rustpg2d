@@ -338,6 +338,10 @@ mod tests {
         for (file, facts) in manifest["files"].as_object().unwrap() {
             for root in [crate::repo_mode::STARTER, "example_project"] {
                 let path = repo.join(root).join(file);
+                // (The example carries only the creatures its characters use: apply.py --used-creatures.)
+                if root == "example_project" && facts["creature"].as_bool() == Some(true) && !path.exists() {
+                    continue;
+                }
                 let got = std::fs::read(&path).unwrap_or_else(|e| panic!("{}: {e} (apply the kit: scripts/art/kit/apply.py)", path.display()));
                 assert_eq!(hex(&got), facts["sha256"].as_str().unwrap(), "{} isn't what the kit builds: run build.py and apply.py", path.display());
             }

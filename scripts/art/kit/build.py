@@ -19,7 +19,7 @@ import gear  # noqa: E402
 import kit  # noqa: E402
 from kitlib import RIG  # noqa: E402
 
-SOURCES = ["kitlib.py", "figure.py", "kit.py", "gear.py", "build.py", "rig/human.glb"]
+SOURCES = ["kitlib.py", "figure.py", "kit.py", "gear.py", "creatures.py", "build.py", "rig/human.glb"]
 
 
 def sha(path):
@@ -40,23 +40,38 @@ def build(out, only=None):
     for mid, make, d in models:
         if only and mid not in only:
             continue
-        d = dict(d, file=f"models/{d.pop('_file', mid)}.glb")
+        base = d.pop("_file", mid)
+        d = dict(d, file=f"models/{base}.glb")
         head = d.pop("_head", None)
+        beast = d.pop("_creature", None)
         if make:
-            path = f"{out}/models/{mid}.glb"
+            # (A creature's file is named after its sculpt, which the first model that uses it builds.)
+            path = f"{out}/models/{base}.glb"
             st = make().export(path)
             used = st["colors"]
-            files[f"models/{mid}.glb"] = dict(sha256=sha(path), vertices=st["vertices"], triangles=st["triangles"], colors=len(used))
-        else:
+            files[f"models/{base}.glb"] = dict(sha256=sha(path), vertices=st["vertices"], triangles=st["triangles"], colors=len(used), **({"creature": True} if beast else {}))
+        elif head:
             # A figure of the cast: it reuses a head's file, so that head's colours are its own.
             b, female, race = head
             used = ["#%02x%02x%02x" % c for c in fig(b, female).body(**race).prims]
+        if beast:
+            # A creature: its sculpt's rig fit, its size, and its colour as the feature's default.
+            file, size, colors = beast
+            _, fit, px, feat = kit.sculpt(file)
+            d.update(height=round(px * size * 2) / 2, rig=fit, features=[], clips=[dict(anim=a, clip=a.capitalize(), fps=8.0 if a == "idle" else 12.0) for a in ("walk", "idle", "attack", "hurt")])
+            if feat:
+                f = {"name": feat[0], "shades": [list(kit.F.rgb(c)) for c in dict.fromkeys(feat[1])]}
+                if colors.get(feat[0]):
+                    f["default"] = list(kit.F.rgb(colors[feat[0]]))
+                d["features"] = [f]
+            defs.append(d)
+            continue
         feats = [kit.feature(name, shades, used, colors, default) for name, shades, colors, default in d.pop("_features")]
         d["features"] = [f for f in feats if f]
         if "_stand" in d:
             stand = fig(*d.pop("_stand")).stand()
             d["stand"] = round(stand, 4)
-            d["height"] = round(40 * stand / 1.70 * 2) / 2
+            d["height"] = round(40 * stand / 1.70 * d.pop("_scale", 1.0) * 2) / 2
         defs.append(d)
     # The gear: item models and how each is held (the items that use a file take these).
     holds = []

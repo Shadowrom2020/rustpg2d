@@ -4961,7 +4961,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "aboleth",
             body: "",
             size: 150,
         ),
@@ -5202,7 +5202,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "adult_black_dragon",
             body: "",
             size: 200,
         ),
@@ -5405,7 +5405,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "adult_blue_dragon",
             body: "",
             size: 200,
         ),
@@ -5603,7 +5603,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "adult_brass_dragon",
             body: "",
             size: 200,
         ),
@@ -5783,7 +5783,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "adult_bronze_dragon",
             body: "",
             size: 200,
         ),
@@ -5967,7 +5967,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "adult_copper_dragon",
             body: "",
             size: 200,
         ),
@@ -6146,7 +6146,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "adult_gold_dragon",
             body: "",
             size: 200,
         ),
@@ -6331,7 +6331,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "adult_green_dragon",
             body: "",
             size: 200,
         ),
@@ -6540,7 +6540,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "adult_red_dragon",
             body: "",
             size: 200,
         ),
@@ -6738,7 +6738,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "adult_silver_dragon",
             body: "",
             size: 200,
         ),
@@ -6917,7 +6917,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "adult_white_dragon",
             body: "",
             size: 200,
         ),
@@ -7121,7 +7121,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "air_elemental",
             body: "",
             size: 150,
         ),
@@ -7220,7 +7220,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "ancient_black_dragon",
             body: "",
             size: 300,
         ),
@@ -7423,7 +7423,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "ancient_blue_dragon",
             body: "",
             size: 300,
         ),
@@ -7621,7 +7621,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "ancient_brass_dragon",
             body: "",
             size: 300,
         ),
@@ -7806,7 +7806,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "ancient_bronze_dragon",
             body: "",
             size: 300,
         ),
@@ -7995,7 +7995,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "ancient_copper_dragon",
             body: "",
             size: 300,
         ),
@@ -8179,7 +8179,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "ancient_gold_dragon",
             body: "",
             size: 300,
         ),
@@ -8369,7 +8369,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "ancient_green_dragon",
             body: "",
             size: 300,
         ),
@@ -8578,7 +8578,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "ancient_red_dragon",
             body: "",
             size: 300,
         ),
@@ -8776,7 +8776,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "ancient_silver_dragon",
             body: "",
             size: 300,
         ),
@@ -8960,7 +8960,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "ancient_white_dragon",
             body: "",
             size: 300,
         ),
@@ -9164,7 +9164,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "sphinx",
             body: "",
             size: 150,
         ),
@@ -9350,7 +9350,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "animated_armor",
             body: "",
         ),
         stats: Some((
@@ -9440,7 +9440,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "ankheg",
             body: "",
             size: 150,
         ),
@@ -9534,7 +9534,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "ape",
             body: "",
         ),
         stats: Some((
@@ -9777,7 +9777,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "assassin",
             body: "",
         ),
         stats: Some((
@@ -9911,7 +9911,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "awakened_shrub",
             body: "",
             size: 75,
         ),
@@ -9984,7 +9984,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "awakened_tree",
             body: "",
             size: 200,
         ),
@@ -10058,7 +10058,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "axe_beak",
             body: "",
             size: 150,
         ),
@@ -10120,7 +10120,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "azer",
             body: "",
         ),
         stats: Some((
@@ -10211,7 +10211,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "baboon",
             body: "",
             size: 75,
         ),
@@ -10282,7 +10282,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "rat",
             body: "",
             size: 50,
         ),
@@ -10352,7 +10352,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "balor",
             body: "",
             size: 200,
         ),
@@ -10575,7 +10575,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "barbed_devil",
             body: "",
         ),
         stats: Some((
@@ -10698,7 +10698,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "basilisk",
             body: "",
         ),
         stats: Some((
@@ -10769,7 +10769,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "bearded_devil",
             body: "",
         ),
         stats: Some((
@@ -10885,7 +10885,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "behir",
             body: "",
             size: 200,
         ),
@@ -11003,7 +11003,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "berserker",
             body: "",
         ),
         stats: Some((
@@ -11068,7 +11068,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "black_bear",
             body: "",
         ),
         stats: Some((
@@ -11154,7 +11154,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "black_dragon_wyrmling",
             body: "",
         ),
         stats: Some((
@@ -11260,7 +11260,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "slime",
+            model: "black_pudding",
             body: "",
             size: 150,
         ),
@@ -11364,7 +11364,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "dog",
             body: "",
         ),
         stats: Some((
@@ -11437,7 +11437,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "hawk",
             body: "",
             size: 75,
         ),
@@ -11515,7 +11515,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "blue_dragon_wyrmling",
             body: "",
         ),
         stats: Some((
@@ -11616,7 +11616,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "boar",
             body: "",
         ),
         stats: Some((
@@ -11686,7 +11686,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "bone_devil",
             body: "",
             size: 150,
         ),
@@ -11802,7 +11802,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "brass_dragon_wyrmling",
             body: "",
         ),
         stats: Some((
@@ -11881,7 +11881,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "bronze_dragon_wyrmling",
             body: "",
         ),
         stats: Some((
@@ -11965,7 +11965,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "bear",
             body: "",
             size: 150,
         ),
@@ -12055,7 +12055,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "bugbear",
             body: "",
         ),
         stats: Some((
@@ -12142,7 +12142,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "bulette",
             body: "",
             size: 150,
         ),
@@ -12219,7 +12219,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "camel",
             body: "",
             size: 150,
         ),
@@ -12281,7 +12281,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "centaur",
             body: "",
             size: 150,
         ),
@@ -12383,7 +12383,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "chain_devil",
             body: "",
         ),
         stats: Some((
@@ -12493,7 +12493,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "chimera",
             body: "",
             size: 150,
         ),
@@ -12611,7 +12611,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "chuul",
             body: "",
             size: 150,
         ),
@@ -12721,7 +12721,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "clay_golem",
             body: "",
             size: 150,
         ),
@@ -12833,7 +12833,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "cloaker",
             body: "",
             size: 150,
         ),
@@ -12962,7 +12962,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "cloud_giant",
             body: "",
             size: 200,
         ),
@@ -13099,7 +13099,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "cockatrice",
             body: "",
             size: 75,
         ),
@@ -13224,7 +13224,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "constrictor_snake",
             body: "",
             size: 150,
         ),
@@ -13310,7 +13310,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "copper_dragon_wyrmling",
             body: "",
         ),
         stats: Some((
@@ -13389,7 +13389,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "couatl",
             body: "",
         ),
         stats: Some((
@@ -13565,7 +13565,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "crab",
             body: "",
             size: 50,
         ),
@@ -13637,7 +13637,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "crocodile",
             body: "",
             size: 150,
         ),
@@ -13898,7 +13898,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "darkmantle",
             body: "",
             size: 75,
         ),
@@ -13980,7 +13980,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "hell_hound",
             body: "",
         ),
         stats: Some((
@@ -14049,7 +14049,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "deep_gnome",
             body: "",
             size: 75,
         ),
@@ -14170,7 +14170,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "deer",
             body: "",
         ),
         stats: Some((
@@ -14230,7 +14230,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "deva",
             body: "",
         ),
         stats: Some((
@@ -14357,7 +14357,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "wolf",
+            model: "dire_wolf",
             body: "",
             size: 150,
         ),
@@ -14440,7 +14440,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "air_elemental",
             body: "",
             size: 150,
         ),
@@ -14572,7 +14572,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "doppelganger",
             body: "",
         ),
         stats: Some((
@@ -14664,7 +14664,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "horse",
             body: "",
             size: 150,
         ),
@@ -14726,7 +14726,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "dragon_turtle",
             body: "",
             size: 300,
         ),
@@ -14854,7 +14854,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "dretch",
             body: "",
             size: 75,
         ),
@@ -14961,7 +14961,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "drider",
             body: "",
             size: 150,
         ),
@@ -15116,7 +15116,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "drow",
             body: "",
         ),
         stats: Some((
@@ -15228,7 +15228,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "druid",
             body: "",
         ),
         stats: Some((
@@ -15333,7 +15333,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "dryad",
             body: "",
         ),
         stats: Some((
@@ -15460,7 +15460,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "duergar",
             body: "",
         ),
         stats: Some((
@@ -15557,7 +15557,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "mephit_air",
             body: "",
             size: 75,
         ),
@@ -15677,7 +15677,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "eagle",
             body: "",
             size: 75,
         ),
@@ -15749,7 +15749,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "earth_elemental",
             body: "",
             size: 150,
         ),
@@ -15846,7 +15846,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "fire_elemental",
             body: "",
             size: 150,
         ),
@@ -15975,7 +15975,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "elephant",
             body: "",
             size: 200,
         ),
@@ -16054,7 +16054,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "elk",
             body: "",
             size: 150,
         ),
@@ -16133,7 +16133,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "erinyes",
             body: "",
         ),
         stats: Some((
@@ -16266,7 +16266,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "ettercap",
             body: "",
         ),
         stats: Some((
@@ -16385,7 +16385,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "ettin",
             body: "",
             size: 150,
         ),
@@ -16477,7 +16477,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "fire_elemental",
             body: "",
             size: 150,
         ),
@@ -16577,7 +16577,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "fire_giant",
             body: "",
             size: 200,
         ),
@@ -16667,7 +16667,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "flesh_golem",
             body: "",
         ),
         stats: Some((
@@ -16776,7 +16776,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "snake",
             body: "",
             size: 50,
         ),
@@ -16853,7 +16853,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "flying_sword",
             body: "",
             size: 75,
         ),
@@ -16937,7 +16937,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "frog",
             body: "",
             size: 50,
         ),
@@ -17001,7 +17001,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "frost_giant",
             body: "",
             size: 200,
         ),
@@ -17091,7 +17091,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "gargoyle",
             body: "",
         ),
         stats: Some((
@@ -17188,7 +17188,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "slime",
+            model: "gelatinous_cube",
             body: "",
             size: 150,
         ),
@@ -17473,7 +17473,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "giant_ape",
             body: "",
             size: 200,
         ),
@@ -17560,7 +17560,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "giant_rat",
             body: "",
         ),
         stats: Some((
@@ -17646,7 +17646,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "bat",
+            model: "giant_bat",
             body: "",
             size: 150,
         ),
@@ -17721,7 +17721,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "giant_boar",
             body: "",
             size: 150,
         ),
@@ -17793,7 +17793,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "centipede",
             body: "",
             size: 75,
         ),
@@ -17864,7 +17864,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "giant_snake",
             body: "",
             size: 200,
         ),
@@ -17952,7 +17952,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "giant_crab",
             body: "",
         ),
         stats: Some((
@@ -18028,7 +18028,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "giant_crocodile",
             body: "",
             size: 200,
         ),
@@ -18134,7 +18134,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "giant_eagle",
             body: "",
             size: 150,
         ),
@@ -18224,7 +18224,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "giant_elk",
             body: "",
             size: 200,
         ),
@@ -18305,7 +18305,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "wolf_spider",
             body: "",
             size: 75,
         ),
@@ -18372,7 +18372,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "giant_frog",
             body: "",
         ),
         stats: Some((
@@ -18462,7 +18462,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "giant_goat",
             body: "",
             size: 150,
         ),
@@ -18534,7 +18534,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "hyena",
             body: "",
             size: 150,
         ),
@@ -18603,7 +18603,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "giant_lizard",
             body: "",
             size: 150,
         ),
@@ -18668,7 +18668,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "giant_octopus",
             body: "",
             size: 150,
         ),
@@ -18765,7 +18765,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "giant_owl",
             body: "",
             size: 150,
         ),
@@ -18843,7 +18843,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "giant_cobra",
             body: "",
         ),
         stats: Some((
@@ -18917,7 +18917,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "giant_rat",
             body: "",
             size: 75,
         ),
@@ -18990,7 +18990,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "giant_rat",
             body: "",
             size: 75,
         ),
@@ -19070,7 +19070,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "giant_scorpion",
             body: "",
             size: 150,
         ),
@@ -19165,7 +19165,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "sea_horse",
             body: "",
             size: 150,
         ),
@@ -19240,7 +19240,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "giant_shark",
             body: "",
             size: 200,
         ),
@@ -19317,7 +19317,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "giant_spider",
             body: "",
             size: 150,
         ),
@@ -19417,7 +19417,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "giant_toad",
             body: "",
             size: 150,
         ),
@@ -19512,7 +19512,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "giant_eagle",
             body: "",
             size: 150,
         ),
@@ -19608,7 +19608,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "giant_wasp",
             body: "",
         ),
         stats: Some((
@@ -19685,7 +19685,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "giant_rat",
             body: "",
         ),
         stats: Some((
@@ -19753,7 +19753,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "wolf_spider",
             body: "",
         ),
         stats: Some((
@@ -19847,7 +19847,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "gibbering_mouther",
             body: "",
         ),
         stats: Some((
@@ -19956,7 +19956,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "glabrezu",
             body: "",
             size: 150,
         ),
@@ -20104,7 +20104,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "gladiator",
             body: "",
         ),
         stats: Some((
@@ -20213,7 +20213,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "gnoll",
             body: "",
         ),
         stats: Some((
@@ -20306,7 +20306,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "goat",
             body: "",
         ),
         stats: Some((
@@ -20376,7 +20376,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "gold_dragon_wyrmling",
             body: "",
         ),
         stats: Some((
@@ -20460,7 +20460,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "gorgon",
             body: "",
             size: 150,
         ),
@@ -20563,7 +20563,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "slime",
+            model: "gray_ooze",
             body: "",
         ),
         stats: Some((
@@ -20662,7 +20662,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "green_dragon_wyrmling",
             body: "",
         ),
         stats: Some((
@@ -20771,7 +20771,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "green_hag",
             body: "",
         ),
         stats: Some((
@@ -20878,7 +20878,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "grick",
             body: "",
         ),
         stats: Some((
@@ -20967,7 +20967,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "griffon",
             body: "",
             size: 150,
         ),
@@ -21057,7 +21057,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "grimlock",
             body: "",
         ),
         stats: Some((
@@ -21145,7 +21145,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "naga",
             body: "",
             size: 150,
         ),
@@ -21296,7 +21296,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "sphinx",
             body: "",
             size: 150,
         ),
@@ -21458,7 +21458,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "dragon_veteran",
             body: "",
         ),
         stats: Some((
@@ -21574,7 +21574,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "harpy",
             body: "",
         ),
         stats: Some((
@@ -21660,7 +21660,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "hawk",
             body: "",
             size: 50,
         ),
@@ -21732,7 +21732,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "hell_hound",
             body: "",
         ),
         stats: Some((
@@ -21835,7 +21835,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "hezrou",
             body: "",
             size: 150,
         ),
@@ -21941,7 +21941,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "hill_giant",
             body: "",
             size: 200,
         ),
@@ -22024,7 +22024,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "hippogriff",
             body: "",
             size: 150,
         ),
@@ -22193,7 +22193,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "homunculus",
             body: "",
             size: 50,
         ),
@@ -22278,7 +22278,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "horned_devil",
             body: "",
             size: 150,
         ),
@@ -22398,7 +22398,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "shark",
             body: "",
             size: 150,
         ),
@@ -22475,7 +22475,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "hydra",
             body: "",
             size: 200,
         ),
@@ -22568,7 +22568,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "hyena",
             body: "",
         ),
         stats: Some((
@@ -22636,7 +22636,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "ice_devil",
             body: "",
             size: 150,
         ),
@@ -22776,7 +22776,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "mephit_water",
             body: "",
             size: 75,
         ),
@@ -22910,7 +22910,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "imp_winged",
             body: "",
             size: 50,
         ),
@@ -23020,7 +23020,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "air_elemental",
             body: "",
         ),
         stats: Some((
@@ -23118,7 +23118,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "iron_golem",
             body: "",
             size: 150,
         ),
@@ -23328,7 +23328,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "killer_whale",
             body: "",
             size: 200,
         ),
@@ -23502,7 +23502,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "kobold_warrior",
             body: "",
             size: 75,
         ),
@@ -23588,7 +23588,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "kraken",
             body: "",
             size: 300,
         ),
@@ -23773,7 +23773,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "lion",
             body: "",
             size: 150,
         ),
@@ -23892,7 +23892,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "lemure",
             body: "",
         ),
         stats: Some((
@@ -23974,7 +23974,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "lich",
             body: "",
         ),
         stats: Some((
@@ -24228,7 +24228,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "lion",
             body: "",
             size: 150,
         ),
@@ -24326,7 +24326,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "lizard",
             body: "",
             size: 50,
         ),
@@ -24386,7 +24386,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "lizardfolk",
             body: "",
         ),
         stats: Some((
@@ -24640,7 +24640,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "mephit_fire",
             body: "",
             size: 75,
         ),
@@ -24772,7 +24772,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "magmin",
             body: "",
             size: 75,
         ),
@@ -24850,7 +24850,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "mammoth",
             body: "",
             size: 200,
         ),
@@ -24929,7 +24929,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "manticore",
             body: "",
             size: 150,
         ),
@@ -25030,7 +25030,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "marilith",
             body: "",
             size: 150,
         ),
@@ -25235,7 +25235,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "medusa",
             body: "",
         ),
         stats: Some((
@@ -25343,7 +25343,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "merfolk",
             body: "",
         ),
         stats: Some((
@@ -25416,7 +25416,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "merrow",
             body: "",
             size: 150,
         ),
@@ -25518,7 +25518,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "mimic",
             body: "",
         ),
         stats: Some((
@@ -25624,7 +25624,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "minotaur",
             body: "",
             size: 150,
         ),
@@ -25804,7 +25804,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "pony",
             body: "",
         ),
         stats: Some((
@@ -25874,7 +25874,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "mummy",
             body: "",
         ),
         stats: Some((
@@ -25980,7 +25980,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "mummy_lord",
             body: "",
         ),
         stats: Some((
@@ -26228,7 +26228,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "nalfeshnee",
             body: "",
             size: 150,
         ),
@@ -26358,7 +26358,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "night_hag",
             body: "",
         ),
         stats: Some((
@@ -26490,7 +26490,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "nightmare",
             body: "",
             size: 150,
         ),
@@ -26579,7 +26579,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "slime",
+            model: "ochre_jelly",
             body: "",
             size: 150,
         ),
@@ -26680,7 +26680,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "octopus",
             body: "",
             size: 75,
         ),
@@ -26850,7 +26850,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "ogre_zombie",
             body: "",
             size: 150,
         ),
@@ -26925,7 +26925,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "oni",
             body: "",
             size: 150,
         ),
@@ -27074,7 +27074,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "otyugh",
             body: "",
             size: 150,
         ),
@@ -27189,7 +27189,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "owl",
             body: "",
             size: 50,
         ),
@@ -27267,7 +27267,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "owlbear",
             body: "",
             size: 150,
         ),
@@ -27354,7 +27354,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "panther",
             body: "",
         ),
         stats: Some((
@@ -27442,7 +27442,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "pegasus",
             body: "",
             size: 150,
         ),
@@ -27512,7 +27512,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "phase_spider",
             body: "",
             size: 150,
         ),
@@ -27607,7 +27607,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "pit_fiend",
             body: "",
             size: 150,
         ),
@@ -27778,7 +27778,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "planetar",
             body: "",
             size: 150,
         ),
@@ -27930,7 +27930,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "plesiosaurus",
             body: "",
             size: 150,
         ),
@@ -28003,7 +28003,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "snake",
             body: "",
             size: 50,
         ),
@@ -28077,7 +28077,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "polar_bear",
             body: "",
             size: 150,
         ),
@@ -28167,7 +28167,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "pony",
             body: "",
         ),
         stats: Some((
@@ -28227,7 +28227,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "pseudodragon",
             body: "",
             size: 50,
         ),
@@ -28322,7 +28322,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "purple_worm",
             body: "",
             size: 300,
         ),
@@ -28429,7 +28429,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "quasit",
             body: "",
             size: 50,
         ),
@@ -28540,7 +28540,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "quipper",
             body: "",
             size: 50,
         ),
@@ -28615,7 +28615,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "rakshasa",
             body: "",
         ),
         stats: Some((
@@ -28749,7 +28749,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "rat",
             body: "",
             size: 50,
         ),
@@ -28816,7 +28816,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "raven",
             body: "",
             size: 50,
         ),
@@ -28888,7 +28888,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "red_dragon_wyrmling",
             body: "",
         ),
         stats: Some((
@@ -28989,7 +28989,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "shark",
             body: "",
         ),
         stats: Some((
@@ -29065,7 +29065,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "remorhaz",
             body: "",
             size: 200,
         ),
@@ -29159,7 +29159,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "rhinoceros",
             body: "",
             size: 150,
         ),
@@ -29226,7 +29226,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "horse",
             body: "",
             size: 150,
         ),
@@ -29288,7 +29288,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "giant_eagle",
             body: "",
             size: 300,
         ),
@@ -29391,7 +29391,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "roper",
             body: "",
             size: 150,
         ),
@@ -29485,7 +29485,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "rug_of_smothering",
             body: "",
             size: 150,
         ),
@@ -29566,7 +29566,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "rust_monster",
             body: "",
         ),
         stats: Some((
@@ -29641,7 +29641,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "saber_tooth",
             body: "",
             size: 150,
         ),
@@ -29728,7 +29728,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "sahuagin",
             body: "",
         ),
         stats: Some((
@@ -29841,7 +29841,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "salamander",
             body: "",
             size: 150,
         ),
@@ -29964,7 +29964,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "satyr",
             body: "",
         ),
         stats: Some((
@@ -30058,7 +30058,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "scorpion",
             body: "",
             size: 50,
         ),
@@ -30124,7 +30124,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "scout",
             body: "",
         ),
         stats: Some((
@@ -30213,7 +30213,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "sea_hag",
             body: "",
         ),
         stats: Some((
@@ -30298,7 +30298,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "sea_horse",
             body: "",
             size: 50,
         ),
@@ -30354,7 +30354,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "shadow",
             body: "",
         ),
         stats: Some((
@@ -30456,7 +30456,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "shambling_mound",
             body: "",
             size: 150,
         ),
@@ -30551,7 +30551,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "shield_guardian",
             body: "",
             size: 150,
         ),
@@ -30647,7 +30647,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "shrieker",
             body: "",
         ),
         stats: Some((
@@ -30708,7 +30708,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "silver_dragon_wyrmling",
             body: "",
         ),
         stats: Some((
@@ -30786,7 +30786,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "solar",
             body: "",
             size: 150,
         ),
@@ -31003,7 +31003,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "ghost",
+            model: "specter",
             body: "",
         ),
         stats: Some((
@@ -31099,7 +31099,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "spider",
             body: "",
             size: 50,
         ),
@@ -31181,7 +31181,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "naga",
             body: "",
             size: 150,
         ),
@@ -31325,7 +31325,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "sprite",
             body: "",
             size: 50,
         ),
@@ -31515,7 +31515,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "mephit_water",
             body: "",
             size: 75,
         ),
@@ -31637,7 +31637,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "stirge",
             body: "",
             size: 50,
         ),
@@ -31702,7 +31702,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "stone_giant",
             body: "",
             size: 200,
         ),
@@ -31806,7 +31806,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "stone_golem",
             body: "",
             size: 150,
         ),
@@ -31917,7 +31917,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "storm_giant",
             body: "",
             size: 200,
         ),
@@ -32070,7 +32070,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "succubus",
             body: "",
         ),
         stats: Some((
@@ -32179,7 +32179,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "bat",
             body: "",
         ),
         stats: Some((
@@ -32271,7 +32271,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "spider",
             body: "",
         ),
         stats: Some((
@@ -32354,7 +32354,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "centipede",
             body: "",
         ),
         stats: Some((
@@ -32436,7 +32436,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "spider",
             body: "",
         ),
         stats: Some((
@@ -32518,7 +32518,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "snake",
             body: "",
         ),
         stats: Some((
@@ -32609,7 +32609,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "quipper",
             body: "",
         ),
         stats: Some((
@@ -32701,7 +32701,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "rat",
             body: "",
         ),
         stats: Some((
@@ -32785,7 +32785,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "raven",
             body: "",
         ),
         stats: Some((
@@ -32868,7 +32868,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "spider",
             body: "",
         ),
         stats: Some((
@@ -32964,7 +32964,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "wasps",
             body: "",
         ),
         stats: Some((
@@ -33046,7 +33046,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "tarrasque",
             body: "",
             size: 300,
         ),
@@ -33336,7 +33336,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "tiger",
             body: "",
             size: 150,
         ),
@@ -33423,7 +33423,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "treant",
             body: "",
             size: 200,
         ),
@@ -33521,7 +33521,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "tribal_warrior",
             body: "",
         ),
         stats: Some((
@@ -33590,7 +33590,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "triceratops",
             body: "",
             size: 200,
         ),
@@ -33669,7 +33669,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "tyrannosaurus",
             body: "",
             size: 200,
         ),
@@ -33760,7 +33760,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "unicorn",
             body: "",
             size: 150,
         ),
@@ -33912,7 +33912,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "vampire",
             body: "",
         ),
         stats: Some((
@@ -34085,7 +34085,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "giant_bat",
             body: "",
         ),
         stats: Some((
@@ -34238,7 +34238,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "specter",
             body: "",
         ),
         stats: Some((
@@ -34350,7 +34350,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "vampire_spawn",
             body: "",
         ),
         stats: Some((
@@ -34554,7 +34554,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "violet_fungus",
             body: "",
         ),
         stats: Some((
@@ -34630,7 +34630,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "vrock",
             body: "",
             size: 150,
         ),
@@ -34767,7 +34767,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "vulture",
             body: "",
         ),
         stats: Some((
@@ -34843,7 +34843,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "warhorse",
             body: "",
             size: 150,
         ),
@@ -34982,7 +34982,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "water_elemental",
             body: "",
             size: 150,
         ),
@@ -35101,7 +35101,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "rat",
             body: "",
             size: 50,
         ),
@@ -35166,7 +35166,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "bear",
             body: "",
         ),
         stats: Some((
@@ -35257,7 +35257,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "lycanthrope",
             body: "",
         ),
         stats: Some((
@@ -35333,7 +35333,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "werebear",
             body: "",
         ),
         stats: Some((
@@ -35441,7 +35441,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "giant_boar",
             body: "",
         ),
         stats: Some((
@@ -35521,7 +35521,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "lycanthrope",
             body: "",
         ),
         stats: Some((
@@ -35602,7 +35602,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "wereboar",
             body: "",
         ),
         stats: Some((
@@ -35700,7 +35700,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "lycanthrope",
             body: "",
         ),
         stats: Some((
@@ -35795,7 +35795,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "wererat",
             body: "",
         ),
         stats: Some((
@@ -35902,7 +35902,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "giant_rat",
             body: "",
         ),
         stats: Some((
@@ -35973,7 +35973,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "lycanthrope",
             body: "",
         ),
         stats: Some((
@@ -36063,7 +36063,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "weretiger",
             body: "",
         ),
         stats: Some((
@@ -36182,7 +36182,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "tiger",
             body: "",
         ),
         stats: Some((
@@ -36275,7 +36275,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "lycanthrope",
             body: "",
         ),
         stats: Some((
@@ -36359,7 +36359,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "werewolf",
             body: "",
         ),
         stats: Some((
@@ -36452,7 +36452,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "dire_wolf",
             body: "",
         ),
         stats: Some((
@@ -36527,7 +36527,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "white_dragon_wyrmling",
             body: "",
         ),
         stats: Some((
@@ -36629,7 +36629,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "wight",
             body: "",
         ),
         stats: Some((
@@ -36740,7 +36740,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "wisp",
             body: "",
             size: 50,
         ),
@@ -36851,7 +36851,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "winter_wolf",
             body: "",
             size: 150,
         ),
@@ -36963,7 +36963,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "dire_wolf",
             body: "",
             size: 150,
         ),
@@ -37039,7 +37039,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "ghost",
+            model: "wraith",
             body: "",
         ),
         stats: Some((
@@ -37139,7 +37139,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "wyvern",
             body: "",
             size: 150,
         ),
@@ -37245,7 +37245,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "earth_elemental",
             body: "",
         ),
         stats: Some((
@@ -37347,7 +37347,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "young_black_dragon",
             body: "",
             size: 150,
         ),
@@ -37473,7 +37473,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "young_blue_dragon",
             body: "",
             size: 150,
         ),
@@ -37594,7 +37594,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "young_brass_dragon",
             body: "",
             size: 150,
         ),
@@ -37694,7 +37694,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "young_bronze_dragon",
             body: "",
             size: 150,
         ),
@@ -37799,7 +37799,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "young_copper_dragon",
             body: "",
             size: 150,
         ),
@@ -37899,7 +37899,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "young_gold_dragon",
             body: "",
             size: 150,
         ),
@@ -38005,7 +38005,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "young_green_dragon",
             body: "",
             size: 150,
         ),
@@ -38135,7 +38135,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "young_red_dragon",
             body: "",
             size: 150,
         ),
@@ -38256,7 +38256,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "young_silver_dragon",
             body: "",
             size: 150,
         ),
@@ -38356,7 +38356,7 @@
         triggers: [],
         shop: None,
         appearance: (
-            model: "mannequin",
+            model: "young_white_dragon",
             body: "",
             size: 150,
         ),

@@ -450,7 +450,8 @@ includes the pieces. A figure whose file is only its head sets `ModelDef.stand`,
 figure's height, which the frame, the scale and the hand grip use. A model with more vertices or
 triangles than one draw takes is listed in `Models.warnings` (`oversize`). The starter library's
 playable races are built this way by `scripts/art/kit` (the figure kit: voxel blocks on the
-hero's skeleton, one shared clip file fitted to each build by `shared_clips`).
+hero's skeleton, one shared clip file fitted to each build by `shared_clips`). The kit's creatures
+are unrigged sculpts with a rig fit (`ModelDef.rig`: a template and where its joints go).
 
 The editor shows rendered poses
 without copying them: `widgets::paint_model` hands egui the atlas page's OpenGL texture

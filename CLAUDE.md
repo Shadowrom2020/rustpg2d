@@ -376,9 +376,12 @@ scripts/art/kit/        the figure kit: the starter library's voxel people built
                         rig/human.glb, voxel blocks with merged faces, the .glb writer), figure.py (a build's body,
                         outfits, hair, beards, headwear, cloak as separate meshes on the same bones), kit.py (builds,
                         heads, pieces, the cast as definitions over the heads' files, items' shown styles), gear.py (item
-                        models: weapons, shields, tools, backpacks, each with its hold point, direction and front), build.py (--out DIR, --check; writes
+                        models: weapons, shields, tools, backpacks, each with its hold point, direction and front), creatures.py
+                        (animals and monsters sculpted in voxels with the joints of their rig template; kit.py CREATURE_MODELS =
+                        models over those files by size and colour, MONSTERS / MONSTER_CAST = the library characters that use them), build.py (--out DIR, --check; writes
                         manifest.json, compared by the editor test the_figure_kit_is_built_and_applied), apply.py PORT
-                        (through an editor's agent server: files, model defs, items' wear, race bodies). After a change:
+                        (through an editor's agent server: files, model defs, items' wear, race bodies, the monsters' models; `--used-creatures`
+                        for the example). After a change:
                         build, apply to the example (repository mode) and to the starter library (opened as a project),
                         then the starter_history example.
 scripts/art/meshy/      the Meshy pipeline that drew the 2D figures of 0.16 / 0.17 (README there;

@@ -18,6 +18,7 @@ LEATHER, LEATHER_DARK = "#9a6a3c", "#5e3e24"
 METAL, METAL_DARK, MAIL, MAIL_DARK, TRIM = "#aab4c2", "#6c7686", "#8d949f", "#70767f", "#c9a03c"
 IVORY, HORN, DRAGON_EYE, CLOAK = "#efe8d0", "#d8cfae", "#f2c84b", "#3d5a3a"
 APRON, RAG, STRAW = "#e4dccb", "#7a6248", "#d6b25c"
+WING, WING_DARK = "#e8e2d2", "#c4bca8"
 
 
 def shade(h, k):
@@ -662,6 +663,38 @@ class Figure:
                 for k in range(-d // 2 - th - 1, -d // 2 - 1):
                     lo.set(i, j, k, CLOAK)
         lo.emit(m)
+        return m
+
+    def wings(self, kind):
+        """Folded wings on the back, worn in the cloak's place: feathered (an angel's, a harpy's)
+        or a bat's (a devil's, a gargoyle's). Their colours are the feature `wings`."""
+        t = self.torso()
+        n, h, q, dims = t["n"], t["h"], t["chest"], t["dims"]
+        m = Mesh(self.rig)
+        v = Vox(t["ctr"], X, Y, Z, (V, h, V), {"Spine01": .5, "Spine": .5})
+        _, d, _ = dims[min(q + 1, n - 1)]
+        back = -d // 2 - 2
+        bat = kind == "bat"
+        span, top, low = u(9), n + u(5.5), q - u(9)
+        for a in range(span):
+            f = (a + .5) / span
+            hi = q + (top - q) * (1 - ((f - .5) / .5) ** 2 * (.5 if f < .5 else 1))      # the arm arches up, then down to the tip
+            lo = low + (hi - low) * f ** (1.6 if bat else 2.4)                             # the lower edge rises to the tip
+            if bat and a % u(2) == u(2) - 1:
+                lo += u(1.5)                                                               # scallops between the fingers
+            for j in range(rnd(lo), rnd(hi) + 1):
+                edge = j >= rnd(hi) - u(.5)
+                rib = bat and a % u(2) == 0
+                band = not bat and (j - a // 2) % u(2) == 0
+                c = WING_DARK if (edge or rib or band) else WING
+                for sx in (1, -1):
+                    i = sx * (a + u(.5)) - (1 if sx < 0 else 0)
+                    for k in (back - 1, back):
+                        v.set(i, j, k, c)
+        for i in range(-u(.5), u(.5)):                                                   # where the wings join the back
+            for j in range(q, n):
+                v.set(i, j, back, WING_DARK)
+        v.emit(m)
         return m
 
     def stand(self):

@@ -1173,10 +1173,8 @@ impl Game {
             // Keep the selection visible.
             let max = self.max_rows();
             super::ui::clamp_list(&mut self.menu.sel, &mut self.menu.scroll, n, max);
-            let wheel = input::wheel();
-            let max_rows = self.max_rows();
-            if wheel != 0.0 && panel_rect.contains(m) && n > max_rows {
-                self.menu.scroll = if wheel < 0.0 { (self.menu.scroll + 1).min(n - max_rows) } else { self.menu.scroll.saturating_sub(1) };
+            if panel_rect.contains(m) {
+                super::ui::wheel_list(&mut self.menu.sel, &mut self.menu.scroll, n, max, input::wheel());
             }
             let hovered = rects.iter().position(|r| r.contains(m)).map(|k| k + self.menu.scroll).filter(|k| *k < n);
             if let Some(k) = hovered {

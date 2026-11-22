@@ -1178,15 +1178,25 @@ impl Game {
         }
         if let Some(c) = &mut self.creator {
             c.row = row;
-            // The wheel scrolls a list.
+            // The wheel scrolls a list, the selected row along when it would leave the view (on
+            // Start / Back the list just scrolls).
             let wheel = input::wheel();
-            if wheel != 0.0 {
-                c.scroll = if wheel > 0.0 { c.scroll.saturating_sub(1) } else { c.scroll + 1 };
-                let lists = rows.iter().filter(|r| matches!(r, Row::Spell(_) | Row::Item(_))).count();
-                c.scroll = c.scroll.min(lists.saturating_sub(Self::creator_list_shown(c.page)));
-            } else {
-                self.creator_keep_in_view(&rows);
+            let lists = rows.iter().filter(|r| matches!(r, Row::Spell(_) | Row::Item(_))).count();
+            let shown = Self::creator_list_shown(c.page);
+            if wheel != 0.0 && lists > 0 {
+                match rows.get(c.row) {
+                    Some(Row::Spell(k) | Row::Item(k)) => {
+                        let mut sel = *k;
+                        super::ui::wheel_list(&mut sel, &mut c.scroll, lists, shown, wheel);
+                        c.row = rows.iter().position(|r| matches!(r, Row::Spell(x) | Row::Item(x) if *x == sel)).unwrap_or(c.row);
+                    }
+                    _ => {
+                        let mut none = c.scroll;
+                        super::ui::wheel_list(&mut none, &mut c.scroll, lists, shown, wheel);
+                    }
+                }
             }
+            self.creator_keep_in_view(&rows);
         }
         match rows[row] {
             Row::Start | Row::Back if left || right => {

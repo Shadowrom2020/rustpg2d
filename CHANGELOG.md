@@ -705,6 +705,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   clothing keep their colour choices; the old heroine's separate clip files are gone.
 
 ### Fixes
+- Long lists stuck under the mouse wheel when their first or last entry was selected (the menu
+  pages such as achievements and saves, the creator's spells and store, the fight's Cast and Class
+  windows): the wheel scrolls them now and takes the selection along when it would leave the view.
 - Leaving the tavern's guest room with its key: the key went back on its hook right outside the door,
   which locked the door on the hero standing in it. It now goes back at the stairs.
 - Translated runtime texts with a value starting with a letter of several bytes ("Überzeugen")

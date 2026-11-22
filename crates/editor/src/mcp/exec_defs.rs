@@ -444,12 +444,12 @@ impl Editor {
             let v = u32::from_str_radix(hex.trim_start_matches('#'), 16).map_err(|_| format!("colour \"{hex}\": RRGGBB expected"))?;
             look.colors.insert(name, [(v >> 16) as u8, (v >> 8) as u8, v as u8]);
         }
-        for item in p.worn.iter().flatten().chain(&p.weapon).chain(&p.offhand) {
+        for item in p.worn.iter().flatten().chain(&p.weapon).chain(&p.offhand).chain(&p.back) {
             if db.item(item).is_none() {
                 return Err(format!("no item \"{item}\"{}", suggestions(item, db.items.iter().map(|i| i.id.as_str()))));
             }
         }
-        let gear = rustpg2d_engine::render::model::Gear { weapon: p.weapon.clone(), offhand: p.offhand.clone(), worn: p.worn.clone().unwrap_or_default(), ready: true, ..Default::default() };
+        let gear = rustpg2d_engine::render::model::Gear { weapon: p.weapon.clone(), offhand: p.offhand.clone(), back: p.back.clone(), worn: p.worn.clone().unwrap_or_default(), ready: true, ..Default::default() };
         let anims = p.anims.clone().unwrap_or_else(|| vec!["idle".into(), "walk".into(), "attack".into()]);
         let facings: Vec<Facing> = match &p.facings {
             None => vec![Facing::Down, Facing::Left, Facing::Right, Facing::Up],
@@ -523,8 +523,20 @@ impl Editor {
             let _ = std::fs::remove_dir_all(&out);
             return Err(format!("the kit's build failed:\n{}", said.trim()));
         }
-        let take = || -> Result<(usize, Vec<rustpg2d_engine::defs::ModelDef>), String> {
+        /// How the kit says an item model is held (`gear.json`).
+        #[derive(serde::Deserialize)]
+        struct Hold {
+            file: String,
+            grip: [f32; 3],
+            axis: [f32; 3],
+            front: [f32; 3],
+        }
+        let take = || -> Result<(usize, Vec<rustpg2d_engine::defs::ModelDef>, Vec<Hold>), String> {
             let defs: Vec<rustpg2d_engine::defs::ModelDef> = serde_json::from_str(&std::fs::read_to_string(out.join("kit.json")).map_err(|e| format!("reading kit.json: {e}"))?).map_err(|e| format!("kit.json: {e}"))?;
+            let holds: Vec<Hold> = match std::fs::read_to_string(out.join("gear.json")) {
+                Ok(t) => serde_json::from_str(&t).map_err(|e| format!("gear.json: {e}"))?,
+                Err(_) => Vec::new(),
+            };
             let dir = self.project.root.join("models");
             std::fs::create_dir_all(&dir).map_err(|e| format!("creating {}: {e}", dir.display()))?;
             let mut files = 0;
@@ -532,12 +544,12 @@ impl Editor {
                 std::fs::copy(f.path(), dir.join(f.file_name())).map_err(|e| format!("copying {}: {e}", f.path().display()))?;
                 files += 1;
             }
-            Ok((files, defs))
+            Ok((files, defs, holds))
         };
         let taken = take();
         let _ = std::fs::remove_dir_all(&out);
-        let (files, defs) = taken?;
-        if !ids.is_empty() && defs.is_empty() {
+        let (files, defs, holds) = taken?;
+        if !ids.is_empty() && defs.is_empty() && holds.is_empty() {
             return Err(format!("the kit has no model named {}", ids.join(", ")));
         }
         let names: Vec<String> = defs.iter().map(|d| d.id.clone()).collect();
@@ -547,11 +559,21 @@ impl Editor {
                 None => self.project.db.models.push(d),
             }
         }
+        // The gear: every item that uses one of its model files is held as the kit says.
+        let mut held = 0;
+        for h in &holds {
+            for it in self.project.db.items.iter_mut() {
+                if let Some(m) = it.model.as_mut().filter(|m| m.file == h.file) {
+                    (m.grip, m.axis, m.front) = (h.grip, h.axis, h.front);
+                    held += 1;
+                }
+            }
+        }
         self.project.db.reindex();
         self.defs_dirty = true;
         self.reload_assets();
         let shown = if names.len() > 12 { format!("{} … ({} models)", names[..12].join(", "), names.len()) } else { names.join(", ") };
-        self.mcp_after_write(format!("Built {files} files of the figure kit and wrote their definitions: {shown}. Look at one with model_sheet and check it with model_check."))
+        self.mcp_after_write(format!("Built {files} files of the figure kit and wrote their definitions: {shown}; {held} item(s) hold the kit's {} item model(s) as it says. Look at one with model_sheet and check it with model_check.", holds.len()))
     }
 
     pub(crate) fn mcp_model_info(&mut self, p: ModelInfoParams) -> Result<Reply, String> {

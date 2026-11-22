@@ -1,7 +1,8 @@
 """build.py [--out DIR] [--check] [ID...]: builds the kit's models (all, or the named ones).
 
-Writes DIR/models/<id>.glb, DIR/models/kit_clips.glb and DIR/kit.json (the model definitions
-`apply.py` sends to an editor). Building everything also writes manifest.json beside this script:
+Writes DIR/models/<id>.glb, DIR/models/kit_clips.glb, DIR/kit.json (the figures' and pieces'
+model definitions) and DIR/gear.json (how each item model is held); the editor's `kit_build` tool
+takes all of it into a project. Building everything also writes manifest.json beside this script:
 the hash of the kit's sources and of every output, which the repository's test compares.
 `--check` builds into a temporary folder and fails when the outputs differ from the manifest.
 The same sources always give the same bytes."""
@@ -14,10 +15,11 @@ import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+import gear  # noqa: E402
 import kit  # noqa: E402
 from kitlib import RIG  # noqa: E402
 
-SOURCES = ["kitlib.py", "figure.py", "kit.py", "build.py", "rig/human.glb"]
+SOURCES = ["kitlib.py", "figure.py", "kit.py", "gear.py", "build.py", "rig/human.glb"]
 
 
 def sha(path):
@@ -56,6 +58,17 @@ def build(out, only=None):
             d["stand"] = round(stand, 4)
             d["height"] = round(40 * stand / 1.70 * 2) / 2
         defs.append(d)
+    # The gear: item models and how each is held (the items that use a file take these).
+    holds = []
+    for name in gear.GEAR:
+        if only and name not in only:
+            continue
+        mesh, hold = gear.build(name)
+        path = f"{out}/models/{name}.glb"
+        st = mesh.export(path)
+        files[f"models/{name}.glb"] = dict(sha256=sha(path), vertices=st["vertices"], triangles=st["triangles"], colors=len(st["colors"]))
+        holds.append(dict(file=f"models/{name}.glb", **hold))
+    json.dump(holds, open(f"{out}/gear.json", "w"), indent=1)
     if not only:
         shutil.copy(RIG, f"{out}/{kit.CLIP_FILE}")
         files[kit.CLIP_FILE] = dict(sha256=sha(f"{out}/{kit.CLIP_FILE}"))
@@ -84,7 +97,7 @@ def main():
     if not only:
         json.dump(dict(sources=source_hash(), source_files=SOURCES, files=files), open(manifest, "w"), indent=1, sort_keys=True)
     size = sum(os.path.getsize(f"{out}/{f}") for f in files)
-    print(f"built {len(defs)} models into {out}: {size // 1024} KB, largest {max(v.get('vertices', 0) for v in files.values())} vertices")
+    print(f"built {len(defs)} figure and piece definitions and {len(files)} files into {out}: {size // 1024} KB, largest {max(v.get('vertices', 0) for v in files.values())} vertices")
 
 
 if __name__ == "__main__":

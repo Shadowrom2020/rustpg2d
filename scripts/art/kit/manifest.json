@@ -1,5 +1,53 @@
 {
  "files": {
+  "models/axe.glb": {
+   "colors": 5,
+   "sha256": "d265db652e60daeaadf791d38065cc422ee62648a4b440305c75689fb8ec26ec",
+   "triangles": 148,
+   "vertices": 276
+  },
+  "models/backpack_big.glb": {
+   "colors": 4,
+   "sha256": "e5391f9eab1627a63665046214109a1acff7dd7138e75641b8107111260d2757",
+   "triangles": 218,
+   "vertices": 422
+  },
+  "models/backpack_magic.glb": {
+   "colors": 3,
+   "sha256": "36d73025371bd560dfd7aea916590478d41841031301ddda9b098ba227c284c5",
+   "triangles": 106,
+   "vertices": 198
+  },
+  "models/backpack_small.glb": {
+   "colors": 3,
+   "sha256": "950be951de3fc54893b6cc739d7b0ebac3fb52d216ad09d733e36b26f227ab65",
+   "triangles": 90,
+   "vertices": 166
+  },
+  "models/bow.glb": {
+   "colors": 3,
+   "sha256": "5ca2e0c9ce0f076997871ece9848fc101d18e90b915b0682ea686f32f614f43c",
+   "triangles": 284,
+   "vertices": 554
+  },
+  "models/broom.glb": {
+   "colors": 4,
+   "sha256": "10a08d3069084f0bb01374f07c92ee8cdc02ffe3fe39beb241a8c5b22e3919c4",
+   "triangles": 404,
+   "vertices": 648
+  },
+  "models/crossbow.glb": {
+   "colors": 5,
+   "sha256": "e1549b432ebee30dec68f9726a26a97a5b1b95310283f3b7e320373e48691e23",
+   "triangles": 240,
+   "vertices": 468
+  },
+  "models/crude_bow.glb": {
+   "colors": 3,
+   "sha256": "b2f452222297ff5cb12fb0d40f6003d1e446a6b7f0f0ac06b0bfc120b6786afb",
+   "triangles": 236,
+   "vertices": 458
+  },
   "models/dragonborn.glb": {
    "colors": 4,
    "sha256": "730bdac51cdf614d1fb6902025e7c5993154dfea1dbb8c79eb2bc5446abbd238",
@@ -36,6 +84,18 @@
    "triangles": 212,
    "vertices": 379
   },
+  "models/fine_iron_sword.glb": {
+   "colors": 4,
+   "sha256": "26a2686079a88bec8fd1775be0299c20ca85060f1771daf9a168008bf6af7e27",
+   "triangles": 82,
+   "vertices": 160
+  },
+  "models/fishing_rod.glb": {
+   "colors": 5,
+   "sha256": "3c16015b71a9c2fc104145a8aa4b2aab7625ca9976c23832ec0ace501744ef5e",
+   "triangles": 58,
+   "vertices": 114
+  },
   "models/goblin.glb": {
    "colors": 3,
    "sha256": "e3ddc4b761eb1f17eb4e40a74d29687b3734dffb1325646a57f3362887504f66",
@@ -60,6 +120,12 @@
    "triangles": 108,
    "vertices": 199
   },
+  "models/hammer.glb": {
+   "colors": 3,
+   "sha256": "41f98795a6fabafb8005c7288202f39962207eff78cbb9628ebc9bbf4f9f2e05",
+   "triangles": 60,
+   "vertices": 112
+  },
   "models/hero.glb": {
    "colors": 3,
    "sha256": "1cd608d6cb97d1596edc25e4d48f2169591cecdf29dd03e217f236739964bf5b",
@@ -71,6 +137,18 @@
    "sha256": "69da7cbe72feb058cc167299b27d0c03ef0980f2fd260bd5a3292d3274dccdfc",
    "triangles": 124,
    "vertices": 219
+  },
+  "models/hoe.glb": {
+   "colors": 3,
+   "sha256": "ecc576a04c9dc2f498588418d38c487ae98a0b46a9f7402b47f9715b51623ff9",
+   "triangles": 58,
+   "vertices": 112
+  },
+  "models/iron_sword.glb": {
+   "colors": 4,
+   "sha256": "9faf046ae32ae8096857fa49c26aa0cdb17d0a440c8d0265a502f7b52c70fad1",
+   "triangles": 72,
+   "vertices": 136
   },
   "models/kit_apron_dwarf_f.glb": {
    "colors": 6,
@@ -807,6 +885,12 @@
    "triangles": 376,
    "vertices": 696
   },
+  "models/lantern.glb": {
+   "colors": 3,
+   "sha256": "3278e19cfaa9899e8aed47755f51a293790099ffac482bb4dd0cb19d5c1f8808",
+   "triangles": 120,
+   "vertices": 208
+  },
   "models/orc.glb": {
    "colors": 4,
    "sha256": "4cfcad6531b61f08161f4c1dcffc230c9a6f36c91f54502b4bfef9f6f755e46a",
@@ -818,6 +902,18 @@
    "sha256": "5e61b3aae321030938588c2a353a1a66e11f2b9368b1daf993ae0fcc6d01ef17",
    "triangles": 146,
    "vertices": 264
+  },
+  "models/pickaxe.glb": {
+   "colors": 3,
+   "sha256": "082df9f278d5fc858653557bfab2fe576503988fb38d5936410fff7f854538f7",
+   "triangles": 228,
+   "vertices": 428
+  },
+  "models/quarterstaff.glb": {
+   "colors": 3,
+   "sha256": "137c744cce4958a5eba286f88e286218b124e66558a8d9a80cbeba03a5a8e0a1",
+   "triangles": 52,
+   "vertices": 100
   },
   "models/skeleton.glb": {
    "colors": 2,
@@ -831,6 +927,18 @@
    "triangles": 152,
    "vertices": 268
   },
+  "models/spear.glb": {
+   "colors": 3,
+   "sha256": "9541c0ad351595536a88dd0aa257a730c06a75ba2735cc84406050eda4059adf",
+   "triangles": 92,
+   "vertices": 176
+  },
+  "models/sword.glb": {
+   "colors": 3,
+   "sha256": "86f3ec08bfd374c615c4920fca0686840c13b79677a6d7339e8dbbbc4ac2fedc",
+   "triangles": 60,
+   "vertices": 118
+  },
   "models/tiefling.glb": {
    "colors": 4,
    "sha256": "0f0c054e3495c762755c9ef7203926d116269cb6283c2b8082ed8075a988a30e",
@@ -843,19 +951,32 @@
    "triangles": 438,
    "vertices": 843
   },
+  "models/torch.glb": {
+   "colors": 4,
+   "sha256": "223391ffc87ce71166bdc2fa5b482f628151e363b5439036f5f95d6f87e313dd",
+   "triangles": 130,
+   "vertices": 235
+  },
   "models/troll.glb": {
    "colors": 4,
    "sha256": "15f72833bbbd71b2c43b8b8b6edba134d2efaabb97513327badba378ce3ad092",
    "triangles": 160,
    "vertices": 296
+  },
+  "models/wooden_shield.glb": {
+   "colors": 4,
+   "sha256": "923ead06008a30d09e79ad99034884a426c17dd35943a5125a3f2b91898937a2",
+   "triangles": 526,
+   "vertices": 1018
   }
  },
  "source_files": [
   "kitlib.py",
   "figure.py",
   "kit.py",
+  "gear.py",
   "build.py",
   "rig/human.glb"
  ],
- "sources": "f70dcdfcd630e25bfc0f3147de2a5b6e0a418ce0393a44f90973a8a28557bc72"
+ "sources": "a5a18ea19ffffa3a482d3fef9eb2812eb7075b1fcdfbc39ad44787b372953371"
 }

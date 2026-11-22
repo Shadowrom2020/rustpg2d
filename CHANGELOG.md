@@ -30,7 +30,12 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
     keep working.
   - **Sources:** `scripts/art/kit` (plain Python with numpy; `build.py`, `apply.py`, a style
     guide). A test fails when the kit changed and the library was not rebuilt.
-  - **Not yet:** weapons and animals still have their old models.
+  - **Not yet:** animals still have their old models.
+- **Gear from the kit.** The 20 item models are voxel models at the figures' pixel size: three
+  swords, spear, quarterstaff, axe, hammer, pickaxe, hoe, broom, fishing rod, torch, lantern, two
+  bows, crossbow, round shield and three backpacks. The kit sets how each is held (hold point,
+  direction, front), for every item that uses the model (55 in the library), and their inventory
+  icons are rendered from the new models. Together 20 files in 0.3 MB (6 MB before).
 - **The whole cast is from the kit.** Townspeople, guards, bandits, merchants, wizards, nomads,
   nobles, children, goblins, the troll and skeletons are kit figures now, so the people of a game
   share one look:
@@ -48,9 +53,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
     *realistic* characters of the library, which the kit replaces.
 - **AI agent server:**
   - `model_sheet` returns a picture of a model as the game draws it (animations, facings, pieces,
-    worn and held items, colours);
+    worn and held items, a backpack, colours);
   - `model_check` lists what is wrong with a model and its measures;
-  - `kit_build` builds kit models and puts them into the project;
+  - `kit_build` builds kit models and puts them into the project, with how the kit's item models
+    are held;
   - `write_asset` also takes model files (`models/*.glb`); a model definition changed through
     `upsert_def` takes effect at once;
   - the kit's style guide is the resource `rustpg2d://docs/figure-kit`.

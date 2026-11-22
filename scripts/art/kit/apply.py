@@ -1,15 +1,13 @@
-"""apply.py PORT [BUILT_DIR] [--library]: sends the built kit to the project open in an editor
-whose AI agent server listens on 127.0.0.1:PORT (start the editor with `mcp on PORT`).
+"""apply.py PORT [--library]: puts the kit into the project open in an editor whose AI agent server
+listens on 127.0.0.1:PORT (start the editor with `mcp on PORT`).
 
-- every model file and the shared clip file go into the project's `models/`;
-- every model definition is written (the kit's bodies replace the models of the same ids);
+- the editor builds the kit itself (its `kit_build` tool: it must find the kit's sources, so start
+  it in the repository or with RUSTPG2D_KIT) and takes the model files, the figures' and pieces'
+  definitions and how each item model is held;
 - the project's armour, clothing, cloaks, helmets and hoods get the style they show when worn
-  (`wear`), unless they already name one;
-- with `--library`, the models are also sent to the editor's asset library.
-
-Without BUILT_DIR the editor builds the kit itself (its `kit_build` tool: it must find the kit's
-sources, so start it in the repository or with RUSTPG2D_KIT); with it, the files `build.py --out`
-wrote are sent one by one."""
+  (`wear`), by the kit's table and, for items without a style, by their slot and name;
+- the small races and the tiefling are pointed at their bodies, and what the kit retired is removed;
+- with `--library`, the models are also sent to the editor's asset library."""
 import json
 import os
 import re
@@ -83,21 +81,9 @@ def main():
     ed = Editor(args[0])
     info = ed.call("project_info")
     root = re.search(r" at (.+?) \(engine build", info)
-    if len(args) > 1:
-        # Files built before: sent one by one (slower: the editor reads its models again and again).
-        built = args[1]
-        defs = json.load(open(f"{built}/kit.json"))
-        files = sorted(os.listdir(f"{built}/models"))
-        for f in files:
-            ed.call("write_asset", path=f"models/{f}", source=os.path.abspath(f"{built}/models/{f}"))
-        # Pieces first: a body names the pieces it wears.
-        for d in sorted(defs, key=lambda d: "part" not in d):
-            ed.call("upsert_def", kind="models", **{"def": d})
-        print(f"{len(files)} files and {len(defs)} model definitions sent")
-    else:
-        # The editor builds the kit itself and takes everything in one go.
-        print(ed.call("kit_build").splitlines()[0][:200])
-        defs = [dict(id=m[0]) for m in kit.everything()[0]]
+    # The editor builds the kit itself and takes everything in one go.
+    print(ed.call("kit_build").splitlines()[0][:240])
+    defs = [dict(id=m[0]) for m in kit.everything()[0]]
     if root and os.path.exists(f"{root.group(1).strip()}/defs/items.ron"):
         text = open(f"{root.group(1).strip()}/defs/items.ron").read()
         n = 0

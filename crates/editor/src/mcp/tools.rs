@@ -271,6 +271,8 @@ pub struct ModelSheetParams {
     pub weapon: Option<String>,
     /// Its left-hand item (an item id).
     pub offhand: Option<String>,
+    /// The backpack on its back (an item id).
+    pub back: Option<String>,
     /// Colours per colour feature: name -> "RRGGBB".
     pub colors: Option<std::collections::BTreeMap<String, String>>,
     /// Enlargement, 1-4 (default 2).

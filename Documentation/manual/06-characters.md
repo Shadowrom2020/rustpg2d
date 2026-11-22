@@ -18,8 +18,9 @@ own shows as the **mannequin** (a plain wooden figure; the engine has one built 
 
 The starter library's and the example's **people** are voxel figures built by script, the
 **figure kit** ([below](#pieces-hair-outfits-and-shown-equipment)): the playable races, the
-townspeople, guards, bandits, goblins, the troll and skeletons. The 9 animals and 16 items' 3D
-models were modelled with Meshy from hand-drawn pictures of earlier versions.
+townspeople, guards, bandits, goblins, the troll and skeletons. The kit also builds the 20 item
+models they hold and carry (weapons, shields, tools, lights, backpacks). The 9 animals were
+modelled with Meshy from hand-drawn pictures of earlier versions.
 
 - *Database › 3D models › Import model…* takes a rigged `.glb` (Meshy, Blender, Mixamo…): it is
   copied into `models/` (made smaller: textures as the game uses them, clip files without their

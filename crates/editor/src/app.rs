@@ -1526,7 +1526,10 @@ impl Editor {
         if self.project_open {
             ui::add_project_fonts(ctx, &self.project);
         }
-        self.db_history_frame(ctx);
+        // (The Database view looks itself, right before its forms: `database::ui`.)
+        if self.mode != Mode::Database || !self.project_open {
+            self.db_history_frame(ctx);
+        }
         if self.defs_dirty && self.defs_saved.0 == self.project.db && self.defs_saved.1 == self.project.config {
             self.defs_dirty = false; // edited and changed back
         }

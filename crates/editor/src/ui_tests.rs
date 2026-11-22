@@ -47,10 +47,8 @@ fn harness(root: &Path, tab: Tab, sel: usize) -> Harness<'static, Editor> {
     ed.db.tab = tab;
     ed.db.sel = sel;
     Harness::builder().with_size(egui::vec2(1400.0, 2400.0)).build_ui_state(
-        |ui, ed: &mut Editor| {
-            database::ui(ed, ui);
-            ed.db_history_frame(ui.ctx());
-        },
+        // (The view looks at the history itself: undo steps, Ctrl+Z.)
+        |ui, ed: &mut Editor| database::ui(ed, ui),
         ed,
     )
 }

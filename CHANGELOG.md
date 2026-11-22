@@ -776,6 +776,13 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **A hitch once a second on big maps with a minimap**: the fog of war's picture was painted and
   uploaded anew each second (a million tiles in the wilds). It is made again only when the hero
   explored something, into the texture there is.
+- **The editor's Database mode did most of its work copying**: every frame it copied all
+  definitions twice and compared them twice (about three quarters of the view's frame on the
+  starter library, less on small projects). It now reads the copy the undo history keeps; a frame
+  costs two comparisons and no copy.
+- **Undo steps of definitions keep what changed**, not a copy of all definitions each: the lists
+  that changed, and of a list in which one definition changed only that one (100 steps of a big
+  project could hold hundreds of megabytes).
 - Casting *Find Familiar* a second time gave a second owl. A caster's summoning spell cast again
   now replaces the creatures of its earlier casting.
 - A summoned creature that vanishes (0 hit points, its time, the spell's end) stays in the map's

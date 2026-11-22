@@ -476,7 +476,11 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
     });
     ui.separator();
 
-    let before = (ed.project.db.clone(), ed.project.config.clone());
+    // The definitions as they are now: what the forms read while one of them is edited, and
+    // what tells afterwards whether anything changed. The history has just looked at them and
+    // lends its copy (copying megabytes of definitions every frame was most of this view's work).
+    ed.db_history_frame(&ui.ctx().clone());
+    let before = ed.db_hist.lend().unwrap_or_else(|| Box::new((ed.project.db.clone(), ed.project.config.clone())));
     let mut paint: Option<(String, (u32, u32), bool, u32)> = None;
     let mut state_renamed: Option<(String, String, String)> = None;
     let mut art: Option<ArtAction> = None;
@@ -673,7 +677,9 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
         if ed.db.sel != sel_before {
             ed.db.rename = RenameUi::default();
         }
-        let db_snapshot = ed.project.db.clone();
+        // (The list just changed: the forms read the definitions with that change.)
+        let changed_list = list_changed.then(|| ed.project.db.clone());
+        let db_snapshot: &Database = changed_list.as_ref().unwrap_or(&before.0);
         let mut embed: Option<(String, (u32, u32), crate::pixel::Layout)> = None;
         // A sheet's frame size or scale changed: its textures are cut / drawn anew.
         let mut sheet_changed = false;
@@ -704,7 +710,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     audio: &mut ed.audio,
                     rename: &mut ed.db.rename,
                     browse: &mut ed.browse_request,
-                    db: &db_snapshot,
+                    db: db_snapshot,
                     paint: &mut paint,
                     state_sel: &mut ed.db.state_sel,
                     state_rename: &mut ed.db.state_rename,
@@ -724,20 +730,20 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     Tab::Items => {
                         if let Some(d) = db.items.get_mut(i) {
                             item_form(ui, d, &mut cx);
-                            art_target = art_of(&db_snapshot, &d.icon, false);
+                            art_target = art_of(db_snapshot, &d.icon, false);
                         }
                     }
                     Tab::Props => {
                         if let Some(d) = db.props.get_mut(i) {
                             prop_form(ui, d, &mut cx);
                             let k = (*cx.state_sel).min(d.states.len());
-                            art_target = art_of(&db_snapshot, d.state_look(k).0, false);
+                            art_target = art_of(db_snapshot, d.state_look(k).0, false);
                         }
                     }
                     Tab::Characters => {
                         if let Some(d) = db.characters.get_mut(i) {
                             character_form(ui, d, &mut cx);
-                            art_target = art_of(&db_snapshot, &d.portrait, false);
+                            art_target = art_of(db_snapshot, &d.portrait, false);
                         }
                     }
                     Tab::Sheets => {
@@ -904,6 +910,8 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             ed.refs.sounds = ed.project.db.sounds.iter().map(|i| i.id.clone()).collect();
         }
     }
+    // (Back to the history: its next look turns what changed here into an undo step.)
+    ed.db_hist.give_back(before);
     if let Some((kind, old, new)) = ed.db.rename.request.take() {
         ed.rename_id(kind, &old, &new);
     }

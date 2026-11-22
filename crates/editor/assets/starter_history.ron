@@ -12425,6 +12425,1776 @@
                 ],
             },
         ),
+        "sheet:fx_acid-arrow": (
+            defs: [
+                13597008053625855308,
+            ],
+            files: {
+                "sprites/fx/fx_acid-arrow.png": [
+                    13981839094673449348,
+                ],
+            },
+        ),
+        "sheet:fx_acid-splash": (
+            defs: [
+                13546831750213996374,
+            ],
+            files: {
+                "sprites/fx/fx_acid-splash.png": [
+                    5897462549341682202,
+                ],
+            },
+        ),
+        "sheet:fx_aid": (
+            defs: [
+                12453694548975879118,
+            ],
+            files: {
+                "sprites/fx/fx_aid.png": [
+                    11482861295673142276,
+                ],
+            },
+        ),
+        "sheet:fx_arcane-sword": (
+            defs: [
+                12701709702929683938,
+            ],
+            files: {
+                "sprites/fx/fx_arcane-sword.png": [
+                    2344174985597097100,
+                ],
+            },
+        ),
+        "sheet:fx_bane": (
+            defs: [
+                10954622629608614590,
+            ],
+            files: {
+                "sprites/fx/fx_bane.png": [
+                    14445129030063840475,
+                ],
+            },
+        ),
+        "sheet:fx_banishment": (
+            defs: [
+                9616220485707266564,
+            ],
+            files: {
+                "sprites/fx/fx_banishment.png": [
+                    11226712047814882276,
+                ],
+            },
+        ),
+        "sheet:fx_barkskin": (
+            defs: [
+                4748088816130293832,
+            ],
+            files: {
+                "sprites/fx/fx_barkskin.png": [
+                    12389665514469239255,
+                ],
+            },
+        ),
+        "sheet:fx_beacon-of-hope": (
+            defs: [
+                8770113358850983376,
+            ],
+            files: {
+                "sprites/fx/fx_beacon-of-hope.png": [
+                    18374139642275643457,
+                ],
+            },
+        ),
+        "sheet:fx_black-tentacles": (
+            defs: [
+                11590038403879875938,
+            ],
+            files: {
+                "sprites/fx/fx_black-tentacles.png": [
+                    13903485927720150241,
+                ],
+            },
+        ),
+        "sheet:fx_blade-barrier": (
+            defs: [
+                6765282864447162660,
+            ],
+            files: {
+                "sprites/fx/fx_blade-barrier.png": [
+                    1548579642229734336,
+                ],
+            },
+        ),
+        "sheet:fx_bless": (
+            defs: [
+                11739692239498907534,
+            ],
+            files: {
+                "sprites/fx/fx_bless.png": [
+                    2511737613519037050,
+                ],
+            },
+        ),
+        "sheet:fx_blight": (
+            defs: [
+                3949262688356079894,
+            ],
+            files: {
+                "sprites/fx/fx_blight.png": [
+                    10347415436858594223,
+                ],
+            },
+        ),
+        "sheet:fx_blindness-deafness": (
+            defs: [
+                17483514164717330638,
+            ],
+            files: {
+                "sprites/fx/fx_blindness-deafness.png": [
+                    14660260388845253025,
+                ],
+            },
+        ),
+        "sheet:fx_blur": (
+            defs: [
+                371938974190912692,
+            ],
+            files: {
+                "sprites/fx/fx_blur.png": [
+                    7408246420625726027,
+                ],
+            },
+        ),
+        "sheet:fx_branding-smite": (
+            defs: [
+                13380221371764227134,
+            ],
+            files: {
+                "sprites/fx/fx_branding-smite.png": [
+                    5478006579289862553,
+                ],
+            },
+        ),
+        "sheet:fx_burning-hands": (
+            defs: [
+                4260644314370299144,
+            ],
+            files: {
+                "sprites/fx/fx_burning-hands.png": [
+                    15266046853788920320,
+                ],
+            },
+        ),
+        "sheet:fx_call-lightning": (
+            defs: [
+                2577091327806846616,
+            ],
+            files: {
+                "sprites/fx/fx_call-lightning.png": [
+                    17851247197094035557,
+                ],
+            },
+        ),
+        "sheet:fx_chain-lightning": (
+            defs: [
+                2400487197733670078,
+            ],
+            files: {
+                "sprites/fx/fx_chain-lightning.png": [
+                    12726091962569285400,
+                ],
+            },
+        ),
+        "sheet:fx_charm-person": (
+            defs: [
+                17099587909500130312,
+            ],
+            files: {
+                "sprites/fx/fx_charm-person.png": [
+                    5488606541544611785,
+                ],
+            },
+        ),
+        "sheet:fx_chill-touch": (
+            defs: [
+                12330489624446648902,
+            ],
+            files: {
+                "sprites/fx/fx_chill-touch.png": [
+                    14304832506875586895,
+                ],
+            },
+        ),
+        "sheet:fx_circle-of-death": (
+            defs: [
+                10544030018976668874,
+            ],
+            files: {
+                "sprites/fx/fx_circle-of-death.png": [
+                    13851341963644498817,
+                ],
+            },
+        ),
+        "sheet:fx_cloudkill": (
+            defs: [
+                10153493757862923838,
+            ],
+            files: {
+                "sprites/fx/fx_cloudkill.png": [
+                    11599063150593709070,
+                ],
+            },
+        ),
+        "sheet:fx_color-spray": (
+            defs: [
+                10923431083838793876,
+            ],
+            files: {
+                "sprites/fx/fx_color-spray.png": [
+                    995887531399327293,
+                ],
+            },
+        ),
+        "sheet:fx_command": (
+            defs: [
+                3397662143742132006,
+            ],
+            files: {
+                "sprites/fx/fx_command.png": [
+                    2672571900905097851,
+                ],
+            },
+        ),
+        "sheet:fx_cone-of-cold": (
+            defs: [
+                9341495641213945242,
+            ],
+            files: {
+                "sprites/fx/fx_cone-of-cold.png": [
+                    13183090619656842709,
+                ],
+            },
+        ),
+        "sheet:fx_confusion": (
+            defs: [
+                13656836030790591550,
+            ],
+            files: {
+                "sprites/fx/fx_confusion.png": [
+                    12222362830390945402,
+                ],
+            },
+        ),
+        "sheet:fx_conjure-animals": (
+            defs: [
+                16793440216262141494,
+            ],
+            files: {
+                "sprites/fx/fx_conjure-animals.png": [
+                    12483847151494567916,
+                ],
+            },
+        ),
+        "sheet:fx_contagion": (
+            defs: [
+                6577807820678626638,
+            ],
+            files: {
+                "sprites/fx/fx_contagion.png": [
+                    4919617169974531537,
+                ],
+            },
+        ),
+        "sheet:fx_continual-flame": (
+            defs: [
+                13730710485549490878,
+            ],
+            files: {
+                "sprites/fx/fx_continual-flame.png": [
+                    15743375072310820771,
+                ],
+            },
+        ),
+        "sheet:fx_counterspell": (
+            defs: [
+                6987763318067104170,
+            ],
+            files: {
+                "sprites/fx/fx_counterspell.png": [
+                    11512716220624662724,
+                ],
+            },
+        ),
+        "sheet:fx_cure-wounds": (
+            defs: [
+                5449506477957506506,
+            ],
+            files: {
+                "sprites/fx/fx_cure-wounds.png": [
+                    1863920328605037433,
+                ],
+            },
+        ),
+        "sheet:fx_dancing-lights": (
+            defs: [
+                2183035128977234326,
+            ],
+            files: {
+                "sprites/fx/fx_dancing-lights.png": [
+                    12306357016379151240,
+                ],
+            },
+        ),
+        "sheet:fx_darkness": (
+            defs: [
+                1547510672102473528,
+            ],
+            files: {
+                "sprites/fx/fx_darkness.png": [
+                    11588095238509062329,
+                ],
+            },
+        ),
+        "sheet:fx_darkvision": (
+            defs: [
+                17952577754589265790,
+            ],
+            files: {
+                "sprites/fx/fx_darkvision.png": [
+                    3918018081789507326,
+                ],
+            },
+        ),
+        "sheet:fx_daylight": (
+            defs: [
+                7246824102079176766,
+            ],
+            files: {
+                "sprites/fx/fx_daylight.png": [
+                    13608504408482596310,
+                ],
+            },
+        ),
+        "sheet:fx_death-ward": (
+            defs: [
+                4068328301261621068,
+            ],
+            files: {
+                "sprites/fx/fx_death-ward.png": [
+                    1043950672716021526,
+                ],
+            },
+        ),
+        "sheet:fx_delayed-blast-fireball": (
+            defs: [
+                12061050228381879240,
+            ],
+            files: {
+                "sprites/fx/fx_delayed-blast-fireball.png": [
+                    13303942043945870087,
+                ],
+            },
+        ),
+        "sheet:fx_detect-magic": (
+            defs: [
+                3705151302901302052,
+            ],
+            files: {
+                "sprites/fx/fx_detect-magic.png": [
+                    4222209725748343557,
+                ],
+            },
+        ),
+        "sheet:fx_dimension-door": (
+            defs: [
+                3592253464110665728,
+            ],
+            files: {
+                "sprites/fx/fx_dimension-door.png": [
+                    12176900036489286103,
+                ],
+            },
+        ),
+        "sheet:fx_disintegrate": (
+            defs: [
+                11508729115805281752,
+            ],
+            files: {
+                "sprites/fx/fx_disintegrate.png": [
+                    18023270201676582146,
+                ],
+            },
+        ),
+        "sheet:fx_dispel-magic": (
+            defs: [
+                5593767881317049888,
+            ],
+            files: {
+                "sprites/fx/fx_dispel-magic.png": [
+                    14778816968673473168,
+                ],
+            },
+        ),
+        "sheet:fx_divine-favor": (
+            defs: [
+                16751793478539388358,
+            ],
+            files: {
+                "sprites/fx/fx_divine-favor.png": [
+                    236370774138365337,
+                ],
+            },
+        ),
+        "sheet:fx_dominate-beast": (
+            defs: [
+                4205549774522239212,
+            ],
+            files: {
+                "sprites/fx/fx_dominate-beast.png": [
+                    5743326822392053699,
+                ],
+            },
+        ),
+        "sheet:fx_dominate-person": (
+            defs: [
+                13174575857390992550,
+            ],
+            files: {
+                "sprites/fx/fx_dominate-person.png": [
+                    7277796977734964387,
+                ],
+            },
+        ),
+        "sheet:fx_eldritch-blast": (
+            defs: [
+                3420409836221321070,
+            ],
+            files: {
+                "sprites/fx/fx_eldritch-blast.png": [
+                    194683590705328525,
+                ],
+            },
+        ),
+        "sheet:fx_enhance-ability": (
+            defs: [
+                12748478350024259334,
+            ],
+            files: {
+                "sprites/fx/fx_enhance-ability.png": [
+                    7120004068082905993,
+                ],
+            },
+        ),
+        "sheet:fx_entangle": (
+            defs: [
+                1726988647675739342,
+            ],
+            files: {
+                "sprites/fx/fx_entangle.png": [
+                    950648957859405450,
+                ],
+            },
+        ),
+        "sheet:fx_faithful-hound": (
+            defs: [
+                15313498567251822342,
+            ],
+            files: {
+                "sprites/fx/fx_faithful-hound.png": [
+                    9895521585073916882,
+                ],
+            },
+        ),
+        "sheet:fx_false-life": (
+            defs: [
+                16697304557770636526,
+            ],
+            files: {
+                "sprites/fx/fx_false-life.png": [
+                    9406381702275573607,
+                ],
+            },
+        ),
+        "sheet:fx_fear": (
+            defs: [
+                15492898591775829662,
+            ],
+            files: {
+                "sprites/fx/fx_fear.png": [
+                    6769532370005569721,
+                ],
+            },
+        ),
+        "sheet:fx_feather-fall": (
+            defs: [
+                17674908938486816416,
+            ],
+            files: {
+                "sprites/fx/fx_feather-fall.png": [
+                    12838141620306125502,
+                ],
+            },
+        ),
+        "sheet:fx_feeblemind": (
+            defs: [
+                4445823665373698100,
+            ],
+            files: {
+                "sprites/fx/fx_feeblemind.png": [
+                    14212641654681835755,
+                ],
+            },
+        ),
+        "sheet:fx_find-familiar": (
+            defs: [
+                13635300495636253278,
+            ],
+            files: {
+                "sprites/fx/fx_find-familiar.png": [
+                    5457212479608053888,
+                ],
+            },
+        ),
+        "sheet:fx_find-traps": (
+            defs: [
+                3340470412324118990,
+            ],
+            files: {
+                "sprites/fx/fx_find-traps.png": [
+                    2915122915366475864,
+                ],
+            },
+        ),
+        "sheet:fx_finger-of-death": (
+            defs: [
+                13045967038172542750,
+            ],
+            files: {
+                "sprites/fx/fx_finger-of-death.png": [
+                    1568265302243479357,
+                ],
+            },
+        ),
+        "sheet:fx_fire-bolt": (
+            defs: [
+                2024206463890692690,
+            ],
+            files: {
+                "sprites/fx/fx_fire-bolt.png": [
+                    15667155149803366167,
+                ],
+            },
+        ),
+        "sheet:fx_fire-storm": (
+            defs: [
+                6732998769171959986,
+            ],
+            files: {
+                "sprites/fx/fx_fire-storm.png": [
+                    3125594409940128628,
+                ],
+            },
+        ),
+        "sheet:fx_flame-strike": (
+            defs: [
+                14845994717058038426,
+            ],
+            files: {
+                "sprites/fx/fx_flame-strike.png": [
+                    8813034794212897797,
+                ],
+            },
+        ),
+        "sheet:fx_flaming-sphere": (
+            defs: [
+                7419874922667918066,
+            ],
+            files: {
+                "sprites/fx/fx_flaming-sphere.png": [
+                    16738365254836690172,
+                ],
+            },
+        ),
+        "sheet:fx_fly": (
+            defs: [
+                15271437029140767750,
+            ],
+            files: {
+                "sprites/fx/fx_fly.png": [
+                    13224624359681218069,
+                ],
+            },
+        ),
+        "sheet:fx_fog-cloud": (
+            defs: [
+                213461446451819482,
+            ],
+            files: {
+                "sprites/fx/fx_fog-cloud.png": [
+                    3055377187227120230,
+                ],
+            },
+        ),
+        "sheet:fx_freedom-of-movement": (
+            defs: [
+                585630815125625374,
+            ],
+            files: {
+                "sprites/fx/fx_freedom-of-movement.png": [
+                    8736098903276950387,
+                ],
+            },
+        ),
+        "sheet:fx_freezing-sphere": (
+            defs: [
+                2536459380877073786,
+            ],
+            files: {
+                "sprites/fx/fx_freezing-sphere.png": [
+                    2272931618364191059,
+                ],
+            },
+        ),
+        "sheet:fx_grease": (
+            defs: [
+                2336060571066896916,
+            ],
+            files: {
+                "sprites/fx/fx_grease.png": [
+                    3257262930497035039,
+                ],
+            },
+        ),
+        "sheet:fx_greater-invisibility": (
+            defs: [
+                16502315002283964026,
+            ],
+            files: {
+                "sprites/fx/fx_greater-invisibility.png": [
+                    7686123384713069847,
+                ],
+            },
+        ),
+        "sheet:fx_greater-restoration": (
+            defs: [
+                16096856665143479062,
+            ],
+            files: {
+                "sprites/fx/fx_greater-restoration.png": [
+                    16630291903923465924,
+                ],
+            },
+        ),
+        "sheet:fx_guardian-of-faith": (
+            defs: [
+                463737396520244366,
+            ],
+            files: {
+                "sprites/fx/fx_guardian-of-faith.png": [
+                    725275990123609128,
+                ],
+            },
+        ),
+        "sheet:fx_guidance": (
+            defs: [
+                3992194343867998730,
+            ],
+            files: {
+                "sprites/fx/fx_guidance.png": [
+                    1953297617052166452,
+                ],
+            },
+        ),
+        "sheet:fx_guiding-bolt": (
+            defs: [
+                15141136984807787088,
+            ],
+            files: {
+                "sprites/fx/fx_guiding-bolt.png": [
+                    7973672872735824943,
+                ],
+            },
+        ),
+        "sheet:fx_harm": (
+            defs: [
+                16175392945759392578,
+            ],
+            files: {
+                "sprites/fx/fx_harm.png": [
+                    4227231846197212365,
+                ],
+            },
+        ),
+        "sheet:fx_haste": (
+            defs: [
+                6181186270639638394,
+            ],
+            files: {
+                "sprites/fx/fx_haste.png": [
+                    5693645649372846181,
+                ],
+            },
+        ),
+        "sheet:fx_heal": (
+            defs: [
+                18389508203465809854,
+            ],
+            files: {
+                "sprites/fx/fx_heal.png": [
+                    9747984074955676319,
+                ],
+            },
+        ),
+        "sheet:fx_healing-word": (
+            defs: [
+                5040185097240834112,
+            ],
+            files: {
+                "sprites/fx/fx_healing-word.png": [
+                    10991216265264310393,
+                ],
+            },
+        ),
+        "sheet:fx_heat-metal": (
+            defs: [
+                8042487245535695054,
+            ],
+            files: {
+                "sprites/fx/fx_heat-metal.png": [
+                    2839191540767326770,
+                ],
+            },
+        ),
+        "sheet:fx_hellish-rebuke": (
+            defs: [
+                18209251621485523374,
+            ],
+            files: {
+                "sprites/fx/fx_hellish-rebuke.png": [
+                    2116303922184487182,
+                ],
+            },
+        ),
+        "sheet:fx_heroism": (
+            defs: [
+                1594695962756722746,
+            ],
+            files: {
+                "sprites/fx/fx_heroism.png": [
+                    17869345030075961511,
+                ],
+            },
+        ),
+        "sheet:fx_hideous-laughter": (
+            defs: [
+                12226881621424023222,
+            ],
+            files: {
+                "sprites/fx/fx_hideous-laughter.png": [
+                    10266181968870680135,
+                ],
+            },
+        ),
+        "sheet:fx_hold-monster": (
+            defs: [
+                6598777441176179978,
+            ],
+            files: {
+                "sprites/fx/fx_hold-monster.png": [
+                    17465776660713481427,
+                ],
+            },
+        ),
+        "sheet:fx_hold-person": (
+            defs: [
+                4483564796907308946,
+            ],
+            files: {
+                "sprites/fx/fx_hold-person.png": [
+                    11677054065276156077,
+                ],
+            },
+        ),
+        "sheet:fx_hunters-mark": (
+            defs: [
+                17011463860058383288,
+            ],
+            files: {
+                "sprites/fx/fx_hunters-mark.png": [
+                    16205963785553160522,
+                ],
+            },
+        ),
+        "sheet:fx_hypnotic-pattern": (
+            defs: [
+                13288943621216312268,
+            ],
+            files: {
+                "sprites/fx/fx_hypnotic-pattern.png": [
+                    1075781533879894057,
+                ],
+            },
+        ),
+        "sheet:fx_ice-storm": (
+            defs: [
+                5218856941229839926,
+            ],
+            files: {
+                "sprites/fx/fx_ice-storm.png": [
+                    5555347078951840456,
+                ],
+            },
+        ),
+        "sheet:fx_incendiary-cloud": (
+            defs: [
+                10460024586370806210,
+            ],
+            files: {
+                "sprites/fx/fx_incendiary-cloud.png": [
+                    10064943394421472111,
+                ],
+            },
+        ),
+        "sheet:fx_inflict-wounds": (
+            defs: [
+                2825033272732246002,
+            ],
+            files: {
+                "sprites/fx/fx_inflict-wounds.png": [
+                    7679828861359072941,
+                ],
+            },
+        ),
+        "sheet:fx_insect-plague": (
+            defs: [
+                7324965389585409562,
+            ],
+            files: {
+                "sprites/fx/fx_insect-plague.png": [
+                    4082422518513476826,
+                ],
+            },
+        ),
+        "sheet:fx_invisibility": (
+            defs: [
+                571942937176179280,
+            ],
+            files: {
+                "sprites/fx/fx_invisibility.png": [
+                    9010904819637583316,
+                ],
+            },
+        ),
+        "sheet:fx_jump": (
+            defs: [
+                131076301274171142,
+            ],
+            files: {
+                "sprites/fx/fx_jump.png": [
+                    11044075314445970434,
+                ],
+            },
+        ),
+        "sheet:fx_knock": (
+            defs: [
+                8669611628622542782,
+            ],
+            files: {
+                "sprites/fx/fx_knock.png": [
+                    13757724146227554929,
+                ],
+            },
+        ),
+        "sheet:fx_lesser-restoration": (
+            defs: [
+                1234207405906229232,
+            ],
+            files: {
+                "sprites/fx/fx_lesser-restoration.png": [
+                    16370052292874281353,
+                ],
+            },
+        ),
+        "sheet:fx_light": (
+            defs: [
+                9541201514433646046,
+            ],
+            files: {
+                "sprites/fx/fx_light.png": [
+                    11175146875723111276,
+                ],
+            },
+        ),
+        "sheet:fx_lightning-bolt": (
+            defs: [
+                8339060215107260836,
+            ],
+            files: {
+                "sprites/fx/fx_lightning-bolt.png": [
+                    7634662731193001154,
+                ],
+            },
+        ),
+        "sheet:fx_longstrider": (
+            defs: [
+                8290962159362299658,
+            ],
+            files: {
+                "sprites/fx/fx_longstrider.png": [
+                    26238433262565816,
+                ],
+            },
+        ),
+        "sheet:fx_mage-armor": (
+            defs: [
+                11393062775903689166,
+            ],
+            files: {
+                "sprites/fx/fx_mage-armor.png": [
+                    8345838065458680464,
+                ],
+            },
+        ),
+        "sheet:fx_magic-missile": (
+            defs: [
+                7150714399317773214,
+            ],
+            files: {
+                "sprites/fx/fx_magic-missile.png": [
+                    13603425675404362779,
+                ],
+            },
+        ),
+        "sheet:fx_magic-weapon": (
+            defs: [
+                6305965232023328834,
+            ],
+            files: {
+                "sprites/fx/fx_magic-weapon.png": [
+                    1844348652008040033,
+                ],
+            },
+        ),
+        "sheet:fx_mass-cure-wounds": (
+            defs: [
+                14100053732728875612,
+            ],
+            files: {
+                "sprites/fx/fx_mass-cure-wounds.png": [
+                    5981360232368312911,
+                ],
+            },
+        ),
+        "sheet:fx_mass-heal": (
+            defs: [
+                1653481309630750070,
+            ],
+            files: {
+                "sprites/fx/fx_mass-heal.png": [
+                    13393061922567591466,
+                ],
+            },
+        ),
+        "sheet:fx_mass-healing-word": (
+            defs: [
+                8011757107862545166,
+            ],
+            files: {
+                "sprites/fx/fx_mass-healing-word.png": [
+                    4522211436025458223,
+                ],
+            },
+        ),
+        "sheet:fx_meteor-swarm": (
+            defs: [
+                132372328823675372,
+            ],
+            files: {
+                "sprites/fx/fx_meteor-swarm.png": [
+                    14457181839476181300,
+                ],
+            },
+        ),
+        "sheet:fx_mind-blank": (
+            defs: [
+                13292137204436485364,
+            ],
+            files: {
+                "sprites/fx/fx_mind-blank.png": [
+                    10739788300789242761,
+                ],
+            },
+        ),
+        "sheet:fx_mirror-image": (
+            defs: [
+                2976530346918910824,
+            ],
+            files: {
+                "sprites/fx/fx_mirror-image.png": [
+                    6814799058357750860,
+                ],
+            },
+        ),
+        "sheet:fx_misty-step": (
+            defs: [
+                12596486088489062960,
+            ],
+            files: {
+                "sprites/fx/fx_misty-step.png": [
+                    9264241005817206727,
+                ],
+            },
+        ),
+        "sheet:fx_moonbeam": (
+            defs: [
+                5602470698347338046,
+            ],
+            files: {
+                "sprites/fx/fx_moonbeam.png": [
+                    17770698613251322978,
+                ],
+            },
+        ),
+        "sheet:fx_pass-without-trace": (
+            defs: [
+                7404874853827570286,
+            ],
+            files: {
+                "sprites/fx/fx_pass-without-trace.png": [
+                    13251136147750805129,
+                ],
+            },
+        ),
+        "sheet:fx_phantasmal-killer": (
+            defs: [
+                12129963773252422098,
+            ],
+            files: {
+                "sprites/fx/fx_phantasmal-killer.png": [
+                    8843617424835616592,
+                ],
+            },
+        ),
+        "sheet:fx_poison-spray": (
+            defs: [
+                18260915309796619246,
+            ],
+            files: {
+                "sprites/fx/fx_poison-spray.png": [
+                    9819007501809243936,
+                ],
+            },
+        ),
+        "sheet:fx_polymorph": (
+            defs: [
+                14524084299064252246,
+            ],
+            files: {
+                "sprites/fx/fx_polymorph.png": [
+                    5596761598098793068,
+                ],
+            },
+        ),
+        "sheet:fx_power-word-stun": (
+            defs: [
+                6549835736126247646,
+            ],
+            files: {
+                "sprites/fx/fx_power-word-stun.png": [
+                    17973708141619898969,
+                ],
+            },
+        ),
+        "sheet:fx_prayer-of-healing": (
+            defs: [
+                13166974643915340442,
+            ],
+            files: {
+                "sprites/fx/fx_prayer-of-healing.png": [
+                    5665147915389103363,
+                ],
+            },
+        ),
+        "sheet:fx_prismatic-spray": (
+            defs: [
+                9866647514427695722,
+            ],
+            files: {
+                "sprites/fx/fx_prismatic-spray.png": [
+                    787943913847365713,
+                ],
+            },
+        ),
+        "sheet:fx_produce-flame": (
+            defs: [
+                15319654659351220574,
+            ],
+            files: {
+                "sprites/fx/fx_produce-flame.png": [
+                    14581901691359412205,
+                ],
+            },
+        ),
+        "sheet:fx_protection-from-energy": (
+            defs: [
+                3111190934269069532,
+            ],
+            files: {
+                "sprites/fx/fx_protection-from-energy.png": [
+                    12251924980927200739,
+                ],
+            },
+        ),
+        "sheet:fx_protection-from-evil-and-good": (
+            defs: [
+                6310076339759542506,
+            ],
+            files: {
+                "sprites/fx/fx_protection-from-evil-and-good.png": [
+                    5963890640530623093,
+                ],
+            },
+        ),
+        "sheet:fx_protection-from-poison": (
+            defs: [
+                2501040069097296328,
+            ],
+            files: {
+                "sprites/fx/fx_protection-from-poison.png": [
+                    6493326260459400269,
+                ],
+            },
+        ),
+        "sheet:fx_raise-dead": (
+            defs: [
+                11690280784687472708,
+            ],
+            files: {
+                "sprites/fx/fx_raise-dead.png": [
+                    4347594047811713612,
+                ],
+            },
+        ),
+        "sheet:fx_ray-of-enfeeblement": (
+            defs: [
+                12009314751250147030,
+            ],
+            files: {
+                "sprites/fx/fx_ray-of-enfeeblement.png": [
+                    17668411077207623514,
+                ],
+            },
+        ),
+        "sheet:fx_ray-of-frost": (
+            defs: [
+                11041657339044912604,
+            ],
+            files: {
+                "sprites/fx/fx_ray-of-frost.png": [
+                    771888455081965297,
+                ],
+            },
+        ),
+        "sheet:fx_regenerate": (
+            defs: [
+                16075179211304374558,
+            ],
+            files: {
+                "sprites/fx/fx_regenerate.png": [
+                    9613858948429152002,
+                ],
+            },
+        ),
+        "sheet:fx_resistance": (
+            defs: [
+                15836970366446179628,
+            ],
+            files: {
+                "sprites/fx/fx_resistance.png": [
+                    13856061576925618450,
+                ],
+            },
+        ),
+        "sheet:fx_resurrection": (
+            defs: [
+                9324987368363176332,
+            ],
+            files: {
+                "sprites/fx/fx_resurrection.png": [
+                    14702845870147940447,
+                ],
+            },
+        ),
+        "sheet:fx_revivify": (
+            defs: [
+                14774195041692837622,
+            ],
+            files: {
+                "sprites/fx/fx_revivify.png": [
+                    5631309086732214908,
+                ],
+            },
+        ),
+        "sheet:fx_sacred-flame": (
+            defs: [
+                14975126698411273966,
+            ],
+            files: {
+                "sprites/fx/fx_sacred-flame.png": [
+                    9163539554844529592,
+                ],
+            },
+        ),
+        "sheet:fx_sanctuary": (
+            defs: [
+                13094537183443545726,
+            ],
+            files: {
+                "sprites/fx/fx_sanctuary.png": [
+                    6069229415296967269,
+                ],
+            },
+        ),
+        "sheet:fx_scorching-ray": (
+            defs: [
+                8282110369187950990,
+            ],
+            files: {
+                "sprites/fx/fx_scorching-ray.png": [
+                    11231031883742671883,
+                ],
+            },
+        ),
+        "sheet:fx_see-invisibility": (
+            defs: [
+                16338362242369127340,
+            ],
+            files: {
+                "sprites/fx/fx_see-invisibility.png": [
+                    13039103253750050958,
+                ],
+            },
+        ),
+        "sheet:fx_shatter": (
+            defs: [
+                8365098606874301546,
+            ],
+            files: {
+                "sprites/fx/fx_shatter.png": [
+                    5606043789293524028,
+                ],
+            },
+        ),
+        "sheet:fx_shield": (
+            defs: [
+                2311371144191270056,
+            ],
+            files: {
+                "sprites/fx/fx_shield.png": [
+                    18322679249824287023,
+                ],
+            },
+        ),
+        "sheet:fx_shield-of-faith": (
+            defs: [
+                11511887982523226362,
+            ],
+            files: {
+                "sprites/fx/fx_shield-of-faith.png": [
+                    15194670241340390530,
+                ],
+            },
+        ),
+        "sheet:fx_shillelagh": (
+            defs: [
+                10581178376768899400,
+            ],
+            files: {
+                "sprites/fx/fx_shillelagh.png": [
+                    12557701287984446525,
+                ],
+            },
+        ),
+        "sheet:fx_shocking-grasp": (
+            defs: [
+                16031836124158212286,
+            ],
+            files: {
+                "sprites/fx/fx_shocking-grasp.png": [
+                    13528988394976393750,
+                ],
+            },
+        ),
+        "sheet:fx_silence": (
+            defs: [
+                15621269859848523586,
+            ],
+            files: {
+                "sprites/fx/fx_silence.png": [
+                    4340381603504244719,
+                ],
+            },
+        ),
+        "sheet:fx_sleep": (
+            defs: [
+                3749375674304215654,
+            ],
+            files: {
+                "sprites/fx/fx_sleep.png": [
+                    13653855832241745818,
+                ],
+            },
+        ),
+        "sheet:fx_sleet-storm": (
+            defs: [
+                2241687111490013298,
+            ],
+            files: {
+                "sprites/fx/fx_sleet-storm.png": [
+                    17326069953568000174,
+                ],
+            },
+        ),
+        "sheet:fx_slow": (
+            defs: [
+                6540885631256827280,
+            ],
+            files: {
+                "sprites/fx/fx_slow.png": [
+                    8674390905479312412,
+                ],
+            },
+        ),
+        "sheet:fx_spare-the-dying": (
+            defs: [
+                11686679354409038330,
+            ],
+            files: {
+                "sprites/fx/fx_spare-the-dying.png": [
+                    205488782153245994,
+                ],
+            },
+        ),
+        "sheet:fx_spider-climb": (
+            defs: [
+                9918161982929327204,
+            ],
+            files: {
+                "sprites/fx/fx_spider-climb.png": [
+                    1087659801911959211,
+                ],
+            },
+        ),
+        "sheet:fx_spike-growth": (
+            defs: [
+                6009702176491062962,
+            ],
+            files: {
+                "sprites/fx/fx_spike-growth.png": [
+                    7596433141852252884,
+                ],
+            },
+        ),
+        "sheet:fx_spirit-guardians": (
+            defs: [
+                4487875824775364806,
+            ],
+            files: {
+                "sprites/fx/fx_spirit-guardians.png": [
+                    9206104350235899918,
+                ],
+            },
+        ),
+        "sheet:fx_spiritual-weapon": (
+            defs: [
+                11903986745078205582,
+            ],
+            files: {
+                "sprites/fx/fx_spiritual-weapon.png": [
+                    3370968228601827073,
+                ],
+            },
+        ),
+        "sheet:fx_stinking-cloud": (
+            defs: [
+                12205491325809199556,
+            ],
+            files: {
+                "sprites/fx/fx_stinking-cloud.png": [
+                    332196075902558165,
+                ],
+            },
+        ),
+        "sheet:fx_stoneskin": (
+            defs: [
+                9084289124611669050,
+            ],
+            files: {
+                "sprites/fx/fx_stoneskin.png": [
+                    889082404029841243,
+                ],
+            },
+        ),
+        "sheet:fx_storm-of-vengeance": (
+            defs: [
+                16352684937465383474,
+            ],
+            files: {
+                "sprites/fx/fx_storm-of-vengeance.png": [
+                    3213487658126312199,
+                ],
+            },
+        ),
+        "sheet:fx_suggestion": (
+            defs: [
+                1671705675488100622,
+            ],
+            files: {
+                "sprites/fx/fx_suggestion.png": [
+                    17799440624257105779,
+                ],
+            },
+        ),
+        "sheet:fx_sunbeam": (
+            defs: [
+                8557547150026700760,
+            ],
+            files: {
+                "sprites/fx/fx_sunbeam.png": [
+                    9880424569375501678,
+                ],
+            },
+        ),
+        "sheet:fx_sunburst": (
+            defs: [
+                17364217142318170082,
+            ],
+            files: {
+                "sprites/fx/fx_sunburst.png": [
+                    8283829171786610875,
+                ],
+            },
+        ),
+        "sheet:fx_thunderwave": (
+            defs: [
+                16851714197907592988,
+            ],
+            files: {
+                "sprites/fx/fx_thunderwave.png": [
+                    1490975102849449184,
+                ],
+            },
+        ),
+        "sheet:fx_true-seeing": (
+            defs: [
+                8336752613263622670,
+            ],
+            files: {
+                "sprites/fx/fx_true-seeing.png": [
+                    6264780360708404690,
+                ],
+            },
+        ),
+        "sheet:fx_true-strike": (
+            defs: [
+                11401264375358922434,
+            ],
+            files: {
+                "sprites/fx/fx_true-strike.png": [
+                    14777202278247276730,
+                ],
+            },
+        ),
+        "sheet:fx_vampiric-touch": (
+            defs: [
+                7607233066800194336,
+            ],
+            files: {
+                "sprites/fx/fx_vampiric-touch.png": [
+                    17799295012742421338,
+                ],
+            },
+        ),
+        "sheet:fx_vicious-mockery": (
+            defs: [
+                16042039007676266710,
+            ],
+            files: {
+                "sprites/fx/fx_vicious-mockery.png": [
+                    10465839377660949966,
+                ],
+            },
+        ),
+        "sheet:fx_wall-of-fire": (
+            defs: [
+                4341644681687257498,
+            ],
+            files: {
+                "sprites/fx/fx_wall-of-fire.png": [
+                    1412822455000476694,
+                ],
+            },
+        ),
+        "sheet:fx_wall-of-force": (
+            defs: [
+                2956322051890877222,
+            ],
+            files: {
+                "sprites/fx/fx_wall-of-force.png": [
+                    15633922072880438071,
+                ],
+            },
+        ),
+        "sheet:fx_wall-of-ice": (
+            defs: [
+                4825813352580540658,
+            ],
+            files: {
+                "sprites/fx/fx_wall-of-ice.png": [
+                    3263084834666066899,
+                ],
+            },
+        ),
+        "sheet:fx_wall-of-stone": (
+            defs: [
+                16101625629190812782,
+            ],
+            files: {
+                "sprites/fx/fx_wall-of-stone.png": [
+                    1311705899420098916,
+                ],
+            },
+        ),
+        "sheet:fx_wall-of-thorns": (
+            defs: [
+                7108733779230532746,
+            ],
+            files: {
+                "sprites/fx/fx_wall-of-thorns.png": [
+                    14734128298360571511,
+                ],
+            },
+        ),
+        "sheet:fx_warding-bond": (
+            defs: [
+                4595836643176895870,
+            ],
+            files: {
+                "sprites/fx/fx_warding-bond.png": [
+                    7450616317034183626,
+                ],
+            },
+        ),
+        "sheet:fx_web": (
+            defs: [
+                6987164956233396990,
+            ],
+            files: {
+                "sprites/fx/fx_web.png": [
+                    13196292015125306717,
+                ],
+            },
+        ),
+        "sheet:fx_wind-wall": (
+            defs: [
+                11811069632066796536,
+            ],
+            files: {
+                "sprites/fx/fx_wind-wall.png": [
+                    2217579261223274727,
+                ],
+            },
+        ),
+        "sheet:fxp_acid-arrow": (
+            defs: [
+                13342319786169567936,
+            ],
+            files: {
+                "sprites/fx/fxp_acid-arrow.png": [
+                    17479622230773734394,
+                ],
+            },
+        ),
+        "sheet:fxp_chain-lightning": (
+            defs: [
+                14360970998724224904,
+            ],
+            files: {
+                "sprites/fx/fxp_chain-lightning.png": [
+                    8244197240346983909,
+                ],
+            },
+        ),
+        "sheet:fxp_chill-touch": (
+            defs: [
+                18154629563318836140,
+            ],
+            files: {
+                "sprites/fx/fxp_chill-touch.png": [
+                    8179134641542842133,
+                ],
+            },
+        ),
+        "sheet:fxp_delayed-blast-fireball": (
+            defs: [
+                7904010027691537448,
+            ],
+            files: {
+                "sprites/fx/fxp_delayed-blast-fireball.png": [
+                    5526735852156105879,
+                ],
+            },
+        ),
+        "sheet:fxp_disintegrate": (
+            defs: [
+                11459698151590799228,
+            ],
+            files: {
+                "sprites/fx/fxp_disintegrate.png": [
+                    8861852609438632142,
+                ],
+            },
+        ),
+        "sheet:fxp_eldritch-blast": (
+            defs: [
+                11855517201758182676,
+            ],
+            files: {
+                "sprites/fx/fxp_eldritch-blast.png": [
+                    8861852609438632142,
+                ],
+            },
+        ),
+        "sheet:fxp_finger-of-death": (
+            defs: [
+                13014701502384217608,
+            ],
+            files: {
+                "sprites/fx/fxp_finger-of-death.png": [
+                    16964107905810443869,
+                ],
+            },
+        ),
+        "sheet:fxp_fire-bolt": (
+            defs: [
+                5120319190307224104,
+            ],
+            files: {
+                "sprites/fx/fxp_fire-bolt.png": [
+                    14973599865622625662,
+                ],
+            },
+        ),
+        "sheet:fxp_flaming-sphere": (
+            defs: [
+                13359092367881083792,
+            ],
+            files: {
+                "sprites/fx/fxp_flaming-sphere.png": [
+                    14973599865622625662,
+                ],
+            },
+        ),
+        "sheet:fxp_freezing-sphere": (
+            defs: [
+                12343366866222861424,
+            ],
+            files: {
+                "sprites/fx/fxp_freezing-sphere.png": [
+                    2065485450772426607,
+                ],
+            },
+        ),
+        "sheet:fxp_guiding-bolt": (
+            defs: [
+                8924899191165178748,
+            ],
+            files: {
+                "sprites/fx/fxp_guiding-bolt.png": [
+                    8349728643037228772,
+                ],
+            },
+        ),
+        "sheet:fxp_magic-missile": (
+            defs: [
+                15126079353693651968,
+            ],
+            files: {
+                "sprites/fx/fxp_magic-missile.png": [
+                    17181548915808075529,
+                ],
+            },
+        ),
+        "sheet:fxp_meteor-swarm": (
+            defs: [
+                17080268215544860756,
+            ],
+            files: {
+                "sprites/fx/fxp_meteor-swarm.png": [
+                    14973599865622625662,
+                ],
+            },
+        ),
+        "sheet:fxp_prismatic-spray": (
+            defs: [
+                1816514533556897780,
+            ],
+            files: {
+                "sprites/fx/fxp_prismatic-spray.png": [
+                    4820959676184226402,
+                ],
+            },
+        ),
+        "sheet:fxp_produce-flame": (
+            defs: [
+                12200801373634937576,
+            ],
+            files: {
+                "sprites/fx/fxp_produce-flame.png": [
+                    14973599865622625662,
+                ],
+            },
+        ),
+        "sheet:fxp_ray-of-enfeeblement": (
+            defs: [
+                9772698395186498686,
+            ],
+            files: {
+                "sprites/fx/fxp_ray-of-enfeeblement.png": [
+                    8179134641542842133,
+                ],
+            },
+        ),
+        "sheet:fxp_ray-of-frost": (
+            defs: [
+                6965655513949207320,
+            ],
+            files: {
+                "sprites/fx/fxp_ray-of-frost.png": [
+                    9494586212489614418,
+                ],
+            },
+        ),
+        "sheet:fxp_scorching-ray": (
+            defs: [
+                16203638613356623894,
+            ],
+            files: {
+                "sprites/fx/fxp_scorching-ray.png": [
+                    14973599865622625662,
+                ],
+            },
+        ),
+        "sheet:fxp_sunbeam": (
+            defs: [
+                7806889760837998694,
+            ],
+            files: {
+                "sprites/fx/fxp_sunbeam.png": [
+                    10866029431946129854,
+                ],
+            },
+        ),
         "sheet:ghost": (
             defs: [
                 920217449525450116,
@@ -14734,16 +16504,19 @@
         ),
         "spell:acid-arrow": (
             defs: [
+                6141992551896317429,
                 12897961357563996307,
             ],
         ),
         "spell:acid-splash": (
             defs: [
                 2437386635662205175,
+                11555263515916412682,
             ],
         ),
         "spell:aid": (
             defs: [
+                1567424825731382987,
                 16056485088138529710,
             ],
         ),
@@ -14815,6 +16588,7 @@
         "spell:arcane-sword": (
             defs: [
                 5647395187178074732,
+                9881662989348344352,
             ],
         ),
         "spell:arcanists-magic-aura": (
@@ -14840,21 +16614,25 @@
         "spell:bane": (
             defs: [
                 7028509076205181156,
+                16439716856994152026,
             ],
         ),
         "spell:banishment": (
             defs: [
                 143071310924807019,
+                10734748081362527965,
             ],
         ),
         "spell:barkskin": (
             defs: [
                 9462815011833396222,
+                10248271796340695683,
                 13614886399929743450,
             ],
         ),
         "spell:beacon-of-hope": (
             defs: [
+                5121456583791571123,
                 6468978204838523517,
                 12148439135506649025,
             ],
@@ -14868,27 +16646,32 @@
             defs: [
                 1748893000474226859,
                 4016987301672674389,
+                13638258122756827266,
             ],
         ),
         "spell:blade-barrier": (
             defs: [
                 5984536080017102537,
                 8952417581606124407,
+                17558206951850440763,
             ],
         ),
         "spell:bless": (
             defs: [
                 771401112633824405,
+                2710606876510065509,
             ],
         ),
         "spell:blight": (
             defs: [
+                15548321709308600016,
                 16429339762468482168,
             ],
         ),
         "spell:blindness-deafness": (
             defs: [
                 9225114298806862040,
+                17977929792218391650,
             ],
         ),
         "spell:blink": (
@@ -14899,6 +16682,7 @@
         "spell:blur": (
             defs: [
                 804834406831226341,
+                5371025290460121913,
                 7382681995097765502,
             ],
         ),
@@ -14906,16 +16690,19 @@
             defs: [
                 190496893267977449,
                 10191870686661063276,
+                12225048922217877672,
             ],
         ),
         "spell:burning-hands": (
             defs: [
+                5784838493358725512,
                 5817790919710083906,
             ],
         ),
         "spell:call-lightning": (
             defs: [
                 3225695580324244796,
+                3968554468664954937,
             ],
         ),
         "spell:calm-emotions": (
@@ -14926,21 +16713,25 @@
         "spell:chain-lightning": (
             defs: [
                 7052115451169213855,
+                17031540573243163319,
             ],
         ),
         "spell:charm-person": (
             defs: [
+                8356119729144677075,
                 8526804172375084998,
             ],
         ),
         "spell:chill-touch": (
             defs: [
+                6527705821580725092,
                 18024400881330358006,
             ],
         ),
         "spell:circle-of-death": (
             defs: [
                 46763630490856026,
+                18416281823889560815,
             ],
         ),
         "spell:clairvoyance": (
@@ -14957,10 +16748,12 @@
             defs: [
                 394813260096220208,
                 1441558472891129898,
+                14908299368474794195,
             ],
         ),
         "spell:color-spray": (
             defs: [
+                4502885472062599792,
                 6597614464744547117,
                 13643551011715099210,
             ],
@@ -14968,6 +16761,7 @@
         "spell:command": (
             defs: [
                 1787748019242758061,
+                7674165808519589294,
             ],
         ),
         "spell:commune": (
@@ -14994,16 +16788,19 @@
         "spell:cone-of-cold": (
             defs: [
                 17115821560666324376,
+                18182791426650784824,
             ],
         ),
         "spell:confusion": (
             defs: [
+                781154185622926929,
                 14502276578047526551,
             ],
         ),
         "spell:conjure-animals": (
             defs: [
                 9140141850102054449,
+                11830646945677092995,
                 12906364830612886071,
             ],
         ),
@@ -15040,6 +16837,7 @@
         "spell:contagion": (
             defs: [
                 5044151328583869732,
+                8194778331441351656,
             ],
         ),
         "spell:contingency": (
@@ -15050,6 +16848,7 @@
         "spell:continual-flame": (
             defs: [
                 4157601473803518104,
+                4915354457034425167,
                 6102848864450264648,
             ],
         ),
@@ -15065,6 +16864,7 @@
         ),
         "spell:counterspell": (
             defs: [
+                987765484638819192,
                 8625384437925706019,
                 9058372740082738134,
             ],
@@ -15091,28 +16891,33 @@
         ),
         "spell:cure-wounds": (
             defs: [
+                4946841674732708430,
                 6999124378870551549,
             ],
         ),
         "spell:dancing-lights": (
             defs: [
                 10018470153554193750,
+                11327615531947079851,
             ],
         ),
         "spell:darkness": (
             defs: [
                 1585652446792491750,
                 11197078809550283464,
+                18220769381768093793,
             ],
         ),
         "spell:darkvision": (
             defs: [
                 6566902142056517510,
                 10470559791806700543,
+                11405557850888690626,
             ],
         ),
         "spell:daylight": (
             defs: [
+                11907364761055381501,
                 13205994733125373662,
             ],
         ),
@@ -15120,11 +16925,13 @@
             defs: [
                 7429819019221597047,
                 10989293262100635235,
+                17419300313906588929,
             ],
         ),
         "spell:delayed-blast-fireball": (
             defs: [
                 13004596694745372920,
+                15663803932798918760,
             ],
         ),
         "spell:demiplane": (
@@ -15142,6 +16949,7 @@
             defs: [
                 158833649011826297,
                 4365391651018030586,
+                5198864460532975986,
             ],
         ),
         "spell:detect-poison-and-disease": (
@@ -15159,6 +16967,7 @@
             defs: [
                 6568899324876112176,
                 12093115432656304544,
+                14050001408813842589,
             ],
         ),
         "spell:disguise-self": (
@@ -15169,6 +16978,7 @@
         "spell:disintegrate": (
             defs: [
                 10025137852641576624,
+                16980885491874675636,
             ],
         ),
         "spell:dispel-evil-and-good": (
@@ -15179,6 +16989,7 @@
         "spell:dispel-magic": (
             defs: [
                 1470066684773918500,
+                5529836500146419946,
                 17278975883751037106,
             ],
         ),
@@ -15189,6 +17000,7 @@
         ),
         "spell:divine-favor": (
             defs: [
+                1264929510081945046,
                 3156692582848109467,
                 10577037041576733226,
             ],
@@ -15200,6 +17012,7 @@
         ),
         "spell:dominate-beast": (
             defs: [
+                14167321405442474401,
                 16605609683386181280,
             ],
         ),
@@ -15210,6 +17023,7 @@
         ),
         "spell:dominate-person": (
             defs: [
+                16717936010723361596,
                 17512474359483112959,
             ],
         ),
@@ -15231,10 +17045,12 @@
         "spell:eldritch-blast": (
             defs: [
                 5516485921705874603,
+                13646171079245333847,
             ],
         ),
         "spell:enhance-ability": (
             defs: [
+                3805386389402740126,
                 9473218508068974741,
                 15076715067227374885,
             ],
@@ -15247,6 +17063,7 @@
         "spell:entangle": (
             defs: [
                 1503258668093140113,
+                2392712706277932909,
                 12876310481837529855,
             ],
         ),
@@ -15283,32 +17100,38 @@
         "spell:faithful-hound": (
             defs: [
                 5319183483232256890,
+                8542178918554673400,
             ],
         ),
         "spell:false-life": (
             defs: [
                 5980725560335013528,
+                16810318579845408550,
             ],
         ),
         "spell:fear": (
             defs: [
                 8307897031270158123,
+                15021030861984545160,
             ],
         ),
         "spell:feather-fall": (
             defs: [
                 440150417544803708,
+                454093435475647249,
                 13091085701087893658,
             ],
         ),
         "spell:feeblemind": (
             defs: [
+                8205633319780481382,
                 8303814903630714607,
             ],
         ),
         "spell:find-familiar": (
             defs: [
                 2662251306506363333,
+                3057220113247176282,
                 9859418585877326637,
                 17933088027602313527,
             ],
@@ -15327,15 +17150,18 @@
             defs: [
                 6475437256789369694,
                 13419766454655035386,
+                15761680984159465003,
             ],
         ),
         "spell:finger-of-death": (
             defs: [
                 1389606145484005184,
+                15327116828171259530,
             ],
         ),
         "spell:fire-bolt": (
             defs: [
+                5446445652011420140,
                 12296356846314021074,
             ],
         ),
@@ -15346,6 +17172,7 @@
         ),
         "spell:fire-storm": (
             defs: [
+                4811313436565075511,
                 14331793643912076331,
             ],
         ),
@@ -15369,10 +17196,12 @@
         "spell:flame-strike": (
             defs: [
                 5162987033091091298,
+                9709256269298581431,
             ],
         ),
         "spell:flaming-sphere": (
             defs: [
+                625227781795211956,
                 12571572038862032826,
             ],
         ),
@@ -15389,12 +17218,14 @@
         "spell:fly": (
             defs: [
                 2176844781157086278,
+                5351208249296945548,
                 14522135913986936902,
             ],
         ),
         "spell:fog-cloud": (
             defs: [
                 6312190672163703284,
+                14876691878747779492,
                 18002203366155398790,
             ],
         ),
@@ -15416,12 +17247,14 @@
         "spell:freedom-of-movement": (
             defs: [
                 3935850298070650496,
+                4911632862274568750,
                 13245114608316622691,
             ],
         ),
         "spell:freezing-sphere": (
             defs: [
                 7815490680271532160,
+                10550883476544377056,
             ],
         ),
         "spell:gaseous-form": (
@@ -15473,22 +17306,26 @@
             defs: [
                 7870751569337515324,
                 9295254316761803624,
+                10042159685966615985,
             ],
         ),
         "spell:greater-invisibility": (
             defs: [
                 11149203511206677085,
+                15284447001560588019,
             ],
         ),
         "spell:greater-restoration": (
             defs: [
                 2500375932233060330,
+                2852255239373781436,
                 8939448827088635112,
                 15617606436492524291,
             ],
         ),
         "spell:guardian-of-faith": (
             defs: [
+                8539172390479288496,
                 12584796216773280408,
             ],
         ),
@@ -15500,12 +17337,14 @@
         "spell:guidance": (
             defs: [
                 2307004366003815528,
+                10182504767984560382,
                 11056741222501531193,
             ],
         ),
         "spell:guiding-bolt": (
             defs: [
                 2577487684085609560,
+                17620564387554091236,
             ],
         ),
         "spell:gust-of-wind": (
@@ -15525,11 +17364,13 @@
         ),
         "spell:harm": (
             defs: [
+                3412159784809494489,
                 15427471980797782223,
             ],
         ),
         "spell:haste": (
             defs: [
+                1179974947943367438,
                 9206936185498917963,
             ],
         ),
@@ -15538,21 +17379,25 @@
                 417947412283898812,
                 5958442209615562920,
                 17208586227496365592,
+                17518577588127479457,
             ],
         ),
         "spell:healing-word": (
             defs: [
+                737152974714156457,
                 10697537578825056937,
             ],
         ),
         "spell:heat-metal": (
             defs: [
+                5281962630054549339,
                 15734547869095813631,
             ],
         ),
         "spell:hellish-rebuke": (
             defs: [
                 6124462501085342266,
+                13667431482114978336,
             ],
         ),
         "spell:heroes-feast": (
@@ -15562,22 +17407,26 @@
         ),
         "spell:heroism": (
             defs: [
+                13684345312788699053,
                 18046434932319668177,
             ],
         ),
         "spell:hideous-laughter": (
             defs: [
+                10515903233022496972,
                 17224742450615255282,
             ],
         ),
         "spell:hold-monster": (
             defs: [
+                9175576463112990788,
                 16224003567998827860,
             ],
         ),
         "spell:hold-person": (
             defs: [
                 9953363588932341462,
+                12265430951515599013,
             ],
         ),
         "spell:holy-aura": (
@@ -15587,6 +17436,7 @@
         ),
         "spell:hunters-mark": (
             defs: [
+                3091584354723671269,
                 13394280415357607116,
                 18180737188290250621,
             ],
@@ -15594,10 +17444,12 @@
         "spell:hypnotic-pattern": (
             defs: [
                 6325992111282122745,
+                18344564327286343632,
             ],
         ),
         "spell:ice-storm": (
             defs: [
+                8641905622121616175,
                 15521517300817795014,
             ],
         ),
@@ -15621,17 +17473,20 @@
             defs: [
                 6409615242873318278,
                 11734036665850649800,
+                16884527668732004102,
             ],
         ),
         "spell:inflict-wounds": (
             defs: [
                 4316664829682311494,
+                11637765488962642086,
             ],
         ),
         "spell:insect-plague": (
             defs: [
                 1391640253210209104,
                 9416608662819573572,
+                15782286364315343695,
             ],
         ),
         "spell:instant-summons": (
@@ -15641,6 +17496,7 @@
         ),
         "spell:invisibility": (
             defs: [
+                109821057365248715,
                 4273498278304541042,
             ],
         ),
@@ -15651,12 +17507,14 @@
         ),
         "spell:jump": (
             defs: [
+                8298606746976533539,
                 12055208531945272369,
                 17538541756376819847,
             ],
         ),
         "spell:knock": (
             defs: [
+                3691583105245629403,
                 14816636597816761842,
             ],
         ),
@@ -15670,6 +17528,7 @@
                 156688503035768723,
                 3232173325502795605,
                 6724741979172651755,
+                10257462614863248077,
             ],
         ),
         "spell:levitate": (
@@ -15681,11 +17540,13 @@
             defs: [
                 637772284289646132,
                 15555515922449761767,
+                15954388273359677400,
             ],
         ),
         "spell:lightning-bolt": (
             defs: [
                 7608508958425569716,
+                10257428464522546072,
             ],
         ),
         "spell:locate-animals-or-plants": (
@@ -15705,12 +17566,14 @@
         ),
         "spell:longstrider": (
             defs: [
+                7430961831853057188,
                 11398399690158454229,
             ],
         ),
         "spell:mage-armor": (
             defs: [
                 13474863099246744860,
+                13984544510696211751,
             ],
         ),
         "spell:mage-hand": (
@@ -15730,6 +17593,7 @@
         ),
         "spell:magic-missile": (
             defs: [
+                1426004880949236181,
                 4859816699840830093,
             ],
         ),
@@ -15740,6 +17604,7 @@
         ),
         "spell:magic-weapon": (
             defs: [
+                6271847880854576044,
                 6728954136123086192,
             ],
         ),
@@ -15755,17 +17620,20 @@
         ),
         "spell:mass-cure-wounds": (
             defs: [
+                1927612665832118399,
                 9551661720762880430,
             ],
         ),
         "spell:mass-heal": (
             defs: [
                 12574778729091327120,
+                18075970001305762010,
             ],
         ),
         "spell:mass-healing-word": (
             defs: [
                 4590798593899573146,
+                17220020873940966847,
             ],
         ),
         "spell:mass-suggestion": (
@@ -15796,10 +17664,12 @@
         "spell:meteor-swarm": (
             defs: [
                 9841085071816942705,
+                16833752497400994814,
             ],
         ),
         "spell:mind-blank": (
             defs: [
+                2981175403670366187,
                 7536655191105221432,
                 10637079053670361009,
             ],
@@ -15817,6 +17687,7 @@
         "spell:mirror-image": (
             defs: [
                 3660219105566621100,
+                6981540220063285821,
                 16116776334367529317,
             ],
         ),
@@ -15827,6 +17698,7 @@
         ),
         "spell:misty-step": (
             defs: [
+                1567517980595165153,
                 12749295720202908356,
                 13973570886697879758,
             ],
@@ -15839,6 +17711,7 @@
         "spell:moonbeam": (
             defs: [
                 1004347453727683803,
+                3632309290573797465,
                 11137786342292053107,
             ],
         ),
@@ -15854,6 +17727,7 @@
         ),
         "spell:pass-without-trace": (
             defs: [
+                242688184441302979,
                 10149065369053361000,
                 12763368364274472507,
             ],
@@ -15865,6 +17739,7 @@
         ),
         "spell:phantasmal-killer": (
             defs: [
+                4959294715324017814,
                 8069974546680874691,
             ],
         ),
@@ -15896,11 +17771,13 @@
         "spell:poison-spray": (
             defs: [
                 8695001641513772320,
+                9910662168684013666,
             ],
         ),
         "spell:polymorph": (
             defs: [
                 196691841760726730,
+                12564922538872536290,
                 15867379319394199584,
             ],
         ),
@@ -15911,11 +17788,13 @@
         ),
         "spell:power-word-stun": (
             defs: [
+                7624674614080532052,
                 14314665188848352605,
             ],
         ),
         "spell:prayer-of-healing": (
             defs: [
+                359270590897105832,
                 12917157620052376255,
             ],
         ),
@@ -15926,6 +17805,7 @@
         ),
         "spell:prismatic-spray": (
             defs: [
+                13385591185641552297,
                 17457339820232954963,
             ],
         ),
@@ -15942,6 +17822,7 @@
         "spell:produce-flame": (
             defs: [
                 2852307814342805332,
+                14932753018165805574,
             ],
         ),
         "spell:programmed-illusion": (
@@ -15956,18 +17837,21 @@
         ),
         "spell:protection-from-energy": (
             defs: [
+                311687396316978672,
                 1687717970472693937,
                 14081733176310040242,
             ],
         ),
         "spell:protection-from-evil-and-good": (
             defs: [
+                2709630828614232993,
                 8963284190062871649,
                 12451865107400443985,
             ],
         ),
         "spell:protection-from-poison": (
             defs: [
+                5599059999272975306,
                 11472030247929178340,
                 13145433384891744996,
             ],
@@ -15980,22 +17864,26 @@
         "spell:raise-dead": (
             defs: [
                 2876736184356546274,
+                9151801305484252544,
                 16246343663365783051,
             ],
         ),
         "spell:ray-of-enfeeblement": (
             defs: [
                 6340210859492889594,
+                17723085997816334336,
             ],
         ),
         "spell:ray-of-frost": (
             defs: [
+                11070075820289702258,
                 13686464307387122858,
             ],
         ),
         "spell:regenerate": (
             defs: [
                 8965595544611801995,
+                18147502171851842516,
             ],
         ),
         "spell:reincarnate": (
@@ -16015,11 +17903,13 @@
         ),
         "spell:resistance": (
             defs: [
+                11015820887518780070,
                 13186350951525332732,
             ],
         ),
         "spell:resurrection": (
             defs: [
+                6487033190072262508,
                 13906957789531895761,
                 17430354610172593624,
             ],
@@ -16031,6 +17921,7 @@
         ),
         "spell:revivify": (
             defs: [
+                4082968567729582981,
                 11843721418286477283,
                 13632581265546660614,
             ],
@@ -16042,17 +17933,20 @@
         ),
         "spell:sacred-flame": (
             defs: [
+                9508877787181757539,
                 18191184159035557401,
             ],
         ),
         "spell:sanctuary": (
             defs: [
                 556289490523459760,
+                2446627102167240341,
                 6700639013645904680,
             ],
         ),
         "spell:scorching-ray": (
             defs: [
+                10630956812825617319,
                 18430567737225471671,
             ],
         ),
@@ -16070,6 +17964,7 @@
             defs: [
                 1236686606821211691,
                 2414711770565484448,
+                15366627374597382522,
             ],
         ),
         "spell:seeming": (
@@ -16095,32 +17990,38 @@
         "spell:shatter": (
             defs: [
                 311425091085125463,
+                15858219028534714760,
             ],
         ),
         "spell:shield": (
             defs: [
                 13733741070235111078,
+                16034231159502421964,
             ],
         ),
         "spell:shield-of-faith": (
             defs: [
                 1788414116408685633,
+                17473243868477447118,
             ],
         ),
         "spell:shillelagh": (
             defs: [
                 3711749221749145903,
                 10522900693525294842,
+                10554503215876009761,
             ],
         ),
         "spell:shocking-grasp": (
             defs: [
                 14503984549039256997,
+                17132939555039730597,
             ],
         ),
         "spell:silence": (
             defs: [
                 7870198921271282823,
+                10733173159850864141,
                 16926897695692949980,
             ],
         ),
@@ -16138,21 +18039,25 @@
             defs: [
                 10881872351681659096,
                 11483899316165817650,
+                18071915825043525635,
             ],
         ),
         "spell:sleet-storm": (
             defs: [
                 2648568654221218887,
+                8491925633208160259,
                 13522771852862241371,
             ],
         ),
         "spell:slow": (
             defs: [
+                6933570357146038588,
                 9469057039081229857,
             ],
         ),
         "spell:spare-the-dying": (
             defs: [
+                3147819091632580499,
                 5880149578617384673,
                 12809096660623732517,
             ],
@@ -16180,6 +18085,7 @@
         ),
         "spell:spider-climb": (
             defs: [
+                1043998247217402650,
                 9374956945278049999,
                 12673293392252873557,
             ],
@@ -16187,24 +18093,28 @@
         "spell:spike-growth": (
             defs: [
                 4658643967490806035,
+                6024775976137570733,
                 6359564480013002149,
             ],
         ),
         "spell:spirit-guardians": (
             defs: [
                 2220960498126079432,
+                10043213986449547630,
                 12061442457554524266,
             ],
         ),
         "spell:spiritual-weapon": (
             defs: [
                 5100770209499650526,
+                7727947594062421288,
             ],
         ),
         "spell:stinking-cloud": (
             defs: [
                 10773357786365812012,
                 13475115759786072702,
+                17622136535096767997,
             ],
         ),
         "spell:stone-shape": (
@@ -16214,6 +18124,7 @@
         ),
         "spell:stoneskin": (
             defs: [
+                465711699802330251,
                 7032547544159850413,
                 15774437552772966888,
             ],
@@ -16221,21 +18132,25 @@
         "spell:storm-of-vengeance": (
             defs: [
                 5617048461542255363,
+                9546236537105692575,
             ],
         ),
         "spell:suggestion": (
             defs: [
+                7889192792420312715,
                 9695038472732362627,
             ],
         ),
         "spell:sunbeam": (
             defs: [
                 6880112444270609997,
+                12801505740794366341,
             ],
         ),
         "spell:sunburst": (
             defs: [
                 11555473715466973234,
+                11868037807512058986,
             ],
         ),
         "spell:symbol": (
@@ -16271,6 +18186,7 @@
         "spell:thunderwave": (
             defs: [
                 1826736499130414722,
+                6369775657863903859,
             ],
         ),
         "spell:time-stop": (
@@ -16311,6 +18227,7 @@
         ),
         "spell:true-seeing": (
             defs: [
+                845349149526868549,
                 13701682727184448403,
                 14523044086052222824,
                 17469785968136341046,
@@ -16318,6 +18235,7 @@
         ),
         "spell:true-strike": (
             defs: [
+                1242138133855516505,
                 10613582448510165807,
                 17819657532022093879,
             ],
@@ -16330,10 +18248,12 @@
         "spell:vampiric-touch": (
             defs: [
                 9487524721223415242,
+                9846196107682530513,
             ],
         ),
         "spell:vicious-mockery": (
             defs: [
+                151314869505501281,
                 15274344540933954384,
             ],
         ),
@@ -16341,27 +18261,32 @@
             defs: [
                 1119135959693562280,
                 14157287445691341120,
+                15375976292813095745,
             ],
         ),
         "spell:wall-of-force": (
             defs: [
                 3301210969340357617,
                 5091572964646168976,
+                8186801289749703962,
             ],
         ),
         "spell:wall-of-ice": (
             defs: [
                 3239949471461255475,
+                8903152273031477849,
             ],
         ),
         "spell:wall-of-stone": (
             defs: [
                 7927927841372872729,
                 9405283761832494738,
+                12548796817832808141,
             ],
         ),
         "spell:wall-of-thorns": (
             defs: [
+                3908658998768343088,
                 10615081701975656591,
                 10877191100003318357,
             ],
@@ -16369,6 +18294,7 @@
         "spell:warding-bond": (
             defs: [
                 4955696074351559648,
+                10051393496648675422,
                 11920772853477660906,
                 12714037387455534415,
             ],
@@ -16385,6 +18311,7 @@
         ),
         "spell:web": (
             defs: [
+                1092322726152172189,
                 7547316107327923385,
                 17951029509358786599,
             ],
@@ -16401,6 +18328,7 @@
         ),
         "spell:wind-wall": (
             defs: [
+                4265975407864825993,
                 14454894121738490826,
             ],
         ),

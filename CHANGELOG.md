@@ -697,6 +697,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   Good, Animal Friendship, Dream, Plane Shift, Control Water) are gone, from the example too.
   Monsters' spell lists, the high elf's cantrip choice, the paladin's oath spells and the Ring of
   Animal Influence lost the removed spells.
+- **A visual effect for every spell** (starter library and example): each of the 159 spells has
+  its own animated impact (drawn as pixel art: bursts, rings, pillars of light, clouds, webs,
+  thorns, shields, symbols such as a Z for Sleep or a heart for Charm Person, in the colours of its
+  damage type or school), an area's effect as big as the area, a flying sprite for the 19 bolts and
+  rays, and a sound for some (fire and big areas, healing and protective spells, Knock).
 
 ### Art
 - The **hero** (the male human hero, the starter library's *Hero* character) has a new model with

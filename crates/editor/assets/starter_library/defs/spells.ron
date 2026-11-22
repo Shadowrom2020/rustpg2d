@@ -35,6 +35,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_heal",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "light",
@@ -70,6 +75,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_light",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "fireball",
@@ -174,6 +184,14 @@
             ),
         ],
         story_only: false,
+        visual: (
+            projectile: Some((
+                sheet: "fxp_acid-arrow",
+                frame: 0,
+            )),
+            impact: "fx_acid-arrow",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "acid-splash",
@@ -216,6 +234,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_acid-splash",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "aid",
@@ -270,6 +292,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_aid",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "arcane-sword",
@@ -309,6 +336,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_arcane-sword",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "bane",
@@ -359,6 +390,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_bane",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "banishment",
@@ -400,6 +435,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_banishment",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "barkskin",
@@ -435,6 +475,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_barkskin",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "beacon-of-hope",
@@ -470,6 +514,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_beacon-of-hope",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "black-tentacles",
@@ -519,6 +568,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_black-tentacles",
+            impact_scale: 1.0,
+            sound: "explosion",
+        ),
     ),
     (
         id: "blade-barrier",
@@ -567,6 +621,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_blade-barrier",
+            impact_scale: 1.0,
+            sound: "explosion",
+        ),
     ),
     (
         id: "bless",
@@ -613,6 +672,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_bless",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "blight",
@@ -659,6 +723,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_blight",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "blindness-deafness",
@@ -698,6 +766,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_blindness-deafness",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "blur",
@@ -730,6 +802,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_blur",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "branding-smite",
@@ -765,6 +841,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_branding-smite",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "burning-hands",
@@ -816,6 +896,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_burning-hands",
+            impact_scale: 1.0,
+            sound: "fireball",
+        ),
     ),
     (
         id: "call-lightning",
@@ -864,6 +949,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_call-lightning",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "chain-lightning",
@@ -904,6 +993,14 @@
             ),
         ],
         story_only: false,
+        visual: (
+            projectile: Some((
+                sheet: "fxp_chain-lightning",
+                frame: 0,
+            )),
+            impact: "fx_chain-lightning",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "charm-person",
@@ -944,6 +1041,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_charm-person",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "chill-touch",
@@ -986,6 +1087,14 @@
             ),
         ],
         story_only: false,
+        visual: (
+            projectile: Some((
+                sheet: "fxp_chill-touch",
+                frame: 0,
+            )),
+            impact: "fx_chill-touch",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "circle-of-death",
@@ -1034,6 +1143,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_circle-of-death",
+            impact_scale: 2.5,
+            sound: "explosion",
+        ),
     ),
     (
         id: "cloudkill",
@@ -1087,6 +1201,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_cloudkill",
+            impact_scale: 1.0,
+            sound: "explosion",
+        ),
     ),
     (
         id: "color-spray",
@@ -1135,6 +1254,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_color-spray",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "command",
@@ -1172,6 +1295,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_command",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "cone-of-cold",
@@ -1220,6 +1347,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_cone-of-cold",
+            impact_scale: 1.2,
+            sound: "explosion",
+        ),
     ),
     (
         id: "confusion",
@@ -1264,6 +1396,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_confusion",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "conjure-animals",
@@ -1297,6 +1433,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_conjure-animals",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "contagion",
@@ -1333,6 +1473,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_contagion",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "continual-flame",
@@ -1370,6 +1514,10 @@
             item: "ruby-dust",
             count: 1,
         )),
+        visual: (
+            impact: "fx_continual-flame",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "counterspell",
@@ -1401,6 +1549,11 @@
             Counter,
         ],
         story_only: false,
+        visual: (
+            impact: "fx_counterspell",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "cure-wounds",
@@ -1446,6 +1599,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_cure-wounds",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "dancing-lights",
@@ -1480,6 +1638,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_dancing-lights",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "darkness",
@@ -1520,6 +1683,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_darkness",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "darkvision",
@@ -1558,6 +1725,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_darkvision",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "daylight",
@@ -1597,6 +1769,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_daylight",
+            impact_scale: 2.5,
+            sound: "chime",
+        ),
     ),
     (
         id: "death-ward",
@@ -1629,6 +1806,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_death-ward",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "delayed-blast-fireball",
@@ -1675,6 +1857,15 @@
             ),
         ],
         story_only: false,
+        visual: (
+            projectile: Some((
+                sheet: "fxp_delayed-blast-fireball",
+                frame: 0,
+            )),
+            impact: "fx_delayed-blast-fireball",
+            impact_scale: 1.0,
+            sound: "fireball",
+        ),
     ),
     (
         id: "detect-magic",
@@ -1720,6 +1911,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_detect-magic",
+            impact_scale: 1.5,
+            sound: "chime",
+        ),
     ),
     (
         id: "dimension-door",
@@ -1752,6 +1948,10 @@
             Teleport,
         ],
         story_only: false,
+        visual: (
+            impact: "fx_dimension-door",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "disintegrate",
@@ -1796,6 +1996,14 @@
             ),
         ],
         story_only: false,
+        visual: (
+            projectile: Some((
+                sheet: "fxp_disintegrate",
+                frame: 0,
+            )),
+            impact: "fx_disintegrate",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "dispel-magic",
@@ -1831,6 +2039,11 @@
             Dispel,
         ],
         story_only: false,
+        visual: (
+            impact: "fx_dispel-magic",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "divine-favor",
@@ -1865,6 +2078,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_divine-favor",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "dominate-beast",
@@ -1902,6 +2119,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_dominate-beast",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "dominate-person",
@@ -1940,6 +2161,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_dominate-person",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "eldritch-blast",
@@ -1980,6 +2205,14 @@
             ),
         ],
         story_only: false,
+        visual: (
+            projectile: Some((
+                sheet: "fxp_eldritch-blast",
+                frame: 0,
+            )),
+            impact: "fx_eldritch-blast",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "enhance-ability",
@@ -2015,6 +2248,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_enhance-ability",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "entangle",
@@ -2061,6 +2298,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_entangle",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "faithful-hound",
@@ -2099,6 +2340,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_faithful-hound",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "false-life",
@@ -2155,6 +2400,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_false-life",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "fear",
@@ -2199,6 +2448,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_fear",
+            impact_scale: 1.01,
+        ),
     ),
     (
         id: "feather-fall",
@@ -2233,6 +2486,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_feather-fall",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "feeblemind",
@@ -2275,6 +2532,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_feeblemind",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "find-familiar",
@@ -2312,6 +2573,10 @@
             item: "incense",
             count: 1,
         )),
+        visual: (
+            impact: "fx_find-familiar",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "find-traps",
@@ -2343,6 +2608,11 @@
             RevealTraps,
         ],
         story_only: false,
+        visual: (
+            impact: "fx_find-traps",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "finger-of-death",
@@ -2383,6 +2653,14 @@
             ),
         ],
         story_only: false,
+        visual: (
+            projectile: Some((
+                sheet: "fxp_finger-of-death",
+                frame: 0,
+            )),
+            impact: "fx_finger-of-death",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "fire-bolt",
@@ -2424,6 +2702,14 @@
             ),
         ],
         story_only: false,
+        visual: (
+            projectile: Some((
+                sheet: "fxp_fire-bolt",
+                frame: 0,
+            )),
+            impact: "fx_fire-bolt",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "fire-storm",
@@ -2468,6 +2754,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_fire-storm",
+            impact_scale: 2.5,
+            sound: "fireball",
+        ),
     ),
     (
         id: "flame-strike",
@@ -2515,6 +2806,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_flame-strike",
+            impact_scale: 2.0,
+            sound: "fireball",
+        ),
     ),
     (
         id: "flaming-sphere",
@@ -2562,6 +2858,14 @@
             ),
         ],
         story_only: false,
+        visual: (
+            projectile: Some((
+                sheet: "fxp_flaming-sphere",
+                frame: 0,
+            )),
+            impact: "fx_flaming-sphere",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "fly",
@@ -2598,6 +2902,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_fly",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "fog-cloud",
@@ -2638,6 +2947,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_fog-cloud",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "freedom-of-movement",
@@ -2678,6 +2991,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_freedom-of-movement",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "freezing-sphere",
@@ -2721,6 +3039,15 @@
             ),
         ],
         story_only: false,
+        visual: (
+            projectile: Some((
+                sheet: "fxp_freezing-sphere",
+                frame: 0,
+            )),
+            impact: "fx_freezing-sphere",
+            impact_scale: 2.5,
+            sound: "explosion",
+        ),
     ),
     (
         id: "grease",
@@ -2768,6 +3095,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_grease",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "greater-invisibility",
@@ -2802,6 +3133,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_greater-invisibility",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "greater-restoration",
@@ -2844,6 +3179,11 @@
             item: "diamond-dust",
             count: 4,
         )),
+        visual: (
+            impact: "fx_greater-restoration",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "guardian-of-faith",
@@ -2886,6 +3226,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_guardian-of-faith",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "guidance",
@@ -2920,6 +3264,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_guidance",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "guiding-bolt",
@@ -2965,6 +3314,14 @@
             ),
         ],
         story_only: false,
+        visual: (
+            projectile: Some((
+                sheet: "fxp_guiding-bolt",
+                frame: 0,
+            )),
+            impact: "fx_guiding-bolt",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "harm",
@@ -3003,6 +3360,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_harm",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "haste",
@@ -3036,6 +3397,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_haste",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "healing-word",
@@ -3079,6 +3444,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_healing-word",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "heat-metal",
@@ -3126,6 +3496,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_heat-metal",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "hellish-rebuke",
@@ -3172,6 +3546,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_hellish-rebuke",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "heroism",
@@ -3206,6 +3584,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_heroism",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "hideous-laughter",
@@ -3248,6 +3631,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_hideous-laughter",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "hold-monster",
@@ -3288,6 +3675,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_hold-monster",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "hold-person",
@@ -3330,6 +3721,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_hold-person",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "hunters-mark",
@@ -3363,6 +3758,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_hunters-mark",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "hypnotic-pattern",
@@ -3407,6 +3806,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_hypnotic-pattern",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "ice-storm",
@@ -3457,6 +3860,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_ice-storm",
+            impact_scale: 1.0,
+            sound: "explosion",
+        ),
     ),
     (
         id: "incendiary-cloud",
@@ -3506,6 +3914,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_incendiary-cloud",
+            impact_scale: 1.0,
+            sound: "fireball",
+        ),
     ),
     (
         id: "inflict-wounds",
@@ -3551,6 +3964,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_inflict-wounds",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "insect-plague",
@@ -3606,6 +4023,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_insect-plague",
+            impact_scale: 1.0,
+            sound: "explosion",
+        ),
     ),
     (
         id: "invisibility",
@@ -3642,6 +4064,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_invisibility",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "jump",
@@ -3679,6 +4105,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_jump",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "knock",
@@ -3710,6 +4140,11 @@
             Unlock,
         ],
         story_only: false,
+        visual: (
+            impact: "fx_knock",
+            impact_scale: 1.0,
+            sound: "unlock",
+        ),
     ),
     (
         id: "lesser-restoration",
@@ -3751,6 +4186,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_lesser-restoration",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "lightning-bolt",
@@ -3801,6 +4241,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_lightning-bolt",
+            impact_scale: 1.0,
+            sound: "explosion",
+        ),
     ),
     (
         id: "longstrider",
@@ -3838,6 +4283,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_longstrider",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "mage-armor",
@@ -3873,6 +4322,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_mage-armor",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "magic-missile",
@@ -3916,6 +4370,14 @@
             ),
         ],
         story_only: false,
+        visual: (
+            projectile: Some((
+                sheet: "fxp_magic-missile",
+                frame: 0,
+            )),
+            impact: "fx_magic-missile",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "magic-weapon",
@@ -3951,6 +4413,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_magic-weapon",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "mass-cure-wounds",
@@ -3998,6 +4464,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_mass-cure-wounds",
+            impact_scale: 1.5,
+            sound: "chime",
+        ),
     ),
     (
         id: "mass-heal",
@@ -4031,6 +4502,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_mass-heal",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "mass-healing-word",
@@ -4074,6 +4550,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_mass-healing-word",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "meteor-swarm",
@@ -4117,6 +4598,15 @@
             ),
         ],
         story_only: false,
+        visual: (
+            projectile: Some((
+                sheet: "fxp_meteor-swarm",
+                frame: 0,
+            )),
+            impact: "fx_meteor-swarm",
+            impact_scale: 2.0,
+            sound: "fireball",
+        ),
     ),
     (
         id: "mind-blank",
@@ -4160,6 +4650,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_mind-blank",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "mirror-image",
@@ -4195,6 +4690,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_mirror-image",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "misty-step",
@@ -4226,6 +4725,10 @@
             Teleport,
         ],
         story_only: false,
+        visual: (
+            impact: "fx_misty-step",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "moonbeam",
@@ -4281,6 +4784,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_moonbeam",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "pass-without-trace",
@@ -4321,6 +4828,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_pass-without-trace",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "phantasmal-killer",
@@ -4359,6 +4870,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_phantasmal-killer",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "poison-spray",
@@ -4403,6 +4918,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_poison-spray",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "polymorph",
@@ -4440,6 +4959,10 @@
             Shape(),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_polymorph",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "power-word-stun",
@@ -4475,6 +4998,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_power-word-stun",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "prayer-of-healing",
@@ -4519,6 +5046,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_prayer-of-healing",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "prismatic-spray",
@@ -4561,6 +5093,14 @@
             ),
         ],
         story_only: false,
+        visual: (
+            projectile: Some((
+                sheet: "fxp_prismatic-spray",
+                frame: 0,
+            )),
+            impact: "fx_prismatic-spray",
+            impact_scale: 1.2,
+        ),
     ),
     (
         id: "produce-flame",
@@ -4601,6 +5141,14 @@
             ),
         ],
         story_only: false,
+        visual: (
+            projectile: Some((
+                sheet: "fxp_produce-flame",
+                frame: 0,
+            )),
+            impact: "fx_produce-flame",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "protection-from-energy",
@@ -4640,6 +5188,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_protection-from-energy",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "protection-from-evil-and-good",
@@ -4684,6 +5237,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_protection-from-evil-and-good",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "protection-from-poison",
@@ -4730,6 +5288,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_protection-from-poison",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "raise-dead",
@@ -4768,6 +5331,11 @@
             item: "diamond",
             count: 5,
         )),
+        visual: (
+            impact: "fx_raise-dead",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "ray-of-enfeeblement",
@@ -4804,6 +5372,14 @@
             ),
         ],
         story_only: false,
+        visual: (
+            projectile: Some((
+                sheet: "fxp_ray-of-enfeeblement",
+                frame: 0,
+            )),
+            impact: "fx_ray-of-enfeeblement",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "ray-of-frost",
@@ -4850,6 +5426,14 @@
             ),
         ],
         story_only: false,
+        visual: (
+            projectile: Some((
+                sheet: "fxp_ray-of-frost",
+                frame: 0,
+            )),
+            impact: "fx_ray-of-frost",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "regenerate",
@@ -4886,6 +5470,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_regenerate",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "resistance",
@@ -4922,6 +5511,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_resistance",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "resurrection",
@@ -4960,6 +5554,11 @@
             item: "diamond",
             count: 10,
         )),
+        visual: (
+            impact: "fx_resurrection",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "revivify",
@@ -4997,6 +5596,11 @@
             item: "diamond",
             count: 3,
         )),
+        visual: (
+            impact: "fx_revivify",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "sacred-flame",
@@ -5038,6 +5642,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_sacred-flame",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "sanctuary",
@@ -5072,6 +5680,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_sanctuary",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "scorching-ray",
@@ -5110,6 +5723,14 @@
             ),
         ],
         story_only: false,
+        visual: (
+            projectile: Some((
+                sheet: "fxp_scorching-ray",
+                frame: 0,
+            )),
+            impact: "fx_scorching-ray",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "see-invisibility",
@@ -5147,6 +5768,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_see-invisibility",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "shatter",
@@ -5200,6 +5826,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_shatter",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "shield",
@@ -5234,6 +5864,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_shield",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "shield-of-faith",
@@ -5269,6 +5904,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_shield-of-faith",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "shillelagh",
@@ -5303,6 +5943,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_shillelagh",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "shocking-grasp",
@@ -5344,6 +5988,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_shocking-grasp",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "silence",
@@ -5383,6 +6031,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_silence",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "sleep",
@@ -5432,6 +6084,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_sleep",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "sleet-storm",
@@ -5478,6 +6134,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_sleet-storm",
+            impact_scale: 2.0,
+        ),
     ),
     (
         id: "slow",
@@ -5521,6 +6181,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_slow",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "spare-the-dying",
@@ -5550,6 +6214,11 @@
             Stabilize,
         ],
         story_only: false,
+        visual: (
+            impact: "fx_spare-the-dying",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "spider-climb",
@@ -5584,6 +6253,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_spider-climb",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "spike-growth",
@@ -5632,6 +6305,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_spike-growth",
+            impact_scale: 1.0,
+            sound: "explosion",
+        ),
     ),
     (
         id: "spirit-guardians",
@@ -5687,6 +6365,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_spirit-guardians",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "spiritual-weapon",
@@ -5731,6 +6413,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_spiritual-weapon",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "stinking-cloud",
@@ -5780,6 +6466,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_stinking-cloud",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "stoneskin",
@@ -5825,6 +6515,10 @@
             item: "diamond-dust",
             count: 4,
         )),
+        visual: (
+            impact: "fx_stoneskin",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "storm-of-vengeance",
@@ -5867,6 +6561,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_storm-of-vengeance",
+            impact_scale: 2.5,
+            sound: "explosion",
+        ),
     ),
     (
         id: "suggestion",
@@ -5907,6 +6606,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_suggestion",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "sunbeam",
@@ -5952,6 +6655,15 @@
             ),
         ],
         story_only: false,
+        visual: (
+            projectile: Some((
+                sheet: "fxp_sunbeam",
+                frame: 0,
+            )),
+            impact: "fx_sunbeam",
+            impact_scale: 1.0,
+            sound: "explosion",
+        ),
     ),
     (
         id: "sunburst",
@@ -5997,6 +6709,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_sunburst",
+            impact_scale: 2.5,
+            sound: "explosion",
+        ),
     ),
     (
         id: "thunderwave",
@@ -6050,6 +6767,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_thunderwave",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "true-seeing",
@@ -6093,6 +6814,11 @@
             item: "eye-ointment",
             count: 1,
         )),
+        visual: (
+            impact: "fx_true-seeing",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "true-strike",
@@ -6127,6 +6853,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_true-strike",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "vampiric-touch",
@@ -6171,6 +6902,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_vampiric-touch",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "vicious-mockery",
@@ -6212,6 +6947,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_vicious-mockery",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "wall-of-fire",
@@ -6262,6 +7001,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_wall-of-fire",
+            impact_scale: 1.0,
+            sound: "fireball",
+        ),
     ),
     (
         id: "wall-of-force",
@@ -6297,6 +7041,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_wall-of-force",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "wall-of-ice",
@@ -6343,6 +7091,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_wall-of-ice",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "wall-of-stone",
@@ -6380,6 +7132,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_wall-of-stone",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "wall-of-thorns",
@@ -6432,6 +7188,11 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_wall-of-thorns",
+            impact_scale: 1.0,
+            sound: "explosion",
+        ),
     ),
     (
         id: "warding-bond",
@@ -6468,6 +7229,11 @@
             item: "platinum-ring",
             count: 2,
         )),
+        visual: (
+            impact: "fx_warding-bond",
+            impact_scale: 1.0,
+            sound: "chime",
+        ),
     ),
     (
         id: "web",
@@ -6512,6 +7278,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_web",
+            impact_scale: 1.0,
+        ),
     ),
     (
         id: "wind-wall",
@@ -6556,5 +7326,10 @@
             ),
         ],
         story_only: false,
+        visual: (
+            impact: "fx_wind-wall",
+            impact_scale: 1.0,
+            sound: "explosion",
+        ),
     ),
 ]

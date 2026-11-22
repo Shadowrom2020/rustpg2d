@@ -584,6 +584,12 @@ impl Game {
         (0..self.loaded.entities.len()).filter(|&i| self.loaded.entities[i].active && self.is_down(i)).collect()
     }
 
+    /// Entity `c` as an enemy's target, when it is a living companion that can be hurt now: its
+    /// feet and the middle of its body.
+    pub(super) fn companion_target(&self, c: usize) -> Option<(Vec2, Vec2)> {
+        self.loaded.entities.get(c).filter(|e| is_hurtable_companion(e)).map(|e| (e.body.pos, o_mid(e)))
+    }
+
     /// Living companions that can be hurt (enemies go for them too): index and body middle.
     pub(super) fn companion_targets(&self) -> Vec<(usize, Vec2)> {
         (0..self.loaded.entities.len()).filter(|&i| is_hurtable_companion(&self.loaded.entities[i])).map(|i| (i, o_mid(&self.loaded.entities[i]))).collect()

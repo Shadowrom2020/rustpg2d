@@ -169,4 +169,25 @@ mod tests {
         o.clear();
         assert_eq!(o.get(3, 3), 0);
     }
+
+    #[test]
+    fn clear_puts_back_the_base_and_nothing_else() {
+        let ts = 32.0;
+        let mut o = Occupancy::new(8, 8);
+        // A solid decoration and a drop, kept as the base.
+        o.add_decor(Rect::new(2.0 * ts + 2.0, 2.0 * ts + 2.0, 28.0, 28.0), false, ts);
+        o.mark(6, 6, OCC_DROP);
+        o.keep_as_base();
+        let base: Vec<u8> = (0..64).map(|i| o.get(i % 8, i / 8)).collect();
+        // A frame's marks: a character on the decoration's tile and elsewhere, a flag taken off.
+        for _ in 0..3 {
+            o.add(EntityKind::Character, Rect::new(2.0 * ts + 4.0, 2.0 * ts + 4.0, 16.0, 20.0), ts);
+            o.add(EntityKind::Prop, Rect::new(5.0 * ts + 4.0, 1.0 * ts + 4.0, 24.0, 24.0), ts);
+            o.mark(6, 6, OCC_ROUGH);
+            o.unmark(2, 2, OCC_HIGH);
+            assert!(o.has(2, 2, OCC_CHAR) && !o.has(2, 2, OCC_HIGH) && o.has(5, 1, OCC_PROP) && o.has(6, 6, OCC_ROUGH));
+            o.clear();
+            assert_eq!((0..64).map(|i| o.get(i % 8, i / 8)).collect::<Vec<u8>>(), base, "exactly the base again");
+        }
+    }
 }

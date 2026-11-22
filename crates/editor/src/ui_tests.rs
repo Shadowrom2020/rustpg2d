@@ -1255,7 +1255,7 @@ fn a_stat_block_gets_spell_slots_and_spells() {
     let db = Project::load(&root).unwrap().db;
     let k = db.characters.iter().position(|c| c.id == "cult-fanatic").expect("the example's cult fanatic");
     let cast = |db: &rustpg2d_engine::defs::Database| db.characters[k].stats.as_ref().unwrap().spellcasting.clone().expect("its spellcasting");
-    assert_eq!((cast(&db).dc, cast(&db).slots.clone(), cast(&db).spells.len()), (11, vec![4, 3], 8));
+    assert_eq!((cast(&db).dc, cast(&db).slots.clone(), cast(&db).spells.len()), (11, vec![4, 3], 7));
     let mut h = harness(&root, Tab::Characters, k);
     step(&mut h);
     // A third-level slot typed after the others, a spell added.
@@ -1265,9 +1265,9 @@ fn a_stat_block_gets_spell_slots_and_spells() {
     h.get_by_label_contains("Add spell").click();
     step(&mut h);
     let now = cast(&h.state().project.db);
-    assert_eq!((now.slots.clone(), now.spells.len(), now.spells[8].spell.as_str()), (vec![4, 3, 1], 9, "fire-bolt"));
+    assert_eq!((now.slots.clone(), now.spells.len(), now.spells[7].spell.as_str()), (vec![4, 3, 1], 8, "fire-bolt"));
     h.state_mut().save_all();
     let saved = cast(&Project::load(&root).unwrap().db);
-    assert_eq!((saved.slots, saved.spells.len()), (vec![4, 3, 1], 9));
+    assert_eq!((saved.slots, saved.spells.len()), (vec![4, 3, 1], 8));
     let _ = std::fs::remove_dir_all(&root);
 }

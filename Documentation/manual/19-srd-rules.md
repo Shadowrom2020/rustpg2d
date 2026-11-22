@@ -40,8 +40,8 @@ built into the engine; the editor shows them as hover texts.
   its prerequisites). The only feat is the SRD's Grappler. Heroes without a class (projects without
   classes) have a d10 hit die. In a
   fight spells are cast from the action bar ([Spellcasting](09-gameplay.md#spellcasting)).
-- **Spells:** 113 of the 319 act by their parts; the other 206 are story only (their text, cast
-  by events and scripts). Material components need a component pouch or any focus (the SRD ties each
+- **Spells:** the starter library has the 159 of the SRD's 319 spells that act in play; the 152
+  story-only ones (their text only) and eight of little use in this kind of game are left out. Material components need a component pouch or any focus (the SRD ties each
   focus to its classes); costly materials aren't used up. Characters other than party members don't cast (monsters' spellcasting and the
   AI's casting are 0.32). Reaction spells (Shield) are cast on the caster's own turn. Areas hit
   everyone on their tiles (cover on DEX saves is 0.32); Magic Missile's darts strike one target;

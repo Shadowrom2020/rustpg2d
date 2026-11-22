@@ -586,8 +586,8 @@ this. The editor converts a project once when it opens it, after keeping a copy 
 
 ## Spellcasting
 
-Spells are the **SRD 5.1's** (since 0.30): *Database › Spells*, the starter library's 319 imported
-with their texts ([Asset library › The SRD 5.1 data](11-asset-library.md#the-srd-51-data)). The
+Spells are the **SRD 5.1's** (since 0.30): *Database › Spells*, the starter library's 159 that act
+in play, with their texts ([Asset library › The SRD 5.1 data](11-asset-library.md#the-srd-51-data)). The
 casting classes (bard, cleric, druid, paladin, ranger, sorcerer, warlock, wizard) cast them with
 **spell slots** by their class level (the class's table); a spell of level 1 to 9 takes a slot of
 its level or higher, a **cantrip** (level 0) none and grows with the caster's level. Mana is gone:
@@ -708,10 +708,12 @@ become SRD spells of level 1 (a bolt a cantrip) that every casting class has.
 
 ![A Fireball aimed in a fight: its 20 ft sphere on the grid, the slot, the DEX DC](../images/game-spell-area.webp)
 
-**The 319 spells**: 167 act by their parts (the SRD data's attack, save, damage and healing, plus a
-table in the import for conditions, boons, light, Knock, shapes, summons, teleports and the rest
-below); the other 152 are **story only** (divination, travel, illusions: their text is shown, and
-only events and scripts cast them: *Cast spell*, `cast_spell`). The example's spells are Cure
+**The 159 spells** of the starter library all act by their parts (the SRD data's attack, save,
+damage and healing, plus a table in the import for conditions, boons, light, Knock, shapes,
+summons, teleports and the rest below). The SRD's 152 **story-only** spells (divination, travel,
+illusions: only their text) and eight working ones of little use here (Comprehend Languages, Tongues, Detect Poison and Disease, Detect Evil and Good, Animal Friendship, Dream, Plane Shift and Control Water) are left out; a
+project's own spell can still be *Story only* (its text shown, cast by events and scripts: *Cast
+spell*, `cast_spell`). The example's spells are Cure
 Wounds, Light, Fire Bolt, Burning Hands, Magic Missile, Fireball, Misty Step and Sleep (Wren the
 herbalist sells their scrolls; Fireball's flying sprite and explosion are the spell's *Look*);
 **Brother Ansel** is a cleric of the Life domain who heals a hurt hero with Cure Wounds once a day.

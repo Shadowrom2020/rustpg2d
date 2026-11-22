@@ -85,7 +85,7 @@ for how to use it all.
   economy, attack rolls against AC, cover, opportunity attacks, death saves), the **twelve
   classes** with their subclasses and features to level 20 for the hero and the party (a level-up
   window for their choices; Rage, Action Surge, Sneak Attack, Flurry of Blows, Lay on Hands and the
-  rest in the fight's action bar), the SRD's 319 **spells** with slots, areas on the grid,
+  rest in the fight's action bar), the SRD's **spells** that act in play (159) with slots, areas on the grid,
   concentration and upcasting, conditions, and the SRD's **equipment**: weapon properties, the
   armor table, tools, packs and money in five coins with change.
 - Inventory, shops, chests, keys and locks to pick (a DEX check with thieves' tools).

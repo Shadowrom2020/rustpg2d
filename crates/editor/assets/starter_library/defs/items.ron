@@ -14530,11 +14530,6 @@
             recharge: "1d3",
             spells: [
                 (
-                    spell: "animal-friendship",
-                    charges: 1,
-                    dc: 13,
-                ),
-                (
                     spell: "fear",
                     charges: 1,
                     dc: 13,

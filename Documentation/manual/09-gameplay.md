@@ -1256,6 +1256,9 @@ lockpick.
 spot where the user's feet go (with a preview), the way they face (a chair per direction; for beds
 the side the head is on), for beds the hour sleep lasts until, a **cover** sprite drawn over the
 user (a blanket, a chair's backrest), and optional conditions with a refusal text (a paid inn room).
+The example's and the starter library's chairs (`chair`, `chair_up`, `chair_left`, `chair_right`,
+the sheet `chairs`) are drawn for the sitting characters: the seat at the height of their thighs,
+the back right behind them (from the side too), and facing up the back drawn over the sitter.
 
 E at the furniture sits the player down: HP comes back (1 every 4 s). At a bed
 it asks "Sleep until 07:00?": the screen fades, the clock jumps, and the night is a [long

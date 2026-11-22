@@ -725,6 +725,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   fight hidden: the first attack has advantage. `status` prints `sneak=…:stealth=ROLL`.
 
 ### Art
+- **Chairs** (example and starter library) are redrawn for sitting characters: the seat at the
+  height of the thighs and the back right behind them in all four facings. Sideways, the sitter
+  used to hang in the air beside the chair; now they sit on the seat with their back against the
+  backrest. Facing up, the backrest is drawn over the sitter's lower back. The Wooden Chair item
+  shows the new chair.
 - The **hero** (the male human hero, the starter library's *Hero* character) has a new model with
   its own clips for every animation: walking, idle, sitting, sneaking, hurt and the weapon
   animations (sword, two-handed, thrust, bow, casting, unarmed, blocks). Skin, hair and clothing

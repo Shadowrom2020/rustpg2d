@@ -79,6 +79,16 @@ struct Chase {
     alert: f32,
 }
 
+/// What every hunting creature looks at in a frame, found once ([`Game::frame_look`]) instead
+/// of once per creature: each look went through all of the map's entities.
+pub(super) struct Look {
+    /// The party's members (entity indices).
+    party: Vec<usize>,
+    /// The living characters with a faction (not the party's): index, faction and where they
+    /// stood when the frame began.
+    factioned: Vec<(usize, u16, Vec2)>,
+}
+
 fn chase_of(b: &Behavior) -> Option<Chase> {
     match *b {
         Behavior::Chase { sight, leash, flee_below, keep_distance, group, alert } => Some(Chase { sight, leash, flee_below, keep_distance, group, alert }),
@@ -113,22 +123,25 @@ impl Game {
         a.def == b.def || (a.faction.is_some() && a.faction == b.faction) || (a.faction.is_none() && b.faction.is_none() && a.hostile && b.hostile)
     }
 
-    /// Living characters of factions hostile to `i`'s (not companions: they are on the player's
-    /// side), with their feet and the middle of their body.
-    pub(super) fn npc_foes(&self, i: usize) -> Vec<(usize, Vec2, Vec2)> {
-        if self.loaded.entities[i].faction.is_none() {
-            return Vec::new();
+    /// The frame's [`Look`]: the party and the characters with a faction, as they are now.
+    pub(super) fn frame_look(&self) -> Look {
+        let mut look = Look { party: Vec::new(), factioned: Vec::new() };
+        for (j, o) in self.loaded.entities.iter().enumerate() {
+            if o.companion.is_some() {
+                look.party.push(j);
+            } else if let (true, Some(f)) = (o.active && o.kind == crate::entity::EntityKind::Character && o.max_hp > 0 && o.hp > 0, o.faction) {
+                look.factioned.push((j, f, o.body.pos));
+            }
         }
-        (0..self.loaded.entities.len())
-            .filter(|&j| {
-                let o = &self.loaded.entities[j];
-                j != i && o.active && o.kind == crate::entity::EntityKind::Character && o.companion.is_none() && o.max_hp > 0 && o.hp > 0 && self.foes(i, j)
-            })
-            .map(|j| {
-                let o = &self.loaded.entities[j];
-                (j, o.body.pos, o.body.pos - vec2(0.0, o.body.hitbox.y / 2.0))
-            })
-            .collect()
+        look
+    }
+
+    /// Character `j` as `i`'s foe, as it is now: a living character of a faction hostile to
+    /// `i`'s (not a companion: they are on the player's side); its feet and the middle of its body.
+    fn npc_foe(&self, i: usize, j: usize) -> Option<(Vec2, Vec2)> {
+        let o = self.loaded.entities.get(j)?;
+        let foe = j != i && o.active && o.kind == crate::entity::EntityKind::Character && o.companion.is_none() && o.max_hp > 0 && o.hp > 0 && self.foes(i, j);
+        foe.then(|| (o.body.pos, o.body.pos - vec2(0.0, o.body.hitbox.y / 2.0)))
     }
 
     /// The push away from other chasers standing too close to character `i` (0 when alone).
@@ -226,7 +239,7 @@ impl Game {
     }
 
     /// Moves a `Chase` character; returns false when it isn't hunting (it wanders / patrols).
-    pub(super) fn chase(&mut self, i: usize, dt: f32) -> bool {
+    pub(super) fn chase(&mut self, i: usize, dt: f32, look: &Look) -> bool {
         let ts = self.ts();
         let e = &self.loaded.entities[i];
         let Some(Chase { sight, leash, flee_below, keep_distance, group, alert }) = chase_of(&e.behavior) else { return false };
@@ -270,17 +283,25 @@ impl Game {
             if self.notices_hero(i, sight) {
                 seen.push((Foe::Player, self.player.pos, player_mid));
             }
-            for (c, mid) in self.companion_targets() {
-                let feet = self.loaded.entities[c].body.pos;
+            for &c in &look.party {
+                let Some((feet, mid)) = self.companion_target(c) else { continue };
                 if notices(feet, mid) {
                     seen.push((Foe::Companion(self.loaded.entities[c].uid), feet, mid));
                 }
             }
         }
-        // Characters of hostile factions.
-        for (j, feet, mid) in self.npc_foes(i) {
-            if notices(feet, mid) {
-                seen.push((Foe::Npc(self.loaded.entities[j].uid), feet, mid));
+        // Characters of hostile factions: those that stood within its sight (and a step more)
+        // when the frame began, looked at as they are now.
+        if let Some(mine) = e.faction {
+            let reach = (sight + 2.0) * ts;
+            for &(j, theirs, stood) in &look.factioned {
+                if j == i || stood.distance(pos) > reach || !self.factions.hostile(Some(mine), Some(theirs)) {
+                    continue;
+                }
+                let Some((feet, mid)) = self.npc_foe(i, j) else { continue };
+                if notices(feet, mid) {
+                    seen.push((Foe::Npc(self.loaded.entities[j].uid), feet, mid));
+                }
             }
         }
         let nearest = seen.into_iter().min_by(|a, b| a.1.distance(pos).total_cmp(&b.1.distance(pos)));

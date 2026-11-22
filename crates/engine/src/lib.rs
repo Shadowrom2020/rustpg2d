@@ -37,6 +37,7 @@ pub mod hooks;
 pub mod icon;
 pub mod imageio;
 pub mod inventory;
+pub mod item_category;
 pub mod lang;
 pub mod legacy;
 // Asset library, old-project migration and game export: editor features (zip), not in the web game.

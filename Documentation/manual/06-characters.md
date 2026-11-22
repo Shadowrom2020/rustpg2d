@@ -479,7 +479,9 @@ is. *Next* goes on, *Back* (or Esc) goes back, and *Start adventure* on the last
    **Outfitter** with the SRD's weapons, armour, ammunition, spellcasting focuses, tools, packs
    and gear) and the class has **starting gold** (*Database › Classes › Starting gold*, e.g.
    `5d4x10`; the hero gets the average, 125 gp for a fighter). Instead of the class's starting
-   equipment, the player buys gear: Right, Enter or *+* buys one, Left or *−* puts one back. Gold
+   equipment, the player buys gear: Right, Enter or *+* buys one, Left or *−* puts one back; the
+   tabs over the list (*All*, *Weapons*, *Armor*, *Tools*, *Gear*, *Magic*; click, Tab or 1-6)
+   filter it. Gold
    left, what was bought and the selected item (its numbers, weight, text, and a warning when the
    class isn't trained with a weapon or armour) show on the right. What isn't spent stays in the
    purse. Without a store (or without starting gold) the hero gets the class's starting equipment as

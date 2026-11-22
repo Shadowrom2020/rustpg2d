@@ -672,6 +672,7 @@ fn db_pass(db: &mut Database, config: &mut ProjectConfig, kind: RefKind, old: &s
         }
     }
     r.fix(RefKind::Character, &mut config.player);
+    r.fix(RefKind::Character, &mut config.creation.store);
     r.fix(RefKind::Sheet, &mut config.player_portrait.sheet);
     let cc = &mut config.creation;
     for s in [&mut cc.body_male, &mut cc.body_female] {

@@ -658,6 +658,31 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   Rat-Bite Fever (its bite now gives it); in the example the mine's rat nest has a diseased rat and
   Brother Ansel heals a sick hero for 25 gold.
 
+### Character creation in six steps
+- The **character creator** follows the order of making an SRD 5.1 hero, one step per page, with
+  *Step N of M* on top; a step the project has nothing for is skipped:
+  1. **Who**: name, race, sex, look and colours.
+  2. **Class**: the class, its skills and level 1's choices (a fighting style, a cleric's domain, a
+     sorcerer's origin, a warlock's patron), the same rows the level-up window shows. No level-up
+     window opens right after starting any more.
+  3. **Ability scores**: the standard array starts placed for the class (*Database › Classes ›
+     Ability order*, new: a wizard's INT, CON, DEX first), swappable; point buy starts from it,
+     4d6 rolls are placed the same way. The race's choices are here too.
+  4. **Background**: the background, its languages and a rogue's expertise.
+  5. **Spells**: a checklist of the class's cantrips and 1st-level spells (a wizard's spellbook, a
+     sorcerer's, bard's and warlock's known spells) with each spell's text.
+  6. **Starting equipment**: with a starter store (*Project › Character creator › Starter store*,
+     new: a character whose shop stock is sold), the class's **starting gold** (*Database ›
+     Classes › Starting gold*, new: `5d4x10`, the average is given) buys gear instead of the
+     class's equipment; what isn't spent stays in the purse.
+- Example and starter library: an **Outfitter** character with the SRD's weapons, armour,
+  ammunition, spellcasting focuses, tools, packs and gear; the classes' starting gold and ability
+  order (also set by the SRD import). The example sells from it in its creator and gains the
+  remaining SRD weapons and armour, focuses, kits, and 30 cantrips and 1st-level spells, so every
+  caster has spells to choose (all translated into German).
+- Status: `creator=` shows the step, the class's level-1 picks, the spells, the gold left and the
+  cart.
+
 ### Art
 - The male **dragonborn** has a new model (example and starter library) with its own walk, idle,
   sword attack and spell-casting clips; hurt, sitting, sneaking and the weapon animations still come

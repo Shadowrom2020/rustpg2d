@@ -1196,6 +1196,31 @@ fn a_class_is_edited_and_a_character_gets_one() {
 }
 
 #[test]
+fn a_class_gets_starting_gold_and_an_ability_order() {
+    let root = example_copy("class_gold");
+    let db = Project::load(&root).unwrap().db;
+    let k = db.classes.iter().position(|c| c.id == "wizard").expect("the example's wizard");
+    let mut h = harness(&root, Tab::Classes, k);
+    step(&mut h);
+    // (Emptied first: typing goes behind a field's text.)
+    h.state_mut().project.db.classes[k].starting_gold.clear();
+    h.state_mut().project.db.classes[k].ability_order.clear();
+    step(&mut h);
+    beside(&h, "Starting gold", |n| n.role() == Role::TextInput).type_text("3d4x10");
+    step(&mut h);
+    beside(&h, "Ability order", |n| n.role() == Role::TextInput).type_text("INT, dex, con");
+    step(&mut h);
+    let w = h.state().project.db.classes[k].clone();
+    assert_eq!((w.starting_gold_cp(), w.ability_order.clone()), (7500, vec!["int".to_string(), "dex".into(), "con".into()]));
+    // The creator places the standard array by it: INT 15, DEX 14, CON 13.
+    assert_eq!(w.standard_array().0, [12, 14, 13, 15, 10, 8]);
+    h.state_mut().save_all();
+    let saved = Project::load(&root).unwrap().db;
+    assert_eq!(saved.class("wizard").map(|w| (w.starting_gold.clone(), w.ability_order.len())), Some(("3d4x10".to_string(), 3)));
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn a_spell_gets_a_level_and_parts() {
     let root = example_copy("spells");
     let db = Project::load(&root).unwrap().db;

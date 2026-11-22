@@ -426,46 +426,75 @@ The player is a character too: *Database › Project › Player character* names
 its look and equipment are what a new game starts with.
 
 The **character creator** (*Database › Project › Character creator*, *Show the character creator…*)
-lets players create their hero after *New game*: a **name** (with a default), **Male / Female** (or
-fixed, if the project says *Always male* / *Always female*), a **race** when the project has several
-playable races ([Races](#races)), a **look** (a model) among the race's models of that sex
-(without races: the project's default model for that sex and the other models of that sex marked
-*Playable*; the row shows only when there is a choice), and a **colour row for each colour feature**
-of that model that offers colours (*Skin*, *Hair*, *Clothing*…: *As made*, the model's own
-colours or the feature's default colour, *The race's* colour, or one of the feature's colours). An
-animated preview walks through all four directions; under it the race's ability increases, size,
-speed, darkvision and traits.
+lets players create their hero after *New game*, step by step in the order of an SRD 5.1 hero.
+A step the project has nothing for is skipped, and *Step 2 of 6* at the top says where the player
+is. *Next* goes on, *Back* (or Esc) goes back, and *Start adventure* on the last step makes the hero.
 
-*Next* opens the second page (the SRD 5.1 rules; [Gameplay › Rules](09-gameplay.md#rules-srd-51)):
+1. **Who**: a **name** (with a default), **Male / Female** (or fixed, if the project says *Always
+   male* / *Always female*), a **race** when the project has several playable races
+   ([Races](#races)), a **look** (a model) among the race's models of that sex (without races: the
+   project's default model for that sex and the other models of that sex marked *Playable*; the row
+   shows only when there is a choice), a **colour row for each colour feature** of that model that
+   offers colours (*Skin*, *Hair*, *Clothing*…: *As drawn*, *The race's* colour, or one of the
+   feature's colours) and a race's choice that colours the model (the dragonborn's ancestry). An
+   animated preview walks through all four directions; under it the race's ability increases, size,
+   speed, darkvision and traits.
+2. **Class** (with classes in the project, *Database › Classes*): the class (the example's default
+   is the fighter), a row per **skill** it lets the hero choose (a fighter two of eight, a rogue
+   four) and level 1's other **choices**: a fighter's fighting style, a cleric's domain, a
+   sorcerer's origin, a warlock's patron. The selected choice's text shows under the rows. Beside
+   them: the class's hit die, saving throws, best abilities, starting gold, proficiencies and its
+   level-1 features.
 
-![The creator's second page: a half-elf's scores, choices and background](../images/game-creator-abilities.webp)
+![The creator's class step: a cleric picking the Life domain](../images/game-creator-class.webp)
 
-- **Scores**: the method the project allows (*Character creator › Ability scores*): the
-  **standard array** (15 14 13 12 10 8: Left / Right on an ability swaps values with another),
-  **point buy** (every score 8 to 15 for 27 points: 13 costs 5, 14 costs 7, 15 costs 9; the points
-  left show beside the method) or **4d6** (each score the best three of four dice, rolled once;
-  *Roll again*). Each ability shows its base, the race's increase, the total and its modifier.
-  Without methods the scores are the project's *Rules*.
-- A row per **racial choice**: the half-elf's two +1s and two skills, the dwarf's tool, the
-  dragonborn's ancestry, the high elf's cantrip and language, the human's and half-elf's language.
-  The selected choice's trait shows under the rows.
-- **Background** (*Database › Backgrounds*, [Backgrounds](#backgrounds)) and its languages; its
-  skills and feature show below.
+3. **Ability scores** (the SRD 5.1 rules; [Gameplay › Rules](09-gameplay.md#rules-srd-51)): the
+   method the project allows (*Character creator › Ability scores*). The **standard array** (15 14
+   13 12 10 8) starts **placed for the class**: its highest scores on the class's best abilities
+   (*Database › Classes › Ability order*: a wizard's INT, CON, DEX). Left / Right on an ability
+   swaps its value with another. **Point buy** starts from the same placed array (it costs all 27
+   points) and changes every score between 8 and 15: 13 costs 5, 14 costs 7, 15 costs 9; the points
+   left show beside the method. With **4d6**, each score is the best three of four dice, placed the
+   same way; *Roll again* rolls again. Each ability shows its base, the race's increase, the total
+   and its modifier. Without methods the scores are the project's *Rules*. On the right, a row per
+   **racial choice**: the half-elf's two +1s and two skills, the dwarf's tool, the high elf's cantrip
+   and language, the human's and half-elf's language. The selected choice's trait shows below.
 
-![The creator's third page: the rogue, its skills and level-1 features](../images/game-creator-class.webp)
+![The creator's ability scores: the standard array placed for a wizard](../images/game-creator-abilities.webp)
 
-With classes in the project (*Database › Classes*), *Next* opens the third page, **Class**: the
-class (the example's default is the fighter) and a row per **skill** it lets the hero choose (a
-fighter two of eight, a rogue four). Beside them the class's hit die, saving throws and
-proficiencies and its level-1 features with their text.
+4. **Background** (*Database › Backgrounds*, [Backgrounds](#backgrounds)): the background and the
+   languages it lets the hero choose, with its skills, feature and equipment on the left. A rogue's
+   **expertise** is chosen here, because it doubles skills the background gives too.
+5. **Spells**, when the class picks some at level 1: a checklist of the class's cantrips and
+   1st-level spells, with the selected spell's level, school, casting time, range and text on the
+   right. The counts on top say how many are picked: a wizard's three cantrips and six spells for
+   the **spellbook**, a sorcerer's four cantrips and two known spells, a bard's, a warlock's. Enter
+   or a click picks or drops a spell, and *Next* waits until all are picked. Clerics and druids
+   pick their cantrips here and prepare their spells in the game.
+
+![The creator's spells step: a wizard's cantrips and spellbook](../images/game-creator-spells.webp)
+
+6. **Starting equipment**, when the project has a **starter store** (*Character creator › Starter
+   store*: a character whose shop stock is sold, the example's and the starter library's
+   **Outfitter** with the SRD's weapons, armour, ammunition, spellcasting focuses, tools, packs
+   and gear) and the class has **starting gold** (*Database › Classes › Starting gold*, e.g.
+   `5d4x10`; the hero gets the average, 125 gp for a fighter). Instead of the class's starting
+   equipment, the player buys gear: Right, Enter or *+* buys one, Left or *−* puts one back. Gold
+   left, what was bought and the selected item (its numbers, weight, text, and a warning when the
+   class isn't trained with a weapon or armour) show on the right. What isn't spent stays in the
+   purse. Without a store (or without starting gold) the hero gets the class's starting equipment as
+   before.
+
+![The creator's starter store: a fighter's longsword, chain mail, shield and explorer's pack](../images/game-creator-store.webp)
 
 *Start adventure* makes the hero: the scores with the race's increases (racial increases stop at
 20), the project's, the race's, the chosen, the background's and the class's proficiencies, the
-languages and resistances, the background's and the class's starting items. Level-1 choices of the
-class (a fighter's fighting style, a rogue's expertise, a cleric's domain) open the
-[level-up window](09-gameplay.md#classes-and-levels) right after. Name, sex, model, colours and all of it are kept in
-save games. The example offers its nine races and three backgrounds with all three methods.
-Play-tests skip the creator and use the default name and the project's *Rules*.
+languages and resistances, the background's starting items, the store's purchases and gold (or the
+class's equipment), and the level-1 choices and spells picked, so no [level-up
+window](09-gameplay.md#classes-and-levels) opens right after. Name, sex, model, colours and all of
+it are kept in save games. The example offers its nine races, three backgrounds, the twelve classes
+with all three methods and the Outfitter's store. Play-tests skip the creator and use the default
+name and the project's *Rules*.
 
 ## Races
 
@@ -537,7 +566,7 @@ same field (for scripts and [factions](#factions)). The **Player race** conditio
 ### Backgrounds
 
 *Database › Backgrounds*: what the hero did before the adventure. The creator offers every
-background on its second page. A background has proficiencies (skills and tools), a number of
+background on its *Background* step. A background has proficiencies (skills and tools), a number of
 **languages to choose**, **starting items** (given when the game starts) and a **feature** (its
 name and rule in words). The SRD's **Acolyte** (Insight, Religion, two languages, *Shelter of the
 Faithful*) comes from the import; the example and the starter library add two of their own:

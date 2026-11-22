@@ -3004,6 +3004,21 @@ fn class_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::classes::ClassDef, cx:
             }
         });
         ui.end_row();
+        ui.label("Ability order").on_hover_text("Where the creator puts the standard array (15, 14, 13, 12, 10, 8) for this class: the abilities from best to worst (str, con, dex...); missing ones follow");
+        let mut text = d.ability_order.join(", ");
+        if ui.add(egui::TextEdit::singleline(&mut text).desired_width(240.0).hint_text("str, con, dex, wis, cha, int")).changed() {
+            d.ability_order = text.split(',').map(|s| s.trim().to_ascii_lowercase()).filter(|s| !s.is_empty()).collect();
+        }
+        ui.end_row();
+        ui.label("Starting gold").on_hover_text("Dice and a multiplier (5d4x10): with a starter store (Project \u{203A} Character creator), a new hero gets the average in gold instead of the starting equipment and buys gear with it. Empty = the starting equipment");
+        ui.horizontal(|ui| {
+            ui.add(egui::TextEdit::singleline(&mut d.starting_gold).desired_width(80.0).hint_text("5d4x10"));
+            let cp = d.starting_gold_cp();
+            if cp > 0 {
+                ui.weak(format!("= {} gp on average", cp as f32 / 100.0));
+            }
+        });
+        ui.end_row();
         ui.label("Subclass at level");
         ui.horizontal(|ui| {
             ui.add(egui::DragValue::new(&mut d.subclass_level).range(1..=20));
@@ -4096,7 +4111,19 @@ fn project_form(ed: &mut Editor, ui: &mut egui::Ui) {
                 }
             }
         });
-        ui.weak("The creator's second page: the scores, the race's choices (Database \u{E13A} Races) and a background (Database \u{E13A} Backgrounds).");
+        ui.weak("The creator's pages: who (race, sex, look, name), class, ability scores (the standard array placed by the class's ability order), background, spells (classes that pick them at level 1), the starter store.");
+        // The starter store: a character whose shop stock the new hero buys from.
+        let shops: Vec<(String, String)> = ed.project.db.characters.iter().filter(|d| d.shop.is_some()).map(|d| (d.id.clone(), d.name.clone())).collect();
+        ui.horizontal(|ui| {
+            ui.label("Starter store").on_hover_text("A character whose shop stock a new hero buys from with the class's starting gold (Database \u{E13A} Classes \u{203A} Starting gold) instead of getting the class's starting equipment. None = the equipment");
+            let shown = if cc.store.is_empty() { "None".to_string() } else { shops.iter().find(|s| s.0 == cc.store).map_or(format!("{} (no shop)", cc.store), |s| format!("{} ({})", s.1, s.0)) };
+            egui::ComboBox::from_id_salt("creation_store").selected_text(shown).show_ui(ui, |ui| {
+                ui.selectable_value(&mut cc.store, String::new(), "None");
+                for (id, name) in &shops {
+                    ui.selectable_value(&mut cc.store, id.clone(), format!("{name} ({id})"));
+                }
+            });
+        });
     }
     ui.weak("Dialogs address the player with {player} (name) and {sir|madam} (male|female); conditions have 'Player sex'; scripts have player_name(), player_sex(), is_female(), is_male(), text(\"...\").");
     ui.separator();

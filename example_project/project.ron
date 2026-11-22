@@ -31,6 +31,7 @@
             PointBuy,
             Roll,
         ],
+        store: "outfitter",
     ),
     day_minutes: 24.0,
     start_hour: 8.0,

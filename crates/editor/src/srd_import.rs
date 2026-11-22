@@ -63,6 +63,35 @@ fn desc(v: &Value) -> String {
 }
 
 /// A proficiency's id as the engine names it: skills without their `skill-` prefix.
+/// A class's starting gold in the creator's store (the usual dice; the SRD data has none).
+fn class_starting_gold(class: &str) -> &'static str {
+    match class {
+        "barbarian" | "druid" => "2d4x10",
+        "monk" => "5d4",
+        "rogue" | "warlock" | "wizard" => "4d4x10",
+        "sorcerer" => "3d4x10",
+        _ => "5d4x10",
+    }
+}
+
+/// Where the creator places a class's standard array: its abilities from best to worst.
+fn class_ability_order(class: &str) -> &'static [&'static str] {
+    match class {
+        "barbarian" => &["str", "con", "dex", "wis", "cha", "int"],
+        "bard" => &["cha", "dex", "con", "wis", "int", "str"],
+        "cleric" => &["wis", "con", "str", "cha", "dex", "int"],
+        "druid" => &["wis", "con", "dex", "int", "cha", "str"],
+        "fighter" => &["str", "con", "dex", "wis", "cha", "int"],
+        "monk" => &["dex", "wis", "con", "str", "int", "cha"],
+        "paladin" => &["str", "cha", "con", "wis", "dex", "int"],
+        "ranger" => &["dex", "wis", "con", "str", "int", "cha"],
+        "rogue" => &["dex", "con", "int", "wis", "cha", "str"],
+        "sorcerer" | "warlock" => &["cha", "con", "dex", "wis", "int", "str"],
+        "wizard" => &["int", "con", "dex", "wis", "cha", "str"],
+        _ => &[],
+    }
+}
+
 fn prof_id(index: &str) -> String {
     index.strip_prefix("skill-").unwrap_or(index).to_string()
 }
@@ -608,6 +637,13 @@ impl SrdData {
                     if !old.description.is_empty() {
                         def.description = old.description.clone();
                     }
+                    // (The creator's numbers stay as the project set them.)
+                    if !old.starting_gold.is_empty() {
+                        def.starting_gold = old.starting_gold.clone();
+                    }
+                    if !old.ability_order.is_empty() {
+                        def.ability_order = old.ability_order.clone();
+                    }
                     if *old != def {
                         *old = def;
                         updated += 1;
@@ -711,6 +747,8 @@ impl SrdData {
             skill_choices: choose,
             skill_options: options.iter().map(|(o, _)| prof_id(o)).collect(),
             equipment,
+            starting_gold: class_starting_gold(id).to_string(),
+            ability_order: class_ability_order(id).iter().map(|a| a.to_string()).collect(),
             multiclass,
             subclass_level,
             subclass_title,

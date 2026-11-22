@@ -22,10 +22,10 @@ pub(super) struct LevelUpWin {
 /// A row of the window: which feature it belongs to, and the options it cycles through (ids and
 /// what they show).
 #[derive(Clone, Debug)]
-struct ChoiceRow {
-    feature: String,
-    label: String,
-    options: Vec<(String, String)>,
+pub(super) struct ChoiceRow {
+    pub feature: String,
+    pub label: String,
+    pub options: Vec<(String, String)>,
 }
 
 const W: f32 = 720.0;
@@ -55,6 +55,13 @@ impl Game {
 
     /// The choice rows of a pending level-up.
     fn levelup_rows(&self, who: &str, c: &ClassDef, hc: &HeroClass, level: u32, profs: &[String]) -> Vec<ChoiceRow> {
+        let known = self.subject_who(who).map_or(Vec::new(), |w| self.known_of(w));
+        self.level_rows(c, hc, level, profs, &known)
+    }
+
+    /// The choice rows of reaching `level` of class `c` for someone with these proficiencies and
+    /// known spells (the level-up window; the creator's level 1).
+    pub(super) fn level_rows(&self, c: &ClassDef, hc: &HeroClass, level: u32, profs: &[String], known: &[String]) -> Vec<ChoiceRow> {
         let mut rows = Vec::new();
         for (feature, choice) in Self::level_choices(c, level) {
             match choice {
@@ -100,9 +107,8 @@ impl Game {
         }
         // New cantrips and spells from the class's list (known casters, a wizard's spellbook).
         let (cantrips, spells) = Self::spell_gains(c, level);
-        let known = self.subject_who(who).map_or(Vec::new(), |w| self.known_of(w));
         for (n, feature, label, cantrip) in [(cantrips, "cantrips", "Cantrip", true), (spells, "spells", "Spell", false)] {
-            let opts = self.spell_options(c, level, cantrip, &known);
+            let opts = self.spell_options(c, level, cantrip, known);
             if opts.is_empty() {
                 continue;
             }
@@ -398,7 +404,7 @@ fn levelup_layout(labels: &[String]) -> (Vec<Rect>, Rect) {
 
 /// A text of the window in the player's language: content (feature, subclass names) or a
 /// runtime text ("Expertise", skill names).
-fn tr_any(s: &str) -> String {
+pub(super) fn tr_any(s: &str) -> String {
     let t = crate::lang::tr(s);
     if t != s {
         t

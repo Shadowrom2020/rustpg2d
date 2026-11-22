@@ -36,4 +36,18 @@
         flip: true,
         layer: Sorted,
     ),
+    (
+        id: "cave_floor_bits",
+        name: "Cave floor",
+        props: [
+            ("stalagmite_small", 3),
+            ("cave_rock", 2),
+            ("stalagmite", 1),
+            ("glow_mushrooms", 1),
+        ],
+        density: 0.1,
+        spacing: 40.0,
+        flip: true,
+        layer: Sorted,
+    ),
 ]

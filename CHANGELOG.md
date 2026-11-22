@@ -5,6 +5,24 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 
 ## Unreleased
 
+### A Bigger Library: landscapes
+- **Snow, desert, caves, swamp and dungeons** in the starter library, each with props, ground,
+  scatter sets and structures:
+  - **Props** (28, one new sheet): snowy pines, snow-capped rocks, ice blocks, frozen bushes, a
+    snowman, snow drifts; small and barrel cacti, sandstone rocks, a broken sandstone pillar,
+    tumbleweed, an animal skull, dune grass; stalagmites, cave rocks, glowing mushrooms and blue
+    crystals (both give light); reeds, lily pads, a dead tree, a fallen log, a mossy stump, bog
+    mushrooms; rubble, a broken pillar, a skull pile.
+  - **Ground**: mud, natural cave rock and sandstone tiles, beside the snow, sand, frozen lake,
+    oasis, swamp water and dungeon floors the library had.
+  - **Scatter sets**: *Snowy woods*, *Snow ground*, *Desert plants*, *Desert stones*, *Cave floor*,
+    *Swamp growth*, *Swamp water plants* and *Dungeon debris*.
+  - **Structures**: *Frozen pond*, *Snowy grove*, *Oasis*, *Desert ruin*, *Cave chamber*, *Crystal
+    grotto*, *Swamp pool* and *Collapsed hall*.
+- **The example: The Deep Caves**, below the old mine (a crack in the rat nest leads down, a rope
+  back up): caves lit only by glowing mushrooms, an underground lake with bats, a crystal grotto and
+  a giant spider guarding its hoard.
+
 ### The Rules (SRD 5.1)
 - **Dice, abilities and checks**: every roll in the game is an SRD 5.1 roll. The hero has the six
   ability scores, the proficiency bonus by level, the 18 SRD skills and the SRD's tools; ability

@@ -91,7 +91,9 @@ What you'll find in it:
   an orchard, animals and two watchtowers you can climb. Every house can be entered; about twenty
   villagers follow daily routines and go to bed in their own homes at night.
 - **Whisperwood**, a forest with slimes, goblin archers, a bandit camp and a shrine at its heart;
-  an **old mine** with ore veins, a pitch-dark treasure room and a dwarf trader; and **The Wilds**,
+  an **old mine** with ore veins, a pitch-dark treasure room and a dwarf trader, and below it **The
+  Deep Caves**, lit only by glowing mushrooms, with an underground lake and a giant spider's lair;
+  and **The Wilds**,
   a generated 1024 × 1024 map with fifty enemy spawners (slimes, goblin archers, wolf packs, bat
   swarms), an orc camp with its chief, a troll guarding a bridge and an elven herbalist who
   wanders between four spots during the day.

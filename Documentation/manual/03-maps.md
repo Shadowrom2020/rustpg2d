@@ -46,8 +46,8 @@ Footsteps play the material's sound.
 
 The starter library brings materials for grass, meadow, forest floor, dirt, farmland, sand, snow,
 cobblestone, flagstones, stone tiles, wooden floor, carpet, rug, water, earth, cave floor and the
-void, the animated **lava**, **swamp water** and **waterfall pool**, and those its converted tile
-structures needed. A map uses at most 64 materials.
+void, the animated **lava**, **swamp water** and **waterfall pool**, **mud**, natural **cave rock**,
+**sandstone tiles**, and those its converted tile structures needed. A map uses at most 64 materials.
 
 ### The Ground tool
 
@@ -166,7 +166,9 @@ be copied on its own too. The region's inspector has the same commands plus **Sa
 ## Structures
 
 Structures are ready-made pieces placed with one click: houses, wall and fence pieces, rooms,
-ponds, groves, a plaza, a market row. A structure paints ground, places decorations, sets collision
+ponds, groves, a plaza, a market row, and a piece of each landscape: a *Frozen pond* and a
+*Snowy grove*, an *Oasis* and a *Desert ruin*, a *Cave chamber* and a *Crystal grotto*, a *Swamp
+pool* and a dungeon's *Collapsed hall*. A structure paints ground, places decorations, sets collision
 overrides (e.g. a walkable door) and places its entities (a shop's sign and barrel, a room's chest).
 Tiles it marks *clear* lose the map's decorations first, so no tree stands in a room.
 

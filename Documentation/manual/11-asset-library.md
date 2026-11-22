@@ -18,7 +18,12 @@ and sorceress, nomads, nobles, bandits, skeletons, elves, dwarves, orcs (and the
 trader and an elven herbalist, a wolf, a bat and a ghost; the six races of the example; every humanoid in a male and a
 female version), three **realistic** figures in another style than the example's chibi cast (*Hero
 (realistic)*, *Elf (realistic)*, *Elf woman (realistic)*, drawn at 115 %) and more structures (town
-houses, city walls, dungeon rooms). The starter library
+houses, city walls, dungeon rooms). **Five landscapes** each have their props, ground, scatter sets
+and structures: **snow** (snowy pines, snow-capped rocks, ice, frozen bushes, a snowman), the
+**desert** (cacti, sandstone rocks and broken pillars, tumbleweed, a skull, dune grass, sandstone
+tiles), **caves** (stalagmites, glowing mushrooms and blue crystals that give light, cave rock),
+the **swamp** (reeds, lily pads, a dead tree, a fallen log, a mossy stump, bog mushrooms, mud) and
+**dungeons** (rubble, broken pillars, a skull pile). The starter library
 also includes the SRD's 159 spells that act in play (the example's with their icons; Fireball with its flying sprite
 and explosion), a **Locked Chest** (DC 12 to
 pick), and

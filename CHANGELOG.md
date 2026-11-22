@@ -691,6 +691,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   built-in languages.
 
 ### Art
+- The **hero** (the male human hero, the starter library's *Hero* character) has a new model with
+  its own clips for every animation: walking, idle, sitting, sneaking, hurt and the weapon
+  animations (sword, two-handed, thrust, bow, casting, unarmed, blocks). Skin, hair and clothing
+  keep their colour choices (defaults: the old hero's look); the old hero's separate clip files
+  are gone.
 - The male **dragonborn** has a new model (example and starter library) with its own walk, idle,
   sword attack and spell-casting clips; hurt, sitting, sneaking and the weapon animations still come
   from the shared clips, and the colour features (skin, clothing) are unchanged.

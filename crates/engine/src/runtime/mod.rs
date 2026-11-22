@@ -324,6 +324,9 @@ struct RtEntity {
     shape: Option<Box<shapes::NpcShape>>,
     /// A summoned creature (Find Familiar, Conjure Animals).
     summon: Option<shapes::Summoned>,
+    /// A summoned creature that vanished: taken out of the list when the next frame starts
+    /// (`Game::unsummon`), so entity indices stay right for the rest of this one.
+    gone: bool,
     /// Stack size of item pickups.
     count: u32,
     /// Subtracted from damage taken.
@@ -549,6 +552,9 @@ pub struct Game {
     regrow_timer: f32,
     /// Frame timing for `status` (a cell: `status` takes `&self`).
     perf: std::cell::RefCell<Perf>,
+    /// The light at the hero, worked out once a frame (`Game::light_at_player`): where they
+    /// stood, the hour and the light.
+    light_here: std::cell::Cell<Option<((Vec2, f32), f32)>>,
     /// Placed entities of other maps read from disk for companions (`placed_instance`), once
     /// per game: map files don't change while it runs.
     placed_cache: std::cell::RefCell<std::collections::HashMap<(String, u32), Option<crate::entity::EntityInstance>>>,
@@ -767,6 +773,7 @@ impl Game {
             chips: Vec::new(),
             regrow_timer: 0.0,
             perf: std::cell::RefCell::new(Perf { log: std::env::var("RUSTPG2D_PERF").is_ok_and(|v| v != "0"), ..Perf::default() }),
+            light_here: std::cell::Cell::new(None),
             placed_cache: Default::default(),
             order_menu: None,
             bar: Default::default(),
@@ -960,6 +967,7 @@ impl Game {
             spawned_by: None,
             shape: None,
             summon: None,
+            gone: false,
             count: 1,
             defense,
             unlocked: false,
@@ -1834,6 +1842,10 @@ impl Game {
     }
 
     pub fn update(&mut self, dt: f32) {
+        // Summoned creatures that vanished last frame leave the list here, where nothing holds
+        // an entity's index.
+        self.loaded.entities.retain(|e| !e.gone);
+        self.light_here.set(None);
         self.rebuild_occupancy();
         // Coins that reached the bag (picked up, from a chest, a script's) go into the purse.
         self.world.bank_coins();
@@ -3081,6 +3093,7 @@ impl Game {
     pub fn draw(&mut self) {
         /// Sort keys of flat props are their feet minus this: before everything else.
         const FLAT_FIRST: f32 = 1.0e7;
+        self.light_here.set(None);
         self.assets.models.begin_frame();
         // (Renders into a texture: before any camera is set.)
         self.prepare_minimap();

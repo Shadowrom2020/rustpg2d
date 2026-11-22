@@ -371,7 +371,7 @@ pub enum SpellPart {
     /// `count` creatures of character definition `creature` appear next to the caster, on its
     /// side, for the spell's duration (an instantaneous spell's stay until they drop to 0 hit
     /// points or the map is left): Find Familiar, Conjure Animals. Summoned by the party, they are
-    /// companions the AI plays.
+    /// companions the AI plays. Cast again by the same caster, the earlier ones vanish.
     Summon {
         creature: String,
         #[serde(default = "one")]

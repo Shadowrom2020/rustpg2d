@@ -768,6 +768,19 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
     the empty journal page wraps; the achievements' counter moved next to the hint.
   - Item names and descriptions in the details box, and the shop's names, are no longer run
     through the runtime translation a second time.
+- **Big maps with many hostile creatures ran slower than they should** (the example's wilds: 2.3 ms
+  of every frame's update, now 0.4 ms). Each creature asked every frame whether it notices the
+  hero, however far away, and every question added up all the map's lights and read the creature's
+  senses. A creature farther than its sight now stops at once, and the light at the hero is worked
+  out once a frame.
+- **A hitch once a second on big maps with a minimap**: the fog of war's picture was painted and
+  uploaded anew each second (a million tiles in the wilds). It is made again only when the hero
+  explored something, into the texture there is.
+- Casting *Find Familiar* a second time gave a second owl. A caster's summoning spell cast again
+  now replaces the creatures of its earlier casting.
+- A summoned creature that vanishes (0 hit points, its time, the spell's end) stays in the map's
+  list, inactive, until the next frame starts. Taking it out at once shifted the positions of the
+  entities after it while the fight's code still held them.
 
 ## 0.27.0 — 2026-11-18
 

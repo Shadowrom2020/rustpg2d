@@ -411,7 +411,9 @@ impl Game {
         }
     }
 
-    /// Summoned creature `i` is gone (its time, the spell's end, 0 HP).
+    /// Summoned creature `i` is gone (its time, the spell's end, 0 HP). It stays in the list,
+    /// inactive and out of everything, until the next frame starts: this is called from deep
+    /// inside a fight's damage, where callers still hold entity indices.
     pub(super) fn unsummon(&mut self, i: usize) {
         let e = &self.loaded.entities[i];
         if e.summon.is_none() {
@@ -425,7 +427,10 @@ impl Game {
                 f.down = false;
             }
         }
-        self.loaded.entities.remove(i);
+        let e = &mut self.loaded.entities[i];
+        (e.gone, e.active, e.hp) = (true, false, 0);
+        (e.summon, e.companion) = (None, None);
+        e.effects.clear();
         self.shape_note(format!("{name} {}", tr_ui("vanishes")));
         self.shape_puff(pos);
     }
@@ -440,6 +445,11 @@ impl Game {
         while let Some(i) = self.loaded.entities.iter().position(|e| e.shape.as_ref().is_some_and(|s| s.source == source)) {
             self.revert_npc(i, 0);
         }
+        self.end_summons_of(source);
+    }
+
+    /// The creatures a spell's source (`find-familiar@player`) summoned vanish.
+    pub(super) fn end_summons_of(&mut self, source: &str) {
         while let Some(i) = self.loaded.entities.iter().position(|e| e.summon.as_ref().is_some_and(|s| s.source == source)) {
             self.unsummon(i);
         }

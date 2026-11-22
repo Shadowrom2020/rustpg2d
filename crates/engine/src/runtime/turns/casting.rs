@@ -253,6 +253,11 @@ impl Game {
         if d.concentration && !again {
             self.begin_concentration(caster, &source, secs);
         }
+        // Summoning again: the creatures the caster's earlier casting of this spell brought
+        // vanish (one familiar at a time).
+        if !again && d.parts.iter().any(|p| matches!(p, SpellPart::Summon { .. })) {
+            self.end_summons_of(&source);
+        }
         // (A lasting area whose parts act only later: Spirit Guardians, Spike Growth.)
         let later = !again && d.parts.iter().any(|p| matches!(p, SpellPart::Lasting { effect } if effect.later));
         let targets = if later { &[][..] } else { targets };

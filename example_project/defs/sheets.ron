@@ -214,12 +214,6 @@
         frame_h: 32,
     ),
     (
-        id: "skill_icons",
-        image: "sprites/skill_icons.png",
-        frame_w: 32,
-        frame_h: 32,
-    ),
-    (
         id: "walls",
         image: "sprites/walls.png",
         frame_w: 32,

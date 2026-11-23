@@ -13,6 +13,7 @@ mod app;
 mod art;
 mod builder;
 mod canvas;
+mod cleanup;
 mod clipboard;
 mod database;
 mod db_undo;
@@ -485,6 +486,26 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.project_file_tick();
         }
         "closeproject" => ed.request(Pending::CloseProject),
+        // Clean up unused files: cleanup (Assets menu: opens it, prints the list) · cleanuplist ·
+        // cleanuppick KIND:ID|file:PATH on|off · cleanupok (delete ticked) · cleanupkeep (keep all) · cleanupcancel
+        "cleanup" => {
+            ed.open_cleanup();
+            if let Some(c) = &ed.cleanup {
+                println!("{}", c.listing());
+            }
+        }
+        "cleanuplist" => println!("{}", ed.cleanup.as_ref().map_or_else(|| "[cleanup] closed".to_string(), |c| c.listing())),
+        "cleanuppick" => {
+            if let Some(c) = &mut ed.cleanup {
+                match c.picks.get_mut(arg(1)) {
+                    Some(v) => *v = arg(2) != "off",
+                    None => println!("[cleanup] no entry {}", arg(1)),
+                }
+            }
+        }
+        "cleanupok" => ed.cleanup_answer(true),
+        "cleanupkeep" => ed.cleanup_answer(false),
+        "cleanupcancel" => ed.cleanup = None,
         // Maps: linkarea X Y W H · linknext TARGET · goto MAP [ZONE] · mapnext · zones
         "linkarea" => ed.link_area((num(1) as u32, num(2) as u32, num(3) as u32, num(4) as u32)),
         "linknext" => ed.link_next(arg(1)),
@@ -673,7 +694,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // watchanswer reload|keep: answers the "changed on disk" banner
         "watchanswer" => ed.watch_answer(arg(1) == "reload"),
         "status" => println!(
-            "[status] {} repo={} library={} script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} projectfile={} notices={} search={} usages={} problems={} plugins={} libupdate={} starter={} art={} pixel={} mode={:?} dbtab={:?} dbsel={} dblist={}/{} itemfilter={} libshown={} script={:?} ground={} decor={} dbtable={} testsetup={} anim={} timeline={} msg={}",
+            "[status] {} repo={} library={} script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} projectfile={} notices={} search={} usages={} problems={} plugins={} libupdate={} starter={} art={} pixel={} mode={:?} dbtab={:?} dbsel={} dblist={}/{} itemfilter={} libshown={} script={:?} ground={} decor={} dbtable={} testsetup={} anim={} timeline={} cleanup={} msg={}",
             TIMING.with(|t| t.borrow_mut().take()),
             match repo_mode::root() {
                 None => "off".to_string(),
@@ -727,6 +748,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.testplay_status(),
             ed.db.anim_preview.status(ed.project.db.animation(&ed.db.anim_preview.id).map_or(0.0, |d| d.length(|s| ed.assets.sheets.get(s).map_or(1, |t| t.count.max(1))))),
             ed.timeline_status(),
+            ed.cleanup.as_ref().map_or_else(|| "closed".to_string(), |c| c.status()),
             ed.status.0
         ),
         "filedialog" => ed.open_file_dialog(files::Purpose::OpenProject),

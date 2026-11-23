@@ -375,6 +375,33 @@ pub fn check(project: &Project) -> (Vec<String>, Check) {
     (files.into_iter().collect(), c)
 }
 
+/// The game's files ([`check`]) without what the game never uses ([`crate::unused`]): the
+/// unused definitions' files are left out, and the third list gives their `defs/` files' text
+/// without them. When the project can't be scanned, everything goes (with a warning).
+pub fn game_files(project: &Project) -> (Vec<String>, Check, Vec<(String, String)>) {
+    let (mut files, mut c) = check(project);
+    let slim = crate::unused::find_in(project).and_then(|u| crate::unused::slim_defs(&project.db, &u).map(|defs| (u, defs)));
+    match slim {
+        Ok((u, defs)) => {
+            let gone: BTreeSet<&str> = u.defs.iter().flat_map(|d| d.files.iter().map(String::as_str)).collect();
+            files.retain(|f| !gone.contains(f.as_str()));
+            (files, c, defs)
+        }
+        Err(e) => {
+            c.warnings.push(format!("Unused assets couldn't be left out ({e:#}); the game takes all of them."));
+            (files, c, Vec::new())
+        }
+    }
+}
+
+/// A file of the exported game: its text from `defs` (see [`game_files`]), else the project's file.
+fn game_file(project: &Project, defs: &[(String, String)], rel: &str) -> Result<Vec<u8>> {
+    match defs.iter().find(|(f, _)| f == rel) {
+        Some((_, text)) => Ok(text.clone().into_bytes()),
+        None => std::fs::read(project.root.join(rel)).with_context(|| format!("reading {rel}")),
+    }
+}
+
 /// What an export produced.
 #[derive(Debug)]
 pub struct Exported {
@@ -427,7 +454,7 @@ fn check_runner(bytes: &[u8], runner: &Path, rebuild: &str) -> Result<()> {
 #[cfg(not(target_arch = "wasm32"))]
 #[allow(clippy::too_many_arguments)]
 pub fn export(project: &Project, name: &str, platform: Platform, game_binary: &Path, out_dir: &Path, zip: bool, icon: Option<&[u8]>, pack: bool) -> Result<Exported> {
-    let (files, check) = check(project);
+    let (files, check, defs) = game_files(project);
     if !check.errors.is_empty() {
         bail!("{}", check.errors.join("\n"));
     }
@@ -476,7 +503,7 @@ pub fn export(project: &Project, name: &str, platform: Platform, game_binary: &P
         // One data.pack beside where the data folder would be (macOS: in the app's Resources).
         let mut packed = Vec::with_capacity(files.len() + 2);
         for rel in files.iter().filter(|r| *r != "project.ron") {
-            packed.push((rel.clone(), std::fs::read(project.root.join(rel)).with_context(|| format!("reading {rel}"))?));
+            packed.push((rel.clone(), game_file(project, &defs, rel)?));
         }
         packed.push(("project.ron".to_string(), crate::project::ron_text(&cfg)?.into_bytes()));
         // The icon the packages got, for the game's window (`icon::hero_icon` reads it first).
@@ -492,7 +519,12 @@ pub fn export(project: &Project, name: &str, platform: Platform, game_binary: &P
         for rel in &files {
             let (src, dst) = (project.root.join(rel), data.join(rel));
             std::fs::create_dir_all(dst.parent().unwrap())?;
-            std::fs::copy(&src, &dst).with_context(|| format!("copying {rel}"))?;
+            match defs.iter().find(|(f, _)| f == rel) {
+                Some((_, text)) => std::fs::write(&dst, text).with_context(|| format!("writing {rel}"))?,
+                None => {
+                    std::fs::copy(&src, &dst).with_context(|| format!("copying {rel}"))?;
+                }
+            }
             // (Sizes from the files: `copy`'s return value is 0 under Wine.)
             bytes += std::fs::metadata(&dst).map_or(0, |m| m.len());
         }
@@ -549,7 +581,7 @@ pub const WEB_WASM: &str = "rustpg2d-game.wasm";
 /// earlier web export in the same place is replaced; any other folder of that name is left alone.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn export_web(project: &Project, name: &str, game_wasm: &Path, out_dir: &Path, zip: bool) -> Result<Exported> {
-    let (files, check) = check(project);
+    let (files, check, defs) = game_files(project);
     if !check.errors.is_empty() {
         bail!("{}", check.errors.join("\n"));
     }
@@ -577,7 +609,7 @@ pub fn export_web(project: &Project, name: &str, game_wasm: &Path, out_dir: &Pat
         if rel == "project.ron" {
             continue;
         }
-        packed.push((rel.clone(), std::fs::read(project.root.join(rel)).with_context(|| format!("reading {rel}"))?));
+        packed.push((rel.clone(), game_file(project, &defs, rel)?));
     }
     // The bundled project carries the chosen name (title, storage of settings).
     let mut cfg = project.config.clone();
@@ -723,9 +755,13 @@ mod tests {
         std::fs::write(root.join("models/m.glb"), b"glb").unwrap();
         std::fs::write(root.join("models/m_clips.glb"), b"glb").unwrap();
         std::fs::write(root.join("models/sword.glb"), b"glb").unwrap();
+        std::fs::write(root.join("models/spare.glb"), b"glb").unwrap();
         let model = crate::defs::ModelDef { clip_files: vec!["models/m_clips.glb".into()], ..crate::defs::ModelDef::new("m", "models/m.glb") };
-        let sword = crate::defs::ItemDef { model: Some(crate::defs::ItemModel::new("models/sword.glb")), ..crate::defs::ItemDef::fresh("sword") };
-        let db = Database { sheets: vec![SheetDef { id: "a".into(), image: "sprites/a.png".into(), frame_w: 32, frame_h: 32, ..Default::default() }], models: vec![model], items: vec![sword], ..Default::default() };
+        // A model no character uses stays out of the game.
+        let spare = crate::defs::ModelDef::new("spare", "models/spare.glb");
+        let guard = crate::defs::CharacterDef { appearance: crate::defs::Appearance { model: "m".into(), ..Default::default() }, ..crate::defs::CharacterDef::fresh("guard") };
+        let sword = crate::defs::ItemDef { model: Some(crate::defs::ItemModel::new("models/sword.glb")), icon: crate::defs::SpriteRef { sheet: "a".into(), ..Default::default() }, ..crate::defs::ItemDef::fresh("sword") };
+        let db = Database { sheets: vec![SheetDef { id: "a".into(), image: "sprites/a.png".into(), frame_w: 32, frame_h: 32, ..Default::default() }], models: vec![model, spare], items: vec![sword], characters: vec![guard], ..Default::default() };
         let mut p = Project { root: root.clone(), config: ProjectConfig::new("Test"), db };
         p.save_config().unwrap();
         p.save_defs().unwrap();
@@ -756,6 +792,9 @@ mod tests {
         assert!(lic.starts_with("MIT License") && lic.contains("Jürgen Herrmann"), "the engine's license ships with the game");
         assert_eq!(std::fs::read_to_string(f.join(crate::srd::ATTRIBUTION_FILE)).unwrap(), crate::srd::ATTRIBUTION, "and the SRD's attribution (the runner's rules)");
         assert!(!f.join("data/sprites/unused.png").exists(), "only used files");
+        assert!(!f.join("data/models/spare.glb").exists(), "nor unused models");
+        let models = std::fs::read_to_string(f.join("data/defs/models.ron")).unwrap();
+        assert!(models.contains("\"m\"") && !models.contains("spare"), "and their definitions: {models}");
         assert!(!f.join("data/saves").exists(), "never ship saves");
         assert_eq!(Project::load(&f.join("data")).unwrap().config.name, "Test Quest");
         assert!(r.warnings.iter().any(|w| w.contains("player")));

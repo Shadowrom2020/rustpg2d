@@ -65,6 +65,7 @@ pub mod runtime;
 pub mod script;
 pub mod script_api;
 pub mod script_refs;
+pub mod unused;
 pub mod settings;
 pub mod skills;
 pub mod srd;

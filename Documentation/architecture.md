@@ -100,6 +100,15 @@ starter_history` from git; a test keeps it current), replaces untouched assets, 
 and retired ones, and backs the library folder up first.
 `.r2dpack` files are zip bundles of assets with a manifest, for sharing between projects.
 
+**Unused assets** (`unused.rs`): models, sheets, sounds, materials and fonts count as used when their
+id appears as a string in the other definition lists (each `defs/` list serialized as RON), the
+project config, a map's `Meta` (plus its materials and decoration props) or, as a substring, in a
+script or plugin file; used assets add their own strings until nothing changes (rig templates,
+footstep sounds), and a few are used by rule (playable models, pieces fitting a used body, the
+mannequin, emotions sheets). Reading every list as text keeps new fields covered without a
+reference walker (a test fails when a `DEFS` list has no text). `release::game_files` leaves the
+unused out of exports; the editor's `cleanup.rs` deletes them after a backup.
+
 **Exported games** (`release.rs`) carry the project's files as `data.pack` (`pack.rs`), or loose in
 a `data` folder when the export dialog says so. The pack is a header, a postcard index (path,
 offset, length) and the files, XOR-scrambled with a position-keyed SplitMix64 stream (against

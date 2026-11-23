@@ -223,6 +223,11 @@ crates/engine/src/      library: everything shared by game and editor
                         save_tiles = v2 for the 16 px upgrade)
   events/               GameEvent, TriggerOn, Cond, Action (mod.rs); ActionRunner (runner.rs)
   script.rs             Rhai engine and the script API
+  unused.rs             unused assets: models / sheets / sounds / materials / fonts nothing names (other defs, config,
+                        maps' Meta as RON strings, script + plugin text as substrings; used assets add theirs until
+                        stable; playable models, pieces fitting used bodies, mannequin, emotions sheets by rule; rig_*
+                        = tools) + stray files in asset folders; slim (release::game_files: exports leave them out),
+                        delete (backup first); the editor's cleanup.rs window (Assets menu, on close)
   script_refs.rs        ids inside scripts: string arguments of API calls (API_IDS), used for
                         renames (rename_in_script) and the editor's script check
   runtime/              Game: mod.rs (loop, actions, drawing), charwin (the tabbed character window:
@@ -556,6 +561,9 @@ copy; set `RUSTPG2D_FOLDER_PROJECTS=1` to work on the folder itself.
   folder a test run creates; older distros: the AppImage in `debian:bookworm-slim` via docker with
   the X11 socket, `--ipc=host`, `LIBGL_ALWAYS_SOFTWARE=1`, `--appimage-extract-and-run`),
   sounds (`sndplay [ID]` / `sndstop [ID]` = the Sounds form's Play / Stop, default the selected sound; `status` prints `preview=` and `music=`),
+  clean up unused files (`cleanup` = Assets › Clean up unused files…, prints `[cleanup] x|  KIND:ID SIZE FILES`; `closeproject`
+  offers it when something unused isn't kept; `cleanuplist`, `cleanuppick KIND:ID|file:PATH on|off`, `cleanupok` (delete ticked),
+  `cleanupkeep` (keep all, remembered per project in editor.ron), `cleanupcancel`; `status` prints `cleanup=closed|open:TICKED/ALL[:close]`),
   project files (`openproject FILE|DIR`, `openfolder DIR`, `newproject FILE`, `packnow` = write the project file now,
   `packtick` = one two-second check; `status` prints `projectfile=PATH:saved|pending|writing|error:N` or `-`),
   AI agent server (`mcp on [PORT]` / `mcp off`, `mcpwindow`; `status` prints `mcp=off|127.0.0.1:PORT calls=N` and

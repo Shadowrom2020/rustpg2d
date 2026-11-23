@@ -225,6 +225,7 @@ impl Editor {
                 Mode::Library => "library",
                 Mode::Pixel => "pixel editor",
                 Mode::Events => "events graph",
+                Mode::Nodes => "nodes (visual scripts)",
             },
             self.mcp.calls
         )

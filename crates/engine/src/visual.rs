@@ -368,17 +368,16 @@ impl<'a> Catalog<'a> {
         Catalog { visual, text_fns: Vec::new() }
     }
 
-    /// What call node `n` of script `vs` calls: a visual script, else the script API function
-    /// of that name (of several forms the shortest that has every input in use), else a text
-    /// script function.
-    fn callee(&self, vs: &VisualScript, n: &Node, function: &str) -> Callee<'a> {
+    /// What call node `n` calls: a visual script, else the script API function of that name
+    /// (its longest form: every input shows; [`api_call`] leaves out the unused last ones), else
+    /// a text script function.
+    fn callee(&self, _vs: &VisualScript, _n: &Node, function: &str) -> Callee<'a> {
         if let Some(v) = self.visual.iter().find(|v| v.id == function) {
             return Callee::Visual(v);
         }
-        let used: BTreeSet<&str> = n.values.keys().map(String::as_str).chain(vs.links.iter().filter(|l| l.to == n.id && l.input != "in").map(|l| l.input.as_str())).collect();
-        let mut forms: Vec<&'static crate::script_api::ApiFn> = API.iter().filter(|f| f.name == function).collect();
-        forms.sort_by_key(|f| f.params.len());
-        match forms.iter().find(|f| used.iter().all(|u| f.params.iter().any(|p| p.0 == *u))).or(forms.last()) {
+        // (Of equally long forms the first: say(speaker, text) before say(entity, text).)
+        let longest = API.iter().filter(|f| f.name == function).map(|f| f.params.len()).max();
+        match API.iter().find(|f| f.name == function && Some(f.params.len()) == longest) {
             Some(f) => Callee::Api(f),
             None => Callee::Text,
         }
@@ -509,6 +508,25 @@ impl Gen<'_, '_> {
         self.done.iter().any(|s| s.contains(&id))
     }
 
+    /// How many of an API call's value inputs go into the call: all, but the last ones nothing
+    /// was typed into or linked to are left out when the function has a form without them
+    /// (`give_item("potion")` rather than `give_item("potion", 0)`).
+    fn used_inputs(&self, n: &Node, pins: &Pins) -> usize {
+        let values: Vec<&Pin> = pins.inputs.iter().filter(|p| p.kind != PinType::Flow).collect();
+        let NodeKind::Call { function, .. } = &n.kind else { return values.len() };
+        // (Only forms whose inputs are the first ones of the node's: say(text) isn't say(speaker, text) cut short.)
+        let names: Vec<&str> = values.iter().map(|p| p.name.as_str()).collect();
+        let forms: BTreeSet<usize> = API.iter().filter(|f| f.name == function.as_str() && f.params.iter().map(|p| p.0).eq(names.iter().take(f.params.len()).copied())).map(|f| f.params.len()).collect();
+        if forms.is_empty() {
+            return values.len();
+        }
+        let mut k = values.len();
+        while k > 0 && forms.contains(&(k - 1)) && !n.values.contains_key(&values[k - 1].name) && self.vs.link_into(n.id, &values[k - 1].name).is_none() {
+            k -= 1;
+        }
+        k
+    }
+
     /// The code of input `pin` of node `n`.
     fn input(&mut self, n: &Node, pin: &Pin, seen: &mut Vec<u32>) -> String {
         match self.vs.link_into(n.id, &pin.name).cloned() {
@@ -585,7 +603,8 @@ impl Gen<'_, '_> {
             }
             NodeKind::GetLocal { name } => local(name),
             NodeKind::Call { function, .. } if !pins.inputs.iter().any(|p| p.kind == PinType::Flow) => {
-                let args: Vec<String> = pins.inputs.iter().map(|p| arg(self, &p.name)).collect();
+                let used = self.used_inputs(n, &pins);
+                let args: Vec<String> = pins.inputs[..used].iter().map(|p| arg(self, &p.name)).collect();
                 format!("{function}({})", args.join(", "))
             }
             // A step's result, a loop's item or index: its variable, once the step ran.
@@ -625,7 +644,9 @@ impl Gen<'_, '_> {
         let mut seen = Vec::new();
         match &n.kind {
             NodeKind::Call { function, .. } => {
-                let args: Vec<String> = pins.inputs.iter().filter(|p| p.kind != PinType::Flow).cloned().collect::<Vec<_>>().iter().map(|p| self.input(n, p, &mut seen)).collect();
+                let values: Vec<Pin> = pins.inputs.iter().filter(|p| p.kind != PinType::Flow).cloned().collect();
+                let used = self.used_inputs(n, &Pins { inputs: values.clone(), outputs: Vec::new() });
+                let args: Vec<String> = values[..used].iter().map(|p| self.input(n, p, &mut seen)).collect();
                 let call = format!("{function}({})", args.join(", "));
                 // (Its result kept only when something uses it.)
                 if self.vs.links.iter().any(|l| l.from == n.id && l.out == "result") {
@@ -1001,6 +1022,32 @@ mod tests {
         p.save_defs().unwrap();
         assert!(!root.join(FILE).exists());
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn unused_last_inputs_are_left_out_when_a_shorter_form_exists() {
+        // bark(who, text[, seconds]), check(what, dc[, mode]): the node shows the longest form.
+        let vs = VisualScript {
+            id: "barks".into(),
+            nodes: vec![
+                node(1, NodeKind::Start),
+                with(with(call(2, "bark"), "target", Value::Text("self".into())), "text", Value::Text("Here!".into())),
+                with(with(with(call(3, "bark"), "target", Value::Text("self".into())), "text", Value::Text("Long".into())), "seconds", Value::Num(4.0)),
+                with(with(call(4, "check"), "what", Value::Text("stealth".into())), "dc", Value::Num(10.0)),
+            ],
+            links: vec![link(1, "out", 2, "in"), link(2, "out", 3, "in"), link(3, "out", 4, "in")],
+            ..Default::default()
+        };
+        assert!(Catalog::new(&[]).pins(&vs, &vs.nodes[1]).inputs.iter().any(|p| p.name == "seconds"), "every input shows");
+        let (code, problems) = function_code(&vs, &Catalog::new(&[]));
+        assert!(problems.is_empty(), "{problems:?}");
+        assert!(code.contains("bark(\"self\", \"Here!\");") && code.contains("bark(\"self\", \"Long\", 4);") && code.contains("check(\"stealth\", 10);"), "{code}");
+        // say(text) and say(speaker, text): an empty text stays in.
+        let mut say = VisualScript { id: "talk".into(), nodes: vec![node(1, NodeKind::Start), with(call(2, "say"), "speaker", Value::Text("Hero".into()))], links: vec![link(1, "out", 2, "in")], ..Default::default() };
+        assert!(function_code(&say, &Catalog::new(&[])).0.contains("say(\"Hero\", \"\");"));
+        say.nodes[1].values.insert("text".into(), Value::Text("Hi".into()));
+        assert!(function_code(&say, &Catalog::new(&[])).0.contains("say(\"Hero\", \"Hi\");"));
+        compiles(&code);
     }
 
     #[test]

@@ -213,6 +213,8 @@ impl Editor {
                 RefKind::Skill => rustpg2d_engine::srd::abilities::is_known_proficiency(id) || rustpg2d_engine::srd::Spec::parse(id, false).is_some(),
                 // (The *Has class* condition also takes a subclass.)
                 RefKind::Class => self.project.db.class(id).is_some() || self.project.db.classes.iter().any(|c| c.subclass(id).is_some()),
+                // (A call node calls a visual script or a text script's function.)
+                RefKind::VisualScript => self.project.db.has(kind, id) || self.refs.functions.iter().any(|f| f == id),
                 _ => self.project.db.has(kind, id),
             }
     }
@@ -265,6 +267,7 @@ impl Editor {
         self.definition_problems(&mut out);
         self.map_problems(&mut out);
         self.script_problems(&mut out);
+        self.visual_script_problems(&mut out);
         self.translation_problems(&mut out);
         self.project_problems(&mut out);
         out.sort_by(|a, b| a.severity.cmp(&b.severity).then(a.area.cmp(&b.area)).then(a.place.cmp(&b.place)));
@@ -598,6 +601,18 @@ impl Editor {
         if self.maps.contains(start) {
             for m in self.maps.iter().filter(|m| !reached.contains(*m)) {
                 out.push(Problem { severity: Severity::Warning, area: Area::Maps, place: format!("map {m}"), text: format!("can't be reached: no portal, transition, map edge, trigger or script leads here from the start map {start}"), target: Target::Map(m.clone()) });
+            }
+        }
+    }
+
+    /// What the visual scripts' nodes get wrong (their Rhai is a stub until it's fixed).
+    fn visual_script_problems(&self, out: &mut Vec<Problem>) {
+        let db = &self.project.db;
+        let cat = rustpg2d_engine::visual::Catalog { visual: &db.visual_scripts, text_fns: self.project.text_script_functions() };
+        for vs in &db.visual_scripts {
+            for p in rustpg2d_engine::visual::function_code(vs, &cat).1 {
+                let node = p.node.and_then(|n| vs.node(n)).map_or(String::new(), |n| format!(", node {}", cat.title(n)));
+                out.push(Problem { severity: Severity::Error, area: Area::Scripts, place: format!("visual script {}{node}", vs.id), text: format!("{} (the function does nothing until it's fixed)", p.text), target: Target::Def(RefKind::VisualScript, vs.id.clone()) });
             }
         }
     }

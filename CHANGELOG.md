@@ -15,6 +15,13 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   before its step) make a function that does nothing and says why. Ids typed into the nodes are
   renamed with their items, sounds and maps, and visual scripts travel through the asset library.
   The editor's *Nodes* tab follows; AI agents write them with `upsert_def` already.
+- **The Nodes tab** (beside *Events* and *Database*): the visual scripts with their name, function
+  name, parameters and result on the left; the canvas in the middle (right-click or Space opens the
+  palette of nodes, grouped like the scripting chapter and searchable; drag from pin to pin to link,
+  into empty space to add a linked node; values typed into unlinked inputs, with the project's ids
+  offered for items, sounds, maps…); the selected node's help, the problems and the generated Rhai
+  on the right. *Convert to text script* hands a function over to a text script. Undo, *Problems*
+  and quick search (Ctrl+P) know visual scripts. New manual chapter: *Visual scripts*.
 - **The script API table says what each function gives back** (`-> Bool`, `=> Num` for those that
   also act), checked against Rhai's own signatures by a test.
 

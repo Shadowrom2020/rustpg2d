@@ -73,6 +73,20 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   - **The example** carries only the creatures its characters use (`apply.py --used-creatures`);
     its giant rats, owl and the giant spider of the Deep Caves have their models.
   - **Size:** 58 creature files in 17 MB; the library's models are 256 files in 35 MB.
+- **The example plays by the SRD at level 1.**
+  - **Giant rats instead of slimes.** The slime was a creature of the example's own; the SRD has
+    no weak ooze. Tilda's *Pest Control* now hunts giant rats, with its quest, achievements,
+    dialogs and the German translation changed to match. The slime character is gone from the
+    example and the starter library (the model stays: the SRD's oozes use it).
+  - **Groups sized by the party.** Whisperwood's rat den and goblin camp, the mine's rats and the
+    Wilds' fifty groups are encounters with a difficulty now: a lone level-1 hero meets two giant
+    rats in the den, a level-2 hero or one with a companion four.
+  - **Bosses a low-level party can face.** The bandit chief and Rook the deserter use the SRD's
+    Bandit with hit points at the top of its dice (18 and 16) instead of the Bandit Captain
+    (challenge 2) and the Veteran (challenge 3); Rook still begs for mercy. The lair in the Deep
+    Caves holds a giant wolf spider (challenge 1/4) instead of a giant spider (challenge 1), and
+    the bridge in the Wilds an ogre (challenge 2) instead of a troll (challenge 5).
+  - **Still its own:** Grumbold the cave troll keeps his hand-made block.
 - **Documentation:** the screenshots of the manual and the README that show figures were taken
   again with the kit's people and creatures (21 pictures).
 - **AI agent server:**

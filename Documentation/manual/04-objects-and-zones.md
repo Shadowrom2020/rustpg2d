@@ -159,9 +159,11 @@ asset library ([Characters › Monsters](06-characters.md#monsters)): *Add from 
 into a project, then name them in the zone. An encounter's *Loot of spawned characters* works like a
 spawner's. `status` prints `encounters=` (each zone with its difficulty, budget and group).
 
-In the example a Medium encounter of wolves, giant rats and slimes waits in Whisperwood's
-south-east (*wolf_hollow*: a wolf for a lone level-1 hero, more with the guard along), and an Easy
-one of bats and giant rats in the mine's side cave.
+In the example every group of monsters is an encounter, so a lone level-1 hero meets few and a
+party or a higher level more: a Medium one of wolves and giant rats waits in Whisperwood's
+south-east (*wolf_hollow*: a wolf for a lone level-1 hero, more with the guard along), the rat den
+(*rat_den*: two giant rats at level 1, four at level 2) and the goblin camp are Medium too, and
+the mine has Easy ones of giant rats and bats. The Wilds' fifty groups work the same way.
 
 ## Loot
 
@@ -171,5 +173,5 @@ character can *Customize loot*, and a spawner can override it for everything it 
 lands on the ground where the character fell and stays there, also across map changes and in save
 games, until picked up. Characters also drop what they wear and carry.
 
-In the example, slimes drop coins and apples, goblin archers arrows and coins, and the forest's
+In the example, the rat den's giant rats drop coins and apples, goblin archers arrows and coins, and the forest's
 goblin camp has its own richer table.

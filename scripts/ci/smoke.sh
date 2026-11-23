@@ -76,10 +76,10 @@ line=$(game "wait 1; press f9; wait 1.5; hold right 0.12; wait 3; status; quit" 
 expect "a map change with its autosave" "$line" "map=forest" "autosave=saved"
 if grep -q 'current_map: "forest"' "$WORK/proj/saves/autosave.ron" 2>/dev/null; then echo "PASS autosave file"; else echo "FAIL autosave file: saves/autosave.ron missing or not on the forest"; failed=$((failed + 1)); fi
 
-# A turn-based fight: a slime of Whisperwood notices the hero and one starts; the AI plays the
+# A turn-based fight: a giant rat near Whisperwood's entrance notices the hero and one starts; the AI plays the
 # enemy's turn (without pauses) until it is the player's turn again, and the player's attack is a roll.
-line=$(game "seed 5; wait 3; turn fast; turn end; wait 2; turn attack slime; wait 1; status; quit" --no-title --map forest --pos 1168,976)
-# (Two attack rolls: the slime's on its turn, then the player's.)
+line=$(game "seed 5; wait 3; turn fast; turn end; wait 2; turn attack giant-rat; wait 1; status; quit" --no-title --map forest --pos 304,656)
+# (Two attack rolls: the rat's on its turn, then the player's.)
 expect "a turn-based fight" "$line" "rolls=attack:" ",attack:"
 
 # The editor converts the project folder into a project file beside it and works on its copy.

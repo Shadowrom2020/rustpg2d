@@ -193,7 +193,7 @@ a file into `sounds/`.
   *Victory* when a fight ends in which the player defeated enemies (left empty, there is none).
   The music ducks under a music effect and comes back after it. The example has both fanfares
   (`fanfare_level_up`, `fanfare_victory`, also in the starter library); it plays the level-up one
-  by itself and the victory one when Grumbold the cave troll falls, not after every slime.
+  by itself and the victory one when Grumbold the cave troll falls, not after every rat.
 - **Sound control in events**: *Play sound* has a **volume** (times the sound's own), a
   **pitch** (1 = as it is, 2 = an octave higher and faster, 0.5 = an octave lower) and a **pan**
   (-1 left, 1 right); a pitched or panned sound is made once and kept (the web game plays it as

@@ -90,15 +90,15 @@ What you'll find in it:
   smithy, an apothecary, a chapel with a bell tower and a graveyard, a windmill and a mill, fields,
   an orchard, animals and two watchtowers you can climb. Every house can be entered; about twenty
   villagers follow daily routines and go to bed in their own homes at night.
-- **Whisperwood**, a forest with slimes, goblin archers, a bandit camp and a shrine at its heart;
+- **Whisperwood**, a forest with giant rats, goblin archers, a bandit camp and a shrine at its heart;
   an **old mine** with ore veins, a pitch-dark treasure room and a dwarf trader, and below it **The
-  Deep Caves**, lit only by glowing mushrooms, with an underground lake and a giant spider's lair;
+  Deep Caves**, lit only by glowing mushrooms, with an underground lake and a giant wolf spider's lair;
   and **The Wilds**,
-  a generated 1024 × 1024 map with fifty enemy spawners (slimes, goblin archers, wolf packs, bat
-  swarms), an orc camp with its chief, a troll guarding a bridge and an elven herbalist who
+  a generated 1024 × 1024 map with fifty groups of enemies (giant rats, goblin archers, wolf packs, bat
+  swarms), an orc camp with its chief, an ogre guarding a bridge and an elven herbalist who
   wanders between four spots during the day.
 - **Nine quests**: *The Strange Lights* (the main quest from Elder Rowan), *Pest Control* (Tilda's
-  slime hunt), *The Lost Cat*, *Bread for the Festival*, *The Herbalist's Remedy*, *Rumours at
+  rat hunt), *The Lost Cat*, *Bread for the Festival*, *The Herbalist's Remedy*, *Rumours at
   the Tavern*, *Friend of the Elves*, *An Offering for the Shrine* and *A Home in Emberbrook*, which
   makes Halvar's old stone house yours to furnish (furniture from the sawhorse and Tilda's shop).
 - The SRD 5.1 rules (ability checks: a locked chest, the shrine's carvings, haggling with Tilda),

@@ -211,10 +211,10 @@ kinds of named values, shared with the editor's actions and conditions:
 
 - **Flags**: yes / no. `flag("met_elder")`, `set_flag("met_elder", true)`. Unset flags are
   `false`.
-- **Variables**: whole numbers. `get_var("slimes_defeated")`, `set_var("gold_owed", 30)`,
-  `add_var("slimes_defeated", 1)`. Unset variables are `0`.
+- **Variables**: whole numbers. `get_var("rats_defeated")`, `set_var("gold_owed", 30)`,
+  `add_var("rats_defeated", 1)`. Unset variables are `0`.
 
-Names are free text; pick clear ones (`pest_slimes`, `mira_talks`). They appear in the editor's
+Names are free text; pick clear ones (`pest_rats`, `mira_talks`). They appear in the editor's
 flag and variable suggestions as soon as a script uses them.
 
 Rhai variables (`let x = …`) only live while a function runs. Anything that must survive until
@@ -253,7 +253,7 @@ trigger calls; a helper function it calls doesn't see it, so pass it on as an ar
   - `{player}` — the player's name;
   - `{sir|madam}` — the first word for a male player character, the second for a female one
     (`{his|her}`, `{hero|heroine}`, …);
-  - `{name}` — the value of the variable `name`, e.g. `"You have defeated {slimes_defeated} slimes."`;
+  - `{name}` — the value of the variable `name`, e.g. `"You have defeated {rats_defeated} giant rats."`;
   - `{key:ACTION}` — the key or gamepad button the player uses for an action, as text: `"Press
     {key:interact} to talk."` says "Press E" with the keyboard and "Press A" with an Xbox pad. Action
     ids: `confirm` (also `interact`), `attack`, `character`, `skills`, `spells`, `map`, `journal`,
@@ -504,7 +504,7 @@ fn shrine_blessing() {
 | `add_stock(target, item, count)` | Adds items to a merchant's stock (a new line at the item's value), e.g. what a villager produced. *(queued)* |
 | `set_stock(target, item, count)` | Sets how many of an item a merchant has; `0` removes it from the stock. Unlimited lines stay unlimited. *(queued)* |
 | `stock_of(target, item)` | How many of an item a merchant on the map has (`999` for unlimited, `0` if none or no merchant). |
-| `defeated_count(character)` | How many characters of a definition the player has defeated (the bestiary's count), e.g. `defeated_count("slime")`. |
+| `defeated_count(character)` | How many characters of a definition the player has defeated (the bestiary's count), e.g. `defeated_count("giant-rat")`. |
 | `hp_of(target)` | A character's HP right now: `"player"`, `"self"` (or `SELF`) or the name of a character on this map; `-1` if there is none (or it can't be hurt). |
 
 A character's *HP below %* trigger runs when its HP falls below that share of its max HP and it
@@ -1140,14 +1140,14 @@ fn restock_catch() {                    // the fisher's Interact trigger runs th
 
 ### Counting defeated enemies for a quest
 
-The slime character's **Defeat** trigger runs `slime_defeated`:
+The giant rat's **Defeat** trigger runs `rat_defeated`:
 
 ```rust
-fn slime_defeated() {
-    add_var("slimes_defeated", 1);
+fn rat_defeated() {
+    add_var("rats_defeated", 1);
     if quest_active("pest_control") && quest_stage("pest_control") == 0 {
-        add_var("pest_slimes", 1);
-        if get_var("pest_slimes") >= 5 {
+        add_var("pest_rats", 1);
+        if get_var("pest_rats") >= 5 {
             set_quest_stage("pest_control", 1);   // "Go back to Tilda"
         }
     }

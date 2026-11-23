@@ -587,8 +587,8 @@ fn a_common_event_runs_while_a_flag_is_set() {
     let k = Project::load(&root).unwrap().db.common_events.iter().position(|d| d.id == "quest_reward").expect("the example's common event");
     let mut h = harness(&root, Tab::CommonEvents, k);
     step(&mut h);
-    // Its actions are edited like a trigger's.
-    assert!(h.query_by_label("2.").is_some() && h.query_by_label("3.").is_none(), "its two actions are listed");
+    // Its actions are edited like a trigger's (a chime, an emote, its script).
+    assert!(h.query_by_label("3.").is_some() && h.query_by_label("4.").is_none(), "its three actions are listed");
     // Runs: parallel while a flag is set.
     beside(&h, "Runs", |n| n.role() == Role::ComboBox).click();
     step(&mut h);

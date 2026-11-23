@@ -38,7 +38,7 @@
         visual: (
             impact: "fx_heal",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_heal",
         ),
     ),
     (
@@ -78,7 +78,7 @@
         visual: (
             impact: "fx_light",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_force",
         ),
     ),
     (
@@ -191,6 +191,7 @@
             )),
             impact: "fx_acid-arrow",
             impact_scale: 1.0,
+            sound: "magic_acid",
         ),
     ),
     (
@@ -237,6 +238,7 @@
         visual: (
             impact: "fx_acid-splash",
             impact_scale: 1.0,
+            sound: "magic_acid",
         ),
     ),
     (
@@ -295,7 +297,7 @@
         visual: (
             impact: "fx_aid",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_heal",
         ),
     ),
     (
@@ -339,6 +341,7 @@
         visual: (
             impact: "fx_arcane-sword",
             impact_scale: 1.0,
+            sound: "magic_force",
         ),
     ),
     (
@@ -393,6 +396,7 @@
         visual: (
             impact: "fx_bane",
             impact_scale: 1.0,
+            sound: "magic_charm",
         ),
     ),
     (
@@ -438,7 +442,7 @@
         visual: (
             impact: "fx_banishment",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_ward",
         ),
     ),
     (
@@ -478,6 +482,7 @@
         visual: (
             impact: "fx_barkskin",
             impact_scale: 1.0,
+            sound: "chime",
         ),
     ),
     (
@@ -517,7 +522,7 @@
         visual: (
             impact: "fx_beacon-of-hope",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_ward",
         ),
     ),
     (
@@ -675,7 +680,7 @@
         visual: (
             impact: "fx_bless",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_charm",
         ),
     ),
     (
@@ -726,6 +731,7 @@
         visual: (
             impact: "fx_blight",
             impact_scale: 1.0,
+            sound: "magic_dark",
         ),
     ),
     (
@@ -769,6 +775,7 @@
         visual: (
             impact: "fx_blindness-deafness",
             impact_scale: 1.0,
+            sound: "magic_dark",
         ),
     ),
     (
@@ -805,6 +812,7 @@
         visual: (
             impact: "fx_blur",
             impact_scale: 1.0,
+            sound: "magic_charm",
         ),
     ),
     (
@@ -844,6 +852,7 @@
         visual: (
             impact: "fx_branding-smite",
             impact_scale: 1.0,
+            sound: "magic_heal",
         ),
     ),
     (
@@ -952,6 +961,7 @@
         visual: (
             impact: "fx_call-lightning",
             impact_scale: 1.0,
+            sound: "magic_thunder",
         ),
     ),
     (
@@ -1000,6 +1010,7 @@
             )),
             impact: "fx_chain-lightning",
             impact_scale: 1.0,
+            sound: "magic_thunder",
         ),
     ),
     (
@@ -1044,6 +1055,7 @@
         visual: (
             impact: "fx_charm-person",
             impact_scale: 1.0,
+            sound: "magic_charm",
         ),
     ),
     (
@@ -1094,6 +1106,7 @@
             )),
             impact: "fx_chill-touch",
             impact_scale: 1.0,
+            sound: "magic_dark",
         ),
     ),
     (
@@ -1257,6 +1270,7 @@
         visual: (
             impact: "fx_color-spray",
             impact_scale: 1.0,
+            sound: "magic_charm",
         ),
     ),
     (
@@ -1298,6 +1312,7 @@
         visual: (
             impact: "fx_command",
             impact_scale: 1.0,
+            sound: "magic_charm",
         ),
     ),
     (
@@ -1399,6 +1414,7 @@
         visual: (
             impact: "fx_confusion",
             impact_scale: 1.0,
+            sound: "magic_charm",
         ),
     ),
     (
@@ -1436,6 +1452,7 @@
         visual: (
             impact: "fx_conjure-animals",
             impact_scale: 1.0,
+            sound: "magic_summon",
         ),
     ),
     (
@@ -1476,6 +1493,7 @@
         visual: (
             impact: "fx_contagion",
             impact_scale: 1.0,
+            sound: "magic_dark",
         ),
     ),
     (
@@ -1517,6 +1535,7 @@
         visual: (
             impact: "fx_continual-flame",
             impact_scale: 1.0,
+            sound: "magic_force",
         ),
     ),
     (
@@ -1552,7 +1571,7 @@
         visual: (
             impact: "fx_counterspell",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_ward",
         ),
     ),
     (
@@ -1602,7 +1621,7 @@
         visual: (
             impact: "fx_cure-wounds",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_heal",
         ),
     ),
     (
@@ -1641,7 +1660,7 @@
         visual: (
             impact: "fx_dancing-lights",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_force",
         ),
     ),
     (
@@ -1686,6 +1705,7 @@
         visual: (
             impact: "fx_darkness",
             impact_scale: 1.0,
+            sound: "magic_force",
         ),
     ),
     (
@@ -1772,7 +1792,7 @@
         visual: (
             impact: "fx_daylight",
             impact_scale: 2.5,
-            sound: "chime",
+            sound: "magic_force",
         ),
     ),
     (
@@ -1809,7 +1829,7 @@
         visual: (
             impact: "fx_death-ward",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_ward",
         ),
     ),
     (
@@ -1951,6 +1971,7 @@
         visual: (
             impact: "fx_dimension-door",
             impact_scale: 1.0,
+            sound: "magic_summon",
         ),
     ),
     (
@@ -2003,6 +2024,7 @@
             )),
             impact: "fx_disintegrate",
             impact_scale: 1.0,
+            sound: "magic_force",
         ),
     ),
     (
@@ -2042,7 +2064,7 @@
         visual: (
             impact: "fx_dispel-magic",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_ward",
         ),
     ),
     (
@@ -2081,6 +2103,7 @@
         visual: (
             impact: "fx_divine-favor",
             impact_scale: 1.0,
+            sound: "magic_heal",
         ),
     ),
     (
@@ -2122,6 +2145,7 @@
         visual: (
             impact: "fx_dominate-beast",
             impact_scale: 1.0,
+            sound: "magic_charm",
         ),
     ),
     (
@@ -2164,6 +2188,7 @@
         visual: (
             impact: "fx_dominate-person",
             impact_scale: 1.0,
+            sound: "magic_charm",
         ),
     ),
     (
@@ -2212,6 +2237,7 @@
             )),
             impact: "fx_eldritch-blast",
             impact_scale: 1.0,
+            sound: "magic_force",
         ),
     ),
     (
@@ -2251,6 +2277,7 @@
         visual: (
             impact: "fx_enhance-ability",
             impact_scale: 1.0,
+            sound: "chime",
         ),
     ),
     (
@@ -2301,6 +2328,7 @@
         visual: (
             impact: "fx_entangle",
             impact_scale: 1.0,
+            sound: "magic_summon",
         ),
     ),
     (
@@ -2343,6 +2371,7 @@
         visual: (
             impact: "fx_faithful-hound",
             impact_scale: 1.0,
+            sound: "magic_summon",
         ),
     ),
     (
@@ -2403,6 +2432,7 @@
         visual: (
             impact: "fx_false-life",
             impact_scale: 1.0,
+            sound: "magic_heal",
         ),
     ),
     (
@@ -2451,6 +2481,7 @@
         visual: (
             impact: "fx_fear",
             impact_scale: 1.01,
+            sound: "magic_charm",
         ),
     ),
     (
@@ -2489,6 +2520,7 @@
         visual: (
             impact: "fx_feather-fall",
             impact_scale: 1.0,
+            sound: "chime",
         ),
     ),
     (
@@ -2535,6 +2567,7 @@
         visual: (
             impact: "fx_feeblemind",
             impact_scale: 1.0,
+            sound: "magic_charm",
         ),
     ),
     (
@@ -2576,6 +2609,7 @@
         visual: (
             impact: "fx_find-familiar",
             impact_scale: 1.0,
+            sound: "magic_summon",
         ),
     ),
     (
@@ -2660,6 +2694,7 @@
             )),
             impact: "fx_finger-of-death",
             impact_scale: 1.0,
+            sound: "magic_dark",
         ),
     ),
     (
@@ -2709,6 +2744,7 @@
             )),
             impact: "fx_fire-bolt",
             impact_scale: 1.0,
+            sound: "fireball",
         ),
     ),
     (
@@ -2865,6 +2901,7 @@
             )),
             impact: "fx_flaming-sphere",
             impact_scale: 1.0,
+            sound: "fireball",
         ),
     ),
     (
@@ -2950,6 +2987,7 @@
         visual: (
             impact: "fx_fog-cloud",
             impact_scale: 1.0,
+            sound: "magic_summon",
         ),
     ),
     (
@@ -2994,7 +3032,7 @@
         visual: (
             impact: "fx_freedom-of-movement",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_ward",
         ),
     ),
     (
@@ -3098,6 +3136,7 @@
         visual: (
             impact: "fx_grease",
             impact_scale: 1.0,
+            sound: "magic_summon",
         ),
     ),
     (
@@ -3136,6 +3175,7 @@
         visual: (
             impact: "fx_greater-invisibility",
             impact_scale: 1.0,
+            sound: "magic_charm",
         ),
     ),
     (
@@ -3182,7 +3222,7 @@
         visual: (
             impact: "fx_greater-restoration",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_ward",
         ),
     ),
     (
@@ -3229,6 +3269,7 @@
         visual: (
             impact: "fx_guardian-of-faith",
             impact_scale: 1.0,
+            sound: "magic_heal",
         ),
     ),
     (
@@ -3321,6 +3362,7 @@
             )),
             impact: "fx_guiding-bolt",
             impact_scale: 1.0,
+            sound: "magic_heal",
         ),
     ),
     (
@@ -3363,6 +3405,7 @@
         visual: (
             impact: "fx_harm",
             impact_scale: 1.0,
+            sound: "magic_dark",
         ),
     ),
     (
@@ -3400,6 +3443,7 @@
         visual: (
             impact: "fx_haste",
             impact_scale: 1.0,
+            sound: "chime",
         ),
     ),
     (
@@ -3447,7 +3491,7 @@
         visual: (
             impact: "fx_healing-word",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_heal",
         ),
     ),
     (
@@ -3499,6 +3543,7 @@
         visual: (
             impact: "fx_heat-metal",
             impact_scale: 1.0,
+            sound: "fireball",
         ),
     ),
     (
@@ -3549,6 +3594,7 @@
         visual: (
             impact: "fx_hellish-rebuke",
             impact_scale: 1.0,
+            sound: "fireball",
         ),
     ),
     (
@@ -3587,7 +3633,7 @@
         visual: (
             impact: "fx_heroism",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_charm",
         ),
     ),
     (
@@ -3634,6 +3680,7 @@
         visual: (
             impact: "fx_hideous-laughter",
             impact_scale: 1.0,
+            sound: "magic_charm",
         ),
     ),
     (
@@ -3678,6 +3725,7 @@
         visual: (
             impact: "fx_hold-monster",
             impact_scale: 1.0,
+            sound: "magic_charm",
         ),
     ),
     (
@@ -3724,6 +3772,7 @@
         visual: (
             impact: "fx_hold-person",
             impact_scale: 1.0,
+            sound: "magic_charm",
         ),
     ),
     (
@@ -3761,6 +3810,7 @@
         visual: (
             impact: "fx_hunters-mark",
             impact_scale: 1.0,
+            sound: "chime",
         ),
     ),
     (
@@ -3809,6 +3859,7 @@
         visual: (
             impact: "fx_hypnotic-pattern",
             impact_scale: 1.0,
+            sound: "magic_charm",
         ),
     ),
     (
@@ -3967,6 +4018,7 @@
         visual: (
             impact: "fx_inflict-wounds",
             impact_scale: 1.0,
+            sound: "magic_dark",
         ),
     ),
     (
@@ -4067,6 +4119,7 @@
         visual: (
             impact: "fx_invisibility",
             impact_scale: 1.0,
+            sound: "magic_charm",
         ),
     ),
     (
@@ -4108,6 +4161,7 @@
         visual: (
             impact: "fx_jump",
             impact_scale: 1.0,
+            sound: "chime",
         ),
     ),
     (
@@ -4189,7 +4243,7 @@
         visual: (
             impact: "fx_lesser-restoration",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_ward",
         ),
     ),
     (
@@ -4286,6 +4340,7 @@
         visual: (
             impact: "fx_longstrider",
             impact_scale: 1.0,
+            sound: "chime",
         ),
     ),
     (
@@ -4325,7 +4380,7 @@
         visual: (
             impact: "fx_mage-armor",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_ward",
         ),
     ),
     (
@@ -4377,6 +4432,7 @@
             )),
             impact: "fx_magic-missile",
             impact_scale: 1.0,
+            sound: "magic_force",
         ),
     ),
     (
@@ -4416,6 +4472,7 @@
         visual: (
             impact: "fx_magic-weapon",
             impact_scale: 1.0,
+            sound: "chime",
         ),
     ),
     (
@@ -4467,7 +4524,7 @@
         visual: (
             impact: "fx_mass-cure-wounds",
             impact_scale: 1.5,
-            sound: "chime",
+            sound: "magic_heal",
         ),
     ),
     (
@@ -4505,7 +4562,7 @@
         visual: (
             impact: "fx_mass-heal",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_heal",
         ),
     ),
     (
@@ -4553,7 +4610,7 @@
         visual: (
             impact: "fx_mass-healing-word",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_heal",
         ),
     ),
     (
@@ -4653,7 +4710,7 @@
         visual: (
             impact: "fx_mind-blank",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_ward",
         ),
     ),
     (
@@ -4693,6 +4750,7 @@
         visual: (
             impact: "fx_mirror-image",
             impact_scale: 1.0,
+            sound: "magic_charm",
         ),
     ),
     (
@@ -4728,6 +4786,7 @@
         visual: (
             impact: "fx_misty-step",
             impact_scale: 1.0,
+            sound: "magic_summon",
         ),
     ),
     (
@@ -4787,6 +4846,7 @@
         visual: (
             impact: "fx_moonbeam",
             impact_scale: 1.0,
+            sound: "magic_heal",
         ),
     ),
     (
@@ -4831,6 +4891,7 @@
         visual: (
             impact: "fx_pass-without-trace",
             impact_scale: 1.0,
+            sound: "magic_ward",
         ),
     ),
     (
@@ -4873,6 +4934,7 @@
         visual: (
             impact: "fx_phantasmal-killer",
             impact_scale: 1.0,
+            sound: "magic_charm",
         ),
     ),
     (
@@ -4921,6 +4983,7 @@
         visual: (
             impact: "fx_poison-spray",
             impact_scale: 1.0,
+            sound: "magic_dark",
         ),
     ),
     (
@@ -4962,6 +5025,7 @@
         visual: (
             impact: "fx_polymorph",
             impact_scale: 1.0,
+            sound: "chime",
         ),
     ),
     (
@@ -5001,6 +5065,7 @@
         visual: (
             impact: "fx_power-word-stun",
             impact_scale: 1.0,
+            sound: "magic_charm",
         ),
     ),
     (
@@ -5049,7 +5114,7 @@
         visual: (
             impact: "fx_prayer-of-healing",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_heal",
         ),
     ),
     (
@@ -5100,6 +5165,7 @@
             )),
             impact: "fx_prismatic-spray",
             impact_scale: 1.2,
+            sound: "magic_force",
         ),
     ),
     (
@@ -5148,6 +5214,7 @@
             )),
             impact: "fx_produce-flame",
             impact_scale: 1.0,
+            sound: "fireball",
         ),
     ),
     (
@@ -5191,7 +5258,7 @@
         visual: (
             impact: "fx_protection-from-energy",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_ward",
         ),
     ),
     (
@@ -5240,7 +5307,7 @@
         visual: (
             impact: "fx_protection-from-evil-and-good",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_ward",
         ),
     ),
     (
@@ -5291,7 +5358,7 @@
         visual: (
             impact: "fx_protection-from-poison",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_ward",
         ),
     ),
     (
@@ -5334,7 +5401,7 @@
         visual: (
             impact: "fx_raise-dead",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_dark",
         ),
     ),
     (
@@ -5379,6 +5446,7 @@
             )),
             impact: "fx_ray-of-enfeeblement",
             impact_scale: 1.0,
+            sound: "magic_dark",
         ),
     ),
     (
@@ -5433,6 +5501,7 @@
             )),
             impact: "fx_ray-of-frost",
             impact_scale: 1.0,
+            sound: "magic_frost",
         ),
     ),
     (
@@ -5473,7 +5542,7 @@
         visual: (
             impact: "fx_regenerate",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_heal",
         ),
     ),
     (
@@ -5514,7 +5583,7 @@
         visual: (
             impact: "fx_resistance",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_ward",
         ),
     ),
     (
@@ -5557,7 +5626,7 @@
         visual: (
             impact: "fx_resurrection",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_dark",
         ),
     ),
     (
@@ -5599,7 +5668,7 @@
         visual: (
             impact: "fx_revivify",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_summon",
         ),
     ),
     (
@@ -5645,6 +5714,7 @@
         visual: (
             impact: "fx_sacred-flame",
             impact_scale: 1.0,
+            sound: "magic_heal",
         ),
     ),
     (
@@ -5683,7 +5753,7 @@
         visual: (
             impact: "fx_sanctuary",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_ward",
         ),
     ),
     (
@@ -5730,6 +5800,7 @@
             )),
             impact: "fx_scorching-ray",
             impact_scale: 1.0,
+            sound: "fireball",
         ),
     ),
     (
@@ -5829,6 +5900,7 @@
         visual: (
             impact: "fx_shatter",
             impact_scale: 1.0,
+            sound: "magic_thunder",
         ),
     ),
     (
@@ -5867,7 +5939,7 @@
         visual: (
             impact: "fx_shield",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_ward",
         ),
     ),
     (
@@ -5907,7 +5979,7 @@
         visual: (
             impact: "fx_shield-of-faith",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_ward",
         ),
     ),
     (
@@ -5946,6 +6018,7 @@
         visual: (
             impact: "fx_shillelagh",
             impact_scale: 1.0,
+            sound: "chime",
         ),
     ),
     (
@@ -5991,6 +6064,7 @@
         visual: (
             impact: "fx_shocking-grasp",
             impact_scale: 1.0,
+            sound: "magic_thunder",
         ),
     ),
     (
@@ -6034,6 +6108,7 @@
         visual: (
             impact: "fx_silence",
             impact_scale: 1.0,
+            sound: "magic_charm",
         ),
     ),
     (
@@ -6087,6 +6162,7 @@
         visual: (
             impact: "fx_sleep",
             impact_scale: 1.0,
+            sound: "magic_charm",
         ),
     ),
     (
@@ -6137,6 +6213,7 @@
         visual: (
             impact: "fx_sleet-storm",
             impact_scale: 2.0,
+            sound: "magic_summon",
         ),
     ),
     (
@@ -6184,6 +6261,7 @@
         visual: (
             impact: "fx_slow",
             impact_scale: 1.0,
+            sound: "chime",
         ),
     ),
     (
@@ -6217,7 +6295,7 @@
         visual: (
             impact: "fx_spare-the-dying",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_dark",
         ),
     ),
     (
@@ -6256,6 +6334,7 @@
         visual: (
             impact: "fx_spider-climb",
             impact_scale: 1.0,
+            sound: "chime",
         ),
     ),
     (
@@ -6368,6 +6447,7 @@
         visual: (
             impact: "fx_spirit-guardians",
             impact_scale: 1.0,
+            sound: "magic_heal",
         ),
     ),
     (
@@ -6416,6 +6496,7 @@
         visual: (
             impact: "fx_spiritual-weapon",
             impact_scale: 1.0,
+            sound: "magic_force",
         ),
     ),
     (
@@ -6469,6 +6550,7 @@
         visual: (
             impact: "fx_stinking-cloud",
             impact_scale: 1.0,
+            sound: "magic_summon",
         ),
     ),
     (
@@ -6518,6 +6600,7 @@
         visual: (
             impact: "fx_stoneskin",
             impact_scale: 1.0,
+            sound: "magic_ward",
         ),
     ),
     (
@@ -6609,6 +6692,7 @@
         visual: (
             impact: "fx_suggestion",
             impact_scale: 1.0,
+            sound: "magic_charm",
         ),
     ),
     (
@@ -6770,6 +6854,7 @@
         visual: (
             impact: "fx_thunderwave",
             impact_scale: 1.0,
+            sound: "magic_thunder",
         ),
     ),
     (
@@ -6905,6 +6990,7 @@
         visual: (
             impact: "fx_vampiric-touch",
             impact_scale: 1.0,
+            sound: "magic_dark",
         ),
     ),
     (
@@ -6950,6 +7036,7 @@
         visual: (
             impact: "fx_vicious-mockery",
             impact_scale: 1.0,
+            sound: "magic_charm",
         ),
     ),
     (
@@ -7044,6 +7131,7 @@
         visual: (
             impact: "fx_wall-of-force",
             impact_scale: 1.0,
+            sound: "magic_force",
         ),
     ),
     (
@@ -7094,6 +7182,7 @@
         visual: (
             impact: "fx_wall-of-ice",
             impact_scale: 1.0,
+            sound: "magic_frost",
         ),
     ),
     (
@@ -7135,6 +7224,7 @@
         visual: (
             impact: "fx_wall-of-stone",
             impact_scale: 1.0,
+            sound: "magic_force",
         ),
     ),
     (
@@ -7232,7 +7322,7 @@
         visual: (
             impact: "fx_warding-bond",
             impact_scale: 1.0,
-            sound: "chime",
+            sound: "magic_ward",
         ),
     ),
     (
@@ -7281,6 +7371,7 @@
         visual: (
             impact: "fx_web",
             impact_scale: 1.0,
+            sound: "magic_summon",
         ),
     ),
     (

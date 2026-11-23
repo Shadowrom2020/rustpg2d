@@ -1,9 +1,11 @@
 //! The example's music, composed in a small note notation and rendered by a tiny synthesizer
 //! (`music.rs`, from the example generator of 0.10): *Market Day* (village), *Whisperwood*
-//! (forest), *The Copper Kettle* (tavern) and *Steel in the Woods* (battle).
+//! (forest), *The Copper Kettle* (tavern), *Steel in the Woods* (battle), *The Old Mine*
+//! (dungeons), *Lanterns at Night* (towns at night), *The Open Road* (travel) and *Grumbold's
+//! Wrath* (a boss fight).
 //!
 //! `cargo run --release -- OUT_DIR [ID…]` (in this folder) writes `<id>.ogg` for the given ids,
-//! default all four: music_village, music_forest, music_tavern, music_battle.
+//! default all eight (`music::TRACKS`).
 mod music;
 
 fn main() {

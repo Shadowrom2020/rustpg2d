@@ -1768,7 +1768,7 @@ A content release for the starter library. Generating 3D models costs Meshy cred
   **Verify.** Contact sheets of every sculpt and of the monster figures (`model_sheet`); a test
   map with creatures of every size class in the game; the kit's manifest test.
 
-- [ ] Music and sounds — `feature/more-audio`
+- [x] Music and sounds — `feature/more-audio`
 
   **Goal.** Enough music and effects for a whole game.
 
@@ -1777,9 +1777,24 @@ A content release for the starter library. Generating 3D models costs Meshy cred
   - **Effects:** UI, magic, footsteps on new materials.
   - **Sources:** CC0 or made for the project, each with its licence noted in the library.
 
+  **Decided while building.**
+  - **Made for the project**, like the earlier tracks: four new tracks from the synthesizer in
+    `scripts/sounds/music` (dungeon, night, travel, a boss fight; town and battle existed) and 21
+    effects from `scripts/sounds/make_sounds.py` (five footsteps, seven menu sounds, nine spell
+    sounds). They come under the project's MIT License; `sounds/CREDITS.txt` notes each file's
+    source (a sound definition has no licence field, so a file beside them does).
+  - **UI sounds** are library assets for events and scripts (the example's quest reward chimes):
+    the engine's built-in sound slots don't cover menus, so wiring them into menus would be an
+    engine change.
+  - **Spells** got the sound of their damage type, healing or school; fire keeps `fireball` /
+    `explosion`.
+  - **Night music** in the example is content: a parallel common event switches the village's
+    track by the hour.
+
   **Engine.** None (content).
 
-  **Verify.** The `sounds=` status in autoplay; license notes.
+  **Verify.** The `music=` and `sounds=` status in autoplay (the mine, the village by day and at
+  night, Grumbold's fight, a spell, steps on sand); the credits files.
 
 ## 0.34.0 — Everywhere
 

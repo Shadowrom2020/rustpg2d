@@ -63,7 +63,7 @@
         edge_pixel: 2,
         priority: 40,
         walk: Walk,
-        step: "step_dirt",
+        step: "step_sand",
     ),
     (
         id: "snow",
@@ -281,7 +281,7 @@
         edge_pixel: 2,
         priority: 10,
         walk: Walk,
-        step: "step_stone",
+        step: "step_gravel",
     ),
     (
         id: "bone_floor",
@@ -303,7 +303,7 @@
         edge_pixel: 2,
         priority: 10,
         walk: Walk,
-        step: "step_stone",
+        step: "step_water",
     ),
     (
         id: "flower_grass",
@@ -335,6 +335,7 @@
         edge_pixel: 2,
         priority: 10,
         walk: Walk,
+        step: "step_grass",
     ),
     (
         id: "plank_floor",
@@ -356,5 +357,6 @@
         edge_pixel: 2,
         priority: 22,
         walk: Walk,
+        step: "step_stone",
     ),
 ]

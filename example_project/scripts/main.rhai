@@ -796,3 +796,16 @@ fn drink_from_well() {
         say("You drink your fill of cool water.");
     }
 }
+
+// ---- Night music ---------------------------------------------------------------------------
+// The common event "Night music" runs this every few seconds: the village plays Lanterns at Night
+// from nine in the evening to half past five, Market Day by day (play_music crossfades; asking for
+// the track already playing changes nothing).
+fn town_music() {
+    if current_map() != "village" {
+        return;
+    }
+    let h = hour();
+    let night = h >= 21.0 || h < 5.5;
+    play_music(if night { "music_night" } else { "music_village" }, 4.0);
+}

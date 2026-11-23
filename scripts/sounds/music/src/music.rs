@@ -1,5 +1,7 @@
-//! The example's music: four looping tracks - *Market Day* (the village), *Whisperwood* (the
-//! forest), *The Copper Kettle* (the tavern) and *Steel in the Woods* (battles) - written in a small note notation and rendered by a tiny synthesizer: plucked
+//! The example's music: eight looping tracks - *Market Day* (the village), *Whisperwood* (the
+//! forest), *The Copper Kettle* (the tavern), *Steel in the Woods* (battles), *The Old Mine*
+//! (dungeons and caves), *Lanterns at Night* (towns at night), *The Open Road* (travel, the
+//! wilds) and *Grumbold's Wrath* (a boss fight) - written in a small note notation and rendered by a tiny synthesizer: plucked
 //! strings (Karplus-Strong: lute, harp), a recorder, a bowed drone, a tabor, a shaker and
 //! bells, mixed in stereo through a Schroeder reverb, then encoded as Ogg Vorbis.
 //!
@@ -24,7 +26,16 @@ pub const SR: u32 = 44100;
 const SRF: f32 = SR as f32;
 
 /// The tracks: (sound id, title).
-pub const TRACKS: [(&str, &str); 4] = [("music_village", "Market Day"), ("music_forest", "Whisperwood"), ("music_tavern", "The Copper Kettle"), ("music_battle", "Steel in the Woods")];
+pub const TRACKS: [(&str, &str); 8] = [
+    ("music_village", "Market Day"),
+    ("music_forest", "Whisperwood"),
+    ("music_tavern", "The Copper Kettle"),
+    ("music_battle", "Steel in the Woods"),
+    ("music_dungeon", "The Old Mine"),
+    ("music_night", "Lanterns at Night"),
+    ("music_travel", "The Open Road"),
+    ("music_boss", "Grumbold's Wrath"),
+];
 
 /// Renders a track (stereo samples, -1..1).
 pub fn render(id: &str) -> (Vec<f32>, Vec<f32>) {
@@ -33,6 +44,10 @@ pub fn render(id: &str) -> (Vec<f32>, Vec<f32>) {
         "music_forest" => forest(),
         "music_tavern" => tavern(),
         "music_battle" => battle(),
+        "music_dungeon" => dungeon(),
+        "music_night" => night(),
+        "music_travel" => travel(),
+        "music_boss" => boss(),
         _ => panic!("no track {id}"),
     }
 }
@@ -639,4 +654,237 @@ fn battle() -> (Vec<f32>, Vec<f32>) {
         m.add(start, &s, 0.14, -0.45, 0.6);
     }
     m.finish(0.28, 0.7)
+}
+
+/// Plays a tune given bar by bar (each bar's notes must fill `beats_per_bar`) from bar `first`;
+/// `voice` renders a note (pitch, seconds) and adds it. Returns the bars played.
+fn tune_bars(bars: &[&str], beats_per_bar: f32, first: usize, unit: f32, mut voice: impl FnMut(f32, i32, f32)) -> usize {
+    for (k, bar) in bars.iter().enumerate() {
+        let mut at = (first + k) as f32 * beats_per_bar * unit;
+        let mut beats = 0.0;
+        for (n, len) in notes(bar) {
+            if let Some(n) = n {
+                voice(at, n, len * unit);
+            }
+            at += len * unit;
+            beats += len;
+        }
+        assert_eq!(beats, beats_per_bar, "bar {k} ({bar}) must fill {beats_per_bar} beats");
+    }
+    bars.len()
+}
+
+/// *The Old Mine*: dark and slow in D minor (a flat second for the depths) - low drones, a
+/// bowed bass, sparse harp, far recorder, a deep bell and drops of high plucks like water in the
+/// dark. Intro - A - B - outro.
+fn dungeon() -> (Vec<f32>, Vec<f32>) {
+    const SCALE: [i32; 7] = [2, 4, 5, 7, 9, 10, 0];
+    let a_chords = ["Dm", "Dm", "Bb", "A", "Dm", "Gm", "Eb", "A"];
+    let b_chords = ["Gm", "Dm", "Eb", "Dm", "Gm", "Bb", "A", "A"];
+    let chords: Vec<&str> = [&["Dm", "Dm"][..], &a_chords, &b_chords, &["Dm", "Dm"]].concat();
+    let bars = chords.len();
+    let unit = whole_buffers(60.0 / 58.0, bars * 4);
+    let loop_secs = bars as f32 * 4.0 * unit;
+    let mut m = Mix::new(loop_secs, 5.0);
+    let bar_at = |bar: usize| bar as f32 * 4.0 * unit;
+    // Drones on D and A all the way round, and a bowed bass on the roots.
+    for (f, vol, pan) in [(38, 0.08, -0.25), (45, 0.045, 0.25)] {
+        let s = bowed(hz(f), loop_secs + 3.0, 3.0, 3.0);
+        m.add(0.0, &s, vol, pan, 0.4);
+    }
+    for (bar, c) in chords.iter().enumerate() {
+        let (r, _) = chord(c, 38);
+        let s = bowed(hz(r), 4.0 * unit + 0.6, 0.8, 0.8);
+        m.add(bar_at(bar) - 0.2, &s, 0.1, 0.0, 0.45);
+        // Harp: root and fifth on 1 and 3, the third on the "and" of 4.
+        let (h, t) = chord(c, 50);
+        for (b, iv, vol) in [(0.0, 0, 0.32), (2.0, 7, 0.22), (3.5, t, 0.14)] {
+            let s = pluck(&mut m.rng, hz(h + iv), 2.4, 0.998, 2);
+            let at = bar_at(bar) + b * unit + m.loose(8.0);
+            m.add(at, &s, vol, -0.3 + 0.2 * b / 3.5, 0.6);
+        }
+    }
+    // Drops: high plucks of the scale at loose times, here and there.
+    let mut t = 1.3;
+    while t < loop_secs - 0.5 {
+        let deg = SCALE[m.rng.range(7) as usize];
+        let n = 74 + (deg - 2).rem_euclid(12) + if m.rng.range(3) == 0 { 12 } else { 0 };
+        let s = pluck(&mut m.rng, hz(n), 1.2, 0.996, 0);
+        let pan = m.rng.range(2001) as f32 / 1000.0 - 1.0;
+        m.add(t, &s, 0.06, pan, 0.8);
+        t += 1.2 + m.rng.range(2600) as f32 / 1000.0;
+    }
+    // The far recorder: A and B.
+    let a = ["A4/3 G4", "F4/2 E4/2", "D4/4", "F4/2 G4/2", "A4/3 Bb4", "A4/4", "D5/2 C5 Bb4", "A4/4"];
+    let b = ["Bb4/3 A4", "F4/2 D4/2", "Eb4/2 G4/2", "F4/4", "G4/2 Bb4 D5", "C5/2 Bb4/2", "A4/2 C#5/2", "A4/4"];
+    let mut rng = Rng(0xd1e);
+    let mut adds = Vec::new();
+    tune_bars(&[&a[..], &b[..]].concat(), 4.0, 2, unit, |at, n, secs| adds.push((at, recorder(&mut rng, hz(n), secs - 0.08))));
+    for (at, s) in adds {
+        m.add(at, &s, 0.13, 0.3, 0.75);
+    }
+    // A deep bell at each part and in the outro.
+    for bar in [2, 10, 18] {
+        let s = bell(hz(50), 6.0);
+        m.add(bar_at(bar), &s, 0.12, -0.4, 0.8);
+    }
+    m.finish(0.55, 0.86)
+}
+
+/// *Lanterns at Night*: a quiet 3/4 lullaby in F major - harp, a soft recorder, a low pad and
+/// bells far off. Intro - A - B - outro.
+fn night() -> (Vec<f32>, Vec<f32>) {
+    let a_chords = ["F", "Dm", "Bb", "C", "F", "Am", "Bb", "C"];
+    let b_chords = ["Dm", "Bb", "F", "C", "Dm", "Gm", "Bb", "C"];
+    let chords: Vec<&str> = [&["F", "F"][..], &a_chords, &b_chords, &["F", "F"]].concat();
+    let bars = chords.len();
+    let unit = whole_buffers(60.0 / 66.0, bars * 3);
+    let loop_secs = bars as f32 * 3.0 * unit;
+    let mut m = Mix::new(loop_secs, 4.0);
+    let bar_at = |bar: usize| bar as f32 * 3.0 * unit;
+    for (bar, c) in chords.iter().enumerate() {
+        // The pad: the root and the fifth, bowed softly.
+        let (r, _) = chord(c, 41);
+        for (iv, vol) in [(0, 0.06), (7, 0.035)] {
+            let s = bowed(hz(r + iv), 3.0 * unit + 0.6, 0.6, 0.7);
+            m.add(bar_at(bar) - 0.15, &s, vol, if iv == 0 { -0.2 } else { 0.2 }, 0.5);
+        }
+        // Harp: a rolling arpeggio of eighths.
+        let (h, t) = chord(c, 53);
+        for (k, iv) in [0, 7, 12, 12 + t, 19, 12 + t].iter().enumerate() {
+            let at = bar_at(bar) + k as f32 * unit / 2.0 + m.loose(6.0);
+            let s = pluck(&mut m.rng, hz(h + iv), 1.8, 0.998, 2);
+            m.add(at, &s, if k == 0 { 0.3 } else { 0.18 }, -0.35 + 0.12 * k as f32, 0.55);
+        }
+    }
+    let a = ["C5/2 A4", "D5/3", "F5/2 D5", "E5/3", "F5/2 A5", "E5/2 C5", "D5 F5 D5", "C5/3"];
+    let b = ["A5/2 F5", "D5/2 Bb4", "C5 F5 A5", "G5/3", "F5/2 D5", "Bb4/2 D5", "F5 D5 Bb4", "C5/3"];
+    let mut rng = Rng(0x1a7e);
+    let mut adds = Vec::new();
+    tune_bars(&[&a[..], &b[..]].concat(), 3.0, 2, unit, |at, n, secs| adds.push((at, recorder(&mut rng, hz(n), secs - 0.06))));
+    for (at, s) in adds {
+        m.add(at, &s, 0.14, 0.2, 0.6);
+    }
+    for bar in [2, 6, 10, 14, 18] {
+        let (r, _) = chord(chords[bar], 65);
+        let s = bell(hz(r + 12), 4.0);
+        m.add(bar_at(bar) + 1.0 * unit, &s, 0.08, if bar % 8 == 2 { 0.5 } else { -0.5 }, 0.8);
+    }
+    m.finish(0.5, 0.84)
+}
+
+/// *The Open Road*: a striding 4/4 in G major for the road and the wilds - lute, recorder for the
+/// A part, a fiddle for B, a bowed bass and a light tabor. Intro - A - A - B - A.
+fn travel() -> (Vec<f32>, Vec<f32>) {
+    let a_chords = ["G", "C", "G", "D", "G", "C", "D", "G"];
+    let b_chords = ["Em", "C", "G", "D", "Em", "C", "D", "D"];
+    let chords: Vec<&str> = [&["G", "D"][..], &a_chords, &a_chords, &b_chords, &a_chords].concat();
+    let bars = chords.len();
+    let beat = whole_buffers(60.0 / 104.0, bars * 4);
+    let mut m = Mix::new(bars as f32 * 4.0 * beat, 3.0);
+    let bar_at = |bar: usize| bar as f32 * 4.0 * beat;
+    for (bar, c) in chords.iter().enumerate() {
+        let (r, t) = chord(c, 43);
+        // Lute: eighths, the root low on 1 and 3.
+        for (k, iv) in [0, 12, 7, 12 + t, 0, 12, 7, 12 + t].iter().enumerate() {
+            let low = k % 4 == 0;
+            let s = pluck(&mut m.rng, hz(r + iv), if low { 0.9 } else { 0.5 }, 0.993, 2);
+            let at = bar_at(bar) + k as f32 * beat / 2.0 + m.loose(3.0);
+            m.add(at, &s, if low { 0.42 } else { 0.24 }, -0.3, 0.3);
+        }
+        if bar >= 2 {
+            let s = bowed(hz(r - 12), 4.0 * beat + 0.15, 0.06, 0.2);
+            m.add(bar_at(bar), &s, 0.12, 0.0, 0.3);
+        }
+        if bar >= 10 {
+            for (b, vol) in [(0.0, 0.36), (2.0, 0.24), (2.5, 0.14)] {
+                let s = tabor(&mut m.rng);
+                m.add(bar_at(bar) + b * beat, &s, vol, 0.05, 0.15);
+            }
+        }
+    }
+    let a = ["G4 B4 D5 G5", "E5/2 C5/2", "D5 B4 G4 B4", "A4/4", "G4 B4 D5 G5", "E5 G5 E5 C5", "D5/2 F#5 A5", "G5/4"];
+    let b = ["B4 E5 G5 B5", "A5/2 G5 E5", "D5/2 B4 D5", "A4/2 F#4/2", "G4 B4 E5 G5", "E5/2 C5 E5", "D5 C5 B4 A4", "D5/4"];
+    let mut rng = Rng(0x70ad);
+    let mut adds: Vec<(f32, Vec<f32>, bool)> = Vec::new();
+    for (first, part, fiddle) in [(2, &a, false), (10, &a, false), (18, &b, true), (26, &a, false)] {
+        tune_bars(&part[..], 4.0, first, beat, |at, n, secs| {
+            let s = if fiddle { bowed(hz(n), secs - 0.04, 0.03, 0.08) } else { recorder(&mut rng, hz(n), secs - 0.04) };
+            adds.push((at, s, fiddle));
+        });
+    }
+    for (at, s, fiddle) in adds {
+        m.add(at, &s, if fiddle { 0.22 } else { 0.24 }, 0.2, 0.45);
+    }
+    for bar in [2, 18] {
+        let s = bell(hz(79), 2.5);
+        m.add(bar_at(bar), &s, 0.1, 0.45, 0.6);
+    }
+    m.finish(0.32, 0.74)
+}
+
+/// *Grumbold's Wrath*: a boss fight in E minor at 160 - war drums on every beat, a chugging low
+/// lute and bass, the fiddle with the tune (harmonic minor), a second fiddle in B, bells.
+/// Intro (drums) - A - B - A.
+fn boss() -> (Vec<f32>, Vec<f32>) {
+    const SCALE: [i32; 7] = [4, 6, 7, 9, 11, 0, 3]; // E harmonic minor
+    let a_chords = ["Em", "Em", "C", "B", "Em", "Em", "C", "B"];
+    let b_chords = ["Am", "Am", "Em", "Em", "C", "D", "B", "B"];
+    let chords: Vec<&str> = [&["Em", "Em"][..], &a_chords, &b_chords, &a_chords].concat();
+    let bars = chords.len();
+    let beat = whole_buffers(60.0 / 160.0, bars * 4);
+    let loop_secs = bars as f32 * 4.0 * beat;
+    let mut m = Mix::new(loop_secs, 3.0);
+    let bar_at = |bar: usize| bar as f32 * 4.0 * beat;
+    let drone = bowed(hz(40), loop_secs + 2.0, 1.0, 2.0);
+    m.add(0.0, &drone, 0.07, 0.0, 0.25);
+    for (bar, c) in chords.iter().enumerate() {
+        for b in 0..4 {
+            let s = war_drum(&mut m.rng);
+            m.add(bar_at(bar) + b as f32 * beat, &s, if b % 2 == 0 { 0.55 } else { 0.4 }, -0.1, 0.12);
+        }
+        for (b, vol) in [(1.5, 0.28), (3.5, 0.3), (3.75, 0.2)] {
+            let s = tabor(&mut m.rng);
+            m.add(bar_at(bar) + b * beat, &s, vol, 0.2, 0.15);
+        }
+        if bar < 2 {
+            continue;
+        }
+        let (r, t) = chord(c, 40);
+        for k in 0..8 {
+            let iv = [0, 0, 12, 0, 7, 0, 12, 7][k];
+            let s = pluck(&mut m.rng, hz(r + iv), 0.25, 0.985, 3);
+            let at = bar_at(bar) + k as f32 * beat / 2.0 + m.loose(2.0);
+            m.add(at, &s, if k % 4 == 0 { 0.45 } else { 0.3 }, -0.35, 0.2);
+        }
+        for (k, iv) in [12, 12 + t, 19, 24].iter().enumerate() {
+            let s = pluck(&mut m.rng, hz(r + iv), 0.5, 0.993, 1);
+            m.add(bar_at(bar) + k as f32 * 0.01, &s, 0.15, 0.35, 0.3);
+        }
+        let s = bowed(hz(r - 12), 4.0 * beat + 0.1, 0.05, 0.2);
+        m.add(bar_at(bar), &s, 0.17, 0.0, 0.25);
+        for k in 0..8 {
+            let s = shaker(&mut m.rng);
+            m.add(bar_at(bar) + k as f32 * beat / 2.0, &s, if k % 2 == 1 { 0.12 } else { 0.06 }, 0.5, 0.15);
+        }
+    }
+    let a = ["E5/1.5 F#5/0.5 G5 B5", "A5 G5 F#5 E5", "C6/2 B5 A5", "B5/2 D#5/2", "E5/1.5 F#5/0.5 G5 B5", "E6/2 D6 B5", "C6 B5 A5 G5", "F#5/2 B5/2"];
+    let b = ["A5/1.5 B5/0.5 C6 E6", "D6/2 C6 B5", "B5/1.5 A5/0.5 G5 E5", "G5/2 B5/2", "C6 E6 C6 G5", "D6/2 F#5/2", "D#6/2 B5 F#5", "B5/4"];
+    let mut adds: Vec<(f32, Vec<f32>, f32, f32)> = Vec::new();
+    for (first, part, second) in [(2, &a, false), (10, &b, true), (18, &a, false)] {
+        tune_bars(&part[..], 4.0, first, beat, |at, n, secs| {
+            adds.push((at, bowed(hz(n), secs - 0.03, 0.02, 0.06), 0.3, 0.2));
+            if second {
+                adds.push((at + 0.008, bowed(hz(below(n, &SCALE, 2)), secs - 0.03, 0.02, 0.06), 0.18, -0.2));
+            }
+        });
+    }
+    for (at, s, vol, pan) in adds {
+        m.add(at, &s, vol, pan, 0.4);
+    }
+    for bar in [2, 10, 18] {
+        let s = bell(hz(76), 2.5);
+        m.add(bar_at(bar), &s, 0.14, -0.45, 0.6);
+    }
+    m.finish(0.26, 0.7)
 }

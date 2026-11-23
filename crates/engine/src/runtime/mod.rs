@@ -1154,8 +1154,9 @@ impl Game {
     }
 
     fn enter_map(&mut self, mut map: Map, arrival: Arrival) {
-        // (Leaving the map ends a fight: those who fought stay behind.)
-        self.fight = None;
+        // (Leaving the map ends a fight: those who fought stay behind, the party gets up and is
+        // let go as when a fight ends; its events belong to the map left.)
+        self.wind_down();
         // (For the map_enter hook: "" after loading or a new game, which clear it.)
         let from = self.loaded.map.name.clone();
         self.clear_routes();

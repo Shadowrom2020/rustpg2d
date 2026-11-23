@@ -87,7 +87,7 @@ varying lowp vec2 uv;
 varying lowp vec4 color;
 uniform sampler2D Texture;
 void main() {
-    gl_FragColor = vec4(1.0, 1.0, 1.0, texture2D(Texture, uv).a * color.a);
+    gl_FragColor = vec4(color.rgb, texture2D(Texture, uv).a * color.a);
 }"#;
 
 impl Game {

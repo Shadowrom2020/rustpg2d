@@ -25,6 +25,17 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   per definition with its main fields (prices, weight, damage dice, AC, hit points, CR, XP, spell
   levels…). Sort by any column, edit cells in place, and change a column of many selected rows
   at once: set a value, add a percentage or apply a formula of `x`, as one undo step.
+- **Animation editor.** A new Database tab *Animations* (`defs/animations.ron`): cels (frames of a
+  sprite sheet with place, size, turn, opacity, additive blend and light, optionally moving),
+  particle emitters, flashes of the target or the screen, and sounds, each at a moment. The form
+  shows them on a timeline beside a preview on a target dummy (play, loop, scrub).
+  - **Where they play:** a weapon's or a stat block attack's *Hit animation* on the creature hit
+    (turn-based fights), an item's *Use animation*, a class action's animation, and wherever a
+    sheet is accepted for an effect: a spell's impact, *Play effect*, `effect()`.
+  - **Starter library:** slash (the slashing weapons), fire (Fire Bolt), ice (Ray of Frost), heal
+    (Cure Wounds, the healing potions), thunder (Shocking Grasp) and buff (Heroism, the potion of
+    heroism, the barbarian's Rage), with a new slash sheet.
+  - `status` lists the animations playing in `fx=` (`anim:ID@x,y:SECONDS`).
 - **Test-play from here.** A right-click on the map offers *Play from here* (a new game on that
   tile) and *Play from here with the test setup*: the hero's level and class, items, flags,
   variables, quests at a stage, the time and the party, kept per project. The editor writes it

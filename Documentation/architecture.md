@@ -615,6 +615,17 @@ kinsoku sets), measured with `measure_plain`; `render::wrap_text` calls it.
   `Game.common_runs` (dropped when the flag is cleared, cleared on load); an autorun event is
   pushed into the main runner while it is idle and its flag is set, so it freezes the player like
   any running event.
+- Animations (`animations.rs`, `defs/animations.ron`): an `AnimationDef`'s cels, emitters,
+  flashes and sounds are pure functions of the time (`Cel::pose`, `Emitter::particles`: each
+  particle's start, direction and speed hash from its number), so the editor's preview
+  (`anim_editor.rs`, egui meshes and circles) and the game draw the same. `runtime/animations.rs`
+  keeps `Game.anims` (id, point, target, age; flashes and sounds started as the age passes them,
+  dropped after `length`) and `tint_flashes` (a target's figure drawn again through the hit-flash
+  shader in the flash's colour). `spawn_effect` plays an animation when the sheet id names one
+  (*Play effect*, `effect()`, spell impacts); `AttackSpec.anim` (from `Weapon.hit_anim` /
+  `StatAttack.anim`) plays in `land_attack`, `ItemDef.use_anim` in `use_item_now` /
+  `use_item_on`, a class `Act`'s `anim` in `use_class_act`. A field that names a sheet or an
+  animation reports both kinds as references; `Database::refs_of` keeps the one that exists.
 - Cut-scene timelines (`cutscenes.rs`, `defs/cutscenes.ron`): a `CutsceneDef` holds tracks of
   `Cue`s (time, wait, an `Action`). *Play cutscene* looks the id up first and plays
   `CutsceneDef::actions(from)`: the cues sorted by time with *Wait* actions between them, cues

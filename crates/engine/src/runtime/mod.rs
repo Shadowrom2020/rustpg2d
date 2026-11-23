@@ -1,6 +1,7 @@
 //! The game runtime: loads a project and plays it.
 
 mod achievements;
+mod animations;
 mod activities;
 mod ai;
 mod charwin;
@@ -509,6 +510,9 @@ pub struct Game {
     projectiles: Vec<Projectile>,
     /// Scripted effects (Fly / Effect actions).
     fx: Vec<fx::Fx>,
+    /// Animation assets playing (`animations.rs`) and the target flashes they started.
+    anims: Vec<animations::AnimRun>,
+    tint_flashes: Vec<animations::TintFlash>,
     /// Lights at a point for a while (Light at point action).
     timed_lights: Vec<fx::TimedLight>,
     /// Click-to-move / click-to-act order.
@@ -760,6 +764,8 @@ impl Game {
             levelup: None,
             fight_fast: false,
             fx: Vec::new(),
+            anims: Vec::new(),
+            tint_flashes: Vec::new(),
             timed_lights: Vec::new(),
             order: None,
             bump: None,
@@ -1275,6 +1281,8 @@ impl Game {
         self.effects.clear();
         self.projectiles.clear();
         self.fx.clear();
+        self.anims.clear();
+        self.tint_flashes.clear();
         self.timed_lights.clear();
         self.order = None;
         self.setup_spawners();
@@ -2125,6 +2133,7 @@ impl Game {
         // Effects and timed lights also play on during cut-scenes (they are part of the show).
         if !frozen || self.cutscene_active() {
             self.update_fx(dt);
+            self.update_animations(dt);
             self.update_weather(dt);
         }
         if !frozen {
@@ -2667,9 +2676,12 @@ impl Game {
     /// Uses an item on the player / the prop in front (its *UseItem* triggers).
     fn use_item_now(&mut self, item: &str) {
         let ev = GameEvent::UseItem { item: item.to_string() };
+        // (Its animation on the hero when it does something.)
+        let anim = self.project.db.item(item).map(|d| d.use_anim.clone()).unwrap_or_default();
         // A magic item's own effect (a potion's healing), then its triggers.
         let mut fired = self.use_magic_item(item, turns::Who::Player);
         if fired {
+            self.animate_on(&anim, animations::AnimTarget::Player);
             self.fire_item_use(item);
             if self.project.db.item(item).is_some_and(|d| d.consumable) {
                 self.world.take_item(item, 1);
@@ -2684,7 +2696,10 @@ impl Game {
         }
         if !fired {
             self.ui.toast("Nothing happens.".into());
-        } else if self.project.db.item(item).is_some_and(|d| d.consumable) {
+            return;
+        }
+        self.animate_on(&anim, animations::AnimTarget::Player);
+        if self.project.db.item(item).is_some_and(|d| d.consumable) {
             self.world.take_item(item, 1);
         }
     }
@@ -3236,6 +3251,14 @@ impl Game {
                         let r = self.player.rect();
                         draw_rectangle(r.x, r.y - ts * 0.5, r.w, r.h + ts * 0.5, YELLOW);
                     }
+                    // An animation's flash: the hero shines in its colour.
+                    if let Some(c) = self.tint_flash_of(animations::AnimTarget::Player).filter(|_| drawn) {
+                        self.draw_white(|| {
+                            if let Some(a) = self.player_appearance() {
+                                self.draw_character_turned(&a, &gear, (self.player.facing, anim), self.walk_turn(&self.player, anim), self.player.pos, c);
+                            }
+                        });
+                    }
                 }
                 Some(i) => {
                     // Off screen (a generous margin for tall sprites): nothing to draw.
@@ -3258,6 +3281,7 @@ impl Game {
         self.draw_gather();
         self.draw_activities();
         self.draw_fx();
+        self.draw_animations();
         if !self.on_title() {
             self.draw_mouse_world();
             self.draw_padlocks();
@@ -3424,6 +3448,12 @@ impl Game {
                     let a = (e.flash / juice::HIT_FLASH).min(1.0) * 0.85;
                     self.draw_white(|| {
                         self.draw_character_entity(i, Color::new(1.0, 1.0, 1.0, a));
+                    });
+                }
+                // An animation's flash: the figure shines in its colour.
+                if let Some(c) = self.tint_flash_of(animations::AnimTarget::Npc(e.uid)).filter(|_| ok) {
+                    self.draw_white(|| {
+                        self.draw_character_entity(i, c);
                     });
                 }
                 ok

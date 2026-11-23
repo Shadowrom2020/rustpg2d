@@ -209,7 +209,7 @@ Faster ways to build what the earlier releases made possible.
   starting scores) with the setup on top, written to the editor's settings folder; the party
   names placed characters on any map. Loaded like a save: no *Map enter* triggers.
 
-- [ ] Animation editor — `feature/animations`
+- [x] Animation editor — `feature/animations`
 
   **Goal.** Animations for spells, attacks, class features and items, timed with sound and flashes.
 
@@ -227,6 +227,17 @@ Faster ways to build what the earlier releases made possible.
   **Engine.** The defs file, the player in `runtime/fx.rs`, the editor.
 
   **Verify.** Each starter animation in autoplay screenshots mid-play; `status` prints `fx=`.
+
+  **Decided while building.**
+  - Particles are worked out from the time alone (no particle state), so the editor's preview
+    and the game draw the same thing.
+  - New fields: `Weapon.hit_anim`, `StatAttack.anim`, `ItemDef.use_anim` and a class `Act`'s
+    `anim`. A spell's impact, *Play effect* and `effect()` take an animation id where they take
+    a sheet.
+  - The preview is a straw target dummy drawn by the editor; additive cels show with normal
+    blending there.
+  - Spells keep their own look (2026-11-22's decision): only Fire Bolt, Ray of Frost, Cure
+    Wounds, Shocking Grasp and Heroism use the animations built on their own sheets.
 
 ## 0.35.0 — Learning
 

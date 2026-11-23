@@ -181,7 +181,7 @@ across map changes and in save games.
   **Fade out** / **Fade in** (cover the screen with a colour and uncover it; a fade-out lasts
   across map changes until *Fade in*, so a *Teleport* between them changes maps unseen; dialogs
   and the HUD stay over it). The tint goes over the world and the pictures, under the HUD.
-- **Play effect** (an animation once), **Fly sprite to point** (a projectile that calls a script on
+- **Play effect** (a sheet's frames once, or an [animation](05-database.md#animations) by its id), **Fly sprite to point** (a projectile that calls a script on
   arrival), **Light at point**, **Light around player**, **Damage area**, **Damage around player**
   (both with a damage type: fire, cold…), **Heal area**, **Aim (then run script)**.
 

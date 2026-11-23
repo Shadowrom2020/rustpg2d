@@ -76,8 +76,12 @@ impl Game {
         self.fx.push(Fx { sprite, pos: origin, age: 0.0, kind });
     }
 
-    /// Plays an animated sprite once, centered on tile point `tile`.
+    /// Plays an animated sprite once, centered on tile point `tile` (an animation asset when
+    /// the sheet names one).
     pub(super) fn spawn_effect(&mut self, sprite: FxSprite, tile: Vec2) {
+        if self.play_animation(&sprite.sheet, tile * self.ts(), None) {
+            return;
+        }
         let sprite = self.resolve_tag(sprite);
         if !self.assets.sheets.contains_key(&sprite.sheet) {
             eprintln!("[fx] effect: unknown sprite sheet '{}'", sprite.sheet);
@@ -261,6 +265,7 @@ impl Game {
                 FxKind::Once => format!("once:{}[{}-{}@{}fps]", f.sprite.sheet, f.sprite.first, f.sprite.last, f.sprite.fps),
             })
             .chain(self.timed_lights.iter().map(|l| format!("light@{:.1},{:.1}", l.pos.x / ts, l.pos.y / ts)))
+            .chain(self.animation_status())
             .collect()
     }
 }

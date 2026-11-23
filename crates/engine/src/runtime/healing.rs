@@ -225,6 +225,8 @@ impl Game {
     /// "self", and *Heal player* heals it instead.
     fn use_item_on(&mut self, item: &str, i: usize) {
         let uid = self.loaded.entities[i].uid;
+        let anim = self.project.db.item(item).map(|d| d.use_anim.clone()).unwrap_or_default();
+        self.animate_on(&anim, super::animations::AnimTarget::Npc(uid));
         let actions = self.collect(&GameEvent::UseItem { item: item.to_string() }, &Source::Item(item.to_string()));
         // A magic item's own effect (a potion's healing) on the character.
         if self.use_magic_item(item, super::turns::Who::Npc(uid)) {

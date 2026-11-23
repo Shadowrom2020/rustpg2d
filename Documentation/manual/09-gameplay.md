@@ -741,6 +741,9 @@ Missile, Fireball, Misty Step and Sleep. Every spell of the starter library and 
 **look** of its own (*Look* in the spell's form): an animated impact where it lands (an area's
 the size of the area), a flying sprite for the bolts and rays (Fire Bolt, Ray of Frost, Magic
 Missile, Eldritch Blast…) and for some a sound; Fireball keeps its hand-made sprite and explosion.
+Fire Bolt, Ray of Frost, Cure Wounds, Shocking Grasp and Heroism play
+[animations](05-database.md#animations) built on their sheets (with particles, a flash of the
+target and their sound); slashing weapons play a slash on the creature they hit.
 Every spell also has an **icon** (the sheet `spell_icons`: a badge in its school's colour, a glyph
 for what it does, its level as pips) in the Spells tab, the cast lists and the action bar.
 **Brother Ansel** is a cleric of the Life domain who heals a hurt hero with Cure Wounds once a day.

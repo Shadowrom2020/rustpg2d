@@ -334,6 +334,9 @@ pub struct StatAttack {
     /// What a hit does besides its damage (a wolf's bite: a DC 11 STR save or prone).
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub on_hit: Vec<HitRider>,
+    /// An animation played on whoever a hit lands on ("" = none).
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub anim: String,
 }
 
 /// Damage dice of a type: one part of an attack's damage.

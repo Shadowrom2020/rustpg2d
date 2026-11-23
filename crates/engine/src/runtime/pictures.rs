@@ -37,7 +37,7 @@ void main() {
     gl_FragColor = color * texture2D(Texture, uv);
 }"#;
 
-fn additive() -> Option<Material> {
+pub(super) fn additive() -> Option<Material> {
     ADD.with(|m| {
         m.borrow_mut()
             .get_or_insert_with(|| {

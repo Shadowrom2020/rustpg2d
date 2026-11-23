@@ -35,7 +35,7 @@ const PACK_VERSION: u32 = 1;
 pub type AssetRef = (RefKind, String);
 
 /// Asset kinds in dependency order (things later in the list may refer to earlier ones).
-pub const KINDS: [RefKind; 18] = [RefKind::Font, RefKind::Sound, RefKind::Disease, RefKind::Material, RefKind::Sheet, RefKind::Model, RefKind::Item, RefKind::Prop, RefKind::Scatter, RefKind::Character, RefKind::Structure, RefKind::Spell, RefKind::Recipe, RefKind::Race, RefKind::Skin, RefKind::CommonEvent, RefKind::Background, RefKind::Class];
+pub const KINDS: [RefKind; 19] = [RefKind::Font, RefKind::Sound, RefKind::Disease, RefKind::Material, RefKind::Sheet, RefKind::Animation, RefKind::Model, RefKind::Item, RefKind::Prop, RefKind::Scatter, RefKind::Character, RefKind::Structure, RefKind::Spell, RefKind::Recipe, RefKind::Race, RefKind::Skin, RefKind::CommonEvent, RefKind::Background, RefKind::Class];
 
 pub fn kind_label(k: RefKind) -> &'static str {
     k.label()
@@ -85,6 +85,8 @@ struct Manifest {
     classes: Vec<crate::classes::ClassDef>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     diseases: Vec<crate::diseases::DiseaseDef>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    animations: Vec<crate::animations::AnimationDef>,
     /// Script functions by name (their whole source text).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     scripts: BTreeMap<String, String>,
@@ -296,6 +298,7 @@ impl Bundle {
             backgrounds: db.backgrounds.iter().filter(|d| has(RefKind::Background, &d.id)).cloned().collect(),
             classes: db.classes.iter().filter(|d| has(RefKind::Class, &d.id)).cloned().collect(),
             diseases: db.diseases.iter().filter(|d| has(RefKind::Disease, &d.id)).cloned().collect(),
+            animations: db.animations.iter().filter(|d| has(RefKind::Animation, &d.id)).cloned().collect(),
             quests: Vec::new(),
             achievements: Vec::new(),
             ..Default::default()
@@ -399,6 +402,7 @@ impl Bundle {
             backgrounds: self.db.backgrounds.clone(),
             classes: self.db.classes.clone(),
             diseases: self.db.diseases.clone(),
+            animations: self.db.animations.clone(),
             scripts: self.scripts.clone(),
         };
         let manifest = crate::project::ron_text(&m)?;
@@ -437,7 +441,7 @@ impl Bundle {
             f.read_to_end(&mut data)?;
             files.insert(rel, data);
         }
-        let db = Database { sheets: m.sheets, sounds: m.sounds, items: m.items, props: m.props, quests: Vec::new(), characters: m.characters, structures: m.structures, spells: m.spells, recipes: m.recipes, achievements: Vec::new(), races: m.races, models: m.models, materials: m.materials, scatter: m.scatter, fonts: m.fonts, skins: m.skins, common_events: m.common_events, backgrounds: m.backgrounds, classes: m.classes, diseases: m.diseases, ..Default::default() };
+        let db = Database { sheets: m.sheets, sounds: m.sounds, items: m.items, props: m.props, quests: Vec::new(), characters: m.characters, structures: m.structures, spells: m.spells, recipes: m.recipes, achievements: Vec::new(), races: m.races, models: m.models, materials: m.materials, scatter: m.scatter, fonts: m.fonts, skins: m.skins, common_events: m.common_events, backgrounds: m.backgrounds, classes: m.classes, diseases: m.diseases, animations: m.animations, ..Default::default() };
         let b = Bundle { name: m.name, tile_size: m.tile_size, db, files, scripts: m.scripts };
         for rel in asset_files(&b.db).into_iter().chain(m.tilesets.iter().map(|t| t.image.clone())) {
             if !rel.is_empty() && !b.files.contains_key(&rel) {
@@ -540,7 +544,7 @@ impl Bundle {
         config.tile_size = self.tile_size;
         let mut out = vec![("project.ron".to_string(), crate::project::ron_text(&config)?.into_bytes())];
         let db = &self.db;
-        let defs: [(&str, String); 18] = [
+        let defs: [(&str, String); 19] = [
             ("sheets", crate::project::ron_text(&db.sheets)?),
             ("items", crate::project::ron_text(&db.items)?),
             ("props", crate::project::ron_text(&db.props)?),
@@ -559,6 +563,7 @@ impl Bundle {
             ("backgrounds", crate::project::ron_text(&db.backgrounds)?),
             ("classes", crate::project::ron_text(&db.classes)?),
             ("diseases", crate::project::ron_text(&db.diseases)?),
+            ("animations", crate::project::ron_text(&db.animations)?),
         ];
         out.extend(defs.into_iter().map(|(n, t)| (format!("defs/{n}.ron"), t.into_bytes())));
         if !self.scripts.is_empty() {
@@ -689,6 +694,7 @@ impl Bundle {
         self.db.backgrounds.retain(|d| new(RefKind::Background, &d.id));
         self.db.classes.retain(|d| new(RefKind::Class, &d.id));
         self.db.diseases.retain(|d| new(RefKind::Disease, &d.id));
+        self.db.animations.retain(|d| new(RefKind::Animation, &d.id));
         let used = files_of(&self.db);
         self.files.retain(|rel, _| used.contains(rel));
         let mut report = self.merge_into(db, root)?;
@@ -909,6 +915,7 @@ pub fn remove_assets(project: &mut Project, assets: &[AssetRef]) -> Result<()> {
     db.backgrounds.retain(|d| keep(RefKind::Background, &d.id));
     db.classes.retain(|d| keep(RefKind::Class, &d.id));
     db.diseases.retain(|d| keep(RefKind::Disease, &d.id));
+    db.animations.retain(|d| keep(RefKind::Animation, &d.id));
     let files_after = files_of(&project.db);
     for f in files_before.difference(&files_after) {
         if safe_rel(f) {
@@ -1415,6 +1422,7 @@ mod tests {
             backgrounds: vec![],
             classes: vec![],
             diseases: vec![],
+            animations: vec![],
             scripts: BTreeMap::new(),
         };
         let mut zw = zip::ZipWriter::new(Cursor::new(Vec::new()));

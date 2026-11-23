@@ -207,6 +207,9 @@ pub enum FeatureEffect {
         #[serde(default, skip_serializing_if = "String::is_empty")]
         resource: String,
         effect: ActEffect,
+        /// An animation (`defs/animations.ron`) played on the one who uses it ("" = none).
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        anim: String,
     },
     /// Sneak Attack: once per turn the class's `sneak_attack.dice_count` d6 more on a hit with a
     /// finesse or ranged weapon, with advantage or an ally next to the target.
@@ -509,6 +512,8 @@ pub struct ClassAct {
     pub resource: String,
     pub effect: ActEffect,
     pub feature: String,
+    /// Played on the one who uses it.
+    pub anim: String,
 }
 
 /// The SRD's fighting styles.
@@ -770,9 +775,9 @@ impl ClassTraits {
                     t.resources.retain(|r| !matches!(r, FeatureEffect::Resource { id: x, .. } if x == rid));
                     t.resources.push(e.clone());
                 }
-                FeatureEffect::Act { id: aid, name, cost, resource, effect } => {
+                FeatureEffect::Act { id: aid, name, cost, resource, effect, anim } => {
                     t.acts.retain(|a| a.id != *aid);
-                    t.acts.push(ClassAct { id: aid.clone(), name: name.clone(), cost: *cost, resource: resource.clone(), effect: effect.clone(), feature: feature.to_string() });
+                    t.acts.push(ClassAct { id: aid.clone(), name: name.clone(), cost: *cost, resource: resource.clone(), effect: effect.clone(), feature: feature.to_string(), anim: anim.clone() });
                 }
                 FeatureEffect::Bonus { to, amount } => t.bonuses.push((*to, *amount)),
                 FeatureEffect::AbilityScore { ability, score } => t.ability_scores.push((*ability, *score)),
@@ -885,7 +890,7 @@ mod tests {
         c.levels[2].numbers.insert("die".into(), 6);
         let pool = |recharge| FeatureEffect::Resource { id: "insp".into(), count: 0, number: String::new(), ability: Some(Ability::Cha), per_level: 0, recharge };
         c.features = vec![
-            ClassFeature { id: "inspiration".into(), level: 1, effects: vec![pool(Recharge::LongRest), FeatureEffect::Act { id: "insp".into(), name: "Inspire".into(), cost: ActCost::Bonus, resource: "insp".into(), effect: ActEffect::GiveDie { feet: 60, number: "die".into() } }], ..Default::default() },
+            ClassFeature { id: "inspiration".into(), level: 1, effects: vec![pool(Recharge::LongRest), FeatureEffect::Act { id: "insp".into(), name: "Inspire".into(), cost: ActCost::Bonus, resource: "insp".into(), effect: ActEffect::GiveDie { feet: 60, number: "die".into() }, anim: String::new() }], ..Default::default() },
             // (Font of Inspiration: the same resource back after a short rest.)
             ClassFeature { id: "font".into(), level: 5, effects: vec![pool(Recharge::ShortRest)], ..Default::default() },
             ClassFeature { id: "strike".into(), level: 5, effects: vec![FeatureEffect::ExtraDamage { dice: vec![(5, "1d8".into()), (14, "2d8".into())], damage_type: None, hurt_target: true }], ..Default::default() },

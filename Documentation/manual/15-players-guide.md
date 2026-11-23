@@ -291,9 +291,9 @@ place is named under the list (*R2 is also Switch weapon*).
      language…).
   4. *Background*: your background, its languages, a rogue's expertise.
   5. *Spells* (casters): pick your cantrips and spells (a wizard's spellbook) with Enter or a click.
-  6. *Starting equipment*: buy gear with your class's starting gold (Right / Enter / + buys one,
-     Left / − puts it back; the tabs, Tab or 1-6 filter the list); what you don't spend stays in
-     your purse. Enter on *Start adventure*
+  6. *Starting equipment*: your class's starting equipment is already chosen; start with it, or
+     swap parts of it (Left / − puts one back and frees its price, Right / Enter / + buys one; the
+     tabs, Tab or 1-6 filter the list); what you don't spend stays in your purse. Enter on *Start adventure*
      starts the game.
 - **Title screen**: *New game*, *Continue* (the latest save), *Load game*, *Options*, *Achievements*
   (if the game has them), *Exit*. A game may order them differently, leave some out, add a

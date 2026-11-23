@@ -16,8 +16,10 @@
 //! 5. *Spells*: the cantrips and spells a class picks at level 1 (a wizard's spellbook, a
 //!    sorcerer's known spells), as a checklist.
 //! 6. *Starting equipment*: the starter store (`CharacterCreation::store`, a character's shop):
-//!    the class's starting gold (`ClassDef::starting_gold`) buys gear instead of the class's
-//!    equipment; what is left stays in the purse.
+//!    the cart starts with the class's equipment (`ClassDef::equipment`, as far as the store has
+//!    it), and the budget is the class's starting gold (`ClassDef::starting_gold`) or the
+//!    equipment's price, whichever is more, so the kit always fits and any part of it can be
+//!    swapped; what is left stays in the purse.
 //!
 //! Keyboard: typing edits the name (page 1; Backspace deletes), Up/Down select a row,
 //! Left/Right change it (a store item: one less / more), Enter goes on (a spell: picks it, an
@@ -165,6 +167,8 @@ pub(super) struct Creator {
     spells: Vec<String>,
     /// The store's cart: item id -> how many.
     cart: BTreeMap<String, u32>,
+    /// The class whose equipment the cart was filled with (filled again for another class).
+    kit_for: Option<usize>,
     /// The store's filter tab.
     store_tab: StoreTab,
     /// The first list row shown (spells, the store).
@@ -626,9 +630,24 @@ impl Game {
         shop.items.iter().filter_map(|e| self.project.db.item(&e.item).map(|d| (e.item.clone(), if e.price > 0 { e.price } else { d.cost_cp }))).collect()
     }
 
-    /// The starting gold (cp) and what the cart costs.
+    /// The class's starting equipment the store sells (item id, how many) and its price (cp).
+    fn creator_kit(&self, c: &Creator) -> (BTreeMap<String, u32>, u32) {
+        let prices: BTreeMap<String, u32> = self.creator_store_all(c).into_iter().collect();
+        let mut kit = BTreeMap::new();
+        let mut value = 0;
+        for st in self.creator_class(c).map_or(&[][..], |cl| &cl.equipment[..]) {
+            if let Some(price) = prices.get(&st.item) {
+                *kit.entry(st.item.clone()).or_insert(0) += st.count.max(1);
+                value += price * st.count.max(1);
+            }
+        }
+        (kit, value)
+    }
+
+    /// The budget (cp: the starting gold or the class's equipment's price, whichever is more)
+    /// and what the cart costs.
     fn creator_purse(&self, c: &Creator) -> (u32, u32) {
-        let gold = self.creator_class(c).map_or(0, |cl| cl.starting_gold_cp());
+        let gold = self.creator_class(c).map_or(0, |cl| cl.starting_gold_cp()).max(self.creator_kit(c).1);
         let prices: BTreeMap<String, u32> = self.creator_store_all(c).into_iter().collect();
         let spent = c.cart.iter().map(|(id, n)| prices.get(id).copied().unwrap_or(0) * n).sum();
         (gold, spent)
@@ -799,6 +818,7 @@ impl Game {
             level: Vec::new(),
             spells: Vec::new(),
             cart: BTreeMap::new(),
+            kit_for: None,
             store_tab: StoreTab::All,
             scroll: 0,
             message: None,
@@ -930,6 +950,7 @@ impl Game {
                 c.level.clear();
                 c.spells.clear();
                 c.cart.clear();
+                c.kit_for = None;
             }
             Row::ClassSkill(slot) => {
                 let mut picks = Self::class_skills_picked(c, cl_choose, cl_n);
@@ -1040,7 +1061,14 @@ impl Game {
         let class = c.class;
         let cl = self.project.db.classes.get(class).cloned();
         let method = self.creator_method(c);
+        let kit = (next == Page::Store && c.kit_for != Some(class)).then(|| self.creator_kit(c).0);
         let c = self.creator.as_mut().unwrap();
+        // The store's cart starts with the class's equipment (again for a class picked since);
+        // the player swaps what they like.
+        if let Some(kit) = kit {
+            c.cart = kit;
+            c.kit_for = Some(class);
+        }
         // The scores follow the class: placed again for a class picked since.
         if next == Page::Abilities && c.placed_for != Some(class) {
             if let Some(m) = method {

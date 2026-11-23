@@ -3,7 +3,12 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
-## Unreleased
+## 0.34.0-alpha.1 — 2026-11-23
+
+A **pre-release (alpha)**: *Studio Comfort* (cut-scene timelines, the Database table view, test-play
+from here, the animation editor), dragons rebuilt after a reference model with beating wings,
+monster sizes fixed, and a cleanup of unused files that also keeps exported games small. Expect
+rough edges.
 
 ### Better creatures
 - **Dragons that look like dragons.** The starter library's dragons (wyrmling to ancient, all ten

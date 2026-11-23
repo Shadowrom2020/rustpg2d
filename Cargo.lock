@@ -2549,7 +2549,7 @@ dependencies = [
 
 [[package]]
 name = "rustpg2d-editor"
-version = "0.33.0-alpha.1"
+version = "0.34.0-alpha.1"
 dependencies = [
  "anyhow",
  "axum",
@@ -2574,7 +2574,7 @@ dependencies = [
 
 [[package]]
 name = "rustpg2d-engine"
-version = "0.33.0-alpha.1"
+version = "0.34.0-alpha.1"
 dependencies = [
  "anyhow",
  "gilrs",
@@ -2595,7 +2595,7 @@ dependencies = [
 
 [[package]]
 name = "rustpg2d-game"
-version = "0.33.0-alpha.1"
+version = "0.34.0-alpha.1"
 dependencies = [
  "anyhow",
  "macroquad",
@@ -2605,7 +2605,7 @@ dependencies = [
 
 [[package]]
 name = "rustpg2d-packaging"
-version = "0.33.0-alpha.1"
+version = "0.34.0-alpha.1"
 dependencies = [
  "anyhow",
  "backhand",
@@ -3895,7 +3895,7 @@ checksum = "b9cc00251562a284751c9973bace760d86c0276c471b4be569fe6b068ee97a56"
 
 [[package]]
 name = "xtask"
-version = "0.33.0-alpha.1"
+version = "0.34.0-alpha.1"
 dependencies = [
  "anyhow",
  "rustpg2d-engine",

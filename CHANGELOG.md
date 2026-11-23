@@ -87,6 +87,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
     Caves holds a giant wolf spider (challenge 1/4) instead of a giant spider (challenge 1), and
     the bridge in the Wilds an ogre (challenge 2) instead of a troll (challenge 5).
   - **Still its own:** Grumbold the cave troll keeps his hand-made block.
+- **The creator's store starts with the class's kit.** The starting equipment step has the
+  class's SRD starting equipment in the cart already, so a player who is happy with it just
+  starts; any part can be put back and swapped. The budget is the starting gold or the kit's
+  price, whichever is more (most kits cost a little more than the average gold), so the kit
+  always fits. Another class fills the cart with its own kit.
 - **Animals show their side in thumbnails.** The editor's character thumbnails, the cards of
   the character editor and the Asset Library picture a model that is long from nose to tail (a
   wolf, a horse, a crocodile) from the side, fitted into the card, instead of from the front,

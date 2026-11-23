@@ -35,6 +35,8 @@ use crate::srd::{Ability, DamageType, Mode};
 pub(super) const JOIN_TILES: f32 = 12.0;
 /// A fleeing enemy this far (tiles) from every foe has left the fight.
 pub(super) const FLED_TILES: f32 = 15.0;
+/// How far (steps) a foe's way to the party is looked for when deciding whether it can get at it.
+const REACH_STEPS: i32 = 40;
 
 /// Who a combatant is.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -469,6 +471,10 @@ impl Game {
         if !self.combat_on() || self.game_over.is_some() || self.on_title() {
             return false;
         }
+        // (In the air over a gap: it starts once the hero has landed.)
+        if self.hero_jumping() {
+            return false;
+        }
         let ts = self.ts();
         let here = self.player.pos;
         let near = |p: Vec2| p.distance(here) <= JOIN_TILES * ts;
@@ -487,6 +493,10 @@ impl Game {
                 order.push(fighter(Who::Npc(e.uid), Side::Party, ai));
             } else if e.hostile {
                 if aware && !self.takes_part(i, surprise) {
+                    continue;
+                }
+                // (Noticed across a chasm it can't cross and with nothing to shoot: no fight.)
+                if aware && !surprise && !self.can_get_at_party(Who::Npc(e.uid)) {
                     continue;
                 }
                 // (The hero started it: who hadn't noticed them yet.)
@@ -527,7 +537,8 @@ impl Game {
         // Everyone onto the grid: tile centres.
         self.player.move_target = None;
         self.player.moving = false;
-        let p = feet_spot(feet_tile(self.player.pos, ts), ts);
+        // (Never on a pit's or a ledge's tile: walkers can't leave one in a fight.)
+        let p = feet_spot(self.open_tile_near(feet_tile(self.player.pos, ts)), ts);
         self.player.pos = p;
         for f in &order {
             if let Some(i) = self.who_index(f.who) {
@@ -607,6 +618,71 @@ impl Game {
         let e = &self.loaded.entities[i];
         let eye = self.player.pos - vec2(0.0, self.player.hitbox.y / 2.0);
         hero_struck && e.body.pos.distance(self.player.pos) <= super::combat::ATTACK_SIGHT * self.ts() && self.line_clear(eye, e.body.pos - vec2(0.0, e.body.hitbox.y / 2.0))
+    }
+
+    /// Strength score of a fighter: the hero's (or its beast shape's), a stat block's.
+    pub(super) fn who_strength(&self, who: Who) -> i32 {
+        match (who, self.who_block(who)) {
+            (Who::Player, None) => self.world.abilities.score(crate::srd::Ability::Str),
+            (_, Some(b)) => b.abilities.score(crate::srd::Ability::Str),
+            _ => 10,
+        }
+    }
+
+    /// How many times farther a fighter jumps (the *Jump* spell: three).
+    pub(super) fn who_jump_times(&self, who: Who) -> f32 {
+        conditions::buffs(self.who_conditions(who)).find_map(|b| if let conditions::Buff::Jump { times } = b { Some(*times) } else { None }).unwrap_or(1.0).max(1.0)
+    }
+
+    /// Whether `who` can get at the party from where it stands: it flies, has an attack or an
+    /// action with a range, or can walk to a party member (a chasm it can't cross: no).
+    pub(super) fn can_get_at_party(&self, who: Who) -> bool {
+        if self.who_flies(who) {
+            return true;
+        }
+        if self.who_block(who).is_some_and(|b| b.attacks.iter().any(|a| a.range_ft > 0) || b.actions.iter().any(|a| a.range_ft > 0)) {
+            return true;
+        }
+        let mut party = vec![self.who_tile(Who::Player)];
+        party.extend(self.loaded.entities.iter().filter(|e| e.active && e.companion.is_some() && e.hp > 0).map(|e| self.tile_of(e.body.pos)));
+        let field = self.walk_distances(&party, REACH_STEPS, false);
+        self.who_space(who).iter().any(|t| field.contains_key(t)) || self.who_space(who).iter().any(|t| [(1, 0), (-1, 0), (0, 1), (0, -1)].iter().any(|d| field.contains_key(&(t.0 + d.0, t.1 + d.1))))
+    }
+
+    /// The nearest tile to `t` a walker can stand on in a fight (not a wall, not a pit or a
+    /// ledge's edge): `t` itself when it is one.
+    pub(super) fn open_tile_near(&self, t: TilePos) -> TilePos {
+        let ok = |p: TilePos| !self.terrain_closed(p);
+        if ok(t) {
+            return t;
+        }
+        for r in 1..=4i32 {
+            let ring = (-r..=r).flat_map(|dx| (-r..=r).map(move |dy| (dx, dy))).filter(|&(dx, dy): &(i32, i32)| dx.abs().max(dy.abs()) == r);
+            if let Some(p) = ring.map(|(dx, dy)| (t.0 + dx, t.1 + dy)).filter(|p| ok(*p)).min_by_key(|p| (p.0 - t.0).pow(2) + (p.1 - t.1).pow(2)) {
+                return p;
+            }
+        }
+        t
+    }
+
+    /// At a new round: the party got away (every foe at least [`FLED_TILES`] away from all of
+    /// it) or none of the foes can get at it any more (across a chasm, nothing to shoot). The
+    /// reason to log, None = the fight goes on.
+    fn got_away(&self) -> Option<&'static str> {
+        let c = self.fight.as_ref()?;
+        let foes: Vec<Who> = c.order.iter().filter(|f| f.side == Side::Enemy && !f.out && !f.down).map(|f| f.who).collect();
+        let party: Vec<Who> = c.order.iter().filter(|f| f.side == Side::Party && !f.out && !f.down).map(|f| f.who).collect();
+        if foes.is_empty() || party.is_empty() {
+            return None;
+        }
+        let far = foes.iter().all(|f| party.iter().all(|p| self.who_dist(*f, *p) >= FLED_TILES as i32));
+        if far {
+            return Some("You got away.");
+        }
+        if foes.iter().all(|f| !self.can_get_at_party(*f)) {
+            return Some("Your foes can't reach you.");
+        }
+        None
     }
 
     /// The project has combat (the player character has HP).
@@ -899,6 +975,13 @@ impl Game {
             // Hostile characters near that noticed the party since join now (those without a
             // real-time chase too: a deserter standing guard).
             self.join_fight(true);
+            // The party got away, or its foes can't get at it: the fight is over.
+            if let Some(why) = self.got_away() {
+                self.fight_log(crate::lang::tr_ui(why).into_owned());
+                self.ui.toast(crate::lang::tr_ui(why).into_owned());
+                self.end_combat();
+                return;
+            }
         }
         self.begin_turn();
     }
@@ -1016,6 +1099,10 @@ impl Game {
         // (Halfling Nimbleness: through any larger creature's space.)
         let nimble = self.who_traits(who).is_some_and(|t| t.riders.contains(&crate::classes::FeatureEffect::Nimble));
         let passable = |w: Who, s: Side| s == me.side || (my_size as i32 - self.who_size(w) as i32).abs() >= 2 || (nimble && self.who_size(w) > my_size);
+        // Long jumps over pits and ledges' edges (walkers of one tile): STR feet after a run-up
+        // of 10 ft straight at the gap this turn, half from standing; each foot jumped costs one.
+        let jumper = (!fly && n == 1).then(|| (self.who_strength(who), self.who_jump_times(who), c.turn.moved));
+        let is_drop = |t: TilePos| self.loaded.occupancy.has(t.0, t.1, super::occupancy::OCC_DROP);
         out.insert(start, (0, start));
         let mut open = std::collections::BinaryHeap::new();
         open.push(std::cmp::Reverse((0u32, start)));
@@ -1049,6 +1136,38 @@ impl Game {
                 if out.get(&f).is_none_or(|(c, _)| nc < *c) {
                     out.insert(f, (nc, t));
                     open.push(std::cmp::Reverse((nc, f)));
+                }
+            }
+            let Some((strength, times, moved)) = jumper else { continue };
+            for d in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+                let first = (t.0 + d.0, t.1 + d.1);
+                if !is_drop(first) || self.tile_solid(first.0, first.1) {
+                    continue;
+                }
+                let (gap, land) = crate::runtime::movement::gap_along(first, d, 8, is_drop);
+                if self.space_for(land, 1, false).is_none() || fighters.iter().any(|(_, _, p)| *p == land) {
+                    continue;
+                }
+                // The run-up: the two tiles before the gap can be walked straight at it for the
+                // same cost (this turn's moves before the path count too).
+                let back = |k: i32| (t.0 - d.0 * k, t.1 - d.1 * k);
+                let at = |p: TilePos| out.get(&p).map(|(c, _)| *c);
+                let step = rules::FEET_PER_TILE;
+                let run_up = if t == start {
+                    moved >= 2 * step
+                } else if at(back(1)) == Some(cost.saturating_sub(step)) && cost >= step {
+                    back(1) == start && moved >= step || back(1) != start && at(back(2)) == Some(cost.saturating_sub(2 * step)) && cost >= 2 * step
+                } else {
+                    false
+                };
+                let reach_ft = (crate::runtime::movement::long_jump_ft(strength, run_up) as f32 * times) as u32;
+                if gap as u32 * rules::FEET_PER_TILE > reach_ft {
+                    continue;
+                }
+                let nc = cost + (gap as u32 + 1) * rules::FEET_PER_TILE;
+                if nc <= left && out.get(&land).is_none_or(|(c, _)| nc < *c) {
+                    out.insert(land, (nc, t));
+                    open.push(std::cmp::Reverse((nc, land)));
                 }
             }
         }
@@ -1145,7 +1264,13 @@ impl Game {
         }
         let next = c.walking.remove(0);
         let from = self.who_tile(who);
-        let cost = rules::step_cost(self.difficult_at(next) || self.area_difficult(next, who));
+        // (A long jump over a gap: a foot of movement per foot jumped.)
+        let span = (next.0 - from.0).abs().max((next.1 - from.1).abs());
+        let cost = if span > 1 { span as u32 * rules::FEET_PER_TILE } else { rules::step_cost(self.difficult_at(next) || self.area_difficult(next, who)) };
+        if span > 1 {
+            let name = self.who_name(who);
+            self.fight_log(format!("{name} {}", crate::lang::tr_ui("jumps across")));
+        }
         let disengaged = self.fight.as_ref().is_some_and(|c| c.turn.disengaged);
         // Leaving a foe's reach without Disengage: its opportunity attack (a reaction).
         if !disengaged {

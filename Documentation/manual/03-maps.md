@@ -292,7 +292,12 @@ Maps are flat, so height is built from three pieces (the SRD's movement rules):
   Characters keep off drops, and the click-to-walk path goes round them.
 - **Jumps:** running (Shift) at a drop, or walking 10 ft up to it, the hero leaps it when it is no
   wider than their Strength score in feet (half from standing): a hop over to the first free tile
-  past it, or one beside it. A wider gap is a fall.
+  past it, or one beside it. A wider gap is a fall. A **click** (left or right) on the far side of a
+  drop the hero can't walk round plans the jump too: the path runs three tiles straight at the gap
+  and over it, then on to the clicked spot; a gap too wide for the hero is "Can't get there."
+- **In fights** nobody steps into a drop, but walkers long-jump it as part of their move (the same
+  distances, a run-up of two tiles walked straight at it this turn), and a fight ends when no foe
+  can get at the party any more ([Gameplay › Fights](09-gameplay.md)).
 - **Fliers** (a stat block with a fly speed: bats, birds, dragons) cross drops, water and other low
   obstacles in fights; walls and tall props still stop them.
 

@@ -87,6 +87,19 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
     Caves holds a giant wolf spider (challenge 1/4) instead of a giant spider (challenge 1), and
     the bridge in the Wilds an ogre (challenge 2) instead of a troll (challenge 5).
   - **Still its own:** Grumbold the cave troll keeps his hand-made block.
+- **Fights at pits and cracks.** In the example's mine a giant rat could notice the hero in the
+  air over the crack before the rat nest; the fight then put the hero onto the crack, where no
+  move was allowed, and there was no way out. Now:
+  - **No fight starts mid-jump**, and nobody is placed on a drop's tile when one starts.
+  - **Long jumps in fights:** walkers leap a drop as part of their move (Strength score in feet
+    after two tiles walked straight at it this turn, half from standing; a foot of movement per
+    foot jumped). Monsters jump with their stat block's Strength.
+  - **Jumps by click:** a left or right click on the far side of a drop with no way round plans a
+    running jump: three tiles straight at the gap, over it, and on to the clicked spot (the locket
+    in the rat nest is a right-click away).
+  - **Getting away:** a fight ends at a new round when every foe is 15 tiles away from the party,
+    or when no foe can walk to it, fly or shoot ("Your foes can't reach you."). A monster across
+    a gap it can't cross doesn't start a fight.
 - **Animals show their side in thumbnails.** The editor's character thumbnails, the cards of
   the character editor and the Asset Library picture a model that is long from nose to tail (a
   wolf, a horse, a crocodile) from the side, fitted into the card, instead of from the front,

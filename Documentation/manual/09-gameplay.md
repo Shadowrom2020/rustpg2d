@@ -157,7 +157,16 @@ stays real-time ([Player's guide › Fighting](15-players-guide.md#fighting)).
 - **Fliers** (a fly speed in the stat block) cross pits, water and low obstacles in fights; walls
   and tall props still stop them. Those that end a fight over one land on the nearest walkable tile.
   The hero falls, jumps and climbs outside fights ([Maps › Climbing, jumping and
-  falling](03-maps.md#climbing-jumping-and-falling)); in a fight drops are closed to walkers.
+  falling](03-maps.md#climbing-jumping-and-falling)). In a fight walkers never step into a drop,
+  but they **long-jump** one as part of their move: up to their Strength score in feet when the
+  two tiles before the gap are walked straight at it this turn, half from standing, each foot
+  jumped costing a foot of movement (the move overlay shows the tile past the gap; the log says
+  "jumps across"). Monsters jump too, with their stat block's Strength.
+- **Getting away:** at the start of a new round the fight ends when every foe is 15 tiles or more
+  from the whole party ("You got away."), or when no foe can get at the party any more: none can
+  walk to it, fly or shoot ("Your foes can't reach you.": across a chasm too wide for them). A
+  monster that notices the hero across such a gap doesn't start a fight at all, and none starts
+  while the hero is in the air over one: it starts when they land.
 - **The AI's spells:** a party member with a casting class handed to the AI and a monster with
   *Spellcasting* in its stat block choose a spell before attacking: **healing** first when an ally
   in range (itself too) is down or below a third of its hit points (the strongest heal, at its

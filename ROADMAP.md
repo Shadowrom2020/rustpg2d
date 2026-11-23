@@ -254,6 +254,9 @@ the western RPGs (Baldur's Gate, Planescape: Torment).
     zones (diamond outlines), selection, regions, structures and the schedule editor; a
     *View › Top-down* toggle keeps a flat overview for painting large areas. The world map
     screen and the minimap stay top-down overviews.
+  - **Map edges:** filler props (`black_void`, `dungeon_void`) are flat, so a room's floor ends
+    in a straight diamond edge (upright, they made the zig-zag seen in the study); the map's
+    border fades into the background over about a tile, as the old games' areas did.
   - **Old projects:** nothing is converted on disk; their square-cornered pictures stand upright
     until a model replaces them. Library assets keep their ids, so *Update asset library* brings
     the new models; *Problems* lists props shown as pictures that look square-cornered (their
@@ -274,9 +277,26 @@ the western RPGs (Baldur's Gate, Planescape: Torment).
 
 - [ ] Isometric art with Meshy — `feature/iso-art-pilot`, `feature/iso-art`
 
-  **Goal.** The starter library's and the example's ground materials, buildings and props for
-  the isometric view, made with Meshy where it is strong, in one look with the kit's figures.
-  (The user's request, 2026-11-23.)
+  **Goal.** The starter library's and the example's ground materials, buildings, props and
+  nature for the isometric view, made with Meshy where it is strong. (The user's request,
+  2026-11-23.)
+
+  **The look** (the user's choice after the pilot, 2026-11-23): painted and more realistic, still a
+  bit retro, like the Infinity Engine games. Buildings and props are pre-rendered with light: a
+  sky and a high warm sun from the north-west, soft shadows cast on the ground and kept in the
+  picture, at twice the world's pixel density. Ground materials are painted textures; trees,
+  rocks and plants are painted pictures at the same angle and light; the kit's figures get
+  smoother shapes and painted textures (item *Painted figures* below).
+
+  **The pilot** (304 credits): the red cottage and the chapel, a market stall, well, anvil,
+  tavern table, bed and cart, and grass, cobblestone, wood floor and water. Concepts drawn from
+  a voxel blockout (angle, footprint, door side) and the old picture (materials) keep shape and
+  door; Meshy's models fit automatically (squared to the grid, the side facing south chosen by
+  comparing the outline with the concept). Learned: props sized by guessed footprints come out
+  small (the well), so props get a real size in metres against a 1.75 m character; Meshy's
+  textures carry their own light, so renders add light gently (no studio shading on top); the
+  outline can't tell a symmetric house's front from its back, so the colours are compared too;
+  the grass needs another try.
 
   **What Meshy makes, and what not** (the library's 247 props and 46 materials, counted
   2026-11-23):
@@ -285,21 +305,14 @@ the western RPGs (Baldur's Gate, Planescape: Torment).
   |---|---|---|---|
   | Buildings | 11 (11) | concept picture (2 tries) + image-to-3D | 4 + 4 + 30 = 38 |
   | Props with corners: stalls, furniture, workshops, carts, wells, statues, signs… | 70 (67) | concept picture + image-to-3D | 4 + 30 = 34 |
-  | Ground materials | 46 (30) | picture from the current texture, made seamless | 6 |
+  | Ground materials | 46 (30) | painted texture from the current one, made seamless, up to 256 px | 6 |
   | Modular pieces: walls, roofs, fences, doors, railings, stairs | 74 (48) | the figure kit, by script (they must line up on the grid exactly, Meshy's models don't) | 0 |
-  | Round or thin things: trees, rocks, plants, barrels, lamps, signposts | 82 (56) | stay pictures; redrawn only where a look check shows a clash | (4) |
+  | Round or thin things: trees, rocks, plants, barrels, lamps, signposts | 82 (56) | painted pictures: image-to-image from the current picture, at the isometric angle and light | 4 to 6 |
   | Variants (chairs, stools and beds per facing, trapped / locked chests) | 10 | turns and states of one model | 0 |
 
-  **Budget.** About 418 (buildings) + 2,380 (props) + 276 (materials) = 3,074 credits, plus
-  about 15 % for redraws: 3,500. The account has 2,780 (2026-11-23). So either the boxiest
-  furniture (tables, stools, benches, shelves, beds, crates: about 25) is built by the kit
-  instead (saves about 850), or more credits are bought; the user decides after the pilot.
-  Spending always asks first: every batch's cost is shown and confirmed.
-
-  **The pilot** (`feature/iso-art-pilot`, about 300 credits, asked before it starts): two
-  buildings (the red cottage and the chapel), six props (market stall, well, anvil, tavern
-  table, bed, cart), four materials (grass, cobblestone, wood floor, water). Rendered in the
-  game's isometric view next to kit figures; the user picks the style before the rest is made.
+  **Budget.** About 418 (buildings) + 2,380 (props) + 410 (nature) + 276 (materials) = 3,484
+  credits, plus about 15 % for redraws: 4,000. The account has 5,476 after the pilot
+  (2026-11-23). Spending always asks first: every batch's cost is shown and confirmed.
 
   **The pipeline** (`scripts/art/meshy/`, beside the character scripts; key and work folder as
   there):
@@ -312,10 +325,17 @@ the western RPGs (Baldur's Gate, Planescape: Torment).
     door in the middle of the front (south) wall, where the map's portal is.
   - **Model:** image-to-3D (`should_texture`, `should_remesh`; 3,000 triangles for props,
     8,000 for buildings, under the engine's 32k vertices per piece).
-  - **Fit** (Blender headless): scaled to the footprint and height, standing on 0, the front
-    turned south, the origin at the front edge's middle (the decoration's point), compacted.
-  - **Materials:** the picture made seamless (offset and blend), reduced to the material's
-    palette size, at twice today's resolution so the 45° turn stays clean.
+  - **Fit** (Blender headless): squared to the grid, the side facing south chosen by outline and
+    colours against the concept, scaled to its size in metres (buildings: to their footprint),
+    standing on 0, the origin at the front edge's middle (the decoration's point), compacted.
+  - **Render** (Blender Cycles, headless): the isometric camera, sky and sun, a ground that only
+    catches shadows, at 2 pixels per world pixel; the picture's anchor (where the decoration's
+    point lies) is written beside it. Props that turn get four pictures. The engine draws them
+    like any picture with an anchor, so the game needs no lighting of its own for them.
+  - **Materials:** painted, made seamless (cross-faded with a half-turned copy), 64 to 256 px so
+    the repeat isn't visible.
+  - **Nature:** image-to-image from the current picture with the rendered props as style
+    references (angle, light, shadow), background removed, anchored at the foot.
   - `gen.py`'s state file keeps every task id: a rerun never pays twice.
   - **Apply** through the editor's agent server (`write_asset`, `upsert_def` with the model,
     `library_send {replace: true}`), the starter history regenerated.
@@ -334,6 +354,33 @@ the western RPGs (Baldur's Gate, Planescape: Torment).
   **Verify.** Every model passes `model_check`; the example's maps screenshot isometric
   (village, forest, the tavern, the mine) and played through in autoplay; *Update asset
   library* on a scratch copy of an older library brings the new models.
+
+- [ ] Painted figures — `feature/painted-figures`
+
+  **Goal.** Characters that match the painted, lit world while keeping what the kit gives:
+  one shared skeleton and clips, swappable hair, beards, outfits and worn armour, the creator's
+  choices. (The user's choice, 2026-11-23: kit figures painted, not Meshy characters and not the
+  voxel look.)
+
+  **Design.**
+  - **Shapes:** the kit builds bodies and pieces as smooth low-poly meshes (lofted limbs, torso
+    and head shapes on the same joints) instead of voxel blocks; builds, slots and piece names
+    stay, so definitions, saves and the creator keep working.
+  - **Textures:** each body and piece gets UVs from the kit and a painted texture from Meshy's
+    retexture with the original UVs kept (a style prompt plus the pilot's renders as style
+    reference), so the texture fits the skinned mesh the kit wrote. Colour features keep working:
+    the recolour maps the texture's shades of a feature onto the chosen colour.
+  - **Light:** the character renderer lights figures like the pre-rendered props (sky, sun from
+    the north-west, soft shading, a soft shadow), at the isometric camera (30°, turned 45°).
+  - **Monsters:** the kit's creatures get the same treatment (smooth shapes, painted textures).
+
+  **Engine.** `render/model.rs` (textured lighting instead of the cel step, the shadow), the kit
+  scripts (`kitlib.py` smooth meshes and UVs, `figure.py`, `creatures.py`), a retexture step in
+  `scripts/art/meshy/`.
+
+  **Verify.** Kit tests (manifest, vertex limits); `model_sheet` contact sheets of every build
+  and piece; autoplay: the creator with hair and outfit choices, equipped armour shown, a fight;
+  screenshots next to the painted props.
 
 ## 0.36.0 — Learning
 

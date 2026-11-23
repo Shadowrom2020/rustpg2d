@@ -92,6 +92,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   starts; any part can be put back and swapped. The budget is the starting gold or the kit's
   price, whichever is more (most kits cost a little more than the average gold), so the kit
   always fits. Another class fills the cart with its own kit.
+- **Animals show their side in thumbnails.** The editor's character thumbnails, the cards of
+  the character editor and the Asset Library picture a model that is long from nose to tail (a
+  wolf, a horse, a crocodile) from the side, fitted into the card, instead of from the front,
+  where it was a head on legs. People, bats and spiders keep facing the viewer.
 - **Documentation:** the screenshots of the manual and the README that show figures were taken
   again with the kit's people and creatures (21 pictures).
 - **AI agent server:**

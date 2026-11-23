@@ -261,6 +261,8 @@ struct Loaded {
     fitted: Option<Box<Fitted>>,
     /// A piece's joints as nodes of the bodies it was worn on (by body id; [`Model::bind_to`]).
     binds: RefCell<HashMap<String, std::rc::Rc<Vec<Option<usize>>>>>,
+    /// Longer from nose to tail than it is wide ([`long_body`]): a still picture shows its side.
+    long: bool,
 }
 
 /// The pieces the figure of `look` shows on body model `body`, as model ids in slot order: the
@@ -655,6 +657,17 @@ impl Models {
         Appearance { model, ..a.clone() }
     }
 
+    /// The facing a still picture of a look shows best (thumbnails, cards): the side of a model
+    /// that is long from nose to tail (a wolf, a horse, a shark), else the front.
+    pub fn portrait_facing(&self, a: &Appearance) -> Facing {
+        let id = if self.has(&a.model) { &a.model } else { &a.body };
+        if self.loaded.get(id).is_some_and(|l| l.long) {
+            Facing::Left
+        } else {
+            Facing::Down
+        }
+    }
+
     /// A model's frame size in world pixels (as a figure's frame).
     pub fn frame_size(&self, id: &str) -> Option<(f32, f32)> {
         self.loaded.get(id).map(|l| (l.frame.0 as f32 / PX, l.frame.1 as f32 / PX))
@@ -974,6 +987,7 @@ impl Models {
                 Ok(m) => l.model = m,
                 Err(_) => return false,
             }
+            l.long = long_body(&l.model);
         }
         l.height = standing(def, &l.model);
         (l.frame, l.ppu, l.target_y) = layout(def, l.height);
@@ -1155,8 +1169,9 @@ fn load_one(def: &ModelDef, db: &Database, read: &dyn Fn(&str) -> std::io::Resul
     let hip = hip_bone(&model, &rest);
     let height = standing(def, &model);
     let (frame, ppu, target_y) = layout(def, height);
+    let long = long_body(&model);
     let texture = model.texture.clone();
-    Ok(Loaded { def: effective(def, fitted.as_deref()), model, texture, align, hands, back, hip, frame, height, ppu, target_y, textures: RefCell::new(HashMap::new()), fitted, binds: RefCell::new(HashMap::new()) })
+    Ok(Loaded { def: effective(def, fitted.as_deref()), model, texture, align, hands, back, hip, frame, height, ppu, target_y, textures: RefCell::new(HashMap::new()), fitted, binds: RefCell::new(HashMap::new()), long })
 }
 
 /// The standing figure's height in model units: [`ModelDef::stand`] when the file is only a
@@ -1167,6 +1182,14 @@ fn standing(def: &ModelDef, model: &Model) -> f32 {
     }
     let (lo, hi) = model.bounds();
     (hi.y - lo.y).max(1e-3)
+}
+
+/// Whether a model at rest is much longer from front to back than it is wide: an animal on four
+/// legs, a fish. (People, with their arms, are wider than deep; a spider is as wide as long.)
+fn long_body(model: &Model) -> bool {
+    let (lo, hi) = model.bounds();
+    let size = hi - lo;
+    size.z > size.x * 1.5 && size.z > size.y * 0.6
 }
 
 /// A model's frame (image pixels), pixels per model unit and camera target height: the standing
@@ -1651,6 +1674,18 @@ mod tests {
         let glb = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/model_two_bones.glb")).unwrap();
         let def = ModelDef { clips: vec![ClipMap { anim: "walk".into(), clip: "bend".into(), fps: 10.0, hit: None }], ..ModelDef::new("m", "models/m.glb") };
         load_one(&def, &Database::default(), &|_| Ok(glb.clone())).unwrap()
+    }
+
+    #[test]
+    fn a_long_body_is_pictured_from_the_side() {
+        // The fixture is a thin upright bar: pictured from the front, like a person.
+        let mut l = loaded();
+        assert!(!l.long);
+        // Laid along z it is a body long from nose to tail.
+        for v in l.model.vertices.iter_mut() {
+            v.pos = vec3(v.pos.x, v.pos.z, v.pos.y);
+        }
+        assert!(long_body(&l.model));
     }
 
     #[test]

@@ -115,6 +115,8 @@ style guide), not generated art: a new outfit, hat or townsperson is a change th
   its model, so the model's height is the height at size 100. A character of your own that uses
   the horse's model wants *Size* 150 like the library's horses.
 - Some monsters stand in for others of a similar shape (a hydra uses the wingless dragon).
+- In thumbnails and cards the editor pictures long animals (a wolf, a horse) from the side and
+  everything else from the front.
 
 ### Weapon animations
 

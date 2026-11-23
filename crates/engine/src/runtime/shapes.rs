@@ -9,6 +9,11 @@
 //! the old one (`RtEntity::shape`) until it ends. Shapes end with their time, the spell's
 //! concentration, 0 hit points, or (the hero's Wild Shape) using it again as a bonus action.
 //!
+//! **Change shape** (`Action::ChangeShape`, `change_shape()`): a character takes any character
+//! definition's shape until it is changed back (a lycanthrope's animal at night and in fights).
+//! With *keeps its hit points* the shapes share them (the SRD's shapechangers): dropping to 0 in
+//! the shape, it dies in its own.
+//!
 //! **Summons.** `SpellPart::Summon` puts creatures of a character definition next to the caster
 //! (`RtEntity::summon`), on its side: the party's are companions the AI plays (the orders menu
 //! works), joining a fight at once. They go with the spell's time or concentration, at 0 hit
@@ -31,6 +36,8 @@ pub(super) struct NpcShape {
     pub source: String,
     /// Seconds left (0 = until it ends otherwise).
     pub left: f32,
+    /// Its hit points go with it ([`Game::change_shape`]); else the old ones come back.
+    pub keep_hp: bool,
 }
 
 impl NpcShape {
@@ -64,6 +71,9 @@ pub(super) struct ShapePick {
 
 /// Seconds a game hour of a shape lasts (as a spell's: 600 rounds of 6 s).
 const HOUR: f32 = 3600.0;
+
+/// The source of shapes from *Change shape* (no spell: nothing ends them but changing back).
+pub(super) const CHANGED: &str = "change-shape";
 
 impl Game {
     // ------------------------------------------------------------------ the beasts
@@ -211,7 +221,7 @@ impl Game {
         new.summon = old.summon.clone();
         let name = self.display_name(i);
         let orig = std::mem::replace(&mut self.loaded.entities[i], new);
-        self.loaded.entities[i].shape = Some(Box::new(NpcShape { orig, source: source.to_string(), left: seconds }));
+        self.loaded.entities[i].shape = Some(Box::new(NpcShape { orig, source: source.to_string(), left: seconds, keep_hp: false }));
         self.occupy(i);
         let beast = self.project.db.character(form).map_or(form.to_string(), |c| crate::lang::tr(&c.name));
         self.shape_note(format!("{name} {} {beast}", tr_ui("takes the shape of")));
@@ -230,13 +240,45 @@ impl Game {
         orig.faction_set = cur.faction_set.clone();
         orig.companion = cur.companion.take();
         orig.effects = std::mem::take(&mut cur.effects);
-        orig.hp = (orig.hp - over.max(0)).max(0);
+        orig.hp = if s.keep_hp { cur.hp.clamp(0, orig.max_hp.max(1)) } else { (orig.hp - over.max(0)).max(0) };
         let pos = orig.body.pos;
         self.loaded.entities[i] = orig;
         self.occupy(i);
         let name = self.display_name(i);
         self.shape_note(format!("{name} {}", tr_ui("is back in its own shape")));
         self.shape_puff(pos);
+    }
+
+    /// *Change shape*: character `i` takes the shape of character definition `form`, or its own
+    /// again (`form` empty or its own definition); `keep_hp` = its hit points go with it.
+    pub(super) fn change_shape(&mut self, i: usize, form: &str, keep_hp: bool) {
+        let e = &self.loaded.entities[i];
+        let own = e.shape.as_ref().map_or(e.def.as_str(), |s| s.orig.def.as_str());
+        if form.is_empty() || form == own {
+            if e.shape.is_some() {
+                self.revert_npc(i, 0);
+            }
+            return;
+        }
+        if form == e.def {
+            return;
+        }
+        if self.project.db.character(form).is_none() {
+            eprintln!("[events] Change shape: no character '{form}'");
+            return;
+        }
+        if e.shape.is_some() {
+            self.revert_npc(i, 0);
+        }
+        let hp = self.loaded.entities[i].hp;
+        self.shape_npc(i, form, CHANGED, 0.0);
+        let e = &mut self.loaded.entities[i];
+        if let Some(s) = &mut e.shape {
+            s.keep_hp = keep_hp;
+            if keep_hp {
+                e.hp = hp.clamp(1, e.max_hp.max(1));
+            }
+        }
     }
 
     // ------------------------------------------------------------------ choosing

@@ -16,7 +16,7 @@ Triggers belong to an **owner**, and each owner receives only some events:
 |---|---|
 | a **map** (map settings, nothing selected) | *Map enter*, *Woke up*, *Time reached*, *Fight starts*, *Fight ends*, *Custom event* |
 | a **zone** (trigger area) | *Enter*, *Leave*, *Interact*, *Searched*, *Trap sprung*, *Trap disarmed* (trap zones), *Custom event* |
-| a **character** (placed, or its definition) | *Interact*, *Use item*, *Defeat*, *HP below %*, *Fight starts*, *Fight ends*, *Searched*, *Custom event* |
+| a **character** (placed, or its definition) | *Interact*, *Use item*, *Defeat*, *HP below %*, *Fight starts*, *Fight ends*, *Searched*, *Map enter*, *Time reached*, *Custom event* |
 | a **prop** (placed, or its definition) | *Interact*, *Use item*, *Unlocked*, *Locked*, *Woke up* (beds), *Searched*, *Defeated* (broken), *Trap sprung*, *Trap disarmed* (trapped props), *Custom event* |
 | an **item lying on a map** | *Interact*, *Use item*, *Custom event* |
 | an **item definition's** *On use* | *Use item* |
@@ -32,7 +32,7 @@ map) or in the Database (definitions).
 | **Interact** | The player presses E at the entity (in front of them), or inside the zone. Picking up an item lying on the map happens by itself on Interact. |
 | **Enter** / **Leave** | The player walks into / out of a trigger zone. |
 | **Use item** | The player uses an item (or a particular one) on the entity in front of them. If nothing reacts, the item's own *On use* triggers run. |
-| **Map enter** | The player arrives on the map. Not when a save game is loaded: loading resumes the game. |
+| **Map enter** | The player arrives on the map. Not when a save game is loaded: loading resumes the game. A character's own *Map enter* triggers (since 0.35) run in both cases, as the map is loaded with the character on it: what they change about it, such as its [shape](#shapes), isn't kept in save games. |
 | **Custom event** | An *Emit event* action or `emit("name")` with that name. It reaches the map, all zones and all active entities on the map. |
 | **Defeat** | The character's HP reached 0, or the prop (with object statistics) broke. |
 | **HP below %** | The character fell below that share of its HP and survived the hit. |
@@ -40,7 +40,7 @@ map) or in the Database (definitions).
 | **Woke up** | The player woke up after sleeping: the map's triggers (anywhere on it) and the bed's own. |
 | **Searched** | The player used *Search* on the [action bar](09-gameplay.md#the-action-bar): a Perception roll, then the *Searched* triggers of the zones they stand in and of the props and characters within 2 tiles. Pair it with *Search found* (the roll against a DC); "You find nothing." when none runs. *Since 0.32* |
 | **Trap sprung** / **Trap disarmed** | The [trap](09-gameplay.md#traps) of the zone or prop sprang on the hero (walked in, used, a disarming failed by 5 or more) / was disarmed (by the hero, or by *Disarm trap*). An alarm bell, guards coming, a hidden door opening once the plate is safe. *Since 0.32* |
-| **Time reached** | The clock reached that hour (12.0 = noon, 5.5 = 5:30) while the player is on the map, every day; also when time jumps past it by sleeping or *Set time*. |
+| **Time reached** | The clock reached that hour (12.0 = noon, 5.5 = 5:30) while the player is on the map, every day; also when time jumps past it by sleeping or *Set time*. The map's triggers, and since 0.35 those of the characters on it (a lycanthrope at dusk). |
 | **Fight starts** / **Fight ends** | A [turn-based fight](09-gameplay.md#health-and-combat) started on the map / is over (won or fled; not when lost: the *defeated* menu comes). The map's triggers, and a character's own when it takes part (a boss's words when its fight starts; one that joins later fires *Fight starts* as it joins). |
 
 ## Conditions
@@ -123,6 +123,8 @@ across map changes and in save games.
 - **Equip item**, **Unequip slot**, **Give item to character**, **Take item from character**.
 - **Patrol**, **Schedule** (follow / stop), **Companion** (joins / leaves), **Companion order**,
   **Open companion window**.
+- **Change shape**: a character takes another character definition's shape, or its own again (a
+  lycanthrope's animal; [below](#shapes)). *Since 0.35*
 - **Rush to (fighters)**: a character with *Chase* behaviour runs to where another character (or
   the player) is, following them for 15 seconds, and fights whoever it sees on the way. In the
   example the bandit chief's *Lads, to me!* brings his two men out of the trees to him.
@@ -339,6 +341,24 @@ quests too, and their step actions and rewards run whichever way a quest moves o
 
 A merchant whose *Talking opens the shop* is off: *Interact*: *Dialog* "Welcome!", *Choice* "Buy
 something?" (Yes / No) into `shop`, *If* `shop` = 0: *Open shop* `self`.
+
+### Shapes
+
+**Change shape** gives a character on the map (`self` = the trigger's character, or
+its name) the shape of a character definition until it is changed back: a new look, stat block,
+speed, attacks and triggers (the shape's definition's), the same name, side and conditions. An empty
+shape brings back its own. With **keeps its hit points** (the default) the hit points go with it
+into the shape and back, as with the SRD's shapechangers; dying in the shape, it dies in its own (its
+loot and *Defeat* triggers are its own definition's). Without it the shape has its own hit points
+and the old ones come back with its own shape, as with *Polymorph*. Shapes aren't kept in save games:
+a map loaded again shows everyone in their own shape, and their *Map enter* triggers set the shape
+again. `change_shape()` and `own_shape()` in scripts. *Since 0.35*
+
+The starter library's **lycanthropes** carry it as content: the werewolf, wererat, werebear,
+wereboar and weretiger each have a human form that turns into its animal form at dusk (*Time
+reached* 20:00), when the map is entered at night (*Map enter* with *Time of day* 20 to 6) and when
+a fight starts (*Fight starts*); the animal form turns back at dawn (*Time reached* 6:00) and when a
+fight ends by day. Place the human form; adding it from the library brings the animal form along.
 
 ### Emotions over heads
 

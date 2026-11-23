@@ -58,6 +58,9 @@ built into the engine; the editor shows them as hover texts.
   as Pack Tactics or Regeneration are texts until 0.32. Large and bigger creatures take one tile.
   Characters without a stat block fight with one made from their old values (AC 10 + *Defense*,
   their *Max HP*, +2 to hit with their weapon or *Damage*).
+- **Lycanthropes** have two forms in the starter library, human and animal (the hybrid forms were
+  retired in 0.35): they change by themselves at dusk and dawn and when a fight starts or ends
+  ([Events › Shapes](07-events.md#shapes)), not by spending an action.
 - **Encounter budgets** are the engine's own formula: the SRD 5.1 has no encounter tables.
 - **Difficult terrain** comes from materials only (not yet from decorations); weapons with the
   *Reach* property reach 10 ft.

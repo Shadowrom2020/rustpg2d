@@ -584,6 +584,8 @@ impl Renamer<'_> {
             Action::Cutscene { function } if self.found.is_none() => self.fix(RefKind::Cutscene, function),
             Action::ExposeDisease { disease, .. } | Action::CureDisease { disease } => self.fix(RefKind::Disease, disease),
             Action::SetClass { class, .. } => self.fix(RefKind::Class, class),
+            // (A dependency: a lycanthrope's library entry carries its animal.)
+            Action::ChangeShape { form, .. } => self.fix(RefKind::Character, form),
             Action::Fly { sprite, .. } => self.fix(RefKind::Sheet, &mut sprite.sheet),
             Action::Effect { sprite, .. } => self.sheet_or_animation(&mut sprite.sheet),
             Action::ShowImage { sheet, .. } | Action::ShowPicture { sheet, .. } => self.fix(RefKind::Sheet, sheet),

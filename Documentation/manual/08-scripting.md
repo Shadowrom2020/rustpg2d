@@ -893,6 +893,9 @@ tool (`"dex:thieves-tools"`, `"int:smiths-tools"`).
 | `check(what, dc, mode)` | Like `check`; mode `"advantage"` or `"disadvantage"` rolls two d20s and keeps the higher or the lower. *(immediately, since 0.28)* |
 | `trap_state(name)` | The state of the trap of the zone or prop of that name on this map: `"armed"`, `"found"` (noticed, still armed), `"disarmed"`, `"sprung"`; `""` without such a trap. *(since 0.32)* |
 | `disarm_trap(name)` | Disarms the trap of the zone or prop of that name on this map (a lever, a hidden switch): it no longer springs. *(since 0.32)* |
+| `change_shape(who, form)` | The character `who` (its name or `"self"`) takes the shape of the character definition `form` and keeps its hit points ([Events › Shapes](07-events.md#shapes)): a lycanthrope's animal. `""` as the form brings back its own. *(queued, since 0.35)* |
+| `change_shape(who, form, keep_hp)` | Like `change_shape`; `keep_hp` false gives the shape its own hit points and brings the old ones back with its own shape, as *Polymorph* does. *(queued, since 0.35)* |
+| `own_shape(who)` | The character `who` in another shape is itself again. *(queued, since 0.35)* |
 | `poison(target, item)` | Exposes the hero (`"player"`), the script's owner (`"self"`) or a character to the poison of an item: its Constitution save, then its damage and conditions ([Gameplay › Poisons](09-gameplay.md#poisons)). A drugged ale, a gas trap. *(since 0.32)* |
 | `infect(disease)` | Exposes the hero to a disease (*Database › Diseases*): its saving throw, then its onset ([Gameplay › Diseases](09-gameplay.md#diseases)). A dirty well, a sick villager's cough. *(since 0.32)* |
 | `cure_disease(disease)` | Ends the hero's disease (`""` = every disease); its exhaustion stays for rests to take away. A healer, a remedy. *(since 0.32)* |

@@ -3,6 +3,22 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## Unreleased
+
+### Lycanthropes with two forms
+- **Change shape** (new action; `change_shape()` and `own_shape()` in scripts): a character takes
+  the shape of another character definition until it is changed back, by default keeping its hit
+  points (the SRD's shapechangers); dying in the shape, it dies in its own. Without that it works
+  like *Polymorph*: the shape has its own hit points and the old ones come back.
+- **Characters hear the clock**: *Time reached* and *Map enter* now also reach a character's own
+  triggers (placed or its definition). A character's *Map enter* triggers also run when a save game
+  is loaded, since what they do to it (a shape) isn't saved.
+- **The starter library's lycanthropes** (werewolf, wererat, werebear, wereboar, weretiger) turn
+  into their animal form at dusk, on a map entered at night and when a fight starts, and back at
+  dawn and when a fight ends by day. Adding the human form from the library brings the animal form
+  along. Their hybrid forms and figures are retired (two forms only).
+- The script API is now version 0.35 (plugins can ask for it).
+
 ## 0.34.0-alpha.1 — 2026-11-23
 
 A **pre-release (alpha)**: *Studio Comfort* (cut-scene timelines, the Database table view, test-play

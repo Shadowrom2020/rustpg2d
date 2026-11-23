@@ -108,11 +108,6 @@ CAST.update({
     "scout": cast("Scout", "heroine", "leather_armor", "ponytail", cloak=True, hair_=BROWN, clothing=GREEN),
     "tribal_warrior": cast("Tribal warrior", "hero", "loincloth", "long", hair_=BLACK, skin="#b5794c"),
     "lycanthrope": cast("Lycanthrope", "hero", "rags", "long", "short", hair_=DARK),
-    "werewolf": cast("Werewolf", "orc", "loincloth", "long", hair_="#4a4642", skin="#6a6660"),
-    "wererat": cast("Wererat", "goblin", "rags", skin="#7a6a5a", scale=1.25),
-    "werebear": cast("Werebear", "troll", "loincloth", skin="#6b4630", scale=1.15),
-    "wereboar": cast("Wereboar", "orc", "loincloth", "mohawk", hair_=BLACK, skin="#6a4a3a"),
-    "weretiger": cast("Weretiger", "orc_f", "loincloth", "long", hair_="#2a2224", skin="#d98a3a"),
     "vampire": cast("Vampire", "hero", "doublet", "short", cloak=True, hair_=BLACK, skin=PALE_SKIN, clothing="#5a1a22"),
     "vampire_spawn": cast("Vampire spawn", "heroine", "rags", "long", hair_=BLACK, skin=PALE_SKIN),
     "wight": cast("Wight", "hero", "chain_mail", "long", hair_=WHITE, skin="#9aa8a4"),
@@ -184,8 +179,8 @@ CAST.update({
 })
 _MONSTER_CAST = {
     "assassin": "assassin", "berserker": "berserker", "druid": "druid", "gladiator": "gladiator", "scout": "scout", "tribal_warrior": "tribal-warrior",
-    "lycanthrope": "werewolf-human wererat-human werebear-human wereboar-human weretiger-human", "werewolf": "werewolf-hybrid", "wererat": "wererat-hybrid", "werebear": "werebear-hybrid",
-    "wereboar": "wereboar-hybrid", "weretiger": "weretiger-hybrid", "vampire": "vampire-vampire", "vampire_spawn": "vampire-spawn", "wight": "wight", "mummy": "mummy", "mummy_lord": "mummy-lord",
+    "lycanthrope": "werewolf-human wererat-human werebear-human wereboar-human weretiger-human",
+    "vampire": "vampire-vampire", "vampire_spawn": "vampire-spawn", "wight": "wight", "mummy": "mummy", "mummy_lord": "mummy-lord",
     "lich": "lich", "doppelganger": "doppelganger", "medusa": "medusa", "green_hag": "green-hag", "night_hag": "night-hag", "sea_hag": "sea-hag", "dryad": "dryad", "harpy": "harpy", "deva": "deva",
     "planetar": "planetar", "solar": "solar", "erinyes": "erinyes", "succubus": "succubus-incubus", "satyr": "satyr", "rakshasa": "rakshasa", "oni": "oni", "minotaur": "minotaur",
     "gargoyle": "gargoyle", "quasit": "quasit", "imp_winged": "imp", "homunculus": "homunculus", "sprite": "sprite", "dretch": "dretch", "bearded_devil": "bearded-devil",
@@ -205,8 +200,10 @@ ITEM_WEAR = dict(guard_uniform="tabard", outfit_guard="tabard", baker_whites="ap
                  villager_dress="dress", farm_dress="dress", innkeeper_dress="dress", merchant_dress="dress", outfit_merchant_f="dress", outfit_elder_f="dress", outfit_noble="dress",
                  goblin_rags="rags", outfit_goblin_f="rags", elder_garb="robe", outfit_wizard="robe", outfit_wizard_f="robe", outfit_nomad="robe", outfit_nomad_f="robe",
                  crier_coat="doublet", outfit_merchant="doublet", outfit_noble_m="doublet", outfit_bandit="leather_armor", outfit_bandit_f="leather_armor")
-# Models and characters of the library the kit replaced without a figure of the same id.
-RETIRED = ["hero_realistic", "elf_realistic", "elf_f_realistic"]
+# Models and characters of the library the kit replaced without a figure of the same id; the
+# lycanthropes' hybrid forms and their figures went in 0.35 (two forms: human and animal).
+RETIRED = ["hero_realistic", "elf_realistic", "elf_f_realistic", "werewolf-hybrid", "wererat-hybrid", "werebear-hybrid", "wereboar-hybrid", "weretiger-hybrid",
+           "werewolf", "wererat", "werebear", "wereboar", "weretiger"]
 # The animations of every figure: (animation, clip of rig/human.glb, frames per second).
 CLIPS = [("walk", "Walking", 12), ("idle", "Idle_3", 8), ("hurt", "Hit_Reaction", 12), ("sit", "Chair_Sit_Idle_M", 8), ("attack", "Right_Hand_Sword_Slash", 12), ("sneak", "Sneaky_Walk", 12),
          ("craft", "Heavy_Hammer_Swing", 12), ("chop", "Axe_Breathe_and_Look_Around", 12), ("attack_1h", "Right_Hand_Sword_Slash", 12), ("attack_2h", "Heavy_Hammer_Swing", 12),

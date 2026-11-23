@@ -11,7 +11,7 @@ use crate::script_refs::IdKind;
 
 /// The script API's version: the engine's MAJOR.MINOR. Plugins name the version they need
 /// (`PluginDef::api`); a plugin needing a newer one isn't loaded.
-pub const API_VERSION: &str = "0.32";
+pub const API_VERSION: &str = "0.35";
 
 /// What a function argument expects (drives completion inside string arguments).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -204,6 +204,9 @@ pub const API: &[ApiFn] = api! {
     [since "0.32"] "infect"(disease: Disease) "Exposes the hero to a disease (Database › Diseases): its saving throw, then its onset (queued)";
     [since "0.32"] "cure_disease"(disease: Disease) "Ends the hero's disease (\"\" = every disease); its exhaustion stays (queued)";
     [since "0.32"] "has_disease"(disease: Disease) "Whether the hero has the disease, incubating or sick (\"\" = any) (immediately)";
+    [since "0.35"] "change_shape"(who: Target, form: Character) "A character (its name or \"self\") takes the shape of a character definition (a lycanthrope's animal) and keeps its hit points; change_shape(who, \"\") or own_shape(who) changes it back (queued)";
+    [since "0.35"] "change_shape"(who: Target, form: Character, keep_hp: Bool) "Like change_shape(); keep_hp false gives the shape its own hit points and the old ones back with its own shape, as Polymorph (queued)";
+    [since "0.35"] "own_shape"(who: Target) "A character (its name or \"self\") in another shape is itself again (queued)";
     [since "0.32"] "poison"(target: Target, item: Item) "Exposes the hero (\"player\") or a character to the poison of an item (the SRD's poisons): its Constitution save, damage and conditions (a drugged ale, a gas trap) (queued)";
     [since "0.32"] "prop_hp"(target: Target) "A prop's hit points as an object (its name or \"self\"; -1 without object statistics)";
     [since "0.32"] "damage_prop"(target: Target, amount: Num) "Damages a prop with object statistics past its threshold; at 0 hit points it breaks (queued)";
@@ -559,6 +562,7 @@ mod tests {
             ("item_charges", 0, IdKind::Item),
             ("set_item_charges", 0, IdKind::Item),
             ("poison", 1, IdKind::Item),
+            ("change_shape", 1, IdKind::Character),
             ("infect", 0, IdKind::Disease),
             ("cure_disease", 0, IdKind::Disease),
             ("has_disease", 0, IdKind::Disease),

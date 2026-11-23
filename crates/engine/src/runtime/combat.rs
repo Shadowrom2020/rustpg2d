@@ -623,6 +623,11 @@ impl Game {
     }
 
     fn defeat_how(&mut self, i: usize, xp: bool, bestiary: bool, knocked: bool) {
+        // A shapechanger (*Change shape* keeping its hit points) dies in its own shape: its
+        // experience, loot and *Defeat* triggers are its own.
+        if self.loaded.entities[i].shape.as_ref().is_some_and(|s| s.keep_hp) {
+            self.revert_npc(i, 0);
+        }
         if self.loaded.entities[i].companion.is_some() {
             // Companions aren't defeated: they fall (and wait to be healed), or go home.
             self.knock_down(i);

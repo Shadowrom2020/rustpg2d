@@ -1299,6 +1299,10 @@ impl Game {
         } else {
             self.pending_events.push((GameEvent::MapEnter, Source::Map));
         }
+        // A character's own *Map enter* triggers run also when a save is loaded: what they do to
+        // it (a lycanthrope's shape at night) isn't part of the save.
+        let entering: Vec<u32> = (0..self.loaded.entities.len()).filter(|&i| self.loaded.entities[i].active && self.listens(i, |t| matches!(t, crate::events::TriggerOn::MapEnter))).map(|i| self.loaded.entities[i].uid).collect();
+        self.pending_events.extend(entering.into_iter().map(|uid| (GameEvent::MapEnter, Source::Entity(uid))));
         if self.hooked("map_enter") {
             let name = self.loaded.map.name.clone();
             self.hook("map_enter", crate::hooks::map([("map", name.into()), ("from", from.into())]));
@@ -1744,10 +1748,25 @@ impl Game {
     fn check_clock(&mut self) {
         let now = self.world.day as f64 * 24.0 + self.world.hour as f64;
         let Some(prev) = self.clock_seen.replace(now) else { return };
-        if now <= prev || now - prev >= 24.0 || !self.loaded.map.triggers.iter().any(|t| matches!(t.on, crate::events::TriggerOn::Hour { .. })) {
+        let hour = |t: &crate::events::TriggerOn| matches!(t, crate::events::TriggerOn::Hour { .. });
+        let characters: Vec<u32> = (0..self.loaded.entities.len()).filter(|&i| self.loaded.entities[i].active && self.listens(i, hour)).map(|i| self.loaded.entities[i].uid).collect();
+        if now <= prev || now - prev >= 24.0 || (characters.is_empty() && !self.loaded.map.triggers.iter().any(|t| hour(&t.on))) {
             return;
         }
-        self.fire(GameEvent::Hour { from: prev.rem_euclid(24.0) as f32, to: self.world.hour }, Source::Map);
+        let ev = GameEvent::Hour { from: prev.rem_euclid(24.0) as f32, to: self.world.hour };
+        self.fire(ev.clone(), Source::Map);
+        // (And the characters' own: a lycanthrope at dusk.)
+        for uid in characters {
+            self.fire(ev.clone(), Source::Entity(uid));
+        }
+    }
+
+    /// Whether entity `i` has a trigger (its definition's or its own placed one's) on an event
+    /// `on` matches.
+    fn listens(&self, i: usize, on: impl Fn(&crate::events::TriggerOn) -> bool) -> bool {
+        let e = &self.loaded.entities[i];
+        let placed = self.loaded.map.entities.iter().find(|p| p.uid == e.uid).map_or(&[][..], |p| p.triggers.as_slice());
+        self.project.db.def_triggers(e.kind, &e.def).iter().chain(placed).any(|t| on(&t.on))
     }
 
     fn fire(&mut self, ev: GameEvent, source: Source) -> bool {
@@ -4079,6 +4098,13 @@ impl ActionHost for Game {
             }
             Action::Poison { target, item } => {
                 self.poison_named(target, ctx.owner, item);
+                Step::Continue
+            }
+            Action::ChangeShape { who, form, keep_hp } => {
+                match self.entity_index(who, ctx.owner).filter(|&i| self.loaded.entities[i].kind == EntityKind::Character) {
+                    Some(i) => self.change_shape(i, form, *keep_hp),
+                    None => eprintln!("[events] Change shape: no character '{who}' here"),
+                }
                 Step::Continue
             }
             Action::ExposeDisease { disease, save } => {

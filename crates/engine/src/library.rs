@@ -227,6 +227,18 @@ pub fn script_roots(db: &Database, a: &AssetRef) -> Vec<String> {
         RefKind::Prop => triggers(db.prop(id).map_or(&[][..], |d| &d.triggers), &mut out),
         RefKind::Character => triggers(db.character(id).map_or(&[][..], |d| &d.triggers), &mut out),
         RefKind::CommonEvent => actions(db.common_event(id).map_or(&[][..], |d| &d.actions), &mut out),
+        // (The text script functions its call nodes call; visual scripts are assets of their own.)
+        RefKind::VisualScript => {
+            if let Some(v) = db.visual_scripts.iter().find(|v| v.id == id) {
+                for n in &v.nodes {
+                    if let crate::visual::NodeKind::Call { function, .. } = &n.kind {
+                        if !crate::script_api::API.iter().any(|f| f.name == function.as_str()) && !db.visual_scripts.iter().any(|w| &w.id == function) {
+                            out.push(function.clone());
+                        }
+                    }
+                }
+            }
+        }
         _ => {}
     }
     out.retain(|f| !f.is_empty());
@@ -237,7 +249,9 @@ pub fn script_roots(db: &Database, a: &AssetRef) -> Vec<String> {
 
 /// The functions of every `*.rhai` file in `<root>/scripts` (files in name order).
 pub fn read_scripts(root: &Path) -> Vec<ScriptFn> {
-    crate::project::script_files_in(&root.join("scripts")).iter().filter_map(|f| std::fs::read_to_string(f).ok()).flat_map(|src| crate::script_refs::functions(&src)).collect()
+    // (Not the visual scripts' Rhai: they travel as visual scripts and are written where they land.)
+    let generated = root.join(crate::visual::FILE);
+    crate::project::script_files_in(&root.join("scripts")).iter().filter(|f| **f != generated).filter_map(|f| std::fs::read_to_string(f).ok()).flat_map(|src| crate::script_refs::functions(&src)).collect()
 }
 
 /// Assets that script functions refer to by id (sprite sheets, sounds, items, skills, spells).
@@ -340,20 +354,28 @@ impl Bundle {
     /// triggers travel.
     pub fn collect_for_library(db: &Database, root: &Path, tile_size: u32, name: &str, wanted: &[AssetRef], drop_script_triggers: bool) -> Result<Bundle> {
         let fns = read_scripts(root);
-        let collect = |fns: &[ScriptFn]| -> Result<Bundle> {
+        let collect_wanted = |wanted: &[AssetRef], fns: &[ScriptFn]| -> Result<Bundle> {
             let mut b = Self::collect_with_scripts(db, root, tile_size, name, wanted, fns)?;
             if drop_script_triggers {
                 b.drop_script_triggers();
             }
             Ok(b)
         };
+        let collect = |fns: &[ScriptFn]| collect_wanted(wanted, fns);
         let mut b = collect(&[])?;
+        let mut wanted = wanted.to_vec();
         // Functions bring assets, whose own scripts may need more functions: repeat until stable.
         loop {
             let roots: Vec<String> = all_assets(&b.db).iter().flat_map(|a| script_roots(&b.db, a)).collect();
+            // A visual script a trigger runs comes along as an asset.
+            for r in &roots {
+                if db.visual_scripts.iter().any(|v| &v.id == r) && !wanted.iter().any(|w| w.0 == RefKind::VisualScript && &w.1 == r) {
+                    wanted.push((RefKind::VisualScript, r.clone()));
+                }
+            }
             let needed = crate::script_refs::needed_functions(&fns, &roots);
             let chosen: Vec<ScriptFn> = fns.iter().filter(|f| needed.contains(&f.name)).cloned().collect();
-            let next = collect(&chosen)?;
+            let next = collect_wanted(&wanted, &chosen)?;
             let done = all_assets(&next.db).len() == all_assets(&b.db).len() && next.scripts.len() == b.scripts.len();
             b = next;
             if done {
@@ -1147,6 +1169,29 @@ mod tests {
         let mut img = Rgba::new(w, h);
         img.px.as_chunks_mut::<4>().0.iter_mut().for_each(|p| *p = c);
         img.encode().unwrap()
+    }
+
+    /// A character whose trigger runs a visual script brings the visual script along (not its
+    /// generated Rhai), and the visual script brings the text function its call node calls.
+    #[test]
+    fn visual_scripts_travel_as_assets() {
+        use crate::visual::{Link, Node, NodeKind, VisualScript};
+        let root = tmp("visual");
+        std::fs::create_dir_all(root.join("scripts")).unwrap();
+        std::fs::write(root.join("scripts/main.rhai"), "fn helper() {\n    say(\"hi\");\n}\n").unwrap();
+        let mut vs = VisualScript::fresh("greet");
+        vs.nodes.push(Node { id: 2, kind: NodeKind::Call { function: "helper".into(), arity: 0 }, pos: [0.0, 0.0], values: Default::default() });
+        vs.links.push(Link { from: 1, out: "out".into(), to: 2, input: "in".into() });
+        let trigger = crate::events::Trigger { on: crate::events::TriggerOn::Interact, conditions: vec![], actions: vec![crate::events::Action::RunScript { function: "greet".into() }], once: false };
+        let c = crate::defs::CharacterDef { triggers: vec![trigger], ..crate::defs::CharacterDef::fresh("greeter") };
+        let db = Database { characters: vec![c], visual_scripts: vec![vs], ..Default::default() };
+        let p = crate::project::Project { root: root.clone(), config: crate::project::ProjectConfig::new("T"), db: db.clone() };
+        p.save_config().unwrap();
+        p.save_defs().unwrap();
+        assert!(root.join(crate::visual::FILE).exists());
+        let b = Bundle::collect_for_library(&db, &root, 32, "", &[(RefKind::Character, "greeter".into())], false).unwrap();
+        assert!(b.db.visual_scripts.iter().any(|v| v.id == "greet"), "the visual script comes along");
+        assert!(b.scripts.contains_key("helper") && !b.scripts.contains_key("greet"), "its text function, not its Rhai: {:?}", b.scripts.keys().collect::<Vec<_>>());
     }
 
     /// A source project: an "arrows" item, a "bow" using them, both on sheet "items".

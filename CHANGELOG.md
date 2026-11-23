@@ -22,6 +22,13 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   offered for items, sounds, maps…); the selected node's help, the problems and the generated Rhai
   on the right. *Convert to text script* hands a function over to a text script. Undo, *Problems*
   and quick search (Ctrl+P) know visual scripts. New manual chapter: *Visual scripts*.
+- **Node groups**: select nodes and *Group into a function* (Ctrl+G): they become a new visual
+  script, called in their place; values linked in become its parameters, one value used outside its
+  result. *Open* (or a double-click) goes into it. Ctrl+C / Ctrl+V / Ctrl+D copy, paste and
+  duplicate nodes.
+- **The example's visual scripts**: Brother Ansel's daily blessing and the giant rats' count are
+  built from nodes now (also in the starter library). Visual scripts travel through the asset
+  library as assets: a character whose trigger runs one brings it along.
 - **The script API table says what each function gives back** (`-> Bool`, `=> Num` for those that
   also act), checked against Rhai's own signatures by a test.
 

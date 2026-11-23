@@ -49,6 +49,25 @@ project's ids as you type, like the script editor does.
 **Moving and deleting.** Drag a node by its title. Ctrl+click selects more nodes, and dragging one
 of them moves them all. Delete removes the selected nodes and their links (*Start* stays).
 
+**Copy and paste.** Ctrl+C copies the selected nodes with the links between them, Ctrl+V pastes
+them at the mouse (also into another visual script), Ctrl+D duplicates them.
+
+## Groups: new functions from nodes
+
+When part of a visual script does one job (works out a reward, checks a few things), turn it into
+a function of its own: select its nodes and press **Group into a function** (right side, or
+Ctrl+G). The nodes move into a new visual script, and a single node calling it takes their place:
+
+- values linked into the group from outside become its **parameters**: the call node gets an input
+  for each, still linked as before;
+- the flow that ran into the group starts it, and the flow that left it goes on after the call;
+- one value used outside the group becomes its **result** (a *Return* gives it back).
+
+A group has one flow in and one flow out, and at most one value going out; otherwise the editor
+says why it can't group them. Rename the new script (*Name*, *Function*) and use it like any
+other: it is in the palette under *Visual scripts*, in every script, triggers and hooks.
+**Open** on a call node (or a double-click on its title) shows the visual script it calls.
+
 ## Kinds of nodes
 
 - **Script functions.** A function that *does* something (`say`, `give_item`, `set_flag`) is a
@@ -100,6 +119,14 @@ Ctrl+Z and Ctrl+Y undo and redo changes to visual scripts like any definition ch
 **Convert to text script…** moves a visual script into a text script for good
 (`scripts/<function name>.rhai`) and removes its nodes, for when you want to go on in code. Visual
 scripts turn into code, never the other way round.
+
+## In the example
+
+Two of Emberbrook's functions are visual scripts (*Nodes* tab): **Brother Ansel's blessing**
+(`ansel_blessing`: once a day the priest heals a hurt hero with *Cure Wounds*) and **A giant rat
+defeated** (`rat_defeated`: counts the rats, and for Tilda's quest once it was accepted). The
+first shows *If* with *Return*, comparisons and a variable kept per day; the second a *Sequence*
+running three steps, *And*, and a quest's stage.
 
 ## An example: a door that opens with a strength check
 

@@ -516,6 +516,13 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.nodes.palette = Some(nodes::Palette { search: cmd[1..].join(" "), ..Default::default() });
         }
         "vscode" => println!("[nodes]\n{}", ed.nodes_code()),
+        // vsselect N N…: the selected nodes · vsgroup (prints the new script or why not) · vscopy ·
+        // vspaste [X Y] · vsopen ID
+        "vsselect" => ed.nodes.selected = cmd[1..].iter().filter_map(|w| w.parse().ok()).collect(),
+        "vsgroup" => println!("[nodes] group: {:?}", ed.nodes_group()),
+        "vscopy" => ed.nodes_copy(),
+        "vspaste" => ed.nodes_paste((cmd.len() > 2).then(|| egui_macroquad::egui::pos2(num(1), num(2)))),
+        "vsopen" => ed.nodes_open(arg(1)),
         // Clean up unused files: cleanup (Assets menu: opens it, prints the list) · cleanuplist ·
         // cleanuppick KIND:ID|file:PATH on|off · cleanupok (delete ticked) · cleanupkeep (keep all) · cleanupcancel
         "cleanup" => {

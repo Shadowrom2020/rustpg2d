@@ -818,6 +818,130 @@ pub fn rhai_file(scripts: &[VisualScript], text_fns: Vec<(String, usize)>) -> St
     out
 }
 
+/// Groups nodes `sel` of `vs` into a new visual script `id` and calls it in their place: links
+/// coming in become its parameters, one flow in starts it, one flow out goes on after the call,
+/// one value going out is its result. Returns the new script; `vs` gets the call node. Err says
+/// why not (Start or Return chosen, several flows in or out, several values out).
+pub fn group(vs: &mut VisualScript, sel: &BTreeSet<u32>, id: &str, cat: &Catalog) -> Result<VisualScript, String> {
+    let chosen: Vec<Node> = vs.nodes.iter().filter(|n| sel.contains(&n.id)).cloned().collect();
+    if chosen.is_empty() {
+        return Err("select the nodes to group first".into());
+    }
+    if chosen.iter().any(|n| matches!(n.kind, NodeKind::Start | NodeKind::Return)) {
+        return Err("Start and Return can't go into a group".into());
+    }
+    let kind_of_out = |vs: &VisualScript, node: u32, pin: &str| vs.node(node).and_then(|n| cat.pins(vs, n).outputs.into_iter().find(|p| p.name == pin)).map_or(PinType::Any, |p| p.kind);
+    let kind_of_in = |vs: &VisualScript, node: u32, pin: &str| vs.node(node).and_then(|n| cat.pins(vs, n).inputs.into_iter().find(|p| p.name == pin)).map_or(PinType::Any, |p| p.kind);
+    let inside = |l: &Link| sel.contains(&l.from) && sel.contains(&l.to);
+    let incoming: Vec<Link> = vs.links.iter().filter(|l| !sel.contains(&l.from) && sel.contains(&l.to)).cloned().collect();
+    let outgoing: Vec<Link> = vs.links.iter().filter(|l| sel.contains(&l.from) && !sel.contains(&l.to)).cloned().collect();
+    let (flow_in, value_in): (Vec<Link>, Vec<Link>) = incoming.into_iter().partition(|l| kind_of_in(vs, l.to, &l.input) == PinType::Flow);
+    let (flow_out, value_out): (Vec<Link>, Vec<Link>) = outgoing.into_iter().partition(|l| kind_of_out(vs, l.from, &l.out) == PinType::Flow);
+    let entries: BTreeSet<(u32, String)> = flow_in.iter().map(|l| (l.to, l.input.clone())).collect();
+    let exits: BTreeSet<(u32, String)> = flow_out.iter().map(|l| (l.from, l.out.clone())).collect();
+    let results: BTreeSet<(u32, String)> = value_out.iter().map(|l| (l.from, l.out.clone())).collect();
+    if entries.len() > 1 || exits.len() > 1 {
+        return Err("a group has one flow in and one flow out: choose nodes the flow runs through in one line".into());
+    }
+    if results.len() > 1 {
+        return Err("a group gives back one value: only one of its outputs may be used outside".into());
+    }
+    // Where its flow starts: the flow coming in, else the one step nothing inside leads to.
+    let has_flow_in = |n: &Node| cat.pins(vs, n).inputs.iter().any(|p| p.kind == PinType::Flow);
+    let entry = match entries.iter().next() {
+        Some((n, _)) => Some(*n),
+        None => {
+            let heads: Vec<u32> = chosen.iter().filter(|n| has_flow_in(n) && !vs.links.iter().any(|l| l.to == n.id && inside(l) && kind_of_in(vs, l.to, &l.input) == PinType::Flow)).map(|n| n.id).collect();
+            match heads.len() {
+                0 => None,
+                1 => Some(heads[0]),
+                _ => return Err("its steps don't run in one line (link them, or group fewer)".into()),
+            }
+        }
+    };
+    let top = chosen.iter().map(|n| n.pos[1]).fold(f32::INFINITY, f32::min);
+    let left = chosen.iter().map(|n| n.pos[0]).fold(f32::INFINITY, f32::min);
+    let right = chosen.iter().map(|n| n.pos[0]).fold(f32::NEG_INFINITY, f32::max);
+    let start_id = chosen.iter().map(|n| n.id).max().unwrap_or(0) + 1;
+    let mut g = VisualScript { id: id.to_string(), name: String::new(), nodes: vec![Node { id: start_id, kind: NodeKind::Start, pos: [left - 280.0, top], values: BTreeMap::new() }], ..Default::default() };
+    g.nodes.extend(chosen.iter().cloned());
+    g.links.extend(vs.links.iter().filter(|l| inside(l)).cloned());
+    if let Some(e) = entry {
+        g.links.push(Link { from: start_id, out: "out".into(), to: e, input: "in".into() });
+    }
+    // Each outside value coming in: a parameter.
+    let mut params: Vec<((u32, String), String)> = Vec::new();
+    for l in &value_in {
+        let key = (l.from, l.out.clone());
+        let name = match params.iter().find(|p| p.0 == key) {
+            Some(p) => p.1.clone(),
+            None => {
+                let name = crate::refactor::unique_id(&l.input, |c| params.iter().any(|p| p.1 == c));
+                let mut kind = kind_of_out(vs, l.from, &l.out);
+                if kind == PinType::Any {
+                    kind = kind_of_in(vs, l.to, &l.input);
+                }
+                g.params.push(Param { name: name.clone(), kind });
+                params.push((key, name.clone()));
+                name
+            }
+        };
+        g.links.push(Link { from: start_id, out: name, to: l.to, input: l.input.clone() });
+    }
+    // The value going out: its result, given back by a Return where its flow ends.
+    if let Some((from, out)) = results.iter().next() {
+        g.returns = Some(kind_of_out(vs, *from, out));
+        let ret = start_id + 1;
+        g.nodes.push(Node { id: ret, kind: NodeKind::Return, pos: [right + 280.0, top], values: BTreeMap::new() });
+        g.links.push(Link { from: *from, out: out.clone(), to: ret, input: "value".into() });
+        let end = match exits.iter().next() {
+            Some(x) => Some(x.clone()),
+            None if entry.is_none() => Some((start_id, "out".to_string())),
+            None => {
+                let ends: Vec<(u32, String)> = chosen.iter().flat_map(|n| cat.pins(vs, n).outputs.into_iter().filter(|p| p.kind == PinType::Flow).map(move |p| (n.id, p.name))).filter(|(n, p)| !vs.links.iter().any(|l| l.from == *n && &l.out == p)).collect();
+                if ends.len() != 1 {
+                    return Err("its result needs one place where its flow ends".into());
+                }
+                ends.into_iter().next()
+            }
+        };
+        if let Some((n, p)) = end {
+            g.links.push(Link { from: n, out: p, to: ret, input: "in".into() });
+        }
+    }
+    // The call in their place.
+    let call = vs.nodes.iter().map(|n| n.id).max().unwrap_or(0) + 1;
+    vs.nodes.retain(|n| !sel.contains(&n.id));
+    vs.links.retain(|l| !sel.contains(&l.from) && !sel.contains(&l.to));
+    vs.nodes.push(Node { id: call, kind: NodeKind::Call { function: id.to_string(), arity: 0 }, pos: [left, top], values: BTreeMap::new() });
+    for l in &flow_in {
+        vs.links.push(Link { from: l.from, out: l.out.clone(), to: call, input: "in".into() });
+    }
+    for l in &flow_out {
+        vs.links.push(Link { from: call, out: "out".into(), to: l.to, input: l.input.clone() });
+    }
+    for l in &value_in {
+        let name = params.iter().find(|p| p.0 == (l.from, l.out.clone())).map(|p| p.1.clone()).unwrap_or_default();
+        if !vs.links.iter().any(|x| x.to == call && x.input == name) {
+            vs.links.push(Link { from: l.from, out: l.out.clone(), to: call, input: name });
+        }
+    }
+    for l in &value_out {
+        vs.links.push(Link { from: call, out: "result".into(), to: l.to, input: l.input.clone() });
+    }
+    // Values only (no flow): the call runs right before the step that uses its result.
+    if flow_in.is_empty() && flow_out.is_empty() {
+        if let Some(user) = value_out.iter().map(|l| l.to).find(|u| vs.links.iter().any(|x| x.to == *u && x.input == "in")) {
+            if let Some(k) = vs.links.iter().position(|x| x.to == user && x.input == "in") {
+                let before = vs.links.remove(k);
+                vs.links.push(Link { from: before.from, out: before.out, to: call, input: "in".into() });
+                vs.links.push(Link { from: call, out: "out".into(), to: user, input: "in".into() });
+            }
+        }
+    }
+    Ok(g)
+}
+
 /// The functions a text script defines (name, parameter count), for call nodes.
 pub fn text_functions(src: &str) -> Vec<(String, usize)> {
     let mut out = Vec::new();
@@ -1048,6 +1172,53 @@ mod tests {
         say.nodes[1].values.insert("text".into(), Value::Text("Hi".into()));
         assert!(function_code(&say, &Catalog::new(&[])).0.contains("say(\"Hero\", \"Hi\");"));
         compiles(&code);
+    }
+
+    #[test]
+    fn groups_become_functions_called_in_their_place() {
+        // Start(n) -> give_xp(n * 2) -> say("Done"); group the maths and give_xp.
+        let mut vs = VisualScript {
+            id: "reward".into(),
+            params: vec![Param { name: "n".into(), kind: PinType::Num }],
+            nodes: vec![
+                node(1, NodeKind::Start),
+                with(node(2, NodeKind::Math { op: MathOp::Mul }), "b", Value::Num(2.0)),
+                call(3, "give_xp"),
+                with(call(4, "say"), "text", Value::Text("Done".into())),
+            ],
+            links: vec![link(1, "n", 2, "a"), link(2, "result", 3, "amount"), link(1, "out", 3, "in"), link(3, "out", 4, "in")],
+            ..Default::default()
+        };
+        let g = group(&mut vs, &BTreeSet::from([2, 3]), "double_xp", &Catalog::new(&[])).unwrap();
+        let all = vec![vs.clone(), g.clone()];
+        let cat = Catalog::new(&all);
+        let (code, p) = function_code(&g, &cat);
+        assert!(p.is_empty(), "{p:?}\n{code}");
+        assert!(code.contains("fn double_xp(a) {\n    give_xp((a * 2));\n}"), "{code}");
+        let (code, p) = function_code(&vs, &cat);
+        assert!(p.is_empty(), "{p:?}\n{code}");
+        assert!(code.contains("fn reward(n) {\n    double_xp(n);\n    say(\"\", \"Done\");\n}"), "{code}");
+        compiles(&rhai_file(&all, vec![]));
+
+        // Values only: not has_item("rope") into an If; the call runs right before it.
+        let mut vs = VisualScript {
+            id: "climb".into(),
+            nodes: vec![node(1, NodeKind::Start), with(call(2, "has_item"), "item", Value::Text("rope".into())), node(3, NodeKind::Not), node(4, NodeKind::If), with(call(5, "say"), "text", Value::Text("No rope.".into()))],
+            links: vec![link(2, "result", 3, "value"), link(3, "result", 4, "condition"), link(1, "out", 4, "in"), link(4, "then", 5, "in")],
+            ..Default::default()
+        };
+        let g = group(&mut vs, &BTreeSet::from([2, 3]), "no_rope", &Catalog::new(&[])).unwrap();
+        assert_eq!(g.returns, Some(PinType::Bool));
+        let all = vec![vs.clone(), g.clone()];
+        let cat = Catalog::new(&all);
+        let (gcode, p) = function_code(&g, &cat);
+        assert!(p.is_empty() && gcode.contains("return !has_item(\"rope\");"), "{p:?}\n{gcode}");
+        let (code, p) = function_code(&vs, &cat);
+        assert!(p.is_empty(), "{p:?}\n{code}");
+        assert!(code.contains("let r6 = no_rope();\n    if r6 {"), "{code}");
+        compiles(&rhai_file(&all, vec![]));
+        // Not allowed: Start in a group, two flows out.
+        assert!(group(&mut vs.clone(), &BTreeSet::from([1]), "x", &Catalog::new(&[])).is_err());
     }
 
     #[test]

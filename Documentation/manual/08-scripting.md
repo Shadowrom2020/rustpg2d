@@ -1033,7 +1033,7 @@ Use these to build spells (and traps, cut-scenes, …) in scripts.
 | `aim(function)` | Starts magic targeting: the cursor turns into a crosshair, and the player's next click (on an enemy or any spot) calls `function(x, y)` with the target. X fires straight ahead (5 tiles), right-click or Esc cancels. *(queued)* |
 | `fly(sheet, x, y, function)` | An animated sprite flies from the player to point `x, y`, turned in its direction, then calls `function(x, y)` (`""` = call nothing). *(queued)* |
 | `fly(sheet, x, y, function, options)` | Like above with [options](#options-maps): `speed`, `frames` or `tag`, `fps`, `scale`, `light`, `color`. *(queued)* |
-| `effect(sheet, x, y)` | Plays the frames of a sprite sheet once, centered on `x, y` (explosions, sparkles). *(queued)* |
+| `effect(sheet, x, y)` | Plays the frames of a sprite sheet once, centered on `x, y` (explosions, sparkles); an [animation](05-database.md#animations)'s id plays the animation there. *(queued)* |
 | `effect(sheet, x, y, options)` | Like above with options: `frames` or `tag` (a named animation, e.g. `#{ tag: "explode" }`), `fps`, `scale`, `light`, `color`, `shake` (seconds the screen shakes as it starts). *(queued)* |
 | `damage_area(x, y, radius, damage)` / `damage_area(x, y, radius, damage, damage_type)` | Damages every character within `radius` tiles of `x, y`, of a damage type when one is given (`"fire"`, `"cold"`…: resistances halve it, immunities stop it). Never hurts the player. *(queued; the damage type since 0.28)* |
 | `damage_around(damage, radius)` / `damage_around(damage, radius, damage_type)` | The same around the player. *(queued; the damage type since 0.28)* |

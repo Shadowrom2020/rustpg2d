@@ -960,6 +960,7 @@ fn trait_effects(index: &str) -> Vec<rustpg2d_engine::classes::FeatureEffect> {
                 cost: ActCost::Action,
                 resource: "breath-weapon".into(),
                 effect: ActEffect::Breath { by_level: vec![(1, "2d6".into()), (6, "3d6".into()), (11, "4d6".into()), (16, "5d6".into())] },
+                anim: String::new(),
             },
         ],
         _ => Vec::new(),
@@ -1346,7 +1347,8 @@ fn feature_effects(id: &str) -> Vec<rustpg2d_engine::classes::FeatureEffect> {
     let saves = |a: &[&str]| a.iter().map(|x| E::Proficient { what: format!("save:{x}") }).collect::<Vec<_>>();
     // The features that act: resources (uses back after a rest), class actions, riders.
     let pool = |id: &str, count: i32, number: &str, ability: Option<A>, per_level: i32, recharge: R| E::Resource { id: id.into(), count, number: number.into(), ability, per_level, recharge };
-    let act = |id: &str, name: &str, cost: C, resource: &str, effect: X| E::Act { id: id.into(), name: name.into(), cost, resource: resource.into(), effect };
+    // (Rage shows the starter library's buff animation on the barbarian.)
+    let act = |id: &str, name: &str, cost: C, resource: &str, effect: X| E::Act { id: id.into(), name: name.into(), cost, resource: resource.into(), anim: if matches!(effect, X::Rage) { "buff".into() } else { String::new() }, effect };
     let basic = |id: &str, name: &str, cost: C, resource: &str, what: &str| act(id, name, cost, resource, X::Basic { act: what.into() });
     let always = |s: &[&str]| vec![E::AlwaysPrepared { spells: s.iter().map(|x| x.to_string()).collect() }];
     match id {
@@ -1848,7 +1850,7 @@ fn stat_attack(a: &Value) -> Option<rustpg2d_engine::srd::StatAttack> {
         .unwrap_or((0, 0));
     let on_hit = hit_riders(&text);
     let versatile = two_handed_dice(&text);
-    Some(rustpg2d_engine::srd::StatAttack { name: s(a, "name").into(), bonus, dice: dice.replace(' ', ""), damage_type, reach_ft, range_ft, long_ft, versatile, extra, on_hit })
+    Some(rustpg2d_engine::srd::StatAttack { name: s(a, "name").into(), bonus, dice: dice.replace(' ', ""), damage_type, reach_ft, range_ft, long_ft, versatile, extra, on_hit, anim: String::new() })
 }
 
 /// A versatile weapon's damage with two hands from an attack's text: "…, or 6 (1d8 + 2) piercing

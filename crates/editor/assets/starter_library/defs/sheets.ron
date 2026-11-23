@@ -1503,4 +1503,10 @@
         frame_w: 32,
         frame_h: 32,
     ),
+    (
+        id: "fx_slash",
+        image: "sprites/fx/fx_slash.png",
+        frame_w: 64,
+        frame_h: 64,
+    ),
 ]

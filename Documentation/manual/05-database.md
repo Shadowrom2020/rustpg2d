@@ -9,7 +9,7 @@ Database says what they are.
 
 The tabs along the top are *Items, Props, Characters, Races, Factions, 3D models, Materials, Scatter sets,
 Sprite sheets, Sounds, Fonts, UI skins, Structures, Spells, Recipes, Backgrounds, Classes, Diseases, Quests, Achievements, Common events,
-Cut-scenes, Project* and *Scripts*. Each asset tab has a list on
+Cut-scenes, Animations, Project* and *Scripts*. Each asset tab has a list on
 the left and the selected definition's form on the right; *Items*, *Characters*, *Spells* and
 *Recipes* also have a [table](#the-table-view).
 
@@ -504,10 +504,49 @@ the **classes** whose list has it, **story only** (only events and scripts cast 
 `1:1d10,5:2d10` with `MOD` for the spellcasting modifier, temporary hit points, a condition, the
 number of targets, a boon or bane, light, unlocking, *ends* conditions (the first of those ticked
 the target has: Lesser Restoration, Protection from Poison), a script function `(caster, x, y, slot)`), its
-**look** (a projectile, an impact effect sheet and its scale, a sound) and an icon. Spells, recipes
+**look** (a projectile, an impact effect sheet and its scale or an [animation](#animations), a sound) and an icon. Spells, recipes
 and achievements belong to the game systems they drive: [Spellcasting](09-gameplay.md#spellcasting),
 [Crafting](09-gameplay.md#crafting-cooking-and-blacksmithing) and
 [Achievements](09-gameplay.md#achievements).
+
+## Animations
+
+![The Fire animation in its form](../images/editor-animations.webp)
+
+An animation is what shows where something lands: a sword's hit, a spell's impact, a potion
+drunk, a class action. The *Animations* tab (`defs/animations.ron`) builds them from four kinds of
+parts, each at a moment in seconds from the start:
+
+- **Cels:** frames of a sprite sheet (all, or first to last) at a speed, played once or more,
+  with an offset from the point it plays at (the middle of the target's body), a size, a turn and
+  an opacity. *Additive* adds its light to what is under it (fire, sparks). *Light* puts a light
+  around it. *Moves to* makes it move, grow, turn and fade to other values over its time.
+- **Particles:** an emitter sends a number of them at once or over a time, from a point or an
+  area, in a direction with a spread, at a speed (some slower at random). Each lives a while,
+  shrinking and changing colour, pulled down by gravity (negative: they rise like flames).
+- **Flashes:** the target's figure shines in a colour, or the whole screen flashes (players can
+  turn screen effects off).
+- **Sounds** at their moments.
+
+The form shows the parts as rows of a timeline next to a **preview** on a straw target dummy:
+*Play* (with *Loop*), or click the ruler or drag the slider to see a moment. Click a row to edit
+it below; *+ Cel*, *+ Particles*, *+ Flash* and *+ Sound* add one at the playhead.
+
+Where they play:
+
+| Where | Field |
+|---|---|
+| A weapon's hits in turn-based fights, on the target | the weapon's *Hit animation* (item form) |
+| A stat block attack's hits (monsters) | the attack's *Hit animation* (*on a hit*) |
+| An item used (a potion), on whoever uses it | the item's *Use animation* |
+| A spell's impact | the spell's *Look › impact*: an animation id in place of a sheet |
+| A class action (Rage), on whom it is used | the class feature's action (`anim`; the agent server or the file) |
+| Events and scripts | *Play effect* and `effect("id", x, y)` take an animation id in place of a sheet |
+
+The starter library has **slash** (on the slashing weapons), **fire** (Fire Bolt), **ice** (Ray of
+Frost), **heal** (Cure Wounds, the healing potions), **thunder** (Shocking Grasp) and **buff**
+(Heroism, the potion of heroism, the barbarian's Rage). Animations are assets: they go to the
+library and into packages with the sheets and sounds they use.
 
 ## Common events
 

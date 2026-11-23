@@ -27,6 +27,7 @@ pub mod screen_fx;
 pub mod timers;
 pub mod routes;
 pub mod common_events;
+pub mod animations;
 pub mod cutscenes;
 pub mod camera;
 #[cfg(all(target_os = "linux", target_env = "gnu"))]

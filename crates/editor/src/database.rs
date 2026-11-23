@@ -41,6 +41,7 @@ pub enum Tab {
     Classes,
     Diseases,
     Cutscenes,
+    Animations,
 }
 
 /// How many definitions the list of `tab` shows (0 for the tabs without a list).
@@ -67,6 +68,7 @@ pub fn tab_len(db: &rustpg2d_engine::defs::Database, tab: Tab) -> usize {
         Tab::Classes => db.classes.len(),
         Tab::Diseases => db.diseases.len(),
         Tab::Cutscenes => db.cutscenes.len(),
+        Tab::Animations => db.animations.len(),
         Tab::Project | Tab::Scripts | Tab::Factions => 0,
     }
 }
@@ -120,6 +122,7 @@ impl Tab {
             Tab::Classes => RefKind::Class,
             Tab::Diseases => RefKind::Disease,
             Tab::Cutscenes => RefKind::Cutscene,
+            Tab::Animations => RefKind::Animation,
             Tab::Project | Tab::Scripts | Tab::Factions => return None,
         })
     }
@@ -148,6 +151,7 @@ impl Tab {
             RefKind::Class => Tab::Classes,
             RefKind::Disease => Tab::Diseases,
             RefKind::Cutscene => Tab::Cutscenes,
+            RefKind::Animation => Tab::Animations,
             RefKind::Map | RefKind::Skill => return None,
         })
     }
@@ -200,6 +204,8 @@ pub struct DbState {
     pub skin_preview: crate::skin_preview::SkinPreview,
     /// The table view (Items, Characters, Spells, Recipes).
     pub table: crate::db_table::TableState,
+    /// The Animations form's preview.
+    pub anim_preview: crate::anim_editor::AnimPreview,
 }
 
 /// Everything the definition forms need besides the definition itself.
@@ -229,6 +235,8 @@ struct Cx<'a> {
     /// The project folder (font previews read the font files).
     root: &'a std::path::Path,
     skin_preview: &'a mut crate::skin_preview::SkinPreview,
+    /// The Animations form's preview.
+    anim_preview: &'a mut crate::anim_editor::AnimPreview,
     /// The project's font roles (the skin preview draws with them).
     fonts: &'a rustpg2d_engine::fonts::FontRoles,
 }
@@ -270,6 +278,7 @@ fn tab_icon(t: Tab) -> &'static str {
         Tab::Classes => ph::SWORD,
         Tab::Diseases => ph::VIRUS,
         Tab::Cutscenes => ph::FILM_SLATE,
+        Tab::Animations => ph::SPARKLE,
         Tab::Factions => ph::FLAG,
         Tab::Project => ph::GEAR,
         Tab::Scripts => ph::CODE,
@@ -386,6 +395,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             (Tab::Achievements, "Achievements"),
             (Tab::CommonEvents, "Common events"),
             (Tab::Cutscenes, "Cut-scenes"),
+            (Tab::Animations, "Animations"),
             (Tab::Project, "Project"),
             (Tab::Scripts, "Scripts"),
         ];
@@ -448,6 +458,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             Tab::Classes => db.classes.get(i).map(|d| (RefKind::Class, d.id.clone())),
             Tab::Diseases => db.diseases.get(i).map(|d| (RefKind::Disease, d.id.clone())),
             Tab::Cutscenes => db.cutscenes.get(i).map(|d| (RefKind::Cutscene, d.id.clone())),
+            Tab::Animations => db.animations.get(i).map(|d| (RefKind::Animation, d.id.clone())),
             _ => None,
         };
         if !library {
@@ -471,6 +482,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                 Tab::Classes => Some(RefKind::Class),
                 Tab::Diseases => Some(RefKind::Disease),
                 Tab::Cutscenes => Some(RefKind::Cutscene),
+                Tab::Animations => Some(RefKind::Animation),
                 _ => None,
             };
             if kind.is_some() {
@@ -685,6 +697,14 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     |ids| rustpg2d_engine::cutscenes::CutsceneDef::fresh(&unique("cutscene", ids)),
                     |d| &mut d.id,
                 ),
+                Tab::Animations => list_ui(
+                    ui,
+                    &mut db.animations,
+                    sel, |_| true,
+                    |d| format!("{}  ({})", d.name, d.id),
+                    |ids| rustpg2d_engine::animations::AnimationDef::fresh(&unique("animation", ids)),
+                    |d| &mut d.id,
+                ),
                 Tab::Diseases => list_ui(
                     ui,
                     &mut db.diseases,
@@ -770,6 +790,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     drawing: ed.px.doc.as_ref().map(|d| (d.rel.as_str(), &d.img, d.version)),
                     root: &ed.project.root,
                     skin_preview: &mut ed.db.skin_preview,
+                    anim_preview: &mut ed.db.anim_preview,
                     fonts: &ed.project.config.fonts,
                 };
                 let i = ed.db.sel;
@@ -887,6 +908,14 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     Tab::Cutscenes => {
                         if let Some(d) = db.cutscenes.get_mut(i) {
                             cutscene_form(ui, d, &mut cx);
+                        }
+                    }
+                    Tab::Animations => {
+                        if let Some(d) = db.animations.get_mut(i) {
+                            rename_row(ui, RefKind::Animation, &d.id, cx.rename);
+                            name_row(ui, &mut d.name);
+                            ui.weak("Plays where it is used: a weapon's or an attack's hits (on the target), an item used, a class action, a spell's impact, Play effect.");
+                            crate::anim_editor::animation_form(ui, d, cx.tex, cx.assets, cx.refs, cx.audio, cx.anim_preview);
                         }
                     }
                     Tab::Structures => {
@@ -1084,6 +1113,9 @@ fn weapon_ui(ui: &mut egui::Ui, id: &str, w: &mut Option<Weapon>, cx: &mut Cx, c
             widgets::damage_type_combo(ui, &format!("{id}/dt"), &mut w.damage_type, "untyped");
             ui.weak("(the type: resistances halve it, immunities stop it)");
         });
+        ui.end_row();
+        ui.label("Hit animation").on_hover_text("An animation (Database › Animations) played on whoever a hit lands on in turn-based fights; empty = none");
+        widgets::suggest(ui, &format!("{id}/hit_anim"), &mut w.hit_anim, &cx.refs.animations, 140.0);
         ui.end_row();
         if !w.dice.trim().is_empty() {
             if let Err(e) = rustpg2d_engine::srd::Expr::parse(&w.dice) {
@@ -1575,6 +1607,11 @@ fn item_form(ui: &mut egui::Ui, d: &mut ItemDef, cx: &mut Cx) {
         ui.label("Teaches spell");
         widgets::suggest(ui, "item_teaches", &mut d.teaches, &cx.refs.spells, 140.0);
         ui.weak("(scrolls, spell books, by the SRD's rule: a wizard copies the spell into the spellbook, another class with it on its list casts it once, anyone else can't — tick 'Consumed' for one-use scrolls)");
+    });
+    ui.horizontal(|ui| {
+        ui.label("Use animation");
+        widgets::suggest(ui, "item_use_anim", &mut d.use_anim, &cx.refs.animations, 140.0);
+        ui.weak("(Database › Animations: played on whoever uses it, when it does something)");
     });
     ui.separator();
     ui.heading("Furniture");
@@ -4688,6 +4725,10 @@ fn stat_features_ui(ui: &mut egui::Ui, salt: &str, s: &mut rustpg2d_engine::srd:
 /// An attack's extra damage parts and riders (a dragon's bite's fire, a wolf's knock prone).
 fn stat_hit_ui(ui: &mut egui::Ui, salt: &str, a: &mut rustpg2d_engine::srd::StatAttack) {
     use rustpg2d_engine::srd::{Ability, DamagePart, HitRider};
+    ui.horizontal(|ui| {
+        ui.label("Hit animation");
+        ui.add(egui::TextEdit::singleline(&mut a.anim).desired_width(120.0).hint_text("animation id")).on_hover_text("An animation (Database › Animations) played on whoever a hit lands on; empty = none");
+    });
     let mut gone = None;
     for (k, x) in a.extra.iter_mut().enumerate() {
         ui.horizontal(|ui| {
@@ -6028,7 +6069,8 @@ fn spell_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::skills::SpellDef, cx: 
         ui.end_row();
         ui.label("Impact effect").on_hover_text("An effect sheet played where it lands (all its frames)");
         ui.horizontal(|ui| {
-            widgets::suggest(ui, "spell_impact", &mut d.visual.impact, &cx.refs.sheets, 140.0);
+            let options: Vec<String> = cx.refs.animations.iter().chain(&cx.refs.sheets).cloned().collect();
+            widgets::suggest(ui, "spell_impact", &mut d.visual.impact, &options, 140.0);
             ui.add(egui::DragValue::new(&mut d.visual.impact_scale).range(0.0..=8.0).speed(0.05).prefix("x"));
         });
         ui.end_row();

@@ -24,6 +24,7 @@ mod graph;
 mod decor_tool;
 mod ground_tool;
 mod import;
+mod anim_editor;
 mod db_table;
 mod item_category;
 mod library_ui;
@@ -672,7 +673,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // watchanswer reload|keep: answers the "changed on disk" banner
         "watchanswer" => ed.watch_answer(arg(1) == "reload"),
         "status" => println!(
-            "[status] {} repo={} library={} script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} projectfile={} notices={} search={} usages={} problems={} plugins={} libupdate={} starter={} art={} pixel={} mode={:?} dbtab={:?} dbsel={} dblist={}/{} itemfilter={} libshown={} script={:?} ground={} decor={} dbtable={} testsetup={} timeline={} msg={}",
+            "[status] {} repo={} library={} script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} projectfile={} notices={} search={} usages={} problems={} plugins={} libupdate={} starter={} art={} pixel={} mode={:?} dbtab={:?} dbsel={} dblist={}/{} itemfilter={} libshown={} script={:?} ground={} decor={} dbtable={} testsetup={} anim={} timeline={} msg={}",
             TIMING.with(|t| t.borrow_mut().take()),
             match repo_mode::root() {
                 None => "off".to_string(),
@@ -724,6 +725,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.decor_status(),
             ed.db.table.status(ed.db.tab),
             ed.testplay_status(),
+            ed.db.anim_preview.status(ed.project.db.animation(&ed.db.anim_preview.id).map_or(0.0, |d| d.length(|s| ed.assets.sheets.get(s).map_or(1, |t| t.count.max(1))))),
             ed.timeline_status(),
             ed.status.0
         ),
@@ -1100,6 +1102,29 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         "playhere" => ed.play_here((arg(1).parse().unwrap_or(0), arg(2).parse().unwrap_or(0)), arg(3) == "setup"),
         "heremenu" => ed.open_here_menu((arg(1).parse().unwrap_or(0), arg(2).parse().unwrap_or(0))),
         "testsetupwindow" => ed.testplay.window = true,
+        // The Animations form's preview (status `anim=`): animtime SECS, animplay on|off,
+        // animsel cel|emitter|flash|sound K (the timeline row to edit).
+        "animtime" | "animplay" | "animsel" if ed.db.anim_preview.id.is_empty() || ed.project.db.animations.get(ed.db.sel).is_some_and(|d| d.id != ed.db.anim_preview.id) => {
+            // (The preview takes the selected animation first: the form would start it over.)
+            ed.db.anim_preview = anim_editor::AnimPreview::for_id(ed.project.db.animations.get(ed.db.sel).map_or("", |d| d.id.as_str()));
+            run_script_cmd(ed, cmd, wait, shot, mouse);
+        }
+        "animtime" => {
+            ed.db.anim_preview.time = arg(1).parse().unwrap_or(0.0);
+            ed.db.anim_preview.playing = false;
+        }
+        "animplay" => ed.db.anim_preview.playing = arg(1) != "off",
+        "animsel" => {
+            use anim_editor::Part;
+            let part = match arg(1) {
+                "cel" => Some(Part::Cel),
+                "emitter" | "particles" => Some(Part::Emitter),
+                "flash" => Some(Part::Flash),
+                "sound" => Some(Part::Sound),
+                _ => None,
+            };
+            ed.db.anim_preview.sel = part.map(|p| (p, arg(2).parse().unwrap_or(0)));
+        }
         "testsetup" => {
             let n = |k: usize| arg(k).parse::<i64>().unwrap_or(0);
             let s = ed.test_setup();
@@ -1432,6 +1457,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 "skins" => Tab::Skins,
                 "common_events" | "common" => Tab::CommonEvents,
                 "cutscenes" | "cutscene" => Tab::Cutscenes,
+                "animations" | "animation" => Tab::Animations,
                 "backgrounds" => Tab::Backgrounds,
                 "classes" => Tab::Classes,
                 "diseases" => Tab::Diseases,
@@ -1455,6 +1481,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 Tab::Skins => db.skins.iter().position(|d| d.id == arg(2)),
                 Tab::CommonEvents => db.common_events.iter().position(|d| d.id == arg(2)),
                 Tab::Cutscenes => db.cutscenes.iter().position(|d| d.id == arg(2)),
+                Tab::Animations => db.animations.iter().position(|d| d.id == arg(2)),
                 Tab::Backgrounds => db.backgrounds.iter().position(|d| d.id == arg(2)),
                 Tab::Diseases => db.diseases.iter().position(|d| d.id == arg(2)),
                 _ => None,

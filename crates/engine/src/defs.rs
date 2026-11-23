@@ -586,6 +586,10 @@ pub struct Weapon {
     /// Thrown: the normal and long range in feet.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub thrown_ft: Option<(u32, u32)>,
+    /// An animation (`defs/animations.ron`) played on whoever a hit of it lands on (turn-based
+    /// fights; "" = none).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub hit_anim: String,
 }
 
 /// A weapon's SRD category.
@@ -721,6 +725,7 @@ impl Weapon {
             properties: Vec::new(),
             versatile: String::new(),
             thrown_ft: None,
+            hit_anim: String::new(),
         }
     }
     pub fn ranged(damage: i32, cooldown: f32, ranged: Ranged) -> Self {
@@ -1011,6 +1016,9 @@ pub struct ItemDef {
     /// on the free tile in front; picking the prop up gives the item back. "" = not furniture.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub furniture: String,
+    /// An animation (`defs/animations.ron`) played on whoever uses it ("" = none).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub use_anim: String,
     /// The SRD equipment it is (`longsword`, `thieves-tools`, `chain-mail`): proficiency by name,
     /// the tools rules; "" = none.
     #[serde(default, skip_serializing_if = "String::is_empty")]
@@ -1136,6 +1144,7 @@ impl Default for ItemDef {
             bag_slots: 0,
             anims: ItemAnims::default(),
             furniture: String::new(),
+            use_anim: String::new(),
             srd: String::new(),
             cost_cp: 0,
             weight: 0.0,
@@ -2153,6 +2162,8 @@ pub struct Database {
     pub diseases: Vec<crate::diseases::DiseaseDef>,
     /// Cut-scenes as timelines (*Play cutscene* plays one by its id).
     pub cutscenes: Vec<crate::cutscenes::CutsceneDef>,
+    /// Animations (spells, attacks, class actions, items, *Play effect*).
+    pub animations: Vec<crate::animations::AnimationDef>,
     /// Id → position caches of the hot lists ([`Database::reindex`]); never wrong, see [`DefIndex`].
     #[doc(hidden)]
     pub index: DefIndex,
@@ -2322,6 +2333,12 @@ impl Database {
     }
     pub fn cutscene(&self, id: &str) -> Option<&crate::cutscenes::CutsceneDef> {
         self.cutscenes.iter().find(|d| d.id == id)
+    }
+    pub fn animation(&self, id: &str) -> Option<&crate::animations::AnimationDef> {
+        if id.is_empty() {
+            return None;
+        }
+        self.animations.iter().find(|d| d.id == id)
     }
 
     pub fn material(&self, id: &str) -> Option<&crate::ground::MaterialDef> {
@@ -2530,6 +2547,7 @@ impl_def!(crate::backgrounds::BackgroundDef, crate::refactor::RefKind::Backgroun
 impl_def!(crate::classes::ClassDef, crate::refactor::RefKind::Class, classes, refs = crate::refactor::refs_of_class);
 impl_def!(crate::diseases::DiseaseDef, crate::refactor::RefKind::Disease, diseases);
 impl_def!(crate::cutscenes::CutsceneDef, crate::refactor::RefKind::Cutscene, cutscenes, refs = crate::refactor::refs_of_cutscene);
+impl_def!(crate::animations::AnimationDef, crate::refactor::RefKind::Animation, animations, refs = crate::refactor::refs_of_animation);
 
 /// Runs `$body` with `$T` bound to the definition type of `$kind` (a
 /// [`RefKind`](crate::refactor::RefKind)); `$else` for `Map` and `Skill` (a proficiency id), which
@@ -2624,6 +2642,10 @@ macro_rules! with_def_kind {
             }
             $crate::refactor::RefKind::Cutscene => {
                 type $T = $crate::cutscenes::CutsceneDef;
+                $body
+            }
+            $crate::refactor::RefKind::Animation => {
+                type $T = $crate::animations::AnimationDef;
                 $body
             }
             $crate::refactor::RefKind::Skill | $crate::refactor::RefKind::Map => $else,
@@ -2731,7 +2753,20 @@ impl Database {
         if let Some(it) = self.item(id).filter(|i| kind == crate::refactor::RefKind::Item && !i.wear.is_empty()) {
             refs.extend(self.models.iter().filter(|m| m.part.as_ref().is_some_and(|p| p.style == it.wear)).map(|m| (crate::refactor::RefKind::Model, m.id.clone())));
         }
-        refs
+        self.sheet_or_animation(refs)
+    }
+
+    /// A field that names a sprite sheet or an animation (*Play effect*, a spell's impact) reports
+    /// both: the animation is kept when there is one of that id, else the sheet.
+    fn sheet_or_animation(&self, refs: Vec<(crate::refactor::RefKind, String)>) -> Vec<(crate::refactor::RefKind, String)> {
+        use crate::refactor::RefKind::{Animation, Sheet};
+        let both = |id: &str| refs.iter().any(|(k, r)| *k == Sheet && r == id) && refs.iter().any(|(k, r)| *k == Animation && r == id);
+        let keep = |k: crate::refactor::RefKind, id: &str| match k {
+            Sheet if both(id) => self.animation(id).is_none(),
+            Animation if both(id) => self.animation(id).is_some(),
+            _ => true,
+        };
+        refs.iter().filter(|(k, id)| keep(*k, id)).cloned().collect()
     }
 }
 

@@ -76,6 +76,10 @@ def_facts!(rustpg2d_engine::cutscenes::CutsceneDef, |d| {
     let cues: usize = d.tracks.iter().map(|t| t.cues.len()).sum();
     format!("\"{}\"; {} track(s), {cues} cue(s), {:.1} s{}", d.name, d.tracks.len(), d.length(), if d.map.is_empty() { String::new() } else { format!("; map {}", d.map) })
 });
+def_facts!(rustpg2d_engine::animations::AnimationDef, |d| {
+    let sheets: Vec<&str> = d.cels.iter().map(|c| c.sheet.as_str()).collect();
+    format!("\"{}\"; {} cel(s) [{}], {} emitter(s), {} flash(es), {} sound(s)", d.name, d.cels.len(), sheets.join(", "), d.emitters.len(), d.flashes.len(), d.sounds.len())
+});
 def_facts!(SheetDef, |d| {
     let scale = if d.scale > 1 { format!(" at {}x", d.scale) } else { String::new() };
     let tags = if d.tags.is_empty() { String::new() } else { format!("; animations [{}]", d.tags.iter().map(|t| t.name.as_str()).collect::<Vec<_>>().join(", ")) };
@@ -318,6 +322,15 @@ fn template(kind: RefKind, id: &str, db: &Database) -> (Value, &'static str) {
                 ..rustpg2d_engine::cutscenes::CutsceneDef::fresh(id)
             }),
             "A cut-scene as a timeline: name; map (the map it is made for: the editor previews it there); tracks [{kind: Actor | Camera | Dialog | Sound | Screen, target (an Actor track's character: \"player\" or a name), cues: [{at: seconds from the start, wait: true = the scene waits until it is done (a dialog closed, a walk arrived; the cues after it come that much later) / false = it runs alongside, action: any action (WalkTo, Face, Emote, Camera, Dialog, PlaySound, ShowPicture, …)}]}]. PlayCutscene {function: id} (or cutscene(\"id\") in scripts) plays it; a script function of that name otherwise.",
+        ),
+        RefKind::Animation => (
+            val(&rustpg2d_engine::animations::AnimationDef {
+                cels: vec![rustpg2d_engine::animations::Cel { sheet: "fx_fire-bolt".into(), additive: true, light: 3.0, ..Default::default() }],
+                flashes: vec![rustpg2d_engine::animations::AnimFlash { at: 0.1, color: [255, 160, 60, 200], seconds: 0.3, screen: false }],
+                sounds: vec![rustpg2d_engine::animations::AnimSound { at: 0.0, sound: "fireball".into() }],
+                ..rustpg2d_engine::animations::AnimationDef::fresh(id)
+            }),
+            "An animation played at a point (spells' impact, Play effect {sprite: {sheet: id}}, effect(\"id\", x, y)) or on a character (Weapon.hit_anim and a stat block attack's anim on whoever a hit lands on, ItemDef.use_anim on who uses it, a class Act's anim). Times in seconds from its start, places in pixels from the point (the middle of the target's body; +y down). cels [{at, sheet, first, last (both 0 = all frames), fps, loops, offset [x, y], scale, rotation (degrees), opacity, additive, light (tiles), glow [r,g,b], end: {offset, scale, rotation, opacity} = where it moves to over its time}], emitters [{at, duration (0 = a burst), count, offset, area (radius), direction (degrees: 0 right, -90 up), spread, speed, speed_var, lifetime, size, size_end, color [r,g,b,a], color_end, gravity (+ = down), additive}], flashes [{at, screen: false = the target's figure / true = the screen, color [r,g,b,a], seconds}], sounds [{at, sound}].",
         ),
         RefKind::Map => (Value::Null, "maps are not definitions"),
         RefKind::Skill => (Value::Null, "skills are the SRD's (perception, stealth, ...): no definitions since 0.28"),

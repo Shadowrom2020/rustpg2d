@@ -178,6 +178,8 @@ pub(super) struct AttackSpec {
     pub net: bool,
     /// A lance: disadvantage against a target within 5 ft.
     pub lance: bool,
+    /// The animation its hits play on the target (a weapon's, an attack's; "" = none).
+    pub anim: String,
 }
 
 /// A hit that would drop a foe to 0 HP, held while the player chooses: kill or knock out.
@@ -409,6 +411,7 @@ impl Game {
                 reach_ft: if ranged.is_some() { 0 } else { w.reach_tiles().max(1) as u32 * 5 },
                 range_ft: ranged.map_or(0, |r| r.0),
                 long_ft: ranged.map_or(0, |r| r.1),
+                anim: w.hit_anim.clone(),
                 ..Default::default()
             });
         }
@@ -1463,13 +1466,13 @@ impl Game {
                         let mut v = Vec::new();
                         if a.reach_ft > 0 {
                             let dice = if two_hands && !a.versatile.is_empty() { a.versatile.clone() } else { a.dice.clone() };
-                            v.push(AttackSpec { name: a.name.clone(), bonus: a.bonus, dice, damage_type: a.damage_type, ranged: false, reach: (a.reach_ft / 5).max(1) as i32, range: 0, long: 0, crit_on, effect: effect.clone(), projectile: None, ability: classed.then_some(Ability::Str), finesse, extra: a.extra.clone(), riders: a.on_hit.clone(), hit, ..Default::default() });
+                            v.push(AttackSpec { name: a.name.clone(), bonus: a.bonus, dice, damage_type: a.damage_type, ranged: false, reach: (a.reach_ft / 5).max(1) as i32, range: 0, long: 0, crit_on, effect: effect.clone(), projectile: None, ability: classed.then_some(Ability::Str), finesse, extra: a.extra.clone(), riders: a.on_hit.clone(), hit, anim: a.anim.clone(), ..Default::default() });
                         }
                         if a.range_ft > 0 {
                             // (Melee or ranged: a thrown weapon.)
                             let thrown = a.reach_ft > 0;
                             let projectile = if thrown { weapon_icon.clone().or_else(|| projectile.clone()) } else { projectile.clone() };
-                            v.push(AttackSpec { name: a.name.clone(), bonus: a.bonus, dice: a.dice.clone(), damage_type: a.damage_type, ranged: true, reach: 0, range: (a.range_ft / 5).max(1) as i32, long: (a.long_ft.max(a.range_ft) / 5).max(1) as i32, crit_on, effect: None, projectile, ability: classed.then_some(if thrown { Ability::Str } else { Ability::Dex }), finesse, thrown, extra: a.extra.clone(), riders: a.on_hit.clone(), hit, ..Default::default() });
+                            v.push(AttackSpec { name: a.name.clone(), bonus: a.bonus, dice: a.dice.clone(), damage_type: a.damage_type, ranged: true, reach: 0, range: (a.range_ft / 5).max(1) as i32, long: (a.long_ft.max(a.range_ft) / 5).max(1) as i32, crit_on, effect: None, projectile, ability: classed.then_some(if thrown { Ability::Str } else { Ability::Dex }), finesse, thrown, extra: a.extra.clone(), riders: a.on_hit.clone(), hit, anim: a.anim.clone(), ..Default::default() });
                         }
                         v
                     })
@@ -1590,6 +1593,7 @@ impl Game {
             poison: self.coated_attack(&made_of),
             net: srd == "net",
             lance: srd == "lance",
+            anim: w.hit_anim.clone(),
             ..Default::default()
         }
     }
@@ -1888,6 +1892,10 @@ impl Game {
         // The damage onto the attack's line ("hit, 7"; before resistances).
         if let Some(l) = self.fight.as_mut().and_then(|c| c.log.iter_mut().rev().find(|l| **l == logged)) {
             l.push_str(&format!(", {total}"));
+        }
+        // The hit's animation on the target.
+        if !spec.anim.is_empty() {
+            self.animate_on(&spec.anim, self.anim_target(target));
         }
         // A finishing blow of the player's in melee: Kill or Knock out? (held until chosen)
         if self.asks_knock_out(who, target, spec, &parts) {

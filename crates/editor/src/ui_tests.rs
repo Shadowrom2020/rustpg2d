@@ -405,6 +405,37 @@ fn the_item_table_sorts_and_sets_three_prices_in_one_undo_step() {
 }
 
 #[test]
+fn an_animation_gets_particles_and_a_sound_and_viewing_changes_nothing() {
+    let root = example_copy("animation");
+    let db = Project::load(&root).unwrap().db;
+    let k = db.animations.iter().position(|a| a.id == "fire").expect("the starter animation fire");
+    let before = db.animations[k].clone();
+    let mut h = harness(&root, Tab::Animations, k);
+    step(&mut h);
+    // Looking at every row's fields changes nothing (colour buttons write only when used).
+    for part in [crate::anim_editor::Part::Cel, crate::anim_editor::Part::Emitter, crate::anim_editor::Part::Flash, crate::anim_editor::Part::Sound] {
+        h.state_mut().db.anim_preview.sel = Some((part, 0));
+        step(&mut h);
+    }
+    assert!(!h.state().defs_dirty, "viewing the form left the definitions unchanged");
+    let ends = |l: &'static str| move |n: &egui_kittest::kittest::Node<'_>| n.role() == Role::Button && n.label().as_deref().is_some_and(|x| x.ends_with(l));
+    // + Particles adds an emitter (one undo step takes it back), + Sound a sound.
+    h.get_by(ends(" Particles")).click();
+    step(&mut h);
+    assert_eq!(h.state().project.db.animations[k].emitters.len(), before.emitters.len() + 1);
+    unfocus(&mut h);
+    undo(&mut h);
+    assert_eq!(h.state().project.db.animations[k], before);
+    h.get_by(ends(" Sound")).click();
+    step(&mut h);
+    assert_eq!(h.state().project.db.animations[k].sounds.len(), before.sounds.len() + 1);
+    h.state_mut().save_all();
+    let saved = Project::load(&root).unwrap().db;
+    assert_eq!(saved.animations[k].sounds.len(), before.sounds.len() + 1);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn an_item_gets_uses_and_silvering() {
     let root = example_copy("uses");
     let db = Project::load(&root).unwrap().db;

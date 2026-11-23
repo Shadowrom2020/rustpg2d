@@ -893,6 +893,7 @@ impl Editor {
             classes: self.project.db.classes.iter().flat_map(|c| std::iter::once(c.id.clone()).chain(c.subclasses.iter().map(|s| s.id.clone()))).collect(),
             common_events: self.project.db.common_events.iter().map(|r| r.id.clone()).collect(),
             cutscenes: self.project.db.cutscenes.iter().map(|r| r.id.clone()).collect(),
+            animations: self.project.db.animations.iter().map(|r| r.id.clone()).collect(),
             diseases: self.project.db.diseases.iter().map(|r| r.id.clone()).collect(),
             factions: self.project.config.factions.list.iter().map(|f| f.id.clone()).collect(),
             spells: self.project.db.spells.iter().map(|q| q.id.clone()).collect(),

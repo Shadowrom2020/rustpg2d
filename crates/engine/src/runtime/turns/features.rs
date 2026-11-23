@@ -295,6 +295,10 @@ impl Game {
                 target
             }
         };
+        // (Its animation on whom it is used.)
+        if !a.anim.is_empty() {
+            self.animate_on(&a.anim, self.anim_target(target));
+        }
         let level = self.who_traits(me.who).map_or(1, |t| t.level) as i32;
         let name = self.who_name(me.who);
         let act_name = crate::lang::tr(&a.name);

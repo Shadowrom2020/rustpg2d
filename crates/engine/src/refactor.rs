@@ -46,12 +46,14 @@ pub enum RefKind {
     Disease,
     /// Cut-scene asset (`cutscenes::CutsceneDef`).
     Cutscene,
+    /// Animation (`animations::AnimationDef`).
+    Animation,
 }
 
 impl RefKind {
     /// Every kind: the definition lists in `defs/` file order ([`crate::project::DEFS`]), with
     /// `Skill` (a proficiency id, no definition) where `skills.ron` was until 0.27, then `Map`.
-    pub const ALL: [RefKind; 23] = [
+    pub const ALL: [RefKind; 24] = [
         RefKind::Sheet,
         RefKind::Item,
         RefKind::Prop,
@@ -74,10 +76,11 @@ impl RefKind {
         RefKind::Class,
         RefKind::Disease,
         RefKind::Cutscene,
+        RefKind::Animation,
         RefKind::Map,
     ];
     /// The definition kinds in `defs/` file order.
-    pub const DEFS: [RefKind; 21] = [
+    pub const DEFS: [RefKind; 22] = [
         RefKind::Sheet,
         RefKind::Item,
         RefKind::Prop,
@@ -99,6 +102,7 @@ impl RefKind {
         RefKind::Class,
         RefKind::Disease,
         RefKind::Cutscene,
+        RefKind::Animation,
     ];
 
     /// The kind's word in messages and commands: "sheet", "item", …, "map".
@@ -127,6 +131,7 @@ impl RefKind {
             RefKind::Class => "class",
             RefKind::Disease => "disease",
             RefKind::Cutscene => "cutscene",
+            RefKind::Animation => "animation",
         }
     }
 
@@ -155,6 +160,7 @@ impl RefKind {
             RefKind::Class => "classes",
             RefKind::Disease => "diseases",
             RefKind::Cutscene => "cutscenes",
+            RefKind::Animation => "animations",
             RefKind::Map => return None,
         })
     }
@@ -185,6 +191,7 @@ impl RefKind {
             RefKind::Class => "Class",
             RefKind::Disease => "Disease",
             RefKind::Cutscene => "Cut-scene",
+            RefKind::Animation => "Animation",
         }
     }
 
@@ -216,6 +223,7 @@ impl RefKind {
             "cla" | "classe" => RefKind::Class,
             "disease" => RefKind::Disease,
             "cutscene" | "cut-scene" | "cut scene" => RefKind::Cutscene,
+            "animation" | "anim" => RefKind::Animation,
             _ => return None,
         })
     }
@@ -314,6 +322,7 @@ impl Renamer<'_> {
             for r in &mut a.on_hit {
                 self.fix(RefKind::Disease, &mut r.disease);
             }
+            self.fix(RefKind::Animation, &mut a.anim);
         }
     }
 
@@ -362,7 +371,7 @@ impl Renamer<'_> {
         if let Some(p) = &mut d.visual.projectile {
             self.fix(RefKind::Sheet, &mut p.sheet);
         }
-        self.fix(RefKind::Sheet, &mut d.visual.impact);
+        self.sheet_or_animation(&mut d.visual.impact);
         self.fix(RefKind::Sound, &mut d.visual.sound);
         // (Its costly component's items too.)
         if let Some(c) = &mut d.costly {
@@ -457,6 +466,27 @@ impl Renamer<'_> {
         if let Some(r) = w.as_mut().and_then(|w| w.ranged.as_mut()) {
             self.fix(RefKind::Sheet, &mut r.projectile.sheet);
             self.fix(RefKind::Item, &mut r.ammo);
+        }
+        if let Some(w) = w {
+            self.fix(RefKind::Animation, &mut w.hit_anim);
+        }
+    }
+
+    /// A field that names a sprite sheet or an animation (*Play effect*, a spell's impact): both
+    /// are renamed and carried along (the one that exists).
+    fn sheet_or_animation(&mut self, s: &mut String) {
+        self.fix(RefKind::Sheet, s);
+        self.fix(RefKind::Animation, s);
+    }
+
+    /// The animations of a class's actions.
+    fn class_anims(&mut self, d: &mut crate::classes::ClassDef) {
+        for f in &mut d.features {
+            for e in &mut f.effects {
+                if let crate::classes::FeatureEffect::Act { anim, .. } = e {
+                    self.fix(RefKind::Animation, anim);
+                }
+            }
         }
     }
 
@@ -554,7 +584,8 @@ impl Renamer<'_> {
             Action::Cutscene { function } if self.found.is_none() => self.fix(RefKind::Cutscene, function),
             Action::ExposeDisease { disease, .. } | Action::CureDisease { disease } => self.fix(RefKind::Disease, disease),
             Action::SetClass { class, .. } => self.fix(RefKind::Class, class),
-            Action::Fly { sprite, .. } | Action::Effect { sprite, .. } => self.fix(RefKind::Sheet, &mut sprite.sheet),
+            Action::Fly { sprite, .. } => self.fix(RefKind::Sheet, &mut sprite.sheet),
+            Action::Effect { sprite, .. } => self.sheet_or_animation(&mut sprite.sheet),
             Action::ShowImage { sheet, .. } | Action::ShowPicture { sheet, .. } => self.fix(RefKind::Sheet, sheet),
             Action::TeachSpell { spell, .. } | Action::CastSpell { spell, .. } => self.fix(RefKind::Spell, spell),
             Action::If { conditions, .. } => self.conditions(conditions),
@@ -623,6 +654,7 @@ fn db_pass(db: &mut Database, config: &mut ProjectConfig, kind: RefKind, old: &s
         r.weapon(&mut d.weapon);
         r.crop(&mut d.crop);
         r.magic(&mut d.magic);
+        r.fix(RefKind::Animation, &mut d.use_anim);
     }
     for d in &mut db.props {
         r.fix(RefKind::Sheet, &mut d.sprite.sheet);
@@ -724,6 +756,10 @@ fn db_pass(db: &mut Database, config: &mut ProjectConfig, kind: RefKind, old: &s
         for s in &mut d.equipment {
             r.fix(RefKind::Item, &mut s.item);
         }
+        r.class_anims(d);
+    }
+    for d in &mut db.animations {
+        animation_refs(&mut r, d);
     }
     for c in &mut db.characters {
         if let Some(hc) = &mut c.class {
@@ -805,9 +841,32 @@ pub fn refs_of_background(d: &crate::backgrounds::BackgroundDef) -> Vec<(RefKind
     d.equipment.iter().filter(|s| !s.item.is_empty()).map(|s| (RefKind::Item, s.item.clone())).collect()
 }
 
-/// The items a class starts with.
+/// The items a class starts with and its actions' animations.
 pub fn refs_of_class(d: &crate::classes::ClassDef) -> Vec<(RefKind, String)> {
-    d.equipment.iter().filter(|s| !s.item.is_empty()).map(|s| (RefKind::Item, s.item.clone())).collect()
+    let mut d = d.clone();
+    let mut r = collector();
+    for s in &mut d.equipment {
+        r.fix(RefKind::Item, &mut s.item);
+    }
+    r.class_anims(&mut d);
+    r.found.unwrap_or_default()
+}
+
+/// The sprite sheets and sounds of an animation.
+fn animation_refs(r: &mut Renamer, d: &mut crate::animations::AnimationDef) {
+    for c in &mut d.cels {
+        r.fix(RefKind::Sheet, &mut c.sheet);
+    }
+    for s in &mut d.sounds {
+        r.fix(RefKind::Sound, &mut s.sound);
+    }
+}
+
+pub fn refs_of_animation(d: &crate::animations::AnimationDef) -> Vec<(RefKind, String)> {
+    let mut d = d.clone();
+    let mut r = collector();
+    animation_refs(&mut r, &mut d);
+    r.found.unwrap_or_default()
 }
 
 /// A cut-scene's map and what its cues use.
@@ -869,6 +928,7 @@ pub fn refs_of_item(d: &crate::defs::ItemDef) -> Vec<(RefKind, String)> {
     r.fix(RefKind::Prop, &mut d.furniture);
     r.crop(&mut d.crop);
     r.magic(&mut d.magic);
+    r.fix(RefKind::Animation, &mut d.use_anim);
     r.found.unwrap_or_default()
 }
 

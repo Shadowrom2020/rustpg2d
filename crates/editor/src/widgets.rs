@@ -734,6 +734,8 @@ pub struct Refs {
     pub functions: Vec<String>,
     /// Cut-scene assets (*Play cutscene* takes their ids beside script functions).
     pub cutscenes: Vec<String>,
+    /// Animation ids (`defs/animations.ron`).
+    pub animations: Vec<String>,
     /// map -> spawn names
     pub spawns: HashMap<String, Vec<String>>,
     /// map -> its transition zones: (zone, target map, target zone)
@@ -952,7 +954,11 @@ fn speaker_field(ui: &mut Ui, id: &str, speaker: &mut String, refs: &Refs) {
 
 /// The animated sprite of the Fly / Effect actions.
 fn fx_sprite_ui(ui: &mut Ui, id: &str, s: &mut rustpg2d_engine::events::FxSprite, refs: &Refs, shake: bool) {
-    labeled(ui, "sheet", |ui| suggest(ui, &format!("{id}/sheet"), &mut s.sheet, &refs.sheets, 120.0));
+    labeled(ui, "sheet", |ui| {
+        // (*Play effect* also plays an animation: its id in place of a sheet.)
+        let options: Vec<String> = if shake { refs.animations.iter().chain(&refs.sheets).cloned().collect() } else { refs.sheets.clone() };
+        suggest(ui, &format!("{id}/sheet"), &mut s.sheet, &options, 120.0);
+    });
     // Named animations of the sheet (e.g. Aseprite tags) fill in the frames and speed.
     if let Some(tags) = refs.sheet_tags.get(&s.sheet).filter(|t| !t.is_empty()) {
         labeled(ui, "animation", |ui| {

@@ -376,7 +376,7 @@ pub struct Project {
     pub db: Database,
 }
 
-pub const DEFS: [&str; 21] = ["sheets", "items", "props", "characters", "sounds", "quests", "structures", "spells", "recipes", "achievements", "races", "models", "materials", "scatter", "fonts", "skins", "common_events", "backgrounds", "classes", "diseases", "cutscenes"];
+pub const DEFS: [&str; 22] = ["sheets", "items", "props", "characters", "sounds", "quests", "structures", "spells", "recipes", "achievements", "races", "models", "materials", "scatter", "fonts", "skins", "common_events", "backgrounds", "classes", "diseases", "cutscenes", "animations"];
 
 /// A `defs/<name>.ron` list. The whole file is tried first; when that fails, the list is read
 /// entry by entry (`RawValue` keeps each entry's text, so struct and enum syntax survive) and
@@ -441,6 +441,7 @@ pub fn parse_defs_with(read: impl Fn(&str) -> Result<Option<String>>, warn: &mut
         classes: parse_list(r(18)?, DEFS[18], warn)?,
         diseases: parse_list(r(19)?, DEFS[19], warn)?,
         cutscenes: parse_list(r(20)?, DEFS[20], warn)?,
+        animations: parse_list(r(21)?, DEFS[21], warn)?,
         ..Default::default()
     };
     db.upgrade_prop_states();
@@ -596,6 +597,9 @@ impl Project {
         }
         if !self.db.cutscenes.is_empty() || d(DEFS[20]).exists() {
             write_ron(&d(DEFS[20]), &self.db.cutscenes)?;
+        }
+        if !self.db.animations.is_empty() || d(DEFS[21]).exists() {
+            write_ron(&d(DEFS[21]), &self.db.animations)?;
         }
         Ok(())
     }

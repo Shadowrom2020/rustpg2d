@@ -2164,6 +2164,8 @@ pub struct Database {
     pub cutscenes: Vec<crate::cutscenes::CutsceneDef>,
     /// Animations (spells, attacks, class actions, items, *Play effect*).
     pub animations: Vec<crate::animations::AnimationDef>,
+    /// Visual scripts: script functions made of nodes (the editor's *Nodes* tab).
+    pub visual_scripts: Vec<crate::visual::VisualScript>,
     /// Id → position caches of the hot lists ([`Database::reindex`]); never wrong, see [`DefIndex`].
     #[doc(hidden)]
     pub index: DefIndex,
@@ -2548,6 +2550,7 @@ impl_def!(crate::classes::ClassDef, crate::refactor::RefKind::Class, classes, re
 impl_def!(crate::diseases::DiseaseDef, crate::refactor::RefKind::Disease, diseases);
 impl_def!(crate::cutscenes::CutsceneDef, crate::refactor::RefKind::Cutscene, cutscenes, refs = crate::refactor::refs_of_cutscene);
 impl_def!(crate::animations::AnimationDef, crate::refactor::RefKind::Animation, animations, refs = crate::refactor::refs_of_animation);
+impl_def!(crate::visual::VisualScript, crate::refactor::RefKind::VisualScript, visual_scripts, refs = crate::refactor::refs_of_visual_script);
 
 /// Runs `$body` with `$T` bound to the definition type of `$kind` (a
 /// [`RefKind`](crate::refactor::RefKind)); `$else` for `Map` and `Skill` (a proficiency id), which
@@ -2646,6 +2649,10 @@ macro_rules! with_def_kind {
             }
             $crate::refactor::RefKind::Animation => {
                 type $T = $crate::animations::AnimationDef;
+                $body
+            }
+            $crate::refactor::RefKind::VisualScript => {
+                type $T = $crate::visual::VisualScript;
                 $body
             }
             $crate::refactor::RefKind::Skill | $crate::refactor::RefKind::Map => $else,

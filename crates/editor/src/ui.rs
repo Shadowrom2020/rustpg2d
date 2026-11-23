@@ -164,6 +164,7 @@ pub fn kind_icon(k: rustpg2d_engine::refactor::RefKind) -> &'static str {
         RefKind::Disease => ph::VIRUS,
         RefKind::Cutscene => ph::FILM_SLATE,
         RefKind::Animation => ph::SPARKLE,
+        RefKind::VisualScript => ph::FLOW_ARROW,
         RefKind::Map => ph::MAP_TRIFOLD,
     }
 }

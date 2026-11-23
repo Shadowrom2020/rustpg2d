@@ -48,12 +48,14 @@ pub enum RefKind {
     Cutscene,
     /// Animation (`animations::AnimationDef`).
     Animation,
+    /// Visual script (`visual::VisualScript`): a script function made of nodes.
+    VisualScript,
 }
 
 impl RefKind {
     /// Every kind: the definition lists in `defs/` file order ([`crate::project::DEFS`]), with
     /// `Skill` (a proficiency id, no definition) where `skills.ron` was until 0.27, then `Map`.
-    pub const ALL: [RefKind; 24] = [
+    pub const ALL: [RefKind; 25] = [
         RefKind::Sheet,
         RefKind::Item,
         RefKind::Prop,
@@ -77,10 +79,11 @@ impl RefKind {
         RefKind::Disease,
         RefKind::Cutscene,
         RefKind::Animation,
+        RefKind::VisualScript,
         RefKind::Map,
     ];
     /// The definition kinds in `defs/` file order.
-    pub const DEFS: [RefKind; 22] = [
+    pub const DEFS: [RefKind; 23] = [
         RefKind::Sheet,
         RefKind::Item,
         RefKind::Prop,
@@ -103,6 +106,7 @@ impl RefKind {
         RefKind::Disease,
         RefKind::Cutscene,
         RefKind::Animation,
+        RefKind::VisualScript,
     ];
 
     /// The kind's word in messages and commands: "sheet", "item", …, "map".
@@ -132,6 +136,7 @@ impl RefKind {
             RefKind::Disease => "disease",
             RefKind::Cutscene => "cutscene",
             RefKind::Animation => "animation",
+            RefKind::VisualScript => "visual_script",
         }
     }
 
@@ -161,6 +166,7 @@ impl RefKind {
             RefKind::Disease => "diseases",
             RefKind::Cutscene => "cutscenes",
             RefKind::Animation => "animations",
+            RefKind::VisualScript => "visual_scripts",
             RefKind::Map => return None,
         })
     }
@@ -192,6 +198,7 @@ impl RefKind {
             RefKind::Disease => "Disease",
             RefKind::Cutscene => "Cut-scene",
             RefKind::Animation => "Animation",
+            RefKind::VisualScript => "Visual script",
         }
     }
 
@@ -224,6 +231,7 @@ impl RefKind {
             "disease" => RefKind::Disease,
             "cutscene" | "cut-scene" | "cut scene" => RefKind::Cutscene,
             "animation" | "anim" => RefKind::Animation,
+            "visual_script" | "visual script" | "visualscript" | "node" | "nodes" => RefKind::VisualScript,
             _ => return None,
         })
     }
@@ -763,6 +771,9 @@ fn db_pass(db: &mut Database, config: &mut ProjectConfig, kind: RefKind, old: &s
     for d in &mut db.animations {
         animation_refs(&mut r, d);
     }
+    for d in &mut db.visual_scripts {
+        visual_refs(&mut r, d);
+    }
     for c in &mut db.characters {
         if let Some(hc) = &mut c.class {
             r.fix(RefKind::Class, &mut hc.class);
@@ -832,6 +843,34 @@ fn map_pass(map: &mut Map, kind: RefKind, old: &str, new: &str, srd: bool) -> us
         r.count += 1;
     }
     r.count
+}
+
+/// The ids typed into a visual script's node inputs (by the script API's argument kinds: items,
+/// sounds, maps…) and the visual scripts its call nodes call.
+fn visual_refs(r: &mut Renamer, d: &mut crate::visual::VisualScript) {
+    let before = d.clone();
+    let cat = crate::visual::Catalog::new(&[]);
+    for n in &mut d.nodes {
+        let Some(node) = before.node(n.id) else { continue };
+        for p in cat.pins(&before, node).inputs {
+            let kind = p.arg.and_then(|a| a.id_kind()).and_then(|k| k.ref_kind());
+            if let (Some(k), Some(crate::visual::Value::Text(t))) = (kind, n.values.get_mut(&p.name)) {
+                r.fix(k, t);
+            }
+        }
+        if let crate::visual::NodeKind::Call { function, .. } = &mut n.kind {
+            if !crate::script_api::API.iter().any(|f| f.name == function.as_str()) {
+                r.fix(RefKind::VisualScript, function);
+            }
+        }
+    }
+}
+
+/// What a visual script needs: the ids in its inputs and the visual scripts it calls.
+pub fn refs_of_visual_script(d: &crate::visual::VisualScript) -> Vec<(RefKind, String)> {
+    let mut r = collector();
+    visual_refs(&mut r, &mut d.clone());
+    r.found.unwrap_or_default()
 }
 
 fn collector() -> Renamer<'static> {

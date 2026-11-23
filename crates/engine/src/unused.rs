@@ -139,6 +139,7 @@ fn list_text(db: &Database, name: &str) -> Result<String> {
         "diseases" => ron_text(&db.diseases)?,
         "cutscenes" => ron_text(&db.cutscenes)?,
         "animations" => ron_text(&db.animations)?,
+        "visual_scripts" => ron_text(&db.visual_scripts)?,
         other => anyhow::bail!("no definition list '{other}'"),
     })
 }

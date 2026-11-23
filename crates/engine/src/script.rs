@@ -103,6 +103,21 @@ pub struct PlayerInfo {
     pub prepare_max: usize,
 }
 
+impl ScriptHost {
+    /// Rhai's signatures of every registered function (`name(_: string) -> bool`): tests only,
+    /// with Rhai's `metadata` feature.
+    #[cfg(test)]
+    pub fn signatures(&self) -> Vec<String> {
+        self.engine.gen_fn_signatures(false)
+    }
+
+    /// Whether `code` compiles (tests of generated scripts).
+    #[cfg(test)]
+    pub fn compile_check(&self, code: &str) -> Result<(), String> {
+        self.engine.compile(code).map(|_| ()).map_err(|e| e.to_string())
+    }
+}
+
 pub struct ScriptHost {
     engine: Engine,
     ast: AST,

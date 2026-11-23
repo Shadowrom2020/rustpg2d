@@ -378,6 +378,7 @@ pub fn check(project: &Project) -> (Vec<String>, Check) {
 /// The game's files ([`check`]) without what the game never uses ([`crate::unused`]): the
 /// unused definitions' files are left out, and the third list gives their `defs/` files' text
 /// without them. When the project can't be scanned, everything goes (with a warning).
+#[cfg(not(target_arch = "wasm32"))]
 pub fn game_files(project: &Project) -> (Vec<String>, Check, Vec<(String, String)>) {
     let (mut files, mut c) = check(project);
     let slim = crate::unused::find_in(project).and_then(|u| crate::unused::slim_defs(&project.db, &u).map(|defs| (u, defs)));
@@ -395,6 +396,7 @@ pub fn game_files(project: &Project) -> (Vec<String>, Check, Vec<(String, String
 }
 
 /// A file of the exported game: its text from `defs` (see [`game_files`]), else the project's file.
+#[cfg(not(target_arch = "wasm32"))]
 fn game_file(project: &Project, defs: &[(String, String)], rel: &str) -> Result<Vec<u8>> {
     match defs.iter().find(|(f, _)| f == rel) {
         Some((_, text)) => Ok(text.clone().into_bytes()),

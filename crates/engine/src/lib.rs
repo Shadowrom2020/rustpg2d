@@ -65,6 +65,7 @@ pub mod runtime;
 pub mod script;
 pub mod script_api;
 pub mod script_refs;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod unused;
 pub mod settings;
 pub mod skills;

@@ -3,7 +3,11 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
-## Unreleased
+## 0.33.0-alpha.1 — 2026-11-23
+
+A **pre-release (alpha)**: everything since 0.27.0, the SRD 5.1 ruleset (0.28 to 0.32) and *A Bigger
+Library* (0.33). The editor converts older projects to the new rules when it opens them (keeping a
+backup). Expect rough edges.
 
 ### A Bigger Library: the figure kit
 - **Figures from pieces.** A 3D model can be a **piece** that other models wear: hair, a beard, an

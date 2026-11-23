@@ -157,12 +157,12 @@ impl LibState {
 
     /// Paints a library character facing `facing` into `rect` (idle frame).
     pub(crate) fn paint_character(&self, ui: &egui::Ui, id: &str, facing: rustpg2d_engine::entity::Facing, rect: Rect) -> bool {
-        self.lib.as_ref().is_some_and(|lib| self.paint_character_in(ui, &lib.db, id, facing, rect))
+        self.lib.as_ref().is_some_and(|lib| self.paint_character_in(ui, &lib.db, id, Some(facing), rect))
     }
 
     /// Paints a character of `db` (its model, rendered from the shown store's files) into `rect`,
-    /// standing facing `facing`.
-    fn paint_character_in(&self, ui: &egui::Ui, db: &Database, id: &str, facing: rustpg2d_engine::entity::Facing, rect: Rect) -> bool {
+    /// standing facing `facing` (None: the way a still picture shows it best).
+    fn paint_character_in(&self, ui: &egui::Ui, db: &Database, id: &str, facing: Option<rustpg2d_engine::entity::Facing>, rect: Rect) -> bool {
         use rustpg2d_engine::render::model::{Gear, Models, PoseReq};
         let Some(d) = db.character(id) else { return false };
         let mut m = self.models.borrow_mut();
@@ -172,6 +172,7 @@ impl LibState {
         }
         let Some(models) = m.as_ref() else { return false };
         let a = models.look_of(&d.appearance);
+        let Some(facing) = facing else { return crate::widgets::paint_portrait(ui, models, db, &HashMap::new(), &a, rect) };
         let gear = Gear::default();
         let req = PoseReq { look: &a, gear: &gear, anim: "idle", time: 0.0, once: true, facing, turn: 0, bust: false };
         crate::widgets::paint_pose(ui, models, db, &HashMap::new(), &req, rect)
@@ -221,7 +222,7 @@ impl LibState {
                 ui.painter().image(t.handle.id(), r, Rect::from_min_max(pos2(0.0, 0.0), pos2((64.0 / t.w).min(1.0),(64.0 / t.h).min(1.0))), Color32::WHITE);
                 true
             }),
-            (RefKind::Character, _) => self.paint_character_in(ui, db, &a.1, rustpg2d_engine::entity::Facing::Down, rect),
+            (RefKind::Character, _) => self.paint_character_in(ui, db, &a.1, None, rect),
             (_, Some(s)) => self.paint_sprite_in(ui, db, &s, rect),
             _ => false,
         };

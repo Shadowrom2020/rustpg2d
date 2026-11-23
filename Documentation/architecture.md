@@ -452,6 +452,8 @@ triangles than one draw takes is listed in `Models.warnings` (`oversize`). The s
 playable races are built this way by `scripts/art/kit` (the figure kit: voxel blocks on the
 hero's skeleton, one shared clip file fitted to each build by `shared_clips`). The kit's creatures
 are unrigged sculpts with a rig fit (`ModelDef.rig`: a template and where its joints go).
+`Models::portrait_facing` says which way a still picture shows a look best (the side of a model
+much longer than wide); the editor's thumbnails use it (`widgets::paint_portrait`).
 
 The editor shows rendered poses
 without copying them: `widgets::paint_model` hands egui the atlas page's OpenGL texture

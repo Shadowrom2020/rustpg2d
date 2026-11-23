@@ -53,14 +53,12 @@ pub fn model_cards(ui: &mut Ui, cx: &Cx, base: &Appearance, current: &str) -> Op
 pub fn model_cards_of(ui: &mut Ui, cx: &Cx, ids: &[String], none: Option<&str>, base: &Appearance, current: &str) -> Option<String> {
     let mut entries: Vec<(String, String)> = none.map(|n| (String::new(), n.to_string())).into_iter().collect();
     entries.extend(ids.iter().filter_map(|id| cx.db.model(id)).map(|m| (m.id.clone(), if m.playable { format!("{} {}", ph::GAME_CONTROLLER, m.label()) } else { m.label().to_string() })));
-    let gear = rustpg2d_engine::render::model::Gear::default();
     cards(ui, THUMB, &entries, Some(&current.to_string()), &|ui, id, r| {
         if id.is_empty() {
             return false;
         }
         let a = Appearance { model: id.clone(), colors: if *id == base.model { base.colors.clone() } else { Default::default() }, ..base.clone() };
-        let req = rustpg2d_engine::render::model::PoseReq { look: &a, gear: &gear, anim: "idle", time: 0.0, once: false, facing: Facing::Down, turn: 0, bust: false };
-        widgets::paint_model(ui, cx.assets, cx.db, &req, r)
+        widgets::paint_portrait(ui, &cx.assets.models, cx.db, &cx.assets.sheets, &a, r)
     })
 }
 

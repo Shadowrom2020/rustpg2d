@@ -715,8 +715,11 @@ impl Game {
             if self.who_index(f.who).is_some_and(|i| self.loaded.entities[i].knocked_out) {
                 continue;
             }
+            // Everyone gets up: prone ends only by standing up on one's turn, and there are no
+            // more turns.
             if let Some(list) = self.who_conditions_mut(f.who) {
                 conditions::remove(list, Condition::Unconscious);
+                conditions::remove(list, Condition::Prone);
             }
         }
         // Fliers hovering over water, a pit or a low obstacle land on walkable ground (they walk

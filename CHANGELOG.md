@@ -23,6 +23,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **Prone after a fight:** characters (and the hero) knocked prone in a fight stayed prone once it
   ended, crawling at half speed, because standing up happens at the start of one's turn. Everyone
   in the fight now stands up when it ends.
+- **Companions in another shape** (*Polymorph*, *Wild Shape*, *Change shape* without its hit
+  points) stored the shape's hit points when the map changed or the game was saved, and came back in
+  their own shape with those: a free heal or the beast's few. They now keep their own.
 - **Held after a fight:** a hero (or character) grappled, or caught in a net, when a fight ended stayed
   held with speed 0 and no way out, e.g. after killing the last enemy while it held them. The end of
   a fight now lets everyone go (a spell's restraint keeps its own time).

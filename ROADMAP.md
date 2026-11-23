@@ -191,7 +191,9 @@ A way in for new creators: visual scripts, tutorials and small games to learn fr
 
   **Progress.** Part 1 (`feature/visual-scripts-model`): the asset, the code generation, the
   checks, renames and library, return types in the API table; agents write visual scripts with
-  `upsert_def` (kind `visual_scripts`). Next: the canvas (part 2), groups, docs and examples (part 3).
+  `upsert_def` (kind `visual_scripts`). Part 2 (`feature/visual-scripts-canvas`): the *Nodes* tab (list, canvas, palette, typed
+  values, problems, the Rhai beside it, *Convert to text script*), Problems and quick search,
+  manual chapter 20. Next: groups, copy / paste, docs and examples (part 3).
 
   **Verify.** Unit tests of the code generation (every node kind, nesting, groups) that compile
   the result with Rhai; editor UI test of the canvas basics; the example's visual scripts run in

@@ -12,6 +12,7 @@ From top to bottom:
   overlays, previews) and *Play*.
 - **The mode tabs** next to it switch the main area: **Map** (painting and placing),
   **Events** (the map's triggers as a graph, see [Events](07-events.md#the-events-graph)),
+  **Nodes** (visual scripts: script functions built from nodes, see [Visual scripts](20-visual-scripts.md)),
   **Database** (all definitions, see [The Database](05-database.md)), **Pixel editor** (see
   [Art and sound](10-art-and-sound.md#the-pixel-editor)) and **Asset Library**, which opens the
   library in its own window (see [The asset library](11-asset-library.md)). The **map dropdown**

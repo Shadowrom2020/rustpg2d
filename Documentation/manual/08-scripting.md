@@ -60,7 +60,7 @@ function.
 - Put only **functions** (and comments) at the top level of a file. Statements outside functions
   don't keep values between calls; keep lasting state in [flags and variables](#game-state-flags-and-variables).
 - **Visual scripts** (`defs/visual_scripts.ron`): script functions built from nodes instead of
-  typed (*since 0.35*; the editor's *Nodes* tab). Saving the definitions writes every visual
+  typed (*since 0.35*; the editor's *Nodes* tab, see [Visual scripts](20-visual-scripts.md)). Saving the definitions writes every visual
   script's function into `scripts/visual_scripts.rhai`, so they are called like any function
   (triggers' *Run script*, hooks, menus, spells, other scripts). That file is made by the editor:
   don't edit it, it is written again. A visual script with problems (a missing function, a value

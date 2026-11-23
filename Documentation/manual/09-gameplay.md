@@ -397,7 +397,7 @@ The SRD's **conditions** on the hero and on characters (until 0.27 they were sta
 | **Paralyzed** | Incapacitated and can't move; STR and DEX saving throws fail; hits against it are critical |
 | **Petrified** | Like paralyzed, grey, and resistant to all damage |
 | **Poisoned** | Disadvantage on ability checks |
-| **Prone** | Lies on the ground and crawls at half speed |
+| **Prone** | Lies on the ground and crawls at half speed. In a fight it stands up at the start of its turn (half its speed); when the fight ends, everyone in it stands up |
 | **Restrained** | Speed 0; disadvantage on DEX saving throws |
 | **Stunned** | Incapacitated and can't move; STR and DEX saving throws fail |
 | **Unconscious** | Lies on the ground, incapacitated; STR and DEX saving throws fail; hits against it are critical |

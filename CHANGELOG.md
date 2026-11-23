@@ -19,6 +19,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   along. Their hybrid forms and figures are retired (two forms only).
 - The script API is now version 0.35 (plugins can ask for it).
 
+### Fixes
+- **Prone after a fight:** characters (and the hero) knocked prone in a fight stayed prone once it
+  ended, crawling at half speed, because standing up happens at the start of one's turn. Everyone
+  in the fight now stands up when it ends.
+
 ## 0.34.0-alpha.1 — 2026-11-23
 
 A **pre-release (alpha)**: *Studio Comfort* (cut-scene timelines, the Database table view, test-play

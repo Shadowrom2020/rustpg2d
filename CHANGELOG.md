@@ -23,6 +23,12 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **Prone after a fight:** characters (and the hero) knocked prone in a fight stayed prone once it
   ended, crawling at half speed, because standing up happens at the start of one's turn. Everyone
   in the fight now stands up when it ends.
+- **Held after a fight:** a hero (or character) grappled, or caught in a net, when a fight ended stayed
+  held with speed 0 and no way out, e.g. after killing the last enemy while it held them. The end of
+  a fight now lets everyone go (a spell's restraint keeps its own time).
+- **Leaving the map during a fight** (a *Teleport* in an event) skipped the fight's end: conditions
+  stayed, fallen companions weren't stood up and a frenzy's exhaustion was skipped. It now ends like
+  any fight (without the old map's *Fight ends* triggers).
 - **Long action bar lists** (*Use*, *Cast*, class actions outside fights) grew past the bottom of
   the screen over the bar. They now show what fits and scroll with the wheel and the selection.
 - **Character window lists:** the mouse wheel didn't move through the *Spells* tab's spells or the

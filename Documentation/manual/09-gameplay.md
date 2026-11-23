@@ -391,14 +391,14 @@ The SRD's **conditions** on the hero and on characters (until 0.27 they were sta
 | **Charmed** | A charmed character leaves the hero alone; a charmed hero doesn't attack |
 | **Deafened** | Checks that need hearing fail |
 | **Frightened** | Disadvantage on ability checks; a frightened character runs from the hero |
-| **Grappled** | Speed 0 |
+| **Grappled** | Speed 0. Ends when the grappler lets go or isn't next to it any more, and when the fight ends |
 | **Incapacitated** | Can't attack, use or interact (and stands still) |
 | **Invisible** | Drawn faint; enemies notice an invisible hero only up close |
 | **Paralyzed** | Incapacitated and can't move; STR and DEX saving throws fail; hits against it are critical |
 | **Petrified** | Like paralyzed, grey, and resistant to all damage |
 | **Poisoned** | Disadvantage on ability checks |
-| **Prone** | Lies on the ground and crawls at half speed. In a fight it stands up at the start of its turn (half its speed); when the fight ends, everyone in it stands up |
-| **Restrained** | Speed 0; disadvantage on DEX saving throws |
+| **Prone** | Lies on the ground and crawls at half speed. In a fight it stands up at the start of its turn (half its speed); when the fight ends (also by leaving the map), everyone in it stands up |
+| **Restrained** | Speed 0; disadvantage on DEX saving throws. A net's or a monster's hold ends when the fight does (a spell's with the spell) |
 | **Stunned** | Incapacitated and can't move; STR and DEX saving throws fail |
 | **Unconscious** | Lies on the ground, incapacitated; STR and DEX saving throws fail; hits against it are critical |
 | **Exhaustion** | Six levels: 1 disadvantage on ability checks, 2 half speed, 3 disadvantage on saving throws, 4 max HP halved, 5 speed 0, 6 death. A long rest takes one level off |

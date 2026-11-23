@@ -701,27 +701,7 @@ impl Game {
     pub(super) fn end_combat(&mut self) {
         // The survivors take back what they threw (the hero's lies there).
         self.return_thrown();
-        // Rages end with the fight (a frenzy's exhaustion).
-        let whos: Vec<Who> = self.fight.as_ref().map_or(Vec::new(), |c| c.order.iter().filter(|f| !f.out).map(|f| f.who).collect());
-        for w in whos {
-            self.end_rage(w);
-        }
-        let Some(c) = self.fight.take() else { return };
-        for f in c.order.iter().filter(|f| f.side == Side::Party && f.down && !f.out) {
-            self.revive(f.who, 1);
-        }
-        for f in &c.order {
-            // (A knocked-out foe stays unconscious where it lies.)
-            if self.who_index(f.who).is_some_and(|i| self.loaded.entities[i].knocked_out) {
-                continue;
-            }
-            // Everyone gets up: prone ends only by standing up on one's turn, and there are no
-            // more turns.
-            if let Some(list) = self.who_conditions_mut(f.who) {
-                conditions::remove(list, Condition::Unconscious);
-                conditions::remove(list, Condition::Prone);
-            }
-        }
+        let Some(c) = self.wind_down() else { return };
         // Fliers hovering over water, a pit or a low obstacle land on walkable ground (they walk
         // outside fights).
         for f in c.order.iter().filter(|f| !f.out) {
@@ -748,6 +728,34 @@ impl Game {
             }
         }
         self.autosave_pending = true;
+    }
+
+    /// Takes the fight away and undoes what it leaves on the fighters (also when the map is left
+    /// during one): rages end (a frenzy's exhaustion), party members still down get up on 1 HP,
+    /// and everyone stands up and is let go: prone, a grapple and a net's hold end only on the
+    /// fighters' turns, and there are no more turns. The fight, for what else its end does.
+    pub(super) fn wind_down(&mut self) -> Option<Box<Combat>> {
+        let whos: Vec<Who> = self.fight.as_ref().map_or(Vec::new(), |c| c.order.iter().filter(|f| !f.out).map(|f| f.who).collect());
+        for w in whos {
+            self.end_rage(w);
+        }
+        let c = self.fight.take()?;
+        for f in c.order.iter().filter(|f| f.side == Side::Party && f.down && !f.out) {
+            self.revive(f.who, 1);
+        }
+        for f in &c.order {
+            // (A knocked-out foe stays unconscious where it lies.)
+            if self.who_index(f.who).is_some_and(|i| self.loaded.entities[i].knocked_out) {
+                continue;
+            }
+            if let Some(list) = self.who_conditions_mut(f.who) {
+                conditions::remove(list, Condition::Unconscious);
+                conditions::remove(list, Condition::Prone);
+                // (A spell's restraint, a web, keeps its own time.)
+                list.retain(|a| !(a.condition == Some(Condition::Grappled) || (a.condition == Some(Condition::Restrained) && a.remaining.is_none() && a.source.is_empty())));
+            }
+        }
+        Some(c)
     }
 
     /// Fighters of the enemy side that are no longer hostile to the player (*Set faction* after

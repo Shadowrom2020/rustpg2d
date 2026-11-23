@@ -40,6 +40,7 @@ pub enum Tab {
     Factions,
     Classes,
     Diseases,
+    Cutscenes,
 }
 
 /// How many definitions the list of `tab` shows (0 for the tabs without a list).
@@ -65,6 +66,7 @@ pub fn tab_len(db: &rustpg2d_engine::defs::Database, tab: Tab) -> usize {
         Tab::Backgrounds => db.backgrounds.len(),
         Tab::Classes => db.classes.len(),
         Tab::Diseases => db.diseases.len(),
+        Tab::Cutscenes => db.cutscenes.len(),
         Tab::Project | Tab::Scripts | Tab::Factions => 0,
     }
 }
@@ -117,6 +119,7 @@ impl Tab {
             Tab::Backgrounds => RefKind::Background,
             Tab::Classes => RefKind::Class,
             Tab::Diseases => RefKind::Disease,
+            Tab::Cutscenes => RefKind::Cutscene,
             Tab::Project | Tab::Scripts | Tab::Factions => return None,
         })
     }
@@ -144,6 +147,7 @@ impl Tab {
             RefKind::Background => Tab::Backgrounds,
             RefKind::Class => Tab::Classes,
             RefKind::Disease => Tab::Diseases,
+            RefKind::Cutscene => Tab::Cutscenes,
             RefKind::Map | RefKind::Skill => return None,
         })
     }
@@ -263,6 +267,7 @@ fn tab_icon(t: Tab) -> &'static str {
         Tab::Backgrounds => ph::IDENTIFICATION_CARD,
         Tab::Classes => ph::SWORD,
         Tab::Diseases => ph::VIRUS,
+        Tab::Cutscenes => ph::FILM_SLATE,
         Tab::Factions => ph::FLAG,
         Tab::Project => ph::GEAR,
         Tab::Scripts => ph::CODE,
@@ -378,11 +383,12 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             (Tab::Quests, "Quests"),
             (Tab::Achievements, "Achievements"),
             (Tab::CommonEvents, "Common events"),
+            (Tab::Cutscenes, "Cut-scenes"),
             (Tab::Project, "Project"),
             (Tab::Scripts, "Scripts"),
         ];
         for (t, l) in tabs {
-            if library && matches!(t, Tab::Quests | Tab::Achievements | Tab::Project | Tab::Scripts | Tab::Factions) {
+            if library && matches!(t, Tab::Quests | Tab::Achievements | Tab::Project | Tab::Scripts | Tab::Factions | Tab::Cutscenes) {
                 continue; // the library only holds assets
             }
             if ui.selectable_label(ed.db.tab == t, ui::t(tab_icon(t), l)).clicked() && ed.db.tab != t {
@@ -429,6 +435,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
             Tab::Backgrounds => db.backgrounds.get(i).map(|d| (RefKind::Background, d.id.clone())),
             Tab::Classes => db.classes.get(i).map(|d| (RefKind::Class, d.id.clone())),
             Tab::Diseases => db.diseases.get(i).map(|d| (RefKind::Disease, d.id.clone())),
+            Tab::Cutscenes => db.cutscenes.get(i).map(|d| (RefKind::Cutscene, d.id.clone())),
             _ => None,
         };
         if !library {
@@ -451,6 +458,7 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                 Tab::Backgrounds => Some(RefKind::Background),
                 Tab::Classes => Some(RefKind::Class),
                 Tab::Diseases => Some(RefKind::Disease),
+                Tab::Cutscenes => Some(RefKind::Cutscene),
                 _ => None,
             };
             if kind.is_some() {
@@ -655,6 +663,14 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     |ids| rustpg2d_engine::classes::ClassDef::fresh(&unique("class", ids)),
                     |d| &mut d.id,
                 ),
+                Tab::Cutscenes => list_ui(
+                    ui,
+                    &mut db.cutscenes,
+                    sel, |_| true,
+                    |d| format!("{}  ({})", d.name, d.id),
+                    |ids| rustpg2d_engine::cutscenes::CutsceneDef::fresh(&unique("cutscene", ids)),
+                    |d| &mut d.id,
+                ),
                 Tab::Diseases => list_ui(
                     ui,
                     &mut db.diseases,
@@ -852,6 +868,11 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     Tab::Diseases => {
                         if let Some(d) = db.diseases.get_mut(i) {
                             disease_form(ui, d, &mut cx);
+                        }
+                    }
+                    Tab::Cutscenes => {
+                        if let Some(d) = db.cutscenes.get_mut(i) {
+                            cutscene_form(ui, d, &mut cx);
                         }
                     }
                     Tab::Structures => {
@@ -3269,6 +3290,27 @@ fn background_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::backgrounds::Back
     });
     ui.label("What the feature does");
     text_box(ui, &mut d.feature_text, 3, "");
+}
+
+fn cutscene_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::cutscenes::CutsceneDef, cx: &mut Cx) {
+    ui.heading("Cut-scene");
+    rename_row(ui, RefKind::Cutscene, &d.id, cx.rename);
+    name_row(ui, &mut d.name);
+    ui.weak("A cut-scene as a timeline: tracks for actors, the camera, dialogs, sound and the screen, each with cues at times. The action Play cutscene (or cutscene(\"id\") in a script) plays it by its id. Edit it on its map: the timeline shows where everyone is at the playhead.");
+    ui.horizontal(|ui| {
+        if ui.button(ui::t(ph::FILM_SLATE, "Edit timeline on the map")).clicked() {
+            crate::timeline::request_open(&d.id);
+        }
+        if ui.button(ui::t(ph::PLAY, "Play")).on_hover_text("Play-tests the cut-scene on its map").clicked() {
+            widgets::request_play_cutscene(&d.id);
+        }
+    });
+    let cues: usize = d.tracks.iter().map(|t| t.cues.len()).sum();
+    ui.label(format!("{} track(s), {cues} cue(s), the last at {:.1} s{}", d.tracks.len(), d.length(), if d.map.is_empty() { String::new() } else { format!("; map {}", d.map) }));
+    for t in &d.tracks {
+        let who = if t.kind == rustpg2d_engine::cutscenes::TrackKind::Actor { format!(" ({})", t.target) } else { String::new() };
+        ui.weak(format!("{}{who}: {} cue(s)", t.kind.label(), t.cues.len()));
+    }
 }
 
 fn common_event_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::common_events::CommonEventDef, cx: &mut Cx) {

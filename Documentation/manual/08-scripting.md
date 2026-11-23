@@ -520,8 +520,10 @@ fn ogre_hurt() {                      // the ogre's "HP below 30 %" trigger runs
 
 ### Cut-scenes
 
-A cut-scene is an ordinary script function played with `cutscene("name")` or the trigger action
-*Play cutscene*. While it plays the HUD is hidden, black bars slide in at the top and bottom,
+A cut-scene is a timeline from the Database's *Cut-scenes* tab ([Events › Cut-scene
+timelines](07-events.md#cut-scene-timelines)) or an ordinary script function, played with
+`cutscene("name")` or the trigger action *Play cutscene* (a cut-scene of that id first, else the
+function). While it plays the HUD is hidden, black bars slide in at the top and bottom,
 and the player and the other characters wait (no input, no wandering or attacking) until the
 function's queued actions are done: walks, dialogs, waits, sounds, … Afterwards the HUD is back
 (also if the player had hidden it with H before, it stays hidden). A cut-scene started from
@@ -529,7 +531,7 @@ another one becomes part of it.
 
 | Function | Description |
 |---|---|
-| `cutscene(function)` | Plays a script function as a cut-scene. *(queued)* |
+| `cutscene(function)` | Plays a cut-scene: the timeline of that id, else a script function of that name. *(queued)* |
 | `walk_to(target, x, y)` | Walks a character (`"player"` too) onto tile `x`, `y`. *(queued, blocks until it arrives)* |
 | `approach(target, other)` | Walks a character up to another one, stopping a tile before it (along the longer axis); then both face each other. *(queued, blocks)* |
 | `place(target, x, y)` | Puts a character (`"player"` too) on tile `x`, `y` at once. Saved for NPCs. *(queued)* |
@@ -1246,17 +1248,17 @@ fn gate_open() {
 }
 ```
 
-### A cut-scene: arriving in town
+### A cut-scene: a messenger arrives
 
-The example project's intro (a *Map enter* trigger of the village, *once*, with the action *Play
-cutscene* → `intro_cutscene`):
+A cut-scene as a script (the example's intro is a [timeline](07-events.md#cut-scene-timelines)
+instead): a *Map enter* trigger, *once*, with the action *Play cutscene* → `messenger_arrives`:
 
 ```rust
-fn intro_cutscene() {
-    place("player", 0, 30);         // at the west edge of the village
+fn messenger_arrives() {
+    place("player", 0, 30);         // at the west edge of the map
     face("player", "right");
     wait(0.8);
-    walk_to("player", 5, 30);       // into town along the road
+    walk_to("player", 5, 30);       // in along the road
     wait(0.4);
     approach("guard", "player");    // the guard comes over
     say("Guard", "Halt, traveller! ... {player}? Thank the stars, you came!");

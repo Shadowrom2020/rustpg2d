@@ -947,6 +947,11 @@ impl Editor {
             }
         }
 
+        // The open cut-scene timeline: where everyone is at the playhead, the camera's frame.
+        if self.timeline.is_some() {
+            self.draw_timeline_preview(map, px);
+        }
+
         // A multi-selection: every selected entity outlined.
         for s in &multi {
             let Selection::Entity(uid) = s else { continue };

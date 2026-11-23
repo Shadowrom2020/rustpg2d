@@ -504,6 +504,14 @@ sent to the library take the common events they call along. The example's quests
 `quest_reward` (the hero cheers, and the giver likes them more), called by the rewards of seven
 quests.
 
+## Cut-scenes
+
+The *Cut-scenes* tab holds cut-scenes made on a timeline: tracks for actors, the camera, dialogs,
+sound and the screen, each with actions at moments in seconds. *Edit timeline on the map* opens
+the timeline under the map view, *Play* play-tests it. [Events › Cut-scene
+timelines](07-events.md#cut-scene-timelines) describes them. Cut-scenes belong to the project's
+story: they aren't sent to the asset library.
+
 ## Project
 
 *Database › Project* holds the game's own settings:

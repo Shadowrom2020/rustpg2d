@@ -276,7 +276,8 @@ impl Editor {
     /// Unknown ids a trigger list names, and the script functions it runs that don't exist.
     fn trigger_problems(&self, ts: &[Trigger], area: Area, place: &str, target: &Target, out: &mut Vec<Problem>) {
         for f in crate::mcp::exec_maps::functions_in(ts) {
-            if !self.refs.functions.contains(&f) {
+            // (Play cutscene may name a cut-scene asset instead.)
+            if !self.refs.functions.contains(&f) && self.project.db.cutscene(&f).is_none() {
                 out.push(Problem { severity: Severity::Error, area, place: place.to_string(), text: format!("runs the script function {f}(), which isn't defined in scripts/"), target: target.clone() });
             }
         }

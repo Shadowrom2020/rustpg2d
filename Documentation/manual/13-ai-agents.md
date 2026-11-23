@@ -113,7 +113,7 @@ bats and a chest".
 ### Definitions
 | Tool | Does |
 |---|---|
-| `list_defs {kind, filter, offset}` | `sheets`, `items`, `props`, `characters`, `sounds`, `quests`, `structures`, `spells`, `recipes`, `backgrounds`, `classes` (hit die, subclasses, features by level), `achievements`, `races`, `models`, `materials`, `scatter`, `fonts`, `skins` (UI skins: their pictures and colours; `def_template skins` explains the fields, `set_project_config {skin}` picks the game's), `common_events` (named action lists: *Call common event*, parallel / autorun while a flag is set): id and key facts per line. |
+| `list_defs {kind, filter, offset}` | `sheets`, `items`, `props`, `characters`, `sounds`, `quests`, `structures`, `spells`, `recipes`, `backgrounds`, `classes` (hit die, subclasses, features by level), `achievements`, `races`, `models`, `materials`, `scatter`, `fonts`, `skins` (UI skins: their pictures and colours; `def_template skins` explains the fields, `set_project_config {skin}` picks the game's), `common_events` (named action lists: *Call common event*, parallel / autorun while a flag is set), `cutscenes` (timelines: tracks of timed cues, each an action that waits or runs alongside; `def_template cutscenes` explains them): id and key facts per line. |
 | `get_def {kind, id}` | JSON. |
 | `def_template {kind, id}` | A complete new definition to fill in, with notes on the fields. |
 | `upsert_def {kind, def, merge}` | Create or replace (or merge fields into) a definition; checks referenced ids, image / sound files and the definition's own triggers; materials, sheets and sounds reload the editor's textures. |

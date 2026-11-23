@@ -48,6 +48,7 @@ mod search;
 mod starter;
 mod starter_ui;
 mod structures;
+mod timeline;
 #[cfg(test)]
 mod ui_tests;
 mod ui;
@@ -669,7 +670,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // watchanswer reload|keep: answers the "changed on disk" banner
         "watchanswer" => ed.watch_answer(arg(1) == "reload"),
         "status" => println!(
-            "[status] {} repo={} library={} script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} projectfile={} notices={} search={} usages={} problems={} plugins={} libupdate={} starter={} art={} pixel={} mode={:?} dbtab={:?} dbsel={} dblist={}/{} itemfilter={} libshown={} script={:?} ground={} decor={} msg={}",
+            "[status] {} repo={} library={} script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} projectfile={} notices={} search={} usages={} problems={} plugins={} libupdate={} starter={} art={} pixel={} mode={:?} dbtab={:?} dbsel={} dblist={}/{} itemfilter={} libshown={} script={:?} ground={} decor={} timeline={} msg={}",
             TIMING.with(|t| t.borrow_mut().take()),
             match repo_mode::root() {
                 None => "off".to_string(),
@@ -719,6 +720,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.db.script_file.as_ref().and_then(|f| f.file_name()).map(|f| f.to_string_lossy().to_string()),
             ed.ground_status(),
             ed.decor_status(),
+            ed.timeline_status(),
             ed.status.0
         ),
         "filedialog" => ed.open_file_dialog(files::Purpose::OpenProject),
@@ -1030,6 +1032,25 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 _ => None,
             }
         }
+        // timeline ID: the cut-scene's timeline on its map; timelinetime SECS moves the playhead,
+        // timelinecue TRACK CUE selects a cue, timelineplay = Play from here, timelineclose.
+        "timeline" => {
+            if !ed.open_timeline(arg(1)) {
+                eprintln!("[script] timeline: no cut-scene '{}'", arg(1));
+            }
+        }
+        "timelinetime" => {
+            if let Some(tl) = &mut ed.timeline {
+                tl.time = arg(1).parse().unwrap_or(0.0);
+            }
+        }
+        "timelinecue" => {
+            if let Some(tl) = &mut ed.timeline {
+                tl.sel = Some((arg(1).parse().unwrap_or(0), arg(2).parse().unwrap_or(0)));
+            }
+        }
+        "timelineplay" => ed.timeline_play(),
+        "timelineclose" => ed.timeline = None,
         // scheduleedit on|off: edit the selected character's schedule on the map (on: adds a
         // schedule with one stop at its tile when it has none, like "Add a schedule")
         "scheduleedit" => {
@@ -1343,6 +1364,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 "fonts" => Tab::Fonts,
                 "skins" => Tab::Skins,
                 "common_events" | "common" => Tab::CommonEvents,
+                "cutscenes" | "cutscene" => Tab::Cutscenes,
                 "backgrounds" => Tab::Backgrounds,
                 "classes" => Tab::Classes,
                 "diseases" => Tab::Diseases,
@@ -1365,6 +1387,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 Tab::Fonts => db.fonts.iter().position(|d| d.id == arg(2)),
                 Tab::Skins => db.skins.iter().position(|d| d.id == arg(2)),
                 Tab::CommonEvents => db.common_events.iter().position(|d| d.id == arg(2)),
+                Tab::Cutscenes => db.cutscenes.iter().position(|d| d.id == arg(2)),
                 Tab::Backgrounds => db.backgrounds.iter().position(|d| d.id == arg(2)),
                 Tab::Diseases => db.diseases.iter().position(|d| d.id == arg(2)),
                 _ => None,

@@ -613,6 +613,15 @@ kinsoku sets), measured with `measure_plain`; `render::wrap_text` calls it.
   `Game.common_runs` (dropped when the flag is cleared, cleared on load); an autorun event is
   pushed into the main runner while it is idle and its flag is set, so it freezes the player like
   any running event.
+- Cut-scene timelines (`cutscenes.rs`, `defs/cutscenes.ron`): a `CutsceneDef` holds tracks of
+  `Cue`s (time, wait, an `Action`). *Play cutscene* looks the id up first and plays
+  `CutsceneDef::actions(from)`: the cues sorted by time with *Wait* actions between them, cues
+  that don't wait wrapped in `Action::Parallel`, which starts a side `ActionRunner`
+  (`Game.side_runs`, updated after the main runner in `runtime/common.rs`; cleared on load). A
+  start time (`--cutscene-at`, `Game.cutscene_from`) turns the earlier cues into their end state
+  (`catch_up`: walks become *Place*, moves take 0 s, dialogs and sounds drop out). The editor's
+  `timeline.rs` previews the tracks on the map (positions by linear walks at the walk speed,
+  camera aims; no waits counted) and play-tests from the playhead.
 - UI skins (`skin.rs`: `SkinDef` in `defs/skins.ron`, `ProjectConfig.skin` = the game's) are drawn
   by `runtime/skin.rs`, the one place window chrome comes from: `panel`, `dialog_box`, `name_box`,
   `hud_frame`, `button_picture` / `button_fill`, `cursor`, `toast_box`, `bar` (HP, mana, XP) and

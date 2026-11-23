@@ -42,7 +42,7 @@ fn root_arg() -> Option<PathBuf> {
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
         match a.as_str() {
-            "--map" | "--spawn" | "--pos" | "--cutscene" | "--lang" => {
+            "--map" | "--spawn" | "--pos" | "--cutscene" | "--cutscene-at" | "--lang" => {
                 args.next();
             }
             s if s.starts_with('-') => {}
@@ -67,13 +67,14 @@ fn parse_args() -> Result<(PathBuf, StartOptions)> {
             "--engine-build" => {}
             "--spawn" => start.spawn = Some(value()?),
             "--cutscene" => start.cutscene = Some(value()?),
+            "--cutscene-at" => start.cutscene_at = value()?.trim().parse().context("--cutscene-at expects seconds")?,
             "--pos" => {
                 let v = value()?;
                 let (x, y) = v.split_once(',').context("--pos expects X,Y")?;
                 start.pos = Some(vec2(x.trim().parse()?, y.trim().parse()?));
             }
             "-h" | "--help" => {
-                println!("usage: rustpg2d-game [PROJECT_DIR] [--map NAME] [--spawn NAME] [--pos X,Y] [--no-title] [--cutscene FUNCTION] [--dev] [--lang CODE]");
+                println!("usage: rustpg2d-game [PROJECT_DIR] [--map NAME] [--spawn NAME] [--pos X,Y] [--no-title] [--cutscene ID|FUNCTION [--cutscene-at SECS]] [--dev] [--lang CODE]");
                 std::process::exit(0);
             }
             s if s.starts_with('-') => bail!("unknown option {s}"),

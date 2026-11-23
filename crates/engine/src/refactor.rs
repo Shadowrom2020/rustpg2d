@@ -44,12 +44,14 @@ pub enum RefKind {
     Class,
     /// Disease (`diseases::DiseaseDef`).
     Disease,
+    /// Cut-scene asset (`cutscenes::CutsceneDef`).
+    Cutscene,
 }
 
 impl RefKind {
     /// Every kind: the definition lists in `defs/` file order ([`crate::project::DEFS`]), with
     /// `Skill` (a proficiency id, no definition) where `skills.ron` was until 0.27, then `Map`.
-    pub const ALL: [RefKind; 22] = [
+    pub const ALL: [RefKind; 23] = [
         RefKind::Sheet,
         RefKind::Item,
         RefKind::Prop,
@@ -71,10 +73,11 @@ impl RefKind {
         RefKind::Background,
         RefKind::Class,
         RefKind::Disease,
+        RefKind::Cutscene,
         RefKind::Map,
     ];
     /// The definition kinds in `defs/` file order.
-    pub const DEFS: [RefKind; 20] = [
+    pub const DEFS: [RefKind; 21] = [
         RefKind::Sheet,
         RefKind::Item,
         RefKind::Prop,
@@ -95,6 +98,7 @@ impl RefKind {
         RefKind::Background,
         RefKind::Class,
         RefKind::Disease,
+        RefKind::Cutscene,
     ];
 
     /// The kind's word in messages and commands: "sheet", "item", …, "map".
@@ -122,6 +126,7 @@ impl RefKind {
             RefKind::Background => "background",
             RefKind::Class => "class",
             RefKind::Disease => "disease",
+            RefKind::Cutscene => "cutscene",
         }
     }
 
@@ -149,6 +154,7 @@ impl RefKind {
             RefKind::Background => "backgrounds",
             RefKind::Class => "classes",
             RefKind::Disease => "diseases",
+            RefKind::Cutscene => "cutscenes",
             RefKind::Map => return None,
         })
     }
@@ -178,6 +184,7 @@ impl RefKind {
             RefKind::Background => "Background",
             RefKind::Class => "Class",
             RefKind::Disease => "Disease",
+            RefKind::Cutscene => "Cut-scene",
         }
     }
 
@@ -208,6 +215,7 @@ impl RefKind {
             // (Plurals lose their s: "class" and "classes" end up as "cla" and "classe".)
             "cla" | "classe" => RefKind::Class,
             "disease" => RefKind::Disease,
+            "cutscene" | "cut-scene" | "cut scene" => RefKind::Cutscene,
             _ => return None,
         })
     }
@@ -541,6 +549,9 @@ impl Renamer<'_> {
             Action::Teleport { map, .. } | Action::SetSpawners { map, .. } | Action::SetWeather { map, .. } => self.fix(RefKind::Map, map),
             Action::PlaySound { sound, .. } | Action::PlayMusic { sound, .. } | Action::PlayMusicEffect { sound, .. } => self.fix(RefKind::Sound, sound),
             Action::CallCommon { id } => self.fix(RefKind::CommonEvent, id),
+            // (Renamed with a cut-scene asset's id; not collected as a reference: it may as well
+            // name a script function.)
+            Action::Cutscene { function } if self.found.is_none() => self.fix(RefKind::Cutscene, function),
             Action::ExposeDisease { disease, .. } | Action::CureDisease { disease } => self.fix(RefKind::Disease, disease),
             Action::SetClass { class, .. } => self.fix(RefKind::Class, class),
             Action::Fly { sprite, .. } | Action::Effect { sprite, .. } => self.fix(RefKind::Sheet, &mut sprite.sheet),
@@ -701,6 +712,9 @@ fn db_pass(db: &mut Database, config: &mut ProjectConfig, kind: RefKind, old: &s
     for d in &mut db.common_events {
         r.actions(&mut d.actions);
     }
+    for d in &mut db.cutscenes {
+        cutscene_refs(&mut r, d);
+    }
     for d in &mut db.backgrounds {
         for s in &mut d.equipment {
             r.fix(RefKind::Item, &mut s.item);
@@ -794,6 +808,24 @@ pub fn refs_of_background(d: &crate::backgrounds::BackgroundDef) -> Vec<(RefKind
 /// The items a class starts with.
 pub fn refs_of_class(d: &crate::classes::ClassDef) -> Vec<(RefKind, String)> {
     d.equipment.iter().filter(|s| !s.item.is_empty()).map(|s| (RefKind::Item, s.item.clone())).collect()
+}
+
+/// A cut-scene's map and what its cues use.
+fn cutscene_refs(r: &mut Renamer, d: &mut crate::cutscenes::CutsceneDef) {
+    r.fix(RefKind::Map, &mut d.map);
+    for t in &mut d.tracks {
+        for c in &mut t.cues {
+            r.actions(std::slice::from_mut(&mut c.action));
+        }
+    }
+}
+
+/// What a cut-scene uses: its map, and the sounds, pictures, items… of its cues.
+pub fn refs_of_cutscene(d: &crate::cutscenes::CutsceneDef) -> Vec<(RefKind, String)> {
+    let mut d = d.clone();
+    let mut r = collector();
+    cutscene_refs(&mut r, &mut d);
+    r.found.unwrap_or_default()
 }
 
 /// What a common event's actions use (items, sounds, other common events, ...).

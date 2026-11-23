@@ -732,6 +732,8 @@ pub struct Refs {
     /// "self", "player" and entity names on the current map.
     pub targets: Vec<String>,
     pub functions: Vec<String>,
+    /// Cut-scene assets (*Play cutscene* takes their ids beside script functions).
+    pub cutscenes: Vec<String>,
     /// map -> spawn names
     pub spawns: HashMap<String, Vec<String>>,
     /// map -> its transition zones: (zone, target map, target zone)
@@ -1469,7 +1471,7 @@ fn target_field(ui: &mut Ui, id: &str, target: &mut String, refs: &Refs) {
     labeled(ui, "target", |ui| suggest(ui, id, target, &refs.targets, 100.0));
 }
 
-fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
+pub(crate) fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
     match a {
         Action::Dialog { speaker, text } => {
             speaker_field(ui, id, speaker, refs);
@@ -1702,12 +1704,13 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
         }
         Action::Cutscene { function } => {
             ui.horizontal(|ui| {
-                labeled(ui, "function", |ui| suggest(ui, id, function, &refs.functions, 130.0));
+                let options: Vec<String> = refs.cutscenes.iter().chain(&refs.functions).cloned().collect();
+                labeled(ui, "cut-scene or function", |ui| suggest(ui, id, function, &options, 130.0));
                 if ui.add_enabled(!function.is_empty(), egui::Button::new("\u{E3D0} Preview")).on_hover_text("Play-test just this cut-scene on the open map (saves first)").clicked() {
                     request_play_cutscene(function);
                 }
             });
-            ui.weak("Plays the script function as a cut-scene: the HUD hides, black bars slide in, everyone else waits until its walks, dialogs and waits are done (Scripts tab: + Cutscene template).");
+            ui.weak("Plays a cut-scene: a timeline of the Cut-scenes tab by its id, or a script function (Scripts tab: + Cutscene template). The HUD hides, black bars slide in, everyone else waits until its walks, dialogs and waits are done.");
         }
         Action::Dim { amount, seconds } => {
             ui.horizontal(|ui| {
@@ -2395,6 +2398,10 @@ fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) {
             ui.indent(format!("{id}/it"), |ui| actions_ui(ui, &format!("{id}/then"), then, refs));
             ui.label("Else:");
             ui.indent(format!("{id}/ie"), |ui| actions_ui(ui, &format!("{id}/else"), otherwise, refs));
+        }
+        Action::Parallel { actions } => {
+            ui.weak("These start now in a queue of their own; the event goes on at once.");
+            ui.indent(format!("{id}/pa"), |ui| actions_ui(ui, &format!("{id}/par"), actions, refs));
         }
     }
 }

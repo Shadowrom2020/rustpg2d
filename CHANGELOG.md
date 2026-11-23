@@ -3,6 +3,25 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## Unreleased
+
+### Studio Comfort
+- **Cut-scene timelines.** Cut-scenes can be made on a timeline instead of in a script: the new
+  Database tab *Cut-scenes* (`defs/cutscenes.ron`) holds tracks for actors, the camera, dialogs,
+  sound and music, pictures and the screen, each with actions at moments in seconds. A cue
+  *waits* (the scene holds until a dialog is closed or a walk arrives) or runs alongside.
+  - **On the map:** *Edit timeline on the map* opens the timeline under the map view. Drag cues
+    to move them, click one to edit it; moving the playhead shows where each actor stands and
+    the camera's frame at that moment.
+  - **Play from here** play-tests the cut-scene from the playhead: what came before is done at
+    once (walkers placed, camera and pictures moved), then it plays on. The game takes
+    `--cutscene-at SECS`.
+  - *Play cutscene* and `cutscene("id")` take a cut-scene's id (a script function of that name
+    still works).
+  - New action **Run alongside**: its actions run next to the event's, which goes on at once.
+  - The example's intro is now the cut-scene `intro`; the script function `intro_cutscene()` is
+    gone.
+
 ## 0.33.0-alpha.1 — 2026-11-23
 
 A **pre-release (alpha)**: everything since 0.27.0, the SRD 5.1 ruleset (0.28 to 0.32) and *A Bigger

@@ -139,38 +139,6 @@ fn rat_defeated() {
     }
 }
 
-// The town guard patrols the road (see his patrol route in the map inspector). Once the
-// shrine is lit he rests by the barracks: patrol(target, [[x, y], ...]) gives a route (one
-// point: walk there and stay), patrol(target) resumes the own route, stop_patrol(target) stops.
-// The intro of a new game, a cut-scene (village Map enter trigger, once): the player walks
-// into town from the west, the guard comes over and sends them to the elder.
-fn intro_cutscene() {
-    place("player", 0, 30);
-    face("player", "right");
-    // While the title card shows, the camera glides over the village to the well where Elder
-    // Rowan waits (it doesn't wait for the pan), then comes back to the hero.
-    camera_to(34, 22, #{ seconds: 4.5, wait: false });
-    // A title card over the road into town: the Emberbrook sign fades in and out (picture layer 1).
-    picture_show(1, "title_logo", 0, -90, #{ anchor: "center", scale: 4, opacity: 0 });
-    picture_move(1, #{ opacity: 1, seconds: 1.5, easing: "out", wait: true });
-    wait(1.5);
-    picture_move(1, #{ opacity: 0, y: -110, seconds: 1, easing: "in", wait: true });
-    picture_erase(1);
-    wait(0.8);
-    camera_reset(2);
-    walk_to("player", 5, 30);
-    wait(0.4);
-    approach("guard", "player");
-    emote("guard", "surprise", #{ wait: true, seconds: 1.2 });
-    // He recognises the hero: a happy hop on the spot (a move route), then he faces them.
-    move_route("guard", ["jump 0,0", "face player"]);
-    say("Guard", "Halt, traveller! ... {player}? Thank the stars, you came!");
-    say("{player}", "I came as fast as I could. What is going on?");
-    say("Guard", "Something is not right in Whisperwood, east of town. Strange lights flicker between the trees at night, and the giant rats grow bolder every day.");
-    say("Guard", "Please, talk to Elder Rowan at once - he is waiting by the well in the middle of town.");
-    wait(0.3);
-}
-
 // The title screen's Credits entry (Project > Title screen > Entries: a custom entry): the
 // credits roll up the screen (scroll_text; "# " starts a heading).
 fn roll_credits() {

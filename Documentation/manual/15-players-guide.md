@@ -18,7 +18,7 @@ These are the default keys; players change them in *Options › Gameplay › Con
 | F (gamepad RB) | The action bar: Left / Right choose an entry, E opens it, Esc leaves |
 | Space | End the turn (in a fight) |
 | C / I | The character window: character sheet and inventory |
-| K / L | The character window's *Sheet* tab (your character sheet: scores, saving throws, skills, armor class, hit points, conditions, languages, features and traits; R there: short rest) and *Spells* tab (your spellbook: slots, prepare with P, cast with Enter; for casters) |
+| K / L | The character window's *Sheet* tab (your character sheet: scores, saving throws, skills, armor class, hit points, conditions, languages, features and traits; R there: short rest) and *Spells* tab (your spellbook: slots, prepare with P, cast with Enter; for casters). Up / Down or the mouse wheel move through the features and the spells |
 | Tab | Next tab of the open window |
 | J | Journal: *Quests*, *Bestiary*, *Dialogs*, *People* (the villagers you made friends with, in hearts), *Rolls* (your last checks and dice rolls) |
 | M | The map screen |

@@ -137,7 +137,7 @@ can be content as content: the library and example parts of each item.
 
 A way in for new creators: visual scripts, tutorials and small games to learn from.
 
-- [ ] Visual scripts — `feature/visual-scripts-model`, `feature/visual-scripts-canvas`,
+- [x] Visual scripts — `feature/visual-scripts-model`, `feature/visual-scripts-canvas`,
   `feature/visual-scripts-groups`
 
   **Goal.** Creators who don't write code build script functions from nodes: function nodes with
@@ -193,7 +193,11 @@ A way in for new creators: visual scripts, tutorials and small games to learn fr
   checks, renames and library, return types in the API table; agents write visual scripts with
   `upsert_def` (kind `visual_scripts`). Part 2 (`feature/visual-scripts-canvas`): the *Nodes* tab (list, canvas, palette, typed
   values, problems, the Rhai beside it, *Convert to text script*), Problems and quick search,
-  manual chapter 20. Next: groups, copy / paste, docs and examples (part 3).
+  manual chapter 20. Part 3 (`feature/visual-scripts-groups`): *Group into a function*
+  (`visual::group`: parameters from the links coming in, one flow in and out, at most one result),
+  *Open*, copy / paste / duplicate; the example's `ansel_blessing` and `rat_defeated` rebuilt as
+  visual scripts (and in the starter library); visual scripts travel through the library as assets
+  (a trigger running one brings it, it brings the text functions it calls).
 
   **Verify.** Unit tests of the code generation (every node kind, nesting, groups) that compile
   the result with Rhai; editor UI test of the canvas basics; the example's visual scripts run in

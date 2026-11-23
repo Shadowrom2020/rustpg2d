@@ -25038,8 +25038,21 @@
                 9052315642606146449,
             ],
         ),
+        "visual_script:ansel_blessing": (
+            defs: [
+                10581155307840937734,
+            ],
+        ),
+        "visual_script:rat_defeated": (
+            defs: [
+                16929600242492145977,
+            ],
+        ),
     },
     functions: {
+        "ansel_blessing": [
+            5062235277063124103,
+        ],
         "cast_fireball": [
             13976288539647571737,
         ],
@@ -25083,6 +25096,9 @@
         ],
         "quest_thanks": [
             3429237410044383541,
+        ],
+        "rat_defeated": [
+            340158349180893433,
         ],
         "restock_baking": [
             16451510880839791966,

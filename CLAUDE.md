@@ -567,7 +567,8 @@ copy; set `RUSTPG2D_FOLDER_PROJECTS=1` to work on the folder itself.
   sounds (`sndplay [ID]` / `sndstop [ID]` = the Sounds form's Play / Stop, default the selected sound; `status` prints `preview=` and `music=`),
   visual scripts (`mode nodes`; `vsnew ID`, `vssel ID`, `vsadd KIND X Y` (if, sequence:N, repeat, foreach, return, value:num|text|bool,
   math:add, compare:gt, and, or, not, join, set:NAME, get:NAME, comment:TEXT, call:FUNCTION; prints the node id), `vslink FROM OUT TO IN`,
-  `vsval NODE INPUT VALUE`, `vsdel NODE`, `vssel_node NODE`, `vspalette [SEARCH]`, `vscode` (the Rhai and `!` problems); `status` prints
+  `vsval NODE INPUT VALUE`, `vsdel NODE`, `vssel_node NODE`, `vsselect N…`, `vsgroup` (Group into a function: prints the new id or why not),
+  `vscopy`, `vspaste [X Y]`, `vsopen ID`, `vspalette [SEARCH]`, `vscode` (the Rhai and `!` problems); `status` prints
   `nodes=ID:nodes/links:problems[:palette]`),
   clean up unused files (`cleanup` = Assets › Clean up unused files…, prints `[cleanup] x|  KIND:ID SIZE FILES`; `closeproject`
   offers it when something unused isn't kept; `cleanuplist`, `cleanuppick KIND:ID|file:PATH on|off`, `cleanupok` (delete ticked),

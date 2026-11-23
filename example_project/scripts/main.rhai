@@ -127,18 +127,6 @@ fn shrine_awakening() {
     emit("shrine_lit");
 }
 
-// Called by the giant rats' "Defeated" trigger (what they drop is set in their loot table).
-fn rat_defeated() {
-    add_var("rats_defeated", 1);
-    // Tilda's quest counts giant rats once it was accepted (its first step is done at five).
-    if quest_active("pest_control") && quest_stage("pest_control") == 0 {
-        add_var("pest_rats", 1);
-    }
-    if get_var("rats_defeated") == 5 {
-        say("You have defeated 5 giant rats! You feel stronger... (not really)");
-    }
-}
-
 // The title screen's Credits entry (Project > Title screen > Entries: a custom entry): the
 // credits roll up the screen (scroll_text; "# " starts a heading).
 fn roll_credits() {
@@ -241,16 +229,6 @@ fn guard_answer() {
 fn count_coins() {
     set_text("purse", format_money(money()));
     say("Your purse holds {purse}.");
-}
-
-// Brother Ansel is a cleric of the Life domain (Database > Characters > Priest: class cleric):
-// once a day he heals a hurt hero with Cure Wounds (the spell cast for the story: free).
-fn ansel_blessing() {
-    if player_hp() >= player_max_hp() { return; }
-    if get_var("ansel_blessing_day") == day() + 1 { return; }
-    set_var("ansel_blessing_day", day() + 1);
-    say("Brother Ansel", "You are hurt, {player}. Be still - the light mends what it can.");
-    cast_spell("cure-wounds", "player", true);
 }
 
 // The Lost Cat (Mira's quest): Bram, Old Finn and Jorun each saw something; two clues lead to

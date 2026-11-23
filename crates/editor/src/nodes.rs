@@ -62,6 +62,10 @@ pub struct NodesState {
     canvas: Rect,
     /// Last frame's transform from the screen into the canvas.
     to_scene: Option<egui::emath::TSTransform>,
+    /// Copied nodes and the links between them (Ctrl+C, Ctrl+V).
+    clip: Option<(Vec<Node>, Vec<Link>)>,
+    /// A visual script to open (a call node's title double-clicked).
+    open: Option<String>,
 }
 
 impl Default for NodesState {
@@ -79,6 +83,8 @@ impl Default for NodesState {
             confirm_convert: false,
             canvas: Rect::ZERO,
             to_scene: None,
+            clip: None,
+            open: None,
         }
     }
 }
@@ -357,6 +363,16 @@ impl Editor {
                 self.db_redo();
             } else if cmd && key(egui::Key::S) {
                 self.save_all();
+            } else if cmd && key(egui::Key::G) {
+                self.nodes_group_status();
+            } else if cmd && key(egui::Key::C) {
+                self.nodes_copy();
+            } else if cmd && key(egui::Key::V) {
+                let at = ctx.input(|i| i.pointer.hover_pos()).filter(|p| self.nodes.canvas.contains(*p)).map(|p| self.nodes_to_scene(ctx, p));
+                self.nodes_paste(at);
+            } else if cmd && key(egui::Key::D) {
+                self.nodes_copy();
+                self.nodes_paste(None);
             } else if key(egui::Key::Delete) || key(egui::Key::Backspace) {
                 self.nodes_delete_selected();
             } else if key(egui::Key::Space) && self.nodes.palette.is_none() {
@@ -376,6 +392,74 @@ impl Editor {
         });
         egui::CentralPanel::default().frame(egui::Frame::new().fill(Color32::from_rgb(24, 26, 30))).show(ctx, |ui| self.nodes_canvas(ui));
         self.nodes_palette(ctx);
+        if let Some(id) = self.nodes.open.take() {
+            self.nodes_open(&id);
+        }
+    }
+
+    /// Shows visual script `id` (a group from its call node).
+    pub fn nodes_open(&mut self, id: &str) {
+        if self.project.db.visual_scripts.iter().any(|v| v.id == id) {
+            self.nodes.sel = id.to_string();
+            self.nodes.selected.clear();
+            self.nodes.scene_rect = Rect::ZERO;
+            self.nodes.id_edit = None;
+        }
+    }
+
+    /// Groups the selected nodes into a new visual script called in their place (Ctrl+G); the
+    /// new one's id, or why not.
+    pub fn nodes_group(&mut self) -> Result<String, String> {
+        let k = self.vs_index().ok_or("no visual script")?;
+        let all = self.project.db.visual_scripts.clone();
+        let mut vs = all[k].clone();
+        let id = rustpg2d_engine::refactor::unique_id(&format!("{}_part", vs.id), |c| all.iter().any(|v| v.id == c) || API.iter().any(|f| f.name == c) || self.nodes.text_fns.iter().any(|t| t.0 == c));
+        let cat = Catalog { visual: &all, text_fns: self.nodes.text_fns.clone() };
+        let mut g = visual::group(&mut vs, &self.nodes.selected, &id, &cat)?;
+        g.name = format!("{} (part)", vs.label());
+        self.put_vs(k, vs);
+        self.project.db.visual_scripts.push(g);
+        self.defs_dirty = true;
+        self.nodes.selected.clear();
+        Ok(id)
+    }
+
+    fn nodes_group_status(&mut self) {
+        match self.nodes_group() {
+            Ok(id) => self.set_status(format!("Grouped into the visual script {id} (Open goes into it)")),
+            Err(e) => self.set_status(format!("Can't group: {e}")),
+        }
+    }
+
+    /// Copies the selected nodes (not Start) and the links between them.
+    pub fn nodes_copy(&mut self) {
+        let Some(k) = self.vs_index() else { return };
+        let vs = &self.project.db.visual_scripts[k];
+        let nodes: Vec<Node> = vs.nodes.iter().filter(|n| self.nodes.selected.contains(&n.id) && n.kind != NodeKind::Start).cloned().collect();
+        let ids: BTreeSet<u32> = nodes.iter().map(|n| n.id).collect();
+        let links: Vec<Link> = vs.links.iter().filter(|l| ids.contains(&l.from) && ids.contains(&l.to)).cloned().collect();
+        if !nodes.is_empty() {
+            self.nodes.clip = Some((nodes, links));
+        }
+    }
+
+    /// Pastes the copied nodes (new ids) with their top-left at `at`, else a little below the
+    /// copies; they become the selection.
+    pub fn nodes_paste(&mut self, at: Option<Pos2>) {
+        let (Some(k), Some((nodes, links))) = (self.vs_index(), self.nodes.clip.clone()) else { return };
+        let mut vs = self.project.db.visual_scripts[k].clone();
+        let first = vs.next_id();
+        let map: BTreeMap<u32, u32> = nodes.iter().enumerate().map(|(i, n)| (n.id, first + i as u32)).collect();
+        let min = nodes.iter().fold(pos2(f32::INFINITY, f32::INFINITY), |m, n| pos2(m.x.min(n.pos[0]), m.y.min(n.pos[1])));
+        let off = at.map_or(vec2(40.0, 40.0), |a| a - min);
+        for n in &nodes {
+            vs.nodes.push(Node { id: map[&n.id], pos: [n.pos[0] + off.x, n.pos[1] + off.y], ..n.clone() });
+        }
+        for l in &links {
+            vs.links.push(Link { from: map[&l.from], to: map[&l.to], ..l.clone() });
+        }
+        self.nodes.selected = map.values().copied().collect();
+        self.put_vs(k, vs);
     }
 
     /// The canvas position of a screen position (the canvas's last transform).
@@ -560,9 +644,24 @@ impl Editor {
         let cat = Catalog { visual: &all, text_fns: self.nodes.text_fns.clone() };
         let vs = &all[k];
         let (code, problems) = visual::function_code(vs, &cat);
+        if !self.nodes.selected.is_empty() {
+            ui.horizontal(|ui| {
+                if ui.button(ui::t(ph::SELECTION_PLUS, "Group into a function")).on_hover_text("The selected nodes become a new visual script, called in their place (Ctrl+G): values coming in are its parameters, one value going out its result").clicked() {
+                    self.nodes_group_status();
+                }
+                if ui.button(ui::t(ph::COPY, "Copy")).on_hover_text("Ctrl+C; Ctrl+V pastes at the mouse, Ctrl+D duplicates").clicked() {
+                    self.nodes_copy();
+                }
+            });
+        }
         if let Some(&id) = self.nodes.selected.iter().next() {
             if let Some(n) = vs.node(id) {
                 ui.heading(cat.title(n));
+                if let NodeKind::Call { function, .. } = &n.kind {
+                    if all.iter().any(|v| v.id == *function) && ui.button(ui::t(ph::ARROW_SQUARE_IN, "Open")).on_hover_text("Shows this visual script (or double-click the node's title)").clicked() {
+                        self.nodes.open = Some(function.clone());
+                    }
+                }
                 if let NodeKind::Call { function, .. } = &n.kind {
                     if let Some(f) = API.iter().find(|f| f.name == function.as_str()) {
                         ui.label(f.doc);
@@ -760,6 +859,13 @@ impl Editor {
                 }
                 if drag.clicked() {
                     click_node = Some((n.id, ui.input(|i| i.modifiers.command)));
+                }
+                if drag.double_clicked() {
+                    if let NodeKind::Call { function, .. } = &n.kind {
+                        if all.iter().any(|v| v.id == *function) {
+                            st.open = Some(function.clone());
+                        }
+                    }
                 }
                 drag.on_hover_cursor(egui::CursorIcon::Grab);
             }

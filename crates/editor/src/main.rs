@@ -37,6 +37,7 @@ mod multisel;
 mod models;
 mod models_tab;
 mod new_project;
+mod nodes;
 mod frame_ops;
 mod material_preview;
 mod skin_preview;
@@ -486,6 +487,35 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.project_file_tick();
         }
         "closeproject" => ed.request(Pending::CloseProject),
+        // Visual scripts (the Nodes tab): vsnew ID · vssel ID · vsadd KIND X Y (prints the node id; KIND:
+        // if, sequence:N, repeat, foreach, return, value:num|text|bool, math:add, compare:gt, and, or, not,
+        // join, set:NAME, get:NAME, comment:TEXT, call:FUNCTION) · vslink FROM OUT TO IN · vsval NODE INPUT
+        // VALUE · vsdel NODE · vssel_node NODE · vspalette [SEARCH] · vspick (the first entry) · vscode
+        "vsnew" => {
+            ed.mode = Mode::Nodes;
+            let id = arg(1).to_string();
+            if !ed.project.db.visual_scripts.iter().any(|v| v.id == id) {
+                ed.project.db.visual_scripts.push(rustpg2d_engine::visual::VisualScript::fresh(&id));
+                ed.defs_dirty = true;
+            }
+            ed.nodes.sel = id;
+        }
+        "vssel" => {
+            ed.mode = Mode::Nodes;
+            ed.nodes.sel = arg(1).to_string();
+        }
+        "vsadd" => println!("[nodes] added {:?}", ed.nodes_add_named(arg(1), num(2), num(3))),
+        "vslink" => ed.nodes_link(num(1) as u32, arg(2), num(3) as u32, arg(4)),
+        "vsval" => ed.nodes_value(num(1) as u32, arg(2), &cmd[3..].join(" ")),
+        "vsdel" => {
+            ed.nodes.selected = std::collections::BTreeSet::from([num(1) as u32]);
+            ed.nodes_delete_selected();
+        }
+        "vssel_node" => ed.nodes.selected = std::collections::BTreeSet::from([num(1) as u32]),
+        "vspalette" => {
+            ed.nodes.palette = Some(nodes::Palette { search: cmd[1..].join(" "), ..Default::default() });
+        }
+        "vscode" => println!("[nodes]\n{}", ed.nodes_code()),
         // Clean up unused files: cleanup (Assets menu: opens it, prints the list) · cleanuplist ·
         // cleanuppick KIND:ID|file:PATH on|off · cleanupok (delete ticked) · cleanupkeep (keep all) · cleanupcancel
         "cleanup" => {
@@ -694,7 +724,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // watchanswer reload|keep: answers the "changed on disk" banner
         "watchanswer" => ed.watch_answer(arg(1) == "reload"),
         "status" => println!(
-            "[status] {} repo={} library={} script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} projectfile={} notices={} search={} usages={} problems={} plugins={} libupdate={} starter={} art={} pixel={} mode={:?} dbtab={:?} dbsel={} dblist={}/{} itemfilter={} libshown={} script={:?} ground={} decor={} dbtable={} testsetup={} anim={} timeline={} cleanup={} msg={}",
+            "[status] {} repo={} library={} script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} projectfile={} notices={} search={} usages={} problems={} plugins={} libupdate={} starter={} art={} pixel={} mode={:?} dbtab={:?} dbsel={} dblist={}/{} itemfilter={} libshown={} script={:?} ground={} decor={} dbtable={} testsetup={} anim={} timeline={} cleanup={} nodes={} msg={}",
             TIMING.with(|t| t.borrow_mut().take()),
             match repo_mode::root() {
                 None => "off".to_string(),
@@ -749,6 +779,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.db.anim_preview.status(ed.project.db.animation(&ed.db.anim_preview.id).map_or(0.0, |d| d.length(|s| ed.assets.sheets.get(s).map_or(1, |t| t.count.max(1))))),
             ed.timeline_status(),
             ed.cleanup.as_ref().map_or_else(|| "closed".to_string(), |c| c.status()),
+            ed.nodes_status(),
             ed.status.0
         ),
         "filedialog" => ed.open_file_dialog(files::Purpose::OpenProject),
@@ -797,6 +828,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 "library" | "browse" => Mode::Library,
                 "pixel" => Mode::Pixel,
                 "events" => Mode::Events,
+                "nodes" => Mode::Nodes,
                 _ => Mode::Map,
             }
         }

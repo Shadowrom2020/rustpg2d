@@ -29,6 +29,7 @@ interest you.
 17. [Testing your game](17-testing.md): driving the game from a script (autoplay), the `status` line
 18. [Plugins](18-plugins.md): add-ons with their own scripts, hooks, menu entries, HUD and settings; using, making and sharing them
 19. [The SRD 5.1 rules](19-srd-rules.md): how the rules work in the engine, what is simplified, and what the SRD's licence asks of your game
+20. [Visual scripts](20-visual-scripts.md): script functions built from nodes on a canvas, without typing code
 
 ## For developers
 

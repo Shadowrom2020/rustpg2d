@@ -307,6 +307,7 @@ impl Editor {
             out.push(Entry::new(What::Map, m.clone(), "map", Target::Map(m.clone())));
         }
         let kinds = [
+            RefKind::VisualScript,
             RefKind::Item,
             RefKind::Prop,
             RefKind::Character,
@@ -508,6 +509,11 @@ impl Editor {
             Target::MapTriggers(m) => {
                 self.mode = Mode::Map;
                 self.request(Pending::OpenSelect(m.clone(), Selection::None));
+            }
+            Target::Def(RefKind::VisualScript, id) => {
+                self.mode = Mode::Nodes;
+                self.nodes.sel = id.clone();
+                self.nodes.scene_rect = egui::Rect::ZERO;
             }
             Target::Def(k, id) => {
                 let (Some(tab), Some(i)) = (Tab::of(*k), self.project.db.index_of(*k, id)) else { return };

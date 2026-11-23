@@ -34,6 +34,8 @@ pub enum Mode {
     Pixel,
     /// The open map's events as a graph.
     Events,
+    /// Visual scripts: script functions made of nodes.
+    Nodes,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -225,6 +227,8 @@ pub struct Editor {
     pub play_place: Option<(String, (f32, f32), Option<PathBuf>)>,
     /// Test-play from here: the map's right-click menu and the Test setup window.
     pub testplay: crate::testplay::TestPlay,
+    /// The Nodes tab (visual scripts).
+    pub nodes: crate::nodes::NodesState,
     /// The *Clean up unused files* window, while open.
     pub cleanup: Option<crate::cleanup::Cleanup>,
     /// The next close goes on without offering the cleanup (it was just answered).
@@ -521,6 +525,7 @@ impl Editor {
             play_title_next: false,
             play_place: None,
             testplay: Default::default(),
+            nodes: Default::default(),
             cleanup: None,
             cleanup_passed: false,
             lang_msg: None,
@@ -1632,6 +1637,7 @@ impl Editor {
             Mode::Library => self.library_ui(ctx),
             Mode::Pixel => self.pixel_ui(ctx),
             Mode::Events => self.events_ui(ctx),
+            Mode::Nodes => self.nodes_ui(ctx),
         }
         // *New faction…* in a Faction field (Database forms, the map's inspector).
         if crate::database::take_open_factions() {
@@ -1954,6 +1960,7 @@ impl Editor {
                 ui.separator();
                 ui::tab(ui, self.mode == Mode::Map, ph::MAP_TRIFOLD, "Map").on_hover_text("Maps: tiles, entities, zones, transitions").clicked().then(|| self.mode = Mode::Map);
                 ui::tab(ui, self.mode == Mode::Events, ph::GRAPH, "Events").on_hover_text("The open map's events as a graph: triggers, dialogs and choices, the scripts they run, events, flags and variables, where they lead").clicked().then(|| self.mode = Mode::Events);
+                ui::tab(ui, self.mode == Mode::Nodes, ph::FLOW_ARROW, "Nodes").on_hover_text("Visual scripts: script functions made of nodes, for scripting without typing code").clicked().then(|| self.mode = Mode::Nodes);
                 ui::tab(ui, self.mode == Mode::Database, ph::DATABASE, "Database").on_hover_text("Definitions: items, props, characters, materials, scatter sets, sprite sheets, sounds, structures, quests, project settings, scripts").clicked().then(|| self.mode = Mode::Database);
                 let px_label = if self.px.is_dirty() { "Pixel editor •" } else { "Pixel editor" };
                 ui::tab(ui, self.mode == Mode::Pixel, ph::IMAGE, px_label).on_hover_text("Draw and edit the project's images").clicked().then(|| self.mode = Mode::Pixel);

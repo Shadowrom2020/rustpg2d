@@ -345,7 +345,9 @@ crates/editor/src/      editor binary
   a model, AI) and the Customize window; `char…` script commands), models.rs
   (template chooser: copy a project / library character's model and colours),
   script_editor.rs (Rhai editor: highlighting, completion, API table with params/docs),
-  repo_mode.rs (repository mode: started in a checkout, the editor works on example_project and the starter library),
+  nodes.rs (the Nodes tab: visual scripts on an egui Scene canvas, the palette from the API table grouped by the manual's sections,
+  typed values, links, problems, the generated Rhai; engine visual.rs does the code),
+    repo_mode.rs (repository mode: started in a checkout, the editor works on example_project and the starter library),
   srd_import.rs (the SRD 5.1 import from a 5e-database checkout, pinned SRD_COMMIT: races, subraces, traits, choices,
   the 334 monsters as library characters (import_monsters; update_monsters_in = the example's),
   backgrounds, the 12 classes (import_classes: feature_effects maps feature indexes to effects, starting
@@ -563,6 +565,10 @@ copy; set `RUSTPG2D_FOLDER_PROJECTS=1` to work on the folder itself.
   folder a test run creates; older distros: the AppImage in `debian:bookworm-slim` via docker with
   the X11 socket, `--ipc=host`, `LIBGL_ALWAYS_SOFTWARE=1`, `--appimage-extract-and-run`),
   sounds (`sndplay [ID]` / `sndstop [ID]` = the Sounds form's Play / Stop, default the selected sound; `status` prints `preview=` and `music=`),
+  visual scripts (`mode nodes`; `vsnew ID`, `vssel ID`, `vsadd KIND X Y` (if, sequence:N, repeat, foreach, return, value:num|text|bool,
+  math:add, compare:gt, and, or, not, join, set:NAME, get:NAME, comment:TEXT, call:FUNCTION; prints the node id), `vslink FROM OUT TO IN`,
+  `vsval NODE INPUT VALUE`, `vsdel NODE`, `vssel_node NODE`, `vspalette [SEARCH]`, `vscode` (the Rhai and `!` problems); `status` prints
+  `nodes=ID:nodes/links:problems[:palette]`),
   clean up unused files (`cleanup` = Assets › Clean up unused files…, prints `[cleanup] x|  KIND:ID SIZE FILES`; `closeproject`
   offers it when something unused isn't kept; `cleanuplist`, `cleanuppick KIND:ID|file:PATH on|off`, `cleanupok` (delete ticked),
   `cleanupkeep` (keep all, remembered per project in editor.ron), `cleanupcancel`; `status` prints `cleanup=closed|open:TICKED/ALL[:close]`),

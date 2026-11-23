@@ -108,7 +108,11 @@ on the flow or a value node. `function_code` walks the flow from *Start*, writes
 the expressions that use them and a step's used result into a `let`, and checks types, missing
 functions, circles and results used before their step (a broken function is written as a stub).
 `Project::save_defs` writes `scripts/visual_scripts.rhai`; the game only ever runs that Rhai. Ids
-typed into inputs are references by the API argument kinds (renames, library export).
+typed into inputs are references by the API argument kinds (renames, library export). The editor's *Nodes*
+tab (`nodes.rs`) draws them on an `egui::Scene`: real egui widgets inside the nodes (typed values,
+operators), pins and links painted around them from the last frame's pin positions, the palette
+built from the API table grouped by the manual's sections (`08-scripting.md`, parsed at build time;
+a test keeps every function in a section).
 
 **Unused assets** (`unused.rs`): models, sheets, sounds, materials and fonts count as used when their
 id appears as a string in the other definition lists (each `defs/` list serialized as RON), the

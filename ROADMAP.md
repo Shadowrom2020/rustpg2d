@@ -1758,8 +1758,10 @@ A content release for the starter library. Generating 3D models costs Meshy cred
     Bigger creatures are smaller sculpts drawn larger.
   - **Stand-ins** where a monster has no sculpt of its own (listed in `kit.py`); a look of
     their own is a sculpt added later.
-  - **Not done here:** the manual's screenshots still show the old figures; they are retaken in
-    the pull request that follows (`feature/kit-screenshots`).
+  - **Screenshots:** the manual's and the README's pictures that show figures were retaken in
+    `feature/kit-screenshots` (21 of 32: the banner, 13 of the game, 7 of the editor). The shop and
+    crafting windows (only the HUD's small bust shows a figure), the map screen and the pictures
+    without figures stayed.
 
   **Engine.** None.
 

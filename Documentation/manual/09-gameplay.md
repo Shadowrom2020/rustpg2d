@@ -318,7 +318,7 @@ a class at their level, and
   - bard: *Bardic Inspiration* (an ally within 60 ft gets the die for an attack roll or save that
     would fail).
 
-  ![A barbarian's turn: the Class entry chosen, Rage (a bonus action, 1 of 3 rages left) above the action bar](../images/game-class-actions.webp)
+  ![A barbarian's turn: the Class entry chosen, Rage (a bonus action, 3 of 3 rages left) and Reckless Attack above the action bar](../images/game-class-actions.webp)
 
 - **Divine Smite** (paladins from level 2): after a melee weapon hit the hero is asked in the
   Reaction window (*Divine Smite*: 2d8 radiant, 1d8 more a slot level above 1st, at most 5d8, 1d8
@@ -370,7 +370,7 @@ hunting bow) join when asked and arrive at the hero's level.
 
 ## Conditions and damage
 
-![Prone: the hero and a town guard lie on the ground, with their badges](../images/game-conditions.webp)
+![Prone and poisoned: the hero lies on the ground, the conditions' badges under the health bar](../images/game-conditions.webp)
 
 The SRD's **conditions** on the hero and on characters (until 0.27 they were status effects):
 

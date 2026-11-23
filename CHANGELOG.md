@@ -73,6 +73,8 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   - **The example** carries only the creatures its characters use (`apply.py --used-creatures`);
     its giant rats, owl and the giant spider of the Deep Caves have their models.
   - **Size:** 58 creature files in 17 MB; the library's models are 256 files in 35 MB.
+- **Documentation:** the screenshots of the manual and the README that show figures were taken
+  again with the kit's people and creatures (21 pictures).
 - **AI agent server:**
   - `model_sheet` returns a picture of a model as the game draws it (animations, facings, pieces,
     worn and held items, a backpack, colours);

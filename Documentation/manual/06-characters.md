@@ -44,7 +44,7 @@ modelled with Meshy from hand-drawn pictures of earlier versions.
   from *Generate art* is unrigged) get a **rig template** in the model's form: *Template* picks a
   rigged model whose skeleton is stretched over this one and whose walk, idle, attack and hurt it
   plays. The starter library has five, made for it: **four legs** (wolves, dogs, boars, deer),
-  **bird** (standing birds), **flyer** (bats, birds in flight), **blob** (slimes) and **floating**
+  **bird** (standing birds), **flyer** (bats, birds in flight), **blob** (oozes) and **floating**
   (ghosts, wisps). *Turn* makes the model face the front first (the down view shows its face). The
   side and front views show the fitted skeleton over the model: drag a joint (a dot) to where it
   belongs, a leg into its leg or the head into the head; *Mirror left and right* moves the other
@@ -307,9 +307,9 @@ proficient in, its **languages**, its **challenge** rating and the **XP** it is 
 
 In the example (and the starter library) villagers, traders and children are commoners, the town
 guards guards, the elder a noble, the priest a priest, the elven ranger a scout, the outlaws
-bandits, the bandit chief a bandit captain, Rook the deserter a veteran, and goblins and orcs their
+bandits, the bandit chief and Rook the deserter tough bandits (18 and 16 hit points of the Bandit's 2d8+2, so a party of level 1 or 2 can face them; the SRD's Bandit Captain and Veteran are characters of their own in the library), and goblins and orcs their
 SRD selves (the orc chief an orc with 30 HP, challenge 1); wolves and bats have the SRD's beasts'
-blocks by hand, and slimes a weak one of their own (AC 8, 5 HP, a 1d4 pseudopod and their poison). Stat blocks and the SRD's races and
+blocks. Stat blocks and the SRD's races and
 backgrounds are SRD 5.1 material: [The SRD 5.1 rules](19-srd-rules.md#the-licence-what-your-game-needs)
 says what that asks of a game.
 

@@ -395,8 +395,8 @@ The SRD's **conditions** on the hero and on characters (until 0.27 they were sta
 In fights the conditions give advantage and disadvantage on attack rolls (poisoned, prone,
 restrained…; [Health and combat](#health-and-combat)). A condition can come with **damage or
 healing every round** (6 seconds while exploring, each fighter's turn in a fight; the first at once):
-the slime's poison, a burning oil flask, a stew that heals on. A **saving throw** can keep a
-condition off: the slime's touch poisons only when a CON save against DC 10 fails; characters roll
+a poison, a burning oil flask, a stew that heals on. A **saving throw** can keep a
+condition off: the cave troll's blow knocks prone only when a STR save against DC 13 fails; characters roll
 theirs with their [stat block](06-characters.md#stat-blocks) (the roll log shows them, "Guard: CON
 save").
 
@@ -416,8 +416,8 @@ their race resists (a dwarf's poison) and what their armor names; characters wha
 says (an assassin resists poison).
 
 **In the example** the weapons have their types (swords and axes slashing, spears and bows
-piercing), the Spark spell is force and the Fire Burst and Fireball fire. The slime's touch poisons
-(CON DC 10, 1 poison damage a round: nothing for a dwarf), Grumbold the cave troll's blows knock the
+piercing), the Spark spell is force and the Fire Burst and Fireball fire. The goblin poisoner's blade stings
+(CON DC 10 or 1d4 poison damage), Grumbold the cave troll's blows knock the
 hero prone (STR DC 13), skeletons restrain, the antidote and the remedy end poison, and food heals
 on for a few rounds. The Potion of Hill Giant Strength makes Strength 21 for an hour (an SRD magic
 item: [Magic items](#magic-items)), the Swiftness Potion takes off a level of exhaustion and frees you
@@ -562,7 +562,7 @@ Automated runs make the dice repeat with `seed N` (autoplay) or `RUSTPG2D_SEED`.
 **In the example** the hero has STR 15, DEX 14, CON 13, INT 10, WIS 12 and CHA 8, and is proficient
 in Athletics, Perception, Persuasion and Thieves' Tools. They can pick the locked chest by the
 river near the farm (DC 12), read the shrine's carvings in Whisperwood (Religion, DC 12: lore and a
-little experience) and ask Tilda for a little more after the slime hunt (Persuasion, DC 13).
+little experience) and ask Tilda for a little more after the rat hunt (Persuasion, DC 13).
 
 **Stat blocks**: every character can have an SRD stat block (abilities, armor class, hit points,
 speed, proficiencies, challenge and XP), from the SRD's 35 NPC templates (commoner, guard, bandit,
@@ -1372,7 +1372,7 @@ The **journal** (J) has four tabs:
   the rewards and the objectives reached so far ([The Database › Quests](05-database.md#quests)).
 - **Bestiary**: every kind of character the player has defeated, how many, a portrait, the
   definition's *Description*, its numbers and drops. The *Defeated count* condition and
-  `defeated_count("slime")` make "defeat ten slimes" quests without a script.
+  `defeated_count("giant-rat")` make "defeat ten giant rats" quests without a script.
 - **Dialogs**: the last 1000 lines of every conversation, with the options the player picked, so
   nothing said is lost.
 - **People**: the characters the player is friends with ([Friendship and gifts](#friendship-and-gifts)).
@@ -1395,7 +1395,7 @@ the bakery, the door to the village for the forest's cart). A character with a q
 right now has a golden **!** over its head (talking to it offers the quest).
 
 Players switch them off in *Options › Gameplay › Quest markers*. In the example every quest stage with one place
-to go has a marker: the chest in the elder's house, the shrine, the slime den, Tilda, the mill's cat,
+to go has a marker: the chest in the elder's house, the shrine, the rat den, Tilda, the mill's cat,
 the raided cart, Bram, Wren, Pip, Brom, Halvar's locket and the elven herbalist in the Wilds.
 
 ## Achievements

@@ -92,7 +92,7 @@ fn shrine_touch() {
 
 // The shrine awakens (a cut-scene, the first time it is touched on the elder's quest): the
 // clearing darkens, the statues' eyes and the shrine light up, a burst of magic rolls out -
-// every monster left in the forest is destroyed and its spawners go quiet. Tilda's slime
+// every monster left in the forest is destroyed and its spawners go quiet. Tilda's rat
 // hunt can't go on then: accepted, it is done (she rewards it); not accepted, she won't offer it.
 fn shrine_awakening() {
     face("player", "up");
@@ -118,7 +118,7 @@ fn shrine_awakening() {
     defeat_enemies();                           // every monster left in the forest
     disable_spawners("forest");                 // and no new ones
     if quest_active("pest_control") && quest_stage("pest_control") == 0 {
-        set_quest_stage("pest_control", 1);     // the slimes are gone: back to Tilda
+        set_quest_stage("pest_control", 1);     // the rats are gone: back to Tilda
     }
     set_flag("shrine_lit", true);               // (the elder's quest goes on by itself)
     dim(0, 2);
@@ -127,15 +127,15 @@ fn shrine_awakening() {
     emit("shrine_lit");
 }
 
-// Called by the slime's "Defeated" trigger (what slimes drop is set in their loot table).
-fn slime_defeated() {
-    add_var("slimes_defeated", 1);
-    // Tilda's quest counts slimes once it was accepted (its first step is done at five).
+// Called by the giant rats' "Defeated" trigger (what they drop is set in their loot table).
+fn rat_defeated() {
+    add_var("rats_defeated", 1);
+    // Tilda's quest counts giant rats once it was accepted (its first step is done at five).
     if quest_active("pest_control") && quest_stage("pest_control") == 0 {
-        add_var("pest_slimes", 1);
+        add_var("pest_rats", 1);
     }
-    if get_var("slimes_defeated") == 5 {
-        say("You have defeated 5 slimes! You feel stronger... (not really)");
+    if get_var("rats_defeated") == 5 {
+        say("You have defeated 5 giant rats! You feel stronger... (not really)");
     }
 }
 
@@ -166,7 +166,7 @@ fn intro_cutscene() {
     move_route("guard", ["jump 0,0", "face player"]);
     say("Guard", "Halt, traveller! ... {player}? Thank the stars, you came!");
     say("{player}", "I came as fast as I could. What is going on?");
-    say("Guard", "Something is not right in Whisperwood, east of town. Strange lights flicker between the trees at night, and the slimes grow bolder every day.");
+    say("Guard", "Something is not right in Whisperwood, east of town. Strange lights flicker between the trees at night, and the giant rats grow bolder every day.");
     say("Guard", "Please, talk to Elder Rowan at once - he is waiting by the well in the middle of town.");
     wait(0.3);
 }
@@ -212,7 +212,7 @@ fn guard_talk() {
         say("Guard", "The lights are gone - I can finally take a rest. Thank you, {player}!");
         guard_rest();
     } else if flag("quest_accepted") {
-        say("Guard", "Whisperwood, is it? You shouldn't go alone - the slimes grow bolder every day.");
+        say("Guard", "Whisperwood, is it? You shouldn't go alone - the giant rats grow bolder every day.");
         choice("Take the guard along?", ["Come with me", "I'll manage"], "guard_join");
         then_call("guard_answer");
     } else {

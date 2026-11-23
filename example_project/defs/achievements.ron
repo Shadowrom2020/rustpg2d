@@ -2,7 +2,7 @@
     (
         id: "first_blood",
         name: "First Blood",
-        description: "Defeat your first slime.",
+        description: "Defeat your first giant rat.",
         icon: (
             sheet: "items",
             frame: 11,
@@ -11,7 +11,7 @@
         conditions: [
             (
                 cond: Defeated(
-                    character: "slime",
+                    character: "giant-rat",
                     op: Ge,
                     count: 1,
                 ),
@@ -22,7 +22,7 @@
     (
         id: "pest_control",
         name: "Pest Control",
-        description: "Rid Tilda\'s deliveries of the slimes.",
+        description: "Rid Tilda\'s deliveries of the giant rats.",
         icon: (
             sheet: "items",
             frame: 1,
@@ -79,7 +79,7 @@
     (
         id: "naturalist",
         name: "Naturalist",
-        description: "Face a slime, a goblin archer, an outlaw and the bandit chief.",
+        description: "Face a giant rat, a goblin archer, an outlaw and the bandit chief.",
         icon: (
             sheet: "items",
             frame: 23,
@@ -88,7 +88,7 @@
         conditions: [
             (
                 cond: Defeated(
-                    character: "slime",
+                    character: "giant-rat",
                     op: Ge,
                     count: 1,
                 ),

@@ -102,16 +102,16 @@
     (
         id: "pest_control",
         title: "Pest Control",
-        description: "Slimes from Whisperwood keep eating Tilda\'s deliveries. She promised 30 coins and a potion if I get rid of five of them.",
+        description: "Giant rats from Whisperwood keep eating Tilda\'s deliveries. She promised 30 coins and a potion if I get rid of five of them.",
         stages: [
-            "Defeat slimes in Whisperwood ({pest_slimes}/5).",
+            "Defeat giant rats in Whisperwood ({pest_rats}/5).",
             "Return to Tilda\'s shop for the reward.",
         ],
         xp: 100,
         targets: [
             (
                 map: "forest",
-                name: "slime_den",
+                name: "rat_den",
             ),
             (
                 map: "shop",
@@ -130,7 +130,7 @@
         ],
         offer: (
             lines: [],
-            question: "Slimes from Whisperwood keep eating my deliveries! Could you get rid of five of them? 30 coins and a potion are yours.",
+            question: "Giant rats from Whisperwood keep eating my deliveries! Could you get rid of five of them? 30 coins and a potion are yours.",
             accept: "I\'ll do it.",
             decline: "Not right now.",
             accepted: [
@@ -145,7 +145,7 @@
                 done: Conditions([
                     (
                         cond: Var(
-                            name: "pest_slimes",
+                            name: "pest_rats",
                             op: Ge,
                             value: 5,
                         ),
@@ -157,7 +157,7 @@
                 done: Talk(
                     character: "",
                     lines: [
-                        "The slimes are gone? My deliveries are safe again - thank you, {player}! Here, as promised.",
+                        "The giant rats are gone? My deliveries are safe again - thank you, {player}! Here, as promised.",
                     ],
                 ),
             ),

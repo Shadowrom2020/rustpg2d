@@ -169,20 +169,20 @@ fn a_weapon_gets_a_damage_type_and_a_touch_a_condition() {
     h.state_mut().save_all();
     let saved = Project::load(&root).unwrap().db.items[k].weapon.clone().unwrap();
     assert_eq!((saved.damage_type, saved.dice.as_str()), (Some(DamageType::Bludgeoning), "2d4"));
-    // The slime's touch: Poisoned becomes Prone; its saving throw stays.
-    let c = db.characters.iter().position(|c| c.id == "slime").expect("the example's slime");
+    // The cave troll's touch: Prone becomes Poisoned; its saving throw stays.
+    let c = db.characters.iter().position(|c| c.id == "cave_troll").expect("the example's cave troll");
     let mut h = harness(&root, Tab::Characters, c);
     // (Without its stat block: its "Can't get" toggles name the conditions too.)
     h.state_mut().project.db.characters[c].stats = None;
     step(&mut h);
     beside(&h, "On touch:", |n| n.role() == Role::ComboBox).click();
     step(&mut h);
-    h.get_by_label("Prone").click();
+    h.get_by_label("Poisoned").click();
     step(&mut h);
     let fx = h.state().project.db.characters[c].touch_effect.clone().expect("a touch");
-    assert_eq!((fx.condition, fx.save.as_ref().map(|s| s.dc)), (Some(Condition::Prone), Some(10)));
+    assert_eq!((fx.condition, fx.save.as_ref().map(|s| s.dc)), (Some(Condition::Poisoned), Some(13)));
     h.state_mut().save_all();
-    assert_eq!(Project::load(&root).unwrap().db.characters[c].touch_effect.as_ref().unwrap().condition, Some(Condition::Prone));
+    assert_eq!(Project::load(&root).unwrap().db.characters[c].touch_effect.as_ref().unwrap().condition, Some(Condition::Poisoned));
     let _ = std::fs::remove_dir_all(&root);
 }
 

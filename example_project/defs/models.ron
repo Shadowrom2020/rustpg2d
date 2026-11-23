@@ -5293,58 +5293,6 @@
         )),
     ),
     (
-        id: "slime",
-        name: "Slime",
-        file: "models/slime.glb",
-        height: 10.5,
-        clips: [
-            (
-                anim: "walk",
-                clip: "Walk",
-                fps: 12.0,
-            ),
-            (
-                anim: "idle",
-                clip: "Idle",
-                fps: 8.0,
-            ),
-            (
-                anim: "attack",
-                clip: "Attack",
-                fps: 12.0,
-            ),
-            (
-                anim: "hurt",
-                clip: "Hurt",
-                fps: 12.0,
-            ),
-        ],
-        features: [
-            (
-                name: "body",
-                shades: [
-                    (79, 191, 106),
-                    (61, 148, 82),
-                    (102, 248, 137),
-                    (63, 152, 84),
-                ],
-            ),
-        ],
-        rig: Some((
-            template: "rig_blob",
-            joints: [
-                (
-                    joint: "Body",
-                    offset: (0.0, 0.0476, 0.0),
-                ),
-                (
-                    joint: "Top",
-                    offset: (0.0, 0.0649, 0.0),
-                ),
-            ],
-        )),
-    ),
-    (
         id: "mannequin",
         name: "Mannequin",
         file: "models/mannequin.glb",
@@ -26211,10 +26159,89 @@
         )),
     ),
     (
-        id: "giant_spider",
-        name: "Giant spider",
+        id: "owl",
+        name: "Owl",
+        file: "models/bird.glb",
+        height: 8.0,
+        clips: [
+            (
+                anim: "walk",
+                clip: "Walk",
+                fps: 12.0,
+            ),
+            (
+                anim: "idle",
+                clip: "Idle",
+                fps: 8.0,
+            ),
+            (
+                anim: "attack",
+                clip: "Attack",
+                fps: 12.0,
+            ),
+            (
+                anim: "hurt",
+                clip: "Hurt",
+                fps: 12.0,
+            ),
+        ],
+        features: [
+            (
+                name: "feathers",
+                shades: [
+                    (110, 74, 46),
+                    (85, 56, 32),
+                ],
+                default: Some((138, 122, 102)),
+            ),
+        ],
+        rig: Some((
+            template: "rig_flyer",
+            joints: [
+                (
+                    joint: "Chest",
+                    offset: (0.0, 0.105, -0.0265),
+                ),
+                (
+                    joint: "Foot_L",
+                    offset: (-0.0107, 0.0176, 0.0582),
+                ),
+                (
+                    joint: "Foot_R",
+                    offset: (0.0107, 0.0176, 0.0582),
+                ),
+                (
+                    joint: "Head",
+                    offset: (0.0, 0.0607, -0.0317),
+                ),
+                (
+                    joint: "Hips",
+                    offset: (0.0, 0.1245, 0.0582),
+                ),
+                (
+                    joint: "WingTip_L",
+                    offset: (-0.007, 0.0978, 0.0159),
+                ),
+                (
+                    joint: "WingTip_R",
+                    offset: (0.007, 0.0978, 0.0159),
+                ),
+                (
+                    joint: "Wing_L",
+                    offset: (-0.0113, 0.048, -0.0265),
+                ),
+                (
+                    joint: "Wing_R",
+                    offset: (0.0113, 0.048, -0.0265),
+                ),
+            ],
+        )),
+    ),
+    (
+        id: "wolf_spider",
+        name: "Giant wolf spider",
         file: "models/spider.glb",
-        height: 14.5,
+        height: 12.0,
         clips: [
             (
                 anim: "walk",
@@ -26243,6 +26270,7 @@
                 shades: [
                     (58, 48, 56),
                 ],
+                default: Some((90, 74, 58)),
             ),
         ],
         rig: Some((
@@ -26319,85 +26347,6 @@
                 (
                     joint: "TailTip",
                     offset: (0.0, -0.1293, -0.2292),
-                ),
-            ],
-        )),
-    ),
-    (
-        id: "owl",
-        name: "Owl",
-        file: "models/bird.glb",
-        height: 8.0,
-        clips: [
-            (
-                anim: "walk",
-                clip: "Walk",
-                fps: 12.0,
-            ),
-            (
-                anim: "idle",
-                clip: "Idle",
-                fps: 8.0,
-            ),
-            (
-                anim: "attack",
-                clip: "Attack",
-                fps: 12.0,
-            ),
-            (
-                anim: "hurt",
-                clip: "Hurt",
-                fps: 12.0,
-            ),
-        ],
-        features: [
-            (
-                name: "feathers",
-                shades: [
-                    (110, 74, 46),
-                    (85, 56, 32),
-                ],
-                default: Some((138, 122, 102)),
-            ),
-        ],
-        rig: Some((
-            template: "rig_flyer",
-            joints: [
-                (
-                    joint: "Chest",
-                    offset: (0.0, 0.105, -0.0265),
-                ),
-                (
-                    joint: "Foot_L",
-                    offset: (-0.0107, 0.0176, 0.0582),
-                ),
-                (
-                    joint: "Foot_R",
-                    offset: (0.0107, 0.0176, 0.0582),
-                ),
-                (
-                    joint: "Head",
-                    offset: (0.0, 0.0607, -0.0317),
-                ),
-                (
-                    joint: "Hips",
-                    offset: (0.0, 0.1245, 0.0582),
-                ),
-                (
-                    joint: "WingTip_L",
-                    offset: (-0.007, 0.0978, 0.0159),
-                ),
-                (
-                    joint: "WingTip_R",
-                    offset: (0.007, 0.0978, 0.0159),
-                ),
-                (
-                    joint: "Wing_L",
-                    offset: (-0.0113, 0.048, -0.0265),
-                ),
-                (
-                    joint: "Wing_R",
-                    offset: (0.0113, 0.048, -0.0265),
                 ),
             ],
         )),

@@ -427,7 +427,7 @@ line at the top sums it up ("Given by Elder Rowan · after The Strange Lights ·
 | **Offering it** | The giver's dialog boxes, the **question** with its two **answers** and what the giver says **after accepting** and **after declining** (the quest is offered again next time). Without a question the quest starts after the lines. `{player}`, `{sir\|madam}` and `{var}` work as in dialogs |
 
 **Steps:** one card per step, in order. A step's text is its objective in the journal
-(`{name}` shows variable `name`, e.g. "Defeat slimes ({pest_slimes}/5)"). It is **done when**:
+(`{name}` shows variable `name`, e.g. "Defeat giant rats ({pest_rats}/5)"). It is **done when**:
 
 | Done when | |
 |---|---|

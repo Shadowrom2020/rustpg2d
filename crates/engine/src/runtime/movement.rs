@@ -1,7 +1,8 @@
 //! The SRD's movement outside fights: falling into a *Drop* zone (a pit, a ledge's edge: 1d6
 //! bludgeoning per 10 ft, at most 20d6, prone), long jumps over one (a running hero clears STR
 //! feet, a standing one half), and climbing walls and ropes that need an Athletics check
-//! (`PropDef::climb_dc`; a failure finds no hold for two seconds). In fights drops are closed to everyone but fliers (`turns/`).
+//! (`PropDef::climb_dc`; a failure finds no hold for two seconds). In fights nobody steps into a drop
+//! but fliers; walkers long-jump one as part of their move (`turns/` `reachable`).
 
 use macroquad::prelude::*;
 

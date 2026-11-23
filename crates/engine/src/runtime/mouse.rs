@@ -16,6 +16,8 @@ const REPATH_TIME: f32 = 0.5;
 /// After the path ends next to a target that is still out of reach, walk straight at it
 /// for at most this long (seconds) before giving up.
 const APPROACH_TIME: f32 = 1.0;
+/// Tiles walked straight at a gap before a jump planned by a click (a little more than the 10 ft run-up).
+const RUN_UP_TILES: i32 = 3;
 /// Give up after this many re-plans in a row without making progress.
 const MAX_STUCK_REPLANS: u8 = 3;
 
@@ -149,13 +151,12 @@ impl Game {
         let blocked = |x: i32, y: i32| self.tile_solid(x, y) || (occ.has(x, y, OCC_PROP | OCC_CHAR | super::occupancy::OCC_DROP) && !targets.contains(&(x, y)));
         let near = |a: TilePos, b: TilePos| (a.0 - b.0).abs() <= 1 && (a.1 - b.1).abs() <= 1;
         let start = self.player_tile();
+        // No way round: over a pit or a ledge's edge with a running jump, if the hero can clear it.
+        let over_gap = |t: TilePos, is_goal: &dyn Fn(TilePos) -> bool| self.plan_jump(start, t, is_goal, &blocked);
         let path = match goal {
             Goal::Walk(t) | Goal::InteractTile(t) => {
-                if blocked(t.0, t.1) {
-                    find_path(start, t, |p| near(p, t), blocked, MAX_NODES)
-                } else {
-                    find_path(start, t, |p| p == t, blocked, MAX_NODES)
-                }
+                let goal_ok = |p: TilePos| if blocked(t.0, t.1) { near(p, t) } else { p == t };
+                find_path(start, t, goal_ok, blocked, MAX_NODES).or_else(|| over_gap(t, &goal_ok))
             }
             Goal::Interact(uid) | Goal::Attack(uid) => {
                 let i = self.uid_index(uid)?;
@@ -180,11 +181,70 @@ impl Game {
                 let across = if talk { find_path(start, t, counter, blocked, MAX_NODES) } else { None };
                 match (path, across) {
                     (Some(p), Some(c)) => Some(if c.len() <= p.len() { c } else { p }),
+                    (None, None) if tried_all => over_gap(t, &|p: TilePos| near(p, t) && p != t),
                     (p, c) => p.or(c),
                 }
             }
         };
         path.map(VecDeque::from)
+    }
+
+    /// A path over a pit or a ledge's edge (a *Drop* zone) when walking can't get there: to three
+    /// tiles straight before the gap (the run-up: [`RUN_UP_TILES`]), on to its edge, the tile past
+    /// it, then on to the goal. Only gaps the hero clears with a running jump (STR feet, three
+    /// times with *Jump*); stepping into the gap from the edge makes the jump (`movement.rs`).
+    fn plan_jump(&self, start: TilePos, target: TilePos, is_goal: &dyn Fn(TilePos) -> bool, blocked: &dyn Fn(i32, i32) -> bool) -> Option<Vec<TilePos>> {
+        use super::occupancy::OCC_DROP;
+        let occ = &self.loaded.occupancy;
+        let is_drop = |t: TilePos| occ.has(t.0, t.1, OCC_DROP);
+        let times = crate::srd::conditions::buffs(&self.world.effects).find_map(|b| if let crate::srd::conditions::Buff::Jump { times } = b { Some(*times) } else { None }).unwrap_or(1.0).max(1.0);
+        let reach_ft = (super::movement::long_jump_ft(self.world.abilities.score(crate::srd::Ability::Str), true) as f32 * times) as u32;
+        // Where the hero can walk (breadth first, as far as clicks look): tile -> steps.
+        let mut dist: std::collections::HashMap<TilePos, u32> = std::collections::HashMap::from([(start, 0)]);
+        let mut queue = VecDeque::from([start]);
+        while let Some(t) = queue.pop_front() {
+            if dist.len() > MAX_NODES {
+                break;
+            }
+            for d in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+                let n = (t.0 + d.0, t.1 + d.1);
+                if !blocked(n.0, n.1) && !dist.contains_key(&n) {
+                    dist.insert(n, dist[&t] + 1);
+                    queue.push_back(n);
+                }
+            }
+        }
+        // The jumps from there: the edge, its run-up, the landing past the gap.
+        let mut jumps: Vec<(u32, TilePos, TilePos, TilePos)> = Vec::new();
+        for (&edge, &steps) in &dist {
+            for d in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+                let first = (edge.0 + d.0, edge.1 + d.1);
+                if !is_drop(first) || self.tile_solid(first.0, first.1) {
+                    continue;
+                }
+                let (gap, land) = super::movement::gap_along(first, d, 8, is_drop);
+                if gap as u32 * 5 > reach_ft || blocked(land.0, land.1) || !self.loaded.map.in_bounds(land.0, land.1) {
+                    continue;
+                }
+                let run = (edge.0 - d.0 * RUN_UP_TILES, edge.1 - d.1 * RUN_UP_TILES);
+                if (1..=RUN_UP_TILES).any(|k| !dist.contains_key(&(edge.0 - d.0 * k, edge.1 - d.1 * k))) {
+                    continue;
+                }
+                let guess = steps + gap as u32 + ((land.0 - target.0).abs().max((land.1 - target.1).abs())) as u32;
+                jumps.push((guess, run, edge, land));
+            }
+        }
+        jumps.sort();
+        for (_, run, edge, land) in jumps.into_iter().take(6) {
+            let Some(after) = find_path(land, target, is_goal, blocked, MAX_NODES) else { continue };
+            let mut path = find_path(start, run, |p| p == run, blocked, MAX_NODES)?;
+            let d = ((edge.0 - run.0).signum(), (edge.1 - run.1).signum());
+            path.extend((1..=RUN_UP_TILES).map(|k| (run.0 + d.0 * k, run.1 + d.1 * k)));
+            path.push(land);
+            path.extend(after);
+            return Some(path);
+        }
+        None
     }
 
     /// Mouse clicks in the world. Called every frame while gameplay accepts input.

@@ -221,6 +221,14 @@ stable. A hit that leaves as much damage as your hit point maximum after you dro
 once (massive damage). If nobody of your side is left
 standing, the fight is lost. When the fight is won, those still down get up.
 
+**Jumping and getting away:** outside fights, run (Shift) or walk two tiles straight at a pit or a
+crack and you leap it, clearing your Strength score in feet; clicking (left or right) on the far
+side does the same when there is no way round. In a fight you can leap a pit or a crack as part of
+your move: walk two tiles straight at it, and you clear your Strength score in feet (half from
+standing). A fight
+also ends when you get 15 tiles away from every foe, or when none of them can reach you any more
+(they can't cross the gap, fly or shoot).
+
 You can't save during a fight; the game autosaves when it is over.
 
 **Sneak**: Left Ctrl or V (gamepad: left stick click) switches sneaking on and off; *Sneaking*

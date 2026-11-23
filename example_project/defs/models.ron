@@ -26162,7 +26162,7 @@
         id: "owl",
         name: "Owl",
         file: "models/bird.glb",
-        height: 8.0,
+        height: 24.5,
         clips: [
             (
                 anim: "walk",
@@ -26350,5 +26350,33 @@
                 ),
             ],
         )),
+    ),
+    (
+        id: "rig_dragon",
+        name: "Rig template: dragon",
+        file: "models/rig_dragon.glb",
+        height: 24.0,
+        clips: [
+            (
+                anim: "walk",
+                clip: "Walk",
+                fps: 12.0,
+            ),
+            (
+                anim: "idle",
+                clip: "Idle",
+                fps: 8.0,
+            ),
+            (
+                anim: "attack",
+                clip: "Attack",
+                fps: 12.0,
+            ),
+            (
+                anim: "hurt",
+                clip: "Hurt",
+                fps: 12.0,
+            ),
+        ],
     ),
 ]

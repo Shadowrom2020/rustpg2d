@@ -155,6 +155,87 @@ def quadruped(out_dir):
     build("quadruped", bones, parts, [("Walk", 0.8, walk), ("Idle", 2.0, idle), ("Attack", 0.8, attack), ("Hurt", 0.5, hurt)], (0.55, 0.5, 0.45, 1), out_dir)
 
 
+# ------------------------------------------------------------------ dragon (four legs, a long neck and tail, wings)
+
+# The dragon's joints where the kit's dragon sculpt has them (voxels: x to its left, y up, z
+# forward, 64 voxels = 1 unit), so the clips' turns fit its bones' directions.
+def _dv(x, y, z):
+    return (x / 64, -z / 64, y / 64)
+
+
+DRAGON_JOINTS = dict(
+    Hips=(0, 20, -14), Spine=(0, 22, -2), Neck=(0, 27, 10), Neck2=(0, 40, 16), Head=(0, 49, 19), HeadEnd=(0, 50, 32),
+    Tail=(0, 19, -20), Tail2=(0, 14, -36), TailTip=(0, 9, -50), TailEnd=(0, 8, -64),
+    FrontLeg=(8, 22, 8), FrontShin=(9, 12, 6), FrontPaw=(9, 3, 10), FrontToe=(9, 1, 14),
+    BackLeg=(8, 18, -14), BackShin=(9, 10, -8), BackPaw=(9, 4, -16), BackToe=(9, 1, -11),
+    Wing=(7, 30, 6), WingTip=(20, 44, -2), WingEnd=(36, 40, -14),
+)
+
+
+def dragon(out_dir):
+    J = {k: _dv(*v) for k, v in DRAGON_JOINTS.items()}
+    chain = [("Hips", "Spine", None), ("Spine", "Neck", "Hips"), ("Neck", "Neck2", "Spine"), ("Neck2", "Head", "Neck"), ("Head", "HeadEnd", "Neck2"),
+             ("Tail", "Tail2", "Hips"), ("Tail2", "TailTip", "Tail"), ("TailTip", "TailEnd", "Tail2")]
+    bones = [(b, J[b], J[e], p) for b, e, p in chain]
+    parts = [("Hips", "ball", J["Hips"], (0.14, 0.2, 0.14)), ("Spine", "ball", J["Spine"], (0.15, 0.18, 0.15)), ("Neck", "ball", J["Neck"], (0.08, 0.1, 0.1)),
+             ("Neck2", "ball", J["Neck2"], (0.07, 0.08, 0.08)), ("Head", "box", J["Head"], (0.07, 0.12, 0.07)), ("Tail", "box", J["Tail"], (0.06, 0.12, 0.06)),
+             ("Tail2", "box", J["Tail2"], (0.04, 0.12, 0.04)), ("TailTip", "box", J["TailTip"], (0.03, 0.12, 0.03))]
+    for side, sx in (("L", 1), ("R", -1)):
+        def m(name):
+            x, y, z = DRAGON_JOINTS[name]
+            return _dv(sx * x, y, z)
+        for end, parent in (("Front", "Spine"), ("Back", "Hips")):
+            bones += [(f"{end}Leg_{side}", m(f"{end}Leg"), m(f"{end}Shin"), parent), (f"{end}Shin_{side}", m(f"{end}Shin"), m(f"{end}Paw"), f"{end}Leg_{side}"),
+                      (f"{end}Paw_{side}", m(f"{end}Paw"), m(f"{end}Toe"), f"{end}Shin_{side}")]
+            parts += [(f"{end}Leg_{side}", "box", m(f"{end}Leg"), (0.05, 0.05, 0.08)), (f"{end}Shin_{side}", "box", m(f"{end}Shin"), (0.035, 0.035, 0.07)),
+                      (f"{end}Paw_{side}", "box", m(f"{end}Paw"), (0.04, 0.05, 0.03))]
+        bones += [(f"Wing_{side}", m("Wing"), m("WingTip"), "Spine"), (f"WingTip_{side}", m("WingTip"), m("WingEnd"), f"Wing_{side}")]
+        parts += [(f"Wing_{side}", "box", m("WingTip"), (0.1, 0.06, 0.1)), (f"WingTip_{side}", "box", m("WingEnd"), (0.12, 0.08, 0.08))]
+
+    def wings(t, k, amp, lift=0.0):
+        """Both wings beating `k` times in the clip, `amp` degrees, raised by `lift`."""
+        s = wave(t, k)
+        tip = 0.7 * amp * wave(t, k, -0.12)
+        return {"Wing_L": ((lift + amp * s, 0, 0),), "Wing_R": ((lift + amp * s, 0, 0),), "WingTip_L": ((tip, 0, 0),), "WingTip_R": ((tip, 0, 0),)}
+
+    def legs(t, swing, bend):
+        out = {}
+        for leg, s in (("FrontLeg_L", 1), ("BackLeg_R", 1), ("FrontLeg_R", -1), ("BackLeg_L", -1)):
+            out[leg] = ((swing * s * wave(t), 0, 0),)
+            out[leg.replace("Leg", "Shin")] = ((bend * max(0.0, s * wave(t, 1, 0.25)), 0, 0),)
+        return out
+
+    def walk(t):
+        p = legs(t, 22, 30)
+        p.update(P(**wings(t, 1, 6)))
+        p.update(P(Hips=((0, 0, 0), (0, 0, 0.012 * wave(t, 2))), Neck=((3 * wave(t, 2), 0, 0),), Neck2=((-3 * wave(t, 2), 0, 0),), Head=((0, 0, 4 * wave(t)),),
+                   Tail=((0, 0, 10 * wave(t)),), Tail2=((0, 0, 10 * wave(t, 1, 0.12)),), TailTip=((0, 0, 12 * wave(t, 1, 0.25)),)))
+        return p
+
+    def idle(t):
+        p = P(**wings(t, 1, 12, 4))
+        p.update(P(Spine=((1.5 * wave(t, 2), 0, 0),), Neck=((3 * wave(t), 0, 0),), Neck2=((-2 * wave(t), 0, 0),), Head=((0, 0, 16 * wave(t)),),
+                   Tail=((0, 0, 8 * wave(t)),), Tail2=((0, 0, 9 * wave(t, 1, 0.15)),), TailTip=((0, 0, 12 * wave(t, 1, 0.3)),)))
+        return p
+
+    def attack(t):
+        # Rears back, the wings flare, then the neck lunges and the jaws strike.
+        a = curve(t, [(0, 0), (0.35, -1), (0.55, 1), (0.75, 1), (1, 0)])
+        o, back = max(a, 0), max(-a, 0)
+        p = P(**wings(t, 0, 0, 35 * back + 15 * o))
+        p.update(P(Hips=((-10 * back, 0, 0), (0, 0.06 * a, 0)), Spine=((-8 * back + 4 * o, 0, 0),), Neck=((22 * back - 25 * o, 0, 0),), Neck2=((10 * back - 15 * o, 0, 0),),
+                   Head=((-15 * o, 0, 0),), FrontLeg_L=((-25 * back, 0, 0),), FrontLeg_R=((-25 * back, 0, 0),), Tail=((10 * a, 0, 0),), TailTip=((0, 0, 20 * o),)))
+        return p
+
+    def hurt(t):
+        a = curve(t, [(0, 0), (0.2, 1), (1, 0)])
+        p = P(**wings(t, 0, 0, -20 * a))
+        p.update(P(Hips=((0, 0, 0), (0, -0.05 * a, 0)), Spine=((-6 * a, 0, 0),), Neck=((18 * a, 0, 0),), Neck2=((10 * a, 0, 0),), Head=((0, 0, 14 * a),), Tail=((-15 * a, 0, 0),)))
+        return p
+
+    build("dragon", bones, parts, [("Walk", 1.0, walk), ("Idle", 2.4, idle), ("Attack", 1.0, attack), ("Hurt", 0.5, hurt)], (0.6, 0.25, 0.2, 1), out_dir)
+
+
 # ------------------------------------------------------------------ bird (chicken, crow, owl standing)
 
 def bird(out_dir):
@@ -299,7 +380,7 @@ def floating(out_dir):
     build("floating", bones, parts, [("Walk", 1.0, walk), ("Idle", 2.0, idle), ("Attack", 0.8, attack), ("Hurt", 0.5, hurt)], (0.75, 0.78, 0.85, 1), out_dir)
 
 
-TEMPLATES = {"quadruped": quadruped, "bird": bird, "flyer": flyer, "blob": blob, "floating": floating}
+TEMPLATES = {"quadruped": quadruped, "dragon": dragon, "bird": bird, "flyer": flyer, "blob": blob, "floating": floating}
 
 if __name__ == "__main__":
     args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []

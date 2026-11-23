@@ -2,7 +2,7 @@
 creature (a model `height` world pixels tall is 2 x height voxels tall).
 
 A creature is an unrigged model: the engine fits one of the rig templates to it (`rig_quadruped`,
-`rig_bird`, `rig_flyer`, `rig_blob`, `rig_floating`: the skeleton stretched over the model, then
+`rig_dragon`, `rig_bird`, `rig_flyer`, `rig_blob`, `rig_floating`: the skeleton stretched over the model, then
 each joint moved to where the sculpt says its own shoulder, knee or wing root is) and it plays the
 template's walk, idle, attack and hurt.
 
@@ -411,6 +411,126 @@ def dragon(k=1.0, wings=True):
                      tail=(34 * k, 4.2 * k, -18), fur="#b8433a", belly="#d9805e", dark="#8a2e28", eye="#f2c84b", nose="#8a2e28", more=more)
     q["feature"] = ("skin", q["feature"][1])
     return q
+
+
+def membrane(s, a, b, c, color, thick=.7):
+    """A flat skin between three points (a wing's membrane, a tail's spade)."""
+    a, b, c = (np.asarray(v, float) for v in (a, b, c))
+    n = np.cross(b - a, c - a)
+    if np.linalg.norm(n) < 1e-6:
+        return
+    n /= np.linalg.norm(n)
+    lo = np.minimum(np.minimum(a, b), c) - 1.5
+    hi = np.maximum(np.maximum(a, b), c) + 1.5
+    box = (s.X >= lo[0]) & (s.X <= hi[0]) & (s.Y >= lo[1]) & (s.Y <= hi[1]) & (s.Z >= lo[2]) & (s.Z <= hi[2])
+    P = np.stack([s.X[box] - a[0], s.Y[box] - a[1], s.Z[box] - a[2]], -1)
+    d = P @ n
+    q = P - d[:, None] * n
+    v0, v1 = b - a, c - a
+    d00, d01, d11 = v0 @ v0, v0 @ v1, v1 @ v1
+    d20, d21 = q @ v0, q @ v1
+    den = d00 * d11 - d01 * d01
+    v = (d11 * d20 - d01 * d21) / den
+    w = (d00 * d21 - d01 * d20) / den
+    inside = (np.abs(d) <= thick) & (v >= -.02) & (w >= -.02) & (v + w <= 1.02)
+    idx = np.argwhere(box)[inside]
+    s.g[tuple(idx.T)] = s.col(color)
+
+
+def wyrm(k=1.0, elder=False, fur="#b8433a", belly="#d9805e", dark="#8a2e28", web="#9c3931"):
+    """A dragon (after a reference model): its chest carried high on four clawed legs, an S-curved
+    neck, a long head with jaws and swept-back horns, wings with finger bones raised over its
+    back, spines down the back and a long tail ending in a spade. Joints as `rig_dragon` has
+    them (scripts/art/rigs/templates.py, DRAGON_JOINTS), `k` scales it (a wyrmling at 1; the
+    wings' skin makes a bigger sculpt pass the vertices the engine draws in one piece, so older
+    dragons are this one drawn bigger). `elder`: the horns of a grown dragon, and cheek frills."""
+    horn, claw, eye, mouth = "#e8e2cf", "#efe8d6", "#f2c84b", "#3a1a1a"
+    stripe = shade(belly, .86)
+    def K(p):
+        return np.array(p, float) * k
+    zoff = -16 * k                                     # the block centred on the dragon (z -70..38)
+    s = Sculpt(int(92 * k), int(64 * k), int(112 * k))
+    def z(p):
+        p = K(p)
+        return (p[0], p[1], p[2] - zoff)
+    def r(v):
+        return max(.55, v * k)
+
+    # Legs first (the body covers their tops); +x only, mirrored at the end.
+    for hip, knee, ankle, toe, thick in (((8, 22, 8), (9, 12, 4), (9, 3, 9), (9, 1, 13), 3.2), ((8, 18, -14), (9, 10, -8), (9, 4, -16), (9, 1, -11), 4.0)):
+        s.ball(z(hip), (r(thick * 1.3), r(thick * 1.7), r(thick * 1.7)), fur)
+        s.limb(z(hip), z(knee), r(thick * 1.15), r(thick * .8), fur)
+        s.limb(z(knee), z(ankle), r(thick * .8), r(thick * .6), fur)
+        s.limb(z(ankle), z((ankle[0], 1.6, toe[2] - 2)), r(thick * .6), r(thick * .55), fur)
+        for dx in (-1.4, 0, 1.4):                      # three claws forward
+            s.limb(z((ankle[0] + dx, 1.4, toe[2] - 2)), z((ankle[0] + dx * 1.2, .7, toe[2] + 1.5)), r(.9), r(.4), claw)
+    # The body: rump to a deep chest.
+    s.limb(z((0, 20, -16)), z((0, 24, 6)), r(8.5), r(9.5), fur, (.88, 1, 1))
+    s.ball(z((0, 22, 4)), (r(8), r(9), r(8)), fur)
+    # The neck: up from the chest, then forward (an S).
+    for a, b, ra, rb in (((0, 27, 9), (0, 40, 15), 5.8, 4.6), ((0, 40, 15), (0, 48, 19), 4.6, 3.9)):
+        s.limb(z(a), z(b), r(ra), r(rb), fur)
+    s.ball(z((0, 40, 15)), r(4.8), fur)
+    # The head: a skull, a long snout over a lower jaw, horns swept back.
+    s.ball(z((0, 51, 21)), (r(4.3), r(4.0), r(5.0)), fur)
+    s.limb(z((0, 50.6, 24)), z((0, 49.6, 32)), r(3.1), r(2.2), fur, (1.05, .85, 1))
+    s.limb(z((0, 48.2, 23)), z((0, 47.7, 30.5)), r(2.5), r(1.6), dark, (1, .8, 1))
+    s.paint((np.abs(s.Y - 48.9 * k) < .6 * k) & (s.Z > 24 * k - zoff) & (s.Z < 31 * k - zoff), mouth)
+    s.paint((np.abs(s.Y - 48.4 * k) < .45 * k) & (s.Z > 25 * k - zoff) & (s.Z < 30.5 * k - zoff) & (np.abs(s.X) > 1.2 * k), claw, [fur, dark])                 # teeth
+    s.paint((np.abs(np.abs(s.X) - 1.1 * k) < .6 * k) & (s.Y > 50.2 * k) & (s.Z > 31 * k - zoff), mouth)                       # nostrils
+    s.paint((np.abs(np.abs(s.X) - 3.0 * k) < .8 * k) & (np.abs(s.Y - 52.2 * k) < .7 * k) & (s.Z > 23.2 * k - zoff) & (s.Z < 25.5 * k - zoff), eye)
+    s.paint((np.abs(np.abs(s.X) - 3.0 * k) < 1.1 * k) & (np.abs(s.Y - 53.4 * k) < .5 * k) & (s.Z > 22.5 * k - zoff) & (s.Z < 26 * k - zoff), dark)  # brows
+    s.limb(z((2.6, 54, 19)), z((4.0, 57.5, 13)), r(1.4), r(1.0), horn)
+    s.limb(z((4.0, 57.5, 13)), z((4.6, 55.8, 6.5)), r(1.0), r(.45), horn)
+    s.limb(z((3.6, 51.5, 17.5)), z((6.2, 50.5, 13)), r(.9), r(.4), horn)
+    if elder:
+        s.limb(z((4.6, 55.8, 6.5)), z((4.4, 53, 2.5)), r(.5), r(.3), horn)                              # the horns curl on
+        for dy in (0, -2.2):                                                                           # cheek frills
+            s.limb(z((3.8, 49.5 + dy, 20)), z((6.8, 49 + dy, 15.5)), r(.8), r(.3), horn)
+    # The tail: down and back to a spade.
+    pts = [(0, 19, -20), (0, 14, -36), (0, 9, -50), (0, 8, -62)]
+    rad = [6.6, 4.4, 2.8, 1.4]
+    for (a, ra), (b, rb) in zip(zip(pts, rad), zip(pts[1:], rad[1:])):
+        s.limb(z(a), z(b), r(ra), r(rb), fur)
+        s.ball(z(b), r(rb), fur)
+    membrane(s, z((0, 8, -60)), z((4.5, 8, -64)), z((0, 8, -70)), fur, .8 * k)
+    membrane(s, z((0, 8, -60)), z((-4.5, 8, -64)), z((0, 8, -70)), fur, .8 * k)
+    # The underside: pale, in bands.
+    under = (s.Y < 21 * k) & (s.Z > -16 * k - zoff) & (s.Z < 14 * k - zoff) & (np.abs(s.X) < 6.5 * k)
+    neck_front = (s.Z > 12 * k - zoff) & (s.Y < 47 * k) & (s.Y > 24 * k) & ((s.Z - (12 * k - zoff)) > (s.Y - 24 * k) * .32)
+    s.paint(under | neck_front, belly, [fur])
+    s.paint((under | neck_front) & (np.floor((s.Z + s.Y) / (3.4 * k)) % 2 == 0), stripe, [belly])
+    s.paint((s.Y < 47.5 * k) & (s.Y > 44 * k) & (s.Z > 20 * k - zoff), belly, [fur])                            # the throat
+    # Spines down the neck, the back and the tail.
+    ridge = [(0, 50, 18.5), (0, 44, 14), (0, 36, 11.5), (0, 31, 7), (0, 32, 0), (0, 30, -8), (0, 28, -15), (0, 23, -24), (0, 18, -34), (0, 14, -43), (0, 11, -51)]
+    for (a, b) in zip(ridge, ridge[1:]):
+        for t in np.linspace(0, 1, 3, endpoint=False):
+            p = np.array(a) * (1 - t) + np.array(b) * t
+            h = 3.4 if -18 < p[2] < 10 else 2.4
+            s.limb(z(p), z(p + np.array([0, h, -1.2])), r(1.1), r(.3), horn)
+    # Wings: an arm up from each shoulder to the wrist, fingers fanning back, skin between.
+    S, E, W = (7, 30, 6), (20, 44, -2), (30, 48, -8)
+    tips = [(41, 36, -16), (38, 26, -23), (29, 21, -27), (19, 23, -26)]
+    root = (8, 27, -15)
+    s.limb(z(S), z(E), r(2.0), r(1.5), dark)
+    s.limb(z(E), z(W), r(1.5), r(1.2), dark)
+    s.limb(z(W), z((31.5, 50.5, -6.5)), r(.9), r(.4), claw)                                   # the thumb's claw
+    corners = [W] + tips
+    for t in tips:
+        s.limb(z(W), z(t), r(1.0), r(.45), dark)
+    for a, b in zip(tips, tips[1:]):
+        membrane(s, z(W), z(a), z(b), web, .75 * k)
+    membrane(s, z(W), z(tips[-1]), z(E), web, .75 * k)
+    membrane(s, z(E), z(tips[-1]), z(root), web, .75 * k)
+    membrane(s, z(S), z(E), z(root), web, .75 * k)
+    for a, b in zip(tips, tips[1:]):                                                            # a scalloped trailing edge
+        c = K((np.array(a) + np.array(b)) / 2) - np.array([0, 0, zoff])
+        s.carve(((s.X - c[0]) ** 2 + (s.Y - c[1]) ** 2 + (s.Z - c[2]) ** 2 < (2.6 * k) ** 2) & (s.g == s.col(web)))
+    s.mirror()
+    want = dict(Hips=(0, 20, -14), Spine=(0, 22, -2), Neck=(0, 27, 10), Neck2=(0, 40, 16), Head=(0, 49, 19), Tail=(0, 19, -20), Tail2=(0, 14, -36), TailTip=(0, 9, -50))
+    for name, p in dict(FrontLeg=(8, 22, 8), FrontShin=(9, 12, 4), FrontPaw=(9, 3, 9), BackLeg=(8, 18, -14), BackShin=(9, 10, -8), BackPaw=(9, 4, -16), Wing=S, WingTip=E).items():
+        sides(want, name, p)
+    return dict(s=s, want={n: z(v) for n, v in want.items()}, feature=("skin", [fur, belly, dark, web, stripe]))
 
 
 # ---------------------------------------------------------------- other body plans
@@ -925,7 +1045,7 @@ def flying_sword():
 CREATURES = {
     "wolf": (wolf, "rig_quadruped"), "dog": (dog, "rig_quadruped"), "cat": (cat, "rig_quadruped"), "rat": (rat, "rig_quadruped"), "bear": (bear, "rig_quadruped"), "boar": (boar, "rig_quadruped"),
     "sheep": (sheep, "rig_quadruped"), "cow": (cow, "rig_quadruped"), "horse": (horse, "rig_quadruped"), "big_cat": (big_cat, "rig_quadruped"), "lion": (lambda: big_cat(mane=True), "rig_quadruped"),
-    "tiger": (lambda: big_cat(stripes=True), "rig_quadruped"), "dragon_wyrmling": (dragon, "rig_quadruped"), "dragon_young": (lambda: dragon(1.5), "rig_quadruped"),
+    "tiger": (lambda: big_cat(stripes=True), "rig_quadruped"), "dragon_wyrmling": (wyrm, "rig_dragon"), "dragon_young": (lambda: wyrm(1.0, elder=True), "rig_dragon"),
     "spider": (spider, "rig_quadruped"), "chicken": (chicken, "rig_bird"), "bat": (flyer, "rig_flyer"), "bird": (lambda: flyer("bird"), "rig_flyer"),
     "slime": (blob, "rig_blob"), "gel_cube": (lambda: blob("#9fd6c8", cube=True), "rig_blob"), "ghost": (ghost, "rig_floating"), "wisp": (wisp, "rig_floating"),
     "fire_elemental": (lambda: elemental("fire"), "rig_floating"), "water_elemental": (lambda: elemental("water"), "rig_floating"), "air_elemental": (lambda: elemental("air"), "rig_floating"),

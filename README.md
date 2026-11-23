@@ -31,14 +31,14 @@ for how to use it all.
   </tr>
   <tr>
     <td><img src="Documentation/images/game-character.webp" alt="The character window with the hero's gear, stats and inventory"></td>
-    <td><img src="Documentation/images/editor-builder.webp" alt="The character editor with 3D model cards, colour swatches for skin, hair and clothing, and a walking preview"></td>
+    <td><img src="Documentation/images/editor-builder.webp" alt="The character editor: the cards of the 3D models to choose from and a walking preview"></td>
   </tr>
   <tr>
     <td align="center"><em>Equipment, stats and inventory</em></td>
     <td align="center"><em>3D characters in the pixel look, in the colours you pick</em></td>
   </tr>
   <tr>
-    <td><img src="Documentation/images/game-fishing.webp" alt="The fisher on the jetty with his rod and line, fish in the pond, the hero with sword and shield on the shore"></td>
+    <td><img src="Documentation/images/game-fishing.webp" alt="The fisher on the jetty with his rod and line, the hero with sword and shield on the shore"></td>
     <td><img src="Documentation/images/editor-item.webp" alt="The item form: the battle axe's 3D model, held in the fist, with a big preview of the hero walking with it"></td>
   </tr>
   <tr>
@@ -46,7 +46,7 @@ for how to use it all.
     <td align="center"><em>Items held in the hands: pick how, check it in the preview</em></td>
   </tr>
   <tr>
-    <td><img src="Documentation/images/game-night.webp" alt="Emberbrook's market at night: the hero with a lantern, the night watch on her round with her spear, the street lamps"></td>
+    <td><img src="Documentation/images/game-night.webp" alt="Emberbrook's market at night: the hero with a lantern, the street lamps"></td>
     <td><img src="Documentation/images/editor-events.webp" alt="The Events view: a forest map's triggers, scripts and map links as a graph"></td>
   </tr>
   <tr>
@@ -111,7 +111,7 @@ also in the editor's asset library for your own games.
 
 <table>
   <tr>
-    <td><img src="Documentation/images/game-combat.webp" alt="The hero fights the bandit chief in Whisperwood"></td>
+    <td><img src="Documentation/images/game-combat.webp" alt="The hero fights goblin archers in Whisperwood: the turn order, the cursor on a goblin, the action bar"></td>
     <td><img src="Documentation/images/game-shop.webp" alt="Tilda's shop window with her wares and the player's items"></td>
     <td><img src="Documentation/images/game-map.webp" alt="The map screen of the village with its exits labelled"></td>
   </tr>

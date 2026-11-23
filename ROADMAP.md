@@ -133,9 +133,10 @@ and each item's *Engine* line names the addition. When an item starts, confirm i
 the user in a short plan before changing Rust code (CLAUDE.md, *Content first*). Build whatever
 can be content as content: the library and example parts of each item.
 
-## 0.35.0 — Learning
+## 0.35.0 — A New View
 
-A way in for new creators: visual scripts, tutorials and small games to learn from.
+Scripts without code, and the move from top-down to an isometric 2.5D view in the tradition of
+the western RPGs (Baldur's Gate, Planescape: Torment).
 
 - [x] Visual scripts — `feature/visual-scripts-model`, `feature/visual-scripts-canvas`,
   `feature/visual-scripts-groups`
@@ -203,6 +204,142 @@ A way in for new creators: visual scripts, tutorials and small games to learn fr
   the result with Rhai; editor UI test of the canvas basics; the example's visual scripts run in
   autoplay; editor screenshots of the Nodes tab.
 
+- [ ] Isometric view — `feature/iso-view`, `feature/iso-editor`, `feature/iso-props`,
+  `feature/iso-walls`
+
+  **Goal.** The game and the editor show the world isometric instead of top-down: diamond tiles,
+  upright characters, buildings and furniture seen from the south-east and above. (The user's
+  request, 2026-11-23; answers in the session: isometric **replaces** top-down, diamond tiles,
+  buildings and furniture as rendered 3D models, a look study first.)
+
+  **The look study** (2026-11-23, a throwaway copy in the scratchpad, no repository change):
+  - Turning the game's `Camera2D` 45° and squashing it to half height projects everything drawn
+    flat: the painted ground, flat decorations, rugs, bridges, the fight's grid and areas, the
+    light map, and mouse picking (through the camera's inverse).
+  - Upright things (characters, trees, lanterns, stalls) drawn unturned at their projected feet
+    and sorted by `x + y` look right; round things (trees, rocks, barrels) work as pictures.
+  - Characters only need the model camera at 30° (was 20°) and turned 45°.
+  - The 11 example buildings as voxel houses on their props' footprints, rendered from the same
+    angle, sit right in the village and hide what is behind them.
+  - Found: interior wall pieces and counters become staircases; HP bars and other overlays are
+    squashed; one sort point per building fails beside its sides; keys move along the map's
+    axes; characters look small at zoom 1.
+
+  **Design.**
+  - **The world doesn't change:** square tiles of 32 px, maps, collision, pathfinding, the
+    fight grid, zones, events, scripts and saves stay as they are. Only drawing and input change.
+  - **The projection:** world (x, y) to screen (x − y, (x + y) / 2), so a tile is a 64 × 32
+    diamond at zoom 1; characters and models are rendered at the same scale. Flat things
+    (ground, flat decorations, rugs, grid, areas, lights, weather on the ground, fog of war) go
+    through the projected camera; upright things are drawn at their projected feet in one
+    batch (positions transformed on the CPU, not a camera per object as in the study).
+  - **Depth order:** characters, projectiles and small props by `x + y` of their feet; props
+    with a footprint (buildings, counters, beds) by their footprint box against the others (the
+    usual isometric box order), so a character beside a building's side is drawn right.
+  - **Upright overlays:** HP bars, names, speech bubbles, quest markers, damage numbers, the
+    aim cursor's labels stand at the projected point above the head.
+  - **Controls:** keys and the stick move relative to the screen (up = up the screen, the map's
+    north-west), with eight facings drawn (the saved `Facing` stays four values; the renderer
+    already turns walkers in eighths). Click to walk is unchanged.
+  - **Characters:** the model camera at 30° and turned 45°; the atlas caches the same way.
+  - **Props as 3D models:** `PropDef.model` (a static `.glb`) is rendered by the character
+    renderer (cel shading, palette, outline) from the isometric angle and cached in the atlas;
+    each state can name its own model. A placed prop turns in four steps (a decoration's
+    `rotation` in the map's `Meta`, `flip` read as a quarter turn on old maps). Props without a
+    model keep drawing their picture upright, so old projects still show everything.
+  - **Walls and interiors:** wall sets (`PropDef.pieces` by neighbour mask) get one 3D segment
+    per piece; walls south and east of the player, within a few tiles, are cut down to a low
+    stub (or shown see-through, an option), so rooms read like the classic isometric interiors.
+  - **The editor:** the map canvas uses the same projection for drawing, painting, placing,
+    zones (diamond outlines), selection, regions, structures and the schedule editor; a
+    *View › Top-down* toggle keeps a flat overview for painting large areas. The world map
+    screen and the minimap stay top-down overviews.
+  - **Old projects:** nothing is converted on disk; their square-cornered pictures stand upright
+    until a model replaces them. Library assets keep their ids, so *Update asset library* brings
+    the new models; *Problems* lists props shown as pictures that look square-cornered (their
+    footprint is wider than a tile).
+
+  **Engine.** `render/mod.rs` (the projection, upright batch, depth order), `runtime/mod.rs`
+  `draw` and `camera`, overlays (`barks.rs`, `markers.rs`, `quests.rs`, `turns/ui.rs`,
+  `juice.rs`), `runtime/input.rs` (screen-relative moves), `render/model.rs` (elevation, the
+  turn, static prop models, four rotations), `decor.rs` + `map/io.rs` (`rotation` in `Meta`),
+  `defs.rs` (`PropDef.model`, per-state models), the editor's `canvas.rs` and tools. Autoplay
+  `status` prints `view=`; the map files' format is unchanged.
+
+  **Verify.** Unit tests of the projection (world ↔ screen round trip, picking) and of the
+  depth order (a character beside a building's side, behind it, in front of it); autoplay on a
+  scratch copy: walking with keys in all eight directions, a fight with areas, a night with
+  lights, an interior with cut walls, an old project with pictures only; editor scripts painting,
+  placing and selecting on the projected canvas; screenshots of each.
+
+- [ ] Isometric art with Meshy — `feature/iso-art-pilot`, `feature/iso-art`
+
+  **Goal.** The starter library's and the example's ground materials, buildings and props for
+  the isometric view, made with Meshy where it is strong, in one look with the kit's figures.
+  (The user's request, 2026-11-23.)
+
+  **What Meshy makes, and what not** (the library's 247 props and 46 materials, counted
+  2026-11-23):
+
+  | Kind | Count (example) | Route | Credits each |
+  |---|---|---|---|
+  | Buildings | 11 (11) | concept picture (2 tries) + image-to-3D | 4 + 4 + 30 = 38 |
+  | Props with corners: stalls, furniture, workshops, carts, wells, statues, signs… | 70 (67) | concept picture + image-to-3D | 4 + 30 = 34 |
+  | Ground materials | 46 (30) | picture from the current texture, made seamless | 6 |
+  | Modular pieces: walls, roofs, fences, doors, railings, stairs | 74 (48) | the figure kit, by script (they must line up on the grid exactly, Meshy's models don't) | 0 |
+  | Round or thin things: trees, rocks, plants, barrels, lamps, signposts | 82 (56) | stay pictures; redrawn only where a look check shows a clash | (4) |
+  | Variants (chairs, stools and beds per facing, trapped / locked chests) | 10 | turns and states of one model | 0 |
+
+  **Budget.** About 418 (buildings) + 2,380 (props) + 276 (materials) = 3,074 credits, plus
+  about 15 % for redraws: 3,500. The account has 2,780 (2026-11-23). So either the boxiest
+  furniture (tables, stools, benches, shelves, beds, crates: about 25) is built by the kit
+  instead (saves about 850), or more credits are bought; the user decides after the pilot.
+  Spending always asks first: every batch's cost is shown and confirmed.
+
+  **The pilot** (`feature/iso-art-pilot`, about 300 credits, asked before it starts): two
+  buildings (the red cottage and the chapel), six props (market stall, well, anvil, tavern
+  table, bed, cart), four materials (grass, cobblestone, wood floor, water). Rendered in the
+  game's isometric view next to kit figures; the user picks the style before the rest is made.
+
+  **The pipeline** (`scripts/art/meshy/`, beside the character scripts; key and work folder as
+  there):
+  - `iso_cast.py`: each asset's id, kind, footprint (from the prop's hitbox), height class and
+    description; the current top-down picture is its reference.
+  - **Concept:** image-to-image (Nano Banana 2.1) with the current picture and the style
+    references (the approved pilot building, a kit figure rendered isometric): "isometric
+    three-quarter view from the south-east, 30° from above, medieval fantasy, painted
+    textures, one object centred on plain white, no ground, no shadow"; buildings with the
+    door in the middle of the front (south) wall, where the map's portal is.
+  - **Model:** image-to-3D (`should_texture`, `should_remesh`; 3,000 triangles for props,
+    8,000 for buildings, under the engine's 32k vertices per piece).
+  - **Fit** (Blender headless): scaled to the footprint and height, standing on 0, the front
+    turned south, the origin at the front edge's middle (the decoration's point), compacted.
+  - **Materials:** the picture made seamless (offset and blend), reduced to the material's
+    palette size, at twice today's resolution so the 45° turn stays clean.
+  - `gen.py`'s state file keeps every task id: a rerun never pays twice.
+  - **Apply** through the editor's agent server (`write_asset`, `upsert_def` with the model,
+    `library_send {replace: true}`), the starter history regenerated.
+  - **Look check:** `model_sheet` renders each batch isometric in four turns as a contact sheet;
+    a model that doesn't fit is redrawn once, then built by the kit instead.
+  - **Order:** the pilot, then the example's buildings and props, then its materials, then the
+    library-only assets.
+
+  **Editor.** *Assets › Generate art…* gets a *Prop / building* kind with the same steps
+  (concept, model, fit), so creators make their own props the way the library's were made.
+
+  **Example.** All its buildings, props and materials replaced under the same ids (maps keep
+  their placements; buildings' footprints are their hitboxes, so collision and portals stay);
+  interiors rebuilt with kit walls.
+
+  **Verify.** Every model passes `model_check`; the example's maps screenshot isometric
+  (village, forest, the tavern, the mine) and played through in autoplay; *Update asset
+  library* on a scratch copy of an older library brings the new models.
+
+## 0.36.0 — Learning
+
+A way in for new creators: tutorials and small games to learn from (moved from 0.35.0 on
+2026-11-23, the user's decision).
+
 - [ ] Tutorials — `feature/tutorials`
 
   **Goal.** A learning path.
@@ -250,7 +387,7 @@ A way in for new creators: visual scripts, tutorials and small games to learn fr
 
   **Verify.** None.
 
-## 0.36.0 — Everywhere
+## 0.37.0 — Everywhere
 
 Touch screens, phones, Steam and signed downloads.
 
@@ -452,7 +589,7 @@ The promise creators need for a commercial release: what works with 1.0 keeps wo
     at will, teleporting, summoning).
 - **Right-to-left text** (Arabic, Hebrew): shaping and bidirectional runs in `runtime/text.rs`,
   after 0.24's fonts.
-- **iOS export:** needs a Mac and an Apple developer account; after Android (0.36).
+- **iOS export:** needs a Mac and an Apple developer account; after Android (0.37).
 - **RPG Maker MV / MZ importer** (moved from 0.32, 2026-11-16: R(ust)PG2D follows the SRD rules,
   not the JRPG model): maps and art through the tile converter, the database mapped onto SRD
   definitions where it fits, events onto triggers; the RTP's files skipped (licensed for RPG

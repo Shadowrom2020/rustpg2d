@@ -78,7 +78,8 @@ if grep -q 'current_map: "forest"' "$WORK/proj/saves/autosave.ron" 2>/dev/null; 
 
 # A turn-based fight: a giant rat near Whisperwood's entrance notices the hero and one starts; the AI plays the
 # enemy's turn (without pauses) until it is the player's turn again, and the player's attack is a roll.
-line=$(game "seed 5; wait 3; turn fast; turn end; wait 2; turn attack giant-rat; wait 1; status; quit" --no-title --map forest --pos 304,656)
+# (waitturn, not fixed waits: on a slow runner the fight starts later.)
+line=$(game "seed 5; wait 2; waitturn 30; turn fast; turn end; waitturn 30; turn attack giant-rat; wait 1; status; quit" --no-title --map forest --pos 304,656)
 # (Two attack rolls: the rat's on its turn, then the player's.)
 expect "a turn-based fight" "$line" "rolls=attack:" ",attack:"
 

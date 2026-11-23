@@ -221,11 +221,14 @@ pub struct EditorSettings {
     pub meshy_ask: bool,
     /// Test-play from here: each project's test setup (by its project file, else its folder).
     pub test_setups: std::collections::BTreeMap<String, crate::testplay::TestSetup>,
+    /// Clean up unused files: per project (its file, else its folder) the entries the creator
+    /// kept (`model:ID`, `file:PATH`), not offered again when the project closes.
+    pub cleanup_kept: std::collections::BTreeMap<String, std::collections::BTreeSet<String>>,
 }
 
 impl Default for EditorSettings {
     fn default() -> Self {
-        EditorSettings { mcp_autostart: false, mcp_port: crate::mcp::DEFAULT_PORT, meshy_model: "nano-banana-2-lite".into(), meshy_budget: 60, meshy_ask: true, test_setups: Default::default() }
+        EditorSettings { mcp_autostart: false, mcp_port: crate::mcp::DEFAULT_PORT, meshy_model: "nano-banana-2-lite".into(), meshy_budget: 60, meshy_ask: true, test_setups: Default::default(), cleanup_kept: Default::default() }
     }
 }
 

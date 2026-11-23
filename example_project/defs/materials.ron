@@ -189,16 +189,6 @@
         step: "step_stone",
     ),
     (
-        id: "void",
-        name: "Void",
-        texture: "materials/void.png",
-        edge: Straight,
-        edge_noise: 2.0,
-        edge_pixel: 2,
-        priority: 90,
-        walk: Solid,
-    ),
-    (
         id: "forest_path",
         name: "Forest path",
         texture: "materials/forest_path.png",
@@ -208,16 +198,6 @@
         priority: 42,
         walk: Walk,
         step: "step_dirt",
-    ),
-    (
-        id: "chasm",
-        name: "Chasm",
-        texture: "materials/chasm.png",
-        edge: Crisp,
-        edge_noise: 3.0,
-        edge_pixel: 2,
-        priority: 32,
-        walk: Low,
     ),
     (
         id: "abyss",

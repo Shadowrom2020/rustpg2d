@@ -231,37 +231,6 @@
         volume: 1.0,
     ),
     (
-        id: "step_mud",
-        file: "sounds/step_mud.wav",
-        volume: 1.0,
-    ),
-    (
-        id: "step_ice",
-        file: "sounds/step_ice.wav",
-        volume: 1.0,
-    ),
-    (
-        id: "ui_move",
-        file: "sounds/ui_move.wav",
-        volume: 0.6,
-    ),
-    (
-        id: "ui_confirm",
-        file: "sounds/ui_confirm.wav",
-        volume: 0.7,
-    ),
-    (
-        id: "ui_back",
-        file: "sounds/ui_back.wav",
-        volume: 0.7,
-    ),
-    (
-        id: "ui_error",
-        file: "sounds/ui_error.wav",
-        volume: 0.7,
-        caption: "Error buzz",
-    ),
-    (
         id: "coin",
         file: "sounds/coin.wav",
         volume: 0.8,

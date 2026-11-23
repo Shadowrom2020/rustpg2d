@@ -17,6 +17,17 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   the killer whale; the plain owl was a third of its size.
   Ancient dragons (Gargantuan) are now half again as tall as adults (Huge), as the size classes say.
 
+### Smaller games
+- **Clean up unused files.** *Assets › Clean up unused files…* lists the 3D models, sprite sheets,
+  sounds, materials and fonts a project has but nothing uses (no map, definition, setting, script or
+  plugin names them), and stray files in its asset folders, with their sizes. Ticked ones are
+  deleted after a backup beside the project. The window also opens by itself when a project or the
+  editor closes and there is something unused; what you keep is remembered and not offered again.
+- **Exports leave unused assets out**, with their definitions, so a model imported and never used
+  no longer ships with the game.
+- The example game is cleaned up: nine sounds, materials and sheets it never used are gone (they stay
+  in the starter library).
+
 ### Studio Comfort
 - **Cut-scene timelines.** Cut-scenes can be made on a timeline instead of in a script: the new
   Database tab *Cut-scenes* (`defs/cutscenes.ron`) holds tracks for actors, the camera, dialogs,

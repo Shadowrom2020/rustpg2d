@@ -225,6 +225,10 @@ pub struct Editor {
     pub play_place: Option<(String, (f32, f32), Option<PathBuf>)>,
     /// Test-play from here: the map's right-click menu and the Test setup window.
     pub testplay: crate::testplay::TestPlay,
+    /// The *Clean up unused files* window, while open.
+    pub cleanup: Option<crate::cleanup::Cleanup>,
+    /// The next close goes on without offering the cleanup (it was just answered).
+    pub cleanup_passed: bool,
     /// The last translation template export's result (Database › Project › Languages).
     pub lang_msg: Option<String>,
     pub tex: Textures,
@@ -517,6 +521,8 @@ impl Editor {
             play_title_next: false,
             play_place: None,
             testplay: Default::default(),
+            cleanup: None,
+            cleanup_passed: false,
             lang_msg: None,
             tex: Textures::default(),
             tex_dirty: true,
@@ -1594,6 +1600,7 @@ impl Editor {
         self.search_windows(ctx);
         self.problems_tick();
         self.problems_window(ctx);
+        self.cleanup_window(ctx);
         self.plugins_window(ctx);
         self.art_tick();
         self.art_window(ctx);
@@ -1894,6 +1901,10 @@ impl Editor {
                         self.plugins_ui.open = true;
                         ui.close_menu();
                     }
+                    if ui.button(ui::t(ph::BROOM, "Clean up unused files…")).on_hover_text("Models, sprite sheets, sounds, materials and fonts the project has but nothing uses, and stray files: delete them (with a backup). Exported games leave them out anyway").clicked() {
+                        self.open_cleanup();
+                        ui.close_menu();
+                    }
                     ui.separator();
                     if ui.button(ui::t(ph::BOOKS, "Asset Library window…")).on_hover_text("Opens the shared asset library in its own window: edit, create, import and export library assets").clicked() {
                         self.open_library_window();
@@ -2135,6 +2146,8 @@ impl Editor {
     }
 
     fn run_pending(&mut self, p: Pending) {
+        // A closing project first offers to delete what it doesn't use.
+        let Some(p) = self.offer_cleanup(p) else { return };
         match p {
             Pending::OpenProject(dir) => self.switch_project(dir),
             // Unsaved work is settled at this point; now the wizard asks for name, place and settings.
@@ -3759,7 +3772,7 @@ fn parallax_ui(ui: &mut egui::Ui, layers: &mut Vec<rustpg2d_engine::map::Paralla
 }
 
 /// The first free `<stem>-backup-<tag>[-N]<ext>` in `dir`.
-fn free_backup(dir: &Path, stem: &str, tag: &str, ext: &str) -> PathBuf {
+pub(crate) fn free_backup(dir: &Path, stem: &str, tag: &str, ext: &str) -> PathBuf {
     let mut n = 1;
     loop {
         let name = if n == 1 { format!("{stem}-backup-{tag}{ext}") } else { format!("{stem}-backup-{tag}-{n}{ext}") };

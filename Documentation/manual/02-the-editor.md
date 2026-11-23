@@ -199,6 +199,34 @@ deleted; after changing it, run `cargo run -p rustpg2d-editor --example starter_
 publish it as `rustpg2d-starter-library-X.Y.Z.r2dlib` (`cargo xtask-dist` writes it, or
 `cargo run -p xtask --features dist -- starter-pack DIR` alone).
 
+### Cleaning up unused files
+
+Models, pictures and sounds you add and never use make the project bigger. **Assets › Clean up
+unused files…** lists what the project has but doesn't use:
+
+- **3D models, sprite sheets, sounds, ground materials and fonts** whose id nothing names: no map,
+  character, item, prop, race, quest, cut-scene or other definition, no project setting, and no
+  script or plugin file (an id that appears anywhere in a script's text counts as used, also inside
+  a longer string). A used model's rig template and a used material's footstep sound count as
+  used. So do the bodies the character creator offers, pieces (hair, outfits) that fit a used
+  body, the mannequin and *Emotions* sheets.
+- **Stray files** in `sprites/`, `models/`, `sounds/`, `materials/`, `fonts/` and `tilesets/` that
+  no definition points to (pictures, models, sounds and fonts only: a folder's credits stay).
+
+Each entry shows its size. Tick what should go and press **Delete ticked**: a definition goes with
+its files, unless something used shares them. Everything deleted is copied first into a folder beside
+the project, `<name>-backup-cleanup` (then `-2`, `-3`…), with the definition files as they were;
+copy files back from there to undo.
+
+When you **close the project or the editor**, the same window opens by itself if the project has
+unused assets: *Delete ticked and close*, *Keep all and close*, or *Cancel* to stay. What you keep
+(untick, or *Keep all*) is remembered for the project and not offered again when it closes; the
+window from the Assets menu still lists it (as *kept before*). Rig templates (`rig_…` models) are
+editor tools: they are never offered for deletion.
+
+Exported games leave unused assets out whether or not you clean up (see
+[Publishing](14-publishing.md#what-you-get)).
+
 ### Files changed outside the editor
 
 The editor watches the project's files (in a project file's working copy). When something else

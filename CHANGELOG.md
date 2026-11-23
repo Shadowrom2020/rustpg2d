@@ -26,6 +26,12 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **Companions in another shape** (*Polymorph*, *Wild Shape*, *Change shape* without its hit
   points) stored the shape's hit points when the map changed or the game was saved, and came back in
   their own shape with those: a free heal or the beast's few. They now keep their own.
+- **Held after a fight:** a hero (or character) grappled, or caught in a net, when a fight ended stayed
+  held with speed 0 and no way out, e.g. after killing the last enemy while it held them. The end of
+  a fight now lets everyone go (a spell's restraint keeps its own time).
+- **Leaving the map during a fight** (a *Teleport* in an event) skipped the fight's end: conditions
+  stayed, fallen companions weren't stood up and a frenzy's exhaustion was skipped. It now ends like
+  any fight (without the old map's *Fight ends* triggers).
 - **Long action bar lists** (*Use*, *Cast*, class actions outside fights) grew past the bottom of
   the screen over the bar. They now show what fits and scroll with the wheel and the selection.
 - **Character window lists:** the mouse wheel didn't move through the *Spells* tab's spells or the

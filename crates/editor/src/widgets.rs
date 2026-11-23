@@ -187,6 +187,16 @@ pub fn paint_model_whole(ui: &Ui, assets: &Assets, db: &rustpg2d_engine::defs::D
     paint_pose_fit(ui, &assets.models, db, &assets.sheets, req, rect, true)
 }
 
+/// A still picture of a look for thumbnails and cards: from the front, or, for a model that is
+/// long from nose to tail (a wolf, a horse: from the front a head on legs), its side, fitted
+/// whole into the box.
+pub fn paint_portrait(ui: &Ui, models: &rustpg2d_engine::render::model::Models, db: &rustpg2d_engine::defs::Database, sheets: &HashMap<String, rustpg2d_engine::render::SheetTex>, look: &rustpg2d_engine::defs::Appearance, rect: Rect) -> bool {
+    let gear = rustpg2d_engine::render::model::Gear::default();
+    let facing = models.portrait_facing(look);
+    let req = rustpg2d_engine::render::model::PoseReq { look, gear: &gear, anim: "idle", time: 0.0, once: true, facing, turn: 0, bust: false };
+    paint_pose_fit(ui, models, db, sheets, &req, rect, facing != Facing::Down)
+}
+
 /// [`paint_model`] with any set of models (the asset library's own).
 pub fn paint_pose(ui: &Ui, models: &rustpg2d_engine::render::model::Models, db: &rustpg2d_engine::defs::Database, sheets: &HashMap<String, rustpg2d_engine::render::SheetTex>, req: &rustpg2d_engine::render::model::PoseReq, rect: Rect) -> bool {
     paint_pose_fit(ui, models, db, sheets, req, rect, false)
@@ -217,7 +227,7 @@ fn paint_pose_fit(ui: &Ui, models: &rustpg2d_engine::render::model::Models, db: 
 
 pub fn paint_sprite(ui: &Ui, tex: &Textures, assets: &Assets, sprite: &SpriteRef, rect: Rect) -> bool {
     if let Some(id) = sprite.sheet.strip_prefix(CHAR_PREFIX) {
-        return tex.characters.get(id).is_some_and(|a| paint_character(ui, assets, a, Facing::Down, rect));
+        return tex.characters.get(id).is_some_and(|a| paint_portrait(ui, &assets.models, empty_db(), &assets.sheets, a, rect));
     }
     let (Some(t), Some(s)) = (tex.sheets.get(&sprite.sheet), assets.sheets.get(&sprite.sheet)) else { return false };
     let (cw, ch) = sprite.cells();

@@ -6633,8 +6633,7 @@ fn model_form(ui: &mut egui::Ui, d: &mut rustpg2d_engine::defs::ModelDef, cx: &m
                 }
                 let (r, _) = ui.allocate_exact_size(egui::vec2(48.0, 64.0), egui::Sense::hover());
                 ui.painter().rect_filled(r, 3.0, egui::Color32::from_gray(36));
-                let req = PoseReq { look: &look, gear: &gear, anim: "idle", time: 0.0, once: false, facing: Facing::Down, turn: 0, bust: false };
-                widgets::paint_model(ui, cx.assets, cx.db, &req, r.shrink(2.0));
+                widgets::paint_portrait(ui, &cx.assets.models, cx.db, &cx.assets.sheets, &look, r.shrink(2.0));
             }
         });
     }

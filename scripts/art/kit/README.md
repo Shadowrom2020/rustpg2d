@@ -81,8 +81,14 @@ knees, wing roots), which the build turns into the model definition's rig fit.
   300 percent), which scales the model. So a model's height is the drawn height divided by the
   class of the first monster that uses it (`_SIZES`, `size_class`).
 - **The limit.** A sculpt must stay under 32,768 vertices. Wings and big round bodies cost most;
-  build a big creature as a smaller sculpt drawn larger (the adult dragons are the young one's
-  file).
+  build a big creature as a smaller sculpt drawn larger (the young, adult and ancient dragons are
+  one file at the wyrmling's scale, with a grown dragon's horns: `wyrm(elder=True)`).
+- **Dragons** (`wyrm` in `creatures.py`) follow a reference model's proportions: the chest carried
+  high, an S-curved neck, a long head with jaws and swept-back horns, wings with finger bones and
+  skin raised over the back, spines and a spade tail. They play `rig_dragon`
+  (`scripts/art/rigs/templates.py`, whose `DRAGON_JOINTS` are where the sculpt has its joints):
+  the wings beat in idle and walk and flare in the attack. The drake keeps the old four-legged
+  `dragon`.
 - **A game carries what it shows.** `apply.py PORT --used-creatures` removes the creature models
   no character of the project uses (the example); the library keeps them all.
 

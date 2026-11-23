@@ -168,18 +168,18 @@
    "vertices": 4264
   },
   "models/dragon_wyrmling.glb": {
-   "colors": 5,
+   "colors": 9,
    "creature": true,
-   "sha256": "b26321fd40528dc561aad542a9a24532348c30a9c8cd83fbcb87c342edc5ddf4",
-   "triangles": 6948,
-   "vertices": 12817
+   "sha256": "7971782e50085e910a832fe5a802eebbbcb8d711abada0f66312d70ac7affd36",
+   "triangles": 14656,
+   "vertices": 26123
   },
   "models/dragon_young.glb": {
-   "colors": 5,
+   "colors": 9,
    "creature": true,
-   "sha256": "1fc9fcc1d3b2144f752b91b05e300ceb9f4b4ce6f525e54c5f495f0811ba0d41",
-   "triangles": 14514,
-   "vertices": 26701
+   "sha256": "8a0b48f2ee3d9d83bda8ed353c5e8b3d1ee31970fa55d510087ddc9251f9c58c",
+   "triangles": 14888,
+   "vertices": 26556
   },
   "models/dragonborn.glb": {
    "colors": 4,
@@ -1505,5 +1505,5 @@
   "build.py",
   "rig/human.glb"
  ],
- "sources": "c7cde2fadc19baf8aac424db490d311c2cdb986be39840256a8c63e65125faaf"
+ "sources": "d362233cca5bd2ef3c9fb9f8323346ba0521ad8dbd8f6c78f1032996f3fbe318"
 }

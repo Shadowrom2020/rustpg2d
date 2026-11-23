@@ -259,7 +259,7 @@ CREATURE_MODELS.update({
     "ape": creature("Ape", "ape"), "baboon": creature("Baboon", "ape", .6, fur="#8a7a5a"), "giant_ape": creature("Giant ape", "ape", 2.3), "griffon": creature("Griffon", "griffon", 1.3),
     "hippogriff": creature("Hippogriff", "griffon", 1.25, fur="#8a6a4a"), "centaur": creature("Centaur", "centaur", 1.15), "pegasus": creature("Pegasus", "pegasus", 1.0, fur="#eeeae2"),
     "unicorn": creature("Unicorn", "unicorn", 1.0, fur="#eeeae2"), "manticore": creature("Manticore", "winged_lion", 1.4, fur="#a85a3a"), "chimera": creature("Chimera", "winged_lion", 1.5),
-    "sphinx": creature("Sphinx", "winged_lion", 1.8, fur="#d9b45a"), "owlbear": creature("Owlbear", "owlbear", 1.3), "wyvern": creature("Wyvern", "dragon_young", 1.5, skin="#6a5a3a"),
+    "sphinx": creature("Sphinx", "winged_lion", 1.8, fur="#d9b45a"), "owlbear": creature("Owlbear", "owlbear", 1.3), "wyvern": creature("Wyvern", "dragon_young", 2.25, skin="#6a5a3a"),
     "pseudodragon": creature("Pseudodragon", "dragon_wyrmling", .4, skin="#a8573a"), "drake": creature("Drake", "drake"), "hydra": creature("Hydra", "drake", 2.4, skin="#4a6a4a"),
     "tarrasque": creature("Tarrasque", "drake", 4.0, skin="#6a5a48"), "plesiosaurus": creature("Plesiosaurus", "drake", 1.9, skin="#3a7a8a"), "dragon_turtle": creature("Dragon turtle", "drake", 3.2, skin="#3a7a6a"),
     "crab": creature("Crab", "crab", .5), "giant_crab": creature("Giant crab", "crab", 1.3), "chuul": creature("Chuul", "crab", 2.4, body="#8a3a3a"), "scorpion": creature("Scorpion", "scorpion", .4),
@@ -281,9 +281,9 @@ CREATURE_MODELS.update({
 })
 for _c, _hex in DRAGONS.items():
     CREATURE_MODELS[f"{_c}_dragon_wyrmling"] = creature(f"{_c.capitalize()} dragon wyrmling", "dragon_wyrmling", 1.0, skin=_hex)
-    CREATURE_MODELS[f"young_{_c}_dragon"] = creature(f"Young {_c} dragon", "dragon_young", 1.3, skin=_hex)
-    CREATURE_MODELS[f"adult_{_c}_dragon"] = creature(f"Adult {_c} dragon", "dragon_young", 2.2, skin=_hex)
-    CREATURE_MODELS[f"ancient_{_c}_dragon"] = creature(f"Ancient {_c} dragon", "dragon_young", 3.0, skin=_hex)
+    CREATURE_MODELS[f"young_{_c}_dragon"] = creature(f"Young {_c} dragon", "dragon_young", 1.95, skin=_hex)
+    CREATURE_MODELS[f"adult_{_c}_dragon"] = creature(f"Adult {_c} dragon", "dragon_young", 3.3, skin=_hex)
+    CREATURE_MODELS[f"ancient_{_c}_dragon"] = creature(f"Ancient {_c} dragon", "dragon_young", 4.95, skin=_hex)
 # The library's monsters and animals that get one of these models: model id -> character ids.
 # (The figures of the cast further down are people-shaped monsters: MONSTER_CAST.)
 _MONSTERS = {
@@ -326,16 +326,16 @@ _SIZES = {
     75: "awakened-shrub baboon blood-hawk cockatrice darkmantle deep-gnome-svirfneblin dretch dust-mephit eagle flying-sword giant-centipede giant-fire-beetle giant-rat giant-rat-diseased "
     "ice-mephit jackal kobold magma-mephit magmin octopus steam-mephit",
     150: "aboleth air-elemental androsphinx ankheg axe-beak black-pudding bone-devil brown-bear bulette camel centaur chimera chuul clay-golem cloaker constrictor-snake crocodile dire-wolf "
-    "djinni draft-horse drider earth-elemental efreeti elk ettin fire-elemental gelatinous-cube giant-bat giant-boar giant-eagle giant-goat giant-hyena giant-lizard giant-octopus giant- "
+    "djinni draft-horse drider earth-elemental efreeti elk ettin fire-elemental gelatinous-cube giant-bat giant-boar giant-eagle giant-goat giant-hyena giant-lizard giant-octopus giant-"
     "owl giant-scorpion giant-sea-horse giant-spider giant-toad giant-vulture glabrezu gorgon griffon guardian-naga gynosphinx hezrou hippogriff horned-devil hunter-shark ice-devil "
-    "iron-golem lamia lion manticore marilith merrow minotaur nalfeshnee nightmare ochre-jelly ogre-zombie oni otyugh owlbear pegasus phase-spider pit-fiend planetar plesiosaurus polar- "
+    "iron-golem lamia lion manticore marilith merrow minotaur nalfeshnee nightmare ochre-jelly ogre-zombie oni otyugh owlbear pegasus phase-spider pit-fiend planetar plesiosaurus polar-"
     "bear rhinoceros riding-horse roper rug-of-smothering saber-toothed-tiger salamander shambling-mound shield-guardian solar spirit-naga stone-golem tiger unicorn vrock warhorse "
-    "water-elemental winter-wolf worg wyvern young-black-dragon young-blue-dragon young-brass-dragon young-bronze-dragon young-copper-dragon young-gold-dragon young-green-dragon young- "
+    "water-elemental winter-wolf worg wyvern young-black-dragon young-blue-dragon young-brass-dragon young-bronze-dragon young-copper-dragon young-gold-dragon young-green-dragon young-"
     "red-dragon young-silver-dragon young-white-dragon",
-    200: "adult-black-dragon adult-blue-dragon adult-brass-dragon adult-bronze-dragon adult-copper-dragon adult-gold-dragon adult-green-dragon adult-red-dragon adult-silver-dragon adult- "
-    "white-dragon awakened-tree balor behir cloud-giant elephant fire-giant frost-giant giant-ape giant-constrictor-snake giant-crocodile giant-elk giant-shark hill-giant hydra killer- "
+    200: "adult-black-dragon adult-blue-dragon adult-brass-dragon adult-bronze-dragon adult-copper-dragon adult-gold-dragon adult-green-dragon adult-red-dragon adult-silver-dragon adult-"
+    "white-dragon awakened-tree balor behir cloud-giant elephant fire-giant frost-giant giant-ape giant-constrictor-snake giant-crocodile giant-elk giant-shark hill-giant hydra killer-"
     "whale mammoth remorhaz stone-giant storm-giant treant triceratops tyrannosaurus-rex",
-    300: "ancient-black-dragon ancient-blue-dragon ancient-brass-dragon ancient-bronze-dragon ancient-copper-dragon ancient-gold-dragon ancient-green-dragon ancient-red-dragon ancient- "
+    300: "ancient-black-dragon ancient-blue-dragon ancient-brass-dragon ancient-bronze-dragon ancient-copper-dragon ancient-gold-dragon ancient-green-dragon ancient-red-dragon ancient-"
     "silver-dragon ancient-white-dragon dragon-turtle kraken purple-worm roc tarrasque",
 }
 SIZE_CLASS = {cid: pct for pct, ids in _SIZES.items() for cid in ids.split()}

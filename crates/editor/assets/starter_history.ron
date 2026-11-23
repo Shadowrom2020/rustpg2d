@@ -7818,101 +7818,121 @@
         ),
         "model:adult_black_dragon": (
             defs: [
+                11659658774222710731,
                 12197328348681329262,
             ],
             files: {
                 "models/dragon_young.glb": [
                     12166724974111565446,
+                    13670442665535112737,
                 ],
             },
         ),
         "model:adult_blue_dragon": (
             defs: [
+                3400379773402057952,
                 5803306173227193745,
             ],
             files: {
                 "models/dragon_young.glb": [
                     12166724974111565446,
+                    13670442665535112737,
                 ],
             },
         ),
         "model:adult_brass_dragon": (
             defs: [
                 9053946226329235402,
+                9840258939581631423,
             ],
             files: {
                 "models/dragon_young.glb": [
                     12166724974111565446,
+                    13670442665535112737,
                 ],
             },
         ),
         "model:adult_bronze_dragon": (
             defs: [
                 778802239726616435,
+                12377343275204259688,
             ],
             files: {
                 "models/dragon_young.glb": [
                     12166724974111565446,
+                    13670442665535112737,
                 ],
             },
         ),
         "model:adult_copper_dragon": (
             defs: [
                 7485974570473138855,
+                10675997441039887876,
             ],
             files: {
                 "models/dragon_young.glb": [
                     12166724974111565446,
+                    13670442665535112737,
                 ],
             },
         ),
         "model:adult_gold_dragon": (
             defs: [
+                2107991128469237665,
                 9718932479990315176,
             ],
             files: {
                 "models/dragon_young.glb": [
                     12166724974111565446,
+                    13670442665535112737,
                 ],
             },
         ),
         "model:adult_green_dragon": (
             defs: [
                 17401338945467707866,
+                18388414086198399081,
             ],
             files: {
                 "models/dragon_young.glb": [
                     12166724974111565446,
+                    13670442665535112737,
                 ],
             },
         ),
         "model:adult_red_dragon": (
             defs: [
+                2618074305753677406,
                 4678169772922809403,
             ],
             files: {
                 "models/dragon_young.glb": [
                     12166724974111565446,
+                    13670442665535112737,
                 ],
             },
         ),
         "model:adult_silver_dragon": (
             defs: [
                 7230022326813784797,
+                10461623443894046780,
             ],
             files: {
                 "models/dragon_young.glb": [
                     12166724974111565446,
+                    13670442665535112737,
                 ],
             },
         ),
         "model:adult_white_dragon": (
             defs: [
+                7080235569233358669,
                 15381837333094042247,
             ],
             files: {
                 "models/dragon_young.glb": [
                     12166724974111565446,
+                    13670442665535112737,
                 ],
             },
         ),
@@ -7928,101 +7948,121 @@
         ),
         "model:ancient_black_dragon": (
             defs: [
+                1191306847029825523,
                 14730296533405117820,
             ],
             files: {
                 "models/dragon_young.glb": [
                     12166724974111565446,
+                    13670442665535112737,
                 ],
             },
         ),
         "model:ancient_blue_dragon": (
             defs: [
+                6060121043824903136,
                 17919228449859915359,
             ],
             files: {
                 "models/dragon_young.glb": [
                     12166724974111565446,
+                    13670442665535112737,
                 ],
             },
         ),
         "model:ancient_brass_dragon": (
             defs: [
+                713107167623068331,
                 8751586505368827260,
             ],
             files: {
                 "models/dragon_young.glb": [
                     12166724974111565446,
+                    13670442665535112737,
                 ],
             },
         ),
         "model:ancient_bronze_dragon": (
             defs: [
+                6111135305163733000,
                 13596187961189762085,
             ],
             files: {
                 "models/dragon_young.glb": [
                     12166724974111565446,
+                    13670442665535112737,
                 ],
             },
         ),
         "model:ancient_copper_dragon": (
             defs: [
                 13469476624100263833,
+                16181222073775341692,
             ],
             files: {
                 "models/dragon_young.glb": [
                     12166724974111565446,
+                    13670442665535112737,
                 ],
             },
         ),
         "model:ancient_gold_dragon": (
             defs: [
                 888054919317443894,
+                7060988736321067293,
             ],
             files: {
                 "models/dragon_young.glb": [
                     12166724974111565446,
+                    13670442665535112737,
                 ],
             },
         ),
         "model:ancient_green_dragon": (
             defs: [
                 5715251886631100112,
+                8553898850266598417,
             ],
             files: {
                 "models/dragon_young.glb": [
                     12166724974111565446,
+                    13670442665535112737,
                 ],
             },
         ),
         "model:ancient_red_dragon": (
             defs: [
+                9927511195001880710,
                 17680086831283084705,
             ],
             files: {
                 "models/dragon_young.glb": [
                     12166724974111565446,
+                    13670442665535112737,
                 ],
             },
         ),
         "model:ancient_silver_dragon": (
             defs: [
                 3526636162806841037,
+                13955867588797677268,
             ],
             files: {
                 "models/dragon_young.glb": [
                     12166724974111565446,
+                    13670442665535112737,
                 ],
             },
         ),
         "model:ancient_white_dragon": (
             defs: [
+                8378394853768616865,
                 10323661271857797608,
             ],
             files: {
                 "models/dragon_young.glb": [
                     12166724974111565446,
+                    13670442665535112737,
                 ],
             },
         ),
@@ -8450,10 +8490,12 @@
         "model:black_dragon_wyrmling": (
             defs: [
                 945805790724717711,
+                8498844315955899091,
             ],
             files: {
                 "models/dragon_wyrmling.glb": [
                     11359986701003012551,
+                    16052153669644141331,
                 ],
             },
         ),
@@ -8576,10 +8618,12 @@
         "model:blue_dragon_wyrmling": (
             defs: [
                 5163383255661079698,
+                14465837351946819906,
             ],
             files: {
                 "models/dragon_wyrmling.glb": [
                     11359986701003012551,
+                    16052153669644141331,
                 ],
             },
         ),
@@ -8609,20 +8653,24 @@
         "model:brass_dragon_wyrmling": (
             defs: [
                 516138346588599423,
+                12979211819673075267,
             ],
             files: {
                 "models/dragon_wyrmling.glb": [
                     11359986701003012551,
+                    16052153669644141331,
                 ],
             },
         ),
         "model:bronze_dragon_wyrmling": (
             defs: [
                 1313413420875810574,
+                2000587646895731614,
             ],
             files: {
                 "models/dragon_wyrmling.glb": [
                     11359986701003012551,
+                    16052153669644141331,
                 ],
             },
         ),
@@ -8912,11 +8960,13 @@
         ),
         "model:copper_dragon_wyrmling": (
             defs: [
+                2049029523752239408,
                 11206416632485252936,
             ],
             files: {
                 "models/dragon_wyrmling.glb": [
                     11359986701003012551,
+                    16052153669644141331,
                 ],
             },
         ),
@@ -10271,6 +10321,7 @@
         ),
         "model:giant_owl": (
             defs: [
+                2645952873874330068,
                 13517733409407354348,
             ],
             files: {
@@ -10527,10 +10578,12 @@
         "model:gold_dragon_wyrmling": (
             defs: [
                 7126099926392588223,
+                15733158352717304859,
             ],
             files: {
                 "models/dragon_wyrmling.glb": [
                     11359986701003012551,
+                    16052153669644141331,
                 ],
             },
         ),
@@ -10556,11 +10609,13 @@
         ),
         "model:green_dragon_wyrmling": (
             defs: [
+                13225571195598875865,
                 18151272035222168189,
             ],
             files: {
                 "models/dragon_wyrmling.glb": [
                     11359986701003012551,
+                    16052153669644141331,
                 ],
             },
         ),
@@ -11188,6 +11243,7 @@
         ),
         "model:killer_whale": (
             defs: [
+                1569598195783255121,
                 12514354406539755309,
             ],
             files: {
@@ -13754,6 +13810,7 @@
         ),
         "model:owl": (
             defs: [
+                5371338582449582364,
                 13552771080975856451,
             ],
             files: {
@@ -13841,6 +13898,7 @@
         "model:polar_bear": (
             defs: [
                 733598363824811276,
+                3140889352769841395,
             ],
             files: {
                 "models/bear.glb": [
@@ -13913,11 +13971,13 @@
         ),
         "model:pseudodragon": (
             defs: [
+                397717531867418826,
                 16830696096882302300,
             ],
             files: {
                 "models/dragon_wyrmling.glb": [
                     11359986701003012551,
+                    16052153669644141331,
                 ],
             },
         ),
@@ -13990,10 +14050,12 @@
         "model:red_dragon_wyrmling": (
             defs: [
                 1164576463599495238,
+                12509909714226292582,
             ],
             files: {
                 "models/dragon_wyrmling.glb": [
                     11359986701003012551,
+                    16052153669644141331,
                 ],
             },
         ),
@@ -14036,6 +14098,16 @@
                 "models/rig_blob.glb": [
                     3392484628089350442,
                     6357737367827671358,
+                ],
+            },
+        ),
+        "model:rig_dragon": (
+            defs: [
+                11015606600337079030,
+            ],
+            files: {
+                "models/rig_dragon.glb": [
+                    18377754675669496153,
                 ],
             },
         ),
@@ -14262,10 +14334,12 @@
         "model:silver_dragon_wyrmling": (
             defs: [
                 9165116283321191248,
+                10779764405199709544,
             ],
             files: {
                 "models/dragon_wyrmling.glb": [
                     11359986701003012551,
+                    16052153669644141331,
                 ],
             },
         ),
@@ -14982,11 +15056,13 @@
         ),
         "model:white_dragon_wyrmling": (
             defs: [
+                8802881703657292325,
                 9578399409825459041,
             ],
             files: {
                 "models/dragon_wyrmling.glb": [
                     11359986701003012551,
+                    16052153669644141331,
                 ],
             },
         ),
@@ -15163,111 +15239,133 @@
         ),
         "model:wyvern": (
             defs: [
+                9271107315715978280,
                 18357334171799161249,
             ],
             files: {
                 "models/dragon_young.glb": [
                     12166724974111565446,
+                    13670442665535112737,
                 ],
             },
         ),
         "model:young_black_dragon": (
             defs: [
                 1288517254473560001,
+                1890124942441944150,
             ],
             files: {
                 "models/dragon_young.glb": [
                     12166724974111565446,
+                    13670442665535112737,
                 ],
             },
         ),
         "model:young_blue_dragon": (
             defs: [
                 4751887758239676164,
+                5065230796608116399,
             ],
             files: {
                 "models/dragon_young.glb": [
                     12166724974111565446,
+                    13670442665535112737,
                 ],
             },
         ),
         "model:young_brass_dragon": (
             defs: [
+                2857857003289226342,
                 4390513958734903209,
             ],
             files: {
                 "models/dragon_young.glb": [
                     12166724974111565446,
+                    13670442665535112737,
                 ],
             },
         ),
         "model:young_bronze_dragon": (
             defs: [
                 4936190179039000308,
+                5120060365288533465,
             ],
             files: {
                 "models/dragon_young.glb": [
                     12166724974111565446,
+                    13670442665535112737,
                 ],
             },
         ),
         "model:young_copper_dragon": (
             defs: [
                 3101788130870779292,
+                12136688679945767145,
             ],
             files: {
                 "models/dragon_young.glb": [
                     12166724974111565446,
+                    13670442665535112737,
                 ],
             },
         ),
         "model:young_gold_dragon": (
             defs: [
                 1582561646208817991,
+                8707341266408570032,
             ],
             files: {
                 "models/dragon_young.glb": [
                     12166724974111565446,
+                    13670442665535112737,
                 ],
             },
         ),
         "model:young_green_dragon": (
             defs: [
                 3638153426490048015,
+                7053634813785059602,
             ],
             files: {
                 "models/dragon_young.glb": [
                     12166724974111565446,
+                    13670442665535112737,
                 ],
             },
         ),
         "model:young_red_dragon": (
             defs: [
+                9796407778432224541,
                 12895389505864964557,
             ],
             files: {
                 "models/dragon_young.glb": [
                     12166724974111565446,
+                    13670442665535112737,
                 ],
             },
         ),
         "model:young_silver_dragon": (
             defs: [
+                4626423190135238199,
                 13368253938238185772,
             ],
             files: {
                 "models/dragon_young.glb": [
                     12166724974111565446,
+                    13670442665535112737,
                 ],
             },
         ),
         "model:young_white_dragon": (
             defs: [
                 2721886729422366255,
+                6260789875320302722,
             ],
             files: {
                 "models/dragon_young.glb": [
                     12166724974111565446,
+                    13670442665535112737,
                 ],
             },
         ),

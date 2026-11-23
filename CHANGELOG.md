@@ -5,6 +5,18 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 
 ## Unreleased
 
+### Better creatures
+- **Dragons that look like dragons.** The starter library's dragons (wyrmling to ancient, all ten
+  colours, the wyvern and the pseudodragon) are rebuilt in the voxel kit after a reference model:
+  the chest carried high, an S-curved neck, a long head with jaws and swept-back horns (curling on
+  the grown ones), wings with finger bones raised over the back, spines and a spade tail. A new
+  rig template, **dragon**, makes the wings beat in idle and walk and flare when it attacks.
+- **Monster sizes fixed.** Six monsters of the starter library missed their SRD size class (their
+  ids were split in the kit's size lists) and were drawn at the wrong size: the young red, adult
+  white and ancient silver dragons (1.5, 2 and 3 times too big), the giant owl, the polar bear and
+  the killer whale; the plain owl was a third of its size.
+  Ancient dragons (Gargantuan) are now half again as tall as adults (Huge), as the size classes say.
+
 ### Studio Comfort
 - **Cut-scene timelines.** Cut-scenes can be made on a timeline instead of in a script: the new
   Database tab *Cut-scenes* (`defs/cutscenes.ron`) holds tracks for actors, the camera, dialogs,

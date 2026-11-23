@@ -102,12 +102,15 @@ def main():
     else:
         print("the project's folder wasn't found in project_info: items left as they are")
     # What the kit replaced without a figure of the same id.
+    # (Asked one by one: list_defs comes in pages.)
     for kind in ("characters", "models"):
-        listed = ed.call("list_defs", kind=kind)
         for ident in kit.RETIRED:
-            if re.search(rf"(?m)^{ident}:", listed):
-                ed.call("delete_def", kind=kind, id=ident, force=True)
-                print(f"removed {kind[:-1]} {ident}")
+            try:
+                json.loads(ed.call("get_def", kind=kind, id=ident))
+            except (ValueError, SystemExit):
+                continue
+            ed.call("delete_def", kind=kind, id=ident, force=True)
+            print(f"removed {kind[:-1]} {ident}")
     # The library's monsters and animals get their models (those the project has).
     chars = f"{root.group(1).strip()}/defs/characters.ron" if root else ""
     if os.path.exists(chars):

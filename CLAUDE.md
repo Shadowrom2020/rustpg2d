@@ -275,7 +275,9 @@ crates/engine/src/      library: everything shared by game and editor
                         attack; settings.auto_reactions = by rule); status react=), shapes.rs (WorldState.shape =
                         HeroShape: hero_form_block stands in via who_block(Player) and the hero's AC / speed /
                         max HP / attacks; RtEntity.shape keeps the old entity (Polymorph), RtEntity.summon
-                        (SpellPart::Summon: AI companions, join fights); ActEffect::Shape = Wild Shape; the
+                        (SpellPart::Summon: AI companions, join fights); ActEffect::Shape = Wild Shape; Action::ChangeShape / change_shape() =
+                        change_shape (NpcShape.keep_hp: shared hit points, defeat_how reverts first: lycanthropes; characters' own
+                        triggers also get Hour / MapEnter, MapEnter also on loading); the
                         beast window MenuKind::Shape / BarPick::Shape; status shape= summons=)
   quest.rs, inventory.rs, entity.rs, path.rs (A*), render/ (Assets, chunked tile renderer;
                         lighting.rs = day/night ambient, LightPass light map, tile_lights;

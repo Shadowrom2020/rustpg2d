@@ -2325,6 +2325,16 @@ pub(crate) fn action_fields(ui: &mut Ui, id: &str, a: &mut Action, refs: &Refs) 
             });
             ui.weak("(an item with a Poison section: its Constitution save, damage and conditions; \"player\", \"self\" or a character's name)");
         }
+        Action::ChangeShape { who, form, keep_hp } => {
+            labeled(ui, "who", |ui| {
+                ui.add(egui::TextEdit::singleline(who).desired_width(120.0).hint_text("self or a name"));
+            });
+            labeled(ui, "shape", |ui| {
+                suggest(ui, &format!("{id}/shape"), form, &refs.characters, 140.0);
+            });
+            ui.checkbox(keep_hp, "keeps its hit points").on_hover_text("On: its hit points go with it into the new shape and back (the SRD's shapechangers: lycanthropes). Off: the shape has its own, and its old ones come back with its own shape (as Polymorph)");
+            ui.weak("(a character definition; empty = back in its own shape. \"self\" = the trigger's character)");
+        }
         Action::DisarmTrap { target } => {
             labeled(ui, "trap", |ui| {
                 ui.add(egui::TextEdit::singleline(target).desired_width(120.0).hint_text("zone or prop name"));

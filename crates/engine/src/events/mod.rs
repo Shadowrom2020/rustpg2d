@@ -70,7 +70,8 @@ pub enum TriggerOn {
     /// The player woke up after sleeping (map triggers; a bed's own triggers when slept in).
     Sleep,
     /// The clock reached `hour` (0-24, e.g. 12.0 = noon, 5.5 = half past five) while the player
-    /// is on the map: also when time jumps forward past it (sleeping, Set time). Map triggers.
+    /// is on the map: also when time jumps forward past it (sleeping, Set time). Map triggers and
+    /// the characters' own (since 0.35).
     Hour { hour: f32 },
     /// A fight started on the map (map triggers; a character's own when it fights in it).
     CombatStart,
@@ -112,7 +113,7 @@ impl TriggerOwner {
             (O::Map | O::Zone | O::Character | O::Prop | O::Pickup, T::Custom { .. }) => true,
             (O::Map, T::MapEnter | T::Sleep | T::Hour { .. } | T::CombatStart | T::CombatEnd) => true,
             (O::Zone, T::Enter | T::Leave | T::Interact | T::Search | T::TrapSprung | T::TrapDisarmed) => true,
-            (O::Character, T::Interact | T::UseItem { .. } | T::Defeat | T::HpBelow { .. } | T::CombatStart | T::CombatEnd | T::Search) => true,
+            (O::Character, T::Interact | T::UseItem { .. } | T::Defeat | T::HpBelow { .. } | T::CombatStart | T::CombatEnd | T::Search | T::MapEnter | T::Hour { .. }) => true,
             (O::Prop, T::Interact | T::UseItem { .. } | T::Unlock | T::Lock | T::Sleep | T::Search | T::Defeat | T::TrapSprung | T::TrapDisarmed) => true,
             (O::Pickup, T::Interact | T::UseItem { .. }) => true,
             (O::ItemUse, T::UseItem { .. }) => true,
@@ -1040,6 +1041,16 @@ pub enum Action {
     /// Runs `actions` alongside: they start now in a queue of their own and the event goes on at
     /// once (a walk while the camera pans; a cut-scene's cues that don't wait).
     Parallel { actions: Vec<Action> },
+    /// The character `who` ("self" = the trigger's owner, else its name) takes the shape of the
+    /// character definition `form` (a lycanthrope's animal), or its own again (`form` empty).
+    /// `keep_hp`: its hit points go with it (the SRD's shapechangers), else the shape has its own
+    /// and the old ones come back with its own shape (as *Polymorph*).
+    ChangeShape {
+        who: TargetName,
+        form: String,
+        #[serde(default = "yes")]
+        keep_hp: bool,
+    },
 }
 
 fn player_target() -> TargetName {
@@ -1269,6 +1280,7 @@ impl Action {
             Action::ExposeDisease { .. } => "Expose to disease",
             Action::CureDisease { .. } => "Cure disease",
             Action::Parallel { .. } => "Run alongside",
+            Action::ChangeShape { .. } => "Change shape",
         }
     }
 
@@ -1398,6 +1410,7 @@ impl Action {
             Action::ExposeDisease { disease: String::new(), save: true },
             Action::CureDisease { disease: String::new() },
             Action::Parallel { actions: vec![] },
+            Action::ChangeShape { who: "self".into(), form: String::new(), keep_hp: true },
         ]
     }
 }
@@ -1626,7 +1639,8 @@ mod tests {
         assert!(!noon.matches(&GameEvent::Hour { from: 22.0, to: 7.0 }));
         assert!(TriggerOn::Hour { hour: 23.5 }.matches(&GameEvent::Hour { from: 22.0, to: 7.0 }));
         assert!(TriggerOwner::Map.allows(&noon));
-        assert!(!TriggerOwner::Zone.allows(&noon) && !TriggerOwner::Character.allows(&noon));
+        // (A character's own too since 0.35: a lycanthrope at dusk.)
+        assert!(!TriggerOwner::Zone.allows(&noon) && TriggerOwner::Character.allows(&noon) && TriggerOwner::Character.allows(&TriggerOn::MapEnter));
     }
 
     #[test]

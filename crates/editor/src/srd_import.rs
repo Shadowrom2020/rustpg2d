@@ -612,7 +612,8 @@ impl SrdData {
         }
         for m in &self.monsters {
             let id = s(m, "index");
-            if chars.iter().any(|c| c.id == id) {
+            // (The lycanthropes have two forms in the library, human and animal: *Change shape*.)
+            if chars.iter().any(|c| c.id == id) || id.ends_with("-hybrid") {
                 continue;
             }
             chars.push(monster_character(m, &blocks[id]));

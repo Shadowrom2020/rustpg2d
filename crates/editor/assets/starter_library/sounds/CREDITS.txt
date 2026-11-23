@@ -1,0 +1,73 @@
+Sounds and music of the R(ust)PG2D starter library and example project
+
+Every file here was made for R(ust)PG2D, synthesized by small programs (no samples, no
+recordings), and is released with the project under the MIT License (see the project's
+LICENSE). Games made with R(ust)PG2D may use them freely.
+
+  music_*      scripts/sounds/music (a small synthesizer; the track's name in brackets)
+  amb_*, step_*, ui_*, magic_*, coin, quest_done, page
+               scripts/sounds/make_sounds.py
+  fanfare_*    synthesized for R(ust)PG2D 0.26 (scripts not kept)
+  the other effects
+               the example generator of R(ust)PG2D 0.10 (removed since)
+
+Files:
+  amb_birds.ogg            scripts/sounds/make_sounds.py
+  amb_drips.ogg            scripts/sounds/make_sounds.py
+  amb_river.ogg            scripts/sounds/make_sounds.py
+  amb_tavern.ogg           scripts/sounds/make_sounds.py
+  amb_wind.ogg             scripts/sounds/make_sounds.py
+  baa.wav                  0.10 example generator
+  bark.wav                 0.10 example generator
+  bell.wav                 0.10 example generator
+  blip.wav                 0.10 example generator
+  chime.wav                0.10 example generator
+  cluck.wav                0.10 example generator
+  coin.wav                 scripts/sounds/make_sounds.py
+  creak.wav                0.10 example generator
+  defeat.wav               0.10 example generator
+  door.wav                 0.10 example generator
+  explosion.wav            0.10 example generator
+  fanfare_level_up.ogg     synthesized for 0.26
+  fanfare_victory.ogg      synthesized for 0.26
+  fireball.wav             0.10 example generator
+  hit.wav                  0.10 example generator
+  hurt.wav                 0.10 example generator
+  magic_acid.wav           scripts/sounds/make_sounds.py
+  magic_charm.wav          scripts/sounds/make_sounds.py
+  magic_dark.wav           scripts/sounds/make_sounds.py
+  magic_force.wav          scripts/sounds/make_sounds.py
+  magic_frost.wav          scripts/sounds/make_sounds.py
+  magic_heal.wav           scripts/sounds/make_sounds.py
+  magic_summon.wav         scripts/sounds/make_sounds.py
+  magic_thunder.wav        scripts/sounds/make_sounds.py
+  magic_ward.wav           scripts/sounds/make_sounds.py
+  meow.wav                 0.10 example generator
+  moo.wav                  0.10 example generator
+  music_battle.ogg         scripts/sounds/music [Steel in the Woods]
+  music_boss.ogg           scripts/sounds/music [Grumbold's Wrath]
+  music_dungeon.ogg        scripts/sounds/music [The Old Mine]
+  music_forest.ogg         scripts/sounds/music [Whisperwood]
+  music_night.ogg          scripts/sounds/music [Lanterns at Night]
+  music_tavern.ogg         scripts/sounds/music [The Copper Kettle]
+  music_travel.ogg         scripts/sounds/music [The Open Road]
+  music_village.ogg        scripts/sounds/music [Market Day]
+  page.wav                 scripts/sounds/make_sounds.py
+  pickup.wav               0.10 example generator
+  quest_done.wav           scripts/sounds/make_sounds.py
+  step_dirt.wav            scripts/sounds/make_sounds.py
+  step_grass.wav           scripts/sounds/make_sounds.py
+  step_gravel.wav          scripts/sounds/make_sounds.py
+  step_ice.wav             scripts/sounds/make_sounds.py
+  step_mud.wav             scripts/sounds/make_sounds.py
+  step_sand.wav            scripts/sounds/make_sounds.py
+  step_snow.wav            scripts/sounds/make_sounds.py
+  step_stone.wav           scripts/sounds/make_sounds.py
+  step_water.wav           scripts/sounds/make_sounds.py
+  step_wood.wav            scripts/sounds/make_sounds.py
+  swing.wav                0.10 example generator
+  ui_back.wav              scripts/sounds/make_sounds.py
+  ui_confirm.wav           scripts/sounds/make_sounds.py
+  ui_error.wav             scripts/sounds/make_sounds.py
+  ui_move.wav              scripts/sounds/make_sounds.py
+  unlock.wav               0.10 example generator

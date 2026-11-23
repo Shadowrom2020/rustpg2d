@@ -87,6 +87,19 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
     Caves holds a giant wolf spider (challenge 1/4) instead of a giant spider (challenge 1), and
     the bridge in the Wilds an ogre (challenge 2) instead of a troll (challenge 5).
   - **Still its own:** Grumbold the cave troll keeps his hand-made block.
+- **Music and sounds.**
+  - **Four new tracks**, made like the others by `scripts/sounds/music`: *The Old Mine*
+    (`music_dungeon`), *Lanterns at Night* (`music_night`), *The Open Road* (`music_travel`) and
+    *Grumbold's Wrath* (`music_boss`).
+  - **21 new effects** from `scripts/sounds/make_sounds.py`: footsteps on sand, gravel, water, mud
+    and ice (set on the starter materials that had none or a stand-in), menu sounds (`ui_move`,
+    `ui_confirm`, `ui_back`, `ui_error`, `coin`, `page`, `quest_done`) and nine spell sounds by kind
+    of magic; every spell of the library now sounds like its damage, healing or school.
+  - **The example:** the village plays night music after nine (the common event *Night music*),
+    the mine and the Deep Caves *The Old Mine*, the Wilds *The Open Road*; Grumbold's fight has
+    his own music, and finishing a quest chimes.
+  - **Licences:** `sounds/CREDITS.txt` lists every sound of the library and the example and where
+    it comes from (all made for R(ust)PG2D, MIT License).
 - **Fights at pits and cracks.** In the example's mine a giant rat could notice the hero in the
   air over the crack before the rat nest; the fight then put the hero onto the crack, where no
   move was allowed, and there was no way out. Now:

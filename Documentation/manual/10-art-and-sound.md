@@ -199,9 +199,36 @@ a file into `sounds/`.
   (-1 left, 1 right); a pitched or panned sound is made once and kept (the web game plays it as
   it is). *Play music* has a **crossfade** time: the old track fades out while the new one fades
   in. *Play music effect* plays a fanfare once while the music ducks.
-- The example's four tracks (*Market Day*, *Whisperwood*, *The Copper Kettle* and the battle music
-  *Steel in the Woods*) are composed in a note notation and rendered by a small synthesizer:
-  `scripts/sounds/music/` (`cargo run --release -- OUT_DIR [ID…]` in that folder).
+- **The music of the starter library**, eight looping tracks composed in a note notation and
+  rendered by a small synthesizer (`scripts/sounds/music/`: `cargo run --release -- OUT_DIR [ID…]`
+  in that folder):
+
+  | Sound | Title | For |
+  |---|---|---|
+  | `music_village` | *Market Day* | a town by day |
+  | `music_night` | *Lanterns at Night* | a town at night |
+  | `music_tavern` | *The Copper Kettle* | inns and taverns |
+  | `music_forest` | *Whisperwood* | forests |
+  | `music_travel` | *The Open Road* | the road, the wilds |
+  | `music_dungeon` | *The Old Mine* | mines, caves, dungeons |
+  | `music_battle` | *Steel in the Woods* | fights |
+  | `music_boss` | *Grumbold's Wrath* | a boss fight |
+
+  The fanfares `fanfare_level_up` and `fanfare_victory` go with them. **In the example** the village
+  plays *Lanterns at Night* from nine in the evening to half past five (the common event *Night
+  music*, parallel while `calendar_on`, runs `town_music()`), the mine and the Deep Caves play *The
+  Old Mine* (the mine without battle music: its fights stay in the dark, except Grumbold's, whose
+  *Combat start* trigger plays *Grumbold's Wrath* and whose defeat brings *The Old Mine* back), and
+  the Wilds *The Open Road*.
+- **Effects of the starter library**: menu and window sounds (`ui_move`, `ui_confirm`, `ui_back`,
+  `ui_error`, `coin`, `page`, `quest_done`: the example's *Quest reward* common event plays
+  `quest_done`) and spell sounds by kind of magic (`magic_frost`, `magic_thunder`, `magic_heal`,
+  `magic_dark`, `magic_force`, `magic_charm`, `magic_acid`, `magic_ward`, `magic_summon`, beside
+  `fireball` and `explosion`): every spell of the library has the one that fits its damage, its
+  healing or its school (*Database › Spells › Sound*). They are made by
+  `scripts/sounds/make_sounds.py` (`python3 make_sounds.py OUT_DIR [NAME…]`).
+- **Licences:** `sounds/CREDITS.txt` in the starter library and the example lists every sound and
+  where it comes from: all were made for R(ust)PG2D and come under its MIT License.
 - Players set the volume of music, effects and ambience in *Options*.
 - **Captions**: a sound's *Caption* (Database › Sounds) is written on screen when it plays for
   players who turned on *Captions* (Options › Accessibility), with the side it came from for sounds
@@ -224,8 +251,9 @@ How a place sounds comes from two things, both without events or scripts:
   they are, and every step's loudness varies a little.
 
 The starter library has ambience loops (`amb_birds`, `amb_river`, `amb_tavern`, `amb_wind`,
-`amb_drips`) and footsteps (`step_grass`, `step_dirt`, `step_stone`, `step_wood`, `step_snow`),
-already set on the starter materials. In the example, birds sing
+`amb_drips`) and footsteps (`step_grass`, `step_dirt`, `step_stone`, `step_wood`, `step_snow`,
+`step_sand`, `step_gravel`, `step_water`, `step_mud`, `step_ice`), already set on the starter
+materials (sand, gravel paths and rubble, puddles and shallow water, mud, frozen lakes too). In the example, birds sing
 over the village, the forest and the Wilds, the stream rushes along its banks, the wind blows in the
 Wilds, water drips in the mine and the tavern murmurs.
 

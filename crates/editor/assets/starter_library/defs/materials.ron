@@ -63,7 +63,7 @@
         edge_pixel: 2,
         priority: 40,
         walk: Walk,
-        step: "step_dirt",
+        step: "step_sand",
     ),
     (
         id: "snow",
@@ -248,6 +248,7 @@
         edge_pixel: 2,
         priority: 32,
         walk: Walk,
+        step: "step_gravel",
     ),
     (
         id: "snowfield",
@@ -258,6 +259,7 @@
         edge_pixel: 2,
         priority: 30,
         walk: Walk,
+        step: "step_snow",
     ),
     (
         id: "mountain_path",
@@ -268,6 +270,7 @@
         edge_pixel: 2,
         priority: 32,
         walk: Walk,
+        step: "step_gravel",
     ),
     (
         id: "frozen_lake",
@@ -278,6 +281,7 @@
         edge_pixel: 2,
         priority: 34,
         walk: Walk,
+        step: "step_ice",
     ),
     (
         id: "canal",
@@ -298,6 +302,7 @@
         edge_pixel: 2,
         priority: 32,
         walk: Walk,
+        step: "step_stone",
     ),
     (
         id: "flower_grass",
@@ -340,6 +345,7 @@
         edge_pixel: 2,
         priority: 10,
         walk: Walk,
+        step: "step_grass",
     ),
     (
         id: "dirt_mound",
@@ -382,6 +388,7 @@
         edge_pixel: 2,
         priority: 10,
         walk: Walk,
+        step: "step_stone",
     ),
     (
         id: "rubble_floor",
@@ -392,7 +399,7 @@
         edge_pixel: 2,
         priority: 10,
         walk: Walk,
-        step: "step_stone",
+        step: "step_gravel",
     ),
     (
         id: "dungeon_water",
@@ -403,6 +410,7 @@
         edge_pixel: 2,
         priority: 10,
         walk: Walk,
+        step: "step_water",
     ),
     (
         id: "puddle_floor",
@@ -413,7 +421,7 @@
         edge_pixel: 2,
         priority: 10,
         walk: Walk,
-        step: "step_stone",
+        step: "step_water",
     ),
     (
         id: "bone_floor",
@@ -495,6 +503,7 @@
         edge_pixel: 2,
         priority: 18,
         walk: Walk,
+        step: "step_mud",
     ),
     (
         id: "cave_rock",
@@ -505,6 +514,7 @@
         edge_pixel: 2,
         priority: 22,
         walk: Walk,
+        step: "step_stone",
     ),
     (
         id: "sandstone_tiles",
@@ -515,5 +525,6 @@
         edge_pixel: 2,
         priority: 34,
         walk: Walk,
+        step: "step_stone",
     ),
 ]

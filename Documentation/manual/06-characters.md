@@ -550,8 +550,12 @@ is. *Next* goes on, *Back* (or Esc) goes back, and *Start adventure* on the last
    store*: a character whose shop stock is sold, the example's and the starter library's
    **Outfitter** with the SRD's weapons, armour, ammunition, spellcasting focuses, tools, packs
    and gear) and the class has **starting gold** (*Database › Classes › Starting gold*, e.g.
-   `5d4x10`; the hero gets the average, 125 gp for a fighter). Instead of the class's starting
-   equipment, the player buys gear: Right, Enter or *+* buys one, Left or *−* puts one back; the
+   `5d4x10`; the hero gets the average, 125 gp for a fighter). The cart starts with the class's
+   **starting equipment** (as far as the store sells it), and the budget is the starting gold or
+   that equipment's price, whichever is more, so the kit always fits: a player who is happy with
+   it just starts, and anyone can swap parts of it. Right, Enter or *+* buys one, Left or *−* puts
+   one back (its price is free again); picking another class fills the cart with that class's
+   kit. The
    tabs over the list (*All*, *Weapons*, *Armor*, *Tools*, *Gear*, *Magic*; click, Tab or 1-6)
    filter it. Gold
    left, what was bought and the selected item (its numbers, weight, text, and a warning when the
@@ -559,7 +563,7 @@ is. *Next* goes on, *Back* (or Esc) goes back, and *Start adventure* on the last
    purse. Without a store (or without starting gold) the hero gets the class's starting equipment as
    before.
 
-![The creator's starter store: a fighter's longsword, chain mail, shield and explorer's pack](../images/game-creator-store.webp)
+![The creator's starter store: a fighter's starting equipment already in the cart (chain mail, sword, shield, crossbow, bolts, dungeoneer's pack)](../images/game-creator-store.webp)
 
 *Start adventure* makes the hero: the scores with the race's increases (racial increases stop at
 20), the project's, the race's, the chosen, the background's and the class's proficiencies, the

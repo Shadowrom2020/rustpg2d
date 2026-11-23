@@ -270,7 +270,9 @@ a class at their level, and
   picked in the creator and its starting equipment in the inventory (the SRD's first options,
   mapped to the library's items: a fighter's chain mail, iron sword, wooden shield, crossbow and
   bolts). With a starter store in the creator, the class's **starting gold** (the average of its
-  dice, `5d4x10` = 125 gp) buys gear there instead, and the rest stays in the purse; level 1's
+  dice, `5d4x10` = 125 gp) or the equipment's price, whichever is more, is the budget there: the
+  cart starts with the starting equipment, the player swaps what they like, and the rest stays in
+  the purse; level 1's
   choices and spells are picked in the creator too.
 - **Levelling**: every level the hit die adds hit points. When a level brings **choices**, the
   **level-up window** opens as soon as nothing else is going on (no fight, dialog or cut-scene):

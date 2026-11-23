@@ -81,7 +81,7 @@ runs:
         unzip -l "$starter" | grep -q ' starter.ron$'
         RUSTPG2D_EDITOR_SCRIPT="wait 2; starterinstall $starter; status; quit" timeout 180 xvfb-run -a -s "-screen 0 1280x720x24" \
           squashfs-root/AppRun 2>&1 | tee starter.log
-        grep -qE 'starter=[0-9.]+\(installed\)/installed' starter.log
+        grep -qE 'starter=[0-9A-Za-z.+-]+\(installed\)/installed' starter.log
         # The AI agent server (MCP over Streamable HTTP) answers initialize and lists its tools.
         RUSTPG2D_EDITOR_SCRIPT="mcp on 7743; wait 90; quit" timeout 150 xvfb-run -a -s "-screen 0 1280x720x24" \
           squashfs-root/AppRun squashfs-root/usr/share/rustpg2d/example_project > mcp-editor.log 2>&1 &

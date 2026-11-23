@@ -278,7 +278,13 @@ impl Game {
     pub(super) fn sync_companion_hp(&mut self, i: usize) {
         let e = &self.loaded.entities[i];
         let Some(l) = &e.companion else { return };
-        let hp = (e.hp < e.max_hp).then_some(e.hp);
+        // (In a shape with hit points of its own, Polymorph or Wild Shape: its own ones, which come
+        // back with its own shape; a map change or a loaded game brings it back in that shape.)
+        let (hp, max) = match &e.shape {
+            Some(s) if !s.keep_hp => (s.orig.hp, s.orig.max_hp),
+            _ => (e.hp, e.max_hp),
+        };
+        let hp = (hp < max).then_some(hp);
         let max_mana = self.npc_max_mana(i);
         let mana = (l.mana < max_mana).then_some(l.mana);
         if let Some(c) = self.world.companions.iter_mut().find(|c| c.map == l.map && c.uid == l.uid) {

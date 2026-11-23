@@ -23,6 +23,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **Prone after a fight:** characters (and the hero) knocked prone in a fight stayed prone once it
   ended, crawling at half speed, because standing up happens at the start of one's turn. Everyone
   in the fight now stands up when it ends.
+- **Companions in another shape** (*Polymorph*, *Wild Shape*, *Change shape* without its hit
+  points) stored the shape's hit points when the map changed or the game was saved, and came back in
+  their own shape with those: a free heal or the beast's few. They now keep their own.
 - **Character window lists:** the mouse wheel didn't move through the *Spells* tab's spells or the
   *Sheet* tab's features, and once a long list had scrolled, a click picked the wrong row. The wheel
   now moves the selection (the list follows), and clicks pick the row under the mouse.

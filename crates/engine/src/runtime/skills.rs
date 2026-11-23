@@ -371,11 +371,19 @@ impl Game {
         if input::act_pressed(Act::Up) {
             *sel = sel.saturating_sub(1);
         }
+        // The wheel over the window moves the selection (the list follows it).
+        let wheel = input::wheel();
+        if wheel != 0.0 && self.window_rect().contains(m) {
+            let sel = &mut self.skills.sel[tab];
+            *sel = if wheel > 0.0 { sel.saturating_sub(1) } else { (*sel + 1).min(rows.len().saturating_sub(1)) };
+        }
         if click {
-            for i in 0..rows.len() {
-                let hit = if tab == 0 { self.sheet_feature_rect(i) } else { row_rect(r, i) };
+            // (The rows shown: the list scrolls with the selection.)
+            let (first, visible) = self.list_window(tab, rows.len());
+            for k in 0..visible.min(rows.len().saturating_sub(first)) {
+                let hit = if tab == 0 { self.sheet_feature_rect(k) } else { row_rect(r, k) };
                 if hit.contains(m) {
-                    self.skills.sel[tab] = i;
+                    self.skills.sel[tab] = first + k;
                 }
             }
         }
@@ -417,6 +425,20 @@ impl Game {
             }
         }
         (true, true)
+    }
+
+    /// The first row shown of tab `tab`'s list of `len` and how many rows fit: a long list
+    /// scrolls with the selection (the Sheet's features, the Spells).
+    fn list_window(&self, tab: usize, len: usize) -> (usize, usize) {
+        let r = self.skills_rect();
+        let visible = if tab == 0 {
+            let bottom = r.bottom() - 132.0;
+            (((bottom - self.sheet_feature_rect(0).y) / 22.0).floor() as usize).max(1)
+        } else {
+            (((r.h - 44.0 - LIST_TOP) / ROW).floor() as usize).max(1)
+        };
+        let sel = self.skills.sel[tab].min(len.saturating_sub(1));
+        (sel.saturating_sub(visible - 1), visible)
     }
 
     fn button_rect(r: Rect) -> Rect {
@@ -467,8 +489,7 @@ impl Game {
         }
         let prepared = self.prepared_of(Who::Player);
         let castable: Vec<String> = self.cast_options(Who::Player).into_iter().map(|o| o.0).collect();
-        let visible = (((r.h - 44.0 - LIST_TOP) / ROW).floor() as usize).max(1);
-        let first = sel.saturating_sub(visible - 1);
+        let (first, _) = self.list_window(1, rows.len());
         for (i, id) in rows.iter().enumerate().skip(first) {
             let rr = row_rect(r, i - first);
             if rr.y + rr.h > r.y + r.h - 44.0 {
@@ -743,8 +764,7 @@ impl Game {
         let sel = self.skills.sel[0].min(features.len().saturating_sub(1));
         let bottom = r.bottom() - 132.0;
         // (A long list scrolls with the selection.)
-        let visible = (((bottom - self.sheet_feature_rect(0).y) / 22.0).floor() as usize).max(1);
-        let first = sel.saturating_sub(visible - 1);
+        let (first, _) = self.list_window(0, features.len());
         for (k, (name, _)) in features.iter().enumerate().skip(first) {
             let fr = self.sheet_feature_rect(k - first);
             if fr.bottom() > bottom {
@@ -772,6 +792,17 @@ impl Game {
 
     /// For automated play-throughs.
     pub fn skills_status(&self) -> String {
-        format!("spells={:?} {} light={} aiming={:?}", self.world.spells, self.spells_status(), self.skills.light.is_some(), self.skills.aiming.as_ref().map(|a| a.script.clone()))
+        // (The character window's Sheet / Spells selections: `listsel=feature:K/ROWS,spell:K/ROWS`.)
+        format!(
+            "spells={:?} {} light={} aiming={:?} listsel=feature:{}/{},spell:{}/{}",
+            self.world.spells,
+            self.spells_status(),
+            self.skills.light.is_some(),
+            self.skills.aiming.as_ref().map(|a| a.script.clone()),
+            self.skills.sel[0],
+            self.sheet_features().len(),
+            self.skills.sel[1],
+            self.spellbook_rows().len()
+        )
     }
 }

@@ -26,6 +26,8 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **Companions in another shape** (*Polymorph*, *Wild Shape*, *Change shape* without its hit
   points) stored the shape's hit points when the map changed or the game was saved, and came back in
   their own shape with those: a free heal or the beast's few. They now keep their own.
+- **Long action bar lists** (*Use*, *Cast*, class actions outside fights) grew past the bottom of
+  the screen over the bar. They now show what fits and scroll with the wheel and the selection.
 - **Character window lists:** the mouse wheel didn't move through the *Spells* tab's spells or the
   *Sheet* tab's features, and once a long list had scrolled, a click picked the wrong row. The wheel
   now moves the selection (the list follows), and clicks pick the row under the mouse.

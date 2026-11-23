@@ -21,6 +21,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   - New action **Run alongside**: its actions run next to the event's, which goes on at once.
   - The example's intro is now the cut-scene `intro`; the script function `intro_cutscene()` is
     gone.
+- **Database table view.** *Table* on the Items, Characters, Spells and Recipes tabs shows one row
+  per definition with its main fields (prices, weight, damage dice, AC, hit points, CR, XP, spell
+  levels…). Sort by any column, edit cells in place, and change a column of many selected rows
+  at once: set a value, add a percentage or apply a formula of `x`, as one undo step.
 
 ## 0.33.0-alpha.1 — 2026-11-23
 

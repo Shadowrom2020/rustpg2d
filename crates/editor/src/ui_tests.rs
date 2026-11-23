@@ -349,6 +349,62 @@ fn the_item_list_searches_and_filters_by_category() {
 }
 
 #[test]
+fn the_item_table_sorts_and_sets_three_prices_in_one_undo_step() {
+    let root = example_copy("item_table");
+    let mut h = harness(&root, Tab::Items, 0);
+    step(&mut h);
+    let ends = |l: &'static str| move |n: &egui_kittest::kittest::Node<'_>| n.role() == Role::Button && n.label().as_deref().is_some_and(|x| x.ends_with(l));
+    h.get_by(ends("Table")).click();
+    step(&mut h);
+    assert!(h.state().db.table.on);
+    // Sorted by cost: the cheapest first, then (clicked again) the dearest.
+    h.get_by_label("Cost (cp)").click();
+    step(&mut h);
+    let cost = |h: &Harness<'static, Editor>, id: &str| h.state().project.db.items.iter().find(|d| d.id == id).unwrap().cost_cp;
+    let shown = h.state().db.table.shown.clone();
+    assert!(shown.windows(2).all(|w| cost(&h, &w[0]) <= cost(&h, &w[1])), "ascending");
+    h.get_by(ends(crate::ui::ph::CARET_UP)).click();
+    step(&mut h);
+    let shown = h.state().db.table.shown.clone();
+    assert!(shown.windows(2).all(|w| cost(&h, &w[0]) >= cost(&h, &w[1])), "descending");
+    // Three rows: a click, then Ctrl+clicks.
+    let three: Vec<String> = shown[..3].to_vec();
+    let before: Vec<u32> = three.iter().map(|id| cost(&h, id)).collect();
+    h.get_by_label(&three[0]).click();
+    step(&mut h);
+    h.get_by_label(&three[1]).key_down(egui_kittest::kittest::Key::Control);
+    step(&mut h);
+    h.get_by_label(&three[1]).click();
+    step(&mut h);
+    h.get_by_label(&three[2]).click();
+    step(&mut h);
+    h.get_by_label(&three[2]).key_up(egui_kittest::kittest::Key::Control);
+    step(&mut h);
+    assert_eq!(h.state().db.table.sel.len(), 3);
+    // Cost is the bulk column to begin with; Set to 1234, Apply.
+    let apply = format!("{} Apply", crate::ui::ph::CHECK);
+    beside(&h, &apply, |n| n.role() == Role::TextInput).type_text("1234");
+    step(&mut h);
+    h.get_by_label(&apply).click();
+    step(&mut h);
+    assert!(three.iter().all(|id| cost(&h, id) == 1234), "{}", h.state().db.table.msg);
+    // One undo step takes all three back.
+    unfocus(&mut h);
+    undo(&mut h);
+    assert_eq!(three.iter().map(|id| cost(&h, id)).collect::<Vec<_>>(), before);
+    // Again with another value, saved and loaded.
+    h.state_mut().db.table.bulk_value = "1500".into();
+    step(&mut h);
+    h.get_by_label(&apply).click();
+    step(&mut h);
+    assert!(h.state().defs_dirty);
+    h.state_mut().save_all();
+    let saved = Project::load(&root).unwrap().db;
+    assert!(three.iter().all(|id| saved.items.iter().find(|d| d.id == *id).unwrap().cost_cp == 1500));
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn an_item_gets_uses_and_silvering() {
     let root = example_copy("uses");
     let db = Project::load(&root).unwrap().db;

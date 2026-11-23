@@ -170,7 +170,7 @@ Faster ways to build what the earlier releases made possible.
     came before into its end state at once.
   - Cut-scenes are story content: not sent to the asset library.
 
-- [ ] Database table view — `feature/db-table`
+- [x] Database table view — `feature/db-table`
 
   **Goal.** Change many entries at once: balance prices, damage, HP.
 
@@ -184,6 +184,10 @@ Faster ways to build what the earlier releases made possible.
   **Engine.** Editor only (`database.rs`); a UI test in `ui_tests.rs`.
 
   **Verify.** The UI test: sort, set prices of three items, undo, save and reload.
+
+  **Decided while building.** Tables for Items, Characters, Spells and Recipes (the tabs with
+  numbers to balance); a double-click on an id opens the form. Formulas are Rhai expressions of
+  `x`. Rows without a field (no stat block, not a weapon) are skipped by bulk edits.
 
 - [ ] Test-play from here — `feature/testplay-setup`
 

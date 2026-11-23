@@ -8,9 +8,10 @@ Database says what they are.
 ## Working with definitions
 
 The tabs along the top are *Items, Props, Characters, Races, Factions, 3D models, Materials, Scatter sets,
-Sprite sheets, Sounds, Fonts, UI skins, Structures, Spells, Recipes, Backgrounds, Classes, Quests, Achievements, Common events, Project* and
-*Scripts*. Each asset tab has a list on
-the left and the selected definition's form on the right.
+Sprite sheets, Sounds, Fonts, UI skins, Structures, Spells, Recipes, Backgrounds, Classes, Diseases, Quests, Achievements, Common events,
+Cut-scenes, Project* and *Scripts*. Each asset tab has a list on
+the left and the selected definition's form on the right; *Items*, *Characters*, *Spells* and
+*Recipes* also have a [table](#the-table-view).
 
 - The **search** field above the list shows only the definitions whose name or id contains the
   text (the selection jumps to the first match; another tab clears it). On *Items* a **category**
@@ -36,6 +37,33 @@ the left and the selected definition's form on the right.
   renames included ([The editor › Saving and undo](02-the-editor.md#saving-and-undo)).
 - **Save definitions** (or Ctrl+S) writes the files; **Reload assets** reads images and sounds again
   after you changed them in another program.
+
+### The table view
+
+![Items in the table view, sorted by cost](../images/editor-db-table.webp)
+
+**Table** (next to the tabs, on *Items*, *Characters*, *Spells* and *Recipes*) shows one row per
+definition with its main fields instead of the list and the form, to balance many at once:
+
+| Tab | Columns |
+|---|---|
+| Items | Name, Cost (cp), Value, Weight (lb), Stack, Damage (a weapon's dice), Base AC (armor) |
+| Characters | Name, Max HP, Block HP / AC / CR (the stat block's), XP, Speed, Hostile, Faction |
+| Spells | Name, Level, School, Mana, Cooldown, Concentration, Ritual |
+| Recipes | Result, Count, Station, Level |
+
+- The search field (and on *Items* the category picker) narrows the rows.
+- Click a column's title to **sort** by it, again to reverse, a third time for the file's order.
+  Cells a definition doesn't have (no stat block, not a weapon) show `-` and sort last.
+- Cells are edited in place. A double-click on an id opens that definition's form (the table
+  switches off).
+- **Select rows** with a click, Ctrl+click (add or remove one) and Shift+click (a range); *All*
+  selects every row shown.
+- **Bulk edit:** choose a column and what to do, type the value and press **Apply**. *Set to*
+  writes the value, *Add %* adds a percentage (`-25` takes a quarter off), *Formula* computes a
+  Rhai expression of `x`, the cell's value (`x * 1.5 + 2`, `(x / 10.0).round() * 10.0`).
+  Whole-number columns are rounded; text and tick columns can only be set. Rows without the
+  field are left alone. A bulk edit is **one undo step**.
 
 ### Choosing sprites
 

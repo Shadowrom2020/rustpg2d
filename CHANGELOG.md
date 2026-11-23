@@ -29,6 +29,8 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **Leaving the map during a fight** (a *Teleport* in an event) skipped the fight's end: conditions
   stayed, fallen companions weren't stood up and a frenzy's exhaustion was skipped. It now ends like
   any fight (without the old map's *Fight ends* triggers).
+- **Long action bar lists** (*Use*, *Cast*, class actions outside fights) grew past the bottom of
+  the screen over the bar. They now show what fits and scroll with the wheel and the selection.
 - **Character window lists:** the mouse wheel didn't move through the *Spells* tab's spells or the
   *Sheet* tab's features, and once a long list had scrolled, a click picked the wrong row. The wheel
   now moves the selection (the list follows), and clicks pick the row under the mouse.

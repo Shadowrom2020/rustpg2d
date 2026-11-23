@@ -55,6 +55,8 @@ pub(super) struct BarList {
     pub rows: Vec<BarRow>,
     pub sel: usize,
     mouse: Vec2,
+    /// The first row shown (a list taller than the screen scrolls).
+    scroll: usize,
 }
 
 /// The bar's state outside fights.
@@ -194,7 +196,7 @@ impl Game {
                     return;
                 }
                 let sel = rows.iter().position(|r| r.why.is_none()).unwrap_or(0);
-                self.bar.list = Some(BarList { entry: e, rows, sel, mouse: input::mouse_pos() });
+                self.bar.list = Some(BarList { entry: e, rows, sel, mouse: input::mouse_pos(), scroll: 0 });
             }
         }
     }
@@ -202,7 +204,7 @@ impl Game {
     /// Opens a list of `rows` under `entry`'s title (the beasts of Wild Shape).
     pub(super) fn open_bar_list(&mut self, entry: BarEntry, rows: Vec<BarRow>) {
         let sel = rows.iter().position(|r| r.why.is_none()).unwrap_or(0);
-        self.bar.list = Some(BarList { entry, rows, sel, mouse: input::mouse_pos() });
+        self.bar.list = Some(BarList { entry, rows, sel, mouse: input::mouse_pos(), scroll: 0 });
     }
 
     /// The rows of a list entry.
@@ -275,6 +277,8 @@ impl Game {
         (d.consumable || !d.on_use.is_empty() || !d.teaches.is_empty() || casts || coats) && (self.project.db.slot_of(id).is_none() || casts) && d.coin_cp == 0
     }
 
+    /// The list's panel and the rectangles of the rows shown (from `list.scroll`: as many as fit
+    /// between the top of the screen and the bar).
     fn list_rects(&self, list: &BarList) -> (Rect, Vec<Rect>) {
         let _font = text::role(Role::Hud);
         let title = self.entry_text(&list.entry);
@@ -283,31 +287,43 @@ impl Game {
         let w = width.min(screen_width() - 32.0);
         // (Title, rows, the hint line; the frame's border around them.)
         let head = (inset + 22.0).max(34.0);
-        let h = head + list.rows.len() as f32 * ROW_H + 18.0 + inset;
         let bottom = self.bar_top() - 10.0;
+        let shown = list.rows.len().min(self.list_fits());
+        let h = head + shown as f32 * ROW_H + 18.0 + inset;
         let panel = Rect::new((screen_width() - w) / 2.0, (bottom - h).max(40.0), w, h);
-        let rows = (0..list.rows.len()).map(|k| Rect::new(panel.x + inset.max(8.0), panel.y + head + k as f32 * ROW_H, panel.w - 2.0 * inset.max(8.0), ROW_H)).collect();
+        let rows = (0..shown).map(|k| Rect::new(panel.x + inset.max(8.0), panel.y + head + k as f32 * ROW_H, panel.w - 2.0 * inset.max(8.0), ROW_H)).collect();
         (panel, rows)
+    }
+
+    /// How many rows of a list fit between the top of the screen and the bar.
+    fn list_fits(&self) -> usize {
+        let inset = skin::inset();
+        let head = (inset + 22.0).max(34.0);
+        (((self.bar_top() - 10.0 - 40.0 - head - 18.0 - inset) / ROW_H).floor() as usize).max(1)
     }
 
     fn list_input(&mut self) {
         let Some(list) = self.bar.list.clone() else { return };
         let n = list.rows.len().max(1);
-        let mut sel = list.sel.min(n - 1);
+        let shown = n.min(self.list_fits());
+        let (mut sel, mut scroll) = (list.sel.min(n - 1), list.scroll);
         if input::act_pressed(Act::Up) {
             sel = (sel + n - 1) % n;
         }
         if input::act_pressed(Act::Down) {
             sel = (sel + 1) % n;
         }
-        let (_, rects) = self.list_rects(&list);
+        super::ui::clamp_list(&mut sel, &mut scroll, n, shown);
+        super::ui::wheel_list(&mut sel, &mut scroll, n, shown, input::wheel());
+        let (_, rects) = self.list_rects(&BarList { scroll, ..list.clone() });
         let mouse = input::mouse_pos();
-        let hovered = rects.iter().position(|r| r.contains(mouse));
+        let hovered = rects.iter().position(|r| r.contains(mouse)).map(|k| scroll + k);
         if let (Some(h), true) = (hovered, input::mouse_pressed(MouseButton::Left) || mouse != list.mouse) {
             sel = h;
         }
         if let Some(l) = &mut self.bar.list {
             l.sel = sel;
+            l.scroll = scroll;
             l.mouse = mouse;
         }
         if input::act_pressed(Act::Confirm) || (input::mouse_pressed(MouseButton::Left) && hovered.is_some()) {
@@ -442,7 +458,7 @@ impl Game {
             skin::panel(panel.x, panel.y, panel.w, panel.h);
             let head = rects.first().map_or(panel.y + 34.0, |r| r.y);
             draw_plain(&self.entry_text(&list.entry), panel.x + skin::inset().max(14.0), head - 8.0, FONT, skin::highlight());
-            for (k, (row, r)) in list.rows.iter().zip(&rects).enumerate() {
+            for ((k, row), r) in list.rows.iter().enumerate().skip(list.scroll).zip(&rects) {
                 if k == list.sel {
                     skin::cursor(*r, Color::new(1.0, 0.86, 0.45, 1.0));
                 }

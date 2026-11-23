@@ -25,6 +25,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   per definition with its main fields (prices, weight, damage dice, AC, hit points, CR, XP, spell
   levels…). Sort by any column, edit cells in place, and change a column of many selected rows
   at once: set a value, add a percentage or apply a formula of `x`, as one undo step.
+- **Test-play from here.** A right-click on the map offers *Play from here* (a new game on that
+  tile) and *Play from here with the test setup*: the hero's level and class, items, flags,
+  variables, quests at a stage, the time and the party, kept per project. The editor writes it
+  as a save and the game starts from it with the new argument `--load FILE` (no *Map enter*
+  triggers, as a loaded game).
 
 ## 0.33.0-alpha.1 — 2026-11-23
 

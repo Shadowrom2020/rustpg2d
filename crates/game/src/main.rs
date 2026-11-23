@@ -42,7 +42,7 @@ fn root_arg() -> Option<PathBuf> {
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
         match a.as_str() {
-            "--map" | "--spawn" | "--pos" | "--cutscene" | "--cutscene-at" | "--lang" => {
+            "--map" | "--spawn" | "--pos" | "--cutscene" | "--cutscene-at" | "--lang" | "--load" => {
                 args.next();
             }
             s if s.starts_with('-') => {}
@@ -67,6 +67,7 @@ fn parse_args() -> Result<(PathBuf, StartOptions)> {
             "--engine-build" => {}
             "--spawn" => start.spawn = Some(value()?),
             "--cutscene" => start.cutscene = Some(value()?),
+            "--load" => start.load = Some(PathBuf::from(value()?)),
             "--cutscene-at" => start.cutscene_at = value()?.trim().parse().context("--cutscene-at expects seconds")?,
             "--pos" => {
                 let v = value()?;
@@ -74,7 +75,7 @@ fn parse_args() -> Result<(PathBuf, StartOptions)> {
                 start.pos = Some(vec2(x.trim().parse()?, y.trim().parse()?));
             }
             "-h" | "--help" => {
-                println!("usage: rustpg2d-game [PROJECT_DIR] [--map NAME] [--spawn NAME] [--pos X,Y] [--no-title] [--cutscene ID|FUNCTION [--cutscene-at SECS]] [--dev] [--lang CODE]");
+                println!("usage: rustpg2d-game [PROJECT_DIR] [--map NAME] [--spawn NAME] [--pos X,Y] [--no-title] [--cutscene ID|FUNCTION [--cutscene-at SECS]] [--load SAVE_FILE] [--dev] [--lang CODE]");
                 std::process::exit(0);
             }
             s if s.starts_with('-') => bail!("unknown option {s}"),
@@ -82,7 +83,7 @@ fn parse_args() -> Result<(PathBuf, StartOptions)> {
         }
     }
     // The title screen is skipped when starting somewhere specific (editor play-tests).
-    start.title = !no_title && start.map.is_none() && start.spawn.is_none() && start.pos.is_none();
+    start.title = !no_title && start.map.is_none() && start.spawn.is_none() && start.pos.is_none() && start.load.is_none();
     Ok((root, start))
 }
 

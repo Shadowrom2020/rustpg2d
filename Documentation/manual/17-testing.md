@@ -14,7 +14,8 @@ RUSTPG2D_AUTOPLAY="wait 1; talkto tilda; wait 3; status; shot /tmp/tilda.png; qu
 somewhere specific; `--dev` adds the developer console and live script reloading
 (play-tests from the editor use it); `--cutscene ID` plays a cut-scene (or a script function) at the
 start without the map's *Map enter* triggers, `--cutscene-at SECS` from that moment of its timeline
-(the timeline's *Play from here*). A crafted save in `saves/quick.ron` loaded with `press f9`
+(the timeline's *Play from here*); `--load FILE` starts from a save file (the editor's *Play from
+here with the test setup* writes one). A crafted save in `saves/quick.ron` loaded with `press f9`
 starts in a precise situation (loading never fires *Map enter* triggers).
 
 ## How a script runs

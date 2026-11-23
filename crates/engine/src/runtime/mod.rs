@@ -176,6 +176,9 @@ pub struct StartOptions {
     pub dev: bool,
     /// Start in this language (`--lang CODE`), whatever the player's settings say.
     pub lang: Option<String>,
+    /// Start from this save file (`--load FILE`): the editor's *Play from here* with a test
+    /// setup writes one. Loaded like a saved game (no *Map enter* triggers).
+    pub load: Option<std::path::PathBuf>,
 }
 
 /// A moving thing: the player or a runtime entity.
@@ -693,7 +696,12 @@ impl Game {
         };
         // The title screen's own map behind it (unless a map to start on was given).
         let title_map = (start.title && start.map.is_none() && start.pos.is_none() && start.spawn.is_none()).then(|| title_map(&project.config)).flatten();
-        let map_name = start.map.clone().or(title_map.clone()).unwrap_or_else(|| project.config.start_map.clone());
+        // A save to start from (`--load`): its map and place.
+        let save = match &start.load {
+            Some(f) => Some(WorldState::from_ron(&crate::sys::read_to_string(f).with_context(|| format!("reading {}", f.display()))?).with_context(|| format!("reading the save {}", f.display()))?),
+            None => None,
+        };
+        let map_name = save.as_ref().map(|w| w.current_map.clone()).or(start.map.clone()).or(title_map.clone()).unwrap_or_else(|| project.config.start_map.clone());
         let map = project.load_map(&map_name)?;
         let player = Body {
             pos: Vec2::ZERO,
@@ -833,6 +841,7 @@ impl Game {
             marker_hops: HashMap::new(),
         };
         let arrival = match (start.pos, start.spawn) {
+            _ if save.is_some() => Arrival::Pos(save.as_ref().map_or(Vec2::ZERO, |w| vec2(w.player_pos.0, w.player_pos.1))),
             _ if title_map.is_some() => Arrival::Spawn(String::new()),
             (Some(p), _) => Arrival::Pos(p),
             (None, Some(s)) => Arrival::Spawn(s),
@@ -855,6 +864,11 @@ impl Game {
         game.world.player_hp = Some(game.combat.max_hp);
         game.world.hour = game.project.config.start_hour;
         game.prepare_world();
+        if let Some(world) = save {
+            // (As a loaded game: no Map enter triggers.)
+            game.adopt_world(world);
+            game.resuming = true;
+        }
         if start.title {
             game.open_title();
         }
@@ -3018,16 +3032,9 @@ impl Game {
         }
     }
 
-    pub fn load_game(&mut self, slot: &str) -> Result<()> {
-        let s = crate::sys::read_to_string(&self.project.saves_dir().join(format!("{slot}.ron")))?;
-        let world = WorldState::from_ron(&s)?;
-        // The save's map first: if it can't be read, the running game stays as it is.
-        let fresh = self.project.load_map(&world.current_map).with_context(|| format!("loading the save's map '{}'", world.current_map))?;
-        self.slot = Some(slot.to_string());
-        self.ui_hidden = false;
-        self.reset_cutscene();
-        let map = world.current_map.clone();
-        let pos = vec2(world.player_pos.0, world.player_pos.1);
+    /// Takes a loaded save's world over (a save, or `--load` at the start): older saves are
+    /// brought up to date, the hero's derived state follows.
+    fn adopt_world(&mut self, world: WorldState) {
         self.player.facing = world.player_facing;
         self.world = world;
         // A save from before the SRD rules (0.27 and older): the hero gets the project's starting
@@ -3043,6 +3050,22 @@ impl Game {
         self.prepare_world();
         // (What the class adds to checks isn't saved: it follows from the class.)
         self.refresh_training();
+        if self.world.player_hp.is_none_or(|hp| hp <= 0) {
+            self.world.player_hp = Some(self.player_max_hp());
+        }
+    }
+
+    pub fn load_game(&mut self, slot: &str) -> Result<()> {
+        let s = crate::sys::read_to_string(&self.project.saves_dir().join(format!("{slot}.ron")))?;
+        let world = WorldState::from_ron(&s)?;
+        // The save's map first: if it can't be read, the running game stays as it is.
+        let fresh = self.project.load_map(&world.current_map).with_context(|| format!("loading the save's map '{}'", world.current_map))?;
+        self.slot = Some(slot.to_string());
+        self.ui_hidden = false;
+        self.reset_cutscene();
+        let map = world.current_map.clone();
+        let pos = vec2(world.player_pos.0, world.player_pos.1);
+        self.adopt_world(world);
         self.runner.clear();
         self.reset_common_events();
         self.reset_camera();
@@ -3053,9 +3076,6 @@ impl Game {
         self.autosave_pending = false;
         self.clock_seen = None;
         self.combat.reset();
-        if self.world.player_hp.is_none_or(|hp| hp <= 0) {
-            self.world.player_hp = Some(self.player_max_hp());
-        }
         // Rebuild the map from scratch so entity states from the save apply.
         self.cache.clear();
         self.cache.push_back(fresh);

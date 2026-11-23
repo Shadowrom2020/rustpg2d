@@ -164,9 +164,11 @@ pub struct StartOptions {
     pub map: Option<String>,
     pub spawn: Option<String>,
     pub pos: Option<Vec2>,
-    /// Play this script function as a cut-scene right after arriving (instead of the map's
-    /// *Map enter* triggers): previews from the editor.
+    /// Play this cut-scene (an asset or a script function) right after arriving (instead of the
+    /// map's *Map enter* triggers): previews from the editor.
     pub cutscene: Option<String>,
+    /// … from this many seconds into it (a cut-scene asset; `--cutscene-at SECS`).
+    pub cutscene_at: f32,
     /// Show the title screen (main menu) first.
     pub title: bool,
     /// Developer play-test (`--dev`, started by the editor): script hot reload and the F4
@@ -605,6 +607,11 @@ pub struct Game {
     scroll: Option<scroll_text::ScrollText>,
     /// The parallel common events running now (their own queues; not saved).
     common_runs: std::collections::BTreeMap<String, ActionRunner>,
+    /// *Run alongside*: queues started by events and cut-scene cues that run beside the main one
+    /// until they are done (not saved).
+    side_runs: Vec<ActionRunner>,
+    /// A cut-scene asset to start from a moment (`--cutscene ID --cutscene-at SECS`): id, seconds.
+    cutscene_from: Option<(String, f32)>,
     creator: Option<creator::Creator>,
     menu: menu::Menu,
     pub world: WorldState,
@@ -799,6 +806,8 @@ impl Game {
             rest: None,
             routes: Vec::new(),
             common_runs: Default::default(),
+            side_runs: Vec::new(),
+            cutscene_from: None,
             cam: None,
             scroll: None,
             creator: None,
@@ -850,8 +859,12 @@ impl Game {
             game.open_title();
         }
         if let Some(f) = &start.cutscene {
-            // A preview: the cut-scene instead of the map's Map enter triggers.
+            // A preview: the cut-scene instead of the map's Map enter triggers (an asset from a
+            // moment on, for the editor's *Play from here*).
             game.resuming = true;
+            if start.cutscene_at > 0.0 {
+                game.cutscene_from = Some((f.clone(), start.cutscene_at));
+            }
             game.runner.push(&[Action::Cutscene { function: f.clone() }], &ActionCtx::default());
         }
         game.enter_map(map, arrival);
@@ -2053,6 +2066,7 @@ impl Game {
         // of characters a 'Damage area' defeats) went to the stand-in runner: keep them.
         let queued = std::mem::replace(&mut self.runner, runner);
         self.runner.append(queued);
+        self.update_side_runs(dt);
         self.update_common_events(dt);
         self.take_window_request();
         self.furniture_answered();
@@ -3883,7 +3897,29 @@ impl ActionHost for Game {
             }
             Action::Cutscene { function } => {
                 self.begin_cutscene(function);
-                Step::Insert(vec![(Action::RunScript { function: function.clone() }, ctx.clone()), (Action::EndCutscene, ctx.clone())])
+                // A cut-scene asset of that id (from a moment, for a preview), else the script function.
+                let from = match &self.cutscene_from {
+                    Some((id, at)) if id == function => *at,
+                    _ => 0.0,
+                };
+                let body = match self.project.db.cutscene(function) {
+                    Some(d) => {
+                        self.cutscene_from = None;
+                        d.actions(from)
+                    }
+                    None => vec![Action::RunScript { function: function.clone() }],
+                };
+                let mut steps: Vec<(Action, ActionCtx)> = body.into_iter().map(|a| (a, ctx.clone())).collect();
+                steps.push((Action::EndCutscene, ctx.clone()));
+                Step::Insert(steps)
+            }
+            Action::Parallel { actions } => {
+                if !actions.is_empty() {
+                    let mut r = ActionRunner::default();
+                    r.push(actions, ctx);
+                    self.side_runs.push(r);
+                }
+                Step::Continue
             }
             Action::EndCutscene => {
                 self.end_cutscene();

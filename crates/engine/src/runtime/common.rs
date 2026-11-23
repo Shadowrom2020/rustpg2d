@@ -67,8 +67,25 @@ impl Game {
     }
 
     /// Loading a game restarts them from their first action (they keep running across maps).
+    /// Queues started by *Run alongside* end.
     pub(super) fn reset_common_events(&mut self) {
         self.common_runs.clear();
+        self.side_runs.clear();
+    }
+
+    /// *Run alongside*: steps the queues it started; finished ones go.
+    pub(super) fn update_side_runs(&mut self, dt: f32) {
+        if self.side_runs.is_empty() {
+            return;
+        }
+        let mut runs = std::mem::take(&mut self.side_runs);
+        for r in &mut runs {
+            r.update(self, dt);
+        }
+        runs.retain(|r| r.busy());
+        // (Started while they ran: by a cue of their own.)
+        runs.append(&mut self.side_runs);
+        self.side_runs = runs;
     }
 
     /// For `status()`: the common events running by themselves now, `parallel:ID` / `autorun:ID`.

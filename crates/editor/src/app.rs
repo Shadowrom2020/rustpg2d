@@ -190,6 +190,8 @@ pub struct Editor {
     pub new_project: Option<crate::new_project::NewProjectWizard>,
     /// Character whose patrol route is being edited on the map (clicks add waypoints).
     pub route_edit: Option<u32>,
+    /// The open cut-scene timeline (a window over the map view).
+    pub timeline: Option<crate::timeline::Timeline>,
     /// What `route_edit` edits: the patrol route or the daily schedule's stops.
     pub route_kind: RouteKind,
     /// Waypoint being dragged while editing a route, and the map objects before the drag.
@@ -497,6 +499,7 @@ impl Editor {
             model: None,
             new_project: None,
             route_edit: None,
+            timeline: None,
             route_drag: None,
             route_kind: RouteKind::Patrol,
             probe: Vec::new(),
@@ -883,6 +886,7 @@ impl Editor {
             races: self.project.db.races.iter().map(|r| r.id.clone()).collect(),
             classes: self.project.db.classes.iter().flat_map(|c| std::iter::once(c.id.clone()).chain(c.subclasses.iter().map(|s| s.id.clone()))).collect(),
             common_events: self.project.db.common_events.iter().map(|r| r.id.clone()).collect(),
+            cutscenes: self.project.db.cutscenes.iter().map(|r| r.id.clone()).collect(),
             diseases: self.project.db.diseases.iter().map(|r| r.id.clone()).collect(),
             factions: self.project.config.factions.list.iter().map(|f| f.id.clone()).collect(),
             spells: self.project.db.spells.iter().map(|q| q.id.clone()).collect(),
@@ -1109,7 +1113,12 @@ impl Editor {
     /// Play-tests script function `function` as a cut-scene on the open map (the start map
     /// without one), right after arriving - without the map's Map enter triggers.
     pub fn play_cutscene(&mut self, function: &str) {
-        self.play_with(true, Some(function));
+        self.play_with(true, Some((function, 0.0)));
+    }
+
+    /// Play-tests cut-scene asset `id` from `seconds` into it (the timeline's *Play from here*).
+    pub fn play_cutscene_at(&mut self, id: &str, seconds: f32) {
+        self.play_with(true, Some((id, seconds)));
     }
 
     /// Play-tests the game from its title screen (Project › Title screen).
@@ -1118,7 +1127,7 @@ impl Editor {
         self.play_with(false, None);
     }
 
-    fn play_with(&mut self, here: bool, cutscene: Option<&str>) {
+    fn play_with(&mut self, here: bool, cutscene: Option<(&str, f32)>) {
         let title = std::mem::take(&mut self.play_title_next);
         self.save_all();
         let runner = rustpg2d_engine::release::Platform::host().game_runner();
@@ -1134,8 +1143,11 @@ impl Editor {
         if (!here || cutscene.is_some()) && !title {
             cmd.arg("--no-title");
         }
-        if let Some(f) = cutscene {
+        if let Some((f, at)) = cutscene {
             cmd.args(["--cutscene", f]);
+            if at > 0.0 {
+                cmd.args(["--cutscene-at", &format!("{at:.2}")]);
+            }
         }
         if !self.play_lang.is_empty() {
             cmd.args(["--lang", &self.play_lang]);
@@ -1165,7 +1177,7 @@ impl Editor {
             Ok(_) if stale => self.set_status(
                 "Play-test started, but rustpg2d-game was built from a different engine version; if it fails, run `cargo build -p rustpg2d-game` (or `cargo build --workspace`)",
             ),
-            Ok(_) if cutscene.is_some() => self.set_status(format!("Playing cut-scene {}()", cutscene.unwrap_or_default())),
+            Ok(_) if cutscene.is_some() => self.set_status(format!("Playing cut-scene {}", cutscene.map_or("", |c| c.0))),
             Ok(_) => self.set_status("Play-test started"),
             Err(e) => self.set_status(format!("Failed to start game: {e}")),
         }
@@ -1606,6 +1618,7 @@ impl Editor {
             self.play_cutscene(&f);
         }
         self.map_windows(ctx);
+        self.timeline_window(ctx);
         self.model_window(ctx);
         self.new_project_window(ctx);
         self.handle_transition_request();

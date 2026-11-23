@@ -1037,6 +1037,9 @@ pub enum Action {
     /// Ends the hero's disease `disease` ("" = every disease): its exhaustion stays, its other
     /// symptoms end.
     CureDisease { disease: String },
+    /// Runs `actions` alongside: they start now in a queue of their own and the event goes on at
+    /// once (a walk while the camera pans; a cut-scene's cues that don't wait).
+    Parallel { actions: Vec<Action> },
 }
 
 fn player_target() -> TargetName {
@@ -1130,6 +1133,11 @@ impl Action {
                 a.walk(f);
             }
         }
+        if let Action::Parallel { actions } = self {
+            for a in actions {
+                a.walk(f);
+            }
+        }
     }
 
     /// [`Action::walk`] with mutable access.
@@ -1137,6 +1145,11 @@ impl Action {
         f(self);
         if let Action::If { then, otherwise, .. } | Action::Check { then, otherwise, .. } | Action::GroupCheck { then, otherwise, .. } | Action::Contest { then, otherwise, .. } = self {
             for a in then.iter_mut().chain(otherwise.iter_mut()) {
+                a.walk_mut(f);
+            }
+        }
+        if let Action::Parallel { actions } = self {
+            for a in actions {
                 a.walk_mut(f);
             }
         }
@@ -1255,6 +1268,7 @@ impl Action {
             Action::Poison { .. } => "Expose to poison",
             Action::ExposeDisease { .. } => "Expose to disease",
             Action::CureDisease { .. } => "Cure disease",
+            Action::Parallel { .. } => "Run alongside",
         }
     }
 
@@ -1383,6 +1397,7 @@ impl Action {
             Action::Poison { target: "player".into(), item: "poison-basic-vial".into() },
             Action::ExposeDisease { disease: String::new(), save: true },
             Action::CureDisease { disease: String::new() },
+            Action::Parallel { actions: vec![] },
         ]
     }
 }

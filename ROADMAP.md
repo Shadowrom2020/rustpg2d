@@ -122,7 +122,8 @@ The order weighs how many creators each step unlocks against its size:
 3. **The SRD 5.1 ruleset:** the rules of the tabletop's open reference document, with turn-based
    combat, classes and spells, instead of yet another JRPG maker (the user's decision, 2026-11-16).
 4. **Content:** one content release, right after the rules (moved before *Reach* on 2026-11-20).
-5. **Reach:** platforms, editor comfort and a way in for new creators.
+5. **Reach:** editor comfort, then a way in for new creators, then the platforms (*Everywhere*
+   moved to just before 1.0.0 on 2026-11-23, the user's decision).
 6. **1.0.0:** the formats freeze.
 
 Each version has a theme, and items may move between versions.
@@ -132,7 +133,144 @@ and each item's *Engine* line names the addition. When an item starts, confirm i
 the user in a short plan before changing Rust code (CLAUDE.md, *Content first*). Build whatever
 can be content as content: the library and example parts of each item.
 
-## 0.34.0 — Everywhere
+## 0.34.0 — Studio Comfort
+
+Faster ways to build what the earlier releases made possible.
+
+- [x] Cut-scene timeline — `feature/cutscene-timeline`
+
+  **Goal.** Build cut-scenes in a track view instead of script functions.
+
+  **Design.**
+  - **The asset:** a new `defs/cutscenes.ron`, with tracks:
+    - one per actor: walk to, face, animation, emotion, bark;
+    - camera (0.26);
+    - dialog;
+    - sound and music;
+    - pictures and screen (0.26).
+
+    Each entry has a time, or runs after the one before.
+  - **Playing:** the existing cut-scene runtime plays it, turned into actions with waits.
+  - **Editor:** a timeline window with a map preview and scrubbing.
+  - **Compatible:** *Play cutscene* takes a cut-scene asset or, as today, a script function.
+
+  **Engine.** The defs file, the conversion, the timeline window.
+
+  **Example.** The intro cut-scene rebuilt as a timeline.
+
+  **Verify.** The intro plays as before (screenshots at the same moments); editor screenshots of
+  the timeline.
+
+  **Decided while building.**
+  - Every cue has a time; a cue that *waits* holds the scene's clock (the cues after it come that
+    much later), one that doesn't runs alongside through a new generic action, *Run alongside*
+    (`Action::Parallel`: a side runner).
+  - The preview on the map counts no waits (a dialog takes no time there) and plays no
+    animations: rings at the actors' positions and the camera's frame. *Play from here* puts what
+    came before into its end state at once.
+  - Cut-scenes are story content: not sent to the asset library.
+
+- [ ] Database table view — `feature/db-table`
+
+  **Goal.** Change many entries at once: balance prices, damage, HP.
+
+  **Design.**
+  - **The view:** a table toggle on the Database tabs, with one row per entry and columns for the
+    main fields.
+  - **Sorting:** by any column.
+  - **Bulk editing:** select several rows, then set a value, add a percentage or apply a formula,
+    as one undo step.
+
+  **Engine.** Editor only (`database.rs`); a UI test in `ui_tests.rs`.
+
+  **Verify.** The UI test: sort, set prices of three items, undo, save and reload.
+
+- [ ] Test-play from here — `feature/testplay-setup`
+
+  **Goal.** Test any moment of the game without playing up to it.
+
+  **Design.**
+  - **Starting:** right-click on the map › *Play from here*.
+  - **Test setup window:** level, items, flags and variables, quests at a step, time of day, the
+    party. It is saved per project in the editor's settings.
+  - **How it starts:** the editor writes a crafted save, as autoplay tests do with `quick.ron`,
+    and starts the game with it.
+
+  **Engine.** Editor plus a game argument to load a given save (`--load FILE`).
+
+  **Verify.** Editor script `playhere X Y`; the game starts there with the items (`status`).
+
+- [ ] Animation editor — `feature/animations`
+
+  **Goal.** Animations for spells, attacks, class features and items, timed with sound and flashes.
+
+  **Design.**
+  - **The asset:** a new `defs/animations.ron`. An `AnimationDef` has:
+    - timed cels: frames of a sprite sheet with position, scale, rotation, opacity and blend;
+    - particle emitters: count, speed, spread, lifetime, colour over life, gravity;
+    - flashes of the target or the screen;
+    - sounds at frames.
+  - **Uses:** spells, class features, items, *Play effect* (an animation where a sheet is
+    accepted) and the attacks of turn-based combat (0.29).
+  - **Editor:** a timeline and a preview on a target dummy.
+  - **Library:** starter animations: slash, fire, ice, heal, thunder, buff.
+
+  **Engine.** The defs file, the player in `runtime/fx.rs`, the editor.
+
+  **Verify.** Each starter animation in autoplay screenshots mid-play; `status` prints `fx=`.
+
+## 0.35.0 — Learning
+
+A way in for new creators: tutorials and small games to learn from.
+
+- [ ] Tutorials — `feature/tutorials`
+
+  **Goal.** A learning path.
+
+  **Design.**
+  - **Step-by-step manual chapters** with screenshots: "Your first quest", "Your first dungeon"
+    and "Your first encounter" (an SRD fight: monsters, an encounter zone, the rewards).
+  - **"Coming from another maker":** the terms side by side:
+    - switches → flags;
+    - self switches → prop states;
+    - common events → common events;
+    - plugins → plugins;
+    - parallel processes → parallel common events;
+    - a JRPG battle system → SRD turn-based combat.
+  - **README:** links to them.
+
+  **Engine.** None (docs). The screenshots are taken with editor and autoplay scripts.
+
+  **Verify.** Follow each tutorial on a fresh project and fix every step that doesn't match.
+
+- [ ] Sample projects — `feature/sample-projects`
+
+  **Goal.** Small games to learn from, besides Emberbrook.
+
+  **Design.**
+  - **The samples:**
+    - an SRD adventure for a party of four level-1 characters: a village, a dungeon and its boss;
+    - a short dungeon crawl.
+  - **Where:** offered on the welcome screen like the example, and packed the same way
+    (`files.rs`, the bundled example).
+  - **Library:** their new assets go to the starter library.
+
+  **Engine.** None (content); a list of samples for the welcome screen.
+
+  **Verify.** Each sample played through in autoplay; the problems list is empty for both.
+
+- [ ] A community place — ask the user
+
+  **Goal.** Somewhere for creators to meet, show their games and share assets.
+
+  **Design.** GitHub Discussions, a showcase page, issue templates (some exist), and a curated
+  index of community assets and plugins in the repository.
+
+  **Engine.** None. These are the user's settings and decisions.
+
+  **Verify.** None.
+
+## 0.36.0 — Everywhere
 
 Touch screens, phones, Steam and signed downloads.
 
@@ -235,134 +373,6 @@ Touch screens, phones, Steam and signed downloads.
   **Verify.** The example on an Android emulator (`emulator -no-window`, `adb exec-out screencap`):
   start, walk, save, load.
 
-## 0.35.0 — Studio Comfort
-
-Faster ways to build what the earlier releases made possible.
-
-- [ ] Cut-scene timeline — `feature/cutscene-timeline`
-
-  **Goal.** Build cut-scenes in a track view instead of script functions.
-
-  **Design.**
-  - **The asset:** a new `defs/cutscenes.ron`, with tracks:
-    - one per actor: walk to, face, animation, emotion, bark;
-    - camera (0.26);
-    - dialog;
-    - sound and music;
-    - pictures and screen (0.26).
-
-    Each entry has a time, or runs after the one before.
-  - **Playing:** the existing cut-scene runtime plays it, turned into actions with waits.
-  - **Editor:** a timeline window with a map preview and scrubbing.
-  - **Compatible:** *Play cutscene* takes a cut-scene asset or, as today, a script function.
-
-  **Engine.** The defs file, the conversion, the timeline window.
-
-  **Example.** The intro cut-scene rebuilt as a timeline.
-
-  **Verify.** The intro plays as before (screenshots at the same moments); editor screenshots of
-  the timeline.
-
-- [ ] Database table view — `feature/db-table`
-
-  **Goal.** Change many entries at once: balance prices, damage, HP.
-
-  **Design.**
-  - **The view:** a table toggle on the Database tabs, with one row per entry and columns for the
-    main fields.
-  - **Sorting:** by any column.
-  - **Bulk editing:** select several rows, then set a value, add a percentage or apply a formula,
-    as one undo step.
-
-  **Engine.** Editor only (`database.rs`); a UI test in `ui_tests.rs`.
-
-  **Verify.** The UI test: sort, set prices of three items, undo, save and reload.
-
-- [ ] Test-play from here — `feature/testplay-setup`
-
-  **Goal.** Test any moment of the game without playing up to it.
-
-  **Design.**
-  - **Starting:** right-click on the map › *Play from here*.
-  - **Test setup window:** level, items, flags and variables, quests at a step, time of day, the
-    party. It is saved per project in the editor's settings.
-  - **How it starts:** the editor writes a crafted save, as autoplay tests do with `quick.ron`,
-    and starts the game with it.
-
-  **Engine.** Editor plus a game argument to load a given save (`--load FILE`).
-
-  **Verify.** Editor script `playhere X Y`; the game starts there with the items (`status`).
-
-- [ ] Animation editor — `feature/animations`
-
-  **Goal.** Animations for spells, attacks, class features and items, timed with sound and flashes.
-
-  **Design.**
-  - **The asset:** a new `defs/animations.ron`. An `AnimationDef` has:
-    - timed cels: frames of a sprite sheet with position, scale, rotation, opacity and blend;
-    - particle emitters: count, speed, spread, lifetime, colour over life, gravity;
-    - flashes of the target or the screen;
-    - sounds at frames.
-  - **Uses:** spells, class features, items, *Play effect* (an animation where a sheet is
-    accepted) and the attacks of turn-based combat (0.29).
-  - **Editor:** a timeline and a preview on a target dummy.
-  - **Library:** starter animations: slash, fire, ice, heal, thunder, buff.
-
-  **Engine.** The defs file, the player in `runtime/fx.rs`, the editor.
-
-  **Verify.** Each starter animation in autoplay screenshots mid-play; `status` prints `fx=`.
-
-## 0.36.0 — Learning
-
-A way in for new creators: tutorials and small games to learn from.
-
-- [ ] Tutorials — `feature/tutorials`
-
-  **Goal.** A learning path.
-
-  **Design.**
-  - **Step-by-step manual chapters** with screenshots: "Your first quest", "Your first dungeon"
-    and "Your first encounter" (an SRD fight: monsters, an encounter zone, the rewards).
-  - **"Coming from another maker":** the terms side by side:
-    - switches → flags;
-    - self switches → prop states;
-    - common events → common events;
-    - plugins → plugins;
-    - parallel processes → parallel common events;
-    - a JRPG battle system → SRD turn-based combat.
-  - **README:** links to them.
-
-  **Engine.** None (docs). The screenshots are taken with editor and autoplay scripts.
-
-  **Verify.** Follow each tutorial on a fresh project and fix every step that doesn't match.
-
-- [ ] Sample projects — `feature/sample-projects`
-
-  **Goal.** Small games to learn from, besides Emberbrook.
-
-  **Design.**
-  - **The samples:**
-    - an SRD adventure for a party of four level-1 characters: a village, a dungeon and its boss;
-    - a short dungeon crawl.
-  - **Where:** offered on the welcome screen like the example, and packed the same way
-    (`files.rs`, the bundled example).
-  - **Library:** their new assets go to the starter library.
-
-  **Engine.** None (content); a list of samples for the welcome screen.
-
-  **Verify.** Each sample played through in autoplay; the problems list is empty for both.
-
-- [ ] A community place — ask the user
-
-  **Goal.** Somewhere for creators to meet, show their games and share assets.
-
-  **Design.** GitHub Discussions, a showcase page, issue templates (some exist), and a curated
-  index of community assets and plugins in the repository.
-
-  **Engine.** None. These are the user's settings and decisions.
-
-  **Verify.** None.
-
 ## 1.0.0 — Stable
 
 The promise creators need for a commercial release: what works with 1.0 keeps working through
@@ -462,7 +472,7 @@ The promise creators need for a commercial release: what works with 1.0 keeps wo
     at will, teleporting, summoning).
 - **Right-to-left text** (Arabic, Hebrew): shaping and bidirectional runs in `runtime/text.rs`,
   after 0.24's fonts.
-- **iOS export:** needs a Mac and an Apple developer account; after Android (0.34).
+- **iOS export:** needs a Mac and an Apple developer account; after Android (0.36).
 - **RPG Maker MV / MZ importer** (moved from 0.32, 2026-11-16: R(ust)PG2D follows the SRD rules,
   not the JRPG model): maps and art through the tile converter, the database mapped onto SRD
   definitions where it fits, events onto triggers; the RTP's files skipped (licensed for RPG

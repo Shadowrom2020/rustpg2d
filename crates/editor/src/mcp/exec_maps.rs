@@ -595,7 +595,7 @@ impl Editor {
             }
         }
         for f in functions_in(ts) {
-            if !self.refs.functions.contains(&f) {
+            if !self.refs.functions.contains(&f) && self.project.db.cutscene(&f).is_none() {
                 warnings.push(format!("script function \"{f}\" is not defined in scripts/ yet"));
             }
         }

@@ -477,6 +477,13 @@ pub fn content_texts(project: &crate::project::Project) -> std::collections::BTr
     for c in &db.common_events {
         actions(&c.actions, &mut add);
     }
+    for c in &db.cutscenes {
+        for t in &c.tracks {
+            for q in &t.cues {
+                actions(std::slice::from_ref(&q.action), &mut add);
+            }
+        }
+    }
     for s in &db.spells {
         add(&s.name);
         add(&s.description);

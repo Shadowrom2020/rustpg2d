@@ -72,6 +72,10 @@ def_facts!(rustpg2d_engine::common_events::CommonEventDef, |d| {
     };
     format!("{} actions; runs {runs}", d.actions.len())
 });
+def_facts!(rustpg2d_engine::cutscenes::CutsceneDef, |d| {
+    let cues: usize = d.tracks.iter().map(|t| t.cues.len()).sum();
+    format!("\"{}\"; {} track(s), {cues} cue(s), {:.1} s{}", d.name, d.tracks.len(), d.length(), if d.map.is_empty() { String::new() } else { format!("; map {}", d.map) })
+});
 def_facts!(SheetDef, |d| {
     let scale = if d.scale > 1 { format!(" at {}x", d.scale) } else { String::new() };
     let tags = if d.tags.is_empty() { String::new() } else { format!("; animations [{}]", d.tags.iter().map(|t| t.name.as_str()).collect::<Vec<_>>().join(", ")) };
@@ -303,6 +307,17 @@ fn template(kind: RefKind, id: &str, db: &Database) -> (Value, &'static str) {
         RefKind::Background => (
             val(&rustpg2d_engine::backgrounds::BackgroundDef { proficiencies: vec!["insight".into(), "religion".into()], language_choices: 1, ..rustpg2d_engine::backgrounds::BackgroundDef::fresh(id) }),
             "A background the character creator offers (SRD 5.1): name, description; proficiencies: skill / tool ids (insight, thieves-tools); language_choices: how many languages the hero picks; equipment: [{item, count}] starting items; feature + feature_text: its rule in words.",
+        ),
+        RefKind::Cutscene => (
+            val(&rustpg2d_engine::cutscenes::CutsceneDef {
+                tracks: vec![rustpg2d_engine::cutscenes::CutsceneTrack {
+                    kind: rustpg2d_engine::cutscenes::TrackKind::Actor,
+                    target: "player".into(),
+                    cues: vec![rustpg2d_engine::cutscenes::Cue { at: 0.5, wait: true, action: rustpg2d_engine::events::Action::WalkTo { target: "player".into(), x: 5, y: 5 } }],
+                }],
+                ..rustpg2d_engine::cutscenes::CutsceneDef::fresh(id)
+            }),
+            "A cut-scene as a timeline: name; map (the map it is made for: the editor previews it there); tracks [{kind: Actor | Camera | Dialog | Sound | Screen, target (an Actor track's character: \"player\" or a name), cues: [{at: seconds from the start, wait: true = the scene waits until it is done (a dialog closed, a walk arrived; the cues after it come that much later) / false = it runs alongside, action: any action (WalkTo, Face, Emote, Camera, Dialog, PlaySound, ShowPicture, …)}]}]. PlayCutscene {function: id} (or cutscene(\"id\") in scripts) plays it; a script function of that name otherwise.",
         ),
         RefKind::Map => (Value::Null, "maps are not definitions"),
         RefKind::Skill => (Value::Null, "skills are the SRD's (perception, stealth, ...): no definitions since 0.28"),

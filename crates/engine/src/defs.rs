@@ -2151,6 +2151,8 @@ pub struct Database {
     pub classes: Vec<crate::classes::ClassDef>,
     /// Diseases (the SRD's Cackle Fever, Sewer Plague, Sight Rot; a monster's own).
     pub diseases: Vec<crate::diseases::DiseaseDef>,
+    /// Cut-scenes as timelines (*Play cutscene* plays one by its id).
+    pub cutscenes: Vec<crate::cutscenes::CutsceneDef>,
     /// Id → position caches of the hot lists ([`Database::reindex`]); never wrong, see [`DefIndex`].
     #[doc(hidden)]
     pub index: DefIndex,
@@ -2317,6 +2319,9 @@ impl Database {
     }
     pub fn common_event(&self, id: &str) -> Option<&crate::common_events::CommonEventDef> {
         self.common_events.iter().find(|d| d.id == id)
+    }
+    pub fn cutscene(&self, id: &str) -> Option<&crate::cutscenes::CutsceneDef> {
+        self.cutscenes.iter().find(|d| d.id == id)
     }
 
     pub fn material(&self, id: &str) -> Option<&crate::ground::MaterialDef> {
@@ -2524,6 +2529,7 @@ impl_def!(crate::common_events::CommonEventDef, crate::refactor::RefKind::Common
 impl_def!(crate::backgrounds::BackgroundDef, crate::refactor::RefKind::Background, backgrounds, refs = crate::refactor::refs_of_background);
 impl_def!(crate::classes::ClassDef, crate::refactor::RefKind::Class, classes, refs = crate::refactor::refs_of_class);
 impl_def!(crate::diseases::DiseaseDef, crate::refactor::RefKind::Disease, diseases);
+impl_def!(crate::cutscenes::CutsceneDef, crate::refactor::RefKind::Cutscene, cutscenes, refs = crate::refactor::refs_of_cutscene);
 
 /// Runs `$body` with `$T` bound to the definition type of `$kind` (a
 /// [`RefKind`](crate::refactor::RefKind)); `$else` for `Map` and `Skill` (a proficiency id), which
@@ -2614,6 +2620,10 @@ macro_rules! with_def_kind {
             }
             $crate::refactor::RefKind::Disease => {
                 type $T = $crate::diseases::DiseaseDef;
+                $body
+            }
+            $crate::refactor::RefKind::Cutscene => {
+                type $T = $crate::cutscenes::CutsceneDef;
                 $body
             }
             $crate::refactor::RefKind::Skill | $crate::refactor::RefKind::Map => $else,

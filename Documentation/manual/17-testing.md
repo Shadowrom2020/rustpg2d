@@ -12,7 +12,9 @@ RUSTPG2D_AUTOPLAY="wait 1; talkto tilda; wait 3; status; shot /tmp/tilda.png; qu
 
 `--no-title` skips the title screen; `--map` / `--spawn` (or `--pos X,Y` in pixels) start
 somewhere specific; `--dev` adds the developer console and live script reloading
-(play-tests from the editor use it). A crafted save in `saves/quick.ron` loaded with `press f9`
+(play-tests from the editor use it); `--cutscene ID` plays a cut-scene (or a script function) at the
+start without the map's *Map enter* triggers, `--cutscene-at SECS` from that moment of its timeline
+(the timeline's *Play from here*). A crafted save in `saves/quick.ron` loaded with `press f9`
 starts in a precise situation (loading never fires *Map enter* triggers).
 
 ## How a script runs

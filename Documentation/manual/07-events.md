@@ -132,7 +132,7 @@ across map changes and in save games.
 - **Set time of day**, **Set weather**, **Spawners on / off**, **Defeat all enemies**. (*Defeat all enemies* during a fight takes the defeated foes out of it; the fight ends when none is left.)
 
 **Cut-scenes and effects**
-- **Play cutscene**, **Walk to tile**, **Walk up to character**, **Place at tile**, **Dim the
+- **Play cutscene** (a [cut-scene](#cut-scene-timelines) or a script function), **Run alongside** (its actions run next to the event's, which goes on at once), **Walk to tile**, **Walk up to character**, **Place at tile**, **Dim the
   scene**, **Show / hide UI**, **Wait**.
 - **Move route**: a character (or the player) walks a list of steps, added with one button each:
   *Move* (tiles in a direction), *Toward player* / *Away from player* (tiles), *Turn*, *Face
@@ -428,8 +428,50 @@ center, size x 4, opacity 0), *Move picture* (opacity 1 over 1.5 s, wait), *Wait
 
 ### A cut-scene
 
-*Play cutscene* runs a script function with the HUD hidden and black bars in. See
-[Scripting › Cut-scenes](08-scripting.md#cut-scenes).
+*Play cutscene* plays a **cut-scene** from the Database's *Cut-scenes* tab (see below), or a script
+function of that name ([Scripting › Cut-scenes](08-scripting.md#cut-scenes)), with the HUD hidden
+and black bars in.
+
+## Cut-scene timelines
+
+![The intro on its timeline](../images/editor-timeline.webp)
+
+A cut-scene asset (Database › *Cut-scenes*, saved in `defs/cutscenes.ron`) is a timeline instead
+of a script: **tracks** of **cues**, each cue an ordinary action at a moment in seconds.
+
+| Track | Its cues |
+|---|---|
+| **Actor** (the player or a character by name) | *Walk to tile*, *Walk up to character*, *Place at tile*, *Face*, *Show emotion*, *Bark*, *Move route*, *Set mood*, *Set active* |
+| **Camera** | *Camera*, *Shake the screen* |
+| **Dialog** | *Dialog*, *Choice*, *Wait*, *Run script* |
+| **Sound and music** | *Play sound*, *Play music*, *Play music effect* |
+| **Pictures and screen** | *Show / Move / Erase picture*, *Tint screen*, *Flash screen*, *Fade out / in*, *Dim the scene*, *Play effect*, *Set weather* |
+
+A cue **waits** (the default for dialogs, walks, waits and fades) or **runs alongside**. A cue that
+waits holds the scene until it is done (a dialog until the player closes it, a walk until the
+walker arrives): the cues after it come that much later. One that runs alongside starts at its
+moment and the scene goes on (a pan while a title card fades in).
+
+**Editing.** The form's *Edit timeline on the map* opens the timeline window under the map
+view (on the cut-scene's map): one row per track, the cues as blocks at their time. Drag a cue
+to move it (in steps of 0.1 s), click it to edit its action, its time and *Waits* below; *+ Cue*
+adds one of the actions that fit the track, *Add track* a new row. Click or drag the ruler to
+move the **playhead**: the map view shows where each actor stands at that moment (a ring with
+its name; a thinner ring while it walks) and the camera's frame. The preview doesn't
+play animations and doesn't count waits for dialogs.
+
+**Play from here** play-tests the cut-scene from the playhead: what happened before that moment
+is done at once (walkers stand where they were going, the camera and pictures are where they
+moved to; dialogs, sounds and emotions are left out), then it plays on. The form's *Play* plays
+it from the start.
+
+*Play cutscene* (and `cutscene("id")` in scripts) takes the cut-scene's id. The example's intro
+(the village's *Map enter* trigger, *once*) is the cut-scene `intro`: the player walks in from
+the west edge while the camera pans over the village and the *Emberbrook* sign fades in and out,
+then the guard comes over, hops for joy and talks.
+
+The action **Run alongside** (*Cut-scenes and effects*) runs its own list of actions next to the
+event's: the event goes on at once. Cut-scenes use it for cues that don't wait.
 
 ## The Events graph
 

@@ -49,6 +49,7 @@ mod search;
 mod starter;
 mod starter_ui;
 mod structures;
+mod testplay;
 mod timeline;
 #[cfg(test)]
 mod ui_tests;
@@ -671,7 +672,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // watchanswer reload|keep: answers the "changed on disk" banner
         "watchanswer" => ed.watch_answer(arg(1) == "reload"),
         "status" => println!(
-            "[status] {} repo={} library={} script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} projectfile={} notices={} search={} usages={} problems={} plugins={} libupdate={} starter={} art={} pixel={} mode={:?} dbtab={:?} dbsel={} dblist={}/{} itemfilter={} libshown={} script={:?} ground={} decor={} dbtable={} timeline={} msg={}",
+            "[status] {} repo={} library={} script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} projectfile={} notices={} search={} usages={} problems={} plugins={} libupdate={} starter={} art={} pixel={} mode={:?} dbtab={:?} dbsel={} dblist={}/{} itemfilter={} libshown={} script={:?} ground={} decor={} dbtable={} testsetup={} timeline={} msg={}",
             TIMING.with(|t| t.borrow_mut().take()),
             match repo_mode::root() {
                 None => "off".to_string(),
@@ -722,6 +723,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.ground_status(),
             ed.decor_status(),
             ed.db.table.status(ed.db.tab),
+            ed.testplay_status(),
             ed.timeline_status(),
             ed.status.0
         ),
@@ -1091,6 +1093,31 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         }
         "timelineplay" => ed.timeline_play(),
         "timelineclose" => ed.timeline = None,
+        // Test-play from here (status `testsetup=`): playhere X Y [setup] = the right-click
+        // menu's Play from here (with the test setup); heremenu X Y opens the menu; testsetup
+        // level N | class ID|- | item ID N | flag NAME | var NAME N | quest ID STAGE [done] |
+        // hour H|- | day D | party NAME | clear; testsetupwindow opens the window.
+        "playhere" => ed.play_here((arg(1).parse().unwrap_or(0), arg(2).parse().unwrap_or(0)), arg(3) == "setup"),
+        "heremenu" => ed.open_here_menu((arg(1).parse().unwrap_or(0), arg(2).parse().unwrap_or(0))),
+        "testsetupwindow" => ed.testplay.window = true,
+        "testsetup" => {
+            let n = |k: usize| arg(k).parse::<i64>().unwrap_or(0);
+            let s = ed.test_setup();
+            match arg(1) {
+                "level" => s.level = n(2).clamp(1, 20) as u32,
+                "class" => s.class = if arg(2) == "-" { String::new() } else { arg(2).to_string() },
+                "item" => s.items.push((arg(2).to_string(), n(3).max(1) as u32)),
+                "flag" => s.flags.push(arg(2).to_string()),
+                "var" => s.vars.push((arg(2).to_string(), n(3))),
+                "quest" => s.quests.push((arg(2).to_string(), n(3).max(0) as u32, arg(4) == "done")),
+                "hour" => s.hour = arg(2).parse().ok(),
+                "day" => s.day = n(2).max(0) as u32,
+                "party" => s.party.push(arg(2).to_string()),
+                "clear" => *s = Default::default(),
+                other => println!("[script] testsetup: unknown '{other}'"),
+            }
+            ed.save_test_setup();
+        }
         // scheduleedit on|off: edit the selected character's schedule on the map (on: adds a
         // schedule with one stop at its tile when it has none, like "Add a schedule")
         "scheduleedit" => {

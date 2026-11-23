@@ -881,7 +881,7 @@ fn dialog_text_field(ui: &mut Ui, id: &str, text: &mut String, refs: &Refs) {
 }
 
 /// Stage number with the stage's objective text as a dropdown.
-fn quest_stage_field(ui: &mut Ui, id: &str, quest: &str, stage: &mut u32, refs: &Refs) {
+pub(crate) fn quest_stage_field(ui: &mut Ui, id: &str, quest: &str, stage: &mut u32, refs: &Refs) {
     let stages = refs.quest_stages.get(quest).cloned().unwrap_or_default();
     let text = |k: u32| stages.get(k as usize).map_or(format!("stage {k}"), |s| format!("{k}: {}", s.chars().take(40).collect::<String>()));
     egui::ComboBox::from_id_salt(id).width(200.0).selected_text(text(*stage)).show_ui(ui, |ui| {

@@ -282,7 +282,6 @@ impl Editor {
     }
 }
 
-/// The window's contents; true when the cut-scene changed.
 /// The width of a cue's block on the timeline (pixels).
 fn cue_width(pps: f32) -> f32 {
     96.0_f32.min(pps * 2.0).max(34.0)
@@ -308,6 +307,7 @@ fn lanes(cues: &[Cue], pps: f32) -> (Vec<usize>, usize) {
     (lane, ends.len().max(1))
 }
 
+/// The window's contents; true when the cut-scene changed.
 fn timeline_ui(ui: &mut Ui, tl: &mut Timeline, d: &mut CutsceneDef, maps: &[String], refs: &crate::widgets::Refs, play: &mut bool) -> bool {
     let mut changed = false;
     let len = d.length().max(5.0) + 3.0;

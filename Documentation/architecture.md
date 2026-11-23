@@ -341,7 +341,9 @@ props, so containers, locks and states find it by uid), the old map's patrols ar
 overrides and the ground (`MaterialTable::apply_to_tiles`), ladders and lights from decorations, entities are built (placed ones with their saved state, companions,
 visitors, dropped items), scheduled characters are placed where their day says, the arrival spot
 is made free, spawners and regrowth run, music starts, *Map enter* fires. `load_game` replaces the
-world and re-enters the save's map the same way, without *Map enter*.
+world and re-enters the save's map the same way, without *Map enter* (`adopt_world` brings an old
+save up to date; `StartOptions.load` = `--load FILE` does the same in `Game::new`, for the editor's
+*Play from here with the test setup*, whose `testplay.rs` writes the save).
 
 Events: `fire(event, source)` collects matching triggers (definition, instance, companion and
 visitor triggers), checks `once` keys in `world.fired` and the conditions, and pushes the actions

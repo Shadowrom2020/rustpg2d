@@ -189,7 +189,7 @@ Faster ways to build what the earlier releases made possible.
   numbers to balance); a double-click on an id opens the form. Formulas are Rhai expressions of
   `x`. Rows without a field (no stat block, not a weapon) are skipped by bulk edits.
 
-- [ ] Test-play from here — `feature/testplay-setup`
+- [x] Test-play from here — `feature/testplay-setup`
 
   **Goal.** Test any moment of the game without playing up to it.
 
@@ -203,6 +203,11 @@ Faster ways to build what the earlier releases made possible.
   **Engine.** Editor plus a game argument to load a given save (`--load FILE`).
 
   **Verify.** Editor script `playhere X Y`; the game starts there with the items (`status`).
+
+  **Decided while building.** The right-click menu (Select tool) has both *Play from here* (a new
+  game) and *… with the test setup*. The crafted save is a new game's hero (the project's
+  starting scores) with the setup on top, written to the editor's settings folder; the party
+  names placed characters on any map. Loaded like a save: no *Map enter* triggers.
 
 - [ ] Animation editor — `feature/animations`
 

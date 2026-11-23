@@ -221,6 +221,10 @@ pub struct Editor {
     pub play_lang: String,
     /// The next play-test opens on the title screen ([`Editor::play_title`]).
     pub play_title_next: bool,
+    /// The next play-test's place (map, feet position) and save to load (Test-play from here).
+    pub play_place: Option<(String, (f32, f32), Option<PathBuf>)>,
+    /// Test-play from here: the map's right-click menu and the Test setup window.
+    pub testplay: crate::testplay::TestPlay,
     /// The last translation template export's result (Database › Project › Languages).
     pub lang_msg: Option<String>,
     pub tex: Textures,
@@ -511,6 +515,8 @@ impl Editor {
             map_rename: None,
             play_lang: String::new(),
             play_title_next: false,
+            play_place: None,
+            testplay: Default::default(),
             lang_msg: None,
             tex: Textures::default(),
             tex_dirty: true,
@@ -1127,8 +1133,15 @@ impl Editor {
         self.play_with(false, None);
     }
 
+    /// Play-tests from `pos` (feet, world pixels) on `map`, or from the save file `load`.
+    pub fn play_at(&mut self, map: &str, pos: (f32, f32), load: Option<&std::path::Path>) {
+        self.play_place = Some((map.to_string(), pos, load.map(|p| p.to_path_buf())));
+        self.play_with(true, None);
+    }
+
     fn play_with(&mut self, here: bool, cutscene: Option<(&str, f32)>) {
         let title = std::mem::take(&mut self.play_title_next);
+        let place = self.play_place.take();
         self.save_all();
         let runner = rustpg2d_engine::release::Platform::host().game_runner();
         let exe = std::env::current_exe().ok().map(|p| p.with_file_name(runner));
@@ -1152,7 +1165,13 @@ impl Editor {
         if !self.play_lang.is_empty() {
             cmd.args(["--lang", &self.play_lang]);
         }
-        if here {
+        if let Some((map, (x, y), load)) = &place {
+            match load {
+                // (The save holds the map and the place.)
+                Some(f) => cmd.arg("--load").arg(f),
+                None => cmd.args(["--map", map, "--pos", &format!("{x},{y}")]),
+            };
+        } else if here {
             if let Some(doc) = &self.doc {
                 cmd.args(["--map", &doc.map.name]);
                 let spawn = match self.sel {
@@ -1619,6 +1638,7 @@ impl Editor {
         }
         self.map_windows(ctx);
         self.timeline_window(ctx);
+        self.testplay_ui(ctx);
         self.model_window(ctx);
         self.new_project_window(ctx);
         self.handle_transition_request();

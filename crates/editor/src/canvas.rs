@@ -429,7 +429,7 @@ impl Editor {
         }
     }
 
-    fn right_click(&mut self, _tile: (i32, i32)) {
+    fn right_click(&mut self, tile: (i32, i32)) {
         if self.pasting {
             self.stop_paste();
             return;
@@ -442,7 +442,12 @@ impl Editor {
                 self.disarm();
                 self.sel = Selection::None;
             }
-            Tool::Zone | Tool::Select => self.sel = Selection::None,
+            Tool::Zone => self.sel = Selection::None,
+            // (Also the place to test-play from.)
+            Tool::Select => {
+                self.sel = Selection::None;
+                self.open_here_menu(tile);
+            }
             Tool::Structure => {
                 self.place_structure.clear();
                 self.capture.dragging = false;

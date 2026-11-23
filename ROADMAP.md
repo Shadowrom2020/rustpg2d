@@ -135,7 +135,67 @@ can be content as content: the library and example parts of each item.
 
 ## 0.35.0 — Learning
 
-A way in for new creators: tutorials and small games to learn from.
+A way in for new creators: visual scripts, tutorials and small games to learn from.
+
+- [ ] Visual scripts — `feature/visual-scripts-model`, `feature/visual-scripts-canvas`,
+  `feature/visual-scripts-groups`
+
+  **Goal.** Creators who don't write code build script functions from nodes: function nodes with
+  input and output connectors wired together, turned into Rhai automatically. Node groups become
+  new functions. (The user's request, 2026-11-23; answers in the session: nodes to Rhai only, its
+  own mode tab, merge each part after CI.)
+
+  **Design.**
+  - **The asset:** a *visual script* (`defs/visual_scripts.ron`) is one script function: its id
+    (the Rhai function's name), a label, parameters and an optional return value, the nodes (kind,
+    position, the values typed into unconnected inputs) and the links between their pins.
+  - **Pins:** flow pins (white: what runs next) and value pins typed *number*, *yes / no*, *text*,
+    *list*, *options* or *any*; text pins that name something (an item, a sound, a map…) offer the
+    project's ids as the API table's argument kinds do.
+  - **Nodes:**
+    - every script API function (the API table, grouped by the manual's sections): functions without
+      a result are steps on the flow; queries (`has_item`, `flag`, `player_hp`) are value nodes
+      without flow pins; the few with a result that also act (`check`, `roll`, `give_item`,
+      `take_money`…) are steps with a value output;
+    - flow: *Start* (the parameters), *Return*, *If*, *Sequence*, *Repeat* (with the count), *For
+      each* (a list);
+    - values: a typed value, maths, comparisons, and / or / not, joining texts, local variables
+      (set / get);
+    - calls of other visual scripts (groups) and of text script functions by name;
+    - comments.
+  - **Rhai:** every visual script becomes a `fn` in `scripts/visual_scripts.rhai`, written whenever
+    the definitions are saved (marked generated: edit the nodes). Value nodes are written into the
+    expressions that use them, a value used twice or made by a step goes into a `let`. The game
+    runs it like any script: triggers, hooks, menus, spells and plugins call visual scripts by name.
+    Nodes only turn into Rhai, not back; *Convert to text script* moves a function into a text
+    script for good.
+  - **Checks:** missing inputs, loops in values, types that don't fit, a name taken by the API or
+    another function: shown on the nodes and in *Problems*; such a script is written as a stub
+    that does nothing (with a warning in the log).
+  - **The editor:** a *Nodes* mode tab: the visual scripts on the left; the canvas (pan, zoom,
+    drag nodes, drag from a pin to another to link, right-click or Space for the node palette with
+    search, Delete, undo, copy / paste); the selected node's inputs and the generated Rhai on the
+    right.
+  - **Groups:** select nodes, *Group into a function*: a new visual script with the cut links as
+    its parameters and (at most one) result, replaced by a call node; *Open* goes into it.
+  - **Renames and the library:** ids typed into node inputs are references (renames rewrite them,
+    library export carries them), a visual script travels as an asset with the scripts it calls.
+
+  **Engine.** `visual.rs` (model, node catalogue, code generation, checks), the defs file and its
+  plumbing (project, release, library, refactor, agent server kinds), return types and the
+  "acts" mark in the API table (a test checks them against Rhai's own signatures). The game's
+  runtime is unchanged.
+
+  **Example.** A few library functions rebuilt as visual scripts (e.g. a fountain that heals
+  once, an ability check that opens a door), used in the example project.
+
+  **Progress.** Part 1 (`feature/visual-scripts-model`): the asset, the code generation, the
+  checks, renames and library, return types in the API table; agents write visual scripts with
+  `upsert_def` (kind `visual_scripts`). Next: the canvas (part 2), groups, docs and examples (part 3).
+
+  **Verify.** Unit tests of the code generation (every node kind, nesting, groups) that compile
+  the result with Rhai; editor UI test of the canvas basics; the example's visual scripts run in
+  autoplay; editor screenshots of the Nodes tab.
 
 - [ ] Tutorials — `feature/tutorials`
 

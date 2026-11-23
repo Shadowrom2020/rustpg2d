@@ -47,14 +47,15 @@ macro_rules! each_list {
         $m!(diseases, 19);
         $m!(cutscenes, 20);
         $m!(animations, 21);
+        $m!(visual_scripts, 22);
     };
 }
-const LISTS: usize = 22;
+const LISTS: usize = 23;
 
 /// Fails to compile when [`Database`] gains a list: add it to [`each_list`] then.
 #[allow(dead_code)]
 fn every_list_is_known(db: Database) {
-    let Database { sheets: _, items: _, props: _, characters: _, sounds: _, quests: _, structures: _, spells: _, recipes: _, achievements: _, races: _, models: _, materials: _, scatter: _, fonts: _, skins: _, common_events: _, backgrounds: _, classes: _, diseases: _, cutscenes: _, animations: _, index: _ } = db;
+    let Database { sheets: _, items: _, props: _, characters: _, sounds: _, quests: _, structures: _, spells: _, recipes: _, achievements: _, races: _, models: _, materials: _, scatter: _, fonts: _, skins: _, common_events: _, backgrounds: _, classes: _, diseases: _, cutscenes: _, animations: _, visual_scripts: _, index: _ } = db;
 }
 
 /// One side of a step: the lists that differ across it, as they are on this side, and the

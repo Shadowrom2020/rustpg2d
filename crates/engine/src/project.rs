@@ -376,7 +376,7 @@ pub struct Project {
     pub db: Database,
 }
 
-pub const DEFS: [&str; 22] = ["sheets", "items", "props", "characters", "sounds", "quests", "structures", "spells", "recipes", "achievements", "races", "models", "materials", "scatter", "fonts", "skins", "common_events", "backgrounds", "classes", "diseases", "cutscenes", "animations"];
+pub const DEFS: [&str; 23] = ["sheets", "items", "props", "characters", "sounds", "quests", "structures", "spells", "recipes", "achievements", "races", "models", "materials", "scatter", "fonts", "skins", "common_events", "backgrounds", "classes", "diseases", "cutscenes", "animations", "visual_scripts"];
 
 /// A `defs/<name>.ron` list. The whole file is tried first; when that fails, the list is read
 /// entry by entry (`RawValue` keeps each entry's text, so struct and enum syntax survive) and
@@ -442,6 +442,7 @@ pub fn parse_defs_with(read: impl Fn(&str) -> Result<Option<String>>, warn: &mut
         diseases: parse_list(r(19)?, DEFS[19], warn)?,
         cutscenes: parse_list(r(20)?, DEFS[20], warn)?,
         animations: parse_list(r(21)?, DEFS[21], warn)?,
+        visual_scripts: parse_list(r(22)?, DEFS[22], warn)?,
         ..Default::default()
     };
     db.upgrade_prop_states();
@@ -540,6 +541,30 @@ impl Project {
         script_files_in(&self.scripts_dir())
     }
 
+    /// Writes [`crate::visual::FILE`] from the visual scripts (removes it when there are none);
+    /// an unchanged file isn't touched.
+    pub fn write_visual_scripts(&self) -> Result<()> {
+        let path = self.root.join(crate::visual::FILE);
+        if self.db.visual_scripts.is_empty() {
+            if path.exists() {
+                std::fs::remove_file(&path).with_context(|| format!("removing {}", path.display()))?;
+            }
+            return Ok(());
+        }
+        let code = crate::visual::rhai_file(&self.db.visual_scripts, self.text_script_functions());
+        if crate::sys::read_to_string(&path).ok().as_deref() != Some(code.as_str()) {
+            crate::sys::write(&path, code.as_bytes()).with_context(|| format!("writing {}", path.display()))?;
+        }
+        Ok(())
+    }
+
+    /// The text scripts' functions (name, parameter count): what visual scripts may call besides
+    /// the API and each other.
+    pub fn text_script_functions(&self) -> Vec<(String, usize)> {
+        let generated = self.root.join(crate::visual::FILE);
+        self.script_files().into_iter().filter(|f| *f != generated).filter_map(|f| crate::sys::read_to_string(&f).ok()).flat_map(|src| crate::visual::text_functions(&src)).collect()
+    }
+
     pub fn save_config(&self) -> Result<()> {
         write_ron(&self.root.join("project.ron"), &self.config)
     }
@@ -600,6 +625,10 @@ impl Project {
         }
         if !self.db.animations.is_empty() || d(DEFS[21]).exists() {
             write_ron(&d(DEFS[21]), &self.db.animations)?;
+        }
+        if !self.db.visual_scripts.is_empty() || d(DEFS[22]).exists() {
+            write_ron(&d(DEFS[22]), &self.db.visual_scripts)?;
+            self.write_visual_scripts()?;
         }
         Ok(())
     }

@@ -70,9 +70,27 @@ pub enum Arg {
     Disease,
 }
 
+/// What a function gives back (Rhai's own signatures say it; a test keeps the table right).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Ret {
+    Num,
+    Bool,
+    Text,
+    List,
+    /// An options map.
+    Map,
+    /// Anything (a variable's value, a plugin parameter).
+    Any,
+}
+
 pub struct ApiFn {
     pub name: &'static str,
     pub params: &'static [(&'static str, Arg)],
+    /// What it gives back (`None` = nothing: a step, as `say` or `give_xp`).
+    pub ret: Option<Ret>,
+    /// It gives something back and also acts (rolls dice, gives items, spends money): the visual
+    /// scripts run it as a step at its place, a query (`has_item`) is a value used where needed.
+    pub acts: bool,
     pub doc: &'static str,
     /// The API version that added it ("" = before versions were kept, 0.26 or older).
     pub since: &'static str,
@@ -82,18 +100,25 @@ pub struct ApiFn {
 }
 
 /// The table's rows: `"name"(param: Kind, …) "description";`, optionally after
-/// `[since "0.27"]` and `[deprecated "what to use instead"]`.
+/// `[since "0.27"]` and `[deprecated "what to use instead"]`; a function that gives something back
+/// says what after its parameters: `-> Bool` (a query) or `=> Num` (it also acts).
 macro_rules! api {
     (@since) => { "" };
     (@since [since $v:literal] $($rest:tt)*) => { $v };
     (@since [$other:ident $v:literal] $($rest:tt)*) => { api!(@since $($rest)*) };
     (@dep) => { None };
+    (@ret) => { None };
+    (@ret $r:ident) => { Some(Ret::$r) };
+    (@acts) => { false };
+    (@acts $r:ident) => { true };
     (@dep [deprecated $v:literal] $($rest:tt)*) => { Some($v) };
     (@dep [$other:ident $v:literal] $($rest:tt)*) => { api!(@dep $($rest)*) };
-    ($( $([$attr:ident $val:literal])* $name:literal ( $($p:ident : $k:ident),* ) $doc:literal;)*) => {
+    ($( $([$attr:ident $val:literal])* $name:literal ( $($p:ident : $k:ident),* ) $(-> $ret:ident)? $(=> $aret:ident)? $doc:literal;)*) => {
         &[$(ApiFn {
             name: $name,
             params: &[$((stringify!($p), Arg::$k)),*],
+            ret: api!(@ret $($ret)? $($aret)?),
+            acts: api!(@acts $($aret)?),
             doc: $doc,
             since: api!(@since $([$attr $val])*),
             deprecated: api!(@dep $([$attr $val])*),
@@ -159,133 +184,133 @@ fn strip_strings_and_comments(line: &str) -> String {
 
 /// The engine's script API (see [`crate::script`]). Overloads are listed separately.
 pub const API: &[ApiFn] = api! {
-    "flag"(name: Flag) "Whether a flag is set";
+    "flag"(name: Flag) -> Bool "Whether a flag is set";
     "set_flag"(name: Flag, value: Bool) "Sets or clears a flag (immediately)";
-    "get_var"(name: Var) "Value of a variable (0 if unset)";
+    "get_var"(name: Var) -> Num "Value of a variable (0 if unset)";
     "set_var"(name: Var, value: Num) "Sets a variable (immediately)";
     "queue_set_var"(name: Var, value: Num) "Sets a variable after the actions queued before it (e.g. after a dialog) (queued)";
     "add_var"(name: Var, amount: Num) "Adds to a variable (immediately)";
-    "item_count"(item: Item) "How many of an item the player has";
-    "has_item"(item: Item) "Whether the player has the item";
-    "give_item"(item: Item, count: Num) "Gives items to the player; returns how many didn't fit";
-    "take_item"(item: Item, count: Num) "Takes items from the player; returns how many were taken";
-    "current_map"() "Name of the current map";
+    "item_count"(item: Item) -> Num "How many of an item the player has";
+    "has_item"(item: Item) -> Bool "Whether the player has the item";
+    "give_item"(item: Item, count: Num) => Num "Gives items to the player; returns how many didn't fit";
+    "take_item"(item: Item, count: Num) => Num "Takes items from the player; returns how many were taken";
+    "current_map"() -> Text "Name of the current map";
     "set_home"(map: Map, owned: Bool) "Makes a map the player's home (true) or no longer (false): furniture items can be placed there. Saved (immediately)";
-    "is_home"(map: Map) "Whether a map is one of the player's homes";
-    "player_hp"() "The player's hit points";
-    "player_name"() "The player's name";
-    "player_sex"() "\"male\" or \"female\"";
-    "player_race"() "The player's race id (Database \u{203A} Races; a subrace's, e.g. \"hill-dwarf\"), \"\" without one";
-    [since "0.28"] "knows_language"(language: Text) "Whether the hero speaks a language (\"dwarvish\", \"elvish\"…): their race's, the creator's picks and their background's";
-    [since "0.28"] "has_resistance"(damage: Text) "Whether the hero resists a damage type (\"fire\", \"poison\"…): their race's, a dragonborn's ancestry";
-    [since "0.28"] "background"() "The hero's background id (Database \u{203A} Backgrounds), \"\" without one";
-    [since "0.28"] "race_choice"(choice: Text) "What the hero picked for a racial choice in the creator, as an array (e.g. race_choice(\"high-elf-cantrip\") = [\"fire-bolt\"]); empty when nothing was picked";
+    "is_home"(map: Map) -> Bool "Whether a map is one of the player's homes";
+    "player_hp"() -> Num "The player's hit points";
+    "player_name"() -> Text "The player's name";
+    "player_sex"() -> Text "\"male\" or \"female\"";
+    "player_race"() -> Text "The player's race id (Database \u{203A} Races; a subrace's, e.g. \"hill-dwarf\"), \"\" without one";
+    [since "0.28"] "knows_language"(language: Text) -> Bool "Whether the hero speaks a language (\"dwarvish\", \"elvish\"…): their race's, the creator's picks and their background's";
+    [since "0.28"] "has_resistance"(damage: Text) -> Bool "Whether the hero resists a damage type (\"fire\", \"poison\"…): their race's, a dragonborn's ancestry";
+    [since "0.28"] "background"() -> Text "The hero's background id (Database \u{203A} Backgrounds), \"\" without one";
+    [since "0.28"] "race_choice"(choice: Text) -> List "What the hero picked for a racial choice in the creator, as an array (e.g. race_choice(\"high-elf-cantrip\") = [\"fire-bolt\"]); empty when nothing was picked";
     "carry"(target: Target, prop: Prop) "A character (or \"player\") carries a prop in both hands, e.g. carry(\"player\", \"crate\"); while carrying it holds nothing else and the player can't attack (queued)";
     "stop_carrying"(target: Target) "Puts down what a character carries (queued)";
-    "player_carrying"() "The prop the player carries (\"\" = none)";
-    "player_faction"() "The player's faction id (their race's, else the player character's; \"\" without one)";
-    "standing"(faction: Faction) "The player's standing with a faction (-100..100; at -20 or below its characters attack the player)";
+    "player_carrying"() -> Text "The prop the player carries (\"\" = none)";
+    "player_faction"() -> Text "The player's faction id (their race's, else the player character's; \"\" without one)";
+    "standing"(faction: Faction) -> Num "The player's standing with a faction (-100..100; at -20 or below its characters attack the player)";
     "change_standing"(faction: Faction, amount: Num) "Raises (or with a negative amount lowers) the player's standing with a faction; its characters turn hostile or calm down at once (queued)";
-    [since "0.27"] "plugin_param"(plugin: Text, name: Text) "A plugin's parameter as the project set it in the Plugins window (else its default): a number, on / off or a text; () when the plugin or parameter isn't there";
+    [since "0.27"] "plugin_param"(plugin: Text, name: Text) -> Any "A plugin's parameter as the project set it in the Plugins window (else its default): a number, on / off or a text; () when the plugin or parameter isn't there";
     "set_faction"(target: Target, faction: Faction) "A character on this map (\"self\", a name) or \"player\" joins a faction; \"\" = back to its own (the placed character's, its definition's, its race's). Saved; who attacks whom changes at once (queued)";
-    "faction_of"(target: Target) "The faction id a character belongs to now: \"player\", \"self\" (also SELF) or a name on this map; \"\" = none";
-    "is_female"() "Whether the player character is female";
-    "is_male"() "Whether the player character is male";
-    "hour"() "Time of day in hours (0..24, e.g. 13.5 = half past one in the afternoon)";
-    "day"() "The in-game day (0 on the first day; sleeping and midnight move it on), e.g. for things that happen once a day";
-    "is_night"() "Whether it is night (dark outdoors)";
-    "is_sneaking"() "Whether the player is sneaking (the sneak key: Left Ctrl, V or the left stick)";
+    "faction_of"(target: Target) -> Text "The faction id a character belongs to now: \"player\", \"self\" (also SELF) or a name on this map; \"\" = none";
+    "is_female"() -> Bool "Whether the player character is female";
+    "is_male"() -> Bool "Whether the player character is male";
+    "hour"() -> Num "Time of day in hours (0..24, e.g. 13.5 = half past one in the afternoon)";
+    "day"() -> Num "The in-game day (0 on the first day; sleeping and midnight move it on), e.g. for things that happen once a day";
+    "is_night"() -> Bool "Whether it is night (dark outdoors)";
+    "is_sneaking"() -> Bool "Whether the player is sneaking (the sneak key: Left Ctrl, V or the left stick)";
     "set_hour"(hour: Num) "Sets the time of day, e.g. set_hour(22) (queued)";
-    [deprecated "is_proficient(skill)"] "skill"(skill: Skill) "1 when the hero is proficient in a skill or tool, else 0 (until 0.27 a skill tree's level). Deprecated: use is_proficient";
+    [deprecated "is_proficient(skill)"] "skill"(skill: Skill) -> Num "1 when the hero is proficient in a skill or tool, else 0 (until 0.27 a skill tree's level). Deprecated: use is_proficient";
     [deprecated "set_proficient(skill, on)"] "set_skill"(skill: Skill, level: Num) "Makes the hero proficient in a skill or tool (level above 0) or not (0). Deprecated: use set_proficient (queued)";
-    [since "0.28"] "roll"(dice: Text) "Rolls dice such as \"2d6+3\", \"1d20+DEX\" or \"8d6\" (STR to CHA = the hero's ability modifier, PROF = the proficiency bonus) and returns the total; the roll goes into the roll log (immediately)";
-    [since "0.32"] "trap_state"(target: Text) "The state of the trap of the zone or prop of that name on this map: \"armed\", \"found\", \"disarmed\", \"sprung\" (\"\" = no such trap)";
+    [since "0.28"] "roll"(dice: Text) => Num "Rolls dice such as \"2d6+3\", \"1d20+DEX\" or \"8d6\" (STR to CHA = the hero's ability modifier, PROF = the proficiency bonus) and returns the total; the roll goes into the roll log (immediately)";
+    [since "0.32"] "trap_state"(target: Text) -> Text "The state of the trap of the zone or prop of that name on this map: \"armed\", \"found\", \"disarmed\", \"sprung\" (\"\" = no such trap)";
     [since "0.32"] "disarm_trap"(target: Text) "Disarms the trap of the zone or prop of that name on this map (a lever, a hidden switch) (queued)";
     [since "0.32"] "infect"(disease: Disease) "Exposes the hero to a disease (Database › Diseases): its saving throw, then its onset (queued)";
     [since "0.32"] "cure_disease"(disease: Disease) "Ends the hero's disease (\"\" = every disease); its exhaustion stays (queued)";
-    [since "0.32"] "has_disease"(disease: Disease) "Whether the hero has the disease, incubating or sick (\"\" = any) (immediately)";
+    [since "0.32"] "has_disease"(disease: Disease) -> Bool "Whether the hero has the disease, incubating or sick (\"\" = any) (immediately)";
     [since "0.35"] "change_shape"(who: Target, form: Character) "A character (its name or \"self\") takes the shape of a character definition (a lycanthrope's animal) and keeps its hit points; change_shape(who, \"\") or own_shape(who) changes it back (queued)";
     [since "0.35"] "change_shape"(who: Target, form: Character, keep_hp: Bool) "Like change_shape(); keep_hp false gives the shape its own hit points and the old ones back with its own shape, as Polymorph (queued)";
     [since "0.35"] "own_shape"(who: Target) "A character (its name or \"self\") in another shape is itself again (queued)";
     [since "0.32"] "poison"(target: Target, item: Item) "Exposes the hero (\"player\") or a character to the poison of an item (the SRD's poisons): its Constitution save, damage and conditions (a drugged ale, a gas trap) (queued)";
-    [since "0.32"] "prop_hp"(target: Target) "A prop's hit points as an object (its name or \"self\"; -1 without object statistics)";
+    [since "0.32"] "prop_hp"(target: Target) -> Num "A prop's hit points as an object (its name or \"self\"; -1 without object statistics)";
     [since "0.32"] "damage_prop"(target: Target, amount: Num) "Damages a prop with object statistics past its threshold; at 0 hit points it breaks (queued)";
     [since "0.32"] "damage_prop"(target: Target, amount: Num, damage_type: Text) "Like damage_prop(), of a damage type (\"fire\"; poison and psychic do nothing to objects) (queued)";
-    [since "0.32"] "search_roll"() "The total of the hero's last search (the action bar's Search: Perception), -1 before the first; *Search found* compares it";
-    [since "0.32"] "passive"(what: Skill) "The hero's passive check: 10 + the bonus, +5 with advantage, -5 with disadvantage (dim light for Perception), 0 when looking in darkness; -1 for an unknown name (immediately)";
-    [since "0.32"] "group_check"(what: Skill, dc: Num) "A group check: the hero and every companion on the map roll against the DC; true when at least half succeed (immediately)";
-    [since "0.32"] "contest"(what: Skill, name: Text) "A contest: the hero's check against the same check of a character on the map (by name; \"self\" = the script's owner) with a stat block; true when the hero's total is higher (immediately)";
-    [since "0.32"] "contest"(what: Skill, name: Text, against: Skill) "Like contest(), the character rolling another check: contest(\"stealth\", \"Guard\", \"perception\") (immediately)";
-    [since "0.28"] "check"(what: Skill, dc: Num) "An ability check of the hero against a DC: a skill (\"persuasion\"), an ability (\"str\") or ability:tool (\"dex:thieves-tools\"); true on a success. Rolled at once, shown on screen and in the roll log; Check passed conditions see it (immediately)";
-    [since "0.28"] "check"(what: Skill, dc: Num, mode: Text) "Like check(); mode \"advantage\" or \"disadvantage\" rolls two d20s and keeps the higher or lower (immediately)";
-    [since "0.28"] "save"(ability: Text, dc: Num) "A saving throw of the hero (\"dex\", \"wis\", ...) against a DC; true on a success (immediately)";
-    [since "0.28"] "save"(ability: Text, dc: Num, mode: Text) "Like save(); mode \"advantage\" or \"disadvantage\" (immediately)";
-    [since "0.28"] "modifier"(what: Skill) "The hero's bonus: an ability's modifier (\"str\"), a skill's or ability:tool's check bonus with proficiency, or a saving throw's (\"save:dex\")";
-    [since "0.28"] "ability"(ability: Text) "The hero's ability score: \"str\", \"dex\", \"con\", \"int\", \"wis\" or \"cha\" (1 to 30)";
+    [since "0.32"] "search_roll"() -> Num "The total of the hero's last search (the action bar's Search: Perception), -1 before the first; *Search found* compares it";
+    [since "0.32"] "passive"(what: Skill) -> Num "The hero's passive check: 10 + the bonus, +5 with advantage, -5 with disadvantage (dim light for Perception), 0 when looking in darkness; -1 for an unknown name (immediately)";
+    [since "0.32"] "group_check"(what: Skill, dc: Num) => Bool "A group check: the hero and every companion on the map roll against the DC; true when at least half succeed (immediately)";
+    [since "0.32"] "contest"(what: Skill, name: Text) => Bool "A contest: the hero's check against the same check of a character on the map (by name; \"self\" = the script's owner) with a stat block; true when the hero's total is higher (immediately)";
+    [since "0.32"] "contest"(what: Skill, name: Text, against: Skill) => Bool "Like contest(), the character rolling another check: contest(\"stealth\", \"Guard\", \"perception\") (immediately)";
+    [since "0.28"] "check"(what: Skill, dc: Num) => Bool "An ability check of the hero against a DC: a skill (\"persuasion\"), an ability (\"str\") or ability:tool (\"dex:thieves-tools\"); true on a success. Rolled at once, shown on screen and in the roll log; Check passed conditions see it (immediately)";
+    [since "0.28"] "check"(what: Skill, dc: Num, mode: Text) => Bool "Like check(); mode \"advantage\" or \"disadvantage\" rolls two d20s and keeps the higher or lower (immediately)";
+    [since "0.28"] "save"(ability: Text, dc: Num) => Bool "A saving throw of the hero (\"dex\", \"wis\", ...) against a DC; true on a success (immediately)";
+    [since "0.28"] "save"(ability: Text, dc: Num, mode: Text) => Bool "Like save(); mode \"advantage\" or \"disadvantage\" (immediately)";
+    [since "0.28"] "modifier"(what: Skill) -> Num "The hero's bonus: an ability's modifier (\"str\"), a skill's or ability:tool's check bonus with proficiency, or a saving throw's (\"save:dex\")";
+    [since "0.28"] "ability"(ability: Text) -> Num "The hero's ability score: \"str\", \"dex\", \"con\", \"int\", \"wis\" or \"cha\" (1 to 30)";
     [since "0.28"] "set_ability"(ability: Text, score: Num) "Sets one of the hero's ability scores (1 to 30) (immediately)";
-    [since "0.28"] "proficiency"() "The hero's proficiency bonus by level (+2 at levels 1-4 up to +6 at 17-20)";
-    [since "0.28"] "is_proficient"(what: Skill) "Whether the hero is proficient in a skill (\"stealth\"), a tool (\"thieves-tools\") or a saving throw (\"save:dex\")";
+    [since "0.28"] "proficiency"() -> Num "The hero's proficiency bonus by level (+2 at levels 1-4 up to +6 at 17-20)";
+    [since "0.28"] "is_proficient"(what: Skill) -> Bool "Whether the hero is proficient in a skill (\"stealth\"), a tool (\"thieves-tools\") or a saving throw (\"save:dex\")";
     [since "0.28"] "set_proficient"(what: Skill, on: Bool) "Makes the hero proficient in a skill, tool or saving throw, or takes it away (immediately)";
-    [since "0.28"] "armor_class"() "The hero's armor class: 10 + the DEX modifier + the worn armor's defense";
-    [since "0.28"] "hit_dice"() "The hit dice the hero has left (one per level; spent and regained by resting)";
-    [since "0.28"] "npc_stat"(target: Target, field: Text) "A value of a character's SRD stat block: \"str\" to \"cha\", \"ac\", \"hp\", \"speed\" (feet), \"darkvision\" (feet) or \"xp\"; target \"self\" (also SELF) or a name on this map; -1 without a stat block";
-    "knows_spell"(spell: Spell) "Whether the hero knows the spell (a cantrip or a known spell, the spellbook's) or has it prepared";
+    [since "0.28"] "armor_class"() -> Num "The hero's armor class: 10 + the DEX modifier + the worn armor's defense";
+    [since "0.28"] "hit_dice"() -> Num "The hit dice the hero has left (one per level; spent and regained by resting)";
+    [since "0.28"] "npc_stat"(target: Target, field: Text) -> Num "A value of a character's SRD stat block: \"str\" to \"cha\", \"ac\", \"hp\", \"speed\" (feet), \"darkvision\" (feet) or \"xp\"; target \"self\" (also SELF) or a name on this map; -1 without a stat block";
+    "knows_spell"(spell: Spell) -> Bool "Whether the hero knows the spell (a cantrip or a known spell, the spellbook's) or has it prepared";
     "learn_spell"(spell: Spell) "Teaches the hero a spell: only when their class's spell list has it (the SRD's rule; a wizard adds it to the spellbook) (queued)";
-    [deprecated "slots_left(level)"] "mana"() "Deprecated: spells use slots since 0.30; always 0";
+    [deprecated "slots_left(level)"] "mana"() -> Num "Deprecated: spells use slots since 0.30; always 0";
     [deprecated "restore_slots()"] "add_mana"(amount: Num) "Deprecated: spells use slots since 0.30; does nothing (queued)";
-    [since "0.31"] "money"() "The hero's money in copper pieces: every coin carried by its worth (gp 100, sp 10, cp 1, ep 50, pp 1000)";
+    [since "0.31"] "money"() -> Num "The hero's money in copper pieces: every coin carried by its worth (gp 100, sp 10, cp 1, ep 50, pp 1000)";
     [since "0.31"] "give_money"(cp: Num) "Gives the hero money in the fewest gold, silver and copper pieces, e.g. give_money(250) = 2 gp 5 sp";
-    [since "0.31"] "take_money"(cp: Num) "Takes money from the hero's coins, the change given back; false (nothing taken) when they have less";
+    [since "0.31"] "take_money"(cp: Num) => Bool "Takes money from the hero's coins, the change given back; false (nothing taken) when they have less";
     [since "0.32"] "eat"(days: Num) "The hero eats this many days' worth of food (a ration = 1, a meal = 0.5): what Food and water counts when the project's rules turn it on (queued)";
     [since "0.32"] "drink"(days: Num) "The hero drinks this many days' worth of water (a waterskin = 0.5, a well = 1): what Food and water counts when the project's rules turn it on (queued)";
-    [since "0.32"] "carried_weight"() "Pounds the hero carries: the bag and what they wear and hold (the purse weighs nothing)";
+    [since "0.32"] "carried_weight"() -> Num "Pounds the hero carries: the bag and what they wear and hold (the purse weighs nothing)";
     [since "0.32"] "fall"(feet: Num) "The hero falls this many feet (a trapdoor, a collapsing floor): 1d6 bludgeoning per 10 ft (at most 20d6) into the roll log, prone for a moment; they stay where they are (queued)";
-    [since "0.31"] "format_money"(cp: Num) "A sum in copper pieces as it reads in the player's language: format_money(150) = \"1 gp 5 sp\"";
-    [since "0.30"] "spell_slots"(level: Num) "How many spell slots of a level (1-9) the hero has at their class level";
-    [since "0.30"] "slots_left"(level: Num) "Spell slots of a level (1-9) the hero has left until a rest";
+    [since "0.31"] "format_money"(cp: Num) -> Text "A sum in copper pieces as it reads in the player's language: format_money(150) = \"1 gp 5 sp\"";
+    [since "0.30"] "spell_slots"(level: Num) -> Num "How many spell slots of a level (1-9) the hero has at their class level";
+    [since "0.30"] "slots_left"(level: Num) -> Num "Spell slots of a level (1-9) the hero has left until a rest";
     [since "0.30"] "restore_slots"() "Gives the hero all their spell slots back (a potion, a shrine)";
-    [since "0.30"] "prepare_spell"(spell: Spell) "Prepares a spell for the hero (a preparing caster: cleric, druid, paladin, wizard), as far as their count allows; false when it can't";
-    [since "0.30"] "is_prepared"(spell: Spell) "Whether the hero has a spell prepared";
-    [since "0.30"] "concentrating"() "The id of the spell the hero concentrates on, \"\" when none";
+    [since "0.30"] "prepare_spell"(spell: Spell) => Bool "Prepares a spell for the hero (a preparing caster: cleric, druid, paladin, wizard), as far as their count allows; false when it can't";
+    [since "0.30"] "is_prepared"(spell: Spell) -> Bool "Whether the hero has a spell prepared";
+    [since "0.30"] "concentrating"() -> Text "The id of the spell the hero concentrates on, \"\" when none";
     [since "0.30"] "cast_spell"(spell: Spell) "The hero casts a spell outside a fight on themselves, with a slot (queued)";
     [since "0.30"] "cast_spell"(spell: Spell, target: Target, free: Bool) "The hero casts a spell on a target (\"player\" or a character on this map), free = without a slot (queued)";
-    "xp"() "All the experience points the player has gained (experience and levels)";
-    "level"() "The player's level (1 = the first)";
+    "xp"() -> Num "All the experience points the player has gained (experience and levels)";
+    "level"() -> Num "The player's level (1 = the first)";
     [since "0.28"] "apply_condition"(target: Target, condition: Effect, seconds: Num) "A condition on \"player\" or a character: \"poisoned\", \"prone\", \"stunned\", \"exhaustion\" (one level)… for seconds (0 = until removed or a rest) (queued)";
     [since "0.28"] "apply_condition"(target: Target, condition: Effect, seconds: Num, options: Opts) "Like apply_condition(); options #{ save: \"con\", dc: 12 (a saving throw keeps it off), damage: \"1d4\", type: \"poison\" (damage every round = 6 s; type \"heal\" = healing), level: 2 (exhaustion levels) }; condition \"\" = only the damage or healing (queued)";
     [since "0.28"] "remove_condition"(target: Target, condition: Effect) "Ends a condition (all levels of exhaustion); \"\" or \"all\" = every condition and ongoing damage (queued)";
-    [since "0.28"] "has_condition"(condition: Effect) "Whether the hero has a condition (\"any\" = any)";
-    [since "0.28"] "has_condition"(target: Target, condition: Effect) "Whether \"player\", \"self\" (also SELF) or a character on this map has a condition";
-    [since "0.28"] "srd_attribution"() "The SRD 5.1's attribution (CC BY 4.0) when the project uses SRD content (Project › Uses SRD 5.1 content), else \"\": for credits a script shows";
-    [since "0.28"] "exhaustion"() "The hero's level of exhaustion (0-6)";
+    [since "0.28"] "has_condition"(condition: Effect) -> Bool "Whether the hero has a condition (\"any\" = any)";
+    [since "0.28"] "has_condition"(target: Target, condition: Effect) -> Bool "Whether \"player\", \"self\" (also SELF) or a character on this map has a condition";
+    [since "0.28"] "srd_attribution"() -> Text "The SRD 5.1's attribution (CC BY 4.0) when the project uses SRD content (Project › Uses SRD 5.1 content), else \"\": for credits a script shows";
+    [since "0.28"] "exhaustion"() -> Num "The hero's level of exhaustion (0-6)";
     [since "0.28"] "set_exhaustion"(level: Num) "Sets the hero's exhaustion (0 = none, 6 = death) (immediately)";
     [since "0.28"] "short_rest"() "Opens the rest window: the hero spends hit dice (d10 + CON each), an hour passes (queued)";
     [since "0.28"] "long_rest"() "A long rest of 8 hours: full HP, half the hit dice back, one level of exhaustion less, timed conditions over (queued)";
     [since "0.28"] "long_rest"(hours: Num) "Like long_rest(), for some hours (queued)";
     [since "0.29"] "start_combat"() "Starts a turn-based fight with the hostile characters within 12 tiles of the player; their allies and the party join (queued)";
-    [since "0.29"] "in_combat"() "Whether a turn-based fight is going on";
-    [since "0.29"] "combat_round"() "The round of the fight going on (1 = the first; 0 = no fight)";
-    [since "0.30"] "class"() "The hero's class id (Database \u{203A} Classes), \"\" without one";
-    [since "0.30"] "subclass"() "The hero's subclass id (\"champion\", \"thief\"), \"\" before they chose one";
-    [since "0.30"] "class_level"() "The hero's level in their class (0 without a class)";
-    [since "0.30"] "resource"(resource: Text) "Uses left of one of the hero's class resources, e.g. resource(\"rage\"), resource(\"ki\"), resource(\"lay-on-hands\") (its hit points); 0 without it. A short or long rest gives them back";
-    [since "0.30"] "has_feature"(feature: Text) "Whether the hero has a class feature at their level, e.g. has_feature(\"second-wind\"); chosen options count (\"fighter-fighting-style-defense\")";
-    [since "0.30"] "level_up_pending"() "Whether level-up choices (the hero's or a party member's) wait for the level-up window";
+    [since "0.29"] "in_combat"() -> Bool "Whether a turn-based fight is going on";
+    [since "0.29"] "combat_round"() -> Num "The round of the fight going on (1 = the first; 0 = no fight)";
+    [since "0.30"] "class"() -> Text "The hero's class id (Database \u{203A} Classes), \"\" without one";
+    [since "0.30"] "subclass"() -> Text "The hero's subclass id (\"champion\", \"thief\"), \"\" before they chose one";
+    [since "0.30"] "class_level"() -> Num "The hero's level in their class (0 without a class)";
+    [since "0.30"] "resource"(resource: Text) -> Num "Uses left of one of the hero's class resources, e.g. resource(\"rage\"), resource(\"ki\"), resource(\"lay-on-hands\") (its hit points); 0 without it. A short or long rest gives them back";
+    [since "0.30"] "has_feature"(feature: Text) -> Bool "Whether the hero has a class feature at their level, e.g. has_feature(\"second-wind\"); chosen options count (\"fighter-fighting-style-defense\")";
+    [since "0.30"] "level_up_pending"() -> Bool "Whether level-up choices (the hero's or a party member's) wait for the level-up window";
     [since "0.30"] "set_class"(target: Target, class: Class) "Gives the hero (\"player\") or a party member a class: its saving throws and proficiencies; the level's choices open the level-up window (queued)";
     [since "0.30"] "set_class"(target: Target, class: Class, level: Num) "Like set_class(target, class); a party member also gets this level (queued)";
     [deprecated "apply_condition(target, condition, seconds, options)"] "apply_effect"(target: Target, effect: Effect, strength: Num, seconds: Num) "Deprecated: use apply_condition. The status effects of 0.27 as conditions: \"poison\" = poisoned + poison damage per round, \"burn\" = fire damage per round, \"regen\" = healing per round (strength x 6 per round), \"stun\" = stunned, \"slow\" = restrained; \"haste\", \"strength\", \"weakness\", \"shield\" do nothing (queued)";
     [deprecated "remove_condition(target, condition)"] "cure"(target: Target, effect: Effect) "Deprecated: use remove_condition. Ends a condition, e.g. cure(\"player\", \"poison\") (queued)";
     [deprecated "remove_condition(target, \"all\")"] "cure"(target: Target) "Deprecated: use remove_condition. Ends every condition (queued)";
-    "defeated_count"(character: Character) "How many characters of this definition the player has defeated (the bestiary's count), e.g. defeated_count(\"slime\")";
+    "defeated_count"(character: Character) -> Num "How many characters of this definition the player has defeated (the bestiary's count), e.g. defeated_count(\"slime\")";
     "shake"(seconds: Num) "Shakes the screen like a hit for a while: earthquakes, explosions (queued)";
     "shake"(seconds: Num, strength: Num) "Shakes the screen; strength 1 = like a hit, 2 = twice as hard (queued)";
     "set_weather"(kind: Weather) "Weather of the current map: \"rain\", \"snow\", \"fog\", \"none\" or \"default\" (the map's own); kept in the save game (queued)";
     "set_weather"(kind: Weather, intensity: Num) "Weather of the current map with a strength from 0 to 1, e.g. set_weather(\"rain\", 0.8) (queued)";
     "set_map_weather"(map: Map, kind: Weather, intensity: Num) "Weather of another map, e.g. set_map_weather(\"forest\", \"fog\", 0.5) (queued)";
-    "weather"() "The current map's weather: \"none\", \"rain\", \"snow\" or \"fog\"";
-    "weather_intensity"() "The current weather's strength (0 to 1)";
-    "hp_of"(target: Target) "A character's HP right now: \"player\", \"self\" (also SELF), or a name on this map; -1 if there is no such character";
-    [deprecated "has_condition(condition)"] "has_effect"(effect: Effect) "Deprecated: use has_condition. Whether the hero has a condition, e.g. has_effect(\"poison\") (= poisoned)";
+    "weather"() -> Text "The current map's weather: \"none\", \"rain\", \"snow\" or \"fog\"";
+    "weather_intensity"() -> Num "The current weather's strength (0 to 1)";
+    "hp_of"(target: Target) -> Num "A character's HP right now: \"player\", \"self\" (also SELF), or a name on this map; -1 if there is no such character";
+    [deprecated "has_condition(condition)"] "has_effect"(effect: Effect) -> Bool "Deprecated: use has_condition. Whether the hero has a condition, e.g. has_effect(\"poison\") (= poisoned)";
     "give_xp"(amount: Num) "Gives experience; enough of it raises the level (negative takes it away, the level never drops) (queued)";
     "damage_around"(damage: Num, radius: Num) "Damages every character within radius tiles of the player (queued)";
     [since "0.28"] "damage_around"(damage: Num, radius: Num, damage_type: Text) "Like damage_around(), of a damage type (\"fire\", \"cold\"…; resistances halve it) (queued)";
@@ -299,21 +324,21 @@ pub const API: &[ApiFn] = api! {
     "give_item_to"(target: Target, item: Item, count: Num) "Adds items to what a character carries (dropped when it is defeated) (queued)";
     "take_item_from"(target: Target, item: Item, count: Num) "Takes items from what a character carries (queued)";
     "teach_spell"(target: Target, spell: Spell) "Teaches a party member a spell, when its class's list has it; it casts it in fights when the player plays its turns (queued)";
-    "npc_knows_spell"(target: Target, spell: Spell) "Whether a character on the map has learned a spell (teach_spell, or a scroll given to a companion)";
+    "npc_knows_spell"(target: Target, spell: Spell) -> Bool "Whether a character on the map has learned a spell (teach_spell, or a scroll given to a companion)";
     "add_stock"(target: Target, item: Item, count: Num) "Adds items to a merchant's stock, e.g. what a villager produced (queued)";
     "set_stock"(target: Target, item: Item, count: Num) "Sets how many of an item a merchant has; 0 removes it from the stock (queued)";
-    "stock_of"(target: Target, item: Item) "How many of an item a merchant on the map has (999 = unlimited; 0 if none)";
+    "stock_of"(target: Target, item: Item) -> Num "How many of an item a merchant on the map has (999 = unlimited; 0 if none)";
     "show_image"(sheet: Sheet) "Shows a picture over the game (a sprite sheet drawn whole, scaled down to fit the window); the event waits until the player closes it (queued)";
     "move_route"(target: Target, steps: List) "A character (or \"player\") walks a list of steps; the event waits until it is done: \"move up 2\", \"toward 1\", \"away 1\" (the player), \"turn left\", \"turn random\", \"face player\", \"wait 0.5\", \"jump 1,0\", \"speed 2\" (times its usual speed), \"anim wave 1.5\" (a clip for seconds), \"sound blip\", \"through on\", \"script name\". A step whose tile is taken is left out (queued)";
     "move_route"(target: Target, steps: List, options: Opts) "Like move_route(); options #{ repeat: true (again and again; the event doesn't wait), skip: false (wait until a taken tile is free), wait: false } (queued)";
-    "get_text"(name: Text) "A text variable's value (\"\" when unset); {name} in texts shows it";
+    "get_text"(name: Text) -> Text "A text variable's value (\"\" when unset); {name} in texts shows it";
     "set_text"(name: Text, value: Text) "Sets a text variable (shown by {name} placeholders; saved) (immediately)";
     "input_number"(text: Line, var: Var, min: Num, max: Num) "Asks the player for a whole number between min and max (a window with the text) and puts it into a variable; the event waits (queued)";
     "input_text"(text: Line, var: Text, max_length: Num) "Asks the player for a text (a name, a password; prefilled with the text variable's value) and puts it into a text variable; the event waits (queued)";
     "call_common"(id: Common) "Runs a common event's actions (Database \u{203A} Common events), as an action of this event would (queued)";
     "timer_start"(name: Text, seconds: Num) "Starts (or restarts) a hidden timer; when it runs out nothing runs (check it with timer_left()). Timers pause while a menu or a dialog is open, and are saved (immediately)";
     "timer_start"(name: Text, seconds: Num, options: Opts) "Like timer_start(); options #{ shown: true (at the top of the screen), run: \"function\" (runs when it runs out), event: \"name\" (fires that custom event) } (immediately)";
-    "timer_left"(name: Text) "Seconds left on a timer (0 when it isn't running)";
+    "timer_left"(name: Text) -> Num "Seconds left on a timer (0 when it isn't running)";
     "timer_stop"(name: Text) "Stops a timer: nothing runs (immediately)";
     "tint_screen"(color: Text, seconds: Num) "Colours the whole screen over seconds: a colour name, \"#rrggbb\" (a light tint), \"#rrggbbaa\" (aa = how strongly) or [r, g, b, a]; stays until changed, saved with the game (queued)";
     "clear_tint"(seconds: Num) "Takes the screen tint away over seconds (queued)";
@@ -349,10 +374,10 @@ pub const API: &[ApiFn] = api! {
     "hide_image"() "Takes away a picture shown with show_image() (queued)";
     "hide_ui"() "Hides the HUD (status frame, clock, action bar, buttons), e.g. for a cut-scene; dialogs still show. The player shows it again with H (queued)";
     "show_ui"() "Shows the HUD again after hide_ui() or H (queued)";
-    "player_x"() "The player's x position in tiles (fractional; the feet)";
-    "player_y"() "The player's y position in tiles (fractional; the feet)";
-    "player_max_hp"() "The player's maximum hit points";
-    "player_facing"() "Where the player looks: \"up\", \"down\", \"left\" or \"right\"";
+    "player_x"() -> Num "The player's x position in tiles (fractional; the feet)";
+    "player_y"() -> Num "The player's y position in tiles (fractional; the feet)";
+    "player_max_hp"() -> Num "The player's maximum hit points";
+    "player_facing"() -> Text "Where the player looks: \"up\", \"down\", \"left\" or \"right\"";
     "aim"(function: Func) "Magic targeting: the player's next click calls function(x, y) with the target in tiles; in a spell's script the spell is paid then (queued)";
     "fly"(sheet: Sheet, x: Num, y: Num, function: Func) "An animated sprite flies from the player to tile x, y, then calls function(x, y) (queued)";
     "fly"(sheet: Sheet, x: Num, y: Num, function: Func, options: Opts) "Like fly(); options #{ speed: tiles/s, frames: [first, last] or tag: \"animation\", fps, scale, light: radius, color: [r, g, b] } (queued)";
@@ -360,8 +385,8 @@ pub const API: &[ApiFn] = api! {
     "effect"(sheet: Sheet, x: Num, y: Num, options: Opts) "Like effect(); options #{ frames: [first, last] or tag: \"animation\", fps, scale, light: radius, color: [r, g, b], shake: seconds } (queued)";
     "damage_area"(x: Num, y: Num, radius: Num, damage: Num) "Damages every character within radius tiles of tile x, y (queued)";
     [since "0.28"] "damage_area"(x: Num, y: Num, radius: Num, damage: Num, damage_type: Text) "Like damage_area(), of a damage type (\"fire\"…; resistances halve it) (queued)";
-    "text"(text: Line) "Fills in {player}, {sir|madam} and {variable} placeholders";
-    "random"(n: Num) "Random integer from 0 to n-1";
+    "text"(text: Line) -> Text "Fills in {player}, {sir|madam} and {variable} placeholders";
+    "random"(n: Num) => Num "Random integer from 0 to n-1";
     "say"(text: Line) "Shows a dialog (queued)";
     "say"(speaker: Line, text: Line) "Shows a dialog with a speaker name (queued)";
     "say"(entity: Num, text: Line) "Shows a dialog with an entity's name as speaker, e.g. say(SELF, \"...\") (queued)";
@@ -391,28 +416,28 @@ pub const API: &[ApiFn] = api! {
     "enable_spawners"(map: Map, zone: Text) "Switches one spawner zone switched off by name on again (queued)";
     "heal"(amount: Num) "Heals the player (queued)";
     "order"(target: Target, order: Text) "Tells a companion (or \"all\") what to do: \"attack\", \"defend\" (only what attacks you), \"passive\" (no fighting), \"stay\" (wait here), \"follow\" (queued)";
-    "order_of"(name: Text) "How a companion fights: \"attack\", \"defend\" or \"passive\" (\"\" = no companion of that name)";
+    "order_of"(name: Text) -> Text "How a companion fights: \"attack\", \"defend\" or \"passive\" (\"\" = no companion of that name)";
     "emote"(target: Target, emotion: Text) "Shows an emotion over a character's head (\"player\" too) for 2.5 s: a tag of an Emotions sprite sheet (\"surprise\", \"joy\", \"sleepy\", ...) (queued)";
     "emote"(target: Target, emotion: Text, options: Opts) "Like emote(); options #{ seconds: 4 (below 0: until clear_emote), wait: true (the script's next actions wait until it is over) } (queued)";
     "clear_emote"(target: Target) "Takes a character's emotion away (queued)";
-    "used_item"() "The item the player used on the trigger's owner (its 'Use item' trigger; \"\" for other events), e.g. for gifts";
-    "self_name"() "The name of the placed character or prop whose trigger runs the script (\"\" if it has none)";
-    "is_consumable"(item: Item) "Whether an item is used up when used (the game already took one when a 'Use item' trigger reacted to it)";
-    [since "0.31"] "attuned"(item: Item) "Whether the hero is attuned to the magic item";
-    [since "0.31"] "attune"(item: Item) "Attunes the hero to a magic item they carry at once (a story's attunement: no hour passes, anyone may); false when they don't have it, already are, or have three";
-    [since "0.31"] "end_attunement"(item: Item) "Ends the hero's attunement to a magic item; false when they weren't attuned";
-    [since "0.31"] "item_charges"(item: Item) "The charges left on the hero's first stack of a magic item (worn first, then the bag); -1 when they don't have it or it has no charges";
-    [since "0.32"] "knocked_out"(name: Text) "Whether a fight knocked out a character of this name (or definition id) instead of killing it: the player chose Knock out at its finishing blow";
-    [since "0.31"] "set_item_charges"(item: Item, charges: Num) "Sets the charges left on the hero's first stack of a magic item (at most its charges); false when they don't have it or it has no charges";
+    "used_item"() -> Text "The item the player used on the trigger's owner (its 'Use item' trigger; \"\" for other events), e.g. for gifts";
+    "self_name"() -> Text "The name of the placed character or prop whose trigger runs the script (\"\" if it has none)";
+    "is_consumable"(item: Item) -> Bool "Whether an item is used up when used (the game already took one when a 'Use item' trigger reacted to it)";
+    [since "0.31"] "attuned"(item: Item) -> Bool "Whether the hero is attuned to the magic item";
+    [since "0.31"] "attune"(item: Item) => Bool "Attunes the hero to a magic item they carry at once (a story's attunement: no hour passes, anyone may); false when they don't have it, already are, or have three";
+    [since "0.31"] "end_attunement"(item: Item) => Bool "Ends the hero's attunement to a magic item; false when they weren't attuned";
+    [since "0.31"] "item_charges"(item: Item) -> Num "The charges left on the hero's first stack of a magic item (worn first, then the bag); -1 when they don't have it or it has no charges";
+    [since "0.32"] "knocked_out"(name: Text) -> Bool "Whether a fight knocked out a character of this name (or definition id) instead of killing it: the player chose Knock out at its finishing blow";
+    [since "0.31"] "set_item_charges"(item: Item, charges: Num) => Bool "Sets the charges left on the hero's first stack of a magic item (at most its charges); false when they don't have it or it has no charges";
     "rush_to"(target: Target, to: Target) "A fighting character (Chase behaviour) runs to where another character (or \"player\") is, following it for 15 s, and fights whoever it sees on the way: a chief calling his men (queued)";
     "bark"(target: Target, text: Line) "A short line in a speech bubble over a character's head (\"player\" too) that doesn't stop play; it stays by its length (queued)";
     "bark"(target: Target, text: Line, seconds: Num) "Like bark(), for `seconds` (queued)";
     "mood"(target: Target, mood: Text) "A character's portrait shows that mood (its definition's mood portrait) until changed or the event ends; \"\" = its usual one (queued)";
     "open_companion"(target: Target) "Opens a companion's window (its gear and bag next to the player's inventory) once the event is over (queued)";
-    "is_staying"(name: Text) "Whether a companion was told to wait where it is";
+    "is_staying"(name: Text) -> Bool "Whether a companion was told to wait where it is";
     [deprecated "heal_character(target, amount)"] "heal_npc"(target: Target, amount: Num) "Heals a character by name (a companion, \"player\"); a negative amount hurts it. Deprecated: use heal_character (queued)";
     [since "0.27"] "heal_character"(target: Target, amount: Num) "Heals a character by name (a companion, any character with HP; \"player\" = the player); a negative amount hurts it (queued)";
-    [since "0.27"] "api_version"() "The script API version of this engine, e.g. \"0.27\" (plugins and scripts can check what they may use)";
+    [since "0.27"] "api_version"() -> Text "The script API version of this engine, e.g. \"0.27\" (plugins and scripts can check what they may use)";
     "play_sound"(sound: Sound) "Plays a sound (queued)";
     "play_sound"(sound: Sound, options: Opts) "Plays a sound with options #{ volume: 0.5 (times its own), pitch: 1.5 (2 = an octave higher and faster, 0.5 = lower), pan: -1 (left) .. 1 (right) } (queued)";
     "play_music"(sound: Sound) "Plays music (queued)";
@@ -420,24 +445,24 @@ pub const API: &[ApiFn] = api! {
     "play_music_effect"(sound: Sound) "Plays a music effect (a fanfare) once: the music ducks under it and comes back after (queued)";
     "play_music_effect"(sound: Sound, options: Opts) "Like play_music_effect(); options #{ wait: true } (the event waits until it is over) (queued)";
     "set_locked"(target: Target, locked: Bool) "Locks / unlocks a prop (queued); an unlocked door stays closed";
-    "is_locked"(target: Target) "Whether a prop on this map is locked (false without a lock)";
+    "is_locked"(target: Target) -> Bool "Whether a prop on this map is locked (false without a lock)";
     "open_shop"(target: Target) "Opens a merchant's trade window (queued)";
     "patrol"(target: Target) "Starts a character's own patrol route (queued)";
     "patrol"(target: Target, points: List) "Patrols [[x, y], ...] tile waypoints (queued)";
     "stop_patrol"(target: Target) "Stops a character's patrol (queued)";
     "sleep"(hours: Num) "The player sleeps that many hours: the night passes, HP and mana are restored (queued, blocks)";
-    "is_sitting"() "Whether the player sits on a chair or bench";
-    "is_sleeping"() "Whether the player lies in a bed or the night is passing";
+    "is_sitting"() -> Bool "Whether the player sits on a chair or bench";
+    "is_sleeping"() -> Bool "Whether the player lies in a bed or the night is passing";
     "lockpick"(dc: Num, var: Var) "Picks a lock in a custom puzzle: a DEX (Thieves' Tools) check against the DC; 1 (picked) or 0 goes into the variable (queued)";
     "unlock_achievement"(id: Achievement) "Unlocks an achievement for the player (queued; kept across save games)";
-    "achievement_unlocked"(id: Achievement) "Whether the player has unlocked an achievement";
+    "achievement_unlocked"(id: Achievement) -> Bool "Whether the player has unlocked an achievement";
     "open_crafting"(station: Station) "Opens the crafting window with the station's recipes (queued)";
     "open_crafting"(station: Station, title: Line) "Opens the crafting window with a title, e.g. \"Alchemy table\" (queued)";
-    "can_craft"(recipe: Recipe) "Whether the player has the ingredients (and skill) for a recipe";
+    "can_craft"(recipe: Recipe) -> Bool "Whether the player has the ingredients (and skill) for a recipe";
     "follow"(target: Target) "The character joins the player as a companion (queued, saved)";
     "stop_following"(target: Target) "The companion leaves: stays on its own map, else goes back home (queued)";
-    "is_companion"(name: Text) "Whether the character with that name follows the player";
-    "companion_count"() "How many companions follow the player";
+    "is_companion"(name: Text) -> Bool "Whether the character with that name follows the player";
+    "companion_count"() -> Num "How many companions follow the player";
     "stop_schedule"(target: Target) "The character stops following its daily schedule and stays where it is (queued, saved)";
     "follow_schedule"(target: Target) "The character follows its daily schedule again (queued)";
     "start_quest"(quest: Quest) "Starts a quest (queued)";
@@ -445,9 +470,9 @@ pub const API: &[ApiFn] = api! {
     "set_quest_stage"(quest: Quest, stage: Num) "Sets a quest's stage (queued)";
     "complete_quest"(quest: Quest) "Completes a quest (queued)";
     "fail_quest"(quest: Quest) "Fails a quest (queued)";
-    "quest_stage"(quest: Quest) "Current stage of a quest (-1 = not started)";
-    "quest_active"(quest: Quest) "Whether a quest is active";
-    "quest_done"(quest: Quest) "Whether a quest is completed";
+    "quest_stage"(quest: Quest) -> Num "Current stage of a quest (-1 = not started)";
+    "quest_active"(quest: Quest) -> Bool "Whether a quest is active";
+    "quest_done"(quest: Quest) -> Bool "Whether a quest is completed";
 };
 
 impl Arg {
@@ -504,6 +529,35 @@ pub fn is_text_arg(function: &str, index: usize) -> bool {
 
 #[cfg(test)]
 mod tests {
+    /// What each function gives back is what Rhai says it does (the visual scripts' nodes rely on
+    /// it): `None` for nothing, numbers for i64 / f64, Any for a dynamic value.
+    #[test]
+    fn return_types_match_rhai() {
+        let sigs = crate::script::ScriptHost::new().signatures();
+        let mut wrong = Vec::new();
+        for f in API {
+            let mine: Vec<&String> = sigs.iter().filter(|s| s.split('(').next() == Some(f.name) && {
+                let args = s.split('(').nth(1).and_then(|a| a.split(')').next()).unwrap_or("");
+                (if args.trim().is_empty() { 0 } else { args.matches(',').count() + 1 }) == f.params.len()
+            }).collect();
+            let rets: std::collections::BTreeSet<Option<Ret>> = mine.iter().map(|s| match s.split(" -> ").nth(1) {
+                None => None,
+                Some("i64" | "f64") => Some(Ret::Num),
+                Some("bool") => Some(Ret::Bool),
+                Some("string") => Some(Ret::Text),
+                Some("array") => Some(Ret::List),
+                Some("map") => Some(Ret::Map),
+                Some(_) => Some(Ret::Any),
+            }).collect();
+            let want = if rets.len() == 1 { rets.into_iter().next().unwrap() } else { Some(Ret::Any) };
+            if mine.is_empty() || want != f.ret {
+                wrong.push(format!("{}/{}: table {:?}, Rhai {:?}", f.name, f.params.len(), f.ret, mine));
+            }
+            assert!(!f.acts || f.ret.is_some(), "{} acts but gives nothing back: use -> for a query", f.name);
+        }
+        assert!(wrong.is_empty(), "return types (-> Kind in the table): {wrong:#?}");
+    }
+
     use super::*;
 
     /// Every function the engine registers for scripts is in the completion table.

@@ -319,7 +319,8 @@ pub fn check(project: &Project) -> (Vec<String>, Check) {
     }
     let mut files: BTreeSet<String> = BTreeSet::new();
     files.insert("project.ron".into());
-    for d in crate::project::DEFS.iter().filter(|d| **d != "structures") {
+    // (Structures are the editor's; the visual scripts run as their Rhai, in scripts/.)
+    for d in crate::project::DEFS.iter().filter(|d| **d != "structures" && **d != "visual_scripts") {
         let rel = format!("defs/{d}.ron");
         if root.join(&rel).exists() {
             files.insert(rel);

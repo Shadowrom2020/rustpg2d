@@ -80,6 +80,10 @@ def_facts!(rustpg2d_engine::animations::AnimationDef, |d| {
     let sheets: Vec<&str> = d.cels.iter().map(|c| c.sheet.as_str()).collect();
     format!("\"{}\"; {} cel(s) [{}], {} emitter(s), {} flash(es), {} sound(s)", d.name, d.cels.len(), sheets.join(", "), d.emitters.len(), d.flashes.len(), d.sounds.len())
 });
+def_facts!(rustpg2d_engine::visual::VisualScript, |d| {
+    let params: Vec<&str> = d.params.iter().map(|p| p.name.as_str()).collect();
+    format!("\"{}\"; fn {}({}){}; {} node(s), {} link(s)", d.label(), d.id, params.join(", "), d.returns.map_or(String::new(), |r| format!(" -> {}", r.label())), d.nodes.len(), d.links.len())
+});
 def_facts!(SheetDef, |d| {
     let scale = if d.scale > 1 { format!(" at {}x", d.scale) } else { String::new() };
     let tags = if d.tags.is_empty() { String::new() } else { format!("; animations [{}]", d.tags.iter().map(|t| t.name.as_str()).collect::<Vec<_>>().join(", ")) };
@@ -331,6 +335,19 @@ fn template(kind: RefKind, id: &str, db: &Database) -> (Value, &'static str) {
                 ..rustpg2d_engine::animations::AnimationDef::fresh(id)
             }),
             "An animation played at a point (spells' impact, Play effect {sprite: {sheet: id}}, effect(\"id\", x, y)) or on a character (Weapon.hit_anim and a stat block attack's anim on whoever a hit lands on, ItemDef.use_anim on who uses it, a class Act's anim). Times in seconds from its start, places in pixels from the point (the middle of the target's body; +y down). cels [{at, sheet, first, last (both 0 = all frames), fps, loops, offset [x, y], scale, rotation (degrees), opacity, additive, light (tiles), glow [r,g,b], end: {offset, scale, rotation, opacity} = where it moves to over its time}], emitters [{at, duration (0 = a burst), count, offset, area (radius), direction (degrees: 0 right, -90 up), spread, speed, speed_var, lifetime, size, size_end, color [r,g,b,a], color_end, gravity (+ = down), additive}], flashes [{at, screen: false = the target's figure / true = the screen, color [r,g,b,a], seconds}], sounds [{at, sound}].",
+        ),
+        RefKind::VisualScript => (
+            val(&{
+                use rustpg2d_engine::visual::{Link, Node, NodeKind, Value as V};
+                let mut s = rustpg2d_engine::visual::VisualScript::fresh(id);
+                let mut give = Node { id: 2, kind: NodeKind::Call { function: "give_item".into(), arity: 0 }, pos: [260.0, 80.0], values: Default::default() };
+                give.values.insert("item".into(), V::Text("potion".into()));
+                give.values.insert("count".into(), V::Num(1.0));
+                s.nodes.push(give);
+                s.links.push(Link { from: 1, out: "out".into(), to: 2, input: "in".into() });
+                s
+            }),
+            "A script function made of nodes (the editor's Nodes tab; saved definitions write every visual script's Rhai into scripts/visual_scripts.rhai, so triggers, hooks and other scripts call it by its id). id = the function's name (small letters, digits, _); params [{name, kind: Num|Bool|Text|List|Map|Any}]; returns: a kind or null; nodes [{id, kind, pos [x, y], values {input name: {Num: 3} | {Bool: true} | {Text: \"potion\"}} (inputs nothing is linked to)}]; links [{from: node id, out: output pin, to: node id, input: input pin}]. Node kinds: Start (outputs: flow \"out\" and one per parameter), Return (input \"value\" when it returns), {Call: {function: an API function, another visual script or a text script function (then arity: its parameter count)}} (inputs: the parameters by name; a function without a result and one that acts (check, roll, give_item…) has flow \"in\"/\"out\", its result is output \"result\"; a query (has_item, flag) is a value node with output \"result\" only), If (flow in, condition; flow then / else), {Sequence: {steps: n}} (flow outputs \"1\"..\"n\"), Repeat (in, count; body, done, index), ForEach (in, list; body, done, item, index), {Value: {kind}} (output value: its values.value), {Math: {op: Add|Sub|Mul|Div|Rem|Min|Max}} (a, b; result), {Compare: {op: Eq|Ne|Lt|Le|Gt|Ge}}, {Logic: {op: And|Or}}, Not (value; result), Join (a, b; result text), {SetLocal: {name}} (in, value; out), {GetLocal: {name}} (value), {Comment: {text}}. Flow outputs lead to one node; value outputs to any number; problems (missing functions, wrong types, results used before their step) make the function do nothing and show in Problems.",
         ),
         RefKind::Map => (Value::Null, "maps are not definitions"),
         RefKind::Skill => (Value::Null, "skills are the SRD's (perception, stealth, ...): no definitions since 0.28"),

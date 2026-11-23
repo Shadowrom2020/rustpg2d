@@ -5,6 +5,19 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 
 ## Unreleased
 
+### Visual scripts
+- **Script functions made of nodes** (`defs/visual_scripts.ron`, first part): a visual script is a
+  function whose nodes are the script API's functions (a step on the flow, or a value such as
+  `has_item`), *Start*, *Return*, *If*, *Sequence*, *Repeat*, *For each*, values, maths,
+  comparisons, and / or / not, joining texts and local variables, wired from pin to pin. Saving the
+  definitions writes them as Rhai into `scripts/visual_scripts.rhai`, so the game calls them like
+  any script function. Problems (a missing function, a value of the wrong kind, a result used
+  before its step) make a function that does nothing and says why. Ids typed into the nodes are
+  renamed with their items, sounds and maps, and visual scripts travel through the asset library.
+  The editor's *Nodes* tab follows; AI agents write them with `upsert_def` already.
+- **The script API table says what each function gives back** (`-> Bool`, `=> Num` for those that
+  also act), checked against Rhai's own signatures by a test.
+
 ### Lycanthropes with two forms
 - **Change shape** (new action; `change_shape()` and `own_shape()` in scripts): a character takes
   the shape of another character definition until it is changed back, by default keeping its hit

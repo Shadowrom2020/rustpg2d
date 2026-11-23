@@ -34,3 +34,7 @@ gilrs = "0.11"
 # its random hash seeds (getrandom) and clock (web-time), which need wasm-bindgen.
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 rhai = { version = "1.27", default-features = false, features = ["std", "no_time"] }
+
+[dev-dependencies]
+# The script API table's return types are checked against Rhai's own signatures (tests only).
+rhai = { workspace = true, features = ["metadata"] }

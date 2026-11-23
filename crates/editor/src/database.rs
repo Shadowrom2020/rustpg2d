@@ -152,7 +152,8 @@ impl Tab {
             RefKind::Disease => Tab::Diseases,
             RefKind::Cutscene => Tab::Cutscenes,
             RefKind::Animation => Tab::Animations,
-            RefKind::Map | RefKind::Skill => return None,
+            // (Visual scripts are edited in the Nodes tab.)
+            RefKind::Map | RefKind::Skill | RefKind::VisualScript => return None,
         })
     }
 }

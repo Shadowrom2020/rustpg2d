@@ -59,6 +59,13 @@ function.
   project. (If two files define the same name, the file that comes later alphabetically wins.)
 - Put only **functions** (and comments) at the top level of a file. Statements outside functions
   don't keep values between calls; keep lasting state in [flags and variables](#game-state-flags-and-variables).
+- **Visual scripts** (`defs/visual_scripts.ron`): script functions built from nodes instead of
+  typed (*since 0.35*; the editor's *Nodes* tab). Saving the definitions writes every visual
+  script's function into `scripts/visual_scripts.rhai`, so they are called like any function
+  (triggers' *Run script*, hooks, menus, spells, other scripts). That file is made by the editor:
+  don't edit it, it is written again. A visual script with problems (a missing function, a value
+  of the wrong kind) is written as a function that does nothing and prints why. AI agents write
+  them with `upsert_def` (kind `visual_scripts`; `describe_def` shows the format).
 - Scripts are part of an exported game (*File › Export game*).
 - **Asset library and packages**: a spell or other asset that uses scripts can go into
   the asset library or a `.r2dpack` package together with its functions. The editor asks which

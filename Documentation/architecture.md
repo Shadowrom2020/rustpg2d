@@ -100,6 +100,16 @@ starter_history` from git; a test keeps it current), replaces untouched assets, 
 and retired ones, and backs the library folder up first.
 `.r2dpack` files are zip bundles of assets with a manifest, for sharing between projects.
 
+**Visual scripts** (`visual.rs`, `defs/visual_scripts.ron`): a `VisualScript` is one Rhai function
+as nodes and links between their pins (flow and typed values). The node catalogue comes from the
+script API table: its return types (`-> Kind` / `=> Kind` for functions that also act, checked
+against Rhai's own signatures with the `metadata` feature in tests) decide whether a call is a step
+on the flow or a value node. `function_code` walks the flow from *Start*, writes value nodes into
+the expressions that use them and a step's used result into a `let`, and checks types, missing
+functions, circles and results used before their step (a broken function is written as a stub).
+`Project::save_defs` writes `scripts/visual_scripts.rhai`; the game only ever runs that Rhai. Ids
+typed into inputs are references by the API argument kinds (renames, library export).
+
 **Unused assets** (`unused.rs`): models, sheets, sounds, materials and fonts count as used when their
 id appears as a string in the other definition lists (each `defs/` list serialized as RON), the
 project config, a map's `Meta` (plus its materials and decoration props) or, as a substring, in a

@@ -198,6 +198,8 @@ pub struct DbState {
     /// The material form's preview (Materials tab).
     pub mat_preview: crate::material_preview::MaterialPreview,
     pub skin_preview: crate::skin_preview::SkinPreview,
+    /// The table view (Items, Characters, Spells, Recipes).
+    pub table: crate::db_table::TableState,
 }
 
 /// Everything the definition forms need besides the definition itself.
@@ -396,9 +398,19 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                 ed.db.sel = 0;
                 ed.db.search.clear();
                 ed.db.rename = RenameUi::default();
+                ed.db.table.sel.clear();
+                ed.db.table.sort = None;
+                ed.db.table.msg.clear();
+                ed.db.table.bulk_col = 1;
             }
         }
         ui.separator();
+        if crate::db_table::has_table(ed.db.tab) {
+            let on = ed.db.table.on;
+            if ui.selectable_label(on, ui::t(ph::TABLE, "Table")).on_hover_text("One row per definition with its main fields: sort by a column, edit in place, change a column of many rows at once (set, add %, formula). Off = the list and the form.").clicked() {
+                ed.db.table.on = !on;
+            }
+        }
         let (u, r) = (ed.db_hist.can_undo(), ed.db_hist.can_redo());
         if ui::icon_button(ui, u, ph::ARROW_ARC_LEFT, "Undo", "Ctrl+Z", "Undoes the latest change to the definitions or project settings (a rename is renamed back, maps and scripts included)").clicked() {
             ed.db_undo();
@@ -499,7 +511,9 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
     let mut place_structure: Option<String> = None;
     let tab = ed.db.tab;
     let sel_before = ed.db.sel;
-    if matches!(tab, Tab::Project | Tab::Scripts | Tab::Factions) {
+    if ed.db.table.on && crate::db_table::has_table(tab) {
+        egui::CentralPanel::default().show_inside(ui, |ui| table_view(ed, ui, tab));
+    } else if matches!(tab, Tab::Project | Tab::Scripts | Tab::Factions) {
         egui::CentralPanel::default().show_inside(ui, |ui| match tab {
             Tab::Project => project_ui(ed, ui),
             Tab::Factions => factions_ui(ed, ui),
@@ -953,6 +967,51 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
     ed.db_hist.give_back(before);
     if let Some((kind, old, new)) = ed.db.rename.request.take() {
         ed.rename_id(kind, &old, &new);
+    }
+}
+
+/// The table view of `tab`: the search (and the Items' category filter) over the table.
+fn table_view(ed: &mut Editor, ui: &mut egui::Ui, tab: Tab) {
+    use crate::db_table::{character_cols, item_cols, recipe_cols, spell_cols, table_ui};
+    let db = &mut ed.project.db;
+    let mut cats = Vec::new();
+    ui.horizontal(|ui| {
+        if tab == Tab::Items {
+            let ammo = crate::item_category::ammo_of(db);
+            cats = db.items.iter().map(|d| crate::item_category::category(d, &ammo)).collect();
+            crate::item_category::picker(ui, "db_item_filter", &mut ed.db.item_filter, &cats);
+        }
+        ui.label(ph::MAGNIFYING_GLASS);
+        ui.add(egui::TextEdit::singleline(&mut ed.db.search).hint_text("search name or id").desired_width(220.0));
+    });
+    let needle = ed.db.search.trim().to_lowercase();
+    let hit = |name: &str, id: &str| needle.is_empty() || name.to_lowercase().contains(&needle) || id.to_lowercase().contains(&needle);
+    let f = ed.db.item_filter;
+    let st = &mut ed.db.table;
+    let open = match tab {
+        Tab::Items => {
+            let shown: Vec<usize> = (0..db.items.len()).filter(|&i| f.keeps(cats[i]) && hit(&db.items[i].name, &db.items[i].id)).collect();
+            table_ui(ui, &mut db.items, &item_cols(), |d| &d.id, &shown, st)
+        }
+        Tab::Characters => {
+            let shown: Vec<usize> = (0..db.characters.len()).filter(|&i| hit(&db.characters[i].name, &db.characters[i].id)).collect();
+            table_ui(ui, &mut db.characters, &character_cols(), |d| &d.id, &shown, st)
+        }
+        Tab::Spells => {
+            let shown: Vec<usize> = (0..db.spells.len()).filter(|&i| hit(&db.spells[i].name, &db.spells[i].id)).collect();
+            table_ui(ui, &mut db.spells, &spell_cols(), |d| &d.id, &shown, st)
+        }
+        Tab::Recipes => {
+            let shown: Vec<usize> = (0..db.recipes.len()).filter(|&i| hit(&db.recipes[i].result, &db.recipes[i].id)).collect();
+            table_ui(ui, &mut db.recipes, &recipe_cols(), |d| &d.id, &shown, st)
+        }
+        _ => None,
+    };
+    ed.db.list_shown = (ed.db.table.shown.len(), tab_len(&ed.project.db, tab));
+    if let Some(i) = open {
+        ed.db.sel = i;
+        ed.db.table.on = false;
+        ed.db.rename = RenameUi::default();
     }
 }
 

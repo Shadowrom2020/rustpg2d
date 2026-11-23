@@ -24,6 +24,7 @@ mod graph;
 mod decor_tool;
 mod ground_tool;
 mod import;
+mod db_table;
 mod item_category;
 mod library_ui;
 mod library_update;
@@ -670,7 +671,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // watchanswer reload|keep: answers the "changed on disk" banner
         "watchanswer" => ed.watch_answer(arg(1) == "reload"),
         "status" => println!(
-            "[status] {} repo={} library={} script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} projectfile={} notices={} search={} usages={} problems={} plugins={} libupdate={} starter={} art={} pixel={} mode={:?} dbtab={:?} dbsel={} dblist={}/{} itemfilter={} libshown={} script={:?} ground={} decor={} timeline={} msg={}",
+            "[status] {} repo={} library={} script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} projectfile={} notices={} search={} usages={} problems={} plugins={} libupdate={} starter={} art={} pixel={} mode={:?} dbtab={:?} dbsel={} dblist={}/{} itemfilter={} libshown={} script={:?} ground={} decor={} dbtable={} timeline={} msg={}",
             TIMING.with(|t| t.borrow_mut().take()),
             match repo_mode::root() {
                 None => "off".to_string(),
@@ -720,6 +721,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.db.script_file.as_ref().and_then(|f| f.file_name()).map(|f| f.to_string_lossy().to_string()),
             ed.ground_status(),
             ed.decor_status(),
+            ed.db.table.status(ed.db.tab),
             ed.timeline_status(),
             ed.status.0
         ),
@@ -779,6 +781,44 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // dbsearch TEXT|- : the Database list's search · itemfilter all|weapons|armor|magic|CATEGORY:
         // the item category of the Database's Items list, the library's browse view and the open
         // "Add from library" dialog (status `dblist=` / `libshown=`)
+        // The Database's table view (status `dbtable=`).
+        "dbtable" => ed.db.table.on = arg(1) != "off",
+        "dbsort" => {
+            ed.db.table.sort = if arg(1) == "-" {
+                None
+            } else {
+                match db_table::column_index(ed.db.tab, arg(1)) {
+                    Some(k) => Some((k, arg(2) != "desc")),
+                    None => {
+                        println!("[script] dbsort: no column '{}' ({:?})", arg(1), db_table::column_names(ed.db.tab));
+                        ed.db.table.sort
+                    }
+                }
+            }
+        }
+        "dbtsel" => {
+            let t = &mut ed.db.table;
+            match arg(1) {
+                "all" => t.sel = t.shown.iter().cloned().collect(),
+                "none" => t.sel.clear(),
+                ids => t.sel = ids.split(',').map(|s| s.to_string()).collect(),
+            }
+        }
+        "dbbulk" => match (db_table::column_index(ed.db.tab, arg(1)), db_table::BulkOp::parse(arg(2))) {
+            (Some(k), Some(op)) => {
+                let t = &mut ed.db.table;
+                (t.bulk_col, t.bulk_op, t.bulk_value) = (k, op, cmd[3.min(cmd.len())..].join(" "));
+                match db_table::bulk_tab(&mut ed.project.db, ed.db.tab, &ed.db.table) {
+                    Ok((done, skipped)) => {
+                        println!("[script] dbbulk: {done} changed, {skipped} left alone");
+                        ed.defs_dirty = true;
+                        ed.project.db.reindex();
+                    }
+                    Err(e) => println!("[script] dbbulk: {e}"),
+                }
+            }
+            _ => println!("[script] dbbulk COLUMN set|add%|formula VALUE: columns {:?}", db_table::column_names(ed.db.tab)),
+        },
         "dbsearch" => ed.db.search = if arg(1) == "-" { String::new() } else { cmd[1..].join(" ") },
         "itemfilter" => match item_category::ItemFilter::parse(arg(1)) {
             Some(f) => {

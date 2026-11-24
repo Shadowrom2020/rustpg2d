@@ -72,6 +72,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   in front of the hero, a companion or a hostile character within 12 tiles fade to a third while
   they cover them on the screen (a quarter of a second in and out). Autoplay `status` prints
   `cover=N` (props see-through now).
+- **Fences that run along their line**: the starter library's *Fence section*, *Wooden fence* and
+  the fence ends are thin blocks (32 x 4 px, 28 px high) showing their picture, *Fence section
+  (north to south)* (`fence_section_side`) is the same fence across a tile's middle, and the hedge
+  is a low block. The village's cemetery, the farm pen and the fields have fences on all sides
+  instead of top-down post pictures.
 ### Visual scripts
 - **Script functions made of nodes** (`defs/visual_scripts.ron`, first part): a visual script is a
   function whose nodes are the script API's functions (a step on the flow, or a value such as

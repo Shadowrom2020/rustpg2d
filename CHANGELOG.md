@@ -98,6 +98,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   sheets `<prop>_painted` at twice the world's pixel density; 368 credits), with their states (a
   stump, a picked bush, a mined-out vein, a broken pot). Same ids, hitboxes and heights; the
   example's forest, village and mine use them.
+- **Painted ground**: 42 ground materials of the starter library (grass, meadow, dirt, sand,
+  snow, cobblestones, flagstones, floors, carpets, water, lava and more) are painted textures in
+  the same style (`materials/painted/<id>.png`, 128 px, seamless; water, swamp, waterfall and lava
+  keep their animation in four frames; 172 credits). Each texture keeps the old one's layout and
+  the size of its stones, planks and tufts. The black fillers stay as they were.
 ### Visual scripts
 - **Script functions made of nodes** (`defs/visual_scripts.ron`, first part): a visual script is a
   function whose nodes are the script API's functions (a step on the flow, or a value such as

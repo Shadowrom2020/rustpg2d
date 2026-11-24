@@ -409,7 +409,10 @@ the western RPGs (Baldur's Gate, Planescape: Torment).
   (`feature/iso-art-nature`): 72 painted pictures and 18 state pictures (368 credits; balance 3,214),
   cut out, scaled to the old picture's height, the foot at the frame's bottom middle. *Open:* the
   pictures cast no shadow (a picture has no anchor below its foot; an anchor field would let a
-  baked shadow reach below it). Next: ground shadows for 3D props and the see-through cover, kit fences and
+  baked shadow reach below it). Part 7 (`feature/iso-art-ground`): 42 painted ground textures
+  (172 credits incl. a second grass; balance 3,042) from the old tile repeated 4 x 4 as the
+  reference, so every stone and plank keeps its size; 128 px, seamless by cross-fading with a
+  shifted copy. Next: ground shadows for 3D props and the see-through cover, kit fences and
   railings, painted wall and roof textures, then the Meshy run for the one-offs, props and nature.
 
 - [ ] Painted figures — `feature/painted-figures`

@@ -178,6 +178,9 @@ async fn main() {
             let m = ed.share_clips(&target, &source, &[], false).unwrap_or_else(|e| e);
             ed.set_status(m);
         }
+        if let Some(id) = structures::take_edit_request() {
+            ed.edit_structure_on_canvas(&id);
+        }
         if let Some(id) = database::take_icon_request() {
             let m = ed.render_item_icon(&id);
             ed.set_status(m);
@@ -187,6 +190,7 @@ async fn main() {
         ed.update_canvas();
         let drawing = std::time::Instant::now();
         ed.draw_canvas();
+        ed.render_structure_thumb();
         TIMING.with(|t| t.borrow_mut().frame(get_frame_time(), drawing.elapsed().as_secs_f32()));
         egui_macroquad::draw();
         if let Some(p) = shot.take() {
@@ -956,47 +960,12 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.show_result(r);
             println!("[script] {}", ed.lib.report.clone().unwrap_or_default());
         }
-        // stnew · sttool ground|keep|noground|decor|cleardecor|solid|walkable|auto|prop ·
-        // stmaterial ID · stprop ID · stdecorlayer flat|sorted|above · stpaint X Y (tile of the
-        // open structure in Database → Structures) · stsize W H
+        // stnew = New structure (opens it on the canvas) · stedit ID = Edit on the map · stdone /
+        // stcancel = leave it, saved or not
         "stnew" => ed.new_structure(),
-        "sttool" => {
-            use structures::StTool;
-            ed.db.st_edit.tool = match arg(1) {
-                "keep" => StTool::Keep,
-                "noground" => StTool::NoGround,
-                "decor" => StTool::Decor,
-                "cleardecor" => StTool::ClearDecor,
-                "solid" => StTool::Collision(1),
-                "walkable" => StTool::Collision(2),
-                "auto" => StTool::Collision(rustpg2d_engine::defs::StructureDef::COLLISION_AUTO),
-                "prop" => StTool::Prop,
-                _ => StTool::Ground,
-            }
-        }
-        "stmaterial" => ed.db.st_edit.material = arg(1).to_string(),
-        "stprop" => ed.db.st_edit.prop = arg(1).to_string(),
-        "stdecorlayer" => {
-            use rustpg2d_engine::decor::DecorLayer;
-            ed.db.st_edit.decor_layer = match arg(1) {
-                "flat" => DecorLayer::Flat,
-                "above" => DecorLayer::Above,
-                _ => DecorLayer::Sorted,
-            }
-        }
-        "stpaint" | "stsize" => {
-            let i = ed.db.sel;
-            let db = ed.project.db.clone();
-            if let Some(d) = ed.project.db.structures.get_mut(i) {
-                if arg(0) == "stsize" {
-                    d.resize(num(1) as u32, num(2) as u32);
-                    d.prune();
-                } else {
-                    ed.db.st_edit.apply(d, (num(1) as u32, num(2) as u32), &db);
-                }
-                ed.defs_dirty = true;
-            }
-        }
+        "stedit" => ed.edit_structure_on_canvas(arg(1)),
+        "stdone" => ed.finish_structure_edit(true),
+        "stcancel" => ed.finish_structure_edit(false),
         "stinfo" => {
             let ids: Vec<&str> = ed.project.db.structures.iter().map(|d| d.id.as_str()).collect();
             let ents = ed.doc.as_ref().map_or(0, |d| d.map.entities.len());

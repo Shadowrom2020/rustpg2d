@@ -120,6 +120,14 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   post, both in the painted wood; *Soil plot* is a low raised bed of tilled earth with furrows
   instead of an upright picture. Built by a Blender script, they line up exactly on the grid. The
   wheat, carrots and pumpkins are painted in their three stages (36 credits).
+- **Structures look as in the game in the editor**: the preview while placing (and pasting) draws
+  the structure's painted ground, models, buildings, wall blocks and turns, see-through; the
+  palette, the Database and the library show thumbnails rendered the same way.
+- **Structures are edited on the map canvas**: *Edit on the map* (Database › Structures; a new
+  structure opens there at once) opens it as a small map with every map tool; a bar over the map
+  saves it back (*Done*, Ctrl+S) or leaves it (*Cancel*). The top-down grid editor and its editor
+  script commands (`sttool`, `stpaint`, `stsize`, …) are gone; `stedit ID`, `stdone`, `stcancel`
+  replace them.
 ### Visual scripts
 - **Script functions made of nodes** (`defs/visual_scripts.ron`, first part): a visual script is a
   function whose nodes are the script API's functions (a step on the flow, or a value such as

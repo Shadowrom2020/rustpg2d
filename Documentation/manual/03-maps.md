@@ -197,18 +197,15 @@ a selected region): drag a rectangle on the map, then give it an id, a name and 
 entities standing in it and its collision overrides become the structure; with the ground, placing
 it clears the area's decorations first.
 
-**The structure editor** (*Database › Structures*; new ones with *New asset… › Structure*, as an
-empty grid or a copy of another one) has three columns:
+**Editing a structure** happens on the map canvas: *Edit on the map* in *Database › Structures*
+(new ones with *New asset… › Structure* open there at once) opens the structure as a small map of
+its own, drawn as in the game, with every map tool: the Ground tool, decorations and their layers,
+objects, collision, **R** to turn, *Resize…* in the map's settings for its size. A bar over the
+map shows which structure is open: **Done** (or Ctrl+S) saves it back into the structure and goes
+back to your map, **Cancel** goes back without saving; opening another map saves it first.
+Structures with no ground keep none unless you paint some. The palette's thumbnails, the Database
+and the preview while placing show structures as the game draws them.
 
-- **Left**: the tools (*Ground*: paint a material on tiles, erase = the map keeps its ground, remove
-  the map's ground; *Decorations*: place one (on the chosen layer), clear the map's decorations;
-  *Collision*: solid, walkable, automatic, keep the map's; *Objects*: place a prop as an entity).
-  Below: the size (*Resize*) and undo / redo.
-- **Middle**: the grid. Click or drag to paint; right-click picks a tile's material (or removes the
-  decorations or props standing there).
-- **Right**: the materials, the prop gallery or the collision legend.
-
-Finer ground (a shore, a winding path) is easier to paint on a map and capture.
 
 The example has 35 structures (pieces of nature and the buildings of the village); the starter
 library adds town houses, a brick shop, a watchtower, city walls, fences, hedges, a plaza, a market,

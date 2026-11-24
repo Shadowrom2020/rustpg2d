@@ -199,7 +199,6 @@ pub struct DbState {
     /// Editor script `dbscroll Y`: scroll the definition form there once.
     pub form_scroll: Option<f32>,
     /// The structure editor (Structures tab).
-    pub st_edit: crate::structures::StructEdit,
     /// The material form's preview (Materials tab).
     pub mat_preview: crate::material_preview::MaterialPreview,
     pub skin_preview: crate::skin_preview::SkinPreview,
@@ -229,7 +228,6 @@ struct Cx<'a> {
     art_open: &'a mut bool,
     /// Art actions handled after the form (they need the whole editor).
     art: &'a mut Option<ArtAction>,
-    st_edit: &'a mut crate::structures::StructEdit,
     mat_preview: &'a mut crate::material_preview::MaterialPreview,
     /// The picture open in the pixel editor: (path, pixels, change counter).
     drawing: Option<(&'a str, &'a rustpg2d_engine::imageio::Rgba, u64)>,
@@ -786,7 +784,6 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                     state_renamed: &mut state_renamed,
                     art_open: &mut ed.db.art_open,
                     art: &mut art,
-                    st_edit: &mut ed.db.st_edit,
                     mat_preview: &mut ed.db.mat_preview,
                     drawing: ed.px.doc.as_ref().map(|d| (d.rel.as_str(), &d.img, d.version)),
                     root: &ed.project.root,
@@ -3288,7 +3285,17 @@ fn structure_form(ui: &mut egui::Ui, d: &mut StructureDef, cx: &mut Cx) -> bool 
         }
     });
     ui.separator();
-    crate::structures::structure_editor(ui, d, cx.st_edit, cx.db, cx.tex, cx.assets);
+    let (rect, _) = ui.allocate_exact_size(vec2(320.0, 320.0), Sense::hover());
+    ui.painter().rect_filled(rect, 4.0, Color32::from_gray(40));
+    if !crate::structures::paint_structure_thumb(ui, rect.shrink(4.0), d) {
+        crate::structures::paint_project_structure(ui, rect.shrink(4.0), d, cx.db, cx.tex, cx.assets);
+        ui.ctx().request_repaint();
+    }
+    if library {
+        ui.weak("Structures are edited on a project's map: add it to a project, edit it there and send it back to the library.");
+    } else if ui.button(format!("{} Edit on the map", crate::ui::ph::PENCIL_SIMPLE)).on_hover_text("Opens the structure on the map canvas as a small map of its own, with every map tool (ground, decorations, objects, R to turn, Resize… for its size). Ctrl+S or Done saves it back into the structure; Cancel leaves it unchanged.").clicked() {
+        crate::structures::request_edit(&d.id);
+    }
     if !library {
         ui.weak("You can also capture an area of a map: Structures tool (H), \u{E69C} New from map area…");
     }

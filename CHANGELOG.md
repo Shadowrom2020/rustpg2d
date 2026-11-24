@@ -67,6 +67,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   *Door* (`room_door`) are thin blocks now (32 x 4 px, 46 px high): they stand in a wall's line,
   and a lockable door in a building's doorway (Halvar's house) covers the building's own door
   instead of standing beside it.
+- **Shadows and see-through cover**: still 3D models (buildings, props with a model) cast a
+  shadow on the ground toward the lower right, rendered with them. Props, trees and buildings drawn
+  in front of the hero, a companion or a hostile character within 12 tiles fade to a third while
+  they cover them on the screen (a quarter of a second in and out). Autoplay `status` prints
+  `cover=N` (props see-through now).
 ### Visual scripts
 - **Script functions made of nodes** (`defs/visual_scripts.ron`, first part): a visual script is a
   function whose nodes are the script API's functions (a step on the flow, or a value such as

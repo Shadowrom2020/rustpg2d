@@ -229,6 +229,10 @@ impl Body {
 /// Height above the ground (in tiles) that arrows and flying spell sprites travel at: they are
 /// drawn in depth order by the ground point below them.
 const FLIGHT_HEIGHT: f32 = 0.3;
+/// How see-through a prop is while it covers the hero, a companion or a foe (see `update_cover`).
+const COVER_ALPHA: f32 = 0.35;
+/// Seconds a prop takes to fade to see-through and back.
+const COVER_FADE: f32 = 0.25;
 
 /// What one step of the depth-sorted world drawing draws.
 #[derive(Clone, Copy)]
@@ -570,6 +574,10 @@ pub struct Game {
     /// Blocks (walls, counters) drawn this frame and how many of them were cut down in front of
     /// the hero (`status view=`).
     blocks_drawn: std::cell::Cell<(u32, u32)>,
+    /// How see-through each prop and decoration in front of someone who must stay visible is now
+    /// (fading in and out; by `cover_key`; absent = solid) and the alpha of the one being drawn.
+    cover: std::cell::RefCell<std::collections::HashMap<(u8, usize), f32>>,
+    cover_alpha: std::cell::Cell<f32>,
     /// Placed entities of other maps read from disk for companions (`placed_instance`), once
     /// per game: map files don't change while it runs.
     placed_cache: std::cell::RefCell<std::collections::HashMap<(String, u32), Option<crate::entity::EntityInstance>>>,
@@ -803,6 +811,8 @@ impl Game {
             light_here: std::cell::Cell::new(None),
             frame_view: std::cell::Cell::new(None),
             blocks_drawn: std::cell::Cell::new((0, 0)),
+            cover: Default::default(),
+            cover_alpha: std::cell::Cell::new(1.0),
             placed_cache: Default::default(),
             order_menu: None,
             bar: Default::default(),
@@ -1445,7 +1455,8 @@ impl Game {
         let m = &self.loaded.map;
         let d = &m.decor[i];
         let Some(p) = m.decor_defs.get(d.def as usize).and_then(|id| self.project.db.prop(id)) else { return };
-        self.assets.draw_prop(&self.project.db, p, d.state_index(), d.facing(), 0, vec2(d.x as f32, d.y as f32), d.flip, WHITE, get_time(), true);
+        let tint = Color { a: self.cover_alpha.get(), ..WHITE };
+        self.assets.draw_prop(&self.project.db, p, d.state_index(), d.facing(), 0, vec2(d.x as f32, d.y as f32), d.flip, tint, get_time(), true);
     }
 
     /// For `status()`: the material under the player's feet ("-" = none) and how many the map
@@ -2875,7 +2886,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} plugins={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} view={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} combat={} death_saves={:?} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} parts={:?} models={} rolls={} abilities={} prof={} profs={} sheet={} statblocks={:?} encounters={:?} class={} levelup={} rest={} resources={} class_fx={} money={} weapon={} armor={} attuned={} charges={} ammo={} knocked_out={} sight={} fall={} survival={:?} load={} senses={} bar={} search={} objects={:?} traps={:?} coating={} diseases={} monster_fx={} react={} {} areas={} detect={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} plugins={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} view={} {} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} combat={} death_saves={:?} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} parts={:?} models={} rolls={} abilities={} prof={} profs={} sheet={} statblocks={:?} encounters={:?} class={} levelup={} rest={} resources={} class_fx={} money={} weapon={} armor={} attuned={} charges={} ammo={} knocked_out={} sight={} fall={} survival={:?} load={} senses={} bar={} search={} objects={:?} traps={:?} coating={} diseases={} monster_fx={} react={} {} areas={} detect={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2949,6 +2960,7 @@ impl Game {
             self.common_status(),
             self.camera_status(),
             self.view_status(),
+            self.cover_status(),
             self.scroll_status(),
             self.heal_pick_status(),
             self.order_menu_status(),
@@ -3338,11 +3350,13 @@ impl Game {
         }
         let prints: Vec<render::iso::Footprint> = items.iter().map(|it| it.2).collect();
         let order = render::iso::order(&prints, 0.5);
+        let covered = self.update_cover(&items, &order, &iv);
         let t = get_time() as f32;
         for k in order {
             let (drawn, anchor, _) = items[k];
             let base = iv.upright(anchor);
             set_camera(&base);
+            self.cover_alpha.set(covered[k]);
             let idx = match drawn {
                 Drawn::Projectile(k) => {
                     self.draw_projectile(k);
@@ -3411,6 +3425,7 @@ impl Game {
             }
         }
 
+        self.cover_alpha.set(1.0);
         set_camera(&cam);
         self.draw_combat_world();
         self.draw_areas();
@@ -3559,6 +3574,86 @@ impl Game {
     }
 
     /// Draws entity `i` (its index of this frame).
+    /// The see-through cover: props and decorations drawn after (in front of) the hero, a
+    /// companion or a hostile character near the hero, and covering them on the screen, fade to
+    /// [`COVER_ALPHA`] while they do and back afterwards. Returns each item's alpha this frame.
+    fn update_cover(&self, items: &[(Drawn, Vec2, render::iso::Footprint)], order: &[usize], iv: &render::iso::View) -> Vec<f32> {
+        let ts = self.ts();
+        let db = &self.project.db;
+        let mut rank = vec![0usize; items.len()];
+        for (r, &k) in order.iter().enumerate() {
+            rank[k] = r;
+        }
+        let u = iv.upright_scale();
+        let on_screen = |feet: Vec2, r: Rect| {
+            let s = iv.to_screen(feet);
+            Rect::new(s.x + (r.x - feet.x) * u, s.y + (r.y - feet.y) * u, r.w * u, r.h * u)
+        };
+        // Who must stay visible: their body on the screen.
+        let body = |feet: Vec2| on_screen(feet, Rect::new(feet.x - ts * 0.3, feet.y - ts * 1.3, ts * 0.6, ts * 1.3));
+        let hero = self.player.pos;
+        let near = ts * 12.0;
+        let watched: Vec<(usize, Rect)> = items
+            .iter()
+            .enumerate()
+            .filter_map(|(k, (drawn, at, _))| match *drawn {
+                Drawn::Player if !self.on_title() => Some((k, body(*at))),
+                Drawn::Entity(i) => {
+                    let e = &self.loaded.entities[i];
+                    let shown = e.kind == EntityKind::Character && (e.companion.is_some() || (e.hostile && e.hp > 0 && e.body.pos.distance(hero) < near) || self.fighting(e.uid));
+                    shown.then(|| (k, body(e.body.pos)))
+                }
+                _ => None,
+            })
+            .collect();
+        let key = |d: Drawn| match d {
+            Drawn::Decor(i) => Some((0u8, i)),
+            Drawn::Entity(i) if self.loaded.entities[i].kind == EntityKind::Prop => Some((1u8, i)),
+            _ => None,
+        };
+        let mut want: std::collections::HashMap<(u8, usize), bool> = std::collections::HashMap::new();
+        for (k, (drawn, _, _)) in items.iter().enumerate() {
+            let Some(id) = key(*drawn) else { continue };
+            let (prop, state, facing, feet) = match *drawn {
+                Drawn::Decor(i) => {
+                    let d = &self.loaded.map.decor[i];
+                    (self.loaded.map.decor_defs.get(d.def as usize).and_then(|id| db.prop(id)), d.state_index(), d.facing(), vec2(d.x as f32, d.y as f32))
+                }
+                Drawn::Entity(i) => {
+                    let e = &self.loaded.entities[i];
+                    (db.prop(&e.def), e.state, e.body.facing, e.body.pos)
+                }
+                _ => continue,
+            };
+            // (Walls are cut down instead; flat things lie under everyone.)
+            let Some(p) = prop.filter(|p| p.block <= 0.0 && !p.flat) else { continue };
+            let r = on_screen(feet, self.assets.prop_rect(p, state, facing, feet, ts, true));
+            let covers = watched.iter().any(|(w, b)| rank[k] > rank[*w] && {
+                let o = r.intersect(*b).map_or(0.0, |o| o.w * o.h);
+                o > b.w * b.h * 0.15
+            });
+            want.insert(id, covers);
+        }
+        let step = get_frame_time().min(0.1) / COVER_FADE;
+        let mut cover = self.cover.borrow_mut();
+        for (id, covers) in &want {
+            let a = cover.get(id).copied().unwrap_or(1.0);
+            let a = if *covers { (a - step).max(COVER_ALPHA) } else { (a + step).min(1.0) };
+            if a < 1.0 {
+                cover.insert(*id, a);
+            } else {
+                cover.remove(id);
+            }
+        }
+        cover.retain(|id, _| want.contains_key(id));
+        items.iter().map(|(drawn, _, _)| key(*drawn).and_then(|id| cover.get(&id).copied()).unwrap_or(1.0)).collect()
+    }
+
+    /// `cover=`: how many props are see-through now.
+    fn cover_status(&self) -> String {
+        format!("cover={}", self.cover.borrow().len())
+    }
+
     fn draw_entity(&self, i: usize, t: f32) {
         let ts = self.ts();
         let db = &self.project.db;
@@ -3572,7 +3667,7 @@ impl Game {
         let lying = !e.effects.is_empty() && crate::srd::conditions::rules(&e.effects).lying;
         let drawn = match e.kind {
             EntityKind::Prop => db.prop(&e.def).is_some_and(|d| {
-                let ok = self.assets.draw_prop(db, d, e.state, e.body.facing, e.frame, e.body.pos, false, WHITE, get_time(), true);
+                let ok = self.assets.draw_prop(db, d, e.state, e.body.facing, e.frame, e.body.pos, false, Color { a: self.cover_alpha.get(), ..WHITE }, get_time(), true);
                 if e.planted.is_some() {
                     self.draw_crop(i);
                 }

@@ -4872,8 +4872,8 @@
         id: "dungeon_void",
         name: "Dungeon void",
         sprite: (
-            sheet: "dungeon_tiles",
-            frame: 16,
+            sheet: "void_dark",
+            frame: 0,
         ),
         solid: true,
         default_state: "default",

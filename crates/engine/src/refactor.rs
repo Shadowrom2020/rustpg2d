@@ -670,6 +670,15 @@ fn db_pass(db: &mut Database, config: &mut ProjectConfig, kind: RefKind, old: &s
         r.fix(RefKind::Sheet, &mut d.sprite.sheet);
         for st in &mut d.states {
             r.fix(RefKind::Sheet, &mut st.sprite.sheet);
+            if !st.model.is_empty() {
+                r.fix(RefKind::Model, &mut st.model);
+            }
+        }
+        for t in &mut d.turns {
+            r.fix(RefKind::Sheet, &mut t.sheet);
+        }
+        if !d.model.is_empty() {
+            r.fix(RefKind::Model, &mut d.model);
         }
         r.triggers(&mut d.triggers);
         r.container(&mut d.container);
@@ -994,6 +1003,15 @@ pub fn refs_of_prop(d: &crate::defs::PropDef) -> Vec<(RefKind, String)> {
     r.fix(RefKind::Sheet, &mut d.sprite.sheet);
     for st in &mut d.states {
         r.fix(RefKind::Sheet, &mut st.sprite.sheet);
+        if !st.model.is_empty() {
+            r.fix(RefKind::Model, &mut st.model);
+        }
+    }
+    for t in &mut d.turns {
+        r.fix(RefKind::Sheet, &mut t.sheet);
+    }
+    if !d.model.is_empty() {
+        r.fix(RefKind::Model, &mut d.model);
     }
     r.triggers(&mut d.triggers);
     r.container(&mut d.container);

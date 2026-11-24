@@ -229,6 +229,50 @@ impl Assets {
         true
     }
 
+    /// Draws prop `p` in state `state` facing `facing` (props that turn: a 3D model or pictures
+    /// from four sides) standing at `feet` (the hitbox's bottom middle), mirrored when `flip`;
+    /// `frame` frames further into its sheet (pictures). A model stands on the middle of its
+    /// hitbox: `iso` (drawn through an upright camera at `feet`) puts that ground offset where
+    /// the isometric view shows it. False when nothing could be drawn (a model not rendered yet,
+    /// a missing sheet).
+    #[allow(clippy::too_many_arguments)]
+    pub fn draw_prop(&self, db: &crate::defs::Database, p: &crate::defs::PropDef, state: usize, facing: crate::entity::Facing, frame: u32, feet: Vec2, flip: bool, tint: Color, time: f64, iso: bool) -> bool {
+        let model = p.model_at(state);
+        if !model.is_empty() && self.models.has(model) {
+            let look = crate::defs::Appearance { model: model.to_string(), ..Default::default() };
+            let gear = model::Gear::default();
+            let req = model::PoseReq { look: &look, gear: &gear, anim: "idle", time: 0.0, once: false, facing, turn: 0, bust: false };
+            let Some(cell) = self.models.pose(db, &self.sheets, &req) else { return false };
+            let off = vec2(0.0, -p.hitbox_facing(facing)[1] / 2.0);
+            let at = feet + if iso { iso::lay(off) } else { off };
+            self.models.draw_flipped(&cell, at, 1.0, tint, flip);
+            return true;
+        }
+        let sp = p.picture_facing(state, facing, time);
+        if frame == 0 {
+            self.draw_sprite_flipped(&sp, feet, tint, flip)
+        } else {
+            self.draw_sprite_flipped(&SpriteRef { frame: sp.frame + frame, ..sp.into_owned() }, feet, tint, flip)
+        }
+    }
+
+    /// Where prop `p` (state `state`, facing `facing`) standing at `feet` is drawn, in the
+    /// coordinates of its upright drawing (a picture: its frame above the feet; a model in the
+    /// isometric view: the box its footprint and height take on the screen): for clicking on it.
+    pub fn prop_rect(&self, p: &crate::defs::PropDef, state: usize, facing: crate::entity::Facing, feet: Vec2, ts: f32, iso: bool) -> Rect {
+        let model = p.model_at(state);
+        if iso && !model.is_empty() && self.models.has(model) {
+            let [w, h] = p.hitbox_facing(facing);
+            let height = self.models.def(model).map_or(ts, |d| d.height);
+            let c = feet + iso::lay(vec2(0.0, -h / 2.0));
+            let (half, below) = ((w + h) / (2.0 * iso::UPRIGHT), (w + h) / (4.0 * iso::UPRIGHT));
+            let above = height * 30f32.to_radians().cos() + below;
+            return Rect::new(c.x - half, c.y - above, 2.0 * half, above + below);
+        }
+        let size = self.sprite_size(&p.picture_facing(state, facing, 0.0), ts);
+        Rect::new(feet.x - size.x / 2.0, feet.y - size.y, size.x, size.y)
+    }
+
     /// Draws something held in a hand (`l`: its sprite, its grip point put at `at`, turned by its
     /// rotation, mirrored top to bottom first when `flip`); `scale` times its world size.
     pub fn draw_held_sprite(&self, l: &crate::hands::HeldLayer, at: Vec2, scale: f32, tint: Color) -> bool {

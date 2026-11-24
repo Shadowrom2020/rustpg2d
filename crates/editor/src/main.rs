@@ -1641,6 +1641,8 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         },
         "decorsize" => ed.decor.size = num(1).max(0.5) * rustpg2d_engine::project::TILE_SIZE as f32 / 2.0,
         "decorflip" => ed.decor.random_flip = arg(1) != "off",
+        // turn: R (the decoration about to be placed, or the selected prop, a quarter further)
+        "turn" => ed.turn_key(),
         "groundsize" => ed.ground_size = num(1).max(0.25) * rustpg2d_engine::project::TILE_SIZE as f32 / 2.0,
         "gpaint" | "gline" | "gfill" | "grect" => {
             let ts = rustpg2d_engine::project::TILE_SIZE as f32;

@@ -97,7 +97,9 @@ frames of its sheet and a speed) plays it as a decoration too: torches, flags, w
 | **Scatter** | Click or drag a brush: a **scatter set**'s props at random, keeping their spacing (*Forest*, *Rocks*, *Wild plants*; [Database › Scatter sets](05-database.md#scatter-sets)) |
 | **Erase** | Click or drag a brush: removes the decorations under it |
 
-*Mirror at random* flips placed props half of the time; **[** and **]** change the brush size;
+*Mirror at random* flips placed props half of the time; props with a 3D model or pictures from
+four sides **turn**: **R** (or *Turn* in the left panel) turns the next ones a quarter, their
+hitbox with them; **[** and **]** change the brush size;
 right-click takes the prop of the decoration under the cursor. Each click or stroke is one undo
 step. With *View › Collision* on, solid decorations show their hitboxes (red; yellow: low) and the
 painted ground its blocked cells.

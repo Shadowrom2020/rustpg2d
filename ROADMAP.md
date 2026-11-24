@@ -278,6 +278,11 @@ the western RPGs (Baldur's Gate, Planescape: Torment).
   Part 2 (`feature/iso-editor`): the editor's canvas through the same view (tools, zones, previews
   and the grid on the diamonds; entities, decorations, ghosts and outlines upright in depth order;
   picking on the screen; arrow keys and dragging along the screen), *View › Top-down* (I).
+  Part 3 (`feature/iso-props`): `PropDef.model` / `PropState.model` drawn through the figure
+  renderer (`Assets::draw_prop`, origin at the hitbox's middle, frames grown for wide objects),
+  `PropDef.turns` (pictures from four sides), turns by the placed prop's `facing` and, for
+  decorations, the two high bits of `Decor.state` (`Decor::turn`; *decided while building*: the
+  map format and older readers stay as they are), hitboxes turned, R in the editor.
 
   **Verify.** Unit tests of the projection (world ↔ screen round trip, picking) and of the
   depth order (a character beside a building's side, behind it, in front of it); autoplay on a

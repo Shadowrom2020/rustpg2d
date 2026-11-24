@@ -88,7 +88,10 @@ impl Game {
         let db = &self.project.db;
         let ts = self.ts();
         let size = match e.kind {
-            EntityKind::Prop => db.prop(&e.def).map(|d| self.assets.sprite_size(d.state_look(e.state).0, ts)),
+            EntityKind::Prop => match db.prop(&e.def) {
+                Some(d) => return self.assets.prop_rect(d, e.state, e.body.facing, e.body.pos, ts, true),
+                None => None,
+            },
             EntityKind::Character => db.character(&e.def).and_then(|d| self.assets.sheets.get(&d.appearance.body)).map(|s| s.world_size()),
             EntityKind::Item => db.item(&e.def).map(|d| self.assets.sprite_size(&d.icon, ts)),
         }

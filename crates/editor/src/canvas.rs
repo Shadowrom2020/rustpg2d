@@ -125,6 +125,29 @@ impl Editor {
         }
     }
 
+    /// R: turns the decoration about to be placed, or the selected prop, a quarter (props that
+    /// turn: a 3D model or pictures from four sides).
+    pub fn turn_key(&mut self) {
+        if self.tool == Tool::Decor {
+            self.decor.turn = (self.decor.turn + 1) % 4;
+            let facing = rustpg2d_engine::decor::turn_facing(self.decor.turn);
+            self.set_status(format!("Decorations placed facing {}", facing.label().to_lowercase()));
+            return;
+        }
+        let Selection::Entity(uid) = self.sel else { return };
+        let Some(doc) = &mut self.doc else { return };
+        let Some(e) = doc.map.entity(uid) else { return };
+        if e.kind != EntityKind::Prop || !self.project.db.prop(&e.def).is_some_and(|d| d.turns()) {
+            self.set_status("Only props with a 3D model or pictures from four sides turn");
+            return;
+        }
+        let before = Objects::of(&doc.map);
+        if let Some(e) = doc.map.entities.iter_mut().find(|e| e.uid == uid) {
+            e.facing = rustpg2d_engine::decor::turn_facing(rustpg2d_engine::decor::facing_turn(e.facing) + 1);
+        }
+        doc.record_objects(before, "turn");
+    }
+
     pub fn camera(&self) -> Camera2D {
         if let Some(v) = self.iso() {
             return v.ground();
@@ -139,6 +162,9 @@ impl Editor {
     /// Frame size and anchor used to draw and hit-test an entity.
     fn entity_rect(&self, e: &EntityInstance) -> Rect {
         let ts = self.ts();
+        if let Some(d) = (e.kind == EntityKind::Prop).then(|| self.project.db.prop(&e.def)).flatten() {
+            return self.assets.prop_rect(d, d.state_index(&e.state).unwrap_or(0), e.facing, vec2(e.x, e.y), ts, self.iso().is_some());
+        }
         let sprite = match e.kind {
             EntityKind::Prop => self.project.db.prop(&e.def).map(|d| d.state_look(d.state_index(&e.state).unwrap_or(0)).0.clone()),
             _ => self.def_sprite(e.kind, &e.def),
@@ -158,7 +184,7 @@ impl Editor {
     fn entity_hitbox(&self, e: &EntityInstance) -> Option<Rect> {
         let db = &self.project.db;
         let hb = match e.kind {
-            EntityKind::Prop => db.prop(&e.def).map(|d| d.hitbox)?,
+            EntityKind::Prop => db.prop(&e.def).map(|d| d.hitbox_facing(e.facing))?,
             EntityKind::Character => db.character(&e.def).map(|d| d.hitbox)?,
             EntityKind::Item => return None,
         };
@@ -402,6 +428,9 @@ impl Editor {
         }
         if is_key_pressed(KeyCode::I) {
             self.view.topdown = !self.view.topdown;
+        }
+        if is_key_pressed(KeyCode::R) {
+            self.turn_key();
         }
         // [ and ]: the Ground brush's size, a quarter tile at a time.
         if self.tool == Tool::Ground {
@@ -750,7 +779,8 @@ impl Editor {
     /// Draws decoration `i` of `map`.
     fn draw_decor(&self, map: &rustpg2d_engine::map::Map, i: usize, tint: Color) {
         let d = &map.decor[i];
-        let drawn = map.decor_defs.get(d.def as usize).and_then(|id| self.project.db.prop(id)).is_some_and(|p| self.assets.draw_sprite_flipped(&p.sprite_at(d.state as usize, get_time()), vec2(d.x as f32, d.y as f32), tint, d.flip));
+        let iso = self.iso().is_some();
+        let drawn = map.decor_defs.get(d.def as usize).and_then(|id| self.project.db.prop(id)).is_some_and(|p| self.assets.draw_prop(&self.project.db, p, d.state_index(), d.facing(), 0, vec2(d.x as f32, d.y as f32), d.flip, tint, get_time(), iso));
         if !drawn {
             draw_rectangle(d.x as f32 - 8.0, d.y as f32 - 16.0, 16.0, 16.0, Color::new(1.0, 0.0, 1.0, 0.6));
         }
@@ -851,7 +881,7 @@ impl Editor {
             let col = if e.active { WHITE } else { Color::new(1.0, 1.0, 1.0, 0.4) };
             let pos = vec2(e.x, e.y);
             let drawn = match e.kind {
-                EntityKind::Prop => db.prop(&e.def).is_some_and(|d| self.assets.draw_sprite(d.state_look(d.state_index(&e.state).unwrap_or(0)).0, e.frame, pos, col)),
+                EntityKind::Prop => db.prop(&e.def).is_some_and(|d| self.assets.draw_prop(db, d, d.state_index(&e.state).unwrap_or(0), e.facing, e.frame, pos, false, col, 0.0, iso.is_some())),
                 EntityKind::Character => self.draw_char(&e.def, Some(e), e.facing, pos, col),
                 EntityKind::Item => db.item(&e.def).is_some_and(|d| self.assets.draw_sprite(&d.icon, 0, pos, col)),
             };
@@ -937,7 +967,8 @@ impl Editor {
             }
             for d in &map.decor {
                 let Some(p) = map.decor_defs.get(d.def as usize).and_then(|id| self.project.db.prop(id)).filter(|p| p.solid) else { continue };
-                let r = Rect::new(d.x as f32 - p.hitbox[0] / 2.0, d.y as f32 - p.hitbox[1], p.hitbox[0], p.hitbox[1]);
+                let [w, h] = if p.turns() { p.hitbox_facing(d.facing()) } else { p.hitbox };
+                let r = Rect::new(d.x as f32 - w / 2.0, d.y as f32 - h, w, h);
                 if r.overlaps(&view) {
                     let c = if p.low { Color::new(1.0, 0.85, 0.1, 0.9) } else { Color::new(1.0, 0.2, 0.2, 0.9) };
                     draw_rectangle_lines(r.x, r.y, r.w, r.h, 1.5 * px, c);
@@ -1378,8 +1409,8 @@ impl Editor {
             let mut lights = Vec::new();
             for d in &map.decor {
                 let Some(p) = map.decor_defs.get(d.def as usize).and_then(|id| self.project.db.prop(id)) else { continue };
-                if let Some(l) = p.state_light(d.state as usize) {
-                    let lift = self.assets.sprite_size(p.state_look(d.state as usize).0, ts).y * 0.65;
+                if let Some(l) = p.state_light(d.state_index()) {
+                    let lift = self.assets.sprite_size(p.state_look(d.state_index()).0, ts).y * 0.65;
                     lights.push(Light::new(vec2(d.x as f32, d.y as f32 - lift), l));
                 }
             }

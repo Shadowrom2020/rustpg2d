@@ -57,11 +57,13 @@ pub struct DecorTool {
     pub last: Vec2,
     pub seed: u64,
     pub filter: String,
+    /// Quarter turns of placed props that turn (R; `Decor::turn`).
+    pub turn: u8,
 }
 
 impl Default for DecorTool {
     fn default() -> Self {
-        DecorTool { mode: DecorMode::Place, prop: String::new(), scatter: String::new(), layer: DecorLayer::Sorted, random_flip: false, size: 48.0, line_start: None, stroke: None, last: Vec2::ZERO, seed: 1, filter: String::new() }
+        DecorTool { mode: DecorMode::Place, prop: String::new(), scatter: String::new(), layer: DecorLayer::Sorted, random_flip: false, size: 48.0, line_start: None, stroke: None, last: Vec2::ZERO, seed: 1, filter: String::new(), turn: 0 }
     }
 }
 
@@ -195,7 +197,10 @@ impl Editor {
         let (prop, layer) = (self.decor.prop.clone(), self.decor.layer);
         if let Some(doc) = &mut self.doc {
             let slot = doc.map.decor_slot(&prop);
-            let d = Decor { def: slot, x: p.x as i32, y: p.y as i32, flip, state: 0, layer };
+            let mut d = Decor { def: slot, x: p.x as i32, y: p.y as i32, flip, state: 0, layer };
+            if def.turns() {
+                d.set_turn(self.decor.turn);
+            }
             doc.map.decor.push(d);
             doc.record_decor(vec![d], vec![]);
         }
@@ -260,10 +265,13 @@ impl Editor {
                     let b = if (b.x - a.x).abs() >= (b.y - a.y).abs() { vec2(b.x, a.y) } else { vec2(a.x, b.y) };
                     draw_line(a.x, a.y, b.x, b.y, 3.0 * px, YELLOW);
                 }
+                let facing = rustpg2d_engine::decor::turn_facing(if def.turns() { self.decor.turn } else { 0 });
+                let iso = self.iso().is_some();
+                let draw = || self.assets.draw_prop(&self.project.db, def, 0, facing, 0, at(world), false, ghost, get_time(), iso);
                 if def.flat {
-                    self.assets.draw_sprite(&def.sprite, 0, at(world), ghost);
+                    draw();
                 } else {
-                    self.standing(at(world), || self.assets.draw_sprite(&def.sprite, 0, at(world), ghost));
+                    self.standing(at(world), draw);
                 }
                 draw_circle_lines(at(world).x, at(world).y, 3.0 * px, 1.5 * px, YELLOW);
             }
@@ -306,6 +314,15 @@ impl Editor {
             });
         }
         ui.checkbox(&mut self.decor.random_flip, "Mirror at random").on_hover_text("Each placed prop is mirrored left to right half of the time (scatter sets say it themselves)");
+        if self.project.db.prop(&self.decor.prop).is_some_and(|d| d.turns()) {
+            let facing = rustpg2d_engine::decor::turn_facing(self.decor.turn);
+            ui.horizontal(|ui| {
+                ui.label(format!("Facing {}", facing.label().to_lowercase()));
+                if ui.button("Turn   R").on_hover_text("Turns the prop a quarter (it has a 3D model or pictures from four sides); its hitbox turns with it").clicked() {
+                    self.decor.turn = (self.decor.turn + 1) % 4;
+                }
+            });
+        }
         ui.separator();
         if self.decor.mode == DecorMode::Scatter {
             ui.label("Scatter set");
@@ -364,15 +381,17 @@ impl Editor {
         ui.weak(format!("This map: {n} decorations."));
     }
 
-    /// For the editor's `status`: count:mode:prop|set:layer.
+    /// For the editor's `status`: count:mode:prop|set:layer, then `:turnN` when the placed prop is
+    /// turned.
     pub(crate) fn decor_status(&self) -> String {
         let what = if self.decor.mode == DecorMode::Scatter { &self.decor.scatter } else { &self.decor.prop };
         format!(
-            "{}:{}:{}:{}",
+            "{}:{}:{}:{}{}",
             self.doc.as_ref().map_or(0, |d| d.map.decor.len()),
             self.decor.mode.label().to_lowercase(),
             if what.is_empty() { "-" } else { what },
-            self.decor.layer.label().to_lowercase()
+            self.decor.layer.label().to_lowercase(),
+            if self.decor.turn > 0 { format!(":turn{}", self.decor.turn) } else { String::new() }
         )
     }
 }

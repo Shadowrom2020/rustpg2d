@@ -873,6 +873,18 @@ impl Models {
         draw_texture_ex(&page.rt.texture, top_left.x, top_left.y, tint, DrawTextureParams { source: Some(cell.rect), dest_size: Some(dest), ..Default::default() });
     }
 
+    /// [`Models::draw`], mirrored left to right when `flip` (decorations placed mirrored).
+    pub fn draw_flipped(&self, cell: &Cell, feet: Vec2, size: f32, tint: Color, flip: bool) {
+        if !flip {
+            return self.draw(cell, feet, size, tint);
+        }
+        let c = self.cache.borrow();
+        let Some(page) = c.pages.get(cell.page) else { return };
+        let dest = vec2(cell.rect.w, cell.rect.h) / PX * size;
+        let top_left = vec2(feet.x - (cell.rect.w - cell.feet.x) / PX * size, feet.y - cell.feet.y / PX * size);
+        draw_texture_ex(&page.rt.texture, top_left.x, top_left.y, tint, DrawTextureParams { source: Some(cell.rect), dest_size: Some(dest), flip_x: true, ..Default::default() });
+    }
+
     /// Draws a rendered pose into `dest` (screen pixels; UI portraits, windows).
     pub fn draw_in(&self, cell: &Cell, dest: Rect, tint: Color) {
         let c = self.cache.borrow();
@@ -1546,7 +1558,10 @@ fn render(c: &mut Cache, l: &Loaded, parts: &[&Loaded], items: &HashMap<String, 
             let s = to_px0(p);
             (lo, hi) = (lo.min(s), hi.max(s));
         }
-        let cap = l.def.height.max(4.0) * PX * 1.5;
+        // (Wide objects, a cart or a market stall, reach further than a figure's arms.)
+        let (lo3, hi3) = l.model.bounds();
+        let across = (hi3.x - lo3.x).max(hi3.z - lo3.z) * l.ppu;
+        let cap = (l.def.height.max(4.0) * PX * 1.5).max(across * 1.2);
         let grow = |d: f32| if d <= 0.0 { 0 } else { (((d + 2.0).min(cap) / 8.0).ceil() * 8.0) as u32 };
         (grow(-lo.x), grow(hi.x - w as f32), grow(-lo.y), grow(hi.y - h as f32))
     };

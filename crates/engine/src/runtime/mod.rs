@@ -935,7 +935,7 @@ impl Game {
         let flat = kind == EntityKind::Prop && self.project.db.prop(def).is_some_and(|d| d.flat);
         let (hitbox, speed, solid, behavior) = match kind {
             EntityKind::Prop => match self.project.db.prop(def) {
-                Some(d) => (vec2(d.hitbox[0], d.hitbox[1]), 0.0, d.solid, Behavior::Static),
+                Some(d) => (Vec2::from(d.hitbox_facing(facing)), 0.0, d.solid, Behavior::Static),
                 None => (vec2(ts, ts), 0.0, false, Behavior::Static),
             },
             // (Bigger races have bigger hitboxes.)
@@ -1191,7 +1191,7 @@ impl Game {
         let decor_looks: Vec<crate::decor::DecorLook> = map.decor_defs.iter().map(|id| crate::decor::DecorLook::of(&self.project.db, id, 0)).collect();
         for d in &map.decor {
             let Some(look) = decor_looks.get(d.def as usize) else { continue };
-            let (x, y, w, h) = look.rect(d.x as f32, d.y as f32);
+            let (x, y, w, h) = look.rect_at(d);
             if look.solid {
                 occupancy.add_decor(Rect::new(x, y, w, h), look.low, ts);
             }
@@ -1216,8 +1216,8 @@ impl Game {
                 }
             }
             if let Some(p) = self.project.db.prop(&map.decor_defs[d.def as usize]) {
-                if let Some(l) = p.state_light(d.state as usize) {
-                    let lift = self.assets.sprite_size(p.state_look(d.state as usize).0, ts).y * 0.65;
+                if let Some(l) = p.state_light(d.state_index()) {
+                    let lift = self.assets.sprite_size(p.state_look(d.state_index()).0, ts).y * 0.65;
                     tile_lights.push(render::lighting::Light::new(vec2(d.x as f32, d.y as f32 - lift), l));
                 }
             }
@@ -1381,7 +1381,7 @@ impl Game {
         self.loaded.decor_index.near(r.x, r.y, r.w, r.h, crate::project::TILE_SIZE as f32 * 2.0).any(|i| {
             let d = &m.decor[i as usize];
             self.loaded.decor_looks.get(d.def as usize).is_some_and(|l| {
-                let (x, y, w, h) = l.rect(d.x as f32, d.y as f32);
+                let (x, y, w, h) = l.rect_at(d);
                 // (Only where the collision layer doesn't say walkable.)
                 l.solid && Rect::new(x, y, w, h).intersect(r).is_some_and(|o| !self.all_walkable(o))
             })
@@ -1428,7 +1428,7 @@ impl Game {
         let m = &self.loaded.map;
         let d = &m.decor[i];
         let Some(p) = m.decor_defs.get(d.def as usize).and_then(|id| self.project.db.prop(id)) else { return };
-        self.assets.draw_sprite_flipped(&p.sprite_at(d.state as usize, get_time()), vec2(d.x as f32, d.y as f32), WHITE, d.flip);
+        self.assets.draw_prop(&self.project.db, p, d.state_index(), d.facing(), 0, vec2(d.x as f32, d.y as f32), d.flip, WHITE, get_time(), true);
     }
 
     /// For `status()`: the material under the player's feet ("-" = none) and how many the map
@@ -3265,7 +3265,7 @@ impl Game {
             }
             // (Seated: just in front of the furniture.)
             let feet = e.npc_seat.as_ref().map_or(p, |s| vec2(p.x, s.prop_feet.y + 0.5));
-            let hitbox = (e.kind == EntityKind::Prop).then(|| self.project.db.prop(&e.def).map(|d| d.hitbox)).flatten();
+            let hitbox = (e.kind == EntityKind::Prop).then(|| self.project.db.prop(&e.def).map(|d| d.hitbox_facing(e.body.facing))).flatten();
             items.push((Drawn::Entity(i), p, footprint(feet, hitbox)));
         }
         if !self.photo.hide_player || !self.photo_on() {
@@ -3289,7 +3289,7 @@ impl Game {
                 continue;
             }
             let feet = vec2(d.x as f32, d.y as f32);
-            let hitbox = dm.decor_defs.get(d.def as usize).and_then(|id| self.project.db.prop(id)).map(|p| p.hitbox);
+            let hitbox = dm.decor_defs.get(d.def as usize).and_then(|id| self.project.db.prop(id)).map(|p| if p.turns() { p.hitbox_facing(d.facing()) } else { p.hitbox });
             items.push((Drawn::Decor(i as usize), feet, footprint(feet, hitbox)));
         }
         flats.sort_by(|a, b| a.0.total_cmp(&b.0));
@@ -3515,7 +3515,7 @@ impl Game {
         let lying = !e.effects.is_empty() && crate::srd::conditions::rules(&e.effects).lying;
         let drawn = match e.kind {
             EntityKind::Prop => db.prop(&e.def).is_some_and(|d| {
-                let ok = self.assets.draw_sprite(&d.sprite_at(e.state, get_time()), e.frame, e.body.pos, WHITE);
+                let ok = self.assets.draw_prop(db, d, e.state, e.body.facing, e.frame, e.body.pos, false, WHITE, get_time(), true);
                 if e.planted.is_some() {
                     self.draw_crop(i);
                 }

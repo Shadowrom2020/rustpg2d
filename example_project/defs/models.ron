@@ -26030,13 +26030,13 @@
         id: "vgate_3d",
         name: "Vertical Double Gate (3D)",
         file: "models/vgate_3d.glb",
-        height: 43.0,
+        height: 57.0,
     ),
     (
         id: "vgate_open_3d",
         name: "Vertical Double Gate (open) (3D)",
         file: "models/vgate_open_3d.glb",
-        height: 41.0,
+        height: 55.0,
     ),
     (
         id: "watchtower_3d",

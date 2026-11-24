@@ -103,6 +103,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   the same style (`materials/painted/<id>.png`, 128 px, seamless; water, swamp, waterfall and lava
   keep their animation in four frames; 172 credits). Each texture keeps the old one's layout and
   the size of its stones, planks and tufts. The black fillers stay as they were.
+- **The village's east gate**: the gate is as wide as the opening in the wall again (its model
+  was drawn a quarter too small), wall blocks reach it on both sides instead of two flat chimney
+  pictures, and the two guard towers beside it are the 3D watchtower instead of top-down tile
+  pieces (posts, rails, roof slopes, ladders).
 ### Visual scripts
 - **Script functions made of nodes** (`defs/visual_scripts.ron`, first part): a visual script is a
   function whose nodes are the script API's functions (a step on the flow, or a value such as

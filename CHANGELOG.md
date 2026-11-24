@@ -115,6 +115,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **The mine's walls**: its rooms have wall blocks on their west sides too (and the corners between),
   like the north walls, and the black filler (`dungeon_void`) is a plain dark picture: its old
   tile had a grey border that drew a grid over the empty spaces.
+- **Fences and farm plots in 3D**: *Fence section* (and its ends, the *Wooden fence* and the
+  north-to-south piece) is a small 3D fence of two rails between posts, *Wooden post* a corner
+  post, both in the painted wood; *Soil plot* is a low raised bed of tilled earth with furrows
+  instead of an upright picture. Built by a Blender script, they line up exactly on the grid. The
+  wheat, carrots and pumpkins are painted in their three stages (36 credits).
 ### Visual scripts
 - **Script functions made of nodes** (`defs/visual_scripts.ron`, first part): a visual script is a
   function whose nodes are the script API's functions (a step on the flow, or a value such as

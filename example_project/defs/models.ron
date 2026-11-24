@@ -26068,4 +26068,28 @@
         file: "models/wall_torch_out_3d.glb",
         height: 26.0,
     ),
+    (
+        id: "fence_section_3d",
+        name: "Fence section (3D)",
+        file: "models/fence_section_3d.glb",
+        height: 30.0,
+    ),
+    (
+        id: "fence_section_side_3d",
+        name: "Fence section, north to south (3D)",
+        file: "models/fence_section_side_3d.glb",
+        height: 30.0,
+    ),
+    (
+        id: "wooden_post_3d",
+        name: "Wooden post (3D)",
+        file: "models/wooden_post_3d.glb",
+        height: 34.0,
+    ),
+    (
+        id: "soil_plot_3d",
+        name: "Soil plot (3D)",
+        file: "models/soil_plot_3d.glb",
+        height: 4.2,
+    ),
 ]

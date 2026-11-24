@@ -837,6 +837,7 @@
         container: None,
         lock: None,
         plot: true,
+        model: "soil_plot_3d",
     ),
     (
         id: "anvil",
@@ -3281,7 +3282,7 @@
         lock: None,
         low: true,
         snap: 32,
-        block: 28.0,
+        model: "fence_section_3d",
     ),
     (
         id: "red_brick_wall",
@@ -3405,7 +3406,7 @@
         lock: None,
         low: true,
         snap: 32,
-        block: 28.0,
+        model: "fence_section_3d",
     ),
     (
         id: "black_void",
@@ -3797,12 +3798,13 @@
         solid: true,
         default_state: "default",
         states: [],
-        hitbox: (32.0, 32.0),
+        hitbox: (6.0, 4.0),
         triggers: [],
         container: None,
         lock: None,
         low: true,
         snap: 32,
+        model: "wooden_post_3d",
     ),
     (
         id: "tall_fence_post",
@@ -4590,7 +4592,7 @@
         lock: None,
         low: true,
         snap: 32,
-        block: 28.0,
+        model: "fence_section_3d",
     ),
     (
         id: "fence_end_right",
@@ -4608,7 +4610,7 @@
         lock: None,
         low: true,
         snap: 32,
-        block: 28.0,
+        model: "fence_section_3d",
     ),
     (
         id: "hedge",
@@ -6634,6 +6636,6 @@
         lock: None,
         low: true,
         snap: 32,
-        block: 28.0,
+        model: "fence_section_side_3d",
     ),
 ]

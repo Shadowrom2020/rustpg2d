@@ -1144,22 +1144,22 @@
             stages: [
                 (
                     sprite: (
-                        sheet: "props",
-                        frame: 101,
+                        sheet: "crop_wheat",
+                        frame: 0,
                     ),
                     hours: 8.0,
                 ),
                 (
                     sprite: (
-                        sheet: "props",
-                        frame: 102,
+                        sheet: "crop_wheat",
+                        frame: 1,
                     ),
                     hours: 16.0,
                 ),
                 (
                     sprite: (
-                        sheet: "props",
-                        frame: 103,
+                        sheet: "crop_wheat",
+                        frame: 2,
                     ),
                     hours: 0.0,
                 ),
@@ -1199,22 +1199,22 @@
             stages: [
                 (
                     sprite: (
-                        sheet: "props",
-                        frame: 112,
+                        sheet: "crop_carrot",
+                        frame: 0,
                     ),
                     hours: 12.0,
                 ),
                 (
                     sprite: (
-                        sheet: "props",
-                        frame: 113,
+                        sheet: "crop_carrot",
+                        frame: 1,
                     ),
                     hours: 24.0,
                 ),
                 (
                     sprite: (
-                        sheet: "props",
-                        frame: 114,
+                        sheet: "crop_carrot",
+                        frame: 2,
                     ),
                     hours: 0.0,
                 ),
@@ -1254,22 +1254,22 @@
             stages: [
                 (
                     sprite: (
-                        sheet: "props",
-                        frame: 115,
+                        sheet: "crop_pumpkin",
+                        frame: 0,
                     ),
                     hours: 18.0,
                 ),
                 (
                     sprite: (
-                        sheet: "props",
-                        frame: 116,
+                        sheet: "crop_pumpkin",
+                        frame: 1,
                     ),
                     hours: 30.0,
                 ),
                 (
                     sprite: (
-                        sheet: "props",
-                        frame: 117,
+                        sheet: "crop_pumpkin",
+                        frame: 2,
                     ),
                     hours: 0.0,
                 ),

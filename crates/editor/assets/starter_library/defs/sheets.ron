@@ -2019,4 +2019,25 @@
         frame_w: 32,
         frame_h: 32,
     ),
+    (
+        id: "crop_wheat",
+        image: "sprites/painted/crop_wheat.png",
+        frame_w: 56,
+        frame_h: 46,
+        scale: 2,
+    ),
+    (
+        id: "crop_carrot",
+        image: "sprites/painted/crop_carrot.png",
+        frame_w: 34,
+        frame_h: 28,
+        scale: 2,
+    ),
+    (
+        id: "crop_pumpkin",
+        image: "sprites/painted/crop_pumpkin.png",
+        frame_w: 44,
+        frame_h: 36,
+        scale: 2,
+    ),
 ]

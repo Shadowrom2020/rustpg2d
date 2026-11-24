@@ -256,6 +256,21 @@ impl Assets {
         }
     }
 
+    /// Draws prop `p` (state `state`, facing `facing`) standing at `feet` as a block `height`
+    /// world pixels high on its hitbox ([`crate::defs::PropDef::block`]), its picture on the
+    /// faces, through view `v` in window pixels (the caller sets the default camera).
+    #[allow(clippy::too_many_arguments)]
+    pub fn draw_prop_block(&self, v: &iso::View, p: &crate::defs::PropDef, state: usize, facing: crate::entity::Facing, feet: Vec2, height: f32, tint: Color) {
+        let [w, h] = p.hitbox_facing(facing);
+        let r = Rect::new(feet.x - w / 2.0, feet.y - h, w, h);
+        let sp = p.picture_facing(state, facing, 0.0);
+        let tex = self.sheets.get(&sp.sheet).map(|s| {
+            let (cw, ch) = sp.cells();
+            (&s.texture, inset(s.region(sp.frame, cw, ch)))
+        });
+        iso::draw_block(v, r, height, tex, tint);
+    }
+
     /// Where prop `p` (state `state`, facing `facing`) standing at `feet` is drawn, in the
     /// coordinates of its upright drawing (a picture: its frame above the feet; a model in the
     /// isometric view: the box its footprint and height take on the screen): for clicking on it.

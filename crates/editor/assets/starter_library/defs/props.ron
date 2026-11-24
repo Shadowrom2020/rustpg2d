@@ -3198,6 +3198,7 @@
         container: None,
         lock: None,
         snap: 32,
+        block: 48.0,
     ),
     (
         id: "plaster_wall",
@@ -3214,6 +3215,7 @@
         container: None,
         lock: None,
         snap: 32,
+        block: 48.0,
     ),
     (
         id: "wood_fence",
@@ -3247,6 +3249,7 @@
         container: None,
         lock: None,
         snap: 32,
+        block: 48.0,
     ),
     (
         id: "red_roof_tiles",
@@ -3279,6 +3282,7 @@
         container: None,
         lock: None,
         snap: 32,
+        block: 48.0,
     ),
     (
         id: "plaster_window",
@@ -3301,6 +3305,7 @@
             flicker: false,
         )),
         snap: 32,
+        block: 48.0,
     ),
     (
         id: "wooden_door",
@@ -3333,6 +3338,7 @@
         container: None,
         lock: None,
         snap: 32,
+        block: 48.0,
     ),
     (
         id: "fence_section",
@@ -3612,6 +3618,7 @@
         container: None,
         lock: None,
         snap: 32,
+        block: 48.0,
     ),
     (
         id: "brick_chimney",
@@ -3644,6 +3651,7 @@
         container: None,
         lock: None,
         snap: 32,
+        block: 48.0,
     ),
     (
         id: "lit_window",
@@ -3660,6 +3668,7 @@
         container: None,
         lock: None,
         snap: 32,
+        block: 48.0,
     ),
     (
         id: "arched_door",
@@ -3692,6 +3701,7 @@
         container: None,
         lock: None,
         snap: 32,
+        block: 48.0,
     ),
     (
         id: "thatch_roof",
@@ -3791,6 +3801,7 @@
         lock: None,
         low: true,
         snap: 32,
+        block: 20.0,
     ),
     (
         id: "blue_slate_roof",
@@ -3839,6 +3850,7 @@
         container: None,
         lock: None,
         snap: 32,
+        block: 48.0,
     ),
     (
         id: "flower_box_window",
@@ -3855,6 +3867,7 @@
         container: None,
         lock: None,
         snap: 32,
+        block: 48.0,
     ),
     (
         id: "oval_window",
@@ -3871,6 +3884,7 @@
         container: None,
         lock: None,
         snap: 32,
+        block: 48.0,
     ),
     (
         id: "wall_lantern",
@@ -3957,6 +3971,7 @@
         container: None,
         lock: None,
         snap: 32,
+        block: 48.0,
     ),
     (
         id: "shop_window",
@@ -3973,6 +3988,7 @@
         container: None,
         lock: None,
         snap: 32,
+        block: 48.0,
     ),
     (
         id: "stone_block_wall",
@@ -3989,6 +4005,7 @@
         container: None,
         lock: None,
         snap: 32,
+        block: 48.0,
     ),
     (
         id: "drain_grate",
@@ -4070,6 +4087,7 @@
         container: None,
         lock: None,
         snap: 32,
+        block: 48.0,
     ),
     (
         id: "dungeon_torch",
@@ -4141,6 +4159,7 @@
         container: None,
         lock: None,
         snap: 32,
+        block: 48.0,
     ),
     (
         id: "cobweb",
@@ -4173,6 +4192,7 @@
         container: None,
         lock: None,
         snap: 32,
+        block: 48.0,
     ),
     (
         id: "chained_wall",
@@ -4189,6 +4209,7 @@
         container: None,
         lock: None,
         snap: 32,
+        block: 48.0,
     ),
     (
         id: "prison_bars",
@@ -4483,6 +4504,7 @@
         container: None,
         lock: None,
         snap: 32,
+        block: 48.0,
     ),
     (
         id: "cave_entrance",
@@ -4985,6 +5007,7 @@
         climb: true,
         climb_dc: 12,
         snap: 32,
+        block: 48.0,
     ),
     (
         id: "climbing_rope",

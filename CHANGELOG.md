@@ -36,6 +36,12 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   decorations by R / *Turn* in the Decorations tool (kept in the map file's decoration state, so
   maps load in older versions); the hitbox turns with them. Editor script `turn`; `status decor=`
   ends with `:turnN`.
+- **Walls as blocks, cut away in front of the hero**: props *Drawn as a block* (a height in world
+  pixels) are drawn as boxes on their hitbox with their picture on the faces, so a line of wall
+  pieces is one wall and counters are solid; blocks between the viewer and the hero are cut down to
+  a stub. The starter library's and the example's building and dungeon walls, windows and pillars
+  (48 px) and the counter (20 px) are blocks: interiors no longer show staircases. `status view=`
+  adds `walls=DRAWN/CUT`.
 ### Visual scripts
 - **Script functions made of nodes** (`defs/visual_scripts.ron`, first part): a visual script is a
   function whose nodes are the script API's functions (a step on the flow, or a value such as

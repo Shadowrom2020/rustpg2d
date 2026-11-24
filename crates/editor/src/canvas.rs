@@ -859,8 +859,13 @@ impl Editor {
         if ents.len() < 5000 {
             for e in ents.iter().copied().filter(|e| !flat(e)) {
                 let feet = vec2(e.x, e.y);
-                let hitbox = (e.kind == EntityKind::Prop).then(|| db.prop(&e.def).map(|d| d.hitbox)).flatten();
-                items.push((Drawn::Ent(e), feet, footprint(feet, hitbox)));
+                let prop = (e.kind == EntityKind::Prop).then(|| db.prop(&e.def)).flatten();
+                let hitbox = prop.map(|d| d.hitbox_facing(e.facing));
+                let print = match (prop, hitbox) {
+                    (Some(d), Some(hb)) if d.block > 0.0 => iso::Footprint::at_feet(feet, hb[0], hb[1]),
+                    _ => footprint(feet, hitbox),
+                };
+                items.push((Drawn::Ent(e), feet, print));
             }
         } else {
             flats.clear();
@@ -873,7 +878,12 @@ impl Editor {
                 if prop.is_some_and(|p| p.flat) {
                     self.draw_decor(map, i, WHITE);
                 } else {
-                    items.push((Drawn::Decor(i), feet, footprint(feet, prop.map(|p| p.hitbox))));
+                    let hitbox = prop.map(|p| if p.turns() { p.hitbox_facing(d.facing()) } else { p.hitbox });
+                    let print = match (prop, hitbox) {
+                        (Some(p), Some(hb)) if p.block > 0.0 => iso::Footprint::at_feet(feet, hb[0], hb[1]),
+                        _ => footprint(feet, hitbox),
+                    };
+                    items.push((Drawn::Decor(i), feet, print));
                 }
             }
         }
@@ -899,8 +909,26 @@ impl Editor {
             o.sort_by(|&a, &b| items[a].1.y.total_cmp(&items[b].1.y));
             o
         };
+        // Walls and counters drawn as blocks (isometric): boxes on their hitbox, at full height.
+        let block = |p: &rustpg2d_engine::defs::PropDef, state: usize, facing, feet: Vec2| -> bool {
+            let Some(v) = iso.filter(|_| p.block > 0.0) else { return false };
+            set_default_camera();
+            self.assets.draw_prop_block(&v, p, state, facing, feet, p.block, WHITE);
+            set_camera(&v.ground());
+            true
+        };
         for k in order {
             let (what, feet, _) = &items[k];
+            let blocked = match what {
+                Drawn::Ent(e) => e.kind == EntityKind::Prop && db.prop(&e.def).is_some_and(|d| block(d, d.state_index(&e.state).unwrap_or(0), e.facing, *feet)),
+                Drawn::Decor(i) => {
+                    let d = &map.decor[*i];
+                    map.decor_defs.get(d.def as usize).and_then(|id| db.prop(id)).is_some_and(|p| block(p, d.state_index(), if p.turns() { d.facing() } else { rustpg2d_engine::entity::Facing::Down }, *feet))
+                }
+            };
+            if blocked {
+                continue;
+            }
             self.standing(*feet, || match what {
                 Drawn::Ent(e) => draw_ent(e),
                 Drawn::Decor(i) => self.draw_decor(map, *i, WHITE),

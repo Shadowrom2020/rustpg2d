@@ -1976,6 +1976,15 @@ fn prop_form(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
     ui.separator();
     prop_states_ui(ui, d, cx);
     turned_pictures_ui(ui, d, cx);
+    ui.horizontal(|ui| {
+        let mut on = d.block > 0.0;
+        if ui.checkbox(&mut on, "Drawn as a block").on_hover_text("Walls and counters: drawn as a box on the hitbox, this many world pixels high (a person is about 40), with the picture on its faces, so a row of them is one wall. Blocks in front of the hero are cut down to a stub so the room shows.").changed() {
+            d.block = if on { 48.0 } else { 0.0 };
+        }
+        if on {
+            ui.add(egui::DragValue::new(&mut d.block).range(1.0..=256.0).speed(1.0).suffix(" px high"));
+        }
+    });
     ui.separator();
     carry_ui(ui, d, cx);
     ui.separator();

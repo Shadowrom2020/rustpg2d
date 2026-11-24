@@ -61,7 +61,9 @@ runtime collides hitboxes with the cells and plans routes on tiles blocked by ha
 position in pixels, flip, state and layer (the state's two high bits are a quarter turn, `Decor::turn`,
 for props that turn: a 3D model, `PropDef.model`, or pictures from four sides, `PropDef.turns`; both are
 drawn by `Assets::draw_prop`, which game and editor share, a model standing on its hitbox's middle; placed
-props turn by their `facing`, and `PropDef::hitbox_facing` / `DecorLook::rect_at` turn their hitboxes); the
+props turn by their `facing`, and `PropDef::hitbox_facing` / `DecorLook::rect_at` turn their hitboxes;
+props with `PropDef.block` are drawn as boxes in window pixels by `iso::draw_block`, ordered by their
+whole footprint and cut to `iso::STUB` when `iso::hides` says they stand in front of the hero); the
 runtime indexes them by chunk (`DecorIndex`), draws the
 Sorted ones in the depth-sorted list with characters, and marks the solid ones once per map in the
 occupancy grid's base (`Occupancy::keep_as_base`, `OCC_DECOR` for the collision's broad phase;

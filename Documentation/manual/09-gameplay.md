@@ -11,6 +11,11 @@ fight's squares are the same square grid as in the editor; only the drawing turn
 keys follow the screen (up = up the screen, the map's north-west), clicks pick what is drawn under
 the cursor, and the map's border fades into its background colour.
 
+Walls and counters stand as solid blocks (props *Drawn as a block*: the starter library's
+building and dungeon walls, windows and pillars, 48 pixels high, and its counter, 20). Blocks
+between the viewer and the hero (south and east of them, within a few tiles) are cut down to a low
+stub, so the hero stays visible inside a room or behind a counter.
+
 ## Health and combat
 
 ![A turn-based fight in Whisperwood: the turn order, the reachable tiles and the action bar](../images/game-combat.webp)

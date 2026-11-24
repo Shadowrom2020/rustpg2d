@@ -204,7 +204,7 @@ the western RPGs (Baldur's Gate, Planescape: Torment).
   the result with Rhai; editor UI test of the canvas basics; the example's visual scripts run in
   autoplay; editor screenshots of the Nodes tab.
 
-- [ ] Isometric view — `feature/iso-view`, `feature/iso-editor`, `feature/iso-props`,
+- [x] Isometric view — `feature/iso-view`, `feature/iso-editor`, `feature/iso-props`,
   `feature/iso-walls`
 
   **Goal.** The game and the editor show the world isometric instead of top-down: diamond tiles,
@@ -283,6 +283,12 @@ the western RPGs (Baldur's Gate, Planescape: Torment).
   `PropDef.turns` (pictures from four sides), turns by the placed prop's `facing` and, for
   decorations, the two high bits of `Decor.state` (`Decor::turn`; *decided while building*: the
   map format and older readers stay as they are), hitboxes turned, R in the editor.
+  Part 4 (`feature/iso-walls`): `PropDef.block` draws walls and counters as boxes on their hitbox
+  with their picture on the faces (`iso::draw_block`), ordered by the whole footprint, cut to a stub
+  in front of the hero (`iso::hides`); the library's and the example's walls and the counter are
+  blocks. *Decided while building:* blocks instead of a 3D model per wall piece (no art needed, the
+  existing wall pictures become the faces; kit-made wall pieces can still come with the art); the
+  cut-away is always a stub (no see-through option yet).
 
   **Verify.** Unit tests of the projection (world ↔ screen round trip, picking) and of the
   depth order (a character beside a building's side, behind it, in front of it); autoplay on a

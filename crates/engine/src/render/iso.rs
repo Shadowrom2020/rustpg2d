@@ -113,6 +113,57 @@ impl View {
     }
 }
 
+/// How much higher on the screen (at zoom 1, in upright pixels) a point `h` world pixels above the
+/// ground is: the figure renderer's camera looks from 30° above, so heights shrink by its cosine.
+pub const HEIGHT: f32 = 0.866_025_4;
+
+/// The height a block in front of the hero is cut down to (world pixels): a stub that shows
+/// where the wall runs.
+pub const STUB: f32 = 6.0;
+
+/// Draws a block: footprint `r` (world pixels) raised `height` world pixels, its visible faces
+/// (south, east, top) through `v` in window pixels (the caller sets the default camera), each
+/// showing `tex` (a texture and the source rect of the picture), shaded like the pre-rendered
+/// props: light from the north-west, the east face darkest.
+pub fn draw_block(v: &View, r: Rect, height: f32, tex: Option<(&Texture2D, Rect)>, tint: Color) {
+    let lift = vec2(0.0, height * HEIGHT * v.upright_scale());
+    let g = |x: f32, y: f32| v.to_screen(vec2(x, y));
+    let (nw, ne, se, sw) = (g(r.x, r.y), g(r.right(), r.y), g(r.right(), r.bottom()), g(r.x, r.bottom()));
+    let (tw, th) = tex.map_or((1.0, 1.0), |(t, _)| (t.width().max(1.0), t.height().max(1.0)));
+    let src = tex.map_or(Rect::new(0.0, 0.0, 1.0, 1.0), |(_, s)| s);
+    let shade = |k: f32| Color::new(tint.r * k, tint.g * k, tint.b * k, tint.a);
+    let quad = |pts: [Vec2; 4], k: f32, src: Rect| {
+        let uv = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)];
+        let c = shade(k);
+        let vertices = pts
+            .iter()
+            .zip(uv)
+            .map(|(p, (u, w))| macroquad::models::Vertex::new(p.x, p.y, 0.0, (src.x + u * src.w) / tw, (src.y + w * src.h) / th, c))
+            .collect();
+        draw_mesh(&Mesh { vertices, indices: vec![0, 1, 2, 0, 2, 3], texture: tex.map(|(t, _)| t.clone()) });
+    };
+    if height > 0.0 {
+        quad([sw - lift, se - lift, se, sw], 0.92, src);
+        quad([se - lift, ne - lift, ne, se], 0.68, src);
+        // The top: the picture's top band (a wall picture's beam or coping) stretched over it.
+        quad([nw - lift, ne - lift, se - lift, sw - lift], 0.62, Rect::new(src.x, src.y, src.w, (src.h / 8.0).max(1.0)));
+    } else {
+        quad([nw, ne, se, sw], 1.0, src);
+    }
+}
+
+/// Whether a block on footprint `r` stands between the viewer and `hero` (world pixels): not wholly
+/// west or north of the hero, near it on the screen (the room's south and east walls around it).
+pub fn hides(r: Rect, hero: Vec2) -> bool {
+    let near = 6.0 * 32.0;
+    if r.right() <= hero.x || r.bottom() <= hero.y {
+        return false;
+    }
+    let c = r.center();
+    let off = project(c - hero);
+    off.x.abs() < near && off.y < near * 0.75
+}
+
 /// The map's border fading into `color` (the background past the edge) over `band` world pixels,
 /// for a map `w` × `h` pixels; drawn on the ground (through the ground camera).
 pub fn border_fade(w: f32, h: f32, band: f32, color: Color) {
@@ -258,6 +309,19 @@ mod tests {
 
     fn view() -> View {
         View { target: vec2(320.0, 240.0), scale: 2.0, screen: vec2(1280.0, 720.0) }
+    }
+
+    #[test]
+    fn only_blocks_in_front_of_the_hero_are_cut() {
+        let hero = vec2(160.0, 160.0);
+        let tile = |x: f32, y: f32| Rect::new(x * 32.0, y * 32.0, 32.0, 32.0);
+        // The wall south of the hero and the one east of them hide them; north and west don't.
+        assert!(hides(tile(5.0, 6.0), hero));
+        assert!(hides(tile(6.0, 5.0), hero));
+        assert!(!hides(tile(5.0, 3.0), hero));
+        assert!(!hides(tile(3.0, 5.0), hero));
+        // Far away in front: left standing.
+        assert!(!hides(tile(5.0, 20.0), hero));
     }
 
     #[test]

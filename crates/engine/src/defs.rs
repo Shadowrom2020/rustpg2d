@@ -1541,6 +1541,11 @@ pub struct PropDef {
     /// itself faces south); for props drawn ahead of time from four sides.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub turns: Vec<SpriteRef>,
+    /// Drawn as a block this many world pixels high (walls, counters): its hitbox raised as a box
+    /// with its picture on the faces, so a row of them is one wall; blocks in front of the hero
+    /// are cut down to a stub ([`crate::render::iso::draw_block`]). 0 = drawn as its picture.
+    #[serde(default, skip_serializing_if = "is_zero_f32")]
+    pub block: f32,
 }
 
 /// Frames of a sprite sheet shown one after the other (`PropDef::anim`).
@@ -1593,6 +1598,7 @@ impl Default for PropDef {
             anim: None,
             model: String::new(),
             turns: vec![],
+            block: 0.0,
         }
     }
 }

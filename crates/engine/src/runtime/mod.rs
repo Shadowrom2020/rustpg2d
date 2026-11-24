@@ -567,6 +567,9 @@ pub struct Game {
     /// The isometric view of the frame being drawn (set while drawing, so overlays and the
     /// upright cameras agree with the world; `None` between frames).
     frame_view: std::cell::Cell<Option<render::iso::View>>,
+    /// Blocks (walls, counters) drawn this frame and how many of them were cut down in front of
+    /// the hero (`status view=`).
+    blocks_drawn: std::cell::Cell<(u32, u32)>,
     /// Placed entities of other maps read from disk for companions (`placed_instance`), once
     /// per game: map files don't change while it runs.
     placed_cache: std::cell::RefCell<std::collections::HashMap<(String, u32), Option<crate::entity::EntityInstance>>>,
@@ -799,6 +802,7 @@ impl Game {
             perf: std::cell::RefCell::new(Perf { log: std::env::var("RUSTPG2D_PERF").is_ok_and(|v| v != "0"), ..Perf::default() }),
             light_here: std::cell::Cell::new(None),
             frame_view: std::cell::Cell::new(None),
+            blocks_drawn: std::cell::Cell::new((0, 0)),
             placed_cache: Default::default(),
             order_menu: None,
             bar: Default::default(),
@@ -1421,6 +1425,19 @@ impl Game {
     fn decor_flat(&self, i: usize) -> bool {
         let m = &self.loaded.map;
         m.decor_defs.get(m.decor[i].def as usize).and_then(|id| self.project.db.prop(id)).is_some_and(|p| p.flat)
+    }
+
+    /// Draws prop `p` as a block at `feet` (window pixels: sets the default camera), cut down to a
+    /// stub when it stands between the viewer and the hero; counted for `status view=`.
+    fn draw_block(&self, p: &crate::defs::PropDef, state: usize, facing: Facing, feet: Vec2, tint: Color) {
+        let [w, h] = p.hitbox_facing(facing);
+        let r = Rect::new(feet.x - w / 2.0, feet.y - h, w, h);
+        let cut = !self.on_title() && render::iso::hides(r, self.player.pos);
+        let (n, c) = self.blocks_drawn.get();
+        self.blocks_drawn.set((n + 1, c + cut as u32));
+        set_default_camera();
+        let height = if cut { p.block.min(render::iso::STUB) } else { p.block };
+        self.assets.draw_prop_block(&self.view(), p, state, facing, feet, height, tint);
     }
 
     /// Draws decoration `i`.
@@ -3249,6 +3266,9 @@ impl Game {
             Some([w, h]) if w >= big || h >= big => render::iso::Footprint::at_feet(feet, w, h),
             _ => render::iso::Footprint::at_feet(feet, 0.0, 0.0),
         };
+        // (Blocks are boxes whatever their size: a wall piece is ordered by its whole tile.)
+        let block_print = |feet: Vec2, hitbox: [f32; 2]| render::iso::Footprint::at_feet(feet, hitbox[0], hitbox[1]);
+        self.blocks_drawn.set((0, 0));
         // (Tall things reach far up the screen: look a few tiles beyond the ground in view.)
         let near = Rect::new(view.x - 6.0 * ts, view.y - 6.0 * ts, view.w + 8.0 * ts, view.h + 8.0 * ts);
         let mut flats: Vec<(f32, usize)> = Vec::new();
@@ -3265,8 +3285,13 @@ impl Game {
             }
             // (Seated: just in front of the furniture.)
             let feet = e.npc_seat.as_ref().map_or(p, |s| vec2(p.x, s.prop_feet.y + 0.5));
-            let hitbox = (e.kind == EntityKind::Prop).then(|| self.project.db.prop(&e.def).map(|d| d.hitbox_facing(e.body.facing))).flatten();
-            items.push((Drawn::Entity(i), p, footprint(feet, hitbox)));
+            let prop = (e.kind == EntityKind::Prop).then(|| self.project.db.prop(&e.def)).flatten();
+            let hitbox = prop.map(|d| d.hitbox_facing(e.body.facing));
+            let print = match (prop, hitbox) {
+                (Some(d), Some(hb)) if d.block > 0.0 => block_print(feet, hb),
+                _ => footprint(feet, hitbox),
+            };
+            items.push((Drawn::Entity(i), p, print));
         }
         if !self.photo.hide_player || !self.photo_on() {
             let p = self.player.pos;
@@ -3289,8 +3314,13 @@ impl Game {
                 continue;
             }
             let feet = vec2(d.x as f32, d.y as f32);
-            let hitbox = dm.decor_defs.get(d.def as usize).and_then(|id| self.project.db.prop(id)).map(|p| if p.turns() { p.hitbox_facing(d.facing()) } else { p.hitbox });
-            items.push((Drawn::Decor(i as usize), feet, footprint(feet, hitbox)));
+            let prop = dm.decor_defs.get(d.def as usize).and_then(|id| self.project.db.prop(id));
+            let hitbox = prop.map(|p| if p.turns() { p.hitbox_facing(d.facing()) } else { p.hitbox });
+            let print = match (prop, hitbox) {
+                (Some(p), Some(hb)) if p.block > 0.0 => block_print(feet, hb),
+                _ => footprint(feet, hitbox),
+            };
+            items.push((Drawn::Decor(i as usize), feet, print));
         }
         flats.sort_by(|a, b| a.0.total_cmp(&b.0));
         for (_, i) in flats {
@@ -3313,11 +3343,28 @@ impl Game {
                     continue;
                 }
                 Drawn::Decor(i) => {
-                    self.draw_decor(i);
+                    let (m, db) = (&self.loaded.map, &self.project.db);
+                    let d = &m.decor[i];
+                    match m.decor_defs.get(d.def as usize).and_then(|id| db.prop(id)).filter(|p| p.block > 0.0) {
+                        Some(p) => {
+                            let facing = if p.turns() { d.facing() } else { Facing::Down };
+                            self.draw_block(p, d.state_index(), facing, vec2(d.x as f32, d.y as f32), WHITE);
+                            set_camera(&base);
+                        }
+                        None => self.draw_decor(i),
+                    }
                     continue;
                 }
                 Drawn::Player => None,
-                Drawn::Entity(i) => Some(i),
+                Drawn::Entity(i) => {
+                    let e = &self.loaded.entities[i];
+                    if let Some(p) = (e.kind == EntityKind::Prop).then(|| self.project.db.prop(&e.def)).flatten().filter(|p| p.block > 0.0) {
+                        self.draw_block(p, e.state, e.body.facing, e.body.pos, WHITE);
+                        set_camera(&base);
+                        continue;
+                    }
+                    Some(i)
+                }
             };
             // A walker jumping on a move route: drawn higher (the camera shifted for it alone).
             let hop = self.route_hop(idx.map_or(routes::Walker::Player, |i| self.entity_walker(i)));

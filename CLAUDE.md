@@ -285,7 +285,8 @@ crates/engine/src/      library: everything shared by game and editor
                         iso.rs = the isometric view: project (x − y, (x + y) / 2), View (ground camera turned 45°
                         and squashed, upright cameras at feet, above() for screen overlays), order (depth by
                         feet, big footprints box to box), border_fade; Game::view / camera / upright; model.rs
-                        ELEVATION 30° + ISO_TURN; keys move along the screen (screen_dir_to_world); status view=)
+                        ELEVATION 30° + ISO_TURN; keys move along the screen (screen_dir_to_world); draw_block = PropDef.block
+                        walls as boxes, hides = the cut-away in front of the hero; status view= … walls=)
   library.rs            asset library + .r2dpack bundles; refactor.rs = id renames / refs_of_*;
                         starter_update.rs = Update asset library (StarterHistory, plan, apply, backup);
                         starter_pack.rs = the starter library file (.r2dlib: manifest, history, files)

@@ -115,7 +115,9 @@ impl Game {
         let _font = super::text::role(super::text::Role::Dialog);
         let ts = self.ts();
         // Screen pixels per world pixel.
-        let scale = (cam.world_to_screen(vec2(1.0, 0.0)) - cam.world_to_screen(Vec2::ZERO)).x.abs().max(0.1);
+        let _ = cam;
+        let view = self.view();
+        let scale = view.upright_scale();
         // Options › Accessibility: text size, high contrast (pure black on white, a thick rim).
         let (text, contrast) = (self.settings.text_scale(), super::ui::contrast());
         let draw = |b: &Bark, feet: Vec2, height: f32, emote: bool| {
@@ -127,7 +129,7 @@ impl Game {
             let (pad, line_h) = ((size * 0.35).round(), (size * 0.95).round());
             let (bw, bh) = (w + pad * 2.0, line_h * lines.len() as f32 + pad * 1.4);
             // Above the head, and above an emotion icon when one shows.
-            let head = cam.world_to_screen(feet - vec2(0.0, height + if emote { 22.0 } else { 6.0 } * ts / 32.0));
+            let head = view.above(feet, height + if emote { 22.0 } else { 6.0 } * ts / 32.0);
             let tail = (size * 0.4).round();
             let (x, y) = ((head.x - bw / 2.0).round(), (head.y - tail - bh).round());
             let (paper, ink) = if contrast {

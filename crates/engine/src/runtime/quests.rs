@@ -317,7 +317,8 @@ impl Game {
             let Some(e) = self.loaded.entities.iter().find(|e| e.uid == *uid && e.active) else { continue };
             let look = self.look(&e.appearance);
             let h = self.project.db.model(&look.model).map_or(ts * 1.4, |m| m.height) * self.look_size(&e.appearance);
-            let p = cam.world_to_screen(e.body.pos - vec2(0.0, h + ts * 0.25));
+            let _ = cam;
+            let p = self.view().above(e.body.pos, h + ts * 0.25);
             let bob = (t * 3.0 + k as f32).sin() * 3.0;
             let (x, y) = (p.x - 5.0, p.y - 2.0 + bob);
             let gold = Color::new(1.0, 0.82, 0.25, 1.0);

@@ -36,7 +36,9 @@ pub(super) enum NumberKind {
 
 /// A damage number floating up from a hit.
 struct Number {
+    /// Where it was dealt (the feet) and how high over them it starts.
     pos: Vec2,
+    lift: f32,
     kind: NumberKind,
     t: f32,
     drift: f32,
@@ -133,8 +135,9 @@ impl Game {
         self.juice.crit_mode = mode;
     }
 
-    /// A damage number rising from `pos` (world; above a character's head).
-    pub(super) fn damage_number(&mut self, pos: Vec2, value: i32, kind: NumberKind) {
+    /// A damage number rising from `at` = (feet, height): over a character's head.
+    pub(super) fn damage_number(&mut self, at: (Vec2, f32), value: i32, kind: NumberKind) {
+        let (pos, lift) = at;
         let (mut text, mut color, mut scale) = (value.to_string(), None, 1.0);
         // Script hook: its text, colour and size (asked once, not every frame).
         if self.hooked("damage_number") {
@@ -153,7 +156,7 @@ impl Game {
         }
         let j = &mut self.juice;
         let drift = rand::gen_range(-1.0, 1.0);
-        j.numbers.push(Number { pos, kind, t: 0.0, drift, text, color, scale });
+        j.numbers.push(Number { pos, lift, kind, t: 0.0, drift, text, color, scale });
         if j.numbers.len() > 40 {
             j.numbers.remove(0);
         }
@@ -170,11 +173,12 @@ impl Game {
     }
 
     /// "miss" rising from `pos` (a fight's attack that missed).
-    pub(super) fn miss_number(&mut self, pos: Vec2) {
+    pub(super) fn miss_number(&mut self, at: (Vec2, f32)) {
+        let (pos, lift) = at;
         let text = crate::lang::tr_ui("miss").into_owned();
         let j = &mut self.juice;
         let drift = rand::gen_range(-1.0, 1.0);
-        j.numbers.push(Number { pos, kind: NumberKind::Hit, t: 0.0, drift, text, color: Some(Color::new(0.8, 0.8, 0.85, 1.0)), scale: 0.85 });
+        j.numbers.push(Number { pos, lift, kind: NumberKind::Hit, t: 0.0, drift, text, color: Some(Color::new(0.8, 0.8, 0.85, 1.0)), scale: 0.85 });
         if j.numbers.len() > 40 {
             j.numbers.remove(0);
         }
@@ -191,7 +195,9 @@ impl Game {
             return;
         }
         // Screen pixels per world pixel.
-        let scale = (cam.world_to_screen(vec2(1.0, 0.0)) - cam.world_to_screen(Vec2::ZERO)).x.abs().max(0.1);
+        let _ = cam;
+        let view = self.view();
+        let scale = view.upright_scale();
         let ts = self.ts();
         for n in &self.juice.numbers {
             let p = n.t / NUMBER_TIME;
@@ -207,7 +213,8 @@ impl Game {
             let col = n.color.map_or(col, |c| Color { a: c.a * alpha, ..c });
             let size = (base * n.scale * ts * scale * pop).round().max(8.0);
             let text = &n.text;
-            let at = cam.world_to_screen(n.pos + vec2(n.drift * ts * 0.25 * p, -rise));
+            // (Rising straight up the screen over where it was dealt.)
+            let at = view.above(n.pos, n.lift + rise) + vec2(n.drift * ts * 0.25 * p * scale, 0.0);
             let w = measure_text(text, None, size as u16, 1.0).width;
             let (x, y) = ((at.x - w / 2.0).round(), at.y.round());
             // (High contrast: a thicker outline all round.)

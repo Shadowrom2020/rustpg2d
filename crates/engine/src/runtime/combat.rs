@@ -67,6 +67,11 @@ impl Projectile {
     pub(super) fn ground_y(&self, above: f32) -> f32 {
         self.pos.y + above
     }
+
+    /// The point on the ground under it (it flies `above` pixels up).
+    pub(super) fn ground_point(&self, above: f32) -> Vec2 {
+        vec2(self.pos.x, self.ground_y(above))
+    }
 }
 
 pub(super) struct PlayerCombat {
@@ -552,7 +557,7 @@ impl Game {
         } else {
             NumberKind::Hit
         };
-        let (head, killed) = (e.body.pos - vec2(0.0, ts * 1.1), e.hp <= 0);
+        let (head, killed) = ((e.body.pos, ts * 1.1), e.hp <= 0);
         self.damage_number(head, hit, kind);
         if blow.by_player && blow.crit {
             self.shake_screen(0.12, 0.6);
@@ -727,7 +732,7 @@ impl Game {
         self.combat.knock = away * KNOCKBACK * self.u();
         self.audio.play(&self.project.config.sfx.hurt);
         self.hurt_feedback();
-        let head = self.player.pos - vec2(0.0, self.ts() * 1.1);
+        let head = (self.player.pos, self.ts() * 1.1);
         self.damage_number(head, taken, NumberKind::Hurt);
         if hp == 0 {
             self.player_defeated();
@@ -809,9 +814,50 @@ impl Game {
     pub(super) fn draw_combat_world(&self) {
         let ts = self.ts();
         let u = self.u();
+        // (All of it stands upright at the feet it belongs to: `render::iso`.)
         if self.combat.swing > 0.0 {
-            // The swing shows the weapon's real reach and arc.
-            let d = self.combat.swing_dir;
+            self.upright(self.player.pos, || self.draw_swing());
+        }
+        for e in self.loaded.entities.iter().filter(|e| e.active && e.max_hp > 0 && e.hp > 0 && e.bar > 0.0 && !e.companion.as_ref().is_some_and(|l| l.down.is_some())) {
+            self.upright(e.body.pos, || {
+                // Health bars of characters hurt in the last few seconds (fading out), the lost
+                // part draining in white.
+                let a = (e.bar / 0.5).min(1.0);
+                let w = 14.0 * u;
+                let (x, y) = (e.body.pos.x - w / 2.0, e.body.pos.y - ts - 6.0 * u);
+                let frac = e.hp as f32 / e.max_hp as f32;
+                draw_rectangle(x - u, y - u, w + 2.0 * u, 4.0 * u, Color::new(0.0, 0.0, 0.0, 0.7 * a));
+                draw_rectangle(x, y, w * e.bar_lag.min(1.0), 2.0 * u, Color::new(1.0, 1.0, 1.0, 0.85 * a));
+                draw_rectangle(x, y, w * frac, 2.0 * u, Color::new(0.9, 0.2, 0.2, a));
+            });
+        }
+        // Status effects: small colored squares over the head (lower for one lying down).
+        for e in self.loaded.entities.iter().filter(|e| e.active && !e.effects.is_empty()) {
+            let lying = crate::srd::conditions::rules(&e.effects).lying;
+            self.upright(e.body.pos, || self.draw_npc_effects(e.body.pos.x, e.body.pos.y - if lying { ts * 0.8 } else { ts * 1.5 + 2.0 * u }, &e.effects));
+        }
+        for (pos, age) in &self.effects {
+            self.upright(*pos, || {
+                let t = age / EFFECT_TIME;
+                let c = Color::new(1.0, 1.0, 1.0, 1.0 - t);
+                draw_circle_lines(pos.x, pos.y, (3.0 + t * 10.0) * u, 1.5 * u, c);
+                for k in 0..6 {
+                    let a = k as f32 * std::f32::consts::TAU / 6.0;
+                    let d = (4.0 + t * 12.0) * u;
+                    draw_rectangle(pos.x + a.cos() * d - u, pos.y + a.sin() * d - u, 2.0 * u, 2.0 * u, c);
+                }
+            });
+        }
+    }
+
+    /// The swing's arc and the weapon sweeping along it (upright at the player).
+    fn draw_swing(&self) {
+        let ts = self.ts();
+        let u = self.u();
+        {
+            // The swing shows the weapon's real reach and arc (turned as the screen shows its
+            // direction).
+            let d = crate::render::iso::world_dir_to_screen(self.combat.swing_dir);
             let base = d.y.atan2(d.x);
             let arc = self.combat.swing_arc.min(1.4);
             let center = self.player.pos - vec2(0.0, self.player.hitbox.y / 2.0 + 2.0 * u);
@@ -841,40 +887,14 @@ impl Game {
                 self.assets.draw_frame_scaled(&icon.sheet, icon.frame, at, a1 + std::f32::consts::FRAC_PI_4, 1.0, WHITE);
             }
         }
-        // Health bars of characters hurt in the last few seconds (fading out), the lost part
-        // draining in white.
-        for e in self.loaded.entities.iter().filter(|e| e.active && e.max_hp > 0 && e.hp > 0 && e.bar > 0.0 && !e.companion.as_ref().is_some_and(|l| l.down.is_some())) {
-            let a = (e.bar / 0.5).min(1.0);
-            let w = 14.0 * u;
-            let (x, y) = (e.body.pos.x - w / 2.0, e.body.pos.y - ts - 6.0 * u);
-            let frac = e.hp as f32 / e.max_hp as f32;
-            draw_rectangle(x - u, y - u, w + 2.0 * u, 4.0 * u, Color::new(0.0, 0.0, 0.0, 0.7 * a));
-            draw_rectangle(x, y, w * e.bar_lag.min(1.0), 2.0 * u, Color::new(1.0, 1.0, 1.0, 0.85 * a));
-            draw_rectangle(x, y, w * frac, 2.0 * u, Color::new(0.9, 0.2, 0.2, a));
-        }
-        // Status effects: small colored squares above the health bar.
-        for e in self.loaded.entities.iter().filter(|e| e.active && !e.effects.is_empty()) {
-            // Above the head of a full-height (1.5 tiles) character.
-            // (Over the head; a character lying down has it lower.)
-            let lying = crate::srd::conditions::rules(&e.effects).lying;
-            self.draw_npc_effects(e.body.pos.x, e.body.pos.y - if lying { ts * 0.8 } else { ts * 1.5 + 2.0 * u }, &e.effects);
-        }
-        for (pos, age) in &self.effects {
-            let t = age / EFFECT_TIME;
-            let c = Color::new(1.0, 1.0, 1.0, 1.0 - t);
-            draw_circle_lines(pos.x, pos.y, (3.0 + t * 10.0) * u, 1.5 * u, c);
-            for k in 0..6 {
-                let a = k as f32 * std::f32::consts::TAU / 6.0;
-                let d = (4.0 + t * 12.0) * u;
-                draw_rectangle(pos.x + a.cos() * d - u, pos.y + a.sin() * d - u, 2.0 * u, 2.0 * u, c);
-            }
-        }
     }
 
     /// Draws projectile `k` (in the depth-sorted world drawing, see `Game::draw`).
     pub(super) fn draw_projectile(&self, k: usize) {
         let Some(p) = self.projectiles.get(k) else { return };
-        let angle = p.vel.y.atan2(p.vel.x);
+        // (Pointing where it flies on the screen.)
+        let d = crate::render::iso::world_dir_to_screen(p.vel);
+        let angle = d.y.atan2(d.x);
         if !self.assets.draw_frame_rotated(&p.sprite.sheet, p.sprite.frame, p.pos, angle, WHITE) {
             let u = self.u();
             draw_line(p.pos.x, p.pos.y, p.pos.x - p.vel.x * 0.03, p.pos.y - p.vel.y * 0.03, 1.5 * u, WHITE);

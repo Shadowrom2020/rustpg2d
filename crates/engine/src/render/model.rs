@@ -20,8 +20,13 @@ use crate::model::{hold_rotation, Model};
 
 /// Image pixels per world pixel of rendered characters (as the 2x figures).
 pub const PX: f32 = 2.0;
-/// Camera elevation (degrees): the figures' slightly-from-above view.
-pub const ELEVATION: f32 = 20.0;
+/// Camera elevation (degrees): the isometric view's 30° from above (a 2:1 ground, `render::iso`).
+pub const ELEVATION: f32 = 30.0;
+/// Portraits (busts) look at the face from a little above.
+const BUST_ELEVATION: f32 = 20.0;
+/// Figures turn this much against the world, so the world's axes run along the isometric
+/// view's diamonds (south = down-left on the screen).
+pub const ISO_TURN: f32 = -std::f32::consts::FRAC_PI_4;
 /// Feet this many image pixels above a frame's bottom (room for the shadow).
 const FEET_MARGIN: f32 = 4.0;
 const PAGE: u32 = 1024;
@@ -1356,7 +1361,7 @@ fn render(c: &mut Cache, l: &Loaded, parts: &[&Loaded], items: &HashMap<String, 
     let world = l.model.pose(clip_ref, time);
     let mut skinned = Vec::new();
     l.model.skin(&world, &mut skinned);
-    let extra = if req.bust { 0.0 } else { req.turn as f32 * std::f32::consts::FRAC_PI_4 };
+    let extra = if req.bust { 0.0 } else { req.turn as f32 * std::f32::consts::FRAC_PI_4 + ISO_TURN };
     let yaw = facing_yaw(req.facing) + extra + clip.and_then(|n| l.align.get(n)).copied().unwrap_or(0.0);
     let turn = Mat4::from_rotation_y(yaw);
     let vertices: Vec<Vertex> = skinned
@@ -1384,7 +1389,7 @@ fn render(c: &mut Cache, l: &Loaded, parts: &[&Loaded], items: &HashMap<String, 
             Mesh { vertices, indices: p.model.indices.clone(), texture: texture_for(p, req.look, Some(&l.def)) }
         })
         .collect();
-    let e = ELEVATION.to_radians();
+    let e = if req.bust { BUST_ELEVATION } else { ELEVATION }.to_radians();
     // A bust looks at the head (its bone is at the head's base); a pose at the whole figure.
     let head_bone = l.model.node("head").map(|n| turn.transform_point3(world[n].w_axis.truncate()));
     let target = match (req.bust, head_bone) {

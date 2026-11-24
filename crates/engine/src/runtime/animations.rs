@@ -132,6 +132,8 @@ impl Game {
     pub(super) fn draw_animations(&self) {
         let additive = super::pictures::additive();
         for run in &self.anims {
+            // (Standing at its point: `render::iso`.)
+            set_camera(&self.view().upright(run.pos));
             let Some(d) = self.project.db.animation(&run.id) else { continue };
             for c in &d.cels {
                 let Some(p) = c.pose(run.age, self.sheet_frames(&c.sheet)) else { continue };
@@ -163,6 +165,7 @@ impl Game {
                 }
             }
         }
+        set_camera(&self.camera());
     }
 
     /// The lights of the animations' cels (fading with their opacity).

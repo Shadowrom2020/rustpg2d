@@ -4,6 +4,7 @@
 //! far out, an [`Overview`] texture with one pixel per tile stands in for the map (minimaps,
 //! the editor), so even a 1024x1024 map renders fast.
 
+pub mod iso;
 pub mod character;
 pub mod fish;
 pub mod ground;
@@ -482,9 +483,15 @@ pub fn pixel_camera(target: Vec2, scale: f32) -> Camera2D {
 
 /// World-space rect visible through a camera made by [`pixel_camera`].
 pub fn camera_view(cam: &Camera2D) -> Rect {
-    let a = cam.screen_to_world(vec2(0.0, 0.0));
-    let b = cam.screen_to_world(vec2(screen_width(), screen_height()));
-    Rect::new(a.x.min(b.x), a.y.min(b.y), (b.x - a.x).abs(), (b.y - a.y).abs())
+    // (All four corners: the isometric camera is turned.)
+    let (w, h) = (screen_width(), screen_height());
+    let ps = [vec2(0.0, 0.0), vec2(w, 0.0), vec2(0.0, h), vec2(w, h)].map(|p| cam.screen_to_world(p));
+    let (mut lo, mut hi) = (ps[0], ps[0]);
+    for p in ps {
+        lo = lo.min(p);
+        hi = hi.max(p);
+    }
+    Rect::new(lo.x, lo.y, hi.x - lo.x, hi.y - lo.y)
 }
 
 /// Wraps `text` to `max_w` pixels for `draw_text` (measured in the current font role's font; at

@@ -269,6 +269,13 @@ the western RPGs (Baldur's Gate, Planescape: Torment).
   `defs.rs` (`PropDef.model`, per-state models), the editor's `canvas.rs` and tools. Autoplay
   `status` prints `view=`; the map files' format is unchanged.
 
+  **Progress.** Part 1 (`feature/iso-view`): the game's projection (`render/iso.rs`: ground camera,
+  upright cameras at the feet, depth order with footprints), overlays standing or placed above the
+  feet, screen picking of entities, keys / stick / fight cursor / photo camera along the screen,
+  figures at 30° turned to the diamonds, flat filler props, the border fade, `status view=`.
+  *Decided while building:* each standing thing is drawn through its own upright camera (one draw
+  call each) instead of a CPU-transformed batch: their drawing code keeps its world coordinates.
+
   **Verify.** Unit tests of the projection (world ↔ screen round trip, picking) and of the
   depth order (a character beside a building's side, behind it, in front of it); autoplay on a
   scratch copy: walking with keys in all eight directions, a fight with areas, a night with

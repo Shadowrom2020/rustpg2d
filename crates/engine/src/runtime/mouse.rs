@@ -96,13 +96,24 @@ impl Game {
         Rect::new(e.body.pos.x - size.x / 2.0, e.body.pos.y - size.y, size.x, size.y)
     }
 
+    /// Where an entity's sprite-sized rect is on the screen (it stands upright at its feet).
+    pub(super) fn entity_screen_rect(&self, e: &RtEntity) -> Rect {
+        let v = self.view();
+        let (u, r, feet) = (v.upright_scale(), self.entity_click_rect(e), e.body.pos);
+        let s = v.to_screen(feet);
+        Rect::new(s.x + (r.x - feet.x) * u, s.y + (r.y - feet.y) * u, r.w * u, r.h * u)
+    }
+
+    /// The entity whose sprite is at the screen point over world point `p` (a point the mouse
+    /// gave: the ground under the cursor), the nearest one when several overlap.
     pub(super) fn entity_under(&self, p: Vec2) -> Option<usize> {
+        let s = self.view().to_screen(p);
         self.loaded
             .entities
             .iter()
             .enumerate()
-            .filter(|(_, e)| e.active && self.entity_click_rect(e).contains(p))
-            .max_by(|a, b| a.1.body.pos.y.total_cmp(&b.1.body.pos.y))
+            .filter(|(_, e)| e.active && self.entity_screen_rect(e).contains(s))
+            .max_by(|a, b| crate::render::iso::depth(a.1.body.pos).total_cmp(&crate::render::iso::depth(b.1.body.pos)))
             // Furniture in use: its user (clicking a bed talks to the sleeper).
             .map(|(i, _)| self.user_of(i).unwrap_or(i))
     }
@@ -452,6 +463,7 @@ impl Game {
         }
         if let Some((p, age)) = self.click_marker {
             let r = (6.0 * (1.0 - age / 0.6) + 1.0) * u;
+            // (A ring on the ground.)
             draw_circle_lines(p.x, p.y, r, u, Color::new(1.0, 1.0, 0.5, 1.0 - age / 0.6));
         }
         if self.mouse.idle > 3.0 || self.modal() {
@@ -463,7 +475,7 @@ impl Game {
                 let e = &self.loaded.entities[i];
                 let r = self.entity_click_rect(e);
                 let c = if e.hostile && e.max_hp > 0 { Color::new(1.0, 0.3, 0.3, 0.9) } else { Color::new(1.0, 1.0, 0.4, 0.9) };
-                draw_rectangle_lines(r.x, r.y, r.w, r.h, u, c);
+                self.upright(e.body.pos, || draw_rectangle_lines(r.x, r.y, r.w, r.h, u, c));
             }
             None => {
                 let (tx, ty) = ((w.x / ts).floor(), (w.y / ts).floor());

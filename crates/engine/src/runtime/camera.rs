@@ -104,6 +104,13 @@ impl Game {
 
     /// For `status()`: `player`, `tile:X,Y`, `follow:NAME`, plus `@ZOOMx` when zoomed and `>`
     /// while moving.
+    /// `view=` for `status`: `iso:ZOOM@x,y` (the isometric view's zoom and the tile in its middle).
+    pub(super) fn view_status(&self) -> String {
+        let v = self.view();
+        let ts = self.ts();
+        format!("iso:{:.2}@{},{}", v.scale, (v.target.x / ts).floor(), (v.target.y / ts).floor())
+    }
+
     pub(super) fn camera_status(&self) -> String {
         let Some(c) = &self.cam else { return "player".into() };
         let ts = self.ts();

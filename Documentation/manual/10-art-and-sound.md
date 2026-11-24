@@ -2,7 +2,12 @@
 
 ## Sizes and layouts
 
-- **Tiles** are always 32 × 32 pixels: the grid of collision, zones and positions.
+- **Tiles** are always 32 × 32 pixels: the grid of collision, zones and positions. The game shows
+  them isometrically, as 64 × 32 diamonds seen from the south-east and 30° from above: the
+  ground's materials and flat props (rugs, mats, the black filler around rooms) lie on the
+  diamonds, everything else (characters, props, trees) stands upright where its feet are, at
+  √2 × its pixel size. A prop's *Hitbox* is also its footprint: props wider than a tile (houses,
+  counters, beds) are drawn in front of or behind characters by that box.
 - **Material textures** are seamless pictures up to 256 × 256 pixels in steps of 8, repeated over
   the painted ground (draw them with *New asset… › Ground material* in the pixel editor).
 - **Characters** are 3D models, not sprite sheets ([Characters](06-characters.md#how-characters-look)).

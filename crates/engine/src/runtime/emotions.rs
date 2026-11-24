@@ -148,7 +148,7 @@ impl Game {
             let frame = m.first + (m.t * m.fps) as u32 % n;
             let bob = (m.t * 3.0).sin() * 0.8 * u;
             let at = feet - vec2(0.0, height + 9.0 * u + bob);
-            self.assets.draw_frame_scaled(&m.sheet, frame, at, 0.0, m.scale(), Color::new(1.0, 1.0, 1.0, m.alpha()));
+            self.upright(feet, || self.assets.draw_frame_scaled(&m.sheet, frame, at, 0.0, m.scale(), Color::new(1.0, 1.0, 1.0, m.alpha())));
         };
         if let Some(m) = &self.player_emote {
             if !self.on_title() {

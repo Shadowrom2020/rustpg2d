@@ -17,8 +17,10 @@ pub(super) struct Marker {
     /// The quest's id and title.
     pub quest: String,
     pub title: String,
-    /// World pixels: the point the marker hangs over.
+    /// World pixels: the point (on the ground) the marker hangs over.
     pub pos: Vec2,
+    /// How high over it (world pixels of something upright).
+    pub lift: f32,
     /// The target's map, when the marker stands at the exit leading there.
     pub via: Option<String>,
 }
@@ -55,7 +57,7 @@ impl Game {
                     if let Some(e) = self.loaded.entities.iter().find(|e| e.active && e.kind == EntityKind::Character && (e.name == who || e.def == who)) {
                         let look = self.look(&e.appearance);
                         let h = self.project.db.model(&look.model).map_or(ts * 1.4, |m| m.height) * self.look_size(&e.appearance);
-                        out.push(Marker { quest: id.clone(), title, pos: e.body.pos - vec2(0.0, h + ts * 0.25), via: None });
+                        out.push(Marker { quest: id.clone(), title, pos: e.body.pos, lift: h + ts * 0.25, via: None });
                         continue;
                     }
                 } else {
@@ -78,7 +80,7 @@ impl Game {
                 });
                 let zone = || m.zones.iter().find(|z| z.name == name).map(|z| z.pixel_rect(ts).center());
                 if let Some(pos) = entity.or_else(zone) {
-                    out.push(Marker { quest: id.clone(), title, pos, via: None });
+                    out.push(Marker { quest: id.clone(), title, pos, lift: 0.0, via: None });
                 }
             } else {
                 // Elsewhere: the nearest exit leading to its map, else to the first map on the
@@ -94,7 +96,7 @@ impl Game {
                     (link.target_map == way).then(|| m.edges.strip_rect(e, m.width, m.height, ts)).flatten().map(|r| r.center())
                 });
                 if let Some(pos) = exits.chain(edges).min_by(|a, b| a.distance(me).total_cmp(&b.distance(me))) {
-                    out.push(Marker { quest: id.clone(), title, pos, via: Some(map.to_string()) });
+                    out.push(Marker { quest: id.clone(), title, pos, lift: 0.0, via: Some(map.to_string()) });
                 }
             }
         }
@@ -115,7 +117,8 @@ impl Game {
         let margin = 26.0;
         let t = get_time() as f32;
         for (k, mk) in markers.iter().enumerate() {
-            let p = cam.world_to_screen(mk.pos);
+            let _ = cam;
+            let p = self.view().above(mk.pos, mk.lift);
             if p.x > margin && p.x < sw - margin && p.y > margin && p.y < sh - margin {
                 let bob = (t * 3.0 + k as f32).sin() * 3.0;
                 diamond(vec2(p.x, p.y - 10.0 + bob), 9.0, GOLD_MARK);

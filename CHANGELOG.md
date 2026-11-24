@@ -5,6 +5,25 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 
 ## Unreleased
 
+### Isometric view
+- **The world is isometric** (`render/iso.rs`): the square grid of the maps is shown as 2:1
+  diamonds seen from the south-east and 30° above, in the tradition of the western isometric RPGs.
+  Maps, collision, pathfinding, the fight grid and save games are unchanged: only the drawing and
+  the controls turn. What lies flat (the ground, flat decorations and props, the fight's tiles and
+  areas, the light map) is projected; what stands (characters, props, trees, health bars, emotes,
+  speech bubbles, markers, damage numbers) stands upright at its feet. Characters are rendered 30°
+  from above and turned to the diamonds' axes. Props wider than a tile are drawn in front of or
+  behind characters by their footprint (the *Hitbox*). The map's border fades into its background.
+  **Breaking (look):** every project now shows isometrically; square-cornered pictures (houses,
+  walls, furniture) stand upright until their isometric art replaces them (the next parts of the
+  0.35.0 roadmap); the editor's map canvas is still top-down.
+- **Controls follow the screen**: the movement keys and the stick walk up, down, left and right on
+  the screen (up = the map's north-west); the fight's cursor keys and photo mode's camera too.
+  Clicking picks the character or prop drawn under the cursor.
+- The black filler around rooms (`black_void`, `dungeon_void`) is a flat prop now, so rooms end in a
+  straight edge.
+- Autoplay `status` prints `view=iso:ZOOM@X,Y`.
+
 ### Visual scripts
 - **Script functions made of nodes** (`defs/visual_scripts.ron`, first part): a visual script is a
   function whose nodes are the script API's functions (a step on the flow, or a value such as

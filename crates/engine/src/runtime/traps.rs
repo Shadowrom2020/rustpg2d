@@ -260,7 +260,7 @@ impl Game {
         if dmg > 0 {
             self.hurt_player_by(dmg, from, spec.damage_type);
         } else if spec.attack > 0 && !hit {
-            self.miss_number(self.player.pos - vec2(0.0, self.ts()));
+            self.miss_number((self.player.pos, self.ts()));
         }
         // The second part after a hit (the poison of darts and needles).
         if hit && self.game_over.is_none() {
@@ -340,8 +340,11 @@ impl Game {
                 }
                 TrapAt::Prop(_) => {
                     let (cx, cy) = ((r.0 as f32 + 0.5) * ts, r.1 as f32 * ts - ts * 0.4);
-                    draw_triangle(vec2(cx, cy - 7.0), vec2(cx - 7.0, cy + 5.0), vec2(cx + 7.0, cy + 5.0), red);
-                    draw_line(cx, cy - 3.0, cx, cy + 1.0, 1.5, WHITE);
+                    // (Over the prop, standing: its feet are its tile's bottom.)
+                    self.upright(vec2(cx, (r.1 + 1) as f32 * ts), || {
+                        draw_triangle(vec2(cx, cy - 7.0), vec2(cx - 7.0, cy + 5.0), vec2(cx + 7.0, cy + 5.0), red);
+                        draw_line(cx, cy - 3.0, cx, cy + 1.0, 1.5, WHITE);
+                    });
                 }
             }
         }

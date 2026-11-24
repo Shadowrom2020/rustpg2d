@@ -420,6 +420,8 @@ struct Cache {
     current: usize,
     poses: HashMap<PoseKey, Cell>,
     scratch: HashMap<(u32, u32), RenderTarget>,
+    /// Targets the ground shadows of still models are drawn into (by size).
+    shadow_scratch: HashMap<(u32, u32), RenderTarget>,
     material: Option<Material>,
     frame: u64,
     renders: u32,
@@ -1354,7 +1356,8 @@ fn alloc(c: &mut Cache, w: u32, h: u32) -> (usize, Rect) {
         return alloc_solo(c, w, h);
     }
     loop {
-        if let Some(p) = c.pages.get_mut(c.current) {
+        // (Never a big pose's own texture: those aren't shelves.)
+        if let Some(p) = c.pages.get_mut(c.current).filter(|p| !p.solo) {
             if p.x + w > PAGE {
                 p.x = 0;
                 p.y += p.row;
@@ -1464,6 +1467,13 @@ fn render(c: &mut Cache, l: &Loaded, parts: &[&Loaded], items: &HashMap<String, 
             Vertex { position: turn.transform_point3(*p), uv: v.uv, color: [255; 4], normal: vec4(n.x, n.y, n.z, 0.0) }
         })
         .collect();
+    // A still model (a building, a cart: no clips, no bones) casts a shadow on the ground, down and
+    // to the right on the screen like the pre-rendered props': its points slid along the sun.
+    let shadow: Vec<Vertex> = if !req.bust && l.model.clips.is_empty() && l.model.joints.len() <= 1 {
+        vertices.iter().map(|v| Vertex { position: vec3(v.position.x + v.position.y * SHADOW_RUN.x, 0.0, v.position.z + v.position.y * SHADOW_RUN.y), uv: v.uv, color: [0, 0, 0, 255], normal: v.normal }).collect()
+    } else {
+        Vec::new()
+    };
     // The pieces it wears, in the body's pose.
     let pieces: Vec<Mesh> = parts
         .iter()
@@ -1633,7 +1643,7 @@ fn render(c: &mut Cache, l: &Loaded, parts: &[&Loaded], items: &HashMap<String, 
         (0, 0, 0, 0)
     } else {
         let (mut lo, mut hi) = (vec2(0.0, 0.0), vec2(w as f32, h as f32));
-        let points = vertices.iter().map(|v| v.position).chain(pieces.iter().flat_map(|m| m.vertices.iter().map(|v| v.position))).chain(held.iter().flat_map(|(m, ..)| m.vertices.iter().map(|v| v.position)));
+        let points = vertices.iter().chain(&shadow).map(|v| v.position).chain(pieces.iter().flat_map(|m| m.vertices.iter().map(|v| v.position))).chain(held.iter().flat_map(|(m, ..)| m.vertices.iter().map(|v| v.position)));
         for p in points {
             let s = to_px0(p);
             (lo, hi) = (lo.min(s), hi.max(s));
@@ -1678,10 +1688,29 @@ fn render(c: &mut Cache, l: &Loaded, parts: &[&Loaded], items: &HashMap<String, 
         tips.push((id.clone(), to_px(*tip)));
     }
     gl_use_default_material();
+    // The shadow, flat black in a target of its own (overlapping triangles stay one shade).
+    let shadow_rt = (!shadow.is_empty()).then(|| {
+        let rt = c
+            .shadow_scratch
+            .entry((w, h))
+            .or_insert_with(|| {
+                let rt = render_target_ex(w, h, RenderTargetParams { sample_count: 1, depth: false });
+                rt.texture.set_filter(FilterMode::Nearest);
+                rt
+            })
+            .clone();
+        set_camera(&Camera3D { render_target: Some(rt.clone()), ..camera(w, h, shift) });
+        clear_background(Color::new(0.0, 0.0, 0.0, 0.0));
+        draw_mesh(&Mesh { vertices: shadow, indices: l.model.indices.clone(), texture: None });
+        rt
+    });
     // Into the atlas, with a soft dark outline: the picture four times shifted by a pixel in a
     // dark, half-clear tint, then itself (it keeps figures apart from the painted ground).
     let (page, rect) = alloc(c, w + 2, h + 2);
     set_camera(&page_camera(&c.pages[page].rt));
+    if let Some(rt) = &shadow_rt {
+        draw_texture_ex(&rt.texture, rect.x + 1.0, rect.y + 1.0, Color::new(0.0, 0.0, 0.0, SHADOW_ALPHA), DrawTextureParams { dest_size: Some(vec2(w as f32, h as f32)), flip_y: true, ..Default::default() });
+    }
     // (A tint multiplies: this darkens every colour to the outline's dark brown or below.)
     let dark = Color::new(0.15, 0.10, 0.09, 1.0);
     let (x, y) = (rect.x + 1.0, rect.y + 1.0);
@@ -1695,6 +1724,12 @@ fn render(c: &mut Cache, l: &Loaded, parts: &[&Loaded], items: &HashMap<String, 
     let base = Rect::new(left as f32, top as f32, (w0 + 2) as f32, (h0 + 2) as f32);
     Cell { page, rect, base, feet, head, tips: tips.into_iter().map(|(id, p)| (id, p + vec2(1.0, 1.0))).collect() }
 }
+
+/// How far a still model's shadow reaches per unit of height (across the screen, toward the
+/// viewer): the sun stands high in the north-west.
+const SHADOW_RUN: Vec2 = Vec2::new(0.55, 0.35);
+/// How dark the ground shadow of still models is.
+const SHADOW_ALPHA: f32 = 0.72;
 
 /// A camera drawing into an atlas page in its texture's own pixels (y down as sampled).
 fn page_camera(rt: &RenderTarget) -> Camera2D {

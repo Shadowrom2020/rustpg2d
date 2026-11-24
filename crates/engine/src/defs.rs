@@ -1532,6 +1532,15 @@ pub struct PropDef {
     /// a flag, a water wheel).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub anim: Option<FrameAnim>,
+    /// A 3D model (a [`ModelDef`] id) shown instead of the picture: rendered from the isometric
+    /// angle like the figures and turned with the placed prop. Its origin is the middle of the
+    /// footprint (the hitbox) on the ground. States can name their own ([`PropState::model`]).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub model: String,
+    /// Pictures of the default state turned a quarter: facing west, north and east (the picture
+    /// itself faces south); for props drawn ahead of time from four sides.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub turns: Vec<SpriteRef>,
 }
 
 /// Frames of a sprite sheet shown one after the other (`PropDef::anim`).
@@ -1582,6 +1591,8 @@ impl Default for PropDef {
             snap: 0,
             pieces: vec![],
             anim: None,
+            model: String::new(),
+            turns: vec![],
         }
     }
 }
@@ -1691,6 +1702,9 @@ pub struct PropState {
     /// Light in this state (e.g. "lit"; none for "off").
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub light: Option<LightSpec>,
+    /// The state's own 3D model ([`PropDef::model`]; "" = the prop's).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub model: String,
 }
 
 pub fn default_state_name() -> String {
@@ -1731,6 +1745,45 @@ impl PropDef {
         }
     }
 
+    /// The 3D model of state `index` ("" = none: the picture is drawn).
+    pub fn model_at(&self, index: usize) -> &str {
+        match index.checked_sub(1).and_then(|i| self.states.get(i)).filter(|s| !s.model.is_empty()) {
+            Some(s) => &s.model,
+            None => &self.model,
+        }
+    }
+
+    /// Whether placed copies turn in quarters (a model, or pictures from four sides): their
+    /// facing then turns the picture and the hitbox. Others only mirror.
+    pub fn turns(&self) -> bool {
+        !self.model.is_empty() || !self.turns.is_empty() || self.states.iter().any(|s| !s.model.is_empty())
+    }
+
+    /// The hitbox of a copy facing `f`: width and depth swapped when it is turned a quarter.
+    pub fn hitbox_facing(&self, f: crate::entity::Facing) -> [f32; 2] {
+        use crate::entity::Facing;
+        match f {
+            Facing::Left | Facing::Right if self.turns() => [self.hitbox[1], self.hitbox[0]],
+            _ => self.hitbox,
+        }
+    }
+
+    /// The picture of state `index` at `time` seconds facing `f` (the turned pictures of the
+    /// default state, else the state's picture).
+    pub fn picture_facing(&self, index: usize, f: crate::entity::Facing, time: f64) -> std::borrow::Cow<'_, SpriteRef> {
+        use crate::entity::Facing;
+        let k = match f {
+            Facing::Down => None,
+            Facing::Left => Some(0),
+            Facing::Up => Some(1),
+            Facing::Right => Some(2),
+        };
+        match k.filter(|_| index == 0).and_then(|k| self.turns.get(k)) {
+            Some(s) => std::borrow::Cow::Borrowed(s),
+            None => self.sprite_at(index, time),
+        }
+    }
+
     pub fn state_look(&self, index: usize) -> (&SpriteRef, bool) {
         match index.checked_sub(1).and_then(|i| self.states.get(i)) {
             Some(s) => (&s.sprite, s.solid),
@@ -1753,7 +1806,7 @@ impl PropDef {
             n = format!("{name}_{k}");
             k += 1;
         }
-        self.states.push(PropState { name: n.clone(), sprite, solid, light: None });
+        self.states.push(PropState { name: n.clone(), sprite, solid, light: None, model: String::new() });
         n
     }
     /// Converts the legacy frame offsets of the lock / container to named states.
@@ -2946,6 +2999,24 @@ mod tests {
     /// `Default` is what a file entry with only the required fields loads as (so tests and the
     /// editor can write `..Default::default()`), and `fresh` is the editor's "+ New" value.
     #[test]
+    fn props_with_a_model_or_four_pictures_turn() {
+        use crate::entity::Facing;
+        let mut p = PropDef { hitbox: [64.0, 30.0], ..PropDef::fresh("cart") };
+        assert!(!p.turns());
+        assert_eq!(p.hitbox_facing(Facing::Left), [64.0, 30.0]);
+        p.model = "cart_3d".into();
+        assert!(p.turns() && p.model_at(0) == "cart_3d");
+        assert_eq!((p.hitbox_facing(Facing::Left), p.hitbox_facing(Facing::Up)), ([30.0, 64.0], [64.0, 30.0]));
+        p.states.push(PropState { name: "broken".into(), sprite: SpriteRef::new("s", 1), solid: false, light: None, model: "cart_broken".into() });
+        assert_eq!((p.model_at(1), p.model_at(5)), ("cart_broken", "cart_3d"));
+        p.model.clear();
+        p.turns = vec![SpriteRef::new("w", 0), SpriteRef::new("n", 0), SpriteRef::new("e", 0)];
+        assert_eq!(p.picture_facing(0, Facing::Up, 0.0).sheet, "n");
+        assert_eq!(p.picture_facing(0, Facing::Right, 0.0).sheet, "e");
+        assert_eq!(p.picture_facing(1, Facing::Up, 0.0).sheet, "s");
+    }
+
+    #[test]
     fn defaults_match_the_file_format() {
         let s: SheetDef = ron::from_str(r#"(id: "s", image: "sprites/s.png", frame_w: 32, frame_h: 32)"#).unwrap();
         assert_eq!(s, SheetDef::new("s", "sprites/s.png", 32, 32));
@@ -3096,7 +3167,7 @@ mod tests {
         assert_eq!((a.frame_at(0.0), a.frame_at(0.6), a.frame_at(1.2), a.frame_at(1.5)), (Some(3), Some(40), Some(41), Some(3)));
         assert_eq!(FrameAnim { frames: vec![], fps: 2.0 }.frame_at(9.0), None);
         let mut p = PropDef { id: "torch".into(), sprite: SpriteRef::new("s", 3), anim: Some(a), ..Default::default() };
-        p.states.push(PropState { name: "out".into(), sprite: SpriteRef::new("s", 9), solid: false, light: None });
+        p.states.push(PropState { name: "out".into(), sprite: SpriteRef::new("s", 9), solid: false, light: None, model: String::new() });
         assert_eq!(p.sprite_at(0, 0.6).frame, 40);
         assert_eq!(p.sprite_at(1, 0.6).frame, 9, "other states don't animate");
         // Props without one don't write it.

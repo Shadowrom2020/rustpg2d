@@ -29,6 +29,13 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   selecting (by what is drawn under the cursor), regions, zones, structures and paste previews.
   **View › Top-down** (I, editor script `viewopt topdown on|off`) shows the old flat view for
   painting large areas.
+- **Props as 3D models**: a prop (or one of its states) can show a model from *Database › 3D
+  models* instead of its picture, rendered from the isometric angle and cached like the figures;
+  its origin stands on the middle of the hitbox. Props with a model, or with *Pictures from four
+  sides* (west, north, east), **turn** in quarters: placed props by their *Facing* (R in the editor),
+  decorations by R / *Turn* in the Decorations tool (kept in the map file's decoration state, so
+  maps load in older versions); the hitbox turns with them. Editor script `turn`; `status decor=`
+  ends with `:turnN`.
 ### Visual scripts
 - **Script functions made of nodes** (`defs/visual_scripts.ron`, first part): a visual script is a
   function whose nodes are the script API's functions (a step on the flow, or a value such as

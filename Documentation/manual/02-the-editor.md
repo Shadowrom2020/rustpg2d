@@ -50,6 +50,7 @@ From top to bottom:
 |---|---|
 | Mouse wheel, middle-drag, Space+drag, arrow keys | Zoom and pan (the arrow keys move along the screen) |
 | I | Isometric / top-down view |
+| R | Turn the selected prop, or the decoration about to be placed, a quarter (props with a 3D model or pictures from four sides) |
 | Right-click (Ground, Decorations) | Pick the material or prop under the cursor |
 | G / Home | Toggle the grid / fit the map into the view |
 | Ctrl+Z / Ctrl+Y | Undo / redo (in the Database mode: definition changes) |

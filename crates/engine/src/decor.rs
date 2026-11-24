@@ -52,6 +52,50 @@ pub struct Decor {
     pub layer: DecorLayer,
 }
 
+impl Decor {
+    /// The two high bits of [`Decor::state`] hold a quarter turn (props that turn, see
+    /// [`crate::defs::PropDef::turns`]); the map format stays as it was, and older versions read
+    /// a turned decoration's state as out of range (the default state).
+    pub const TURN_SHIFT: u8 = 6;
+
+    /// The prop state it shows (0 = the default state).
+    pub fn state_index(&self) -> usize {
+        (self.state & ((1 << Self::TURN_SHIFT) - 1)) as usize
+    }
+
+    /// Quarter turns from facing south (0..3: south, west, north, east).
+    pub fn turn(&self) -> u8 {
+        self.state >> Self::TURN_SHIFT
+    }
+
+    /// Sets the quarter turns (0..3), keeping the state.
+    pub fn set_turn(&mut self, turn: u8) {
+        self.state = (self.state & ((1 << Self::TURN_SHIFT) - 1)) | ((turn & 3) << Self::TURN_SHIFT);
+    }
+
+    /// The way it faces (turned decorations of props that turn).
+    pub fn facing(&self) -> crate::entity::Facing {
+        turn_facing(self.turn())
+    }
+}
+
+/// The facing of `turn` quarter turns: south, west, north, east.
+pub fn turn_facing(turn: u8) -> crate::entity::Facing {
+    use crate::entity::Facing;
+    [Facing::Down, Facing::Left, Facing::Up, Facing::Right][(turn & 3) as usize]
+}
+
+/// The quarter turns of facing `f` ([`turn_facing`]'s inverse).
+pub fn facing_turn(f: crate::entity::Facing) -> u8 {
+    use crate::entity::Facing;
+    match f {
+        Facing::Down => 0,
+        Facing::Left => 1,
+        Facing::Up => 2,
+        Facing::Right => 3,
+    }
+}
+
 /// A scatter set: props placed at random by the scatter brush (a forest, a flower meadow).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -170,12 +214,15 @@ pub struct DecorLook {
     /// Difficult terrain / lightly obscuring where it stands (fights).
     pub difficult: bool,
     pub obscures: bool,
+    /// The prop turns in quarters ([`crate::defs::PropDef::turns`]): turned decorations swap the
+    /// hitbox's sides.
+    pub turns: bool,
 }
 
 impl DecorLook {
     pub fn of(db: &Database, id: &str, state: u8) -> DecorLook {
         match db.prop(id) {
-            Some(d) => DecorLook { hitbox: d.hitbox, solid: d.state_look(state as usize).1, low: d.low, climb: d.climb, climb_dc: d.climb_dc, difficult: d.difficult, obscures: d.obscures },
+            Some(d) => DecorLook { hitbox: d.hitbox, solid: d.state_look(state as usize).1, low: d.low, climb: d.climb, climb_dc: d.climb_dc, difficult: d.difficult, obscures: d.obscures, turns: d.turns() },
             None => DecorLook::default(),
         }
     }
@@ -183,6 +230,12 @@ impl DecorLook {
     /// The hitbox at feet (x, y), as (x, y, w, h).
     pub fn rect(&self, x: f32, y: f32) -> (f32, f32, f32, f32) {
         (x - self.hitbox[0] / 2.0, y - self.hitbox[1], self.hitbox[0], self.hitbox[1])
+    }
+
+    /// The hitbox of decoration `d` (turned a quarter: its sides swapped), as (x, y, w, h).
+    pub fn rect_at(&self, d: &Decor) -> (f32, f32, f32, f32) {
+        let [w, h] = if self.turns && d.turn() % 2 == 1 { [self.hitbox[1], self.hitbox[0]] } else { self.hitbox };
+        (d.x as f32 - w / 2.0, d.y as f32 - h, w, h)
     }
 }
 
@@ -193,7 +246,7 @@ pub fn mark_solid_tiles(map: &crate::map::Map, db: &Database, solid: &mut [bool]
     let looks: Vec<DecorLook> = map.decor_defs.iter().map(|id| DecorLook::of(db, id, 0)).collect();
     for d in &map.decor {
         let Some(l) = looks.get(d.def as usize).filter(|l| l.solid) else { continue };
-        let (x, y, w, h) = l.rect(d.x as f32, d.y as f32);
+        let (x, y, w, h) = l.rect_at(d);
         for ty in (y / ts).floor() as i32..=((y + h) / ts).floor() as i32 {
             for tx in (x / ts).floor() as i32..=((x + w) / ts).floor() as i32 {
                 let (ix, iy) = (tx as f32 * ts + 2.0, ty as f32 * ts + 2.0);
@@ -247,6 +300,24 @@ impl DecorIndex {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_turned_decoration_keeps_its_state_and_turns_its_hitbox() {
+        let mut d = Decor { def: 0, x: 100, y: 200, flip: false, state: 2, layer: DecorLayer::Sorted };
+        d.set_turn(1);
+        assert_eq!((d.state_index(), d.turn(), d.facing()), (2, 1, crate::entity::Facing::Left));
+        d.set_turn(6);
+        assert_eq!((d.state_index(), d.turn()), (2, 2));
+        let look = DecorLook { hitbox: [64.0, 32.0], turns: true, ..Default::default() };
+        assert_eq!(look.rect_at(&d), (68.0, 168.0, 64.0, 32.0));
+        d.set_turn(3);
+        assert_eq!(look.rect_at(&d), (84.0, 136.0, 32.0, 64.0));
+        // Props that don't turn keep their hitbox whatever the bits say.
+        assert_eq!(DecorLook { turns: false, ..look }.rect_at(&d), (68.0, 168.0, 64.0, 32.0));
+        for t in 0..4 {
+            assert_eq!(facing_turn(turn_facing(t)), t);
+        }
+    }
 
     #[test]
     fn scattering_keeps_its_spacing_and_density() {

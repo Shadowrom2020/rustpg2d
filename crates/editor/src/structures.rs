@@ -40,7 +40,7 @@ fn structure_pictures(d: &StructureDef, db: &Database) -> Vec<(i32, SpriteRef, e
             DecorLayer::Sorted => 1,
             DecorLayer::Above => 2,
         };
-        out.push((order, dec.y as f32, p.state_look(dec.state as usize).0.clone(), vec2(dec.x as f32, dec.y as f32), dec.flip));
+        out.push((order, dec.y as f32, p.state_look(dec.state_index()).0.clone(), vec2(dec.x as f32, dec.y as f32), dec.flip));
     }
     for e in &d.entities {
         if let Some(s) = entity_sprite(db, e) {

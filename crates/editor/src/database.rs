@@ -1975,6 +1975,7 @@ fn prop_form(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
     wall_pieces_ui(ui, d, cx);
     ui.separator();
     prop_states_ui(ui, d, cx);
+    turned_pictures_ui(ui, d, cx);
     ui.separator();
     carry_ui(ui, d, cx);
     ui.separator();
@@ -2207,12 +2208,32 @@ fn use_spot_ui(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
     });
 }
 
+/// Pictures of the default state from the other three sides (`PropDef::turns`): placed copies
+/// then turn in quarters like props with a 3D model.
+fn turned_pictures_ui(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
+    ui.add_space(4.0);
+    let on = !d.turns.is_empty();
+    let mut want = on;
+    ui.checkbox(&mut want, "Pictures from four sides").on_hover_text("The default state drawn from the west, north and east too (the picture above faces south): placed copies then turn in quarters (R while placing or with one selected) and their hitbox turns with them. For props drawn ahead of time; a 3D model turns by itself.");
+    if want && !on {
+        d.turns = vec![d.sprite.clone(); 3];
+    } else if !want && on {
+        d.turns.clear();
+    }
+    for (k, side) in ["West", "North", "East"].iter().enumerate() {
+        if let Some(sp) = d.turns.get_mut(k) {
+            ui.label(format!("Facing {}", side.to_lowercase()));
+            widgets::sprite_field(ui, &format!("prop_turn_{k}"), sp, cx.tex, cx.assets, cx.db, true);
+        }
+    }
+}
+
 /// The prop's states in one place: name, sprite, whether it blocks movement.
 fn prop_states_ui(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
     ui.heading("States");
     ui.weak("A prop always shows one of its states. Placed props start in the default state (or the one chosen in the map inspector); a lock, a container, the 'Set prop state' action or set_state(target, \"name\") in scripts switch to another.");
     // All states as one list (index 0 = the default state).
-    let mut all: Vec<PropState> = std::iter::once(PropState { name: d.default_state.clone(), sprite: d.sprite.clone(), solid: d.solid, light: None }).chain(d.states.iter().cloned()).collect();
+    let mut all: Vec<PropState> = std::iter::once(PropState { name: d.default_state.clone(), sprite: d.sprite.clone(), solid: d.solid, light: None, model: d.model.clone() }).chain(d.states.iter().cloned()).collect();
     let used: Vec<String> = [
         d.lock.as_ref().and_then(|l| match &l.on_unlock {
             OnUnlock::ToState { state } => Some(state.clone()),
@@ -2323,7 +2344,7 @@ fn prop_states_ui(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
             let sprite = SpriteRef { frame: last.sprite.frame + last.sprite.cells().0, ..last.sprite.clone() };
             let names: Vec<String> = all.iter().map(|s| s.name.clone()).collect();
             let name = (2..).map(|k| format!("state_{k}")).find(|c| !names.contains(c)).unwrap();
-            all.push(PropState { name: name.clone(), sprite, solid: all[0].solid, light: None });
+            all.push(PropState { name: name.clone(), sprite, solid: all[0].solid, light: None, model: String::new() });
             *cx.state_sel = all.len() - 1;
             *cx.state_rename = Some((all.len() - 1, name));
         }
@@ -2335,11 +2356,24 @@ fn prop_states_ui(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
     ui.label(egui::RichText::new(format!("Sprite of '{}'", all[sel].name)).strong());
     widgets::sprite_field(ui, &format!("prop_state_{sel}"), &mut all[sel].sprite, cx.tex, cx.assets, cx.db, true);
     art_buttons(ui, cx, "frame for this state", all[sel].sprite.cells());
+    // Its 3D model (isometric: rendered and turned with the placed prop).
+    ui.horizontal(|ui| {
+        ui.label("3D model").on_hover_text("A model shown instead of the picture: rendered from the isometric angle like the figures and turned with the placed prop (R while placing or with it selected). Its origin is the middle of the hitbox on the ground; its Height (Database › 3D models) is its size in world pixels. The default state's model is used by states without their own.");
+        let m = &mut all[sel].model;
+        let shown = if m.is_empty() { if sel == 0 { "None (the picture)".to_string() } else { "As the default state".to_string() } } else { m.clone() };
+        egui::ComboBox::from_id_salt(format!("prop_state_model_{sel}")).selected_text(shown).show_ui(ui, |ui| {
+            ui.selectable_value(m, String::new(), if sel == 0 { "None (the picture)" } else { "As the default state" });
+            for md in cx.db.models.iter().filter(|md| md.part.is_none()) {
+                ui.selectable_value(m, md.id.clone(), format!("{}  ({})", md.label(), md.id));
+            }
+        });
+    });
     // Write back.
     let first = all.remove(0);
     d.default_state = first.name;
     d.sprite = first.sprite;
     d.solid = first.solid;
+    d.model = first.model;
     d.states = all;
     if let Some((old, new)) = renamed {
         // References inside this definition follow immediately; maps afterwards.

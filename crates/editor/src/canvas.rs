@@ -98,7 +98,8 @@ fn rect_of(a: (i32, i32), b: (i32, i32)) -> (i32, i32, i32, i32) {
 impl Editor {
     /// The canvas's isometric view (`None` while *View › Top-down* is on).
     pub fn iso(&self) -> Option<iso::View> {
-        (!self.view.topdown).then(|| iso::View::new(self.cam.center, self.cam.zoom / iso::UPRIGHT))
+        let zoom = self.draw_zoom.get();
+        (!self.view.topdown || zoom.is_some()).then(|| iso::View::new(self.cam.center - self.draw_shift.get(), zoom.unwrap_or(self.cam.zoom) / iso::UPRIGHT))
     }
 
     /// Runs `f` with the camera of something standing at `feet` (isometric: upright at its
@@ -153,7 +154,7 @@ impl Editor {
             return v.ground();
         }
         Camera2D {
-            target: self.cam.center,
+            target: self.cam.center - self.draw_shift.get(),
             zoom: vec2(2.0 * self.cam.zoom / screen_width(), 2.0 * self.cam.zoom / screen_height()),
             ..Default::default()
         }
@@ -786,42 +787,10 @@ impl Editor {
         }
     }
 
-    fn draw_map(&mut self, doc: &mut crate::doc::MapDoc, cam: &Camera2D, view: Rect, px: f32) {
+    /// Draws `map`'s decorations and entities as the game does (flat ones on the ground, the rest
+    /// upright in depth order, blocks as boxes, models and buildings), tinted by `tint`.
+    pub fn draw_objects(&self, map: &rustpg2d_engine::map::Map, view: Rect, overview: bool, tint: Color) {
         let ts = self.ts();
-        // The overview (minimap, far zoom) takes the decorations' colours after they changed.
-        if doc.overview.decor_stale {
-            doc.overview.refresh_decor(&doc.map, &self.assets, &self.project.db);
-        }
-        // Lighting / weather preview: darkness, lights and the weather's tint (drawn over the map,
-        // under the overlays), then the weather's particles.
-        let weather = if self.view.weather { doc.map.weather } else { rustpg2d_engine::map::Weather::default() };
-        let base = if self.view.lighting { render::lighting::ambient(doc.map.lighting, self.view.hour) } else { None };
-        // Lights only where it is dark (weather alone just tints the daylight), as in the game.
-        let lighting = render::weather::tint_ambient(base, weather).map(|a| (a, if base.is_some() { self.preview_lights(&doc.map) } else { Vec::new() }));
-        let brightness = lighting.as_ref().map_or(1.0, |(c, _)| (c.r + c.g + c.b) / 3.0);
-        let map = &doc.map;
-        let (mw, mh) = (map.width as f32 * ts, map.height as f32 * ts);
-        let bg = map.background;
-        draw_rectangle(0.0, 0.0, mw, mh, Color::from_rgba(bg[0], bg[1], bg[2], 255));
-        if self.view.parallax {
-            render::parallax::draw(&self.assets, &map.parallax, false, view, get_time() as f32);
-        }
-
-        let overview = render::visible_tiles(view, ts) > OVERVIEW_THRESHOLD;
-        if overview {
-            doc.overview.draw(&doc.map, ts);
-        }
-        let map = &doc.map;
-        if !overview {
-            // The painted ground, as in the game.
-            self.ground_draw.draw(map, &self.project.db, &self.assets, view, WHITE);
-            // Fish shadows in fishing spots, as in the game.
-            for z in map.zones.iter().filter(|z| matches!(z.kind, ZoneKind::FishingSpot { .. })) {
-                let r = Rect::new(z.x as f32 * ts, z.y as f32 * ts, z.w as f32 * ts, z.h as f32 * ts);
-                render::fish::draw_shadows(r, z.uid, get_time() as f32, ts);
-            }
-        }
-
         // Decorations near the view, by layer.
         use rustpg2d_engine::decor::DecorLayer;
         let reach = rustpg2d_engine::decor::REACH;
@@ -833,7 +802,7 @@ impl Editor {
         };
         if !overview {
             for i in decor_in(DecorLayer::Flat) {
-                self.draw_decor(map, i, WHITE);
+                self.draw_decor(map, i, tint);
             }
         }
         // Entities and decorations: flat props and flat decorations lie on the ground under
@@ -876,7 +845,7 @@ impl Editor {
                 let prop = map.decor_defs.get(d.def as usize).and_then(|id| db.prop(id));
                 let feet = vec2(d.x as f32, d.y as f32);
                 if prop.is_some_and(|p| p.flat) {
-                    self.draw_decor(map, i, WHITE);
+                    self.draw_decor(map, i, tint);
                 } else {
                     let hitbox = prop.map(|p| if p.turns() { p.hitbox_facing(d.facing()) } else { p.hitbox });
                     let print = match (prop, hitbox) {
@@ -888,7 +857,7 @@ impl Editor {
             }
         }
         let draw_ent = |e: &EntityInstance| {
-            let col = if e.active { WHITE } else { Color::new(1.0, 1.0, 1.0, 0.4) };
+            let col = if e.active { tint } else { Color { a: tint.a * 0.4, ..tint } };
             let pos = vec2(e.x, e.y);
             let drawn = match e.kind {
                 EntityKind::Prop => db.prop(&e.def).is_some_and(|d| self.assets.draw_prop(db, d, d.state_index(&e.state).unwrap_or(0), e.facing, e.frame, pos, false, col, 0.0, iso.is_some())),
@@ -913,7 +882,7 @@ impl Editor {
         let block = |p: &rustpg2d_engine::defs::PropDef, state: usize, facing, feet: Vec2| -> bool {
             let Some(v) = iso.filter(|_| p.block > 0.0) else { return false };
             set_default_camera();
-            self.assets.draw_prop_block(&v, p, state, facing, feet, p.block, WHITE);
+            self.assets.draw_prop_block(&v, p, state, facing, feet, p.block, tint);
             set_camera(&v.ground());
             true
         };
@@ -931,17 +900,57 @@ impl Editor {
             }
             self.standing(*feet, || match what {
                 Drawn::Ent(e) => draw_ent(e),
-                Drawn::Decor(i) => self.draw_decor(map, *i, WHITE),
+                Drawn::Decor(i) => self.draw_decor(map, *i, tint),
             });
         }
 
         if !overview {
             // Decorations over everyone (see-through while placing decorations or painting).
-            let over = if matches!(self.tool, Tool::Decor | Tool::Ground) { Color::new(1.0, 1.0, 1.0, 0.6) } else { WHITE };
+            let over = if matches!(self.tool, Tool::Decor | Tool::Ground) { Color { a: tint.a * 0.6, ..tint } } else { tint };
             for i in decor_in(DecorLayer::Above) {
                 self.standing(vec2(map.decor[i].x as f32, map.decor[i].y as f32), || self.draw_decor(map, i, over));
             }
         }
+    }
+
+    fn draw_map(&mut self, doc: &mut crate::doc::MapDoc, cam: &Camera2D, view: Rect, px: f32) {
+        let ts = self.ts();
+        // The overview (minimap, far zoom) takes the decorations' colours after they changed.
+        if doc.overview.decor_stale {
+            doc.overview.refresh_decor(&doc.map, &self.assets, &self.project.db);
+        }
+        // Lighting / weather preview: darkness, lights and the weather's tint (drawn over the map,
+        // under the overlays), then the weather's particles.
+        let weather = if self.view.weather { doc.map.weather } else { rustpg2d_engine::map::Weather::default() };
+        let base = if self.view.lighting { render::lighting::ambient(doc.map.lighting, self.view.hour) } else { None };
+        // Lights only where it is dark (weather alone just tints the daylight), as in the game.
+        let lighting = render::weather::tint_ambient(base, weather).map(|a| (a, if base.is_some() { self.preview_lights(&doc.map) } else { Vec::new() }));
+        let brightness = lighting.as_ref().map_or(1.0, |(c, _)| (c.r + c.g + c.b) / 3.0);
+        let map = &doc.map;
+        let (mw, mh) = (map.width as f32 * ts, map.height as f32 * ts);
+        let bg = map.background;
+        draw_rectangle(0.0, 0.0, mw, mh, Color::from_rgba(bg[0], bg[1], bg[2], 255));
+        if self.view.parallax {
+            render::parallax::draw(&self.assets, &map.parallax, false, view, get_time() as f32);
+        }
+
+        let overview = render::visible_tiles(view, ts) > OVERVIEW_THRESHOLD;
+        if overview {
+            doc.overview.draw(&doc.map, ts);
+        }
+        let map = &doc.map;
+        if !overview {
+            // The painted ground, as in the game.
+            self.ground_draw.draw(map, &self.project.db, &self.assets, view, WHITE);
+            // Fish shadows in fishing spots, as in the game.
+            for z in map.zones.iter().filter(|z| matches!(z.kind, ZoneKind::FishingSpot { .. })) {
+                let r = Rect::new(z.x as f32 * ts, z.y as f32 * ts, z.w as f32 * ts, z.h as f32 * ts);
+                render::fish::draw_shadows(r, z.uid, get_time() as f32, ts);
+            }
+        }
+
+        self.draw_objects(map, view, overview, WHITE);
+
         if self.view.parallax {
             render::parallax::draw(&self.assets, &map.parallax, true, view, get_time() as f32);
         }
@@ -1264,7 +1273,8 @@ impl Editor {
             }
         }
         if self.cam.zoom >= 1.5 {
-            for e in ents.iter().filter(|e| !e.name.is_empty()) {
+            let near = if self.iso().is_some() { Rect::new(view.x - 6.0 * ts, view.y - 6.0 * ts, view.w + 8.0 * ts, view.h + 8.0 * ts) } else { Rect::new(view.x - 64.0, view.y - 64.0, view.w + 128.0, view.h + 128.0) };
+            for e in doc.map.entities.iter().filter(|e| !e.name.is_empty() && near.contains(vec2(e.x, e.y))) {
                 let p = cam.world_to_screen(vec2(e.x, e.y));
                 let w = measure_text(&e.name, None, 14, 1.0).width;
                 draw_text(&e.name, p.x - w / 2.0, p.y + 12.0, 14.0, Color::new(1.0, 1.0, 0.6, 0.9));

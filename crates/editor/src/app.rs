@@ -302,6 +302,16 @@ pub struct Editor {
     pub weather_fx: rustpg2d_engine::render::weather::WeatherFx,
     /// Draws the painted ground (as the game does).
     pub ground_draw: rustpg2d_engine::render::ground::GroundRenderer,
+    /// A structure drawn as the game shows it (placing, pasting, thumbnails): the structure placed
+    /// on a map of its own (by a hash of the definition), its ground renderer, and the world
+    /// offset the canvas cameras take while it is drawn.
+    pub ghost: std::cell::RefCell<Option<(u64, rustpg2d_engine::map::Map)>>,
+    pub ghost_ground: std::cell::RefCell<rustpg2d_engine::render::ground::GroundRenderer>,
+    pub draw_shift: std::cell::Cell<macroquad::math::Vec2>,
+    /// While a thumbnail is rendered: the canvas's zoom instead of the user's (always isometric).
+    pub draw_zoom: std::cell::Cell<Option<f32>>,
+    /// A structure open on the map canvas: its id and the map to go back to.
+    pub editing_structure: Option<(String, Option<String>)>,
     /// The material the Ground tool paints with ("" = erase).
     pub ground_material: String,
     pub ground_mode: crate::ground_tool::GroundMode,
@@ -559,6 +569,11 @@ impl Editor {
             light_pass: None,
             weather_fx: Default::default(),
             ground_draw: Default::default(),
+            ghost: Default::default(),
+            ghost_ground: Default::default(),
+            draw_shift: Default::default(),
+            draw_zoom: Default::default(),
+            editing_structure: None,
             ground_material: String::new(),
             ground_mode: Default::default(),
             ground_size: 24.0,
@@ -692,6 +707,13 @@ impl Editor {
     // ------------------------------------------------------------ files
 
     pub fn open_map(&mut self, name: &str) {
+        // A structure open on the canvas is saved and left.
+        if self.editing_structure.is_some() {
+            if self.doc.as_ref().is_some_and(|d| d.is_dirty()) {
+                self.save_structure_doc();
+            }
+            self.editing_structure = None;
+        }
         // Remember where we looked on the map we leave.
         if let Some(d) = &self.doc {
             self.map_cams.insert(d.map.name.clone(), (self.cam.center, self.cam.zoom));
@@ -742,6 +764,9 @@ impl Editor {
     }
 
     pub fn save_map(&mut self) {
+        if self.editing_structure.is_some() {
+            return self.save_structure_doc();
+        }
         let Some(doc) = &mut self.doc else { return };
         doc.end_stroke();
         match self.project.save_map(&doc.map) {
@@ -1562,6 +1587,31 @@ impl Editor {
 
     // ------------------------------------------------------------ egui
 
+    /// While a structure is open on the canvas: its name and Done / Cancel, over the map.
+    fn structure_edit_bar(&mut self, ctx: &egui::Context) {
+        let Some((id, _)) = self.editing_structure.clone() else { return };
+        if self.mode != Mode::Map {
+            return;
+        }
+        let name = self.project.db.structure(&id).map_or(id.clone(), |d| d.name.clone());
+        let dirty = self.doc.as_ref().is_some_and(|d| d.is_dirty());
+        let (mut done, mut cancel) = (false, false);
+        egui::Area::new(egui::Id::new("structure_edit_bar")).anchor(egui::Align2::CENTER_TOP, [0.0, 78.0]).show(ctx, |ui| {
+            egui::Frame::popup(ui.style()).show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label(format!("{} Editing structure \"{name}\"{}", ui::ph::CUBE, if dirty { " (changed)" } else { "" }));
+                    done = ui.button(format!("{} Done", ui::ph::CHECK)).on_hover_text("Saves the structure from this map and goes back to your map").clicked();
+                    cancel = ui.button(format!("{} Cancel", ui::ph::X)).on_hover_text("Goes back to your map; the structure stays as it was saved last").clicked();
+                });
+            });
+        });
+        if done {
+            self.finish_structure_edit(true);
+        } else if cancel {
+            self.finish_structure_edit(false);
+        }
+    }
+
     pub fn ui(&mut self, ctx: &egui::Context) {
         for p in std::mem::take(&mut self.probe) {
             let layer = ctx.layer_id_at(p);
@@ -1584,6 +1634,7 @@ impl Editor {
             self.tex_dirty = false;
         }
         self.check_library_update();
+        self.structure_edit_bar(ctx);
         if self.library_mode {
             self.library_menu_bar(ctx);
             self.library_update_banner(ctx);

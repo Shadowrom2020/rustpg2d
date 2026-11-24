@@ -107,6 +107,14 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   was drawn a quarter too small), wall blocks reach it on both sides instead of two flat chimney
   pictures, and the two guard towers beside it are the 3D watchtower instead of top-down tile
   pieces (posts, rails, roof slopes, ladders).
+- **Torches that hang on any wall**: the starter library's *Wall Torch* (`wall_torch`) is a 3D
+  model of an iron bracket with a burning torch (and a burnt-out one for its *out* state; 68
+  credits) that hangs at wall height, its back to the wall. Placed in front of a wall as a
+  decoration it doesn't block the floor; R turns it onto a west wall. The mine's torches are
+  plain wall blocks with a separate torch now, instead of wall pictures with a torch painted on.
+- **The mine's walls**: its rooms have wall blocks on their west sides too (and the corners between),
+  like the north walls, and the black filler (`dungeon_void`) is a plain dark picture: its old
+  tile had a grey border that drew a grid over the empty spaces.
 ### Visual scripts
 - **Script functions made of nodes** (`defs/visual_scripts.ron`, first part): a visual script is a
   function whose nodes are the script API's functions (a step on the flow, or a value such as

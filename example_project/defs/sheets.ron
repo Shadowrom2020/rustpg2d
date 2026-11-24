@@ -1337,4 +1337,10 @@
         frame_h: 62,
         scale: 2,
     ),
+    (
+        id: "void_dark",
+        image: "sprites/void_dark.png",
+        frame_w: 32,
+        frame_h: 32,
+    ),
 ]

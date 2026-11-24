@@ -110,6 +110,9 @@ nothing in front. The starter library's thin walls (*Grey stone wall (thin)*, *P
 on the bottom edge of the tiles above the floor (*Line* along them), the west wall's on the right
 edge of the tiles left of it (they snap to 8 px: place them at the tile's right edge). Fill the
 tiles behind them with *Black void* (flat, solid). The example's interiors are built this way.
+**Torches** hang on any wall: place *Wall Torch* as a decoration on the floor tile in front of the
+wall, close to it (it hangs at wall height with its back to the wall); **R** turns it to face east
+for a west wall. It gives light, doesn't block the floor, and its *out* state is burnt out.
 **Fences** work the same: *Fence section* runs east to west on a tile's bottom edge, *Fence
 section (north to south)* across a tile's middle, *Wooden post* at the corners.
 

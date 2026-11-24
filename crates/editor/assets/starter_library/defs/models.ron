@@ -44061,4 +44061,16 @@
         file: "models/woodpile_3d.glb",
         height: 26.0,
     ),
+    (
+        id: "wall_torch_3d",
+        name: "Wall torch (3D)",
+        file: "models/wall_torch_3d.glb",
+        height: 26.0,
+    ),
+    (
+        id: "wall_torch_out_3d",
+        name: "Wall torch (out) (3D)",
+        file: "models/wall_torch_out_3d.glb",
+        height: 26.0,
+    ),
 ]

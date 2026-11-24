@@ -16627,6 +16627,7 @@
         "prop:animal_skull": (
             defs: [
                 9621402822932083171,
+                12721565430565755844,
             ],
         ),
         "prop:anvil": (
@@ -16639,6 +16640,7 @@
         ),
         "prop:apple_tree": (
             defs: [
+                5418796491399977025,
                 14319981421797426222,
             ],
         ),
@@ -16649,6 +16651,7 @@
         ),
         "prop:barrel": (
             defs: [
+                3446581979655268113,
                 9243417737999339891,
                 17444169861463093919,
             ],
@@ -16670,11 +16673,13 @@
         "prop:beehive": (
             defs: [
                 3992101789495192158,
+                16586541666314205100,
                 18440391856551513736,
             ],
         ),
         "prop:bell_rope": (
             defs: [
+                8817936734968405219,
                 11379962400836322782,
             ],
         ),
@@ -16702,16 +16707,19 @@
         "prop:berry_bush": (
             defs: [
                 6847532192051474957,
+                15142960030683350450,
             ],
         ),
         "prop:big_oak": (
             defs: [
+                468053538509562857,
                 7662185474408518693,
                 17882985986052783220,
             ],
         ),
         "prop:big_pine": (
             defs: [
+                6937722261132863971,
                 11562188148287904707,
                 15023305044929298501,
             ],
@@ -16719,6 +16727,7 @@
         "prop:bitterroot": (
             defs: [
                 12936301665519233016,
+                13591550787695591144,
             ],
         ),
         "prop:black_void": (
@@ -16735,6 +16744,7 @@
         "prop:blue_crystal": (
             defs: [
                 13199988870307526132,
+                13450947661321139496,
             ],
         ),
         "prop:blue_door": (
@@ -16762,11 +16772,13 @@
         "prop:bog_mushrooms": (
             defs: [
                 6086522746445526517,
+                17058824454216565211,
             ],
         ),
         "prop:bones": (
             defs: [
                 8034234048945686515,
+                15647984862799810069,
             ],
         ),
         "prop:bookshelf": (
@@ -16778,6 +16790,7 @@
         "prop:boulder": (
             defs: [
                 2383417189939647824,
+                11381399678481097923,
             ],
         ),
         "prop:brazier": (
@@ -16807,20 +16820,24 @@
         "prop:broken_pillar": (
             defs: [
                 8675554974853249668,
+                8844825977034460606,
             ],
         ),
         "prop:cactus_big": (
             defs: [
+                235061719394932914,
                 2646591968984229078,
             ],
         ),
         "prop:cactus_round": (
             defs: [
                 421144935490182989,
+                14861036903359800294,
             ],
         ),
         "prop:cactus_small": (
             defs: [
+                1608097383991326474,
                 6856330711138803077,
             ],
         ),
@@ -16864,6 +16881,7 @@
         ),
         "prop:cat_basket": (
             defs: [
+                14345889118025499765,
                 15480389096388701526,
             ],
         ),
@@ -16882,6 +16900,7 @@
         "prop:cave_rock": (
             defs: [
                 2672345469901471271,
+                6819221046759831588,
             ],
         ),
         "prop:chained_wall": (
@@ -17091,6 +17110,7 @@
         "prop:crystal": (
             defs: [
                 1298303702422250311,
+                9662779858018338158,
                 10480591263374974264,
                 10652615573280127190,
             ],
@@ -17116,6 +17136,7 @@
         "prop:dead_tree": (
             defs: [
                 1819074485825753662,
+                17026414110275300727,
             ],
         ),
         "prop:deck_with_ladder": (
@@ -17125,6 +17146,7 @@
         ),
         "prop:desert_rock": (
             defs: [
+                5279605540602120222,
                 16442922758529632497,
             ],
         ),
@@ -17148,6 +17170,7 @@
         ),
         "prop:dune_grass": (
             defs: [
+                7004555063335211110,
                 15078182379634669784,
             ],
         ),
@@ -17258,6 +17281,7 @@
             defs: [
                 9800881340106977822,
                 10906533294413102498,
+                11776549670879791028,
             ],
         ),
         "prop:fireplace": (
@@ -17269,6 +17293,7 @@
         "prop:fish_barrel": (
             defs: [
                 36349573460898798,
+                1389127038370820647,
                 5068796997657162840,
             ],
         ),
@@ -17280,6 +17305,7 @@
         ),
         "prop:flour_sacks": (
             defs: [
+                117895110265987607,
                 3996233331200981514,
                 11791415437340029324,
             ],
@@ -17301,6 +17327,7 @@
             defs: [
                 11660049495981719917,
                 12008884863685474669,
+                17873831660267751946,
             ],
         ),
         "prop:forge": (
@@ -17325,6 +17352,7 @@
         ),
         "prop:frozen_bush": (
             defs: [
+                9462749643504755788,
                 17217944023344552809,
             ],
         ),
@@ -17337,10 +17365,12 @@
         "prop:glow_mushrooms": (
             defs: [
                 3496466016291932825,
+                9752869828665342007,
             ],
         ),
         "prop:grave_cross": (
             defs: [
+                2931833453413587111,
                 12230148531006723094,
                 13172572995852004472,
             ],
@@ -17385,6 +17415,7 @@
             defs: [
                 6619880766586334266,
                 14333783207364026876,
+                16976233059443810020,
             ],
         ),
         "prop:hearth": (
@@ -17401,6 +17432,7 @@
         ),
         "prop:herb_bush": (
             defs: [
+                1477637075351390595,
                 6216287668463137569,
                 12985205528421547367,
             ],
@@ -17438,6 +17470,7 @@
         "prop:ice_block": (
             defs: [
                 2505527949405827036,
+                3383841885559790686,
             ],
         ),
         "prop:inn_bed": (
@@ -17454,6 +17487,7 @@
         ),
         "prop:keg": (
             defs: [
+                1724869079850987297,
                 10616849105643141909,
                 12348169934241823749,
             ],
@@ -17490,6 +17524,7 @@
             defs: [
                 3978747116875368478,
                 4465273089935100144,
+                8212567985912334476,
             ],
         ),
         "prop:light_stone_wall": (
@@ -17549,12 +17584,14 @@
         ),
         "prop:moonpetal": (
             defs: [
+                15445179836320415104,
                 15514088949686554976,
             ],
         ),
         "prop:mushroom_patch": (
             defs: [
                 2955555392034804758,
+                4912403811306473670,
             ],
         ),
         "prop:notice_board": (
@@ -17570,6 +17607,7 @@
         ),
         "prop:oak_tree": (
             defs: [
+                5806529142325901867,
                 9349810580513218700,
             ],
         ),
@@ -17608,6 +17646,7 @@
         ),
         "prop:palm_tree": (
             defs: [
+                11606346638230836225,
                 16191445411990099069,
             ],
         ),
@@ -17620,6 +17659,7 @@
         ),
         "prop:pine_tree": (
             defs: [
+                6598348969427044047,
                 10897932405523632883,
             ],
         ),
@@ -17678,6 +17718,7 @@
         ),
         "prop:pot": (
             defs: [
+                3910798520444429980,
                 7353666054954610936,
                 15643226773377229582,
             ],
@@ -17732,6 +17773,7 @@
         "prop:reeds": (
             defs: [
                 1695171454531927344,
+                4101193770459715245,
             ],
         ),
         "prop:roof_slope_left": (
@@ -17760,6 +17802,7 @@
         "prop:rubble": (
             defs: [
                 6749966912743957742,
+                16466131377410373973,
             ],
         ),
         "prop:rug_patterned": (
@@ -17784,11 +17827,13 @@
             defs: [
                 6136074897974007772,
                 8304250678668944666,
+                13023181405227754045,
             ],
         ),
         "prop:sandstone_pillar": (
             defs: [
                 141961155697833487,
+                18270355870299482389,
             ],
         ),
         "prop:sawhorse": (
@@ -17801,6 +17846,7 @@
             defs: [
                 2473562362904447265,
                 13858122703589708177,
+                14677744983141253979,
             ],
         ),
         "prop:shop_window": (
@@ -17826,27 +17872,32 @@
         ),
         "prop:sign_apothecary": (
             defs: [
+                8506660828802330723,
                 11487927571605504195,
             ],
         ),
         "prop:sign_bakery": (
             defs: [
+                6111394001366216811,
                 6497353738022386625,
             ],
         ),
         "prop:sign_smithy": (
             defs: [
                 4933751364703299482,
+                16371834399299661737,
             ],
         ),
         "prop:sign_tavern": (
             defs: [
                 13924993970931614143,
+                18118404284785505094,
             ],
         ),
         "prop:signpost": (
             defs: [
                 440612491112550757,
+                1521909957682244872,
                 2128901000246227989,
                 4804464773176219542,
             ],
@@ -17854,6 +17905,7 @@
         "prop:skull_pile": (
             defs: [
                 1820834694614299780,
+                8859934353679522239,
             ],
         ),
         "prop:slate_chimney": (
@@ -17874,11 +17926,13 @@
         "prop:small_pine": (
             defs: [
                 1832971482435158326,
+                3963869338608680048,
             ],
         ),
         "prop:small_rock": (
             defs: [
                 1673445939999992222,
+                8321933551979319456,
             ],
         ),
         "prop:small_table": (
@@ -17895,26 +17949,31 @@
         ),
         "prop:snow_drift": (
             defs: [
+                7355676334916183451,
                 14648639074870198472,
             ],
         ),
         "prop:snow_rock": (
             defs: [
+                999388370891203374,
                 13441018163018689125,
             ],
         ),
         "prop:snowman": (
             defs: [
+                3320286964355302716,
                 6710682736933555302,
             ],
         ),
         "prop:snowy_pine": (
             defs: [
                 1236330115673982076,
+                5842791105271320000,
             ],
         ),
         "prop:snowy_small_pine": (
             defs: [
+                7886653513890462546,
                 8766423259697791242,
             ],
         ),
@@ -17952,11 +18011,13 @@
         "prop:stalagmite": (
             defs: [
                 1386240832402159685,
+                3712639499962307845,
             ],
         ),
         "prop:stalagmite_small": (
             defs: [
                 2367601112141119544,
+                11212424297148206111,
             ],
         ),
         "prop:stall_bread": (
@@ -18044,11 +18105,13 @@
         "prop:swamp_log": (
             defs: [
                 1319108493077437033,
+                16342264057615805419,
             ],
         ),
         "prop:swamp_stump": (
             defs: [
                 5920219856307254300,
+                18020205047978282537,
             ],
         ),
         "prop:tall_fence_post": (
@@ -18387,10 +18450,12 @@
         "prop:toadstools": (
             defs: [
                 11174772405439397424,
+                14298410862102755286,
             ],
         ),
         "prop:tombstone": (
             defs: [
+                2225856883004668777,
                 9180295099060806890,
                 17551417927650239980,
             ],
@@ -18404,6 +18469,7 @@
         "prop:treasure": (
             defs: [
                 6602640856812336678,
+                11102733342746764027,
                 15292660438830125448,
             ],
         ),
@@ -18416,11 +18482,13 @@
         ),
         "prop:tumbleweed": (
             defs: [
+                13989533206986742360,
                 17077662143812306353,
             ],
         ),
         "prop:vein_coal": (
             defs: [
+                7503217442308809238,
                 10854594262791703348,
                 16037109450404803938,
             ],
@@ -18428,17 +18496,20 @@
         "prop:vein_copper": (
             defs: [
                 11146473749950884417,
+                12517988571993918545,
                 17363617557790331921,
             ],
         ),
         "prop:vein_gem": (
             defs: [
+                4333882417827768024,
                 4894242710477874262,
                 8018691161218462648,
             ],
         ),
         "prop:vein_iron": (
             defs: [
+                7011954551061162894,
                 7594638380971600977,
                 13694736561638805377,
             ],
@@ -18446,6 +18517,7 @@
         "prop:vein_silver": (
             defs: [
                 6432686385385428517,
+                14766397140893220616,
                 16570217476451565365,
             ],
         ),
@@ -18872,6 +18944,26 @@
                 ],
             },
         ),
+        "sheet:animal_skull_painted": (
+            defs: [
+                13371112699481347417,
+            ],
+            files: {
+                "sprites/painted/animal_skull.png": [
+                    13083475384239798794,
+                ],
+            },
+        ),
+        "sheet:apple_tree_painted": (
+            defs: [
+                7072021275281093413,
+            ],
+            files: {
+                "sprites/painted/apple_tree.png": [
+                    13045071786981570499,
+                ],
+            },
+        ),
         "sheet:baker": (
             defs: [
                 2557912929844561264,
@@ -18916,6 +19008,16 @@
                     2547583846585016283,
                     17897752762937302049,
                     18229629523770207121,
+                ],
+            },
+        ),
+        "sheet:barrel_painted": (
+            defs: [
+                2892348317969406596,
+            ],
+            files: {
+                "sprites/painted/barrel.png": [
+                    17862839331697280504,
                 ],
             },
         ),
@@ -18966,6 +19068,56 @@
                 ],
             },
         ),
+        "sheet:beehive_painted": (
+            defs: [
+                6221432499286277451,
+            ],
+            files: {
+                "sprites/painted/beehive.png": [
+                    3400191200361148689,
+                ],
+            },
+        ),
+        "sheet:bell_rope_painted": (
+            defs: [
+                17365545634512895193,
+            ],
+            files: {
+                "sprites/painted/bell_rope.png": [
+                    17134470706264831809,
+                ],
+            },
+        ),
+        "sheet:berry_bush_painted": (
+            defs: [
+                5107036985917981141,
+            ],
+            files: {
+                "sprites/painted/berry_bush.png": [
+                    16095062862457495830,
+                ],
+            },
+        ),
+        "sheet:big_oak_painted": (
+            defs: [
+                9858563782755623888,
+            ],
+            files: {
+                "sprites/painted/big_oak.png": [
+                    7282607715159200956,
+                ],
+            },
+        ),
+        "sheet:big_pine_painted": (
+            defs: [
+                16300109065243458469,
+            ],
+            files: {
+                "sprites/painted/big_pine.png": [
+                    13868446393555386269,
+                ],
+            },
+        ),
         "sheet:biomes": (
             defs: [
                 13734440552545032465,
@@ -18973,6 +19125,16 @@
             files: {
                 "sprites/biomes.png": [
                     4410825201756139905,
+                ],
+            },
+        ),
+        "sheet:bitterroot_painted": (
+            defs: [
+                836060246457021761,
+            ],
+            files: {
+                "sprites/painted/bitterroot.png": [
+                    1884124041031441220,
                 ],
             },
         ),
@@ -18998,6 +19160,16 @@
                     10501424912043259237,
                     14309173778328128743,
                     14861425680305616542,
+                ],
+            },
+        ),
+        "sheet:blue_crystal_painted": (
+            defs: [
+                8023032683912245512,
+            ],
+            files: {
+                "sprites/painted/blue_crystal.png": [
+                    6702496711578524861,
                 ],
             },
         ),
@@ -19049,6 +19221,76 @@
                 ],
             },
         ),
+        "sheet:bog_mushrooms_painted": (
+            defs: [
+                11574152832669986315,
+            ],
+            files: {
+                "sprites/painted/bog_mushrooms.png": [
+                    15117572109272791811,
+                ],
+            },
+        ),
+        "sheet:bones_painted": (
+            defs: [
+                4032464120676753123,
+            ],
+            files: {
+                "sprites/painted/bones.png": [
+                    11735832243100059359,
+                ],
+            },
+        ),
+        "sheet:boulder_painted": (
+            defs: [
+                286319348502765405,
+            ],
+            files: {
+                "sprites/painted/boulder.png": [
+                    16184980142381751731,
+                ],
+            },
+        ),
+        "sheet:broken_pillar_painted": (
+            defs: [
+                15460928851909070368,
+            ],
+            files: {
+                "sprites/painted/broken_pillar.png": [
+                    11653148036571990814,
+                ],
+            },
+        ),
+        "sheet:cactus_big_painted": (
+            defs: [
+                4225475493811980879,
+            ],
+            files: {
+                "sprites/painted/cactus_big.png": [
+                    12717381244411177656,
+                ],
+            },
+        ),
+        "sheet:cactus_round_painted": (
+            defs: [
+                18047519843920536481,
+            ],
+            files: {
+                "sprites/painted/cactus_round.png": [
+                    4500442190928226360,
+                ],
+            },
+        ),
+        "sheet:cactus_small_painted": (
+            defs: [
+                16476957115757382876,
+            ],
+            files: {
+                "sprites/painted/cactus_small.png": [
+                    9715797463157847847,
+                ],
+            },
+        ),
         "sheet:carpet_runner": (
             defs: [
                 938106874058890983,
@@ -19081,6 +19323,16 @@
                 ],
             },
         ),
+        "sheet:cat_basket_painted": (
+            defs: [
+                9225608880928703104,
+            ],
+            files: {
+                "sprites/painted/cat_basket.png": [
+                    17300196232199936954,
+                ],
+            },
+        ),
         "sheet:cat_classic": (
             defs: [
                 17159417796817057051,
@@ -19110,6 +19362,16 @@
             files: {
                 "sprites/cat_ginger_classic.png": [
                     10198679281644195548,
+                ],
+            },
+        ),
+        "sheet:cave_rock_painted": (
+            defs: [
+                6251232675821422787,
+            ],
+            files: {
+                "sprites/painted/cave_rock.png": [
+                    334966076004542197,
                 ],
             },
         ),
@@ -19292,6 +19554,36 @@
                 ],
             },
         ),
+        "sheet:crystal_painted": (
+            defs: [
+                962513753362746641,
+            ],
+            files: {
+                "sprites/painted/crystal.png": [
+                    163325215231108023,
+                ],
+            },
+        ),
+        "sheet:dead_tree_painted": (
+            defs: [
+                11245161979627156815,
+            ],
+            files: {
+                "sprites/painted/dead_tree.png": [
+                    9126309414981233399,
+                ],
+            },
+        ),
+        "sheet:desert_rock_painted": (
+            defs: [
+                18368809632738934544,
+            ],
+            files: {
+                "sprites/painted/desert_rock.png": [
+                    7229772292351527291,
+                ],
+            },
+        ),
         "sheet:dog": (
             defs: [
                 2332845490851151331,
@@ -19321,6 +19613,16 @@
             files: {
                 "sprites/doors.png": [
                     14175641488742406789,
+                ],
+            },
+        ),
+        "sheet:dune_grass_painted": (
+            defs: [
+                6897254423151040637,
+            ],
+            files: {
+                "sprites/painted/dune_grass.png": [
+                    13049194359784719899,
                 ],
             },
         ),
@@ -19481,6 +19783,16 @@
                 ],
             },
         ),
+        "sheet:feverleaf_bush_painted": (
+            defs: [
+                504549830095861894,
+            ],
+            files: {
+                "sprites/painted/feverleaf_bush.png": [
+                    14646735779689721665,
+                ],
+            },
+        ),
         "sheet:fireball": (
             defs: [
                 6716813369710946597,
@@ -19488,6 +19800,16 @@
             files: {
                 "sprites/fireball.png": [
                     4285329689531183482,
+                ],
+            },
+        ),
+        "sheet:fish_barrel_painted": (
+            defs: [
+                16630668411875232365,
+            ],
+            files: {
+                "sprites/painted/fish_barrel.png": [
+                    14649579040238976779,
                 ],
             },
         ),
@@ -19499,6 +19821,26 @@
                 "sprites/fisher.png": [
                     8599256687287250014,
                     16865991782597596026,
+                ],
+            },
+        ),
+        "sheet:flour_sacks_painted": (
+            defs: [
+                17322516454930456292,
+            ],
+            files: {
+                "sprites/painted/flour_sacks.png": [
+                    1186874856838317512,
+                ],
+            },
+        ),
+        "sheet:flower_pot_painted": (
+            defs: [
+                15676655902048944189,
+            ],
+            files: {
+                "sprites/painted/flower_pot.png": [
+                    14170301221448315718,
                 ],
             },
         ),
@@ -19519,6 +19861,16 @@
             files: {
                 "sprites/front_door.png": [
                     10869313222175890772,
+                ],
+            },
+        ),
+        "sheet:frozen_bush_painted": (
+            defs: [
+                5762221085799795045,
+            ],
+            files: {
+                "sprites/painted/frozen_bush.png": [
+                    470616146324326131,
                 ],
             },
         ),
@@ -21346,6 +21698,16 @@
                 ],
             },
         ),
+        "sheet:glow_mushrooms_painted": (
+            defs: [
+                10848539522622584927,
+            ],
+            files: {
+                "sprites/painted/glow_mushrooms.png": [
+                    13638402756304854197,
+                ],
+            },
+        ),
         "sheet:goblin": (
             defs: [
                 4026278650041007126,
@@ -21377,6 +21739,16 @@
                 "sprites/goblin_f.png": [
                     13010853160299770151,
                     14014807022101247994,
+                ],
+            },
+        ),
+        "sheet:grave_cross_painted": (
+            defs: [
+                15359610884693354222,
+            ],
+            files: {
+                "sprites/painted/grave_cross.png": [
+                    10675914714747339687,
                 ],
             },
         ),
@@ -21450,6 +21822,16 @@
             files: {
                 "sprites/buildings/hall_timber.png": [
                     13112132824408228395,
+                ],
+            },
+        ),
+        "sheet:haystack_painted": (
+            defs: [
+                2849212027161572888,
+            ],
+            files: {
+                "sprites/painted/haystack.png": [
+                    7432341493787287700,
                 ],
             },
         ),
@@ -21619,6 +22001,16 @@
                 ],
             },
         ),
+        "sheet:herb_bush_painted": (
+            defs: [
+                5343838058457040476,
+            ],
+            files: {
+                "sprites/painted/herb_bush.png": [
+                    17315704920987494152,
+                ],
+            },
+        ),
         "sheet:herbalist": (
             defs: [
                 4734154364375109772,
@@ -21746,6 +22138,16 @@
                 ],
             },
         ),
+        "sheet:ice_block_painted": (
+            defs: [
+                17957176522651167059,
+            ],
+            files: {
+                "sprites/painted/ice_block.png": [
+                    8897095609108356106,
+                ],
+            },
+        ),
         "sheet:icons_3d": (
             defs: [
                 15850242192098500603,
@@ -21789,6 +22191,26 @@
             files: {
                 "sprites/items2.png": [
                     197892094662617801,
+                ],
+            },
+        ),
+        "sheet:keg_painted": (
+            defs: [
+                3671463651588420001,
+            ],
+            files: {
+                "sprites/painted/keg.png": [
+                    10235432745642653769,
+                ],
+            },
+        ),
+        "sheet:lever_painted": (
+            defs: [
+                10215683446753351469,
+            ],
+            files: {
+                "sprites/painted/lever.png": [
+                    4490829270781119778,
                 ],
             },
         ),
@@ -21858,6 +22280,26 @@
                 ],
             },
         ),
+        "sheet:moonpetal_painted": (
+            defs: [
+                17786897586288639091,
+            ],
+            files: {
+                "sprites/painted/moonpetal.png": [
+                    4699282792114215915,
+                ],
+            },
+        ),
+        "sheet:mushroom_patch_painted": (
+            defs: [
+                2383645811491833226,
+            ],
+            files: {
+                "sprites/painted/mushroom_patch.png": [
+                    5499136639919692642,
+                ],
+            },
+        ),
         "sheet:noble": (
             defs: [
                 10736046739811057424,
@@ -21903,6 +22345,16 @@
                 "sprites/nomad_f.png": [
                     7263185237285569599,
                     13783237421999166529,
+                ],
+            },
+        ),
+        "sheet:oak_tree_painted": (
+            defs: [
+                9972939472377479012,
+            ],
+            files: {
+                "sprites/painted/oak_tree.png": [
+                    13418437948702260525,
                 ],
             },
         ),
@@ -22824,6 +23276,26 @@
                 ],
             },
         ),
+        "sheet:palm_tree_painted": (
+            defs: [
+                2088491037604542554,
+            ],
+            files: {
+                "sprites/painted/palm_tree.png": [
+                    16242278460519156204,
+                ],
+            },
+        ),
+        "sheet:pine_tree_painted": (
+            defs: [
+                14619002809458600430,
+            ],
+            files: {
+                "sprites/painted/pine_tree.png": [
+                    10000735781784295475,
+                ],
+            },
+        ),
         "sheet:portraits": (
             defs: [
                 16816053424952109537,
@@ -22831,6 +23303,16 @@
             files: {
                 "sprites/portraits.png": [
                     4042658878631914200,
+                ],
+            },
+        ),
+        "sheet:pot_painted": (
+            defs: [
+                7533002865524540072,
+            ],
+            files: {
+                "sprites/painted/pot.png": [
+                    13684518381825136075,
                 ],
             },
         ),
@@ -22869,6 +23351,26 @@
                 ],
             },
         ),
+        "sheet:reeds_painted": (
+            defs: [
+                4079523074118889657,
+            ],
+            files: {
+                "sprites/painted/reeds.png": [
+                    8532349758454517733,
+                ],
+            },
+        ),
+        "sheet:rubble_painted": (
+            defs: [
+                279123042794385311,
+            ],
+            files: {
+                "sprites/painted/rubble.png": [
+                    16754131044489039224,
+                ],
+            },
+        ),
         "sheet:rug_patterned": (
             defs: [
                 683820448811561617,
@@ -22899,6 +23401,36 @@
                 ],
             },
         ),
+        "sheet:sack_painted": (
+            defs: [
+                13448126782368276057,
+            ],
+            files: {
+                "sprites/painted/sack.png": [
+                    6307493005149079190,
+                ],
+            },
+        ),
+        "sheet:sandstone_pillar_painted": (
+            defs: [
+                4635531450375894688,
+            ],
+            files: {
+                "sprites/painted/sandstone_pillar.png": [
+                    2419146138420978162,
+                ],
+            },
+        ),
+        "sheet:scarecrow_painted": (
+            defs: [
+                15164472319426123811,
+            ],
+            files: {
+                "sprites/painted/scarecrow.png": [
+                    6632637462480781084,
+                ],
+            },
+        ),
         "sheet:sheep": (
             defs: [
                 5778090689351247815,
@@ -22918,6 +23450,56 @@
             files: {
                 "sprites/sheep_classic.png": [
                     9553530878790346277,
+                ],
+            },
+        ),
+        "sheet:sign_apothecary_painted": (
+            defs: [
+                8225739114077654678,
+            ],
+            files: {
+                "sprites/painted/sign_apothecary.png": [
+                    16180238138353180615,
+                ],
+            },
+        ),
+        "sheet:sign_bakery_painted": (
+            defs: [
+                2145343835034643037,
+            ],
+            files: {
+                "sprites/painted/sign_bakery.png": [
+                    1058600542803237396,
+                ],
+            },
+        ),
+        "sheet:sign_smithy_painted": (
+            defs: [
+                2008927081188526121,
+            ],
+            files: {
+                "sprites/painted/sign_smithy.png": [
+                    12859927264788777758,
+                ],
+            },
+        ),
+        "sheet:sign_tavern_painted": (
+            defs: [
+                8394412960840709464,
+            ],
+            files: {
+                "sprites/painted/sign_tavern.png": [
+                    7233956897236265047,
+                ],
+            },
+        ),
+        "sheet:signpost_painted": (
+            defs: [
+                10112894676095251405,
+            ],
+            files: {
+                "sprites/painted/signpost.png": [
+                    12974802889408431949,
                 ],
             },
         ),
@@ -22979,6 +23561,16 @@
                 ],
             },
         ),
+        "sheet:skull_pile_painted": (
+            defs: [
+                1610078014894245814,
+            ],
+            files: {
+                "sprites/painted/skull_pile.png": [
+                    1363641797651326348,
+                ],
+            },
+        ),
         "sheet:slime": (
             defs: [
                 114721882937165315,
@@ -22999,6 +23591,76 @@
             files: {
                 "sprites/slime_classic.png": [
                     8425911634817169746,
+                ],
+            },
+        ),
+        "sheet:small_pine_painted": (
+            defs: [
+                1744924446671494758,
+            ],
+            files: {
+                "sprites/painted/small_pine.png": [
+                    6876893041682329151,
+                ],
+            },
+        ),
+        "sheet:small_rock_painted": (
+            defs: [
+                8723678111724527978,
+            ],
+            files: {
+                "sprites/painted/small_rock.png": [
+                    2131548649238968728,
+                ],
+            },
+        ),
+        "sheet:snow_drift_painted": (
+            defs: [
+                14280755290872797485,
+            ],
+            files: {
+                "sprites/painted/snow_drift.png": [
+                    13898953281392879965,
+                ],
+            },
+        ),
+        "sheet:snow_rock_painted": (
+            defs: [
+                16208744554083150910,
+            ],
+            files: {
+                "sprites/painted/snow_rock.png": [
+                    9103307914947529533,
+                ],
+            },
+        ),
+        "sheet:snowman_painted": (
+            defs: [
+                6366969939774940511,
+            ],
+            files: {
+                "sprites/painted/snowman.png": [
+                    12823927495485788545,
+                ],
+            },
+        ),
+        "sheet:snowy_pine_painted": (
+            defs: [
+                4540830077786441386,
+            ],
+            files: {
+                "sprites/painted/snowy_pine.png": [
+                    3683709907329834946,
+                ],
+            },
+        ),
+        "sheet:snowy_small_pine_painted": (
+            defs: [
+                5049053457844257332,
+            ],
+            files: {
+                "sprites/painted/snowy_small_pine.png": [
+                    17128592728843223748,
                 ],
             },
         ),
@@ -23062,6 +23724,46 @@
                 ],
             },
         ),
+        "sheet:stalagmite_painted": (
+            defs: [
+                16179140933443080069,
+            ],
+            files: {
+                "sprites/painted/stalagmite.png": [
+                    13930842330380093818,
+                ],
+            },
+        ),
+        "sheet:stalagmite_small_painted": (
+            defs: [
+                13170468898060308879,
+            ],
+            files: {
+                "sprites/painted/stalagmite_small.png": [
+                    7733486637650604860,
+                ],
+            },
+        ),
+        "sheet:swamp_log_painted": (
+            defs: [
+                2561658963773703997,
+            ],
+            files: {
+                "sprites/painted/swamp_log.png": [
+                    5502892590798891207,
+                ],
+            },
+        ),
+        "sheet:swamp_stump_painted": (
+            defs: [
+                12490653031080175679,
+            ],
+            files: {
+                "sprites/painted/swamp_stump.png": [
+                    10583258579906619285,
+                ],
+            },
+        ),
         "sheet:terrain_tiles": (
             defs: [
                 16464740330972691870,
@@ -23104,6 +23806,26 @@
                 ],
             },
         ),
+        "sheet:toadstools_painted": (
+            defs: [
+                9660863611583970235,
+            ],
+            files: {
+                "sprites/painted/toadstools.png": [
+                    14994309485181060391,
+                ],
+            },
+        ),
+        "sheet:tombstone_painted": (
+            defs: [
+                8276186015436481565,
+            ],
+            files: {
+                "sprites/painted/tombstone.png": [
+                    9853994509773289228,
+                ],
+            },
+        ),
         "sheet:town_crier": (
             defs: [
                 2726553208597152932,
@@ -23112,6 +23834,16 @@
                 "sprites/town_crier.png": [
                     4993358217515141761,
                     14200014549781612438,
+                ],
+            },
+        ),
+        "sheet:treasure_painted": (
+            defs: [
+                12302542535921793129,
+            ],
+            files: {
+                "sprites/painted/treasure.png": [
+                    7721600582347406109,
                 ],
             },
         ),
@@ -23136,6 +23868,16 @@
                 ],
             },
         ),
+        "sheet:tumbleweed_painted": (
+            defs: [
+                16546896350324158288,
+            ],
+            files: {
+                "sprites/painted/tumbleweed.png": [
+                    8816475833994761125,
+                ],
+            },
+        ),
         "sheet:ui_stone": (
             defs: [
                 1085617907780740777,
@@ -23153,6 +23895,56 @@
             files: {
                 "sprites/ui_wood.png": [
                     11415195862934047999,
+                ],
+            },
+        ),
+        "sheet:vein_coal_painted": (
+            defs: [
+                3479204397433570114,
+            ],
+            files: {
+                "sprites/painted/vein_coal.png": [
+                    14921232327814607350,
+                ],
+            },
+        ),
+        "sheet:vein_copper_painted": (
+            defs: [
+                18233292488725889871,
+            ],
+            files: {
+                "sprites/painted/vein_copper.png": [
+                    12918173207427226451,
+                ],
+            },
+        ),
+        "sheet:vein_gem_painted": (
+            defs: [
+                12585288405073026667,
+            ],
+            files: {
+                "sprites/painted/vein_gem.png": [
+                    9650183298080496664,
+                ],
+            },
+        ),
+        "sheet:vein_iron_painted": (
+            defs: [
+                5355249501209427657,
+            ],
+            files: {
+                "sprites/painted/vein_iron.png": [
+                    489868645670738504,
+                ],
+            },
+        ),
+        "sheet:vein_silver_painted": (
+            defs: [
+                16860657197717271873,
+            ],
+            files: {
+                "sprites/painted/vein_silver.png": [
+                    9161749235220628365,
                 ],
             },
         ),

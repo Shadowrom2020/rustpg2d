@@ -1356,7 +1356,8 @@ fn alloc(c: &mut Cache, w: u32, h: u32) -> (usize, Rect) {
         return alloc_solo(c, w, h);
     }
     loop {
-        if let Some(p) = c.pages.get_mut(c.current) {
+        // (Never a big pose's own texture: those aren't shelves.)
+        if let Some(p) = c.pages.get_mut(c.current).filter(|p| !p.solo) {
             if p.x + w > PAGE {
                 p.x = 0;
                 p.y += p.row;

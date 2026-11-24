@@ -788,6 +788,12 @@ impl Editor {
         if matches!(kind, RefKind::Material | RefKind::Sheet | RefKind::Sound) {
             self.reload_assets();
         }
+        // A building: its model is built again.
+        if kind == RefKind::Prop {
+            if let Some(d) = self.project.db.prop(&id).cloned() {
+                self.assets.rebuild_building(&d);
+            }
+        }
         // A model: the loaded one takes the new definition; a new model or other files are read.
         if kind == RefKind::Model {
             let fits = self.project.db.model(&id).cloned().is_some_and(|d| self.assets.models.set_def(&d));

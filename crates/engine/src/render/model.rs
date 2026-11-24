@@ -404,7 +404,15 @@ struct Page {
     row: u32,
     /// The frame a pose on it was last drawn (or added).
     stamp: u64,
+    /// A texture of one big pose alone (a building), its own size: not shelf packed, not counted
+    /// in the atlas's pages.
+    solo: bool,
 }
+
+/// Poses wider or taller than this many pixels (buildings, big props) get a texture of their own
+/// instead of a shelf on a page, at most [`SOLO_MAX`] of them (the oldest is reused).
+const SOLO_FROM: u32 = PAGE / 2;
+const SOLO_MAX: usize = 48;
 
 #[derive(Default)]
 struct Cache {
@@ -528,6 +536,7 @@ impl Models {
                 }
             }
         }
+        m.add_buildings(db, &crate::building::picture_reader(db, read));
         for it in &db.items {
             let Some(im) = it.model.as_ref().filter(|im| !m.items.contains_key(&im.file)) else { continue };
             match read(&im.file).map_err(anyhow::Error::from).and_then(|b| Model::load(&b)) {
@@ -549,16 +558,53 @@ impl Models {
         m
     }
 
-    /// Sets the pose atlas's size in MB (`ProjectConfig::model_atlas_mb`); pages beyond it are
-    /// dropped with their poses.
+    /// Builds the models of the building props of `db` ([`crate::building`]), their pictures read
+    /// through `read`.
+    fn add_buildings(&mut self, db: &Database, picture: &dyn Fn(&crate::defs::SpriteRef) -> Option<crate::building::Picture>) {
+        for p in db.props.iter().filter(|p| p.model.is_empty()) {
+            let Some(shape) = &p.building else { continue };
+            let built = crate::building::build(shape, p.hitbox, picture);
+            let id = crate::building::model_id(&p.id);
+            let def = ModelDef { name: p.name.clone(), height: built.height, ..ModelDef::new(&id, "") };
+            if let Some(w) = oversize(&p.id, &built.model) {
+                eprintln!("[models] {w}");
+                self.warnings.push(w);
+            }
+            self.loaded.insert(id, loaded(&def, db, built.model, None));
+        }
+    }
+
+    /// Builds the building props' models again (one changed in the editor), their pictures
+    /// through `picture`: the old ones and their rendered poses go.
+    pub fn rebuild_buildings(&mut self, db: &Database, picture: &dyn Fn(&crate::defs::SpriteRef) -> Option<crate::building::Picture>) {
+        self.loaded.retain(|id, _| crate::building::prop_of(id).is_none());
+        self.cache.borrow_mut().poses.retain(|k, _| crate::building::prop_of(&k.model).is_none());
+        self.add_buildings(db, picture);
+    }
+
+    /// Builds building prop `p`'s model again (its shape is being edited), its pictures through
+    /// `picture`; a prop that is no building loses it.
+    pub fn rebuild_building(&mut self, p: &crate::defs::PropDef, picture: &dyn Fn(&crate::defs::SpriteRef) -> Option<crate::building::Picture>) {
+        let id = crate::building::model_id(&p.id);
+        self.loaded.remove(&id);
+        self.cache.borrow_mut().poses.retain(|k, _| k.model != id);
+        if let (Some(shape), true) = (&p.building, p.model.is_empty()) {
+            let built = crate::building::build(shape, p.hitbox, picture);
+            let def = ModelDef { name: p.name.clone(), height: built.height, ..ModelDef::new(&id, "") };
+            self.loaded.insert(id, loaded(&def, &Database::default(), built.model, None));
+        }
+    }
+
+    /// Sets the pose atlas's size in MB (`ProjectConfig::model_atlas_mb`); when it has more pages
+    /// already, every pose renders again.
     pub fn set_atlas_mb(&self, mb: u32) {
         let mut c = self.cache.borrow_mut();
         c.max_pages = atlas_pages(mb);
-        if c.pages.len() > c.max_pages {
-            let keep = c.max_pages;
-            c.pages.truncate(keep);
-            c.poses.retain(|_, cell| cell.page < keep);
-            c.current = c.current.min(keep - 1);
+        if c.pages.iter().filter(|p| !p.solo).count() > c.max_pages {
+            // (Poses point at pages by index, big ones' own textures among them: start afresh.)
+            c.pages.clear();
+            c.poses.clear();
+            c.current = 0;
         }
     }
 
@@ -1023,9 +1069,9 @@ impl Models {
         let c = self.cache.borrow();
         let page = c.pages.get(cell.page)?;
         let r = cell.rect;
-        let p = PAGE as f32;
+        let (pw, ph) = (page.rt.texture.width(), page.rt.texture.height());
         let b = cell.base;
-        Some((page.rt.texture.clone(), Rect::new(r.x / p, r.y / p, r.w / p, r.h / p), Rect::new(b.x / r.w, b.y / r.h, b.w / r.w, b.h / r.h)))
+        Some((page.rt.texture.clone(), Rect::new(r.x / pw, r.y / ph, r.w / pw, r.h / ph), Rect::new(b.x / r.w, b.y / r.h, b.w / r.w, b.h / r.h)))
     }
 
     /// Whether model `id` has a clip for animation `anim`.
@@ -1143,7 +1189,8 @@ pub fn oversize(id: &str, model: &Model) -> Option<String> {
 fn load_one(def: &ModelDef, db: &Database, read: &dyn Fn(&str) -> std::io::Result<Vec<u8>>) -> anyhow::Result<Loaded> {
     use anyhow::Context;
     let load = |def: &ModelDef| -> anyhow::Result<Model> {
-        let mut model = Model::load(&read(&def.file).with_context(|| format!("reading {}", def.file))?)?;
+        let bytes = read(&def.file).with_context(|| format!("reading {}", def.file))?;
+        let mut model = if def.height >= crate::model::BIG_MODEL { Model::load_with(&bytes, crate::model::BIG_TEXTURE_MAX, crate::model::BIG_TEXTURE_COLORS)? } else { Model::load(&bytes)? };
         for f in &def.clip_files {
             model.add_clips(&read(f).with_context(|| format!("reading {f}"))?)?;
         }
@@ -1160,6 +1207,11 @@ fn load_one(def: &ModelDef, db: &Database, read: &dyn Fn(&str) -> std::io::Resul
         let fit = model.fit_rig(&template, rig.turn, &def.nudges())?;
         fitted = Some(Box::new(Fitted { base: std::mem::replace(&mut model, fit), template, clips: tdef.clips.clone() }));
     }
+    Ok(loaded(def, db, model, fitted))
+}
+
+/// A loaded model of `def` from its mesh (`fitted`: the rig template it was fitted to).
+fn loaded(def: &ModelDef, _db: &Database, model: Model, fitted: Option<Box<Fitted>>) -> Loaded {
     let mut align = HashMap::new();
     for c in &model.clips {
         if let Some(yaw) = model.facing_of(Some(c)) {
@@ -1188,7 +1240,7 @@ fn load_one(def: &ModelDef, db: &Database, read: &dyn Fn(&str) -> std::io::Resul
     let (frame, ppu, target_y) = layout(def, height);
     let long = long_body(&model);
     let texture = model.texture.clone();
-    Ok(Loaded { def: effective(def, fitted.as_deref()), model, texture, align, hands, back, hip, frame, height, ppu, target_y, textures: RefCell::new(HashMap::new()), fitted, binds: RefCell::new(HashMap::new()), long })
+    Loaded { def: effective(def, fitted.as_deref()), model, texture, align, hands, back, hip, frame, height, ppu, target_y, textures: RefCell::new(HashMap::new()), fitted, binds: RefCell::new(HashMap::new()), long }
 }
 
 /// The standing figure's height in model units: [`ModelDef::stand`] when the file is only a
@@ -1298,6 +1350,9 @@ fn pick_page(stamps: &[u64]) -> usize {
 /// A page cell of `w x h` pixels (a new page, or the page drawn from longest ago cleared when
 /// all are full).
 fn alloc(c: &mut Cache, w: u32, h: u32) -> (usize, Rect) {
+    if w > SOLO_FROM || h > SOLO_FROM {
+        return alloc_solo(c, w, h);
+    }
     loop {
         if let Some(p) = c.pages.get_mut(c.current) {
             if p.x + w > PAGE {
@@ -1313,18 +1368,19 @@ fn alloc(c: &mut Cache, w: u32, h: u32) -> (usize, Rect) {
                 return (c.current, r);
             }
         }
-        if c.pages.len() < page_cap(c) {
+        if c.pages.iter().filter(|p| !p.solo).count() < page_cap(c) {
             let rt = render_target_ex(PAGE, PAGE, RenderTargetParams { sample_count: 1, depth: false });
             rt.texture.set_filter(FilterMode::Nearest);
             push_camera_state();
             set_camera(&Camera2D { render_target: Some(rt.clone()), ..Camera2D::from_display_rect(Rect::new(0.0, 0.0, PAGE as f32, PAGE as f32)) });
             clear_background(Color::new(0.0, 0.0, 0.0, 0.0));
             pop_camera_state();
-            c.pages.push(Page { rt, x: 0, y: 0, row: 0, stamp: c.frame });
+            c.pages.push(Page { rt, x: 0, y: 0, row: 0, stamp: c.frame, solo: false });
             c.current = c.pages.len() - 1;
         } else {
             // Reuse the page drawn from longest ago: its poses render again when needed.
-            let oldest = pick_page(&c.pages.iter().map(|p| p.stamp).collect::<Vec<_>>());
+            let shared: Vec<usize> = (0..c.pages.len()).filter(|&i| !c.pages[i].solo).collect();
+            let oldest = shared[pick_page(&shared.iter().map(|&i| c.pages[i].stamp).collect::<Vec<_>>())];
             c.evictions += 1;
             c.poses.retain(|_, cell| cell.page != oldest);
             let p = &mut c.pages[oldest];
@@ -1336,6 +1392,30 @@ fn alloc(c: &mut Cache, w: u32, h: u32) -> (usize, Rect) {
             c.current = oldest;
         }
     }
+}
+
+/// A texture of its own for a big pose of `w x h` pixels ([`SOLO_FROM`]): a new one, or the one
+/// drawn from longest ago when there are [`SOLO_MAX`].
+fn alloc_solo(c: &mut Cache, w: u32, h: u32) -> (usize, Rect) {
+    let rt = render_target_ex(w, h, RenderTargetParams { sample_count: 1, depth: false });
+    rt.texture.set_filter(FilterMode::Nearest);
+    push_camera_state();
+    set_camera(&Camera2D { render_target: Some(rt.clone()), ..Camera2D::from_display_rect(Rect::new(0.0, 0.0, w as f32, h as f32)) });
+    clear_background(Color::new(0.0, 0.0, 0.0, 0.0));
+    pop_camera_state();
+    let solos: Vec<usize> = (0..c.pages.len()).filter(|&i| c.pages[i].solo).collect();
+    let page = Page { rt, x: w, y: 0, row: h, stamp: c.frame, solo: true };
+    let at = if solos.len() < SOLO_MAX {
+        c.pages.push(page);
+        c.pages.len() - 1
+    } else {
+        let oldest = solos[pick_page(&solos.iter().map(|&i| c.pages[i].stamp).collect::<Vec<_>>())];
+        c.evictions += 1;
+        c.poses.retain(|_, cell| cell.page != oldest);
+        c.pages[oldest] = page;
+        oldest
+    };
+    (at, Rect::new(0.0, 0.0, w as f32, h as f32))
 }
 
 /// The colour features of `def` that `look` recolours, with their colours: the look's own
@@ -1618,7 +1698,7 @@ fn render(c: &mut Cache, l: &Loaded, parts: &[&Loaded], items: &HashMap<String, 
 
 /// A camera drawing into an atlas page in its texture's own pixels (y down as sampled).
 fn page_camera(rt: &RenderTarget) -> Camera2D {
-    let mut cam = Camera2D::from_display_rect(Rect::new(0.0, 0.0, PAGE as f32, PAGE as f32));
+    let mut cam = Camera2D::from_display_rect(Rect::new(0.0, 0.0, rt.texture.width(), rt.texture.height()));
     cam.zoom.y = -cam.zoom.y;
     cam.render_target = Some(rt.clone());
     cam

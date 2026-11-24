@@ -77,10 +77,28 @@ pub struct Model {
 /// Textures are downsized to this: figures are drawn a few dozen pixels tall.
 pub const TEXTURE_MAX: u16 = 256;
 
+/// Models drawn at least this many world pixels tall (buildings, big props) keep textures of up
+/// to [`BIG_TEXTURE_MAX`] pixels and [`BIG_TEXTURE_COLORS`] colours.
+pub const BIG_MODEL: f32 = 96.0;
+pub const BIG_TEXTURE_MAX: u16 = 512;
+pub const BIG_TEXTURE_COLORS: usize = 48;
+
 impl Model {
+    /// A model that never moves (a building made by [`crate::building`]): one joint, no clips.
+    pub fn still(vertices: Vec<SkinVertex>, indices: Vec<u16>, texture: Option<Image>) -> Model {
+        let root = Node { name: String::new(), parent: None, t: Vec3::ZERO, r: Quat::IDENTITY, s: Vec3::ONE };
+        Model { vertices, indices, nodes: vec![root], order: vec![0], joints: vec![0], inverse_bind: vec![Mat4::IDENTITY], clips: Vec::new(), texture }
+    }
+
     /// Reads a `.glb` (one skinned mesh; several primitives are merged, the first textured
     /// material gives the texture).
     pub fn load(glb: &[u8]) -> Result<Model> {
+        Self::load_with(glb, TEXTURE_MAX, TEXTURE_COLORS)
+    }
+
+    /// [`Model::load`] with its texture downsized to `texture_max` pixels and `colors` colours
+    /// (big props, a chapel, need more than a figure).
+    pub fn load_with(glb: &[u8], texture_max: u16, colors: usize) -> Result<Model> {
         let g = gltf::Gltf::from_slice(glb).context("not a glTF binary")?;
         let blob = g.blob.as_deref();
         let buf = |b: gltf::Buffer| match b.source() {
@@ -128,7 +146,7 @@ impl Model {
             }
             if texture.is_none() {
                 if let Some(t) = p.material().pbr_metallic_roughness().base_color_texture() {
-                    texture = read_image(&t.texture().source(), blob).ok();
+                    texture = read_image(&t.texture().source(), blob, texture_max, colors).ok();
                 }
             }
         }
@@ -940,15 +958,15 @@ fn sample(tr: &Track, t: f32) -> [f32; 4] {
     }
 }
 
-/// A texture image of the file (PNG or JPEG), downsized to [`TEXTURE_MAX`].
-fn read_image(img: &gltf::Image, blob: Option<&[u8]>) -> Result<Image> {
+/// A texture image of the file (PNG or JPEG), downsized to `max` pixels and `colors` colours.
+fn read_image(img: &gltf::Image, blob: Option<&[u8]>, max: u16, colors: usize) -> Result<Image> {
     let gltf::image::Source::View { view, mime_type } = img.source() else { bail!("textures in separate files aren't supported") };
     let data = blob.ok_or_else(|| anyhow!("no binary chunk"))?;
     let bytes = data.get(view.offset()..view.offset() + view.length()).ok_or_else(|| anyhow!("texture outside the file"))?;
     let format = if mime_type.contains("jpeg") || mime_type.contains("jpg") { macroquad::prelude::ImageFormat::Jpeg } else { macroquad::prelude::ImageFormat::Png };
     let im = Image::from_file_with_format(bytes, Some(format)).map_err(|e| anyhow!("texture: {e}"))?;
-    let mut im = downsize(&im, TEXTURE_MAX);
-    quantize(&mut im, TEXTURE_COLORS);
+    let mut im = downsize(&im, max);
+    quantize(&mut im, colors);
     Ok(im)
 }
 

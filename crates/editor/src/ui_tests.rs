@@ -497,6 +497,31 @@ fn a_prop_lies_flat_or_is_a_door() {
 }
 
 #[test]
+fn a_prop_becomes_a_building_and_back() {
+    let root = example_copy("building_prop");
+    let db = Project::load(&root).unwrap().db;
+    let k = db.props.iter().position(|p| p.id == "house_red").expect("the example's red house");
+    let shape = db.props[k].building.clone().expect("the example's red house is a building");
+    assert!(shape.openings.iter().any(|o| o.sill <= 0.0), "it has a door");
+    let mut h = harness(&root, Tab::Props, k);
+    step(&mut h);
+    // Its doors and windows are listed under the plan.
+    h.get_by_label("Click on the plan to add:");
+    h.get_by_label("Built from walls and a roof").click();
+    step(&mut h);
+    assert!(h.state().project.db.props[k].building.is_none());
+    h.get_by_label("Built from walls and a roof").click();
+    step(&mut h);
+    let fresh = h.state().project.db.props[k].building.clone().expect("a building again");
+    assert_eq!((fresh.height, fresh.openings.len()), (64.0, 0));
+    h.state_mut().save_all();
+    let saved = Project::load(&root).unwrap().db.props[k].clone();
+    assert_eq!(saved.building, Some(fresh));
+    assert!(saved.solid);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn character_form_takes_a_race_and_a_speed() {
     let root = example_copy("character");
     let db = Project::load(&root).unwrap().db;

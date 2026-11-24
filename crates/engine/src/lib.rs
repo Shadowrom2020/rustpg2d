@@ -2,6 +2,7 @@
 
 pub mod achievements;
 pub mod backgrounds;
+pub mod building;
 pub mod classes;
 pub mod diseases;
 pub mod audio;

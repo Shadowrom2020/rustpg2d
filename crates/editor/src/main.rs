@@ -455,6 +455,22 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             }
             None => println!("[script] itemwear: no item '{}'", arg(1)),
         },
+        // bshape PROP off|RON: a prop's building shape (the prop form's Building section), e.g.
+        // bshape house (height: 60.0, roof: Hip, openings: [(side: South, at: 80.0, picture: (sheet: "t", frame: 3))]).
+        "bshape" => {
+            let ron_text = cmd.iter().skip(2).map(|s| s.as_str()).collect::<Vec<_>>().join(" ");
+            let shape = if arg(2) == "off" { Ok(None) } else { ron::from_str::<rustpg2d_engine::defs::BuildingShape>(&ron_text).map(Some) };
+            match (shape, ed.project.db.props.iter_mut().find(|d| d.id == arg(1))) {
+                (Ok(shape), Some(d)) => {
+                    d.building = shape;
+                    let d = d.clone();
+                    ed.assets.rebuild_building(&d);
+                    ed.defs_dirty = true;
+                }
+                (Err(e), _) => println!("[script] bshape: {e}"),
+                (_, None) => println!("[script] bshape: no prop '{}'", arg(1)),
+            }
+        }
         // modelfilter all|figures|pieces: the 3D models list's filter.
         "modelfilter" => match ["all", "figures", "pieces"].iter().position(|f| *f == arg(1)) {
             Some(k) => ed.db.model_filter = k as u8,
@@ -731,7 +747,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // watchanswer reload|keep: answers the "changed on disk" banner
         "watchanswer" => ed.watch_answer(arg(1) == "reload"),
         "status" => println!(
-            "[status] {} repo={} library={} script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} projectfile={} notices={} search={} usages={} problems={} plugins={} libupdate={} starter={} art={} pixel={} mode={:?} dbtab={:?} dbsel={} dblist={}/{} itemfilter={} libshown={} script={:?} ground={} decor={} dbtable={} testsetup={} anim={} timeline={} cleanup={} nodes={} msg={}",
+            "[status] {} repo={} library={} script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} projectfile={} notices={} search={} usages={} problems={} plugins={} libupdate={} starter={} art={} pixel={} mode={:?} dbtab={:?} dbsel={} dblist={}/{} itemfilter={} libshown={} script={:?} ground={} decor={} dbtable={} testsetup={} anim={} timeline={} cleanup={} nodes={} buildings={} msg={}",
             TIMING.with(|t| t.borrow_mut().take()),
             match repo_mode::root() {
                 None => "off".to_string(),
@@ -787,6 +803,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.timeline_status(),
             ed.cleanup.as_ref().map_or_else(|| "closed".to_string(), |c| c.status()),
             ed.nodes_status(),
+            buildings_status(ed),
             ed.status.0
         ),
         "filedialog" => ed.open_file_dialog(files::Purpose::OpenProject),
@@ -1756,6 +1773,23 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
 
 /// The selected character's schedule for `status`: "HH:MM@x,y[in][facing]" per stop, "-" if
 /// none; "(editing)" while edited on the map.
+/// The building props: id:roof:WIDTHxDEPTH:doors/windows/chimneys, `!` when its model isn't built.
+fn buildings_status(ed: &Editor) -> String {
+    let all: Vec<String> = ed
+        .project
+        .db
+        .props
+        .iter()
+        .filter_map(|p| {
+            let b = p.building.as_ref()?;
+            let doors = b.openings.iter().filter(|o| o.sill <= 0.0).count();
+            let built = ed.assets.models.has(&rustpg2d_engine::building::model_id(&p.id));
+            Some(format!("{}{}:{:?}:{}x{}:{}/{}/{}", if built { "" } else { "!" }, p.id, b.roof, p.hitbox[0], p.hitbox[1], doors, b.openings.len() - doors, b.chimneys.len()))
+        })
+        .collect();
+    format!("[{}]", all.join(" "))
+}
+
 fn schedule_text(ed: &Editor) -> String {
     let Some(e) = ed.doc.as_ref().zip(match ed.sel {
         app::Selection::Entity(uid) => Some(uid),

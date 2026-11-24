@@ -1546,6 +1546,155 @@ pub struct PropDef {
     /// are cut down to a stub ([`crate::render::iso::draw_block`]). 0 = drawn as its picture.
     #[serde(default, skip_serializing_if = "is_zero_f32")]
     pub block: f32,
+    /// A building built from its measurements: walls around the hitbox, a roof, doors, windows
+    /// and chimneys, turned by the engine into a 3D model ([`crate::building`]) drawn like
+    /// [`PropDef::model`] (that one, when set, wins).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub building: Option<BuildingShape>,
+}
+
+/// A building's shape ([`PropDef::building`]): its footprint is the prop's hitbox (width east to
+/// west, depth north to south), measures in world pixels, pictures tiled over walls and roof.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct BuildingShape {
+    /// The walls' height up to the eaves.
+    #[serde(default = "wall_height")]
+    pub height: f32,
+    #[serde(default)]
+    pub roof: RoofKind,
+    /// Which way the ridge runs (gable, hip and shed roofs).
+    #[serde(default)]
+    pub ridge: Ridge,
+    /// How steep the roof is: its rise per pixel across (1 = 45 degrees).
+    #[serde(default = "roof_pitch")]
+    pub pitch: f32,
+    /// How far the roof reaches past the walls.
+    #[serde(default = "roof_overhang")]
+    pub overhang: f32,
+    /// The walls' picture (tiled).
+    #[serde(default, skip_serializing_if = "SpriteRef::is_empty")]
+    pub wall: SpriteRef,
+    /// The roof's picture (tiled; its top towards the ridge).
+    #[serde(default, skip_serializing_if = "SpriteRef::is_empty")]
+    pub roof_picture: SpriteRef,
+    /// The gables' picture (the walls' when empty).
+    #[serde(default, skip_serializing_if = "SpriteRef::is_empty")]
+    pub gable: SpriteRef,
+    /// A base along the bottom of the walls (stone under timber), `base_height` high.
+    #[serde(default, skip_serializing_if = "SpriteRef::is_empty")]
+    pub base: SpriteRef,
+    #[serde(default, skip_serializing_if = "is_zero_f32")]
+    pub base_height: f32,
+    /// The boards along the roof's edges (the roof's picture, darkened, when empty).
+    #[serde(default, skip_serializing_if = "SpriteRef::is_empty")]
+    pub trim: SpriteRef,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub openings: Vec<Opening>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub chimneys: Vec<Chimney>,
+}
+
+/// The serde defaults: 64 px walls, a gable roof 3/4 steep reaching 6 px past them.
+impl Default for BuildingShape {
+    fn default() -> Self {
+        BuildingShape { height: wall_height(), roof: RoofKind::Gable, ridge: Ridge::Auto, pitch: roof_pitch(), overhang: roof_overhang(), wall: SpriteRef::default(), roof_picture: SpriteRef::default(), gable: SpriteRef::default(), base: SpriteRef::default(), base_height: 0.0, trim: SpriteRef::default(), openings: vec![], chimneys: vec![] }
+    }
+}
+
+impl BuildingShape {
+    /// Every picture it uses (empty ones too): renames and library exports go through them.
+    pub fn pictures_mut(&mut self) -> Vec<&mut SpriteRef> {
+        let mut out = vec![&mut self.wall, &mut self.roof_picture, &mut self.gable, &mut self.base, &mut self.trim];
+        out.extend(self.openings.iter_mut().map(|o| &mut o.picture));
+        out.extend(self.chimneys.iter_mut().map(|c| &mut c.picture));
+        out
+    }
+}
+
+fn wall_height() -> f32 {
+    64.0
+}
+fn roof_pitch() -> f32 {
+    0.75
+}
+fn roof_overhang() -> f32 {
+    6.0
+}
+
+/// The kind of a building's roof.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RoofKind {
+    /// Two slopes meeting at the ridge, the walls rising to it at both ends.
+    #[default]
+    Gable,
+    /// Four slopes: the ends slope too.
+    Hip,
+    /// One slope, high at the back.
+    Shed,
+    /// Flat, with a low edge around it.
+    Flat,
+}
+
+/// Which way a roof's ridge runs.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Ridge {
+    /// Along the building's longer side.
+    #[default]
+    Auto,
+    EastWest,
+    NorthSouth,
+}
+
+/// A side of a building.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum WallSide {
+    #[default]
+    South,
+    East,
+    North,
+    West,
+}
+
+/// A door or window in a building's wall ([`BuildingShape::openings`]).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Opening {
+    pub side: WallSide,
+    /// Where its middle is along the wall: world pixels from the wall's west end (south and north
+    /// walls) or north end (east and west walls).
+    pub at: f32,
+    pub picture: SpriteRef,
+    /// Width and height in world pixels.
+    #[serde(default = "opening_size")]
+    pub size: [f32; 2],
+    /// How high its bottom is above the ground (0 = a door).
+    #[serde(default, skip_serializing_if = "is_zero_f32")]
+    pub sill: f32,
+}
+
+fn opening_size() -> [f32; 2] {
+    [24.0, 32.0]
+}
+
+/// A chimney on a building's roof ([`BuildingShape::chimneys`]).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Chimney {
+    /// Its middle: world pixels from the footprint's west and north edges.
+    pub at: [f32; 2],
+    #[serde(default)]
+    pub picture: SpriteRef,
+    /// Width and depth in world pixels.
+    #[serde(default = "chimney_size")]
+    pub size: [f32; 2],
+    /// How far it rises above the roof.
+    #[serde(default = "chimney_rise")]
+    pub rise: f32,
+}
+
+fn chimney_size() -> [f32; 2] {
+    [12.0, 12.0]
+}
+fn chimney_rise() -> f32 {
+    14.0
 }
 
 /// Frames of a sprite sheet shown one after the other (`PropDef::anim`).
@@ -1599,6 +1748,7 @@ impl Default for PropDef {
             model: String::new(),
             turns: vec![],
             block: 0.0,
+            building: None,
         }
     }
 }
@@ -1752,17 +1902,18 @@ impl PropDef {
     }
 
     /// The 3D model of state `index` ("" = none: the picture is drawn).
-    pub fn model_at(&self, index: usize) -> &str {
+    pub fn model_at(&self, index: usize) -> std::borrow::Cow<'_, str> {
         match index.checked_sub(1).and_then(|i| self.states.get(i)).filter(|s| !s.model.is_empty()) {
-            Some(s) => &s.model,
-            None => &self.model,
+            Some(s) => std::borrow::Cow::Borrowed(&s.model),
+            None if self.model.is_empty() && self.building.is_some() => std::borrow::Cow::Owned(crate::building::model_id(&self.id)),
+            None => std::borrow::Cow::Borrowed(&self.model),
         }
     }
 
     /// Whether placed copies turn in quarters (a model, or pictures from four sides): their
     /// facing then turns the picture and the hitbox. Others only mirror.
     pub fn turns(&self) -> bool {
-        !self.model.is_empty() || !self.turns.is_empty() || self.states.iter().any(|s| !s.model.is_empty())
+        !self.model.is_empty() || !self.turns.is_empty() || self.building.is_some() || self.states.iter().any(|s| !s.model.is_empty())
     }
 
     /// The hitbox of a copy facing `f`: width and depth swapped when it is turned a quarter.
@@ -3014,7 +3165,7 @@ mod tests {
         assert!(p.turns() && p.model_at(0) == "cart_3d");
         assert_eq!((p.hitbox_facing(Facing::Left), p.hitbox_facing(Facing::Up)), ([30.0, 64.0], [64.0, 30.0]));
         p.states.push(PropState { name: "broken".into(), sprite: SpriteRef::new("s", 1), solid: false, light: None, model: "cart_broken".into() });
-        assert_eq!((p.model_at(1), p.model_at(5)), ("cart_broken", "cart_3d"));
+        assert_eq!((p.model_at(1).as_ref(), p.model_at(5).as_ref()), ("cart_broken", "cart_3d"));
         p.model.clear();
         p.turns = vec![SpriteRef::new("w", 0), SpriteRef::new("n", 0), SpriteRef::new("e", 0)];
         assert_eq!(p.picture_facing(0, Facing::Up, 0.0).sheet, "n");

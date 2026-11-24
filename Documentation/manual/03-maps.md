@@ -104,6 +104,13 @@ right-click takes the prop of the decoration under the cursor. Each click or str
 step. With *View › Collision* on, solid decorations show their hitboxes (red; yellow: low) and the
 painted ground its blocked cells.
 
+**Rooms** are drawn open to the viewer: a thin wall along the north and west sides of the floor,
+nothing in front. The starter library's thin walls (*Grey stone wall (thin)*, *Plaster window
+(thin)*… and their *thin, north to south* versions) stand on a tile's edge: the north wall's pieces
+on the bottom edge of the tiles above the floor (*Line* along them), the west wall's on the right
+edge of the tiles left of it (they snap to 8 px: place them at the tile's right edge). Fill the
+tiles behind them with *Black void* (flat, solid). The example's interiors are built this way.
+
 AI agents place them with `place_objects`, `scatter` and `erase_objects` ([chapter 13](13-ai-agents.md)).
 
 ## Maps from older versions

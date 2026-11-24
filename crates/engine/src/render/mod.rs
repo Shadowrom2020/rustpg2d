@@ -190,6 +190,38 @@ impl Assets {
         Assets { tile_size: ts, sheets, materials, material_colors, material_frames, generation, errors, models }
     }
 
+    /// The picture sprite `sp` shows and its size in world pixels (buildings' textures).
+    pub fn sprite_picture(&self, sp: &SpriteRef) -> Option<crate::building::Picture> {
+        let s = self.sheets.get(&sp.sheet)?;
+        let (cw, ch) = sp.cells();
+        let r = s.region(sp.frame, cw, ch);
+        let (x0, y0, w, h) = (r.x as u32, r.y as u32, r.w as u32, r.h as u32);
+        if w == 0 || h == 0 || x0 + w > s.image.width as u32 || y0 + h > s.image.height as u32 {
+            return None;
+        }
+        let mut out = Image::gen_image_color(w as u16, h as u16, Color::new(0.0, 0.0, 0.0, 0.0));
+        for y in 0..h {
+            for x in 0..w {
+                out.set_pixel(x, y, s.image.get_pixel(x0 + x, y0 + y));
+            }
+        }
+        Some((out, vec2(w as f32, h as f32) / s.scale.max(1.0)))
+    }
+
+    /// Builds the building props' models again from `db` (a shape changed in the editor).
+    pub fn rebuild_buildings(&mut self, db: &crate::defs::Database) {
+        let mut models = std::mem::take(&mut self.models);
+        models.rebuild_buildings(db, &|sp| self.sprite_picture(sp));
+        self.models = models;
+    }
+
+    /// Builds building prop `p`'s model again (its shape is being edited).
+    pub fn rebuild_building(&mut self, p: &crate::defs::PropDef) {
+        let mut models = std::mem::take(&mut self.models);
+        models.rebuild_building(p, &|sp| self.sprite_picture(sp));
+        self.models = models;
+    }
+
     /// Overview colours of a map's ground by cell value (0 = none: transparent).
     pub fn map_material_colors(&self, map: &Map) -> Vec<Color> {
         std::iter::once(Color::new(0., 0., 0., 0.)).chain(map.materials.iter().map(|id| self.material_colors.get(id).copied().unwrap_or(MAGENTA))).collect()
@@ -238,7 +270,7 @@ impl Assets {
     #[allow(clippy::too_many_arguments)]
     pub fn draw_prop(&self, db: &crate::defs::Database, p: &crate::defs::PropDef, state: usize, facing: crate::entity::Facing, frame: u32, feet: Vec2, flip: bool, tint: Color, time: f64, iso: bool) -> bool {
         let model = p.model_at(state);
-        if !model.is_empty() && self.models.has(model) {
+        if !model.is_empty() && self.models.has(&model) {
             let look = crate::defs::Appearance { model: model.to_string(), ..Default::default() };
             let gear = model::Gear::default();
             let req = model::PoseReq { look: &look, gear: &gear, anim: "idle", time: 0.0, once: false, facing, turn: 0, bust: false };
@@ -276,9 +308,9 @@ impl Assets {
     /// isometric view: the box its footprint and height take on the screen): for clicking on it.
     pub fn prop_rect(&self, p: &crate::defs::PropDef, state: usize, facing: crate::entity::Facing, feet: Vec2, ts: f32, iso: bool) -> Rect {
         let model = p.model_at(state);
-        if iso && !model.is_empty() && self.models.has(model) {
+        if iso && !model.is_empty() && self.models.has(&model) {
             let [w, h] = p.hitbox_facing(facing);
-            let height = self.models.def(model).map_or(ts, |d| d.height);
+            let height = self.models.def(&model).map_or(ts, |d| d.height);
             let c = feet + iso::lay(vec2(0.0, -h / 2.0));
             let (half, below) = ((w + h) / (2.0 * iso::UPRIGHT), (w + h) / (4.0 * iso::UPRIGHT));
             let above = height * 30f32.to_radians().cos() + below;

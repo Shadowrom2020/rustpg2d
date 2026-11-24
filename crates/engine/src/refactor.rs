@@ -677,6 +677,9 @@ fn db_pass(db: &mut Database, config: &mut ProjectConfig, kind: RefKind, old: &s
         for t in &mut d.turns {
             r.fix(RefKind::Sheet, &mut t.sheet);
         }
+        for t in d.building.iter_mut().flat_map(|b| b.pictures_mut()).filter(|t| !t.is_empty()) {
+            r.fix(RefKind::Sheet, &mut t.sheet);
+        }
         if !d.model.is_empty() {
             r.fix(RefKind::Model, &mut d.model);
         }
@@ -1010,6 +1013,9 @@ pub fn refs_of_prop(d: &crate::defs::PropDef) -> Vec<(RefKind, String)> {
     for t in &mut d.turns {
         r.fix(RefKind::Sheet, &mut t.sheet);
     }
+    for t in d.building.iter_mut().flat_map(|b| b.pictures_mut()).filter(|t| !t.is_empty()) {
+        r.fix(RefKind::Sheet, &mut t.sheet);
+    }
     if !d.model.is_empty() {
         r.fix(RefKind::Model, &mut d.model);
     }
@@ -1093,6 +1099,23 @@ mod tests {
         let mut config = ProjectConfig::new("t");
         assert_eq!(rename_in_db(&mut db, &mut config, RefKind::Model, "rig_quadruped", "rig_four_legs"), 1);
         assert_eq!(db.models[1].rig.as_ref().unwrap().template, "rig_four_legs");
+    }
+
+    /// A building's pictures travel with it and follow a sheet's rename.
+    #[test]
+    fn building_pictures_travel_and_follow_renames() {
+        use crate::defs::{BuildingShape, Opening, PropDef, SpriteRef};
+        let mut db = Database::default();
+        let shape = BuildingShape { wall: SpriteRef::new("walls", 1), roof_picture: SpriteRef::new("roofs", 0), openings: vec![Opening { side: Default::default(), at: 40.0, picture: SpriteRef::new("doors", 2), size: [24.0, 40.0], sill: 0.0 }], ..Default::default() };
+        db.props.push(PropDef { id: "house".into(), sprite: SpriteRef::new("icons", 0), building: Some(shape), ..Default::default() });
+        db.reindex();
+        let refs = db.refs_of(RefKind::Prop, "house");
+        for sheet in ["icons", "walls", "roofs", "doors"] {
+            assert!(refs.contains(&(RefKind::Sheet, sheet.to_string())), "{sheet} in {refs:?}");
+        }
+        let mut config = ProjectConfig::new("t");
+        assert_eq!(rename_in_db(&mut db, &mut config, RefKind::Sheet, "doors", "house_doors"), 1);
+        assert_eq!(db.props[0].building.as_ref().unwrap().openings[0].picture.sheet, "house_doors");
     }
 
     /// A stat block's spells follow a spell's rename, but don't travel with the character.

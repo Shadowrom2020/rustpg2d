@@ -376,6 +376,24 @@ the western RPGs (Baldur's Gate, Planescape: Torment).
   (village, forest, the tavern, the mine) and played through in autoplay; *Update asset
   library* on a scratch copy of an older library brings the new models.
 
+  **Changed 2026-11-24 (the user's choice).** Ordinary buildings are no Meshy models: they are
+  built from parts in the editor (cheaper, and creators make their own; the chapel too, see below).
+  One-offs (the windmill, the bell tower, the watchtower), props with corners, nature and the ground stay with
+  Meshy (about 3,000 credits); fences, walls, railings and stairs are kit pieces. The figures'
+  retexture waits until the account is topped up.
+
+  **Progress.** Part 1 (`feature/buildings`): `PropDef.building` (`BuildingShape`: walls on the
+  hitbox, gable / hip / shed / flat roofs, tiled pictures, doors, windows, chimneys) made into a
+  still 3D model by `building.rs` and drawn like a prop's model; the prop form's *Building* section
+  (plan with clicks, live preview, *Copy the look of…*); the example's and the library's ten houses
+  and the chapel as buildings with the existing wall and roof pictures (the pilot's Meshy chapel was
+  tried: its texture smudges the door and the stained glass; big models keep 512 px textures). *Decided while building:* one generated model per building prop instead of
+  tile pieces, so maps, hitboxes and portals stay; the editor can't run Blender, so the engine
+  builds the mesh. The example's interiors got thin back walls (library `*_thin` / `*_thin_side`
+  props; the old two rows of wall blocks became black filler) and the *Front Door* became a thin
+  block that covers a building's own door (the user's feedback, 2026-11-24). Next: ground shadows for 3D props and the see-through cover, kit fences and
+  railings, painted wall and roof textures, then the Meshy run for the one-offs, props and nature.
+
 - [ ] Painted figures — `feature/painted-figures`
 
   **Goal.** Characters that match the painted, lit world while keeping what the kit gives:

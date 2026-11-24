@@ -48,6 +48,25 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   lights 3D models softly, a warm sun from the north-west over a cool sky like the pre-rendered
   props, instead of three cel bands; the outline is half as dark and figures cast a soft shadow on
   the ground.
+- **Buildings from walls and a roof** (`building.rs`, `PropDef.building`): a prop's *Building*
+  section describes a house by its measurements (the hitbox is its footprint; wall height; a gable,
+  hip, shed or flat roof with its ridge, pitch and overhang; pictures tiled over walls, roof,
+  gables, a base and the trim; doors and windows along its walls; chimneys) and the engine builds its
+  3D model, drawn and turned like a prop's model. The prop form shows a plan where clicks add
+  windows, doors and chimneys beside a live preview of the model. The example's and the starter
+  library's houses and the chapel are buildings now (same ids, hitboxes and portals: maps are
+  unchanged). Big models (96 px and taller) keep textures of up to 512 pixels.
+  Editor script `bshape PROP off|RON`; editor `status` prints `buildings=`.
+- **Thin walls for interiors**: the starter library has thin versions of its plaster, timber, grey
+  stone, window, lit window and stained-glass walls (`*_thin`: 8 px deep on a tile's bottom edge,
+  snapped to 32 px; `*_thin_side`: on a tile's right edge, snapped to 8 px). The example's
+  interiors have a thin back wall along their north and west sides (the window pictures where they
+  were) instead of two rows of wall blocks and black at the side; the front stays open, the exit
+  doors lie flat at the front edge. The tavern's upper floor: the guest rooms reach the corridor,
+  thin walls between them, one corridor wall with the four doors in it. The *Front Door* and the
+  *Door* (`room_door`) are thin blocks now (32 x 4 px, 46 px high): they stand in a wall's line,
+  and a lockable door in a building's doorway (Halvar's house) covers the building's own door
+  instead of standing beside it.
 ### Visual scripts
 - **Script functions made of nodes** (`defs/visual_scripts.ron`, first part): a visual script is a
   function whose nodes are the script API's functions (a step on the flow, or a value such as

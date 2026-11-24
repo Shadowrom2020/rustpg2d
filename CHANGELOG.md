@@ -92,6 +92,12 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   glowing shrine, a broken crate); chairs, stools and beds share one model turned for each of
   their props. Furniture made a model no longer draws its old blanket or chair back over the
   sitter or sleeper. The fit compares the concept's outline and colours to find the model's front.
+- **Painted nature and small things**: the starter library's 72 trees, bushes, herbs, rocks, ore
+  veins, crystals, cacti, stalagmites, barrels, pots, sacks, signs, graves and other round or
+  small props are painted pictures at the isometric angle and light (`sprites/painted/<prop>.png`,
+  sheets `<prop>_painted` at twice the world's pixel density; 368 credits), with their states (a
+  stump, a picked bush, a mined-out vein, a broken pot). Same ids, hitboxes and heights; the
+  example's forest, village and mine use them.
 ### Visual scripts
 - **Script functions made of nodes** (`defs/visual_scripts.ron`, first part): a visual script is a
   function whose nodes are the script API's functions (a step on the flow, or a value such as

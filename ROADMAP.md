@@ -405,7 +405,11 @@ the western RPGs (Baldur's Gate, Planescape: Torment).
   nature and ground). Part 5 (`feature/iso-art-props`): 40 more props and 6 state models (1,564
   credits; balance 3,582); turned copies for chairs, stools, beds, the chest variants and the east
   gate; flames stay pictures. *Learned:* the outline can't tell a chest's front from its back, so
-  every model is checked by eye against its concept (four needed a manual turn). Next: ground shadows for 3D props and the see-through cover, kit fences and
+  every model is checked by eye against its concept (four needed a manual turn). Part 6
+  (`feature/iso-art-nature`): 72 painted pictures and 18 state pictures (368 credits; balance 3,214),
+  cut out, scaled to the old picture's height, the foot at the frame's bottom middle. *Open:* the
+  pictures cast no shadow (a picture has no anchor below its foot; an anchor field would let a
+  baked shadow reach below it). Next: ground shadows for 3D props and the see-through cover, kit fences and
   railings, painted wall and roof textures, then the Meshy run for the one-offs, props and nature.
 
 - [ ] Painted figures — `feature/painted-figures`

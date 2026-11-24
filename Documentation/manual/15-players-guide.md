@@ -3,13 +3,17 @@
 How a game made with R(ust)PG2D is played. Use it to write your game's own instructions, or point your
 players here.
 
+The world is seen isometrically: from the south-east and from above, the ground's squares as
+diamonds. The movement keys follow the screen: up walks up the screen (the map's north-west), and
+two keys together walk along the diamonds' edges.
+
 ## Keyboard and mouse
 
 These are the default keys; players change them in *Options › Gameplay › Controls*.
 
 | Key | Action |
 |---|---|
-| Arrows / WASD (Shift = run) | Move |
+| Arrows / WASD (Shift = run) | Move (up = up the screen) |
 | E / Enter | Interact, talk, advance a dialog |
 | X | Attack: starts a fight with an enemy in sight; outside fights a swing at a tree or a vein |
 | Left Ctrl / V | Sneak on / off (see below) |

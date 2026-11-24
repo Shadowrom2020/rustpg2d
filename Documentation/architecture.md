@@ -346,9 +346,34 @@ waypoint), one tile at a time through `try_move`, with re-planning when blocked 
 after a few seconds. The player moves through `try_move` too: solid tiles, solid entities and the
 player block; ladders block characters and are climbed by the player (vertical only, slower).
 
-`draw` runs: pixel camera, parallax layers behind, the painted ground, flat decorations, fish
-shadows, entities, the player and sorted decorations Y-sorted, combat / the fight's tiles / gathering / activity / FX /
-mouse overlays, decorations above everyone, parallax above, the light pass when it is dark or the weather tints, weather, the save
+The view is isometric (`render/iso.rs`): the world stays a square grid of 32 px tiles (maps,
+collision, pathfinding, the fight grid and saves know nothing of the view), and a world point
+lands at (x − y, (x + y) / 2) on the screen, a tile being a 64 × 32 diamond at zoom 1. `Game::view`
+(an `iso::View`: target, zoom, window size; kept for the frame in `frame_view`, so mouse picking
+between frames sees what is on the screen) gives two kinds of camera:
+
+- the ground camera (`Game::camera`): a `Camera2D` turned 45° and squashed to half height. All
+  that lies flat is drawn through it in world coordinates (ground, flat decorations and flat props,
+  the fight's tiles and areas, the light map, the mouse's tile), and its inverse is the mouse
+  picking of the ground;
+- upright cameras (`View::upright(feet)`, `Game::upright(feet, ..)`): unturned, at √2 × the zoom,
+  with `feet` where the ground camera shows them. Everything that stands (characters, props,
+  sorted decorations, projectiles, and the overlays drawn at offsets from feet: health bars,
+  emotes, padlocks, effects) is drawn through the camera of its own feet, so its drawing code keeps
+  its world coordinates. Screen-space overlays (speech bubbles, quest markers, damage numbers)
+  take `View::above(feet, height)`.
+
+Depth: `iso::order` sorts by `x + y` of the feet; props whose footprint (`PropDef::hitbox` at the
+feet) is wider than about a tile are ordered box to box against the rest (the one wholly west or
+north of the other is farther), so a character beside a building's side is drawn right. Entities
+are picked on the screen (`entity_screen_rect`: the click rect standing at the feet). Keys and the
+stick move along the screen (`iso::screen_dir_to_world`: up = the map's north-west); click to walk
+is unchanged. Figures are rendered 30° from above and turned `ISO_TURN` (−45°) against the world.
+
+`draw` runs: the view, parallax layers behind, the painted ground, flat decorations, the map
+border's fade, fish shadows, flat props, then entities, the player, sorted decorations and what
+flies in depth order (each through its upright camera), combat / the fight's tiles / gathering /
+activity / FX / mouse overlays, decorations above everyone, parallax above, the light pass when it is dark or the weather tints, weather, the save
 thumbnail, the debug overlay, the fade, HUD, windows, dialog, menus, console.
 
 The windows share their building blocks in `runtime/ui.rs`: `ScrollList` (selection, scrolling,
@@ -441,7 +466,7 @@ matrices and removes the root's horizontal motion; `skin` deforms the mesh on th
 uploads vertices on every draw anyway). `render::model::Models` renders a pose
 (`PoseReq`: look, `Gear`, animation, time, facing) once: the mesh turned to the facing plus the
 clip's alignment (`facing_of`: square to the hips and shoulders), into a scratch render target with
-depth through an orthographic `Camera3D` 20° above, with the cel shader (GLSL 100: light bands, a
+depth through an orthographic `Camera3D` 30° above (busts: 20°), turned `ISO_TURN`, with the cel shader (GLSL 100: light bands, a
 colour step; `Vertex::normal` carries the normals); held items are quads at the hand bones (the
 grip axis is the hand bone's thumb-side axis, found in the rest pose) laid out by `hands::held_with`;
 then the picture is copied with a 1-pixel dark outline into an atlas page (1024², shelf-packed, the

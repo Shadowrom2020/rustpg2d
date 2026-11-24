@@ -3,6 +3,14 @@
 The engine brings the systems of a classic action RPG. You switch on what your game needs and fill
 it with content; most systems are set up in the Database and driven by triggers.
 
+## The view
+
+The game shows the world isometrically: from the south-east and 30° from above, a tile of the map
+as a 64 × 32 diamond, characters and props standing upright. Maps, collision, paths and the
+fight's squares are the same square grid as in the editor; only the drawing turns. The movement
+keys follow the screen (up = up the screen, the map's north-west), clicks pick what is drawn under
+the cursor, and the map's border fades into its background colour.
+
 ## Health and combat
 
 ![A turn-based fight in Whisperwood: the turn order, the reachable tiles and the action bar](../images/game-combat.webp)

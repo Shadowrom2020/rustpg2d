@@ -447,7 +447,7 @@ impl Game {
             let scale = self.view_scale();
             let pulse = 0.6 + 0.3 * (t * 6.0).sin();
             draw_ellipse_lines(s.x, s.y - 2.0 * scale, 16.0 * scale, 7.0 * scale, 0.0, 2.5, Color::new(0.5, 1.0, 0.55, pulse));
-            let top = self.camera().world_to_screen(p - vec2(0.0, self.ts() * 1.6));
+            let top = self.view().above(p, self.ts() * 1.6);
             let bob = (t * 5.0).sin() * 3.0;
             draw_triangle(vec2(top.x - 8.0, top.y - 12.0 + bob), vec2(top.x + 8.0, top.y - 12.0 + bob), vec2(top.x, top.y + bob), Color::new(0.5, 1.0, 0.55, 0.95));
         }

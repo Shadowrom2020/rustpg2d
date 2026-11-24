@@ -209,14 +209,14 @@ impl Game {
     pub(super) fn draw_fx(&self) {
         for (k, f) in self.fx.iter().enumerate() {
             if matches!(f.kind, FxKind::Once) {
-                self.draw_one_fx(k);
+                self.upright(f.pos, || self.draw_one_fx(k));
             }
         }
     }
 
-    /// Flying sprites: index and y (their height in the air is added by the caller).
-    pub(super) fn flying_fx(&self) -> impl Iterator<Item = (usize, f32)> + '_ {
-        self.fx.iter().enumerate().filter(|(_, f)| matches!(f.kind, FxKind::Fly { .. })).map(|(k, f)| (k, f.pos.y))
+    /// Flying sprites: index and position (their height in the air is added by the caller).
+    pub(super) fn flying_fx(&self) -> impl Iterator<Item = (usize, Vec2)> + '_ {
+        self.fx.iter().enumerate().filter(|(_, f)| matches!(f.kind, FxKind::Fly { .. })).map(|(k, f)| (k, f.pos))
     }
 
     /// Draws effect `k`.
@@ -226,7 +226,8 @@ impl Game {
             let step = (f.age * f.sprite.fps) as u32;
             let (frame, angle) = match &f.kind {
                 FxKind::Fly { target, .. } => {
-                    let d = *target - f.pos;
+                    // (Pointing where it flies on the screen.)
+                    let d = crate::render::iso::world_dir_to_screen(*target - f.pos);
                     (step % n, d.y.atan2(d.x))
                 }
                 FxKind::Once => (step.min(n - 1), 0.0),

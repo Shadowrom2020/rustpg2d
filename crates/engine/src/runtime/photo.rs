@@ -77,13 +77,14 @@ impl Game {
             }
         }
         let fast = if input::act_down(Act::Run) && input::device() != Device::Pad { 2.0 } else { 1.0 };
-        self.photo.center += dir.normalize_or_zero() * PAN * fast * real.max(dt) / scale;
+        // (Screen pixels as world pixels of the isometric view.)
+        self.photo.center += crate::render::iso::unproject(dir.normalize_or_zero() * PAN * fast * real.max(dt) / scale);
         let m = input::mouse_pos();
         if input::mouse_pressed(MouseButton::Left) {
             self.photo.drag = Some((m, self.photo.center));
         }
         if let Some((from, center)) = self.photo.drag {
-            self.photo.center = center - (m - from) / scale;
+            self.photo.center = center - crate::render::iso::unproject((m - from) / scale);
             if !input::mouse_down(MouseButton::Left) {
                 self.photo.drag = None;
             }

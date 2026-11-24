@@ -236,7 +236,15 @@ impl Game {
                 let ts = self.ts();
                 let dir = Vec2::from(self.player.facing.dir());
                 // From the rod's tip (or the hand when no rod is held).
-                let hand = if self.world.equipment.tool.is_some() { cam.world_to_screen(self.rod_tip()) } else { cam.world_to_screen(self.player.pos - vec2(0.0, ts * 0.8) + dir * ts * 0.3) };
+                // (The rod's tip and the hand stand with the player: their offsets as the upright
+                // drawing shows them.)
+                let v = self.view();
+                let (feet, u) = (self.player.pos, v.upright_scale());
+                let hand = if self.world.equipment.tool.is_some() {
+                    v.to_screen(feet) + (self.rod_tip() - feet) * u
+                } else {
+                    v.above(feet, ts * 0.8) + crate::render::iso::lay(dir * ts * 0.3) * u
+                };
                 let bob_world = f.bobber;
                 let bite = matches!(f.phase, FishPhase::Bite(_) | FishPhase::Reel);
                 let dip = if bite { (get_time() as f32 * 18.0).sin() * 3.0 + 3.0 } else { (get_time() as f32 * 3.0).sin() * 1.5 };

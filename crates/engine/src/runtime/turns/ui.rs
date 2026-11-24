@@ -74,16 +74,19 @@ impl Game {
         // The cursor.
         let Some(c) = self.fight.as_mut() else { return };
         let mut moved = false;
-        for (act, d) in [(Act::Left, (-1, 0)), (Act::Right, (1, 0)), (Act::Up, (0, -1)), (Act::Down, (0, 1))] {
+        // (Along the screen: up is the tile straight above on the diamond grid.)
+        for (act, d) in [(Act::Left, (-1, 1)), (Act::Right, (1, -1)), (Act::Up, (-1, -1)), (Act::Down, (1, 1))] {
             if input::act_pressed(act) {
                 c.cursor = (c.cursor.0 + d.0, c.cursor.1 + d.1);
                 moved = true;
             }
         }
         let world = self.mouse_world_at(mouse);
+        // (A figure under the cursor: its tile, not the ground behind its body.)
+        let over = self.entity_under(world).map(|i| crate::grid::feet_tile(self.loaded.entities[i].body.pos, ts));
         let Some(c) = self.fight.as_mut() else { return };
         if !moved && (mouse != c.mouse_last || input::mouse_pressed(MouseButton::Left)) && mouse != Vec2::ZERO {
-            c.cursor = ((world.x / ts).floor() as i32, (world.y / ts).floor() as i32);
+            c.cursor = over.unwrap_or(((world.x / ts).floor() as i32, (world.y / ts).floor() as i32));
         }
         c.mouse_last = mouse;
         if input::act_pressed(Act::Confirm) || input::mouse_pressed(MouseButton::Left) {
@@ -303,7 +306,8 @@ impl Game {
             // (A foe the hero can't see: a question mark over its space.)
             if let Who::Npc(uid) = f.who {
                 if self.unseen_foe(uid) {
-                    draw_text("?", r.x + r.w / 2.0 - 5.0, r.y - 4.0, 26.0, Color::new(1.0, 0.85, 0.4, 0.95));
+                    // (Standing over its space.)
+                    self.upright(vec2(r.x + r.w / 2.0, r.bottom()), || draw_text("?", r.x + r.w / 2.0 - 5.0, r.y - 4.0, 26.0, Color::new(1.0, 0.85, 0.4, 0.95)));
                 }
             }
         }

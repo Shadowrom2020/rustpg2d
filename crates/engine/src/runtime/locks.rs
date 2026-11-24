@@ -263,9 +263,11 @@ impl Game {
             let (x, y) = ((r.x + r.w - 4.0 * u).round(), (r.y - 3.0 * u).round());
             let gold = Color::new(0.95, 0.78, 0.25, 1.0);
             let dark = Color::new(0.25, 0.18, 0.05, 1.0);
-            draw_rectangle_lines(x + u, y - 3.0 * u, 4.0 * u, 4.0 * u, u, dark);
-            draw_rectangle(x, y, 6.0 * u, 5.0 * u, gold);
-            draw_rectangle(x + 2.5 * u, y + 1.5 * u, u, 2.0 * u, dark);
+            self.upright(e.body.pos, || {
+                draw_rectangle_lines(x + u, y - 3.0 * u, 4.0 * u, 4.0 * u, u, dark);
+                draw_rectangle(x, y, 6.0 * u, 5.0 * u, gold);
+                draw_rectangle(x + 2.5 * u, y + 1.5 * u, u, 2.0 * u, dark);
+            });
         }
     }
 }

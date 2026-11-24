@@ -564,6 +564,9 @@ pub struct Game {
     /// The light at the hero, worked out once a frame (`Game::light_at_player`): where they
     /// stood, the hour and the light.
     light_here: std::cell::Cell<Option<((Vec2, f32), f32)>>,
+    /// The isometric view of the frame being drawn (set while drawing, so overlays and the
+    /// upright cameras agree with the world; `None` between frames).
+    frame_view: std::cell::Cell<Option<render::iso::View>>,
     /// Placed entities of other maps read from disk for companions (`placed_instance`), once
     /// per game: map files don't change while it runs.
     placed_cache: std::cell::RefCell<std::collections::HashMap<(String, u32), Option<crate::entity::EntityInstance>>>,
@@ -795,6 +798,7 @@ impl Game {
             regrow_timer: 0.0,
             perf: std::cell::RefCell::new(Perf { log: std::env::var("RUSTPG2D_PERF").is_ok_and(|v| v != "0"), ..Perf::default() }),
             light_here: std::cell::Cell::new(None),
+            frame_view: std::cell::Cell::new(None),
             placed_cache: Default::default(),
             order_menu: None,
             bar: Default::default(),
@@ -1394,11 +1398,29 @@ impl Game {
     /// the depth-sorted list of [`Game::draw`]).
     fn draw_decor_layer(&self, layer: crate::decor::DecorLayer, view: Rect) {
         let m = &self.loaded.map;
-        let mut list: Vec<u32> = self.loaded.decor_index.near(view.x, view.y, view.w, view.h, crate::decor::REACH).filter(|&i| m.decor[i as usize].layer == layer).collect();
-        list.sort_by_key(|&i| m.decor[i as usize].y);
+        use crate::decor::DecorLayer;
+        let flat_too = |i: u32| layer == DecorLayer::Flat && m.decor[i as usize].layer == DecorLayer::Sorted && self.decor_flat(i as usize);
+        let mut list: Vec<u32> = self.loaded.decor_index.near(view.x, view.y, view.w, view.h, crate::decor::REACH).filter(|&i| m.decor[i as usize].layer == layer || flat_too(i)).collect();
+        list.sort_by(|&a, &b| {
+            let (a, b) = (&m.decor[a as usize], &m.decor[b as usize]);
+            render::iso::depth(vec2(a.x as f32, a.y as f32)).total_cmp(&render::iso::depth(vec2(b.x as f32, b.y as f32)))
+        });
         for i in list {
-            self.draw_decor(i as usize);
+            let d = &m.decor[i as usize];
+            if layer == DecorLayer::Flat {
+                self.draw_decor(i as usize);
+            } else {
+                // (Above: canopies, roof edges, window glows stand like everything else.)
+                self.upright(vec2(d.x as f32, d.y as f32), || self.draw_decor(i as usize));
+            }
         }
+    }
+
+    /// Whether decoration `i` lies flat on the ground: its prop is *flat* (rugs, the black filler
+    /// around rooms).
+    fn decor_flat(&self, i: usize) -> bool {
+        let m = &self.loaded.map;
+        m.decor_defs.get(m.decor[i].def as usize).and_then(|id| self.project.db.prop(id)).is_some_and(|p| p.flat)
     }
 
     /// Draws decoration `i`.
@@ -2210,19 +2232,21 @@ impl Game {
             return;
         }
 
-        let mut dir = Vec2::ZERO;
+        // Keys and the stick move along the screen: up is up the screen (the map's north-west).
+        let mut keys = Vec2::ZERO;
         if input::act_down(Act::Left) {
-            dir.x -= 1.0;
+            keys.x -= 1.0;
         }
         if input::act_down(Act::Right) {
-            dir.x += 1.0;
+            keys.x += 1.0;
         }
         if input::act_down(Act::Up) {
-            dir.y -= 1.0;
+            keys.y -= 1.0;
         }
         if input::act_down(Act::Down) {
-            dir.y += 1.0;
+            keys.y += 1.0;
         }
+        let mut dir = render::iso::screen_dir_to_world(keys);
         let mut run = if input::act_down(Act::Run) { 1.8 } else { 1.0 };
         if dir != Vec2::ZERO {
             // Keyboard movement cancels click-to-move.
@@ -2241,7 +2265,8 @@ impl Game {
         // On a ladder: only up and down, slower, facing the ladder; drawn towards its middle.
         let climbing = self.climbing();
         if climbing {
-            dir = vec2(0.0, if dir.y.abs() > 0.01 { dir.y.signum() } else { 0.0 });
+            // (Up and down the screen climb.)
+            dir = vec2(0.0, if keys.y.abs() > 0.01 { keys.y.signum() } else if dir.y.abs() > 0.01 { dir.y.signum() } else { 0.0 });
             run = CLIMB_SPEED;
             self.player.facing = Facing::Up;
             let mid = (self.player_tile().0 as f32 + 0.5) * ts;
@@ -2833,7 +2858,7 @@ impl Game {
     pub fn status(&self) -> String {
         let p = self.player.pos / self.ts();
         format!(
-            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} plugins={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} combat={} death_saves={:?} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} parts={:?} models={} rolls={} abilities={} prof={} profs={} sheet={} statblocks={:?} encounters={:?} class={} levelup={} rest={} resources={} class_fx={} money={} weapon={} armor={} attuned={} charges={} ammo={} knocked_out={} sight={} fall={} survival={:?} load={} senses={} bar={} search={} objects={:?} traps={:?} coating={} diseases={} monster_fx={} react={} {} areas={} detect={}",
+            "{} {} weather={} menu={} autosave={} cutscene={} ui_hidden={} photo={} window={} npcs={:?} fx={:?} worldmap={{{}}} skills={{{}}} {} {} ai={:?} bestiary={:?} dialog_log={} pad={:?} shake={} time={} light={:?} lights={} patrol={:?} schedule={:?} companions={:?} dropped={:?} player={:?} race={} factions={} hooks={} plugins={:?} creator={:?} quests={:?} achievements={:?} minigame={} image={} pose={} climbing={} gather={:?} props={:?} crops={:?} doors={:?} homes={:?} furniture={:?} activities={:?} day={} parallax={} ground={} lang={} fonts={:?} missing_glyphs={} skin={} menu_rows={:?} title_bg={} hud={:?} script_window={} pictures={:?} screen={} timers={:?} input={} texts={:?} routes={:?} common={:?} camera={} view={} scroll={} aim={} orders={} compwin={} shop={:?} crafting={:?} map={} tile=({},{}) hp={:?} vars={:?} equip={:?} enemies={} busy={} dialog={} dialog_text={:?} inv={:?} bag={}/{} flags={:?} music={:?} music_loop={} sounds={:?} foes={:?} device={:?} pad_style={} combat={} death_saves={:?} sneak={} battle={} music_fade={} music_effect={} captions={:?} emotes={:?} barks={:?} ambience={:?} friends={:?} markers={:?} offers={:?} {} anims={:?} held={:?} parts={:?} models={} rolls={} abilities={} prof={} profs={} sheet={} statblocks={:?} encounters={:?} class={} levelup={} rest={} resources={} class_fx={} money={} weapon={} armor={} attuned={} charges={} ammo={} knocked_out={} sight={} fall={} survival={:?} load={} senses={} bar={} search={} objects={:?} traps={:?} coating={} diseases={} monster_fx={} react={} {} areas={} detect={}",
             self.dev_status(),
             self.perf.borrow_mut().report(),
             self.weather_status(),
@@ -2906,6 +2931,7 @@ impl Game {
             self.routes_status(),
             self.common_status(),
             self.camera_status(),
+            self.view_status(),
             self.scroll_status(),
             self.heal_pick_status(),
             self.order_menu_status(),
@@ -3129,30 +3155,44 @@ impl Game {
 
     // ---------------------------------------------------------------- drawing
 
-    /// The game camera: follows the player, clamped to the map.
-    fn camera(&self) -> Camera2D {
+    /// The isometric view of the world: follows the player, its middle kept over the map
+    /// (`render::iso`).
+    pub(super) fn view(&self) -> render::iso::View {
+        if let Some(v) = self.frame_view.get() {
+            return v;
+        }
         let ts = self.ts();
         let m = &self.loaded.map;
-        let scale = self.view_scale();
-        let (mw, mh) = (m.width as f32 * ts, m.height as f32 * ts);
-        let clamp_axis = |p: f32, view: f32, size: f32| {
-            if size <= view { size / 2.0 } else { p.clamp(view / 2.0, size - view / 2.0) }
-        };
         if let Some((center, scale)) = self.photo_view() {
-            // Photo mode: wherever the player moved it, at its zoom (also past the map's edges
-            // when zoomed out).
-            return render::pixel_camera(center, scale);
+            // Photo mode: wherever the player moved it, at its zoom.
+            return render::iso::View::new(center, scale);
         }
         let (mut focus, zoom) = self.camera_focus();
-        let scale = scale * zoom;
-        let (vw, vh) = (screen_width() / scale, screen_height() / scale);
+        let scale = self.view_scale() * zoom;
         if self.on_title() && self.title_drifts() {
             // The title screen slowly drifts over its map.
             let t = get_time() as f32;
             focus += vec2((t * 0.07).sin() * 12.0 * ts, (t * 0.05).cos() * 6.0 * ts);
         }
-        let target = vec2(clamp_axis(focus.x, vw, mw), clamp_axis(focus.y, vh, mh)) + self.shake_offset();
-        render::pixel_camera(target, scale)
+        let (mw, mh) = (m.width as f32 * ts, m.height as f32 * ts);
+        let focus = vec2(focus.x.clamp(0.0, mw.max(0.0)), focus.y.clamp(0.0, mh.max(0.0)));
+        render::iso::View::new(focus + self.shake_offset(), scale)
+    }
+
+    /// The camera of everything lying on the ground (the painted ground, flat decorations, the
+    /// fight grid); `world_to_screen` / `screen_to_world` of it are those of the view.
+    fn camera(&self) -> Camera2D {
+        self.view().ground()
+    }
+
+    /// Runs `f` with the camera of something standing at `feet` (drawn upright: see
+    /// `render::iso`), then goes back to the ground camera.
+    pub(super) fn upright<R>(&self, feet: Vec2, f: impl FnOnce() -> R) -> R {
+        let v = self.view();
+        set_camera(&v.upright(feet));
+        let r = f();
+        set_camera(&v.ground());
+        r
     }
 
     /// Screen position of the center of a tile (used by automated play-throughs).
@@ -3162,9 +3202,11 @@ impl Game {
     }
 
     pub fn draw(&mut self) {
-        /// Sort keys of flat props are their feet minus this: before everything else.
-        const FLAT_FIRST: f32 = 1.0e7;
         self.light_here.set(None);
+        // The view of this frame (kept until the next one: mouse picking and autoplay clicks
+        // between frames see what is on the screen).
+        self.frame_view.set(None);
+        self.frame_view.set(Some(self.view()));
         self.assets.models.begin_frame();
         // (Renders into a texture: before any camera is set.)
         self.prepare_minimap();
@@ -3186,6 +3228,8 @@ impl Game {
         // The painted ground.
         self.ground_draw.draw(m, &self.project.db, &self.assets, view, WHITE);
         self.draw_decor_layer(crate::decor::DecorLayer::Flat, view);
+        // The map's border fades into the background (the isometric diamond's edge).
+        render::iso::border_fade(m.width as f32 * ts, m.height as f32 * ts, ts, Color::from_rgba(bg[0], bg[1], bg[2], 255));
         // Fish shadows mark the fishing spots' water.
         let now = get_time() as f32;
         for z in m.zones.iter().filter(|z| matches!(z.kind, ZoneKind::FishingSpot { .. })) {
@@ -3195,42 +3239,70 @@ impl Game {
             }
         }
 
-        // Y-sorted entities, the player, and what flies between them (arrows, flying spell
-        // sprites: sorted by the ground under them, so a tree crown or a character in front
-        // hides them).
-        let mut order: Vec<(f32, Drawn)> = self
-            .loaded
-            .entities
-            .iter()
-            .enumerate()
-            .filter(|(_, e)| e.active)
-            // (Flat props first, under everyone: on the ground with the Flat decorations.)
-            .map(|(i, e)| (if e.flat { e.body.pos.y - FLAT_FIRST } else { e.npc_seat.as_ref().map_or(e.body.pos.y, |s| s.prop_feet.y + 0.5) }, Drawn::Entity(i)))
-            .collect();
+        // Everything standing, in depth order (`render::iso::order`: by the feet, buildings and
+        // other big footprints box to box), each drawn upright where its feet are; what flies
+        // (arrows, flying spell sprites) by the ground under it, so a tree crown or a character in
+        // front hides it. Flat props lie under everyone, with the Flat decorations.
+        let iv = self.view();
+        let big = ts * 1.25;
+        let footprint = |feet: Vec2, hitbox: Option<[f32; 2]>| match hitbox {
+            Some([w, h]) if w >= big || h >= big => render::iso::Footprint::at_feet(feet, w, h),
+            _ => render::iso::Footprint::at_feet(feet, 0.0, 0.0),
+        };
+        // (Tall things reach far up the screen: look a few tiles beyond the ground in view.)
+        let near = Rect::new(view.x - 6.0 * ts, view.y - 6.0 * ts, view.w + 8.0 * ts, view.h + 8.0 * ts);
+        let mut flats: Vec<(f32, usize)> = Vec::new();
+        // (What, where its upright camera stands, its footprint.)
+        let mut items: Vec<(Drawn, Vec2, render::iso::Footprint)> = Vec::new();
+        for (i, e) in self.loaded.entities.iter().enumerate().filter(|(_, e)| e.active) {
+            let p = e.body.pos;
+            if !near.contains(p) {
+                continue;
+            }
+            if e.flat {
+                flats.push((p.y, i));
+                continue;
+            }
+            // (Seated: just in front of the furniture.)
+            let feet = e.npc_seat.as_ref().map_or(p, |s| vec2(p.x, s.prop_feet.y + 0.5));
+            let hitbox = (e.kind == EntityKind::Prop).then(|| self.project.db.prop(&e.def).map(|d| d.hitbox)).flatten();
+            items.push((Drawn::Entity(i), p, footprint(feet, hitbox)));
+        }
         if !self.photo.hide_player || !self.photo_on() {
-            order.push((self.player_sort_y(), Drawn::Player));
+            let p = self.player.pos;
+            items.push((Drawn::Player, p, footprint(vec2(p.x, self.player_sort_y()), None)));
         }
         let above_ground = ts * FLIGHT_HEIGHT;
-        order.extend(self.projectiles.iter().enumerate().map(|(k, p)| (p.ground_y(above_ground), Drawn::Projectile(k))));
-        order.extend(self.flying_fx().map(|(k, y)| (y + above_ground, Drawn::Fly(k))));
-        // Decorations sorted with everyone (those near the screen).
+        for (k, p) in self.projectiles.iter().enumerate() {
+            let g = p.ground_point(above_ground);
+            items.push((Drawn::Projectile(k), g, footprint(g, None)));
+        }
+        for (k, pos) in self.flying_fx() {
+            let g = pos + vec2(0.0, above_ground);
+            items.push((Drawn::Fly(k), g, footprint(g, None)));
+        }
+        // Decorations sorted with everyone (those near the screen); flat ones lie on the ground.
         let dm = &self.loaded.map;
-        order.extend(
-            self.loaded
-                .decor_index
-                .near(view.x, view.y, view.w, view.h, crate::decor::REACH)
-                .filter(|&i| dm.decor[i as usize].layer == crate::decor::DecorLayer::Sorted)
-                .map(|i| (dm.decor[i as usize].y as f32, Drawn::Decor(i as usize))),
-        );
-        order.sort_by(|a, b| a.0.total_cmp(&b.0));
-        let t = get_time() as f32;
-        // The camera shifted for a jumping walker; back to normal before the next thing is drawn.
-        let mut lifted_cam = false;
-        for (_, drawn) in order {
-            if lifted_cam {
-                set_camera(&cam);
-                lifted_cam = false;
+        for i in self.loaded.decor_index.near(near.x, near.y, near.w, near.h, crate::decor::REACH) {
+            let d = &dm.decor[i as usize];
+            if d.layer != crate::decor::DecorLayer::Sorted || self.decor_flat(i as usize) {
+                continue;
             }
+            let feet = vec2(d.x as f32, d.y as f32);
+            let hitbox = dm.decor_defs.get(d.def as usize).and_then(|id| self.project.db.prop(id)).map(|p| p.hitbox);
+            items.push((Drawn::Decor(i as usize), feet, footprint(feet, hitbox)));
+        }
+        flats.sort_by(|a, b| a.0.total_cmp(&b.0));
+        for (_, i) in flats {
+            self.draw_entity(i, get_time() as f32);
+        }
+        let prints: Vec<render::iso::Footprint> = items.iter().map(|it| it.2).collect();
+        let order = render::iso::order(&prints, 0.5);
+        let t = get_time() as f32;
+        for k in order {
+            let (drawn, anchor, _) = items[k];
+            let base = iv.upright(anchor);
+            set_camera(&base);
             let idx = match drawn {
                 Drawn::Projectile(k) => {
                     self.draw_projectile(k);
@@ -3250,9 +3322,7 @@ impl Game {
             // A walker jumping on a move route: drawn higher (the camera shifted for it alone).
             let hop = self.route_hop(idx.map_or(routes::Walker::Player, |i| self.entity_walker(i)));
             if hop > 0.0 {
-                let lifted = Camera2D { target: cam.target + vec2(0.0, hop), zoom: cam.zoom, rotation: cam.rotation, offset: cam.offset, render_target: cam.render_target.clone(), viewport: cam.viewport };
-                set_camera(&lifted);
-                lifted_cam = true;
+                set_camera(&Camera2D { target: base.target + vec2(0.0, hop), ..base });
             }
             match idx {
                 None if self.on_title() => {}
@@ -3280,19 +3350,11 @@ impl Game {
                         });
                     }
                 }
-                Some(i) => {
-                    // Off screen (a generous margin for tall sprites): nothing to draw.
-                    let p = self.loaded.entities[i].body.pos;
-                    if Rect::new(p.x - 4.0 * ts, p.y - 8.0 * ts, 8.0 * ts, 9.0 * ts).overlaps(&view) {
-                        self.draw_entity(i, t);
-                    }
-                }
+                Some(i) => self.draw_entity(i, t),
             }
         }
 
-        if lifted_cam {
-            set_camera(&cam);
-        }
+        set_camera(&cam);
         self.draw_combat_world();
         self.draw_areas();
         self.draw_detected();

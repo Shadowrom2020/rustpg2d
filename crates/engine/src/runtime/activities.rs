@@ -103,7 +103,9 @@ impl Game {
         for i in 0..self.loaded.entities.len() {
             let Some((a, facing)) = self.current_activity(i) else { continue };
             let e = &self.loaded.entities[i];
-            let dir = Vec2::from(facing.dir());
+            // (Standing at its feet; directions as the screen shows them: `render::iso`.)
+            set_camera(&self.view().upright(e.body.pos));
+            let dir = crate::render::iso::lay(Vec2::from(facing.dir()));
             let seed = (e.uid % 1024) as f32 * 0.37;
             // Where the strokes land: in front, or (facing up, the body in the way) beyond the head.
             let front = if facing == Facing::Up && a.kind == ActivityKind::Craft { e.body.pos - vec2(0.0, 50.0 * k) } else { e.body.pos + dir * ts * 0.75 - vec2(0.0, 4.0 * k) };
@@ -172,6 +174,7 @@ impl Game {
                 }
             }
         }
+        set_camera(&self.camera());
     }
 
     /// `status()`: characters at work now (`name:kind@x,y`).

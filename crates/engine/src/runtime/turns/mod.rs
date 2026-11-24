@@ -1836,7 +1836,7 @@ impl Game {
             self.after_throw(who, target, spec);
         }
         if !roll.hit {
-            let head = to - vec2(0.0, self.ts() * 1.1);
+            let head = (to, self.ts() * 1.1);
             self.miss_number(head);
             return false;
         }
@@ -1858,7 +1858,7 @@ impl Game {
             if let Some(l) = self.fight.as_mut().and_then(|c| c.log.iter_mut().rev().find(|l| **l == logged)) {
                 l.push_str(&format!(" > {}", crate::lang::tr_ui("miss")));
             }
-            let head = to - vec2(0.0, self.ts() * 1.1);
+            let head = (to, self.ts() * 1.1);
             self.miss_number(head);
             return false;
         }
@@ -2043,7 +2043,7 @@ impl Game {
         }
         let party = self.fight.as_ref().and_then(|c| c.fighter(target)).is_some_and(|f| f.side == Side::Party);
         let down = self.fight.as_ref().and_then(|c| c.fighter(target)).is_some_and(|f| f.down);
-        let head = self.who_pos(target) - vec2(0.0, self.ts() * 1.1);
+        let head = (self.who_pos(target), self.ts() * 1.1);
         if down {
             // Damage while down: a failed death save (a crit, two); as much as the maximum HP
             // kills outright.

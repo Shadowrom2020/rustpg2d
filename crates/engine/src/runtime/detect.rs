@@ -70,8 +70,10 @@ impl Game {
             let e = &self.loaded.entities[i];
             let p = e.body.pos;
             let h = e.body.hitbox.y.max(self.ts() * 0.5);
-            draw_circle_lines(p.x, p.y - h / 2.0, h * 0.75, 2.0, Color::new(0.75, 0.55, 1.0, pulse));
-            draw_circle(p.x, p.y - h / 2.0, h * 0.7, Color::new(0.75, 0.55, 1.0, pulse * 0.25));
+            self.upright(p, || {
+                draw_circle_lines(p.x, p.y - h / 2.0, h * 0.75, 2.0, Color::new(0.75, 0.55, 1.0, pulse));
+                draw_circle(p.x, p.y - h / 2.0, h * 0.7, Color::new(0.75, 0.55, 1.0, pulse * 0.25));
+            });
         }
     }
 

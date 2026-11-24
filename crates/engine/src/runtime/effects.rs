@@ -168,7 +168,7 @@ impl Game {
                 }
                 e.bar = super::juice::BAR_TIME;
                 let kind = if e.companion.is_some() { super::juice::NumberKind::Hurt } else { super::juice::NumberKind::Hit };
-                let head = e.body.pos - vec2(0.0, self.ts() * 1.1);
+                let head = (e.body.pos, self.ts() * 1.1);
                 self.damage_number(head, n, kind);
                 let e = &self.loaded.entities[i];
                 if e.hp <= 0 {
@@ -188,7 +188,7 @@ impl Game {
         }
         let hp = (self.hp() - n).max(0);
         self.world.player_hp = Some(hp);
-        let head = self.player.pos - vec2(0.0, self.ts() * 1.1);
+        let head = (self.player.pos, self.ts() * 1.1);
         self.damage_number(head, n, super::juice::NumberKind::Hurt);
         if hp == 0 {
             self.player_defeated();
@@ -274,7 +274,7 @@ impl Game {
         if self.world.effects.is_empty() || !conditions::has(&self.world.effects, Condition::Blinded) || self.on_title() {
             return;
         }
-        let c = self.camera().world_to_screen(self.player.pos - vec2(0.0, self.player.hitbox.y));
+        let c = self.view().above(self.player.pos, self.player.hitbox.y);
         let scale = self.view_scale();
         let (r0, r1) = (45.0 * scale, 150.0 * scale);
         let far = (screen_width() + screen_height()) * 2.0;

@@ -152,12 +152,14 @@ impl Game {
             let need = self.hits_needed(&g).max(1);
             let h = self.project.db.prop(&e.def).map_or(32.0, |d| self.assets.sprite_size(d.state_look(e.state).0, self.ts()).y);
             let (w, x, y) = (24.0 * u / 2.0, e.body.pos.x - 12.0 * u / 2.0, e.body.pos.y - h - 6.0 * u / 2.0);
-            draw_rectangle(x - 1.0, y - 1.0, w + 2.0, 5.0 * u / 2.0 + 2.0, Color::new(0.0, 0.0, 0.0, 0.7));
-            draw_rectangle(x, y, w * hits as f32 / need as f32, 5.0 * u / 2.0, Color::new(1.0, 0.8, 0.3, 1.0));
+            self.upright(e.body.pos, || {
+                draw_rectangle(x - 1.0, y - 1.0, w + 2.0, 5.0 * u / 2.0 + 2.0, Color::new(0.0, 0.0, 0.0, 0.7));
+                draw_rectangle(x, y, w * hits as f32 / need as f32, 5.0 * u / 2.0, Color::new(1.0, 0.8, 0.3, 1.0));
+            });
         }
         for c in &self.chips {
             let a = 1.0 - c.t / 0.5;
-            draw_rectangle(c.pos.x, c.pos.y, 2.0 * u / 2.0, 2.0 * u / 2.0, Color::new(c.color.r, c.color.g, c.color.b, a));
+            self.upright(c.pos, || draw_rectangle(c.pos.x, c.pos.y, 2.0 * u / 2.0, 2.0 * u / 2.0, Color::new(c.color.r, c.color.g, c.color.b, a)));
         }
     }
 

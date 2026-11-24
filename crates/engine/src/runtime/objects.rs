@@ -43,7 +43,7 @@ impl Game {
         let hit_sfx = self.project.config.sfx.hit.clone();
         self.sound_from(&hit_sfx, pos);
         if hit < o.armor_class() as i64 {
-            self.miss_number(pos);
+            self.miss_number((self.loaded.entities[i].body.pos, self.ts() * 0.6));
             return true;
         }
         let rolled = self.world.roll_dice(&dice).map_or(1, |r| r.total.max(1) as i32);
@@ -56,7 +56,7 @@ impl Game {
     /// at 0. A hit below the threshold shows "0".
     pub(super) fn damage_object(&mut self, i: usize, n: i32) {
         let Some((hp, _)) = self.object_hp(i) else { return };
-        let pos = self.loaded.entities[i].body.pos - vec2(0.0, self.ts() * 0.6);
+        let pos = (self.loaded.entities[i].body.pos, self.ts() * 0.6);
         self.damage_number(pos, n.max(0), super::juice::NumberKind::Hit);
         if n <= 0 {
             return;

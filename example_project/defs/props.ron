@@ -3246,6 +3246,7 @@
         triggers: [],
         container: None,
         lock: None,
+        flat: true,
         snap: 32,
     ),
     (
@@ -4035,6 +4036,7 @@
         triggers: [],
         container: None,
         lock: None,
+        flat: true,
         snap: 32,
     ),
     (

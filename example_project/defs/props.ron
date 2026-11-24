@@ -182,6 +182,7 @@
         container: None,
         lock: None,
         low: true,
+        model: "well_3d",
     ),
     (
         id: "chair",
@@ -313,6 +314,7 @@
             ),
         )),
         low: true,
+        model: "bench_3d",
     ),
     (
         id: "bed",
@@ -851,6 +853,7 @@
         container: None,
         lock: None,
         low: true,
+        model: "anvil_3d",
     ),
     (
         id: "smelter",
@@ -1079,6 +1082,7 @@
         triggers: [],
         container: None,
         lock: None,
+        model: "statue_3d",
     ),
     (
         id: "vgate",
@@ -1521,6 +1525,7 @@
         triggers: [],
         container: None,
         lock: None,
+        model: "stall_produce_3d",
     ),
     (
         id: "stall_fish",
@@ -1538,6 +1543,7 @@
         triggers: [],
         container: None,
         lock: None,
+        model: "stall_fish_3d",
     ),
     (
         id: "stall_bread",
@@ -1555,6 +1561,7 @@
         triggers: [],
         container: None,
         lock: None,
+        model: "stall_bread_3d",
     ),
     (
         id: "windmill",
@@ -1572,6 +1579,7 @@
         triggers: [],
         container: None,
         lock: None,
+        model: "windmill_3d",
     ),
     (
         id: "watchtower",
@@ -1666,6 +1674,7 @@
         ],
         container: None,
         lock: None,
+        model: "bell_tower_3d",
     ),
     (
         id: "oven",
@@ -2249,6 +2258,7 @@
         container: None,
         lock: None,
         low: true,
+        model: "tavern_table_3d",
     ),
     (
         id: "dough_table",
@@ -2734,6 +2744,7 @@
         triggers: [],
         container: None,
         lock: None,
+        model: "notice_board_3d",
     ),
     (
         id: "fish_rack",

@@ -391,7 +391,11 @@ the western RPGs (Baldur's Gate, Planescape: Torment).
   tile pieces, so maps, hitboxes and portals stay; the editor can't run Blender, so the engine
   builds the mesh. The example's interiors got thin back walls (library `*_thin` / `*_thin_side`
   props; the old two rows of wall blocks became black filler) and the *Front Door* became a thin
-  block that covers a building's own door (the user's feedback, 2026-11-24). Next: ground shadows for 3D props and the see-through cover, kit fences and
+  block that covers a building's own door (the user's feedback, 2026-11-24). Part 2
+  (`feature/cover`): ground shadows of still 3D models, the see-through cover (props in front of the
+  hero, companions and nearby foes fade); part 3 (`feature/fences`): fences and hedges as thin
+  blocks along their line (*decided while building:* blocks with the existing pictures instead of
+  kit 3D pieces: they line up exactly and need no art). Next: ground shadows for 3D props and the see-through cover, kit fences and
   railings, painted wall and roof textures, then the Meshy run for the one-offs, props and nature.
 
 - [ ] Painted figures — `feature/painted-figures`

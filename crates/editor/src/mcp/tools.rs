@@ -803,7 +803,7 @@ with_params {
     /// Checks a 3D model before it is used: its vertices and triangles against what the engine draws in one piece, its colours and colour features, its bones, hands and animations, its finest detail against a pixel of the drawn figure, and for a piece the bones the figures it fits lack. Lines starting with "!" are problems.
     #[tool(annotations(read_only_hint = true))]
     model_check: ModelCheck(p: ModelCheckParams) => ed.mcp_model_check(p);
-    /// Builds models of the figure kit (the scripted voxel figures: bodies, outfits, hair, headwear; sources in scripts/art/kit of the R(ust)PG2D repository) and puts them into the project: the files under models/ and their definitions. Needs the kit's sources (the editor started in the repository, or RUSTPG2D_KIT) and python3 with numpy. Saves.
+    /// Builds models of the figure kit (the scripted figures, sculpted in voxels and smoothed: bodies, outfits, hair, headwear; sources in scripts/art/kit of the R(ust)PG2D repository) and puts them into the project: the files under models/ and their definitions. Needs the kit's sources (the editor started in the repository, or RUSTPG2D_KIT), python3 with numpy and Blender for the smoothing (about eight seconds a model: name the ids you changed). Saves.
     #[tool]
     kit_build: KitBuild(p: KitBuildParams) => ed.mcp_kit_build(p);
     /// Animates an unrigged model (an animal, a monster: Meshy rigs only people) with a rig template: the template's skeleton is stretched over the model and its walk, idle, attack and hurt clips play. Also turns the model to face the front and moves single joints. Returns the fitted joints; check the result with a play test or the Models tab. Saves.

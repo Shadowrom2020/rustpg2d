@@ -16,7 +16,8 @@ furniture, the activities (`fish`, `farm`, `craft`, `chop`, `mine`, `sweep`, `re
 cropped or laid down). Dialog portraits show its head close up. A character without a model of its
 own shows as the **mannequin** (a plain wooden figure; the engine has one built in).
 
-The starter library's and the example's **people** are voxel figures built by script, the
+The starter library's and the example's **people** are figures built by script (sculpted in
+voxels, then smoothed into soft shapes; since 0.35), the
 **figure kit** ([below](#pieces-hair-outfits-and-shown-equipment)): the playable races, the
 townspeople, guards, bandits, goblins, the troll and skeletons. The kit also builds the 20 item
 models they hold and carry (weapons, shields, tools, lights, backpacks). The 9 animals were
@@ -85,7 +86,8 @@ green skin on the hands of its clothes).
 
 The *3D models* list shows *All*, *Figures* or *Pieces*.
 
-**The figure kit.** The starter library's people are built this way, as voxel figures:
+**The figure kit.** The starter library's people are built this way, sculpted in voxels and
+smoothed:
 
 - **Heads** of the races (human, elf, dwarf, halfling, half-orc, tiefling, dragonborn, goblin,
   troll, skeleton; men and women where it matters): 19 files.

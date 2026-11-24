@@ -42,6 +42,12 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   a stub. The starter library's and the example's building and dungeon walls, windows and pillars
   (48 px) and the counter (20 px) are blocks: interiors no longer show staircases. `status view=`
   adds `walls=DRAWN/CUT`.
+- **Softer figures** (the first part of *Painted figures*): the figure kit's people, their hair,
+  outfits and hats and its creatures are smoothed from their voxels into round shapes (the kit's
+  build runs Blender: `smooth.py`; colours, bones and pieces stay as they were), and the renderer
+  lights 3D models softly, a warm sun from the north-west over a cool sky like the pre-rendered
+  props, instead of three cel bands; the outline is half as dark and figures cast a soft shadow on
+  the ground.
 ### Visual scripts
 - **Script functions made of nodes** (`defs/visual_scripts.ron`, first part): a visual script is a
   function whose nodes are the script API's functions (a step on the flow, or a value such as

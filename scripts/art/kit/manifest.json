@@ -3,16 +3,18 @@
   "models/air_elemental.glb": {
    "colors": 4,
    "creature": true,
-   "sha256": "6be57e7d52d8b844c720ac6a958defd1ce13eb4aa63b2573330cc55614e1b90d",
-   "triangles": 5166,
-   "vertices": 9456
+   "sha256": "d9379963955442e0594dbcd7748487b26202bf31c797bf74742cbf07540b03f6",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2771
   },
   "models/ape.glb": {
    "colors": 5,
    "creature": true,
-   "sha256": "554cb99da7c7a4a3bc499f389f0f02b1377b163612fe8280a514c380f2522c16",
-   "triangles": 6028,
-   "vertices": 10998
+   "sha256": "9a10126f7026b24b4c2832485daa636b521abaf9d6f31ca78b4e4fe56f92e2c2",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2784
   },
   "models/axe.glb": {
    "colors": 5,
@@ -23,9 +25,10 @@
   "models/axe_beak.glb": {
    "colors": 4,
    "creature": true,
-   "sha256": "2dc1488e352672f75f577b7002fb3dd646f2a4d0903bd2d4545b01c5a8307231",
-   "triangles": 2660,
-   "vertices": 4852
+   "sha256": "a77066e362f95c4855694f4ee07c0475d1ae842f12e8e81271130680adaa633e",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2768
   },
   "models/backpack_big.glb": {
    "colors": 4,
@@ -48,37 +51,42 @@
   "models/bat.glb": {
    "colors": 4,
    "creature": true,
-   "sha256": "5f255035b0ae1f2b1d06ddcfb847856209fd3894e6aadebef22bbc62fef71ba5",
-   "triangles": 1032,
-   "vertices": 1900
+   "sha256": "f6cc387ceca7b19c54a67711c5efe85745c4e7b112345da6f27a47464cbd5c17",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2784
   },
   "models/bear.glb": {
    "colors": 5,
    "creature": true,
-   "sha256": "c9fb1fe916bc23075e980dc2c7a1f2f31d617ee6493ea1cd38fe8cd5c5dbb9cb",
-   "triangles": 8792,
-   "vertices": 15957
+   "sha256": "2e44b24c05c79633186e98e3aa80500a6bdb5f0cacc82168048f598dcb6aa08d",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2761
   },
   "models/big_cat.glb": {
    "colors": 5,
    "creature": true,
-   "sha256": "39ae79e77dc60450840226e30be0fa580fcd6c67ef1f92275ebdfe5605816d43",
-   "triangles": 6206,
-   "vertices": 11311
+   "sha256": "e07be436dc4c8813c8baf43261b67a6ff61cf32ff91b8220fcb2c98ab8789d85",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2772
   },
   "models/bird.glb": {
    "colors": 5,
    "creature": true,
-   "sha256": "d070d618ab6dededffc69dd00cfb641e87427454f221d88026ad2776f2b97fc3",
-   "triangles": 1230,
-   "vertices": 2303
+   "sha256": "30f482a13a0a5c689b424498507291b884a65324f7cab92439aa85bf48cdd75a",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2851
   },
   "models/boar.glb": {
    "colors": 6,
    "creature": true,
-   "sha256": "2562688d05e53b04e8be0d295837fa5d027f23f698769820d4e57cdda0fb8b82",
-   "triangles": 5264,
-   "vertices": 9602
+   "sha256": "cb7a293ba00f044770699f8efb5e0823602c38f0a08d43c023fc184a8e03b7a8",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2897
   },
   "models/bow.glb": {
    "colors": 3,
@@ -95,51 +103,58 @@
   "models/cat.glb": {
    "colors": 5,
    "creature": true,
-   "sha256": "e563ecd7d3631855f330695c07b3e0617c5936d12457b984c71aca8aa49588bc",
-   "triangles": 1310,
-   "vertices": 2443
+   "sha256": "398b8eb005e616b5508a966c4e552564acf942997961da6488b99960aeca98e3",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2800
   },
   "models/centaur.glb": {
    "colors": 6,
    "creature": true,
-   "sha256": "4690a75f9ed48f10e4b341e9b11169483c90f0be3f96099ed024dfdcb8a42bec",
-   "triangles": 7104,
-   "vertices": 12899
+   "sha256": "7be3fb7329e9ca480b98505c762285e0951dd56f5daafb1459610067ab6ca464",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2689
   },
   "models/chicken.glb": {
    "colors": 5,
    "creature": true,
-   "sha256": "f4314cfa7f93ea73affeb3a4d60f879f68e4b85ab41bd11d9bf80f0c9bcbe5a3",
-   "triangles": 1764,
-   "vertices": 3204
+   "sha256": "f29260f34eeec445dc8a7df2fd76d54f81a9fe508b28673cccacbf0bacfc8b0c",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2836
   },
   "models/cobra.glb": {
    "colors": 5,
    "creature": true,
-   "sha256": "0c74e2178cc9549c28acaa05804e345171ab7bd7f37cf4faa4e75f210720d01b",
-   "triangles": 4546,
-   "vertices": 8345
+   "sha256": "36d6f5bb588e23f912515244a5bc09b91931aa6784f9476c5dd085345cb3c124",
+   "shape": "strong",
+   "triangles": 4998,
+   "vertices": 3375
   },
   "models/cow.glb": {
    "colors": 5,
    "creature": true,
-   "sha256": "d6e3501ac5061be89ee0f7fefeef9eaa953fd313ef57ba39a96c0404327491f4",
-   "triangles": 8802,
-   "vertices": 15934
+   "sha256": "58942e2c871142ee144e77ab679ffb9c92a1933be7e5d3532cb16910bd24f160",
+   "shape": "strong",
+   "triangles": 4998,
+   "vertices": 2725
   },
   "models/crab.glb": {
    "colors": 3,
    "creature": true,
-   "sha256": "450f609b650ea1d5e8c50038bba2215fc3f681a535c4de16e89b29a4a4229d15",
-   "triangles": 6740,
-   "vertices": 12216
+   "sha256": "962665559d022bafffd67df4e5f55bf2ce5365abd1829e33701c339ac685b7cb",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2525
   },
   "models/crocodile.glb": {
    "colors": 5,
    "creature": true,
-   "sha256": "35bd3765c99816abbf4b83d17c1358e8c4d7b7b17e400baa4764b842750a0354",
-   "triangles": 3992,
-   "vertices": 7340
+   "sha256": "93d61fb9b44f6dbfcff92fcc2e45ea9e9fa5d9c9b8face3983292ffde55b758a",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2958
   },
   "models/crossbow.glb": {
    "colors": 5,
@@ -156,100 +171,115 @@
   "models/deer.glb": {
    "colors": 7,
    "creature": true,
-   "sha256": "90e9b897e61ac10a25a65d48174c8995ca7e015b0d0833a996c9c6c9cab39836",
-   "triangles": 3712,
-   "vertices": 6816
+   "sha256": "9525c7d417f655de2e30b5a6f7256a28f8d368288298e466c0eb33a55a2ce7b7",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2821
   },
   "models/dog.glb": {
    "colors": 5,
    "creature": true,
-   "sha256": "faaf1611c3f142accc3c9e5bab91238ba08b99006f907fba0b44056ec05fae94",
-   "triangles": 2348,
-   "vertices": 4264
+   "sha256": "97a54de3fc7687acaefb730bd2cc75db09fe4f7fd266acc7877ecef056ca0326",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2810
   },
   "models/dragon_wyrmling.glb": {
    "colors": 9,
    "creature": true,
-   "sha256": "7971782e50085e910a832fe5a802eebbbcb8d711abada0f66312d70ac7affd36",
-   "triangles": 14656,
-   "vertices": 26123
+   "sha256": "cd2bb63239d10d1d23c4aad3ec7f8f2f9747b3da7c20bcbe197a02afde583bce",
+   "shape": "strong",
+   "triangles": 4998,
+   "vertices": 3161
   },
   "models/dragon_young.glb": {
    "colors": 9,
    "creature": true,
-   "sha256": "8a0b48f2ee3d9d83bda8ed353c5e8b3d1ee31970fa55d510087ddc9251f9c58c",
-   "triangles": 14888,
-   "vertices": 26556
+   "sha256": "f81d0c2c190052f58f26431e145214993a43070b7d1886b26fcdce981e802003",
+   "shape": "strong",
+   "triangles": 4998,
+   "vertices": 3176
   },
   "models/dragonborn.glb": {
    "colors": 4,
-   "sha256": "730bdac51cdf614d1fb6902025e7c5993154dfea1dbb8c79eb2bc5446abbd238",
-   "triangles": 570,
-   "vertices": 1114
+   "sha256": "690ac5d259d9143e8e468f0b3aa06015023b49ea38ca0d0cf7189cbc6b91fe4e",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2631
   },
   "models/dragonborn_f.glb": {
    "colors": 4,
-   "sha256": "7681c0f107ab9ce20f3837898f06eb49f62d567bfbb0ba7c719b6fa3fe75bc31",
-   "triangles": 570,
-   "vertices": 1114
+   "sha256": "dea5f3bae6de793e069e9396c2858a60828e315959d16241e3c43c7568799d12",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2642
   },
   "models/drake.glb": {
    "colors": 5,
    "creature": true,
-   "sha256": "ad40b4eb994d676bd37782972aae53b88ffa89387cb7c8427feaf10577c41479",
-   "triangles": 7608,
-   "vertices": 13815
+   "sha256": "24f2cdd2ec44a34562783303c33bc6dd21ce325b72d13cafaaf698b0785a2e1f",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2827
   },
   "models/drider.glb": {
    "colors": 7,
    "creature": true,
-   "sha256": "ee762588606a32b4275c875830e3ca0dcce2f4bfdc4c5e6ee4cf7bf498a5aa28",
-   "triangles": 7648,
-   "vertices": 13855
+   "sha256": "05c9bb63dcf8845fbc41c418b50a05452582615b9d71c9cc1b373ad85636c98b",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2664
   },
   "models/dwarf.glb": {
    "colors": 3,
-   "sha256": "dab034e221f9551dfeafcf1e9bd7bcacacc7077d40b2d4c0e9682448baf884d5",
-   "triangles": 124,
-   "vertices": 219
+   "sha256": "fb9ff992e11b43e59a2e4631ccf7cd4af6d5ed61a001f21145ca9c1e21fbab4a",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2537
   },
   "models/dwarf_f.glb": {
    "colors": 3,
-   "sha256": "d571bacec5f8e5047ae87967ed03a4555deb500ea43930107619443f9b52a6ea",
-   "triangles": 124,
-   "vertices": 219
+   "sha256": "c0faf7219d9176a4b1e504e6ca3f1e8795a2d9a15bdb4e7346ea35d090b8eb7c",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2543
   },
   "models/earth_elemental.glb": {
    "colors": 4,
    "creature": true,
-   "sha256": "b89456875e3189f43336556e343e95e566f73aae782c42a65932d07dba69afca",
-   "triangles": 6198,
-   "vertices": 11243
+   "sha256": "5ab2d5d1e2640d9ffc0ae55d5548a8274effc0b16e005d46f86847a60d0b4918",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2994
   },
   "models/elephant.glb": {
    "colors": 4,
    "creature": true,
-   "sha256": "eb1ad28e90989ece87f607903decf79205f4c1b7e10e0955b308083cffc714bf",
-   "triangles": 15806,
-   "vertices": 28875
+   "sha256": "65537feccd61b0cdce1cb9dacdcf5cad55f56c1fcc1e263d97664f51da5c8626",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2865
   },
   "models/elf.glb": {
    "colors": 3,
-   "sha256": "30e0ac5e1b36032db54fc5441f8acfd2d36f134d004140bc3b921d4c22ce63a6",
-   "triangles": 212,
-   "vertices": 379
+   "sha256": "f1def665c8b45656f2e93e962959eb6ae7f790347cdfd545213c3b2c14a21e08",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2529
   },
   "models/elf_f.glb": {
    "colors": 3,
-   "sha256": "26381c5a95a5a3fd4784c559e0b32f0930fada16311eae6af653448f17b7da47",
-   "triangles": 212,
-   "vertices": 379
+   "sha256": "6f4906b13b22bc4f1441fc6add219e9c9135a30714f246d11bc3feb72a4c757a",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2534
   },
   "models/fiend.glb": {
    "colors": 4,
-   "sha256": "9f81f54dc0c0792dac5e9fe6463416d58d3663b075a9fab9afc159dda685bcdb",
-   "triangles": 438,
-   "vertices": 843
+   "sha256": "3079fa3dad5f72c31ecd56095123c8cfe9d93c4c53f3cbe8dc774f59db76d8ee",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2581
   },
   "models/fine_iron_sword.glb": {
    "colors": 4,
@@ -260,9 +290,10 @@
   "models/fire_elemental.glb": {
    "colors": 4,
    "creature": true,
-   "sha256": "c17704a069f8d23b17c8acea343795088c2b518aa9bfa0c197bff1eec2936fae",
-   "triangles": 3802,
-   "vertices": 7058
+   "sha256": "ec5feeb6b095435b0fd3156330790de64b90e1d390481dfa361660e6888edf24",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2862
   },
   "models/fishing_rod.glb": {
    "colors": 5,
@@ -273,74 +304,85 @@
   "models/flying_sword.glb": {
    "colors": 4,
    "creature": true,
-   "sha256": "c0d0b0d09b35458f3914c22e75613188c381a3681e6644e693cc9459013064ce",
-   "triangles": 160,
-   "vertices": 303
+   "sha256": "e775fda2eef051f9356121eef686a3a45811e4ef4feb317b48eb9684e3c2e6d3",
+   "shape": "gentle",
+   "triangles": 5000,
+   "vertices": 2651
   },
   "models/frog.glb": {
    "colors": 5,
    "creature": true,
-   "sha256": "b18f5b507a4678d02dfc1cac661f093555dd216024bc92930bd53a36508521c4",
-   "triangles": 2944,
-   "vertices": 5406
+   "sha256": "ec7466e95b84186e199276049265645c2c33aed138d34510316ff89412e950c6",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2747
   },
   "models/gel_cube.glb": {
    "colors": 3,
    "creature": true,
-   "sha256": "bfc9aa933d5016d984121df65efbad7d3c84ef69604d9d9962f1b0dcf63fb0e2",
-   "triangles": 68,
-   "vertices": 108
+   "sha256": "62dce0db0d8872e99b99fa4a85fd006dc81fbafd37652433a9dac06dbc5f2e1c",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2962
   },
   "models/ghost.glb": {
    "colors": 3,
    "creature": true,
-   "sha256": "6334d24b79e48dc2510e85bfa809eff1b0bc30ca58ff35323647c6df340f86d7",
-   "triangles": 2824,
-   "vertices": 5087
+   "sha256": "d3d0190f9b4d5b5f18a99e37c8b435a78161ebf12efc8e9c95f3e129a6364a8f",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2608
   },
   "models/giant.glb": {
    "colors": 3,
-   "sha256": "0a829a6d8e6449091dbbec82860abdd412005f99ff0333cf3a74ec407d81d249",
-   "triangles": 124,
-   "vertices": 219
+   "sha256": "4b76a84022000ece186b7c2671e6b41e35eccdffd9a80d73542719f051a5d5b6",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2543
   },
   "models/goat.glb": {
    "colors": 6,
    "creature": true,
-   "sha256": "9e105cc9de2679391e47cf5fb599f2c03458d26dfafbf17053132c125f4c6e9c",
-   "triangles": 2644,
-   "vertices": 4862
+   "sha256": "ae22815d8e9944d4159b9b75e00c3bae2ec5929919910fb65815296333e677fa",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2864
   },
   "models/goblin.glb": {
    "colors": 3,
-   "sha256": "e3ddc4b761eb1f17eb4e40a74d29687b3734dffb1325646a57f3362887504f66",
-   "triangles": 228,
-   "vertices": 420
+   "sha256": "bb13b3a96dfff6b52806fc94a232d355d4d6138b8dc0efc198097e5ccbec105c",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2554
   },
   "models/goblin_scout.glb": {
    "colors": 3,
-   "sha256": "64eab6792e5b94b09204036c1a55a172cfae969d6ce72a4bae8e03e3dc5ff4fc",
-   "triangles": 228,
-   "vertices": 420
+   "sha256": "ec670613b2f551a573904241e10527f034738504bd12bd4f38b02b5ab6649197",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2557
   },
   "models/griffon.glb": {
    "colors": 7,
    "creature": true,
-   "sha256": "9214df0ad7e37a556a71679dacd5bed0cd3d7f675b1372ac45f0e4bb42c4f3d7",
-   "triangles": 14188,
-   "vertices": 26230
+   "sha256": "b31c5ea8893574a343659f1c44900525227fcb4ef610f3f6e547a3e2a328c15b",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2974
   },
   "models/halfling.glb": {
    "colors": 3,
-   "sha256": "6fdbf2ef0d25f3e418bf5a1301021d20e98d924bba41dabdb0a7a772a268daa0",
-   "triangles": 108,
-   "vertices": 199
+   "sha256": "9c2410f11b03d279098ae8bd4fb0915f6d2dcf97923d3c050290619659a30929",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2567
   },
   "models/halfling_f.glb": {
    "colors": 3,
-   "sha256": "7690302e4acc8ecfd0a132214f56ff97fea00d2f679746f8945f664edda8ec34",
-   "triangles": 108,
-   "vertices": 199
+   "sha256": "2c8212d21558707bd486ff04c8b05e4f73c4959daa8b6af51f05fccf3986764c",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2566
   },
   "models/hammer.glb": {
    "colors": 3,
@@ -350,15 +392,17 @@
   },
   "models/hero.glb": {
    "colors": 3,
-   "sha256": "1cd608d6cb97d1596edc25e4d48f2169591cecdf29dd03e217f236739964bf5b",
-   "triangles": 124,
-   "vertices": 219
+   "sha256": "5c0b5559338f0697e93c9fa13cfade6486fca2095036b0e8b8752a5f5b6b5054",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2537
   },
   "models/heroine.glb": {
    "colors": 3,
-   "sha256": "69da7cbe72feb058cc167299b27d0c03ef0980f2fd260bd5a3292d3274dccdfc",
-   "triangles": 124,
-   "vertices": 219
+   "sha256": "4472ecec8c114f036e36dc2e42bd7e2164a7532cce3dd97c6746b437f8f54f37",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2538
   },
   "models/hoe.glb": {
    "colors": 3,
@@ -369,15 +413,17 @@
   "models/horse.glb": {
    "colors": 5,
    "creature": true,
-   "sha256": "5adcf39a2e7edc8566c0b2dcd942018c294cc90035522da75b9c279938442848",
-   "triangles": 9264,
-   "vertices": 16730
+   "sha256": "78b9d919735ef2ad96df0891d93d4879685aa91e9d83f33bf07dbb9d3a4bf773",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2731
   },
   "models/imp.glb": {
    "colors": 4,
-   "sha256": "b17a998892bebadf66bd1e133b666132669ae4ab92d03b51f859f1b9d55cf4cb",
-   "triangles": 422,
-   "vertices": 823
+   "sha256": "aa83ff471042e70b20f2e7961c0209ff90d0b8d5111ae7bc1790af90118c4aed",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2619
   },
   "models/iron_sword.glb": {
    "colors": 4,
@@ -387,840 +433,979 @@
   },
   "models/kit_apron_dwarf_f.glb": {
    "colors": 6,
-   "sha256": "f463c7a7615843b8fd5a0375a510ca9c4790718e5bc67232b00bd40d40699613",
-   "triangles": 1108,
-   "vertices": 2128
+   "sha256": "6a1b1a8510527190a9d1d33b73278c57a6615a7067280ffb0d59ebb2d32bed12",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2813
   },
   "models/kit_apron_dwarf_m.glb": {
    "colors": 6,
-   "sha256": "db6017195aa389ab891827922adf9bbbc1207f37f2fea2c6f2ea23a4e6783113",
-   "triangles": 1018,
-   "vertices": 1964
+   "sha256": "72478a597bfa1c8c0824ddec9b0305f4b38ed37217205d3dc7cc44c104189541",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2819
   },
   "models/kit_apron_large_f.glb": {
    "colors": 6,
-   "sha256": "c0770cd4d02a93c0927d98d6eaa0596099679091f72ad6662099f963268e37f4",
-   "triangles": 1120,
-   "vertices": 2148
+   "sha256": "799e857849a9e5dafb9e0c5d5ff6913d6a67b826eb14a7dbf6c77f31409676aa",
+   "shape": "strong",
+   "triangles": 4998,
+   "vertices": 2782
   },
   "models/kit_apron_large_m.glb": {
    "colors": 6,
-   "sha256": "51ee408278dd41343cc4661369fee287c940a66325f728696c6c01231f7b9367",
-   "triangles": 1034,
-   "vertices": 1984
+   "sha256": "294cfba7fc5e5ae5f6d159b617a1d3bf9f5cdd9664c376d04ff4ea3cb9324589",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2796
   },
   "models/kit_apron_medium_f.glb": {
    "colors": 6,
-   "sha256": "ae16044cf8f587c43f6a1e4c457248782f5d0c50c2533144e5df287122e0e58a",
-   "triangles": 942,
-   "vertices": 1824
+   "sha256": "dce763cbcb4c46a8869dbd2fded84caf50af9cfbaa6fce9ccb417f83030cf9c8",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2777
   },
   "models/kit_apron_medium_m.glb": {
    "colors": 6,
-   "sha256": "05de980659413ef8b7791cddaed2013f3e3d263a186a2002793bcac7e01484ee",
-   "triangles": 974,
-   "vertices": 1900
+   "sha256": "8a933025d277869fbed04f5bc65ceaf33f63fa0c2829f759c9d3599cfc455b85",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2789
   },
   "models/kit_apron_small_f.glb": {
    "colors": 6,
-   "sha256": "2400482617a406c192d20860f3c3938a0e22fec163f02a780e94835b1656380d",
-   "triangles": 722,
-   "vertices": 1390
+   "sha256": "49986fe52844c6a9a66be149a2f8b0f32abb84882b7199e1a2fef290128b93f9",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2804
   },
   "models/kit_apron_small_m.glb": {
    "colors": 6,
-   "sha256": "9cd0ce227668245bfad1f9822043e2647d7ecdf0aff95915a6d520f885c367a7",
-   "triangles": 828,
-   "vertices": 1626
+   "sha256": "421a0a5be298187bdb50628828db6978d2075826072565c157d58da6313bc01d",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2790
   },
   "models/kit_beard_long_10.glb": {
    "colors": 1,
-   "sha256": "ac4919e18447a1a74ae1182bb730df90ce8616a1eda8972e6ce0a4214c8e9b3c",
-   "triangles": 118,
-   "vertices": 224
+   "sha256": "1cb8eeb049b5cc2c23def5a0463f175d9c881a7a0b60c5791ec3947048fa852c",
+   "shape": "strong",
+   "triangles": 3900,
+   "vertices": 2002
   },
   "models/kit_beard_long_8.glb": {
    "colors": 1,
-   "sha256": "01940b9d6977984ff4463f5c78dce8b6fc8d8d227048a443444c0e6ffe72c24f",
-   "triangles": 102,
-   "vertices": 194
+   "sha256": "85c4088d23bf1c55ee2ce57bf18d1c4ef4608ffd07b6cc69c3472f7be045ef0a",
+   "shape": "strong",
+   "triangles": 3350,
+   "vertices": 1725
   },
   "models/kit_beard_short_10.glb": {
    "colors": 1,
-   "sha256": "ea1b49ce184e9f47611eb8770607724a784ca3e93777650d6ea0ae9529384106",
-   "triangles": 60,
-   "vertices": 110
+   "sha256": "18f4035a4067f22297c22fc314cfcd450d2ff577073bd2c3f8b87213762b91c6",
+   "shape": "strong",
+   "triangles": 2092,
+   "vertices": 1103
   },
   "models/kit_beard_short_8.glb": {
    "colors": 1,
-   "sha256": "f61d10f753cc0d750b374190ee52cc47217d4015aa57a955d4a06853a111065d",
-   "triangles": 56,
-   "vertices": 104
+   "sha256": "06631031b438e7f1a6a07265fc5dbfe12756f6f24381e8efbd3e50f702fe71e0",
+   "shape": "strong",
+   "triangles": 1692,
+   "vertices": 901
   },
   "models/kit_bones_medium_f.glb": {
    "colors": 1,
-   "sha256": "b18648aab025b26e0131a3be0e84334952556826e276972811789c316bccd91d",
-   "triangles": 976,
-   "vertices": 1882
+   "sha256": "84a177f9318107e58fe137f6929356a07b04ac87e3f2d86fbb0ecb3fe1a61a9f",
+   "shape": "gentle",
+   "triangles": 5000,
+   "vertices": 2490
   },
   "models/kit_bones_medium_m.glb": {
    "colors": 1,
-   "sha256": "2237fa7a03507b9ada94456519d32e8097dd670ec53b1b8839a6eda6a4391586",
-   "triangles": 988,
-   "vertices": 1908
+   "sha256": "d7561f652fb0ecafc51d1ee4729ac3d5bdb242935fb05e10ecabde4933e2a022",
+   "shape": "gentle",
+   "triangles": 5000,
+   "vertices": 2480
   },
   "models/kit_chain_mail_dwarf_f.glb": {
    "colors": 8,
-   "sha256": "f8464f5a71463477ba69d5822c0a78c9777fdc2b3a2014f7549506d20eb4145b",
-   "triangles": 1432,
-   "vertices": 2740
+   "sha256": "05f3c111498a13a183a5c6de4d25f2e0cbcd66d1bb3ecc910dea33266bb96395",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3146
   },
   "models/kit_chain_mail_dwarf_m.glb": {
    "colors": 8,
-   "sha256": "3a726f74c28c82b0bd2bfd76a0437e069da97128bc54c6ca300141277bb7ebdc",
-   "triangles": 1366,
-   "vertices": 2646
+   "sha256": "034bfe24d0cd6d8acdb8c940140487e43015a61152e538e4cf314f618c96391c",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3189
   },
   "models/kit_chain_mail_large_f.glb": {
    "colors": 8,
-   "sha256": "f4ed84d0d9b3bdc1402658df1388c16235f47c4157fe8b4daad6c5eb001cc806",
-   "triangles": 1478,
-   "vertices": 2842
+   "sha256": "be72ba28696afab8bbb09f5aa8af43987c9e7261e18808a9b45c1cafbd2011b6",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3090
   },
   "models/kit_chain_mail_large_m.glb": {
    "colors": 8,
-   "sha256": "e7c4342a4bb4f7d25426a3f564daa20ab3cfe071030bd8ea1cafe9fca704dc05",
-   "triangles": 1446,
-   "vertices": 2770
+   "sha256": "e617681e7182b6bd9937e6a50e04533436698a21c0a2cbc2591df68f7aba909e",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3092
   },
   "models/kit_chain_mail_medium_f.glb": {
    "colors": 8,
-   "sha256": "00c0b02b5b0f32b2aa7e20068bbddc3aeb27340d507713d7ad01f26b37df1c6b",
-   "triangles": 1336,
-   "vertices": 2604
+   "sha256": "3041c388d9d266bde48feeeff2ef2300f5e5fc89ec960beff99aac146164f340",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3101
   },
   "models/kit_chain_mail_medium_m.glb": {
    "colors": 8,
-   "sha256": "0c32a76e5e6a62e933cc2aa1a0b5f189fbcb562075d33ebfea77b4ddb75a320e",
-   "triangles": 1376,
-   "vertices": 2692
+   "sha256": "4edbe3ecd08704ff170c830e622ccc624047b567b2d76f5c7d1217aa93a5dc96",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3053
   },
   "models/kit_chain_mail_small_f.glb": {
    "colors": 8,
-   "sha256": "419193ba1a14ac9c7b0c476c8b2578314bcc46a6161c6a8f6aaad963de478a31",
-   "triangles": 976,
-   "vertices": 1912
+   "sha256": "9cd83c5a9cd81a1282d6bd597f13b5b05a419133f5616ffae1cfbdf0cc02b77b",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3051
   },
   "models/kit_chain_mail_small_m.glb": {
    "colors": 8,
-   "sha256": "0b5433615fa05e4d5b53e8174d7d0d0f647fbf4bc805b336d886bb7029bea0a3",
-   "triangles": 1162,
-   "vertices": 2286
+   "sha256": "d74133bc1bea5239bd3b61e040f94def7d97598e06d511ee256cedfd79a035ad",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3089
   },
   "models/kit_chef_hat_10.glb": {
    "colors": 2,
-   "sha256": "d5888eb134259045dfea8c1f5afdf67b37e2618ed2db575f3a3480892744b680",
-   "triangles": 216,
-   "vertices": 394
+   "sha256": "57764f045d561955e62fcc703f15857368b3fef197d38345285f46169d5b2b59",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2666
   },
   "models/kit_chef_hat_8.glb": {
    "colors": 2,
-   "sha256": "830901dd68975f9d1cc3ae23cf6d50d3adc4a9911c745ce28b44a51dfae41704",
-   "triangles": 236,
-   "vertices": 426
+   "sha256": "91fbb92f5ed2d8fc4b3422f89202d80abc14d7e3916b013d4d5f1eaef0351fc1",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2609
   },
   "models/kit_clips.glb": {
    "sha256": "6cd459bf7881288a17062f70fb42134577a5ed6a50b57e7425323c02e6903166"
   },
   "models/kit_cloak_dwarf_f.glb": {
    "colors": 1,
-   "sha256": "74ba55c36fb5eba87ed823d236d15c78cff472a2f1803dfb70c50af1831faa53",
-   "triangles": 184,
-   "vertices": 354
+   "sha256": "700d597c73629541c69c33c6a582e29a1c22b85f4cf093dcb5d4ac392ef3df06",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2502
   },
   "models/kit_cloak_dwarf_m.glb": {
    "colors": 1,
-   "sha256": "bb0e38d41f66c2d0568833bda6f6ae5b97cd70fe067ec78095dc1152ee89e555",
-   "triangles": 176,
-   "vertices": 342
+   "sha256": "0179353b94003d758ea9dc671911508e6b23ea415bf378dc7eaad5232431fd46",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2502
   },
   "models/kit_cloak_large_f.glb": {
    "colors": 1,
-   "sha256": "7d8e8df4079018762552e494e7cfed317cbc714b66773eed30dfc5a416687bbc",
-   "triangles": 184,
-   "vertices": 356
+   "sha256": "4ceac58c8e4a4fb2c888bf17fd9ce93087fa37701518a4f6fe22b1b229322738",
+   "shape": "gentle",
+   "triangles": 5000,
+   "vertices": 2502
   },
   "models/kit_cloak_large_m.glb": {
    "colors": 1,
-   "sha256": "912a0ff1d6893f5d6a512660904a5b21cd8f0b175cdeb12fbf073cf90ce6defc",
-   "triangles": 188,
-   "vertices": 364
+   "sha256": "5e15a7bc7ca2f1929aea1f59cac06c4f8724b4ae4dc9cc942620842a542150bc",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2502
   },
   "models/kit_cloak_medium_f.glb": {
    "colors": 1,
-   "sha256": "85af98a2bab9d047fbed24684e7fca582cf149597d29b68d0763a3e13fcbcd2d",
-   "triangles": 172,
-   "vertices": 332
+   "sha256": "2a691eaf8f8dd3243446f6851cab6a13c1647a4c54f7e1f0764219886a345b1e",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2502
   },
   "models/kit_cloak_medium_m.glb": {
    "colors": 1,
-   "sha256": "fbe52626e092bedca8357a01da631003f2521304da25d92a675388690c1afa79",
-   "triangles": 160,
-   "vertices": 310
+   "sha256": "e9999877a982f2f93139246e2dc0fb741692b7a5196e95733a360cffe4683e3b",
+   "shape": "gentle",
+   "triangles": 5000,
+   "vertices": 2502
   },
   "models/kit_cloak_small_f.glb": {
    "colors": 1,
-   "sha256": "46ecef47ba1c392fa64221f62381aa2cef5ce9442d550bfbf762fc5663d60123",
-   "triangles": 152,
-   "vertices": 290
+   "sha256": "1207623290c519ca91c77141134a8324bbe92b9e6514de29905ef9d8926ef8e8",
+   "shape": "gentle",
+   "triangles": 5000,
+   "vertices": 2502
   },
   "models/kit_cloak_small_m.glb": {
    "colors": 1,
-   "sha256": "b0dec28de1864cceb881398f9eabaf7b6894f572abea98cb7120a500bfd8485d",
-   "triangles": 140,
-   "vertices": 270
+   "sha256": "ee36fadae53db65dd0eee14b9551b27ae5b7ef091d68fb00856911da5aa90a3a",
+   "shape": "gentle",
+   "triangles": 5000,
+   "vertices": 2502
   },
   "models/kit_clothes_dwarf_f.glb": {
    "colors": 6,
-   "sha256": "5556a3d4a95b192dfb83b7b56c4b9b1e56b9acdb7ff4a2ca51a45152f9a42ce9",
-   "triangles": 1118,
-   "vertices": 2118
+   "sha256": "72c715c480f702117b761c7b74cedb7b183047105089f6816b1fa8e307e2f409",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2736
   },
   "models/kit_clothes_dwarf_m.glb": {
    "colors": 6,
-   "sha256": "6e88c29a6241daed15835f240a92109343a09d7314b34b92ba06d2578cd86dda",
-   "triangles": 1020,
-   "vertices": 1944
+   "sha256": "a32f893f7738ad7b114bdbb5eccf3f6809ede3c33c5ab9c66ec0f8169ebfc3f9",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2746
   },
   "models/kit_clothes_large_f.glb": {
    "colors": 6,
-   "sha256": "25919569284a141e59cd60941f8ab14aa24dfd799460f3cdaf1da64ec3af1139",
-   "triangles": 1118,
-   "vertices": 2118
+   "sha256": "57d859472fdc616b1b5ce2310efbe29b211ba2056bbcc6b309f35c37edd61293",
+   "shape": "strong",
+   "triangles": 4998,
+   "vertices": 2687
   },
   "models/kit_clothes_large_m.glb": {
    "colors": 6,
-   "sha256": "0abddad26bbff07c1e58ba379e7589182ba48293ffc75ed728f7b7d5e2a94a47",
-   "triangles": 1036,
-   "vertices": 1964
+   "sha256": "c3d8534dca8be59f9366a02af69dda99cd7163418f3e4a0b7cc44b0b072fb314",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2708
   },
   "models/kit_clothes_medium_f.glb": {
    "colors": 6,
-   "sha256": "1bd949396803f8127bc477a9ed4d6abdcbdb2b7ab986959118e474940833a8e6",
-   "triangles": 944,
-   "vertices": 1820
+   "sha256": "b2e7f6290f7c717243e32a16ad723104f79b79e29c1aec655a9160e037647796",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2702
   },
   "models/kit_clothes_medium_m.glb": {
    "colors": 6,
-   "sha256": "75f644ca6d545ee4aa3b062315c822fc26488ff09ed2280aea45419aba812977",
-   "triangles": 984,
-   "vertices": 1908
+   "sha256": "7ef1a5b2fead634c29cd5856ad7b08b949629aa97db80e52a61458b0253df8db",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2713
   },
   "models/kit_clothes_small_f.glb": {
    "colors": 6,
-   "sha256": "0df91e46f879c70f877f24878cf12a38dbf15fc277f167003b3702b94219467b",
-   "triangles": 736,
-   "vertices": 1404
+   "sha256": "9c434ded19b0d6d8d9138e3e41d470615699f154c5c95c9ad7ab6c5ce881eceb",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2734
   },
   "models/kit_clothes_small_m.glb": {
    "colors": 6,
-   "sha256": "622c88c80c4ea649c0dd569cc84f9291e06c761f4d5a7332b3efcbb2e0b8452c",
-   "triangles": 830,
-   "vertices": 1622
+   "sha256": "db499f03bb11a1e58f759dab30bb30216f5faa139f96576292751f63896633f2",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2727
   },
   "models/kit_doublet_dwarf_f.glb": {
    "colors": 6,
-   "sha256": "644f78fa62954875ffdae74aa9b1f403ba5da4781a5d3a452cf116eccc61c5ef",
-   "triangles": 1348,
-   "vertices": 2547
+   "sha256": "4dbf8901ecd2e6142c093e9f1d3bc55129fca2d75df14f4a6fae340bbc2855c5",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2894
   },
   "models/kit_doublet_dwarf_m.glb": {
    "colors": 6,
-   "sha256": "c111acc9e3e08db799a4c32e1b7a42eacf00a4c666acc74611e644532353447c",
-   "triangles": 1244,
-   "vertices": 2357
+   "sha256": "6eede18dc0f764c64f6eaaed1ca0322b1d6243114dc7edde70c71960360228cf",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2929
   },
   "models/kit_doublet_large_f.glb": {
    "colors": 6,
-   "sha256": "f9a74f1dfd68986994198f34a486272f28d778361f8178a10419a2c673a8910e",
-   "triangles": 1326,
-   "vertices": 2509
+   "sha256": "b995d0be2390fe2190a04272775b1689649165b2d9c2a7c3b11e13a6812a5dda",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2853
   },
   "models/kit_doublet_large_m.glb": {
    "colors": 6,
-   "sha256": "0e4bef6121cf49d0a378c92e87527ec1510e4f81aba233f2671977fbf9705ac8",
-   "triangles": 1260,
-   "vertices": 2375
+   "sha256": "b05ae3fb55c7a1780b36afc48bde42eee72eafcf55364055101801643288519d",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2837
   },
   "models/kit_doublet_medium_f.glb": {
    "colors": 6,
-   "sha256": "6bd45ad77ed37dbe3db6505b26c8a0a05c8ec3036468fe55d43730715dddcf32",
-   "triangles": 1174,
-   "vertices": 2249
+   "sha256": "9b8db20a40c37ea947deeaad18c51aa6eef1a5519dbfc1916352568349934022",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2861
   },
   "models/kit_doublet_medium_m.glb": {
    "colors": 6,
-   "sha256": "502745699e9cf0bedf727319bba79a5876f1617dd864bee99cff266eb3f1cb41",
-   "triangles": 1216,
-   "vertices": 2339
+   "sha256": "1797a229c01dce93c8d4de980955d4378476a78c4792b027d0190802849289e0",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2860
   },
   "models/kit_doublet_small_f.glb": {
    "colors": 6,
-   "sha256": "a8ee1e5c0799c341cbfad356833a95f57f8812adadbb1c6b5c40723687f55841",
-   "triangles": 902,
-   "vertices": 1726
+   "sha256": "2cbbcd1096f6a41b9849cc636d7bcc63dd840370534d456da0492f1e06bb9f5d",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2884
   },
   "models/kit_doublet_small_m.glb": {
    "colors": 6,
-   "sha256": "0175e80e67e77265c2518ae26b7801823c066d0e8c3f96547ab324f7c78ebdb7",
-   "triangles": 1026,
-   "vertices": 1985
+   "sha256": "1e4db50087d027316c4462596512055fdf22d6220a9057c85d2bea3a1efac2e5",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2909
   },
   "models/kit_dress_dwarf_f.glb": {
    "colors": 4,
-   "sha256": "7e377588894767f60e80b780a37f3788b419884eaaeb698edac0f532b8d25a8f",
-   "triangles": 1192,
-   "vertices": 2244
+   "sha256": "5c900f48f594749774719f1eff548b22474c922ad83fc4dc67019cd60199e454",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2737
   },
   "models/kit_dress_large_f.glb": {
    "colors": 4,
-   "sha256": "bb36401f531f74e355963a969a134b18dc7a89f1b2270a084d0f2ba6e3b791b1",
-   "triangles": 1198,
-   "vertices": 2254
+   "sha256": "3584cd550817e6123c667fd5418d4dade258e5a02f67935b39e3b8a01fe6f834",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2722
   },
   "models/kit_dress_medium_f.glb": {
    "colors": 4,
-   "sha256": "43a4a76fe878bcb735cdfe6ed1431bf23b59e60ea9106168813dfe913aa419c8",
-   "triangles": 1020,
-   "vertices": 1948
+   "sha256": "d1a638d07428613c122e5b6f8e9f1943d446956c5c942d1f4412fb7ec263d350",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2708
   },
   "models/kit_dress_small_f.glb": {
    "colors": 4,
-   "sha256": "70257367be10b9955c0a375b3f9b019af2593e035ec4e286dc918205f6f3e4a0",
-   "triangles": 806,
-   "vertices": 1522
+   "sha256": "51e9beb7b63c76de826398e7037834e54d3066c1fbaa6711a70a9a4eddacc8e0",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2733
   },
   "models/kit_hair_bun_10.glb": {
    "colors": 1,
-   "sha256": "3250e681d0ba95f211bc47d6dd7885ab5f6391d5d9f15b9671596ade763f7418",
-   "triangles": 178,
-   "vertices": 312
+   "sha256": "fb52434a090344c39a60b16c22f5e386aeece46b1c5a53e36c90b33e712dce0b",
+   "shape": "strong",
+   "triangles": 4999,
+   "vertices": 2581
   },
   "models/kit_hair_bun_8.glb": {
    "colors": 1,
-   "sha256": "778f38817c95092ff821dc856c76948d91598f5e28e3c4ff3b24c9e12c157f5d",
-   "triangles": 170,
-   "vertices": 294
+   "sha256": "04085cf3b350f3be4bca2d5fb6c0fee59808a264160d3a6ae449302f5e8f87d9",
+   "shape": "strong",
+   "triangles": 4678,
+   "vertices": 2393
   },
   "models/kit_hair_long_10.glb": {
    "colors": 1,
-   "sha256": "79ffb81f9332f73dbef3d4383899fc681d620071be8f7b43047ced709d25f04b",
-   "triangles": 112,
-   "vertices": 200
+   "sha256": "394ed621b805c006fe0708584f0ceb568a23a18144abd816731cea809439207e",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2587
   },
   "models/kit_hair_long_8.glb": {
    "colors": 1,
-   "sha256": "28098d85860a28d1d1b4e8dd539da6be4be406741b0fc84b12dce5947bbcb84f",
-   "triangles": 104,
-   "vertices": 182
+   "sha256": "9e7caa9fe28f615bad7b8332518815cbba4dc2a767b05bfd77276a7c96575323",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2565
   },
   "models/kit_hair_mohawk_10.glb": {
    "colors": 1,
-   "sha256": "16062f4f1bff9e47e5ba06af2c7ce035d32a1884c85ed7cf34c2d953d78ca6a0",
-   "triangles": 44,
-   "vertices": 78
+   "sha256": "69d648111e90d2565130298563bed4423cc5d37f28105c556846656a7f72c00b",
+   "shape": "strong",
+   "triangles": 1564,
+   "vertices": 831
   },
   "models/kit_hair_mohawk_8.glb": {
    "colors": 1,
-   "sha256": "307318b2fc39d167a290c5a64109b9166de39938d54294fa0d07cf1600d05de3",
-   "triangles": 36,
-   "vertices": 66
+   "sha256": "fd6df93fb0c2ab3bd5a95f8bf01326cd37107c60d269f08838cf4281dfc82244",
+   "shape": "strong",
+   "triangles": 1248,
+   "vertices": 662
   },
   "models/kit_hair_ponytail_10.glb": {
    "colors": 2,
-   "sha256": "49d95a4944e2e890994d893b3668e4a39bbe49e88c267fdd53f83f3acb3de3e2",
-   "triangles": 132,
-   "vertices": 240
+   "sha256": "eed0c72f176af6bb0ac7dd99498794c0ccb4d8756e592120676662b889e67252",
+   "shape": "strong",
+   "triangles": 4999,
+   "vertices": 2611
   },
   "models/kit_hair_ponytail_8.glb": {
    "colors": 2,
-   "sha256": "e93fd1b6d7638111ee04d64f66fd7bf4e232bc14114fb3849d57e5c21ce8ba00",
-   "triangles": 124,
-   "vertices": 222
+   "sha256": "5252a4565aefaac18a7adb9cdeb80d8aedc44e4f92ec3c46a39fd0dcaaf1da56",
+   "shape": "strong",
+   "triangles": 4214,
+   "vertices": 2189
   },
   "models/kit_hair_short_10.glb": {
    "colors": 1,
-   "sha256": "157da1b481c100e88cc884e7a26771be30bd37e2caa3f8d598bd48d0c62b3186",
-   "triangles": 110,
-   "vertices": 198
+   "sha256": "55f1f388a0b4dfb0789ce153b51b29965080897617a5521a9fd29eac98b0c838",
+   "shape": "strong",
+   "triangles": 4999,
+   "vertices": 2576
   },
   "models/kit_hair_short_8.glb": {
    "colors": 1,
-   "sha256": "dc5699c769bf81785271a68dc100cb4cb51752219604bbe1486131b5e0231e31",
-   "triangles": 102,
-   "vertices": 180
+   "sha256": "70ac9ccbe7027732e219b63744fc732eab91b0f3dbf1567e6a81fc4cad74808d",
+   "shape": "strong",
+   "triangles": 3796,
+   "vertices": 1948
   },
   "models/kit_helmet_10.glb": {
    "colors": 2,
-   "sha256": "e4c559808e14d24261b8c43f6848d4a94153803dabc19fba0f160898ef034db1",
-   "triangles": 160,
-   "vertices": 280
+   "sha256": "a674efc44a834812670ead16651bf928922d0f32b67231f1957c1af660da6229",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2631
   },
   "models/kit_helmet_8.glb": {
    "colors": 2,
-   "sha256": "e75b880be89a1082afed8b707be0deab9933b151c8fbd861f9d093ea037a87f6",
-   "triangles": 142,
-   "vertices": 250
+   "sha256": "64782789c4c9619141d6f3a3dd651928649aaab02122495203a65a957ec28b21",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2595
   },
   "models/kit_hood_10.glb": {
    "colors": 1,
-   "sha256": "8509e858e3b23f299e35a006ea68d0a69da291803f8094a1ddf31e50fa06ab1c",
-   "triangles": 110,
-   "vertices": 186
+   "sha256": "51c586f71a7c22ccb4084d50463e94ae3c4844764912166acfa91e7e28e8c1f0",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2600
   },
   "models/kit_hood_8.glb": {
    "colors": 1,
-   "sha256": "656da4d874c0103403f17e8400a96f49919915ab45b770cab1fb6545fecf3863",
-   "triangles": 102,
-   "vertices": 176
+   "sha256": "a730068b622d3a831c3e724053ba2665375e0c19ac639668a44ed0c5c348f4d0",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2561
   },
   "models/kit_leather_armor_dwarf_f.glb": {
    "colors": 7,
-   "sha256": "3e6a83c871774359b45dca2027aa418d45908a201a91471d9f7bbd852027b780",
-   "triangles": 1592,
-   "vertices": 2994
+   "sha256": "db686f9be53f8ea279ecd7f7db53cba1806c6110832de4405e29adc050a9dce2",
+   "shape": "strong",
+   "triangles": 4998,
+   "vertices": 2934
   },
   "models/kit_leather_armor_dwarf_m.glb": {
    "colors": 7,
-   "sha256": "81458825b6fa183be25e7dc44e353cabb100320f315d73a25881f58afa09a88b",
-   "triangles": 1490,
-   "vertices": 2800
+   "sha256": "20f1f524a2ab7fdf1b96c29edca518a1a75e49e6a3950fa2baa22ccbd3f3936d",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2941
   },
   "models/kit_leather_armor_large_f.glb": {
    "colors": 7,
-   "sha256": "5130d336fe2832df71ad0a8bb31b1e35cac4d685404cab98479e6ab380b21652",
-   "triangles": 1588,
-   "vertices": 2974
+   "sha256": "ca72f7c4a4f0f60d0622550601bd3e22682ff114fcd47a27d27fe1e9b3f474fa",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2887
   },
   "models/kit_leather_armor_large_m.glb": {
    "colors": 7,
-   "sha256": "ad75255bfd86af3ce1951054cca528d8b775edee0e078eeb78e24c3431de6753",
-   "triangles": 1508,
-   "vertices": 2818
+   "sha256": "cb4ac35a1112cfd4620a8dc18350462498aa1d05744ee5a336e9e8daf04fa329",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2894
   },
   "models/kit_leather_armor_medium_f.glb": {
    "colors": 7,
-   "sha256": "e7f006a0905268ff15437968b5942c33bb4a8cd2a4e3aa716bf3e44e4e65d343",
-   "triangles": 1392,
-   "vertices": 2643
+   "sha256": "48ee03ddaa9aca19d9678024a16f4735d076e4965385c973dab1cd05f674d8ce",
+   "shape": "strong",
+   "triangles": 4998,
+   "vertices": 2899
   },
   "models/kit_leather_armor_medium_m.glb": {
    "colors": 7,
-   "sha256": "6a42816667fac82a3372e49316925643a9c4e096a794d8c999b88959088316d5",
-   "triangles": 1454,
-   "vertices": 2760
+   "sha256": "351cc41b05fcee9326986667d10abc30b9d0c42c77afc0c253f49325b0c6cee2",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2865
   },
   "models/kit_leather_armor_small_f.glb": {
    "colors": 7,
-   "sha256": "9578bfbd819f36fe576d52caf6331198092b3b140680448539e55db9aca1e195",
-   "triangles": 1142,
-   "vertices": 2180
+   "sha256": "bc035556353e42a781838d03ba591bd0940c848872dde8dbf4b1090e149c3e29",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2894
   },
   "models/kit_leather_armor_small_m.glb": {
    "colors": 7,
-   "sha256": "deba8d4de239ba9b7ccae8d5ae71a577639d55818c92c5c82ba5d48786fcd625",
-   "triangles": 1244,
-   "vertices": 2381
+   "sha256": "00e05931c721339726eff41637acf660d2b1b20246137c72e9111f69aba7153c",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2946
   },
   "models/kit_loincloth_large_f.glb": {
    "colors": 3,
-   "sha256": "b04aa3d326cc21a94740e89d54afdc7b484be3e205c9075ec3561428f3d17464",
-   "triangles": 1370,
-   "vertices": 2575
+   "sha256": "f1318352f2324fd973fbca7fbf8f86aefeb7dfad8bcadd083bead918dd283a70",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2723
   },
   "models/kit_loincloth_large_m.glb": {
    "colors": 3,
-   "sha256": "3cb9c6f69e0f4abdf170f6d6d1e73031e6a9a6a879f5812a5a92fa3632bff42d",
-   "triangles": 1286,
-   "vertices": 2415
+   "sha256": "08f6aa86d8d10d3db3b30d5d062176f848c99e00a57d640e70fdf597f416b717",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2717
   },
   "models/kit_loincloth_medium_f.glb": {
    "colors": 3,
-   "sha256": "f5240c2824ce9bafee57a4c1bdbb6fcec1da04aeb8299bb358fdde0534663ab6",
-   "triangles": 1072,
-   "vertices": 2044
+   "sha256": "54d9a47ce79a3be94e6c42841aaa58ba3c8b41a6b3ad1e2efefe8e3beaa24038",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2712
   },
   "models/kit_loincloth_medium_m.glb": {
    "colors": 3,
-   "sha256": "9da2f7584f532106e9b916e33242d3df445722c62fac1c5f932afe09e87f4e8a",
-   "triangles": 1104,
-   "vertices": 2116
+   "sha256": "a0192d604171f533e34498158f6d51c5a0918a78a1c4701c380d55be8e7ee141",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2707
   },
   "models/kit_plate_armor_dwarf_f.glb": {
    "colors": 3,
-   "sha256": "20b274d0801a6db27c8efd445848156a47e062f7da9b320876b299c01bf54c05",
-   "triangles": 1414,
-   "vertices": 2690
+   "sha256": "22aae86460db0561ffe6d435aba3ad608a9e8562c601f302fb7a5c49a5ecf00a",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3010
   },
   "models/kit_plate_armor_dwarf_m.glb": {
    "colors": 3,
-   "sha256": "ec080413ebbce0261a51b49eeb6cc0ea2e6307bb4436ac837bfab0ac3e7f5ed8",
-   "triangles": 1314,
-   "vertices": 2522
+   "sha256": "afe920804cbfa74188b27c762bdc7e6b6f5765689f96f7967745df7857add01d",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3028
   },
   "models/kit_plate_armor_large_f.glb": {
    "colors": 3,
-   "sha256": "11aac3487721cbc27f7875ef20f1e0125d5c9a5c346325cdc3beaffa294e791e",
-   "triangles": 1398,
-   "vertices": 2670
+   "sha256": "0e0bf2f9014744339b23f76f7cf90238415aec17d76143ab023a9290c6992f2b",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2921
   },
   "models/kit_plate_armor_large_m.glb": {
    "colors": 3,
-   "sha256": "a74721304627191daa8717a54d6d80cd1a7d9ae87aed31d56af26d7da4f4b125",
-   "triangles": 1346,
-   "vertices": 2558
+   "sha256": "04c9b78c45483df833fd55c7334fc09dbbe77c5437370eb25badce9b32555ade",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2909
   },
   "models/kit_plate_armor_medium_f.glb": {
    "colors": 3,
-   "sha256": "bf87897fdfb3b44142f830f7a2dc9d9100fcbbc1f7c9852f011c757e2f663e58",
-   "triangles": 1286,
-   "vertices": 2486
+   "sha256": "2a6c44e2320306acfdf1738ac3507a8aedd0eaef2960a6db888a696e1a8c5c1b",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2935
   },
   "models/kit_plate_armor_medium_m.glb": {
    "colors": 3,
-   "sha256": "df00cb88c59bf4b703ee6bf49ba842e0b17c3b4062d7b889b455cbcd54d73fbd",
-   "triangles": 1298,
-   "vertices": 2522
+   "sha256": "178da079b4516519955a1140c09b6249e33d4d8fa57751cdafaad6ecde5d7531",
+   "shape": "strong",
+   "triangles": 4998,
+   "vertices": 2912
   },
   "models/kit_plate_armor_small_f.glb": {
    "colors": 3,
-   "sha256": "0448c5963cc8351da45092e4bf99628aba3df2c11a9231ec45b470336b69d56c",
-   "triangles": 998,
-   "vertices": 1930
+   "sha256": "8e744c1dc235f461d442ae0dfa54fd92b6034f731f983057fbbc7b7b7c57a240",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2976
   },
   "models/kit_plate_armor_small_m.glb": {
    "colors": 3,
-   "sha256": "1b7fe8a5992e4a494dcb96cf015d4d4e1b3d1d5f4855535b52fd566df2ed4188",
-   "triangles": 1110,
-   "vertices": 2170
+   "sha256": "ce822e1e05ac375ebf38d2f2796e829215c64a14945420e04ac2965de606ff93",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3001
   },
   "models/kit_rags_dwarf_f.glb": {
    "colors": 3,
-   "sha256": "c64cb3c8ce2121805e4f42a3bfa35a9e8c22cd45f8292ee4caf4ae617153137b",
-   "triangles": 1418,
-   "vertices": 2659
+   "sha256": "6d2e593929c596f62f78029f5123e33f05ee46af1fe9651c17cc2c2623e87cd8",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2682
   },
   "models/kit_rags_dwarf_m.glb": {
    "colors": 3,
-   "sha256": "b67194e33fa3df806360a95995cc1c2335eef631d83c52145745033206aa0cce",
-   "triangles": 1322,
-   "vertices": 2487
+   "sha256": "7d66ccf80d3f35941b31a697c699058a41dca3c6cb2fb63e1becbd4458a0f08f",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2706
   },
   "models/kit_rags_large_f.glb": {
    "colors": 3,
-   "sha256": "f720e0020dc6c3dfa991ec59b0751e318f3514a2874bc6e9bced8a77ae3e6223",
-   "triangles": 1380,
-   "vertices": 2593
+   "sha256": "22694f2a84287e1183971483c2b4962f9d2226283e5b8ff00bccc05d3730c044",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2659
   },
   "models/kit_rags_large_m.glb": {
    "colors": 3,
-   "sha256": "67f575b96f49ab93d122e11482c259e7bf7d3109da432f880249511197940991",
-   "triangles": 1294,
-   "vertices": 2431
+   "sha256": "803f5f3d9162c7aa72a328de9a822099b4c4a407de7dda472e55599406252b79",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2667
   },
   "models/kit_rags_medium_f.glb": {
    "colors": 3,
-   "sha256": "aceca9f615ddc1f3f682a10f77e6d325b3f9c203925d02e550aa87305315414f",
-   "triangles": 1080,
-   "vertices": 2060
+   "sha256": "2bf5db7a44bad1ccd07853ac5f98df0cf1ef8f9d840e843844bf55e44f4e1dda",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2671
   },
   "models/kit_rags_medium_m.glb": {
    "colors": 3,
-   "sha256": "eab8f7d12525de559c11d51bd82b5de6bfc665c9f840121f092a96b15c5a7019",
-   "triangles": 1112,
-   "vertices": 2132
+   "sha256": "edb5c67808ce1d8933f3c7f5138c7851c9c54475c770390dc649f667f612c3d3",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2659
   },
   "models/kit_rags_small_f.glb": {
    "colors": 3,
-   "sha256": "a5a07d717a953cdf0e62cd8a5b3c45d0d53cb3f40d03e56285a13e85ec6a5426",
-   "triangles": 842,
-   "vertices": 1583
+   "sha256": "2fbc723d773c47b600df0fca0dff1b06aa389f3c085b781ebef2900bb5beb85d",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2686
   },
   "models/kit_rags_small_m.glb": {
    "colors": 3,
-   "sha256": "fba11168fa6b4f86b6f0fabae488b04e6b92fd42811df766153ca2ac2629af1a",
-   "triangles": 942,
-   "vertices": 1811
+   "sha256": "f157907c05159999be4ca6c0b7b0359fcee7b4ee9feda3c962e093c07ada2a1d",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2692
   },
   "models/kit_robe_dwarf_f.glb": {
    "colors": 5,
-   "sha256": "141fee0f3b56976504fec2c8265e2351cf39a9d4136fa37a060fbfd3cba40bb4",
-   "triangles": 1272,
-   "vertices": 2396
+   "sha256": "66d43a6ab8bbb17432375bb4c77bab5a15d91d7f28b0e8ecfdf4f724f40defb4",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2732
   },
   "models/kit_robe_dwarf_m.glb": {
    "colors": 5,
-   "sha256": "c29cd38b340033bce1002e7d9521a7cf39440d96a843179b3dbc3261e23f332d",
-   "triangles": 1176,
-   "vertices": 2224
+   "sha256": "a1c5b531c19ba78d57e5f9aa08e9177105c6fa189e39ae8b52298a5b7075e616",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2726
   },
   "models/kit_robe_large_f.glb": {
    "colors": 5,
-   "sha256": "1e47519966b175e3007984584e8fb1fc2bf022316e23b32d766bdd8ce6d6606d",
-   "triangles": 1278,
-   "vertices": 2406
+   "sha256": "a8c035b3e70719be6f3f18b7c8e6e15ee3067a92a314e8e9676b88da2284017b",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2712
   },
   "models/kit_robe_large_m.glb": {
    "colors": 5,
-   "sha256": "6d660aaeabf59fe2946e6d064805649d27b1684a5171dcee04619d605dcba452",
-   "triangles": 1192,
-   "vertices": 2244
+   "sha256": "ac545376e90855e914cf7100fb9d64496a0bc70344345173294a00477624b205",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2701
   },
   "models/kit_robe_medium_f.glb": {
    "colors": 5,
-   "sha256": "1812ce3570e5e3180fe2a2e77958784d786d8f24079f0488cfa5c12e843ec0a8",
-   "triangles": 1100,
-   "vertices": 2100
+   "sha256": "5dd89234105755d43df1f7bebc395d2f198e3071064badfcb1676b4ab03fb54e",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2701
   },
   "models/kit_robe_medium_m.glb": {
    "colors": 5,
-   "sha256": "8a9e83b654d13ebe9e9efeb696f85d02179d1cb513b65ffaffc651dbd9112f74",
-   "triangles": 1132,
-   "vertices": 2172
+   "sha256": "3eac8e976684c7ef1ca437380885c543556645f6da10fffcb8ac02d927939b7e",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2698
   },
   "models/kit_robe_small_f.glb": {
    "colors": 5,
-   "sha256": "edae7b2c114c3180f650e6ab47b8825dc9f819833ede2889aa8aae42d578014f",
-   "triangles": 910,
-   "vertices": 1730
+   "sha256": "29ba6e96e823729bb3e65a525da392de95fd89e52c7355bfa54db95d61ab81d6",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2712
   },
   "models/kit_robe_small_m.glb": {
    "colors": 5,
-   "sha256": "13c2f6dee939d8a62291380ce042d1cb883d5bbaacd53bdc22508d9ccd03a3ba",
-   "triangles": 986,
-   "vertices": 1902
+   "sha256": "6ee329bf685fdd719263971c3bca428c4ea6f28ffd99c74a83921aaadf29593b",
+   "shape": "strong",
+   "triangles": 4999,
+   "vertices": 2733
   },
   "models/kit_smith_apron_dwarf_f.glb": {
    "colors": 5,
-   "sha256": "8c0ca5ae41e654dcf1bdfa66a8e5dee4b63faa8fb7ec095d3334c42ae42c5859",
-   "triangles": 1114,
-   "vertices": 2140
+   "sha256": "ca21d4d88c68a51d21a1807e84146d397637d268b27af788a0fcc4d2d7876327",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2811
   },
   "models/kit_smith_apron_dwarf_m.glb": {
    "colors": 5,
-   "sha256": "f9838cda93ac91942d5e40a137e659c08edbe42ba97fec37717a262008531410",
-   "triangles": 1030,
-   "vertices": 1988
+   "sha256": "d473200426e6b50a0497b9c97a46fa5b5ee7b9678d86ed47dc20cad35dcc3acc",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2855
   },
   "models/kit_smith_apron_large_f.glb": {
    "colors": 5,
-   "sha256": "b3853ef60d15f9ba7e7d2b0d4035948f3f5a116b8f572b47580ca5aa9752a0ff",
-   "triangles": 1132,
-   "vertices": 2170
+   "sha256": "adfe43af78f4d58604b1e15faa7715de3c1c6b27788bdee651338302526a9422",
+   "shape": "strong",
+   "triangles": 4998,
+   "vertices": 2813
   },
   "models/kit_smith_apron_large_m.glb": {
    "colors": 5,
-   "sha256": "02795fae3266e22f50711d846af310e684140c6b39be25f63185d0eeda4b82e0",
-   "triangles": 1040,
-   "vertices": 1996
+   "sha256": "72457ef2429f8fc847cd4bd5a82b3e3831dd69236343d776538623b6f9065e24",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2802
   },
   "models/kit_smith_apron_medium_f.glb": {
    "colors": 5,
-   "sha256": "4f85011aab80e29a2df3812f2bf07ccedd3ebc67401e75769d8154aa3790968f",
-   "triangles": 954,
-   "vertices": 1848
+   "sha256": "6192ff924b43d5c62b5f14069e53ad879f6a900b7076642026699cac60dfa502",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2797
   },
   "models/kit_smith_apron_medium_m.glb": {
    "colors": 5,
-   "sha256": "f738c4a484f8da333c86c0b79139919aa50c8e63d0ef51e22fd5ddfa1bf43176",
-   "triangles": 980,
-   "vertices": 1912
+   "sha256": "f59f07e3e0d79546c80f57760468999bb1b256e6f74bc135d71e6d067fddeca3",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2787
   },
   "models/kit_smith_apron_small_f.glb": {
    "colors": 5,
-   "sha256": "995c3ef42b2a2cd0ae61487f2a99c8c30590baa1a4c8c4b42286e8acf1f19bc9",
-   "triangles": 702,
-   "vertices": 1346
+   "sha256": "d3260fd91751038bb70c93f19ead81726d594dd62bd3d1ff493f71d3e74246dc",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2791
   },
   "models/kit_smith_apron_small_m.glb": {
    "colors": 5,
-   "sha256": "008d5ee0ff1f0bb455fb2973a963758db6469cbe227fd82c629c388640c210a6",
-   "triangles": 840,
-   "vertices": 1650
+   "sha256": "a9813ef566d37b00989fa0991ce97290b36e902ba1d7cc1857ea9352b2c09852",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2815
   },
   "models/kit_straw_hat_10.glb": {
    "colors": 2,
-   "sha256": "f55d8e003a5e07ef7a628afb89d902798fbaebe92342616ae24dbce5d753e7a4",
-   "triangles": 238,
-   "vertices": 452
+   "sha256": "49ed3ee5707effeb37f6331f72eaa47e572c440e5aa5dc3f045d5da6bd71e690",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2620
   },
   "models/kit_straw_hat_8.glb": {
    "colors": 2,
-   "sha256": "93e0d94f0fe995cab27d0cf381e84e27880408b9041d270049baa81a0dae5d49",
-   "triangles": 272,
-   "vertices": 506
+   "sha256": "9759bbd1ea4087e90fb3bec3709cd5d3ef0331627d7b93244d0e4593f8d4498d",
+   "shape": "strong",
+   "triangles": 4999,
+   "vertices": 2621
   },
   "models/kit_tabard_dwarf_f.glb": {
    "colors": 9,
-   "sha256": "4eabf86ab67dc4e19bc8309f818eeb0632c3917b76e2e57472e28e464556e1f6",
-   "triangles": 1486,
-   "vertices": 2882
+   "sha256": "aeca0fce08c2db4ef655a0efe7f6607eb8ead6ad96ce32f692a28cd48e290510",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3247
   },
   "models/kit_tabard_dwarf_m.glb": {
    "colors": 9,
-   "sha256": "a8bd07575efe851bcb34937882ff2e6c02ac2932b637887e9824218dea44e060",
-   "triangles": 1360,
-   "vertices": 2652
+   "sha256": "085c3d7a761baca623a84f304b2ec51f96c4c3591a351b58258c49f53b88532e",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3235
   },
   "models/kit_tabard_large_f.glb": {
    "colors": 9,
-   "sha256": "8bf3eb633c4d9e79c030b88cf685419a25b52e2551240cf56a7eff1cf1d46b92",
-   "triangles": 1528,
-   "vertices": 2968
+   "sha256": "a056ae0858186b4311c4ee3d4205878d88f75db28115a9404c3ab14be3a8e3cf",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3193
   },
   "models/kit_tabard_large_m.glb": {
    "colors": 9,
-   "sha256": "ba48f8e70e49e972490d1c6a8610908dae764cab9f06cdf873c1d8f6c240ed80",
-   "triangles": 1432,
-   "vertices": 2788
+   "sha256": "6cc6c4e8b166e41c4f839450d974756aaf69662cd99d50a48fea51973317c73f",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3199
   },
   "models/kit_tabard_medium_f.glb": {
    "colors": 9,
-   "sha256": "c9fbb9eeb8808f83df0db834da87df6e0d650f879e654698128f1d2be415a91a",
-   "triangles": 1304,
-   "vertices": 2556
+   "sha256": "15fc45b0a574998c342d7a994ad9e9300a0b03eb622839c095fc03a93e2837c2",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3214
   },
   "models/kit_tabard_medium_m.glb": {
    "colors": 9,
-   "sha256": "887bbdf29ba0c13fc1ae159a8b18276a4bab5c5b423f9b57030db823504ee044",
-   "triangles": 1344,
-   "vertices": 2636
+   "sha256": "47d189fa1717941051f9f15decf78548f7626f765f2f28fc1c8fb075c5302d63",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3135
   },
   "models/kit_tabard_small_f.glb": {
    "colors": 9,
-   "sha256": "193a679d4855a079f5bd786f9af024cd8fbd14cc718913e18e4b2047658e8c3a",
-   "triangles": 1010,
-   "vertices": 1978
+   "sha256": "cb4f39624a8d2fdbeb5afa9657e1548d93ec64d97fc65216232d5a2cd0722087",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3134
   },
   "models/kit_tabard_small_m.glb": {
    "colors": 9,
-   "sha256": "f73e2db05bf00d1684fe612380a42959fad1f875f36bceb3bc0ce85b420fe179",
-   "triangles": 1120,
-   "vertices": 2200
+   "sha256": "18c69aca511c516f78f73440f5924f0de44b385b5d5b43c5987c8b7d1cb359cb",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3113
   },
   "models/kit_wings_bat_dwarf_f.glb": {
    "colors": 2,
-   "sha256": "85458656d1bc76c690d6f93b4d737f33698cf046db1eff445f9eddab1212b7d4",
-   "triangles": 530,
-   "vertices": 974
+   "sha256": "3d6a4ed6906b913d4b309b0892ebabfcda7e5470baa65c7c5b89f60bed517907",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3086
   },
   "models/kit_wings_bat_dwarf_m.glb": {
    "colors": 2,
-   "sha256": "1b4d3765687e62ff4346c905f7339ddefe8fae4850c23197be49fd10a466a7e5",
-   "triangles": 538,
-   "vertices": 990
+   "sha256": "40b5ac59d50e781e6ffe174b0df7d38974cf4cf602d6f2601e775ea41483ba92",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2990
   },
   "models/kit_wings_bat_large_f.glb": {
    "colors": 2,
-   "sha256": "5e29586756a511560ed8ce21bbf81598885072d1824e86e26f5b575583ef8d95",
-   "triangles": 574,
-   "vertices": 1074
+   "sha256": "6c189bb331ab607e0ba1066c08cfad274abe43ba8bdac88f3f4450fac09bf937",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3089
   },
   "models/kit_wings_bat_large_m.glb": {
    "colors": 2,
-   "sha256": "1ec4639878aa2bf47478b0aaab0a91e24f5b5f3e5f07c3baae6e01205319f49a",
-   "triangles": 574,
-   "vertices": 1074
+   "sha256": "d835cac8d143eb89a83cc012094e45792a1beaaca85f6b7fe8652e99e0b59743",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3035
   },
   "models/kit_wings_bat_medium_f.glb": {
    "colors": 2,
-   "sha256": "01acc7838fc941ed36961f515bd59419dbf4dae95ae3252337bd8115e0683b08",
-   "triangles": 562,
-   "vertices": 1040
+   "sha256": "f36282824428a79681a29b748a8268449fc90a34d3d06aaf5d18c12ab0042b0a",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3110
   },
   "models/kit_wings_bat_medium_m.glb": {
    "colors": 2,
-   "sha256": "a8b447efcac4aff5bdef71e8baeb835d772b243ada439ba22ae89d0cf49fe12d",
-   "triangles": 562,
-   "vertices": 1040
+   "sha256": "f8a5a878803af8cc414b59326d75ca3d00015e1592ccb492a7dd49756b8ebc59",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3113
   },
   "models/kit_wings_bat_small_f.glb": {
    "colors": 2,
-   "sha256": "9aa31e9c134811c1cc71d45fc995913e9356dd37340574af62c30b7dd98e4796",
-   "triangles": 534,
-   "vertices": 986
+   "sha256": "2110521c353ae7425043420c3fd3b393dfc0a7f4599c3eaa4dbd719d9c65ccf2",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2974
   },
   "models/kit_wings_bat_small_m.glb": {
    "colors": 2,
-   "sha256": "e2ef72deeb9fe6e00edeae897648601be39288ef8518aa5da336974834e51ceb",
-   "triangles": 534,
-   "vertices": 986
+   "sha256": "569f95ef95d5b79f1ff6d2a3812a529498178f47f26b388ca221fafedcc5b2df",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2979
   },
   "models/kit_wings_feather_dwarf_f.glb": {
    "colors": 2,
-   "sha256": "dc547e29869a00ffe2b239ef2bbefeb4a355f009d025a799e50ee30820ddbaf0",
-   "triangles": 1398,
-   "vertices": 2308
+   "sha256": "cca31c69eceb119a923212935e2f1cc7846740a19e5e0a45896ef87cf6c6bcb6",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3362
   },
   "models/kit_wings_feather_dwarf_m.glb": {
    "colors": 2,
-   "sha256": "e5eca11a3640b0d12b82762207bbad4270a5ae272b430283363663c089d927f9",
-   "triangles": 1368,
-   "vertices": 2280
+   "sha256": "cb35e57b6b127267cd6bb73a3f854b3ebc37ce9c28c2e1351be4ba67b260ec82",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3252
   },
   "models/kit_wings_feather_large_f.glb": {
    "colors": 2,
-   "sha256": "e9de54f14ba18426a477e3023ff189d22168a28833d30f78cc8f9310252e8b32",
-   "triangles": 1442,
-   "vertices": 2390
+   "sha256": "c68d204a6247cb7b59b36eaf7be481aab612529f42a61dd2c6529fbbfd8d29c5",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3319
   },
   "models/kit_wings_feather_large_m.glb": {
    "colors": 2,
-   "sha256": "a291663b33d6d9d4223b0a65297bccdf38132669241a227b9fee4a4e7f35d54c",
-   "triangles": 1446,
-   "vertices": 2418
+   "sha256": "51e4bb2a36d1ad1f8f0614c5c9693c34b1a2f466b1fcade5342067b27b725d17",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3174
   },
   "models/kit_wings_feather_medium_f.glb": {
    "colors": 2,
-   "sha256": "3e55d9ff7e2fe9ce010c4eb7ae6bc78c05eeb888ad2864e54d908f297a3d85cd",
-   "triangles": 1400,
-   "vertices": 2298
+   "sha256": "0ee80c7df4490924b0092a62636b010e3c20bea4b5fe4e129c2ff26ad57a53e6",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3315
   },
   "models/kit_wings_feather_medium_m.glb": {
    "colors": 2,
-   "sha256": "c84b96229021163224b277193a7b6afa5f84cc963d15a2557ab03b725eba7d9b",
-   "triangles": 1400,
-   "vertices": 2298
+   "sha256": "91fe19b9c31ea38347f298859b4d546a5ecbbb5020bcd4a9b635dec41ac84b0e",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3335
   },
   "models/kit_wings_feather_small_f.glb": {
    "colors": 2,
-   "sha256": "bb281b82da2eff325aa440f29e285f8e814313997aed3f49a4926ed41474e410",
-   "triangles": 1318,
-   "vertices": 2220
+   "sha256": "a42e073be1d50a03c306c1c6cb06055a123c7f860993540c32c5915c018f9acb",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3110
   },
   "models/kit_wings_feather_small_m.glb": {
    "colors": 2,
-   "sha256": "3f13086ba1c5b9634fdcb739bb2a5e17a104525f18367bfb00674965f5f5492d",
-   "triangles": 1318,
-   "vertices": 2220
+   "sha256": "1e367c8c2c6d393e734f7ce51d54e7363b4739c9b3a79ea5dca925dc94175812",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3095
   },
   "models/kit_wizard_hat_10.glb": {
    "colors": 3,
-   "sha256": "b6dfeea6e69e37c00803321120ff6ffbc54c8ec65c9953452c04d50d4881b665",
-   "triangles": 354,
-   "vertices": 663
+   "sha256": "fefd190861b574caa9cee50ed4698c4a2a98be926cc434fd0f42ec7e9e36aa06",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2790
   },
   "models/kit_wizard_hat_8.glb": {
    "colors": 3,
-   "sha256": "2d87019197e2bf610ac0f52dc9a9ccde06253476725b4a0e432f8ed72d9575f6",
-   "triangles": 376,
-   "vertices": 696
+   "sha256": "091380531afd79de34fd050a35cbf6b153063560c5a04ffef0ed114048ae4065",
+   "shape": "strong",
+   "triangles": 4999,
+   "vertices": 2716
   },
   "models/kobold.glb": {
    "colors": 4,
-   "sha256": "6f1efc1c0d0d05322a5b86dfe98f5297d3be985d1f2d4feb892b6e8c8f3e72ce",
-   "triangles": 552,
-   "vertices": 1082
+   "sha256": "cf4d89c94537ce1126f53a250ccb136840a5db831825f04768b6ab59a03f2291",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2635
   },
   "models/lantern.glb": {
    "colors": 3,
@@ -1231,56 +1416,64 @@
   "models/lion.glb": {
    "colors": 5,
    "creature": true,
-   "sha256": "df2bec1da10f8eee69754e565a0a80f2f2ab8b898ad0203a621170e2369d7ce6",
-   "triangles": 7076,
-   "vertices": 12883
+   "sha256": "ef6d61883f9d439553cceb81acb895b289e6425f6d690c50d05d4cd8c32f9ac7",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2807
   },
   "models/mimic.glb": {
    "colors": 7,
    "creature": true,
-   "sha256": "940c6064b60a6c56216d55a94a1129a9a1676191d68e448ac25fe21c0c623452",
-   "triangles": 1372,
-   "vertices": 2587
+   "sha256": "e13bfa3fd2f9febe7131a61a543dc85547f8f92453f59571b2131a80e768b055",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3281
   },
   "models/mushroom.glb": {
    "colors": 4,
    "creature": true,
-   "sha256": "3f18a313739ba9224b206217db58d1bd2620ce66b6c7d8fcef8988a4e4b989ef",
-   "triangles": 2538,
-   "vertices": 4653
+   "sha256": "58cf0aeb61297a5a2639ffc9d901c2112db8cafda9f6f1c89645c57cab5ca7a9",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3065
   },
   "models/octopus.glb": {
    "colors": 3,
    "creature": true,
-   "sha256": "61088ecf5cc4cb3a0410381780b2edbcd3cf9b4496c6fabb94ba48dedb533677",
-   "triangles": 4298,
-   "vertices": 7781
+   "sha256": "2e07384312c24ead42634d98034881e2e90c7ad9d29865d1a2f8387d7ef51a22",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2819
   },
   "models/orc.glb": {
    "colors": 4,
-   "sha256": "4cfcad6531b61f08161f4c1dcffc230c9a6f36c91f54502b4bfef9f6f755e46a",
-   "triangles": 146,
-   "vertices": 264
+   "sha256": "78dfa59f3ccae0250af8cc5654d8c92cbcf9709e6d3b047251b1859a759ee1e1",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2586
   },
   "models/orc_f.glb": {
    "colors": 4,
-   "sha256": "5e61b3aae321030938588c2a353a1a66e11f2b9368b1daf993ae0fcc6d01ef17",
-   "triangles": 146,
-   "vertices": 264
+   "sha256": "5fece719a487c45bf673524952c6e367c5fd5b5e0f62eb68b2e6709ebcbdc4a2",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2583
   },
   "models/owlbear.glb": {
    "colors": 8,
    "creature": true,
-   "sha256": "e83c3706ce3e125866c700e5481dc1f5dd3f6b02ea29af1c8bbc7b3d4a7bafc1",
-   "triangles": 8784,
-   "vertices": 15972
+   "sha256": "4e309d92138d1a4c11739db18ab85202aefe0a61374984d9cc7ec853e97b5e2b",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2836
   },
   "models/pegasus.glb": {
    "colors": 7,
    "creature": true,
-   "sha256": "d124fd3102a4fc30f3d2a3d23e9c99405129c4094f2009186c4da49250cbfa55",
-   "triangles": 15176,
-   "vertices": 27816
+   "sha256": "623075e9876c9eeb120156523b7ef3172f8453fa2269372fc6b7892a2ebf2041",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2923
   },
   "models/pickaxe.glb": {
    "colors": 3,
@@ -1297,77 +1490,88 @@
   "models/rat.glb": {
    "colors": 5,
    "creature": true,
-   "sha256": "261e8b0306c499b96ad08148860a831f6bf456ab30d82d9c7fd487147b556a25",
-   "triangles": 998,
-   "vertices": 1856
+   "sha256": "30f41859d879ccd21a839efd719b3d237f3d9dcbb531f4c5aa86c713177ee40f",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2941
   },
   "models/rhino.glb": {
    "colors": 4,
    "creature": true,
-   "sha256": "5d31197dda764f8a8fae1b84950ba081f8adcb91638bb36d87ec268f175bb596",
-   "triangles": 10608,
-   "vertices": 19206
+   "sha256": "cb5aceef1dc6f43f485ca3dfccac2e5056a341902a11cce584d4c85fafd870db",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2726
   },
   "models/rug.glb": {
    "colors": 3,
    "creature": true,
-   "sha256": "c2a2c3c81924e6af1174b97e18700fcf705d1de469768758373289cadc031f22",
-   "triangles": 846,
-   "vertices": 1540
+   "sha256": "7d9b6d8807320fbbbaad4459c34ee02e7cc117a3d3aebd9f7eec2df9691ea0b6",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3001
   },
   "models/scorpion.glb": {
    "colors": 3,
    "creature": true,
-   "sha256": "455ab7bfe37f4da7efd71a29c1bf5b9d3b5f7dd3f15a25d391354b31c10ec2d6",
-   "triangles": 7364,
-   "vertices": 13341
+   "sha256": "780ebd93d6ad58a0dd8994bdb5238392cf7665615f46f7dc0843cda48c106918",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2534
   },
   "models/shark.glb": {
    "colors": 4,
    "creature": true,
-   "sha256": "80b3c2a4e8b058482966c0dbee807f5bda32b5134b0998ab72067bc2e0d3a64d",
-   "triangles": 1660,
-   "vertices": 3056
+   "sha256": "bf8e0a5a6527df4e0f39e18dd34aadae6fc6a8e4d1c0c5b13b804d8af9e883b4",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2698
   },
   "models/sheep.glb": {
    "colors": 5,
    "creature": true,
-   "sha256": "4d054247db97ce186e35a6419be59747883fe95de4b3ab6b05781882f49c91a5",
-   "triangles": 6520,
-   "vertices": 11874
+   "sha256": "0cb11c35d2847a24dd3f2a49efe8a89de33041ebb295bf2c5fcffea3928ba000",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3214
   },
   "models/shrub.glb": {
    "colors": 4,
    "creature": true,
-   "sha256": "04274efef812bcff7ac483dc84d4ae3d50f5f07163285eba8d3efe93504bb06a",
-   "triangles": 5618,
-   "vertices": 10096
+   "sha256": "0e58b5fa73cdd237952cb6b027f6316a18440cb02f87de2f5fdd79c226b4d271",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2988
   },
   "models/skeleton.glb": {
    "colors": 2,
-   "sha256": "1ad466628313689cfcbea60d79ad25b4a4987b5e61b32a6afde81576f686374d",
-   "triangles": 152,
-   "vertices": 268
+   "sha256": "d55cc0cc39b4ecd4cff3930e000e65bf89b613211039389928faa63f05179069",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2572
   },
   "models/skeleton_f.glb": {
    "colors": 2,
-   "sha256": "9cf29fba7e7b833514b628d58b89c278bca5fa9ecae60017ce7e8dcccd0484ff",
-   "triangles": 152,
-   "vertices": 268
+   "sha256": "d37a28d3dc27ec365143aa4822d54fad1844b9c483052761ebb86fcc95a99b24",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2576
   },
   "models/slime.glb": {
    "colors": 4,
    "creature": true,
-   "sha256": "cb8fbabbd06ec7b0663b0cc3efefc6820ea8aad2c734617ea5bd97bb213b2b27",
-   "triangles": 3334,
-   "vertices": 6017
+   "sha256": "4a5591c6edf5e2a6d7685af399229a663e1d222b0fbc765ad806447a60d2fd32",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2680
   },
   "models/snake.glb": {
    "colors": 5,
    "creature": true,
-   "sha256": "18ad4c0cb671185be6ece445b30230387d6e1a46a16eebb04a2faa1352f0320a",
-   "triangles": 4496,
-   "vertices": 8261
+   "sha256": "fc602c82cba6cb259e7568fe1120835dda4b3292d86e460c9fadefcfa4f26ffc",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3389
   },
   "models/spear.glb": {
    "colors": 3,
@@ -1378,9 +1582,10 @@
   "models/spider.glb": {
    "colors": 4,
    "creature": true,
-   "sha256": "c73d62acf9630bd3d710a8c3787bf3e224b1c5361cb01c13f5ae58c1d02807a8",
-   "triangles": 6180,
-   "vertices": 11188
+   "sha256": "7f4e3883db4fef169513c03dc5ca9fc1d8aee617a5de2f511b6e2f19afd136d4",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2557
   },
   "models/sword.glb": {
    "colors": 3,
@@ -1390,22 +1595,25 @@
   },
   "models/tiefling.glb": {
    "colors": 4,
-   "sha256": "0f0c054e3495c762755c9ef7203926d116269cb6283c2b8082ed8075a988a30e",
-   "triangles": 438,
-   "vertices": 843
+   "sha256": "cd265978c6b1ea543186be32d95f6100461151ca705f5dd9978ce6ad6e4bd6ca",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2578
   },
   "models/tiefling_f.glb": {
    "colors": 4,
-   "sha256": "c2d235b5e37c55cf6ae344c8a4ffe4590929351105acfad122396db3ea288476",
-   "triangles": 438,
-   "vertices": 843
+   "sha256": "e40c848fdd46a8e6b9ef7de5ab34c6418c11f9b8401fda29ab4cc0011aeeb2c5",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2584
   },
   "models/tiger.glb": {
    "colors": 6,
    "creature": true,
-   "sha256": "67d7495a0a338b29083aa3c7998e84fbdaf980445f4a8f5e4691d35c3d09a489",
-   "triangles": 7066,
-   "vertices": 12989
+   "sha256": "627208b086a4fad901d653b30180aeede8862561ccc20877ac541b25aa608992",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3270
   },
   "models/torch.glb": {
    "colors": 4,
@@ -1416,71 +1624,81 @@
   "models/tree.glb": {
    "colors": 6,
    "creature": true,
-   "sha256": "4009f299cd48dd745be00f637387dc9dd55225624e103a1fdd8e1cafeaf6e331",
-   "triangles": 12610,
-   "vertices": 23153
+   "sha256": "256cf69c3333a9a69d5336f1a000f6125b40b8483525ef50a5ad1269480f4949",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3520
   },
   "models/triceratops.glb": {
    "colors": 6,
    "creature": true,
-   "sha256": "31491ed0ba01451b617310f801a9de650d7d7b0702c11e778d5086362e2e9dd1",
-   "triangles": 11098,
-   "vertices": 20130
+   "sha256": "f9f536facc2074440b7e8cc6b8540fea0a25c05d922401d5706bc28b3d2edabb",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2775
   },
   "models/troll.glb": {
    "colors": 4,
-   "sha256": "15f72833bbbd71b2c43b8b8b6edba134d2efaabb97513327badba378ce3ad092",
-   "triangles": 160,
-   "vertices": 296
+   "sha256": "9d7059e73ab30a0dd7906159fb3a128110fdeb455caba3c99277eb197dd65be5",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2635
   },
   "models/tyrant_lizard.glb": {
    "colors": 5,
    "creature": true,
-   "sha256": "c49b59dc5559d4324e979c9ea1336604a7f522f7acdfd40bb6b004f1e5e1a616",
-   "triangles": 6772,
-   "vertices": 12419
+   "sha256": "9743cef2f096223602fc7d75ed48246461848d892d69e2dc0f9def853897df74",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2865
   },
   "models/unicorn.glb": {
    "colors": 6,
    "creature": true,
-   "sha256": "9220aadebf5fbeaef8d2df714b2a43bb31a6e6bae4a7d80202c981b39f3e23cf",
-   "triangles": 9328,
-   "vertices": 16856
+   "sha256": "0c2c64f742ec0b92f6004bee4b581e9496bf456fdc798fd922d44ce62f5d46f3",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2737
   },
   "models/wasp.glb": {
    "colors": 6,
    "creature": true,
-   "sha256": "24376b4592691af5f2061c565130d75c00dab1ea70ea30533c2aeb5530b58b81",
-   "triangles": 974,
-   "vertices": 1824
+   "sha256": "226cef5c57a36b31418fadf88c82044716694be500c210b53d1574aa9518a991",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3159
   },
   "models/water_elemental.glb": {
    "colors": 4,
    "creature": true,
-   "sha256": "a2b5a7e2eafa90713392afa5f1ceeb265ce3ae86a28145770aa28102cc4c80cf",
-   "triangles": 3682,
-   "vertices": 6804
+   "sha256": "e3ca7e488f337a67c2bf5b8e5271d185b86daa244d2cf2e77e9c064290a19c64",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2845
   },
   "models/winged_lion.glb": {
    "colors": 7,
    "creature": true,
-   "sha256": "3be3b000509c161eeca28954ff69406a4e99fcbf868b5ceacbe53d146cf9c29d",
-   "triangles": 13278,
-   "vertices": 24405
+   "sha256": "050ed0fa0e471645f66cb8b64ce7b38874ed5f11e6bf6160e312887e6f7acab8",
+   "shape": "strong",
+   "triangles": 4998,
+   "vertices": 2988
   },
   "models/wisp.glb": {
    "colors": 1,
    "creature": true,
-   "sha256": "4f733d73601d630bdd6575064dfd6d310b3db5cbbda46843f81ec74d3627121b",
-   "triangles": 504,
-   "vertices": 816
+   "sha256": "659d2d20038b930ce8c03b663cbd381e10338fa4de0acb58d56d70bc26f4ff65",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2502
   },
   "models/wolf.glb": {
    "colors": 5,
    "creature": true,
-   "sha256": "b9f4da8a944c6fbfae5a8a42d6d0d2a3f41cf293172ecead3b0aa265bb7d183a",
-   "triangles": 4476,
-   "vertices": 8147
+   "sha256": "c42d1aa2f25d624457ddb57e02834f14e6a5a585d0e5b8aef41f9c7491861cce",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 2789
   },
   "models/wooden_shield.glb": {
    "colors": 4,
@@ -1491,9 +1709,10 @@
   "models/worm.glb": {
    "colors": 4,
    "creature": true,
-   "sha256": "3286384de492175728e81d9fbd41be96af16bf3f39360804e87723ffffadacfa",
-   "triangles": 6742,
-   "vertices": 12254
+   "sha256": "45cff92ab234d6272d84d36ade34b6e36bc4340a70b3e0a02b4c3a6e53f13a47",
+   "shape": "strong",
+   "triangles": 5000,
+   "vertices": 3131
   }
  },
  "source_files": [
@@ -1503,7 +1722,8 @@
   "gear.py",
   "creatures.py",
   "build.py",
+  "smooth.py",
   "rig/human.glb"
  ],
- "sources": "f1ea01e416bdee4115772275fa4c939a8036b7c0303aacb6e5991f612f86bee7"
+ "sources": "ebd639d9a63f300df93bf2ffc059ee89481a6cf68a244d2ed70a18434c7d969c"
 }

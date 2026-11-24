@@ -9,12 +9,18 @@ agent server serves it as `rustpg2d://docs/figure-kit`).
 
 ## The look
 
-- **Voxels, one per pixel.** The game draws a person 80 image pixels tall (40 world pixels, two
-  image pixels each). A kit voxel is 0.0225 model units at a height of 1.7, which is exactly one
-  of those pixels. Finer detail would not show; coarser detail looks blocky beside the rest.
+- **Sculpted in voxels, one per pixel, then smoothed.** The game draws a person 80 image pixels
+  tall (40 world pixels, two image pixels each). A kit voxel is 0.0225 model units at a height of
+  1.7, which is exactly one of those pixels. Finer detail would not show. The built voxels are then
+  smoothed by Blender (`smooth.py`, the painted figures' shapes): heads, bodies, cloaks and
+  creatures round off strongly; hair, beards and hats are smoothed together with a plain head of
+  their size, so a cap follows a round skull. A part that would melt away (a hat's brim, a thin
+  wing) is smoothed gently instead, and failing that left as voxels; the manifest says which
+  (`shape`: strong, gentle, voxel). The gear stays voxels.
 - **Realistic proportions.** About seven and a half heads tall. No big heads.
 - **Flat colours.** Each piece uses a handful of plain colours from `figure.py`. No textures, no
-  gradients, no dithering: the engine's cel shading adds the light and dark.
+  gradients, no dithering: the engine's soft light adds the light and dark. The smoothing keeps
+  them: every smoothed face takes the exact colour of the nearest voxel face.
 - **A silhouette that tells who it is.** Ears, tusks, horns, a tail, a beard, a helmet's crest:
   what sets a figure apart must change its outline, because a face is ten pixels wide.
 - **Edges one voxel soft.** Limbs, torso and head lose their corner voxels, so a figure reads as
@@ -114,10 +120,13 @@ in `kit.py`.
 python3 scripts/art/kit/build.py --out DIR            # everything: DIR/models/*.glb, DIR/kit.json
 python3 scripts/art/kit/build.py --out DIR hero kit_hair_bun_10   # only these
 python3 scripts/art/kit/build.py --check              # do the outputs still match manifest.json?
+python3 scripts/art/kit/build.py --out DIR --voxel    # without the smoothing (quick tries)
 python3 scripts/art/kit/apply.py PORT [DIR]           # into the project open in an editor
 ```
 
-Needs `python3` with numpy. The same sources always give the same bytes.
+Needs `python3` with numpy and Blender (`blender` on the PATH, or `$BLENDER`; built with 5.x) for
+the smoothing: about four seconds a model, a quarter of an hour for everything. The same sources
+and the same Blender give the same bytes.
 
 `apply.py` talks to an editor whose AI agent server listens on `PORT` (`mcp on PORT`). Without
 `DIR` it asks the editor to build the kit itself (`kit_build`: seconds; the editor must find these

@@ -1,5 +1,7 @@
-"""build.py [--out DIR] [--check] [ID...]: builds the kit's models (all, or the named ones).
+"""build.py [--out DIR] [--check] [--voxel] [ID...]: builds the kit's models (all, or the named ones).
 
+The models are built from voxels, then smoothed by Blender (`smooth.py`, the painted figures'
+shapes; `blender` on the PATH or $BLENDER; `--voxel` leaves them as voxels, for trying things).
 Writes DIR/models/<id>.glb, DIR/models/kit_clips.glb, DIR/kit.json (the figures' and pieces'
 model definitions) and DIR/gear.json (how each item model is held); the editor's `kit_build` tool
 takes all of it into a project. Building everything also writes manifest.json beside this script:
@@ -10,6 +12,7 @@ import hashlib
 import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 
@@ -19,7 +22,11 @@ import gear  # noqa: E402
 import kit  # noqa: E402
 from kitlib import RIG  # noqa: E402
 
-SOURCES = ["kitlib.py", "figure.py", "kit.py", "gear.py", "creatures.py", "build.py", "rig/human.glb"]
+SOURCES = ["kitlib.py", "figure.py", "kit.py", "gear.py", "creatures.py", "build.py", "smooth.py", "rig/human.glb"]
+
+# Pieces smoothed together with a plain head of their size (hair, beards, hats), and the heads.
+HEAD_PIECES = ("kit_hair_", "kit_beard_", "kit_chef_hat_", "kit_straw_hat_", "kit_wizard_hat_", "kit_helmet_", "kit_hood_")
+REFERENCE_HEADS = {"10": "hero", "8": "halfling"}
 
 
 def sha(path):
@@ -33,7 +40,54 @@ def source_hash():
     return h.hexdigest()
 
 
-def build(out, only=None):
+def glb_counts(path):
+    """Vertices and triangles of a .glb (its meshes' primitives)."""
+    data = open(path, "rb").read()
+    n = int.from_bytes(data[12:16], "little")
+    doc = json.loads(data[20:20 + n])
+    acc = doc["accessors"]
+    verts = tris = 0
+    for m in doc["meshes"]:
+        for p in m["primitives"]:
+            verts += acc[p["attributes"]["POSITION"]]["count"]
+            tris += acc[p["indices"]]["count"] // 3 if "indices" in p else acc[p["attributes"]["POSITION"]]["count"] // 3
+    return verts, tris
+
+
+def smooth(out, files, models):
+    """Smooths the built figures, pieces and creatures (not the gear) with Blender: smooth.py."""
+    gear_files = {f"models/{g}.glb" for g in gear.GEAR}
+    with tempfile.TemporaryDirectory() as tmp:
+        # The plain heads hair and hats are smoothed with, as voxels.
+        refs = {}
+        for size, mid in REFERENCE_HEADS.items():
+            make = next(m for i, m, _ in models if i == mid)
+            refs[size] = f"{tmp}/head_{size}.glb"
+            make().export(refs[size])
+        jobs = []
+        for f in sorted(files):
+            if f in gear_files or f == kit.CLIP_FILE:
+                continue
+            name = os.path.basename(f)
+            piece = name.startswith(HEAD_PIECES)
+            jobs.append(dict(file=f"{out}/{f}", mode="head_piece" if piece else "body", head=refs["8" if name.endswith("_8.glb") else "10"] if piece else ""))
+        json.dump(jobs, open(f"{tmp}/jobs.json", "w"))
+        blender = os.environ.get("BLENDER", "blender")
+        done = subprocess.run([blender, "-b", "--factory-startup", "-P", f"{HERE}/smooth.py", "--", f"{tmp}/jobs.json"], capture_output=True, text=True)
+        how = {}
+        for line in done.stdout.splitlines():
+            if line.startswith("SMOOTHED "):
+                _, path, mode, *_ = line.split()
+                how[path] = mode
+        if done.returncode != 0 or len(how) != len(jobs):
+            raise SystemExit(f"smoothing with Blender failed ({len(how)} of {len(jobs)} models):\n{done.stderr[-2000:]}")
+    for job in jobs:
+        f = os.path.relpath(job["file"], out)
+        v, t = glb_counts(job["file"])
+        files[f].update(sha256=sha(job["file"]), vertices=v, triangles=t, shape=how[job["file"]])
+
+
+def build(out, only=None, voxel=False):
     os.makedirs(f"{out}/models", exist_ok=True)
     models, fig = kit.everything()
     defs, files = [], {}
@@ -84,6 +138,8 @@ def build(out, only=None):
         files[f"models/{name}.glb"] = dict(sha256=sha(path), vertices=st["vertices"], triangles=st["triangles"], colors=len(st["colors"]))
         holds.append(dict(file=f"models/{name}.glb", **hold))
     json.dump(holds, open(f"{out}/gear.json", "w"), indent=1)
+    if not voxel:
+        smooth(out, files, models)
     if not only:
         shutil.copy(RIG, f"{out}/{kit.CLIP_FILE}")
         files[kit.CLIP_FILE] = dict(sha256=sha(f"{out}/{kit.CLIP_FILE}"))
@@ -94,6 +150,7 @@ def build(out, only=None):
 def main():
     args = sys.argv[1:]
     check = "--check" in args
+    voxel = "--voxel" in args
     out = args[args.index("--out") + 1] if "--out" in args else None
     only = [a for k, a in enumerate(args) if not a.startswith("--") and (k == 0 or args[k - 1] != "--out")]
     manifest = f"{HERE}/manifest.json"
@@ -108,8 +165,8 @@ def main():
         return
     if not out:
         raise SystemExit(__doc__)
-    defs, files = build(out, only)
-    if not only:
+    defs, files = build(out, only, voxel)
+    if not only and not voxel:
         json.dump(dict(sources=source_hash(), source_files=SOURCES, files=files), open(manifest, "w"), indent=1, sort_keys=True)
     size = sum(os.path.getsize(f"{out}/{f}") for f in files)
     print(f"built {len(defs)} figure and piece definitions and {len(files)} files into {out}: {size // 1024} KB, largest {max(v.get('vertices', 0) for v in files.values())} vertices")

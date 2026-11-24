@@ -964,16 +964,16 @@ fn material_form_sets_edge_rim_and_walking() {
     step(&mut h);
     beside(&h, "Rim", |n| n.role() == Role::CheckBox).click();
     step(&mut h);
-    field(&h, "materials/dirt.png").type_text("x");
+    field(&h, "materials/painted/dirt.png").type_text("x");
     step(&mut h);
     unfocus(&mut h);
     let m = |h: &Harness<'static, Editor>| h.state().project.db.materials[k].clone();
     assert_eq!(m(&h).edge, Edge::Soft);
     assert!(m(&h).rim.is_some());
-    assert_eq!(m(&h).texture, "materials/dirt.pngx");
+    assert_eq!(m(&h).texture, "materials/painted/dirt.pngx");
     // Ctrl+Z takes the typing back; saved, the file has the rest.
     undo(&mut h);
-    assert_eq!(m(&h).texture, "materials/dirt.png");
+    assert_eq!(m(&h).texture, "materials/painted/dirt.png");
     h.state_mut().save_all();
     let saved = Project::load(&root).unwrap().db;
     assert_eq!((saved.materials[k].edge, saved.materials[k].rim.is_some()), (Edge::Soft, true));

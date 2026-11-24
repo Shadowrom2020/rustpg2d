@@ -395,7 +395,13 @@ the western RPGs (Baldur's Gate, Planescape: Torment).
   (`feature/cover`): ground shadows of still 3D models, the see-through cover (props in front of the
   hero, companions and nearby foes fade); part 3 (`feature/fences`): fences and hedges as thin
   blocks along their line (*decided while building:* blocks with the existing pictures instead of
-  kit 3D pieces: they line up exactly and need no art). Next: ground shadows for 3D props and the see-through cover, kit fences and
+  kit 3D pieces: they line up exactly and need no art). Part 4 (`feature/iso-art-batch1`, the
+  user's choice of a smaller first batch, 2026-11-24): the windmill, the bell tower, three stalls,
+  the notice board, the statue and the bench (280 credits: 10 concepts at 4, 8 models at 30; balance
+  5,146), plus the pilot's well, anvil and tavern table; the scripts and results are kept in
+  `scripts/art/meshy/work/iso_batch1/` (git-ignored). *Learned:* concepts whose front faces east
+  (the bench, the notice board) need a quarter turn after fitting; hitboxes stay, the model's front
+  edge goes to the feet. The user decides how to go on. Next: ground shadows for 3D props and the see-through cover, kit fences and
   railings, painted wall and roof textures, then the Meshy run for the one-offs, props and nature.
 
 - [ ] Painted figures — `feature/painted-figures`

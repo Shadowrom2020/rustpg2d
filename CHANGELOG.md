@@ -77,6 +77,13 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   (north to south)* (`fence_section_side`) is the same fence across a tile's middle, and the hedge
   is a low block. The village's cemetery, the farm pen and the fields have fences on all sides
   instead of top-down post pictures.
+- **The first isometric props made with Meshy** (a first batch, 280 credits): the windmill, the
+  bell tower, the produce, fish and bread stalls, the notice board, the statue and the bench, plus
+  the pilot's well, anvil and tavern table, are 3D models in the starter library and the example
+  (`<prop>_3d`; same prop ids and hitboxes, the model's front edge where the picture's was). Made
+  from a concept picture (the old picture and an approved pilot concept as references) and
+  image-to-3D, fitted in Blender (squared to the grid, the south side found by comparing outlines,
+  scaled to a height in pixels).
 ### Visual scripts
 - **Script functions made of nodes** (`defs/visual_scripts.ron`, first part): a visual script is a
   function whose nodes are the script API's functions (a step on the flow, or a value such as

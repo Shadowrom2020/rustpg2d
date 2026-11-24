@@ -399,6 +399,15 @@ the western RPGs (Baldur's Gate, Planescape: Torment).
   scripts (`kitlib.py` smooth meshes and UVs, `figure.py`, `creatures.py`), a retexture step in
   `scripts/art/meshy/`.
 
+  **Progress.** Part 1 (`feature/painted-figures`, no credits): the kit's shapes smoothed by Blender
+  after the voxel build (`scripts/art/kit/smooth.py`: welded, remeshed, Laplacian-smoothed; hair,
+  beards and hats together with a plain head of their size; a fallback to gentle smoothing, then to
+  voxels, where a thin part would melt; colours by the nearest voxel face, weights carried over),
+  applied to the library and the example; soft lighting in the model shader, a softer outline, a
+  shadow under figures. *Decided while building:* smoothing the voxel sculpts instead of lofting new
+  shapes in `kitlib.py`, so every build, piece and creature stays as it is designed. Next: the
+  painted textures (Meshy retexture with the original UVs: needs the kit to write UVs, and credits).
+
   **Verify.** Kit tests (manifest, vertex limits); `model_sheet` contact sheets of every build
   and piece; autoplay: the creator with hair and outfit choices, equipped armour shown, a fight;
   screenshots next to the painted props.

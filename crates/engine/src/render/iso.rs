@@ -164,6 +164,26 @@ pub fn hides(r: Rect, hero: Vec2) -> bool {
     off.x.abs() < near && off.y < near * 0.75
 }
 
+/// A soft round shadow on the ground (through the ground camera, so it lies as an ellipse):
+/// darkest `alpha` in the middle `c`, gone at `radius` world pixels.
+pub fn blob_shadow(c: Vec2, radius: f32, alpha: f32) {
+    const N: u16 = 20;
+    let v = |p: Vec2, a: f32| macroquad::models::Vertex::new(p.x, p.y, 0.0, 0.0, 0.0, Color::new(0.0, 0.0, 0.0, a));
+    let mut vertices = vec![v(c, alpha)];
+    let mut indices = Vec::with_capacity(N as usize * 9);
+    for k in 0..N {
+        let t = k as f32 / N as f32 * std::f32::consts::TAU;
+        let d = vec2(t.cos(), t.sin());
+        vertices.push(v(c + d * radius * 0.55, alpha * 0.7));
+        vertices.push(v(c + d * radius, 0.0));
+    }
+    for k in 0..N {
+        let (i0, o0, i1, o1) = (1 + 2 * k, 2 + 2 * k, 1 + 2 * ((k + 1) % N), 2 + 2 * ((k + 1) % N));
+        indices.extend_from_slice(&[0, i0, i1, i0, o0, o1, i0, o1, i1]);
+    }
+    draw_mesh(&Mesh { vertices, indices, texture: None });
+}
+
 /// The map's border fading into `color` (the background past the edge) over `band` world pixels,
 /// for a map `w` × `h` pixels; drawn on the ground (through the ground camera).
 pub fn border_fade(w: f32, h: f32, band: f32, color: Color) {

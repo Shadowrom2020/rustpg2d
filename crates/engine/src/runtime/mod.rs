@@ -3326,6 +3326,16 @@ impl Game {
         for (_, i) in flats {
             self.draw_entity(i, get_time() as f32);
         }
+        // Soft shadows under the figures, on the ground under everything standing.
+        set_camera(&self.camera());
+        for (drawn, _, _) in &items {
+            let (pos, hitbox) = match *drawn {
+                Drawn::Player if !self.on_title() => (self.player.pos, self.player.hitbox),
+                Drawn::Entity(i) if self.loaded.entities[i].kind == EntityKind::Character => (self.loaded.entities[i].body.pos, self.loaded.entities[i].body.hitbox),
+                _ => continue,
+            };
+            render::iso::blob_shadow(pos - vec2(0.0, hitbox.y * 0.45), hitbox.x.max(ts * 0.5) * 0.8, 0.4);
+        }
         let prints: Vec<render::iso::Footprint> = items.iter().map(|it| it.2).collect();
         let order = render::iso::order(&prints, 0.5);
         let t = get_time() as f32;

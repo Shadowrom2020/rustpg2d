@@ -1,7 +1,7 @@
 //! Drawing 3D character models as 2D images. A pose (model, colours, gear, animation frame,
-//! facing) is rendered once off screen: the skinned model with cel shading (a few light bands, a
-//! colour step), the held items and a carried prop as pictures at its hands, from an orthographic
-//! camera looking down 20°, at the figures' pixel density (2 image pixels per world pixel); then a
+//! facing) is rendered once off screen: the skinned model softly lit (a warm sun from the
+//! north-west over a cool sky, like the pre-rendered props), the held items and a carried prop as pictures at its hands, from an orthographic
+//! camera looking down 30° (portraits 20°), at the figures' pixel density (2 image pixels per world pixel); then a
 //! dark outline is added while it is copied into an atlas page. The world draws that image like a
 //! sprite, so depth sorting, lights, tints and the UI work as for any picture. Pages fill lazily;
 //! when all are full, the page drawn from longest ago is cleared and reused.
@@ -486,10 +486,10 @@ void main() {
     vec4 c = texture2D(Texture, uv) * color;
     if (c.a < 0.5) discard;
     float d = dot(normalize(n), LightDir);
-    float k = d > 0.35 ? 1.0 : (d > -0.2 ? 0.8 : 0.62);
-    vec3 col = c.rgb * mix(1.0, k, Shade);
-    col = floor(col * 15.0 + 0.5) / 15.0;
-    gl_FragColor = vec4(col, 1.0);
+    // Soft light like the pre-rendered props': a warm sun from the north-west over a cool sky.
+    float sun = smoothstep(-0.3, 0.85, d);
+    vec3 light = mix(vec3(0.58, 0.62, 0.72), vec3(1.06, 1.02, 0.93), sun);
+    gl_FragColor = vec4(c.rgb * mix(vec3(1.0), light, Shade), 1.0);
 }
 "#;
 
@@ -620,7 +620,7 @@ impl Models {
         cam2.render_target = Some(out.clone());
         set_camera(&cam2);
         clear_background(Color::new(0.0, 0.0, 0.0, 0.0));
-        let dark = Color::new(0.15, 0.10, 0.09, 1.0);
+        let dark = Color::new(0.15, 0.10, 0.09, 0.5);
         let sz = Some(vec2(size as f32, size as f32));
         for (dx, dy) in [(-1.0, 0.0), (1.0, 0.0), (0.0, -1.0), (0.0, 1.0)] {
             draw_texture_ex(&scratch.texture, dx, dy, dark, DrawTextureParams { dest_size: sz, flip_y: true, ..Default::default() });
@@ -1598,8 +1598,8 @@ fn render(c: &mut Cache, l: &Loaded, parts: &[&Loaded], items: &HashMap<String, 
         tips.push((id.clone(), to_px(*tip)));
     }
     gl_use_default_material();
-    // Into the atlas, with a dark outline: the picture four times shifted by a pixel in a dark
-    // tint, then itself.
+    // Into the atlas, with a soft dark outline: the picture four times shifted by a pixel in a
+    // dark, half-clear tint, then itself (it keeps figures apart from the painted ground).
     let (page, rect) = alloc(c, w + 2, h + 2);
     set_camera(&page_camera(&c.pages[page].rt));
     // (A tint multiplies: this darkens every colour to the outline's dark brown or below.)

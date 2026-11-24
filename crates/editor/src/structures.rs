@@ -357,9 +357,13 @@ impl Editor {
             }
         }
         let _ = CELLS;
-        for (_, s, feet, flip) in structure_pictures(d, &self.project.db) {
+        for (layer, s, feet, flip) in structure_pictures(d, &self.project.db) {
             let feet = mvec2(ox as f32 * ts + feet.x, oy as f32 * ts + feet.y);
-            self.assets.draw_sprite_flipped(&s, feet, tint, flip);
+            if layer == 0 {
+                self.assets.draw_sprite_flipped(&s, feet, tint, flip);
+            } else {
+                self.standing(feet, || self.assets.draw_sprite_flipped(&s, feet, tint, flip));
+            }
         }
         let px = 1.0 / self.cam.zoom;
         draw_rectangle_lines(ox as f32 * ts, oy as f32 * ts, d.w as f32 * ts, d.h as f32 * ts, 2.0 * px, YELLOW);

@@ -131,6 +131,9 @@ pub struct ViewOpts {
     pub weather: bool,
     /// Draws the map's parallax layers (behind and over the map).
     pub parallax: bool,
+    /// Shows the map from straight above (the old flat view) instead of isometric, for painting
+    /// large areas.
+    pub topdown: bool,
 }
 
 pub struct Cam {
@@ -552,7 +555,7 @@ impl Editor {
             capture: Default::default(),
             place_recent: Vec::new(),
             zone_template: ZoneTemplate::Spawn,
-            view: ViewOpts { grid: true, collision: false, zones: true, minimap: true, lighting: false, hour: 22.0, weather: false, parallax: true },
+            view: ViewOpts { grid: true, collision: false, zones: true, minimap: true, lighting: false, hour: 22.0, weather: false, parallax: true, topdown: false },
             light_pass: None,
             weather_fx: Default::default(),
             ground_draw: Default::default(),
@@ -1946,6 +1949,7 @@ impl Editor {
                     ui.checkbox(&mut self.view.lighting, "Lighting preview");
                     ui.checkbox(&mut self.view.weather, "Weather preview");
                     ui.checkbox(&mut self.view.parallax, "Parallax layers");
+                    ui.checkbox(&mut self.view.topdown, "Top-down   I");
                 });
                 ui.menu_button("Play", |ui| {
                     if ui.button(ui::t(ph::PLAY, "Play here   F5")).clicked() {
@@ -2020,6 +2024,7 @@ impl Editor {
                     ui::toggle(ui, &mut self.view.lighting, ph::LIGHTBULB, "Lighting preview", "", "Shows the map's darkness and its lights as in the game (outdoor maps at the hour chosen next to it)");
                     ui::toggle(ui, &mut self.view.weather, ph::CLOUD_RAIN, "Weather preview", "", "Shows the map's rain, snow or fog as in the game (set it in the map's settings: nothing selected)");
                     ui::toggle(ui, &mut self.view.parallax, ph::IMAGES, "Parallax layers", "", "Shows the map's parallax layers (sky, mist, cloud shadows) as in the game; set them in the map's settings (nothing selected)");
+                    ui::toggle(ui, &mut self.view.topdown, ph::SQUARES_FOUR, "Top-down", "I", "Shows the map from straight above instead of isometric, e.g. to paint large areas; the game always shows it isometric");
                     let outdoor = self.doc.as_ref().is_some_and(|d| d.map.lighting.mode == rustpg2d_engine::map::LightMode::Outdoor);
                     if self.view.lighting && outdoor {
                         let mut h = self.view.hour;

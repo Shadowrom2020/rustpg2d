@@ -275,6 +275,9 @@ the western RPGs (Baldur's Gate, Planescape: Torment).
   figures at 30° turned to the diamonds, flat filler props, the border fade, `status view=`.
   *Decided while building:* each standing thing is drawn through its own upright camera (one draw
   call each) instead of a CPU-transformed batch: their drawing code keeps its world coordinates.
+  Part 2 (`feature/iso-editor`): the editor's canvas through the same view (tools, zones, previews
+  and the grid on the diamonds; entities, decorations, ghosts and outlines upright in depth order;
+  picking on the screen; arrow keys and dragging along the screen), *View › Top-down* (I).
 
   **Verify.** Unit tests of the projection (world ↔ screen round trip, picking) and of the
   depth order (a character beside a building's side, behind it, in front of it); autoplay on a

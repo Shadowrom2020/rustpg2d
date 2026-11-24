@@ -1,6 +1,7 @@
 //! The map viewport: camera, mouse tools and drawing.
 
 use macroquad::prelude::*;
+use rustpg2d_engine::render::iso;
 use rustpg2d_engine::entity::{EntityInstance, EntityKind};
 use rustpg2d_engine::map::{CollisionOverride, Edge, Zone, ZoneKind};
 use rustpg2d_engine::render::{self, OVERVIEW_THRESHOLD};
@@ -95,7 +96,39 @@ fn rect_of(a: (i32, i32), b: (i32, i32)) -> (i32, i32, i32, i32) {
 }
 
 impl Editor {
+    /// The canvas's isometric view (`None` while *View › Top-down* is on).
+    pub fn iso(&self) -> Option<iso::View> {
+        (!self.view.topdown).then(|| iso::View::new(self.cam.center, self.cam.zoom / iso::UPRIGHT))
+    }
+
+    /// Runs `f` with the camera of something standing at `feet` (isometric: upright at its
+    /// projected feet, at the zoom's size), then puts the map's camera back.
+    pub fn standing<R>(&self, feet: Vec2, f: impl FnOnce() -> R) -> R {
+        let Some(v) = self.iso() else { return f() };
+        set_camera(&v.upright(feet));
+        let r = f();
+        set_camera(&v.ground());
+        r
+    }
+
+    /// Whether world point `p` (on the ground) lies on what is drawn of entity `e`: its frame
+    /// standing at its feet (isometric: compared on the screen), or lying there (flat props).
+    fn entity_hit(&self, e: &EntityInstance, p: Vec2) -> bool {
+        let r = self.entity_rect(e);
+        let flat = e.kind == EntityKind::Prop && self.project.db.prop(&e.def).is_some_and(|d| d.flat);
+        match self.iso() {
+            Some(v) if !flat => {
+                let (u, f, at) = (v.upright_scale(), v.to_screen(vec2(e.x, e.y)), v.to_screen(p));
+                Rect::new(f.x + (r.x - e.x) * u, f.y + (r.y - e.y) * u, r.w * u, r.h * u).contains(at)
+            }
+            _ => r.contains(p),
+        }
+    }
+
     pub fn camera(&self) -> Camera2D {
+        if let Some(v) = self.iso() {
+            return v.ground();
+        }
         Camera2D {
             target: self.cam.center,
             zoom: vec2(2.0 * self.cam.zoom / screen_width(), 2.0 * self.cam.zoom / screen_height()),
@@ -134,8 +167,8 @@ impl Editor {
 
     fn entity_at(&self, p: Vec2) -> Option<u32> {
         let doc = self.doc.as_ref()?;
-        let mut hits: Vec<&EntityInstance> = doc.map.entities.iter().filter(|e| self.entity_rect(e).contains(p)).collect();
-        hits.sort_by(|a, b| b.y.total_cmp(&a.y));
+        let mut hits: Vec<&EntityInstance> = doc.map.entities.iter().filter(|e| self.entity_hit(e, p)).collect();
+        hits.sort_by(|a, b| (b.x + b.y).total_cmp(&(a.x + a.y)));
         hits.first().map(|e| e.uid)
     }
 
@@ -146,8 +179,8 @@ impl Editor {
         let ts = self.ts();
         let tile = ((p.x / ts).floor() as i32, (p.y / ts).floor() as i32);
         let feet = |e: &EntityInstance| ((e.x / ts).floor() as i32, ((e.y - 0.5) / ts).floor() as i32);
-        let mut ents: Vec<&EntityInstance> = doc.map.entities.iter().filter(|e| self.entity_rect(e).contains(p)).collect();
-        ents.sort_by(|a, b| b.y.total_cmp(&a.y));
+        let mut ents: Vec<&EntityInstance> = doc.map.entities.iter().filter(|e| self.entity_hit(e, p)).collect();
+        ents.sort_by(|a, b| (b.x + b.y).total_cmp(&(a.x + a.y)));
         for e in doc.map.entities.iter().filter(|e| feet(e) == tile) {
             if !ents.iter().any(|x| x.uid == e.uid) {
                 ents.push(e);
@@ -238,6 +271,9 @@ impl Editor {
             if is_key_down(KeyCode::Down) {
                 d.y += 1.0;
             }
+            if self.iso().is_some() {
+                d = iso::screen_dir_to_world(d) * d.length();
+            }
             self.cam.center += d * 600.0 * get_frame_time() / self.cam.zoom;
         }
 
@@ -260,8 +296,13 @@ impl Editor {
             self.drag = Some(Drag::Pan { last: mouse });
             return;
         }
+        let iso_view = self.iso();
         if let Some(Drag::Pan { last }) = &mut self.drag {
-            self.cam.center -= (mouse - *last) / self.cam.zoom;
+            let moved = mouse - *last;
+            self.cam.center -= match iso_view {
+                Some(v) => iso::unproject(moved) / v.scale,
+                None => moved / self.cam.zoom,
+            };
             *last = mouse;
             if !ms.down[M] && !ms.down[L] {
                 self.drag = None;
@@ -358,6 +399,9 @@ impl Editor {
         }
         if is_key_pressed(KeyCode::G) {
             self.view.grid = !self.view.grid;
+        }
+        if is_key_pressed(KeyCode::I) {
+            self.view.topdown = !self.view.topdown;
         }
         // [ and ]: the Ground brush's size, a quarter tile at a time.
         if self.tool == Tool::Ground {
@@ -762,46 +806,82 @@ impl Editor {
                 self.draw_decor(map, i, WHITE);
             }
         }
-        // Entities and decorations (y-sorted).
-        let mut ents: Vec<&EntityInstance> = map
-            .entities
-            .iter()
-            .filter(|e| e.x > view.x - 64.0 && e.x < view.x + view.w + 64.0 && e.y > view.y - 64.0 && e.y < view.y + view.h + 64.0)
-            .collect();
-        // (Flat props first, under everyone, as the game draws them.)
+        // Entities and decorations: flat props and flat decorations lie on the ground under
+        // everyone; the rest stand, in depth order (isometric: `iso::order` with footprints, as the
+        // game draws them; top-down: by y), each drawn upright where its feet are.
         let db = &self.project.db;
-        let key = |e: &EntityInstance| if e.kind == EntityKind::Prop && db.prop(&e.def).is_some_and(|d| d.flat) { e.y - 1.0e7 } else { e.y };
-        ents.sort_by(|a, b| key(a).total_cmp(&key(b)));
-        let sorted_decor = if overview { Vec::new() } else { decor_in(DecorLayer::Sorted) };
-        let mut di = 0;
+        let iso = self.iso();
+        let near = if iso.is_some() { Rect::new(view.x - 6.0 * ts, view.y - 6.0 * ts, view.w + 8.0 * ts, view.h + 8.0 * ts) } else { Rect::new(view.x - 64.0, view.y - 64.0, view.w + 128.0, view.h + 128.0) };
+        let ents: Vec<&EntityInstance> = map.entities.iter().filter(|e| near.contains(vec2(e.x, e.y))).collect();
+        let flat = |e: &EntityInstance| e.kind == EntityKind::Prop && db.prop(&e.def).is_some_and(|d| d.flat);
+        let big = ts * 1.25;
+        let footprint = |feet: Vec2, hitbox: Option<[f32; 2]>| match hitbox {
+            Some([w, h]) if w >= big || h >= big => iso::Footprint::at_feet(feet, w, h),
+            _ => iso::Footprint::at_feet(feet, 0.0, 0.0),
+        };
+        enum Drawn<'a> {
+            Ent(&'a EntityInstance),
+            Decor(usize),
+        }
+        let mut flats: Vec<&EntityInstance> = ents.iter().copied().filter(|e| flat(e)).collect();
+        flats.sort_by(|a, b| a.y.total_cmp(&b.y));
+        let mut items: Vec<(Drawn, Vec2, iso::Footprint)> = Vec::new();
         if ents.len() < 5000 {
-            for e in &ents {
-                while di < sorted_decor.len() && (map.decor[sorted_decor[di]].y as f32) <= key(e) {
-                    self.draw_decor(map, sorted_decor[di], WHITE);
-                    di += 1;
-                }
-                let col = if e.active { WHITE } else { Color::new(1.0, 1.0, 1.0, 0.4) };
-                let pos = vec2(e.x, e.y);
-                let db = &self.project.db;
-                let drawn = match e.kind {
-                    EntityKind::Prop => db.prop(&e.def).is_some_and(|d| self.assets.draw_sprite(d.state_look(d.state_index(&e.state).unwrap_or(0)).0, e.frame, pos, col)),
-                    EntityKind::Character => self.draw_char(&e.def, Some(e), e.facing, pos, col),
-                    EntityKind::Item => db.item(&e.def).is_some_and(|d| self.assets.draw_sprite(&d.icon, 0, pos, col)),
-                };
-                if !drawn {
-                    draw_rectangle(e.x - ts / 2.0, e.y - ts, ts, ts, Color::new(1.0, 0.0, 1.0, 0.6));
+            for e in ents.iter().copied().filter(|e| !flat(e)) {
+                let feet = vec2(e.x, e.y);
+                let hitbox = (e.kind == EntityKind::Prop).then(|| db.prop(&e.def).map(|d| d.hitbox)).flatten();
+                items.push((Drawn::Ent(e), feet, footprint(feet, hitbox)));
+            }
+        } else {
+            flats.clear();
+        }
+        if !overview {
+            for i in decor_in(DecorLayer::Sorted) {
+                let d = &map.decor[i];
+                let prop = map.decor_defs.get(d.def as usize).and_then(|id| db.prop(id));
+                let feet = vec2(d.x as f32, d.y as f32);
+                if prop.is_some_and(|p| p.flat) {
+                    self.draw_decor(map, i, WHITE);
+                } else {
+                    items.push((Drawn::Decor(i), feet, footprint(feet, prop.map(|p| p.hitbox))));
                 }
             }
         }
-        for &i in &sorted_decor[di.min(sorted_decor.len())..] {
-            self.draw_decor(map, i, WHITE);
+        let draw_ent = |e: &EntityInstance| {
+            let col = if e.active { WHITE } else { Color::new(1.0, 1.0, 1.0, 0.4) };
+            let pos = vec2(e.x, e.y);
+            let drawn = match e.kind {
+                EntityKind::Prop => db.prop(&e.def).is_some_and(|d| self.assets.draw_sprite(d.state_look(d.state_index(&e.state).unwrap_or(0)).0, e.frame, pos, col)),
+                EntityKind::Character => self.draw_char(&e.def, Some(e), e.facing, pos, col),
+                EntityKind::Item => db.item(&e.def).is_some_and(|d| self.assets.draw_sprite(&d.icon, 0, pos, col)),
+            };
+            if !drawn {
+                draw_rectangle(e.x - ts / 2.0, e.y - ts, ts, ts, Color::new(1.0, 0.0, 1.0, 0.6));
+            }
+        };
+        for e in flats {
+            draw_ent(e);
+        }
+        let order: Vec<usize> = if iso.is_some() {
+            iso::order(&items.iter().map(|it| it.2).collect::<Vec<_>>(), 0.5)
+        } else {
+            let mut o: Vec<usize> = (0..items.len()).collect();
+            o.sort_by(|&a, &b| items[a].1.y.total_cmp(&items[b].1.y));
+            o
+        };
+        for k in order {
+            let (what, feet, _) = &items[k];
+            self.standing(*feet, || match what {
+                Drawn::Ent(e) => draw_ent(e),
+                Drawn::Decor(i) => self.draw_decor(map, *i, WHITE),
+            });
         }
 
         if !overview {
             // Decorations over everyone (see-through while placing decorations or painting).
             let over = if matches!(self.tool, Tool::Decor | Tool::Ground) { Color::new(1.0, 1.0, 1.0, 0.6) } else { WHITE };
             for i in decor_in(DecorLayer::Above) {
-                self.draw_decor(map, i, over);
+                self.standing(vec2(map.decor[i].x as f32, map.decor[i].y as f32), || self.draw_decor(map, i, over));
             }
         }
         if self.view.parallax {
@@ -962,14 +1042,14 @@ impl Editor {
             let Selection::Entity(uid) = s else { continue };
             if let Some(e) = map.entity(*uid) {
                 let r = self.entity_rect(e);
-                draw_rectangle_lines(r.x - px, r.y - px, r.w + 2.0 * px, r.h + 2.0 * px, 2.0 * px, YELLOW);
+                self.standing(vec2(e.x, e.y), || draw_rectangle_lines(r.x - px, r.y - px, r.w + 2.0 * px, r.h + 2.0 * px, 2.0 * px, YELLOW));
             }
         }
         // Selection outline.
         if let Selection::Entity(uid) = self.sel {
             if let Some(e) = map.entity(uid) {
                 let r = self.entity_rect(e);
-                draw_rectangle_lines(r.x - px, r.y - px, r.w + 2.0 * px, r.h + 2.0 * px, 2.0 * px, YELLOW);
+                self.standing(vec2(e.x, e.y), || draw_rectangle_lines(r.x - px, r.y - px, r.w + 2.0 * px, r.h + 2.0 * px, 2.0 * px, YELLOW));
                 // Collision box (what actually blocks movement).
                 if let Some(hb) = self.entity_hitbox(e) {
                     draw_rectangle(hb.x, hb.y, hb.w, hb.h, Color::new(1.0, 0.5, 0.1, 0.25));
@@ -1022,11 +1102,13 @@ impl Editor {
                     let p = self.snap_entity(self.hover_world, modifier_shift(), wide);
                     if self.entity_at(self.hover_world).is_none() {
                         let ghost = Color::new(1.0, 1.0, 1.0, 0.5);
-                        if self.place_kind == EntityKind::Character {
-                            self.draw_char(&self.place_def, None, rustpg2d_engine::entity::Facing::Down, p, ghost);
-                        } else if let Some(s) = self.def_sprite(self.place_kind, &self.place_def) {
-                            self.assets.draw_sprite(&s, 0, p, ghost);
-                        }
+                        self.standing(p, || {
+                            if self.place_kind == EntityKind::Character {
+                                self.draw_char(&self.place_def, None, rustpg2d_engine::entity::Facing::Down, p, ghost);
+                            } else if let Some(s) = self.def_sprite(self.place_kind, &self.place_def) {
+                                self.assets.draw_sprite(&s, 0, p, ghost);
+                            }
+                        });
                     }
                     draw_circle_lines(p.x, p.y, 3.0 * px, 1.5 * px, YELLOW);
                 }
@@ -1034,13 +1116,17 @@ impl Editor {
                 (None, Tool::Select) => {
                     // Outline what a click would select.
                     let hover = self.objects_at(self.hover_world).into_iter().next();
-                    let r = match hover {
-                        Some(Selection::Entity(uid)) => map.entity(uid).map(|e| self.entity_rect(e)),
-                        Some(Selection::Zone(uid)) => map.zones.iter().find(|z| z.uid == uid).map(|z| z.pixel_rect(ts)),
-                        _ => None,
+                    let (r, feet) = match hover {
+                        Some(Selection::Entity(uid)) => (map.entity(uid).map(|e| self.entity_rect(e)), map.entity(uid).map(|e| vec2(e.x, e.y))),
+                        Some(Selection::Zone(uid)) => (map.zones.iter().find(|z| z.uid == uid).map(|z| z.pixel_rect(ts)), None),
+                        _ => (None, None),
                     };
+                    let outline = |r: Rect| draw_rectangle_lines(r.x, r.y, r.w, r.h, 1.5 * px, Color::new(1.0, 1.0, 1.0, 0.8));
                     match r {
-                        Some(r) if hover != Some(self.sel) => draw_rectangle_lines(r.x, r.y, r.w, r.h, 1.5 * px, Color::new(1.0, 1.0, 1.0, 0.8)),
+                        Some(r) if hover != Some(self.sel) => match feet {
+                            Some(f) => self.standing(f, || outline(r)),
+                            None => outline(r),
+                        },
                         Some(_) => {}
                         None => draw_rectangle_lines(fx, fy, ts, ts, px, Color::new(1.0, 1.0, 1.0, 0.25)),
                     }

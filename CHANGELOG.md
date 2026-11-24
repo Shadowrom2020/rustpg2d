@@ -16,7 +16,7 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   behind characters by their footprint (the *Hitbox*). The map's border fades into its background.
   **Breaking (look):** every project now shows isometrically; square-cornered pictures (houses,
   walls, furniture) stand upright until their isometric art replaces them (the next parts of the
-  0.35.0 roadmap); the editor's map canvas is still top-down.
+  0.35.0 roadmap).
 - **Controls follow the screen**: the movement keys and the stick walk up, down, left and right on
   the screen (up = the map's north-west); the fight's cursor keys and photo mode's camera too.
   Clicking picks the character or prop drawn under the cursor.
@@ -24,6 +24,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   straight edge.
 - Autoplay `status` prints `view=iso:ZOOM@X,Y`.
 
+- **The editor's map is isometric too**: the canvas draws the map as the game does (diamonds,
+  upright props and characters in depth order) and every tool works on it: painting, placing,
+  selecting (by what is drawn under the cursor), regions, zones, structures and paste previews.
+  **View › Top-down** (I, editor script `viewopt topdown on|off`) shows the old flat view for
+  painting large areas.
 ### Visual scripts
 - **Script functions made of nodes** (`defs/visual_scripts.ron`, first part): a visual script is a
   function whose nodes are the script API's functions (a step on the flow, or a value such as

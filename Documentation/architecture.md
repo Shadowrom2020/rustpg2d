@@ -369,6 +369,11 @@ north of the other is farther), so a character beside a building's side is drawn
 are picked on the screen (`entity_screen_rect`: the click rect standing at the feet). Keys and the
 stick move along the screen (`iso::screen_dir_to_world`: up = the map's north-west); click to walk
 is unchanged. Figures are rendered 30° from above and turned `ISO_TURN` (−45°) against the world.
+The editor's canvas (`canvas.rs`) uses the same `iso::View` (`Editor::iso`, `None` while *View ›
+Top-down* is on): `camera()` is its ground camera, so tools, zones and previews drawn in world
+coordinates and the mouse's `screen_to_world` need nothing else; `Editor::standing` wraps what
+stands (entities, sorted / above decorations, ghosts, selection outlines) in its upright camera,
+and `entity_hit` picks entities on the screen.
 
 `draw` runs: the view, parallax layers behind, the painted ground, flat decorations, the map
 border's fade, fish shadows, flat props, then entities, the player, sorted decorations and what

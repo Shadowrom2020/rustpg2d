@@ -20,11 +20,14 @@ From top to bottom:
 - **The ribbon** holds the tools as icon buttons in groups: *Edit* (undo, redo) · *Select* ·
   *Paint* (ground) · *Collision* · *Objects* (decorations, entities, zones, transitions,
   structures) · *View* (grid, collision overlay, zones, minimap, lighting preview, weather preview,
-  parallax layers, fit) · *Play*. Hovering a button shows its
+  parallax layers, top-down, fit) · *Play*. Hovering a button shows its
   name, its shortcut and a one-line how-to.
 - **The left panel** shows the active tool's options (the materials, the decorations' props and
   scatter sets, the entity or structure palette).
-- **The map** in the middle, with a **minimap** in the corner.
+- **The map** in the middle, with a **minimap** in the corner. It shows the map **isometric**, as
+  the game does: the ground as diamonds, everything standing upright at its feet, and the tool
+  previews, zones, selections and the grid on the diamonds. **View › Top-down** (I) shows it from
+  straight above instead, e.g. to paint a large area; the game always shows it isometric.
 - **The right panel** is the **inspector**: the selected entity's or zone's settings, or the map's
   own settings when nothing is selected.
 - **The status bar** shows the tile under the mouse, the zoom, the map's size and counts, and the
@@ -45,7 +48,8 @@ From top to bottom:
 
 | Input | Action |
 |---|---|
-| Mouse wheel, middle-drag, Space+drag, arrow keys | Zoom and pan |
+| Mouse wheel, middle-drag, Space+drag, arrow keys | Zoom and pan (the arrow keys move along the screen) |
+| I | Isometric / top-down view |
 | Right-click (Ground, Decorations) | Pick the material or prop under the cursor |
 | G / Home | Toggle the grid / fit the map into the view |
 | Ctrl+Z / Ctrl+Y | Undo / redo (in the Database mode: definition changes) |

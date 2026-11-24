@@ -84,6 +84,14 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   from a concept picture (the old picture and an approved pilot concept as references) and
   image-to-3D, fitted in Blender (squared to the grid, the south side found by comparing outlines,
   scaled to a height in pixels).
+- **Isometric props from Meshy: furniture, workshop and village props** (about 1,560 credits): 40
+  more props are 3D models (chests, chairs, stools, beds, tables, shelves, racks, the pews and
+  the altar, the smelter, bellows and grindstone, the cauldron and alchemy table, gates, the
+  tent, the watchtower, the fountain, the boat, carts, troughs, hay, wood and laundry), with
+  models for the states that look different (an open chest, an open or destroyed gate, the
+  glowing shrine, a broken crate); chairs, stools and beds share one model turned for each of
+  their props. Furniture made a model no longer draws its old blanket or chair back over the
+  sitter or sleeper. The fit compares the concept's outline and colours to find the model's front.
 ### Visual scripts
 - **Script functions made of nodes** (`defs/visual_scripts.ron`, first part): a visual script is a
   function whose nodes are the script API's functions (a step on the flow, or a value such as

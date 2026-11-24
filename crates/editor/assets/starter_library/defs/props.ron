@@ -16,6 +16,7 @@
                     frame: 1,
                 ),
                 solid: true,
+                model: "chest_open_3d",
             ),
         ],
         hitbox: (28.0, 16.0),
@@ -39,6 +40,7 @@
                 state: "open",
             ),
         )),
+        model: "chest_3d",
     ),
     (
         id: "sign",
@@ -55,6 +57,7 @@
         container: None,
         lock: None,
         low: true,
+        model: "sign_3d",
     ),
     (
         id: "gate",
@@ -73,6 +76,7 @@
                     frame: 15,
                 ),
                 solid: false,
+                model: "gate_open_3d",
             ),
             (
                 name: "destroyed",
@@ -81,6 +85,7 @@
                     frame: 23,
                 ),
                 solid: false,
+                model: "gate_destroyed_3d",
             ),
         ],
         hitbox: (32.0, 32.0),
@@ -98,6 +103,7 @@
             lock_text: "",
             pick_dc: 0,
         )),
+        model: "gate_3d",
     ),
     (
         id: "barrel",
@@ -149,12 +155,14 @@
                     intensity: 0.9,
                     flicker: true,
                 )),
+                model: "shrine_glowing_3d",
             ),
         ],
         hitbox: (80.0, 14.0),
         triggers: [],
         container: None,
         lock: None,
+        model: "shrine_3d",
     ),
     (
         id: "well",
@@ -209,6 +217,7 @@
             ),
         )),
         low: true,
+        model: "chair_3d",
     ),
     (
         id: "chair_up",
@@ -230,11 +239,12 @@
             facing: Up,
             sleep_until: 7.0,
             cover: (
-                sheet: "chairs",
-                frame: 2,
+                sheet: "",
+                frame: 0,
             ),
         )),
         low: true,
+        model: "chair_up_3d",
     ),
     (
         id: "chair_left",
@@ -261,6 +271,7 @@
             ),
         )),
         low: true,
+        model: "chair_left_3d",
     ),
     (
         id: "chair_right",
@@ -287,6 +298,7 @@
             ),
         )),
         low: true,
+        model: "chair_right_3d",
     ),
     (
         id: "bench",
@@ -337,12 +349,12 @@
             facing: Up,
             sleep_until: 7.0,
             cover: (
-                sheet: "props",
-                frame: 77,
-                h: 2,
+                sheet: "",
+                frame: 0,
             ),
         )),
         low: true,
+        model: "bed_3d",
     ),
     (
         id: "bed_side",
@@ -365,12 +377,12 @@
             facing: Left,
             sleep_until: 7.0,
             cover: (
-                sheet: "props",
-                frame: 82,
-                w: 2,
+                sheet: "",
+                frame: 0,
             ),
         )),
         low: true,
+        model: "bed_side_3d",
     ),
     (
         id: "vein_copper",
@@ -888,6 +900,7 @@
             intensity: 0.8,
             flicker: true,
         )),
+        model: "smelter_3d",
     ),
     (
         id: "alchemy_table",
@@ -916,6 +929,7 @@
         container: None,
         lock: None,
         low: true,
+        model: "alchemy_table_3d",
     ),
     (
         id: "double_gate",
@@ -938,6 +952,7 @@
                     h: 2,
                 ),
                 solid: false,
+                model: "double_gate_open_3d",
             ),
         ],
         hitbox: (64.0, 20.0),
@@ -955,6 +970,7 @@
             lock_text: "The gate swings shut.",
             pick_dc: 0,
         )),
+        model: "double_gate_3d",
     ),
     (
         id: "big_oak",
@@ -1103,6 +1119,7 @@
                     h: 4,
                 ),
                 solid: false,
+                model: "vgate_open_3d",
             ),
         ],
         hitbox: (24.0, 96.0),
@@ -1120,6 +1137,7 @@
             lock_text: "",
             pick_dc: 0,
         )),
+        model: "vgate_3d",
     ),
     (
         id: "street_lamp",
@@ -1171,6 +1189,7 @@
                     frame: 3,
                 ),
                 solid: false,
+                model: "crate_broken_3d",
             ),
         ],
         hitbox: (26.0, 18.0),
@@ -1186,6 +1205,7 @@
                 state: "broken",
             ),
         )),
+        model: "crate_3d",
     ),
     (
         id: "pot",
@@ -1473,6 +1493,7 @@
         container: None,
         lock: None,
         low: true,
+        model: "fountain_3d",
     ),
     (
         id: "tent",
@@ -1490,6 +1511,7 @@
         triggers: [],
         container: None,
         lock: None,
+        model: "tent_3d",
     ),
     (
         id: "cart",
@@ -1597,6 +1619,7 @@
         triggers: [],
         container: None,
         lock: None,
+        model: "watchtower_3d",
     ),
     (
         id: "apple_tree",
@@ -2124,6 +2147,7 @@
         ],
         container: None,
         lock: None,
+        model: "millstone_3d",
     ),
     (
         id: "bread_shelf",
@@ -2141,6 +2165,7 @@
         triggers: [],
         container: None,
         lock: None,
+        model: "bread_shelf_3d",
     ),
     (
         id: "potion_shelf",
@@ -2158,6 +2183,7 @@
         triggers: [],
         container: None,
         lock: None,
+        model: "potion_shelf_3d",
     ),
     (
         id: "tool_rack",
@@ -2175,6 +2201,7 @@
         triggers: [],
         container: None,
         lock: None,
+        model: "tool_rack_3d",
     ),
     (
         id: "weapon_rack",
@@ -2192,6 +2219,7 @@
         triggers: [],
         container: None,
         lock: None,
+        model: "weapon_rack_3d",
     ),
     (
         id: "herb_rack",
@@ -2208,6 +2236,7 @@
         triggers: [],
         container: None,
         lock: None,
+        model: "herb_rack_3d",
     ),
     (
         id: "keg_rack",
@@ -2225,6 +2254,7 @@
         container: None,
         lock: None,
         low: true,
+        model: "keg_rack_3d",
     ),
     (
         id: "keg",
@@ -2276,6 +2306,7 @@
         container: None,
         lock: None,
         low: true,
+        model: "dough_table_3d",
     ),
     (
         id: "stool",
@@ -2302,6 +2333,7 @@
             ),
         )),
         low: true,
+        model: "stool_3d",
     ),
     (
         id: "stool_up",
@@ -2328,6 +2360,7 @@
             ),
         )),
         low: true,
+        model: "stool_up_3d",
     ),
     (
         id: "stool_left",
@@ -2354,6 +2387,7 @@
             ),
         )),
         low: true,
+        model: "stool_left_3d",
     ),
     (
         id: "stool_right",
@@ -2380,6 +2414,7 @@
             ),
         )),
         low: true,
+        model: "stool_right_3d",
     ),
     (
         id: "pew",
@@ -2402,12 +2437,12 @@
             facing: Up,
             sleep_until: 7.0,
             cover: (
-                sheet: "village",
-                frame: 166,
-                w: 2,
+                sheet: "",
+                frame: 0,
             ),
         )),
         low: true,
+        model: "pew_3d",
     ),
     (
         id: "altar",
@@ -2425,6 +2460,7 @@
         container: None,
         lock: None,
         low: true,
+        model: "altar_3d",
     ),
     (
         id: "bell_rope",
@@ -2470,6 +2506,7 @@
         container: None,
         lock: None,
         low: true,
+        model: "bellows_3d",
     ),
     (
         id: "grindstone",
@@ -2486,6 +2523,7 @@
         container: None,
         lock: None,
         low: true,
+        model: "grindstone_3d",
     ),
     (
         id: "cauldron",
@@ -2502,6 +2540,7 @@
         container: None,
         lock: None,
         low: true,
+        model: "cauldron_3d",
     ),
     (
         id: "flour_sacks",
@@ -2565,6 +2604,7 @@
         container: None,
         lock: None,
         low: true,
+        model: "flower_box_3d",
     ),
     (
         id: "chicken_coop",
@@ -2582,6 +2622,7 @@
         triggers: [],
         container: None,
         lock: None,
+        model: "chicken_coop_3d",
     ),
     (
         id: "trough",
@@ -2599,6 +2640,7 @@
         container: None,
         lock: None,
         low: true,
+        model: "trough_3d",
     ),
     (
         id: "hay_bale",
@@ -2615,6 +2657,7 @@
         container: None,
         lock: None,
         low: true,
+        model: "hay_bale_3d",
     ),
     (
         id: "beehive",
@@ -2692,6 +2735,7 @@
         container: None,
         lock: None,
         low: true,
+        model: "woodpile_3d",
     ),
     (
         id: "broken_cart",
@@ -2710,6 +2754,7 @@
         container: None,
         lock: None,
         low: true,
+        model: "broken_cart_3d",
     ),
     (
         id: "laundry",
@@ -2727,6 +2772,7 @@
         triggers: [],
         container: None,
         lock: None,
+        model: "laundry_3d",
     ),
     (
         id: "notice_board",
@@ -2762,6 +2808,7 @@
         triggers: [],
         container: None,
         lock: None,
+        model: "fish_rack_3d",
     ),
     (
         id: "fish_barrel",
@@ -2802,6 +2849,7 @@
         container: None,
         lock: None,
         low: true,
+        model: "boat_3d",
     ),
     (
         id: "sign_tavern",
@@ -3066,9 +3114,8 @@
             facing: Up,
             sleep_until: 7.0,
             cover: (
-                sheet: "props",
-                frame: 77,
-                h: 2,
+                sheet: "",
+                frame: 0,
             ),
             conditions: [
                 (
@@ -3081,6 +3128,7 @@
             refuse_text: "This bed is for paying guests. Greta rents rooms at the bar.",
         )),
         low: true,
+        model: "inn_bed_3d",
     ),
     (
         id: "oak_tree",
@@ -3193,6 +3241,7 @@
         container: None,
         lock: None,
         low: true,
+        model: "sawhorse_3d",
     ),
     (
         id: "stone_wall",
@@ -3419,6 +3468,7 @@
         container: None,
         lock: None,
         snap: 32,
+        model: "bookshelf_3d",
     ),
     (
         id: "blue_door",
@@ -3452,6 +3502,7 @@
         lock: None,
         low: true,
         snap: 32,
+        model: "small_table_3d",
     ),
     (
         id: "oak_trunk",
@@ -5761,6 +5812,7 @@
                     frame: 1,
                 ),
                 solid: true,
+                model: "locked_chest_open_3d",
             ),
         ],
         hitbox: (28.0, 16.0),
@@ -5793,6 +5845,7 @@
                 state: "open",
             ),
         )),
+        model: "locked_chest_3d",
     ),
     (
         id: "rough_rock_wall",
@@ -5847,6 +5900,7 @@
                     frame: 1,
                 ),
                 solid: true,
+                model: "chest_trapped_open_3d",
             ),
         ],
         hitbox: (28.0, 16.0),
@@ -5891,6 +5945,7 @@
             text: "A needle pricks your hand!",
             reset: Once,
         )),
+        model: "chest_trapped_3d",
     ),
     (
         id: "dart_statue",
@@ -5907,6 +5962,7 @@
         triggers: [],
         container: None,
         lock: None,
+        model: "dart_statue_3d",
     ),
     (
         id: "snowy_pine",

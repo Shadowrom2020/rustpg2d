@@ -401,7 +401,11 @@ the western RPGs (Baldur's Gate, Planescape: Torment).
   5,146), plus the pilot's well, anvil and tavern table; the scripts and results are kept in
   `scripts/art/meshy/work/iso_batch1/` (git-ignored). *Learned:* concepts whose front faces east
   (the bench, the notice board) need a quarter turn after fitting; hitboxes stay, the model's front
-  edge goes to the feet. The user decides how to go on. Next: ground shadows for 3D props and the see-through cover, kit fences and
+  edge goes to the feet. The user decides how to go on: "do 1 and 2" (the rest of the props, then
+  nature and ground). Part 5 (`feature/iso-art-props`): 40 more props and 6 state models (1,564
+  credits; balance 3,582); turned copies for chairs, stools, beds, the chest variants and the east
+  gate; flames stay pictures. *Learned:* the outline can't tell a chest's front from its back, so
+  every model is checked by eye against its concept (four needed a manual turn). Next: ground shadows for 3D props and the see-through cover, kit fences and
   railings, painted wall and roof textures, then the Meshy run for the one-offs, props and nature.
 
 - [ ] Painted figures — `feature/painted-figures`

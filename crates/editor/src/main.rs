@@ -1677,7 +1677,8 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 "collision" => ed.view.collision = on,
                 "weather" => ed.view.weather = on,
                 "parallax" => ed.view.parallax = on,
-                _ => println!("[script] viewopt: zones|grid|collision|weather|parallax on|off"),
+                "topdown" => ed.view.topdown = on,
+                _ => println!("[script] viewopt: zones|grid|collision|weather|parallax|topdown on|off"),
             }
         }
         // actionsheet SHEET: the sprite sheet of the last Effect / Fly action of the selected

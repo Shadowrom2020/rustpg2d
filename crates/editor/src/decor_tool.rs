@@ -260,7 +260,11 @@ impl Editor {
                     let b = if (b.x - a.x).abs() >= (b.y - a.y).abs() { vec2(b.x, a.y) } else { vec2(a.x, b.y) };
                     draw_line(a.x, a.y, b.x, b.y, 3.0 * px, YELLOW);
                 }
-                self.assets.draw_sprite(&def.sprite, 0, at(world), ghost);
+                if def.flat {
+                    self.assets.draw_sprite(&def.sprite, 0, at(world), ghost);
+                } else {
+                    self.standing(at(world), || self.assets.draw_sprite(&def.sprite, 0, at(world), ghost));
+                }
                 draw_circle_lines(at(world).x, at(world).y, 3.0 * px, 1.5 * px, YELLOW);
             }
             DecorMode::Scatter => draw_circle_lines(world.x, world.y, self.decor.size, 1.5 * px, Color::new(0.4, 1.0, 0.5, 1.0)),

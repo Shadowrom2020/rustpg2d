@@ -4586,6 +4586,62 @@
         triggers: [],
         container: None,
         lock: None,
+        building: Some((
+            height: 64.0,
+            roof: Gable,
+            ridge: Auto,
+            pitch: 0.8,
+            overhang: 6.0,
+            wall: (
+                sheet: "terrain_tiles",
+                frame: 9,
+            ),
+            roof_picture: (
+                sheet: "terrain_tiles",
+                frame: 28,
+            ),
+            openings: [
+                (
+                    side: South,
+                    at: 80.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 11,
+                    ),
+                    size: (28.0, 44.0),
+                ),
+                (
+                    side: South,
+                    at: 48.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 19,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+                (
+                    side: South,
+                    at: 112.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 19,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+                (
+                    side: East,
+                    at: 80.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 19,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+            ],
+        )),
     ),
     (
         id: "cottage_red",
@@ -4601,6 +4657,62 @@
         triggers: [],
         container: None,
         lock: None,
+        building: Some((
+            height: 64.0,
+            roof: Gable,
+            ridge: Auto,
+            pitch: 0.8,
+            overhang: 6.0,
+            wall: (
+                sheet: "terrain_tiles",
+                frame: 9,
+            ),
+            roof_picture: (
+                sheet: "terrain_tiles",
+                frame: 28,
+            ),
+            openings: [
+                (
+                    side: South,
+                    at: 112.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 11,
+                    ),
+                    size: (28.0, 44.0),
+                ),
+                (
+                    side: South,
+                    at: 48.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 19,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+                (
+                    side: South,
+                    at: 176.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 19,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+                (
+                    side: East,
+                    at: 80.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 19,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+            ],
+        )),
     ),
     (
         id: "hall_timber",
@@ -4616,6 +4728,93 @@
         triggers: [],
         container: None,
         lock: None,
+        building: Some((
+            height: 64.0,
+            roof: Gable,
+            ridge: Auto,
+            pitch: 0.8,
+            overhang: 6.0,
+            wall: (
+                sheet: "terrain_tiles",
+                frame: 60,
+            ),
+            roof_picture: (
+                sheet: "terrain_tiles",
+                frame: 48,
+            ),
+            openings: [
+                (
+                    side: South,
+                    at: 176.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 11,
+                    ),
+                    size: (28.0, 44.0),
+                ),
+                (
+                    side: South,
+                    at: 48.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 19,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+                (
+                    side: South,
+                    at: 144.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 19,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+                (
+                    side: South,
+                    at: 240.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 19,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+                (
+                    side: South,
+                    at: 304.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 19,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+                (
+                    side: East,
+                    at: 80.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 19,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+            ],
+            chimneys: [
+                (
+                    at: (304.0, 76.0),
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 42,
+                    ),
+                    size: (14.0, 14.0),
+                    rise: 16.0,
+                ),
+            ],
+        )),
     ),
     (
         id: "house_red",
@@ -4631,6 +4830,83 @@
         triggers: [],
         container: None,
         lock: None,
+        building: Some((
+            height: 64.0,
+            roof: Gable,
+            ridge: Auto,
+            pitch: 0.8,
+            overhang: 6.0,
+            wall: (
+                sheet: "terrain_tiles",
+                frame: 9,
+            ),
+            roof_picture: (
+                sheet: "terrain_tiles",
+                frame: 28,
+            ),
+            openings: [
+                (
+                    side: South,
+                    at: 112.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 11,
+                    ),
+                    size: (28.0, 44.0),
+                ),
+                (
+                    side: South,
+                    at: 48.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 19,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+                (
+                    side: South,
+                    at: 144.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 19,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+                (
+                    side: South,
+                    at: 176.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 19,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+                (
+                    side: East,
+                    at: 80.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 19,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+            ],
+            chimneys: [
+                (
+                    at: (176.0, 76.0),
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 42,
+                    ),
+                    size: (14.0, 14.0),
+                    rise: 16.0,
+                ),
+            ],
+        )),
     ),
     (
         id: "house_stone",
@@ -4646,6 +4922,83 @@
         triggers: [],
         container: None,
         lock: None,
+        building: Some((
+            height: 64.0,
+            roof: Gable,
+            ridge: Auto,
+            pitch: 0.8,
+            overhang: 6.0,
+            wall: (
+                sheet: "terrain_tiles",
+                frame: 8,
+            ),
+            roof_picture: (
+                sheet: "terrain_tiles",
+                frame: 48,
+            ),
+            openings: [
+                (
+                    side: South,
+                    at: 112.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 56,
+                    ),
+                    size: (30.0, 46.0),
+                ),
+                (
+                    side: South,
+                    at: 48.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 55,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+                (
+                    side: South,
+                    at: 144.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 55,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+                (
+                    side: South,
+                    at: 176.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 55,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+                (
+                    side: East,
+                    at: 80.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 55,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+            ],
+            chimneys: [
+                (
+                    at: (176.0, 76.0),
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 42,
+                    ),
+                    size: (14.0, 14.0),
+                    rise: 16.0,
+                ),
+            ],
+        )),
     ),
     (
         id: "chapel_building",
@@ -4661,6 +5014,127 @@
         triggers: [],
         container: None,
         lock: None,
+        building: Some((
+            height: 96.0,
+            roof: Gable,
+            ridge: EastWest,
+            pitch: 0.9,
+            overhang: 8.0,
+            wall: (
+                sheet: "terrain_tiles",
+                frame: 54,
+            ),
+            roof_picture: (
+                sheet: "terrain_tiles",
+                frame: 48,
+            ),
+            base: (
+                sheet: "terrain_tiles",
+                frame: 27,
+            ),
+            base_height: 12.0,
+            openings: [
+                (
+                    side: South,
+                    at: 144.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 56,
+                    ),
+                    size: (36.0, 54.0),
+                ),
+                (
+                    side: South,
+                    at: 48.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 57,
+                    ),
+                    size: (20.0, 40.0),
+                    sill: 34.0,
+                ),
+                (
+                    side: South,
+                    at: 96.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 57,
+                    ),
+                    size: (20.0, 40.0),
+                    sill: 34.0,
+                ),
+                (
+                    side: South,
+                    at: 192.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 57,
+                    ),
+                    size: (20.0, 40.0),
+                    sill: 34.0,
+                ),
+                (
+                    side: South,
+                    at: 240.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 57,
+                    ),
+                    size: (20.0, 40.0),
+                    sill: 34.0,
+                ),
+                (
+                    side: East,
+                    at: 112.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 57,
+                    ),
+                    size: (28.0, 48.0),
+                    sill: 40.0,
+                ),
+                (
+                    side: East,
+                    at: 112.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 57,
+                    ),
+                    size: (16.0, 24.0),
+                    sill: 104.0,
+                ),
+                (
+                    side: West,
+                    at: 112.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 57,
+                    ),
+                    size: (28.0, 48.0),
+                    sill: 40.0,
+                ),
+                (
+                    side: North,
+                    at: 96.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 57,
+                    ),
+                    size: (20.0, 40.0),
+                    sill: 34.0,
+                ),
+                (
+                    side: North,
+                    at: 192.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 57,
+                    ),
+                    size: (20.0, 40.0),
+                    sill: 34.0,
+                ),
+            ],
+        )),
     ),
     (
         id: "farmhouse_thatched",
@@ -4676,6 +5150,72 @@
         triggers: [],
         container: None,
         lock: None,
+        building: Some((
+            height: 64.0,
+            roof: Gable,
+            ridge: Auto,
+            pitch: 1.0,
+            overhang: 10.0,
+            wall: (
+                sheet: "terrain_tiles",
+                frame: 9,
+            ),
+            roof_picture: (
+                sheet: "terrain_tiles",
+                frame: 50,
+            ),
+            openings: [
+                (
+                    side: South,
+                    at: 112.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 11,
+                    ),
+                    size: (28.0, 44.0),
+                ),
+                (
+                    side: South,
+                    at: 48.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 19,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+                (
+                    side: South,
+                    at: 144.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 19,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+                (
+                    side: South,
+                    at: 176.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 19,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+                (
+                    side: East,
+                    at: 80.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 19,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+            ],
+        )),
     ),
     (
         id: "cottage_stone_thatched",
@@ -4691,6 +5231,62 @@
         triggers: [],
         container: None,
         lock: None,
+        building: Some((
+            height: 64.0,
+            roof: Gable,
+            ridge: Auto,
+            pitch: 1.0,
+            overhang: 10.0,
+            wall: (
+                sheet: "terrain_tiles",
+                frame: 8,
+            ),
+            roof_picture: (
+                sheet: "terrain_tiles",
+                frame: 50,
+            ),
+            openings: [
+                (
+                    side: South,
+                    at: 80.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 56,
+                    ),
+                    size: (30.0, 46.0),
+                ),
+                (
+                    side: South,
+                    at: 48.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 55,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+                (
+                    side: South,
+                    at: 112.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 55,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+                (
+                    side: East,
+                    at: 80.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 55,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+            ],
+        )),
     ),
     (
         id: "house_red_small",
@@ -4706,6 +5302,73 @@
         triggers: [],
         container: None,
         lock: None,
+        building: Some((
+            height: 64.0,
+            roof: Gable,
+            ridge: Auto,
+            pitch: 0.8,
+            overhang: 6.0,
+            wall: (
+                sheet: "terrain_tiles",
+                frame: 9,
+            ),
+            roof_picture: (
+                sheet: "terrain_tiles",
+                frame: 28,
+            ),
+            openings: [
+                (
+                    side: South,
+                    at: 96.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 11,
+                    ),
+                    size: (28.0, 44.0),
+                ),
+                (
+                    side: South,
+                    at: 48.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 19,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+                (
+                    side: South,
+                    at: 144.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 19,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+                (
+                    side: East,
+                    at: 80.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 19,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+            ],
+            chimneys: [
+                (
+                    at: (144.0, 76.0),
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 42,
+                    ),
+                    size: (14.0, 14.0),
+                    rise: 16.0,
+                ),
+            ],
+        )),
     ),
     (
         id: "cottage_thatched",
@@ -4721,6 +5384,62 @@
         triggers: [],
         container: None,
         lock: None,
+        building: Some((
+            height: 64.0,
+            roof: Gable,
+            ridge: Auto,
+            pitch: 1.0,
+            overhang: 10.0,
+            wall: (
+                sheet: "terrain_tiles",
+                frame: 9,
+            ),
+            roof_picture: (
+                sheet: "terrain_tiles",
+                frame: 50,
+            ),
+            openings: [
+                (
+                    side: South,
+                    at: 80.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 11,
+                    ),
+                    size: (28.0, 44.0),
+                ),
+                (
+                    side: South,
+                    at: 48.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 19,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+                (
+                    side: South,
+                    at: 112.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 19,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+                (
+                    side: East,
+                    at: 80.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 19,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+            ],
+        )),
     ),
     (
         id: "house_stone_small",
@@ -4736,6 +5455,73 @@
         triggers: [],
         container: None,
         lock: None,
+        building: Some((
+            height: 64.0,
+            roof: Gable,
+            ridge: Auto,
+            pitch: 0.8,
+            overhang: 6.0,
+            wall: (
+                sheet: "terrain_tiles",
+                frame: 8,
+            ),
+            roof_picture: (
+                sheet: "terrain_tiles",
+                frame: 48,
+            ),
+            openings: [
+                (
+                    side: South,
+                    at: 80.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 56,
+                    ),
+                    size: (30.0, 46.0),
+                ),
+                (
+                    side: South,
+                    at: 48.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 55,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+                (
+                    side: South,
+                    at: 112.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 55,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+                (
+                    side: East,
+                    at: 80.0,
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 55,
+                    ),
+                    size: (24.0, 24.0),
+                    sill: 36.0,
+                ),
+            ],
+            chimneys: [
+                (
+                    at: (112.0, 76.0),
+                    picture: (
+                        sheet: "terrain_tiles",
+                        frame: 42,
+                    ),
+                    size: (14.0, 14.0),
+                    rise: 16.0,
+                ),
+            ],
+        )),
     ),
     (
         id: "window_glow",
@@ -4889,7 +5675,7 @@
                 solid: false,
             ),
         ],
-        hitbox: (32.0, 14.0),
+        hitbox: (32.0, 4.0),
         triggers: [],
         container: None,
         lock: None,
@@ -4904,6 +5690,7 @@
                 state: "open",
             ),
         )),
+        block: 46.0,
     ),
     (
         id: "front_door",
@@ -4924,7 +5711,7 @@
                 solid: false,
             ),
         ],
-        hitbox: (30.0, 14.0),
+        hitbox: (30.0, 4.0),
         triggers: [],
         container: None,
         lock: None,
@@ -4939,6 +5726,7 @@
                 state: "open",
             ),
         )),
+        block: 46.0,
     ),
     (
         id: "locked_chest",
@@ -5562,5 +6350,221 @@
         container: None,
         lock: None,
         low: true,
+    ),
+    (
+        id: "plaster_panel_thin",
+        name: "Plaster panel (thin)",
+        sprite: (
+            sheet: "terrain_tiles",
+            frame: 9,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [],
+        hitbox: (32.0, 8.0),
+        triggers: [],
+        container: None,
+        lock: None,
+        snap: 32,
+        block: 48.0,
+    ),
+    (
+        id: "plaster_panel_thin_side",
+        name: "Plaster panel (thin, north to south)",
+        sprite: (
+            sheet: "terrain_tiles",
+            frame: 9,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [],
+        hitbox: (8.0, 32.0),
+        triggers: [],
+        container: None,
+        lock: None,
+        snap: 8,
+        block: 48.0,
+    ),
+    (
+        id: "plaster_window_thin",
+        name: "Window (thin)",
+        sprite: (
+            sheet: "terrain_tiles",
+            frame: 19,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [],
+        hitbox: (32.0, 8.0),
+        triggers: [],
+        container: None,
+        lock: None,
+        light: Some((
+            radius: 1.8,
+            color: (255, 205, 130),
+            intensity: 0.7,
+            flicker: false,
+        )),
+        snap: 32,
+        block: 48.0,
+    ),
+    (
+        id: "plaster_window_thin_side",
+        name: "Window (thin, north to south)",
+        sprite: (
+            sheet: "terrain_tiles",
+            frame: 19,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [],
+        hitbox: (8.0, 32.0),
+        triggers: [],
+        container: None,
+        lock: None,
+        light: Some((
+            radius: 1.8,
+            color: (255, 205, 130),
+            intensity: 0.7,
+            flicker: false,
+        )),
+        snap: 8,
+        block: 48.0,
+    ),
+    (
+        id: "grey_stone_wall_thin",
+        name: "Grey stone wall (thin)",
+        sprite: (
+            sheet: "terrain_tiles",
+            frame: 8,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [],
+        hitbox: (32.0, 8.0),
+        triggers: [],
+        container: None,
+        lock: None,
+        snap: 32,
+        block: 48.0,
+    ),
+    (
+        id: "grey_stone_wall_thin_side",
+        name: "Grey stone wall (thin, north to south)",
+        sprite: (
+            sheet: "terrain_tiles",
+            frame: 8,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [],
+        hitbox: (8.0, 32.0),
+        triggers: [],
+        container: None,
+        lock: None,
+        snap: 8,
+        block: 48.0,
+    ),
+    (
+        id: "lit_window_thin",
+        name: "Lit window (thin)",
+        sprite: (
+            sheet: "terrain_tiles",
+            frame: 55,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [],
+        hitbox: (32.0, 8.0),
+        triggers: [],
+        container: None,
+        lock: None,
+        snap: 32,
+        block: 48.0,
+    ),
+    (
+        id: "lit_window_thin_side",
+        name: "Lit window (thin, north to south)",
+        sprite: (
+            sheet: "terrain_tiles",
+            frame: 55,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [],
+        hitbox: (8.0, 32.0),
+        triggers: [],
+        container: None,
+        lock: None,
+        snap: 8,
+        block: 48.0,
+    ),
+    (
+        id: "timber_frame_thin",
+        name: "Timber frame (thin)",
+        sprite: (
+            sheet: "terrain_tiles",
+            frame: 60,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [],
+        hitbox: (32.0, 8.0),
+        triggers: [],
+        container: None,
+        lock: None,
+        snap: 32,
+        block: 48.0,
+    ),
+    (
+        id: "timber_frame_thin_side",
+        name: "Timber frame (thin, north to south)",
+        sprite: (
+            sheet: "terrain_tiles",
+            frame: 60,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [],
+        hitbox: (8.0, 32.0),
+        triggers: [],
+        container: None,
+        lock: None,
+        snap: 8,
+        block: 48.0,
+    ),
+    (
+        id: "stained_glass_window_thin",
+        name: "Stained-glass window (thin)",
+        sprite: (
+            sheet: "terrain_tiles",
+            frame: 57,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [],
+        hitbox: (32.0, 8.0),
+        triggers: [],
+        container: None,
+        lock: None,
+        snap: 32,
+        block: 48.0,
+    ),
+    (
+        id: "stained_glass_window_thin_side",
+        name: "Stained-glass window (thin, north to south)",
+        sprite: (
+            sheet: "terrain_tiles",
+            frame: 57,
+        ),
+        solid: true,
+        default_state: "default",
+        states: [],
+        hitbox: (8.0, 32.0),
+        triggers: [],
+        container: None,
+        lock: None,
+        snap: 8,
+        block: 48.0,
     ),
 ]

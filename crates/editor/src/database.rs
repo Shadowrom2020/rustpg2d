@@ -1,6 +1,6 @@
 //! Definition editors: items, props, characters, materials, sprite sheets, sounds, project and scripts.
 
-use egui_macroquad::egui::{self, vec2, Color32, Sense};
+use egui_macroquad::egui::{self, pos2, vec2, Color32, Sense};
 
 use crate::ui::{self, ph};
 use rustpg2d_engine::audio::Audio;
@@ -1986,6 +1986,8 @@ fn prop_form(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
         }
     });
     ui.separator();
+    building_ui(ui, d, cx);
+    ui.separator();
     carry_ui(ui, d, cx);
     ui.separator();
     ui.heading("Light");
@@ -2219,6 +2221,287 @@ fn use_spot_ui(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
 
 /// Pictures of the default state from the other three sides (`PropDef::turns`): placed copies
 /// then turn in quarters like props with a 3D model.
+/// What a click on the building plan adds.
+#[derive(Clone, Copy, PartialEq, Eq, Default)]
+enum PlanTool {
+    #[default]
+    Window,
+    Door,
+    Chimney,
+}
+
+/// The building editor: a prop built from walls and a roof (`PropDef::building`). A plan of the
+/// footprint where clicks add windows, doors and chimneys, the shape's fields, and the 3D model
+/// as the game draws it, rebuilt while editing.
+fn building_ui(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
+    ui.heading("Building");
+    let mut on = d.building.is_some();
+    let before = d.building.clone();
+    if ui.checkbox(&mut on, "Built from walls and a roof").on_hover_text("A house, a hall, a barn: walls around the hitbox (width east to west, depth north to south), a roof over them, doors, windows and chimneys. The engine builds its 3D model; placed copies turn with R like any model. Its picture above stays its icon.").changed() {
+        d.building = on.then(|| BuildingShape { height: 64.0, ..Default::default() });
+        if on && d.hitbox[0] < 64.0 {
+            d.hitbox = [160.0, 128.0];
+        }
+        if on {
+            d.solid = true;
+        }
+    }
+    let (id, name, hitbox) = (d.id.clone(), d.name.clone(), d.hitbox);
+    let Some(b) = d.building.as_mut() else { return };
+    let key = egui::Id::new(("building_tool", d.id.clone()));
+    let mut tool: PlanTool = ui.ctx().data(|m| m.get_temp(key)).unwrap_or_default();
+    let turn_key = egui::Id::new(("building_turn", d.id.clone()));
+    let mut turn: usize = ui.ctx().data(|m| m.get_temp(turn_key)).unwrap_or(0);
+    // Other buildings to copy the look of.
+    let others: Vec<(String, String)> = cx.db.props.iter().filter(|p| p.id != d.id && p.building.is_some()).map(|p| (p.id.clone(), p.name.clone())).collect();
+    if !others.is_empty() {
+        egui::ComboBox::from_id_salt("building_copy").selected_text("Copy the look of…").show_ui(ui, |ui| {
+            for (id, name) in &others {
+                if ui.selectable_label(false, format!("{name} ({id})")).clicked() {
+                    if let Some(o) = cx.db.prop(id).and_then(|p| p.building.clone()) {
+                        *b = BuildingShape { openings: std::mem::take(&mut b.openings), chimneys: std::mem::take(&mut b.chimneys), ..o };
+                    }
+                }
+            }
+        }).response.on_hover_text("Walls, roof, base, trim, heights and pitch of another building (its doors, windows and chimneys stay)");
+    }
+    ui.horizontal(|ui| {
+        ui.label("Footprint");
+        ui.add(egui::DragValue::new(&mut d.hitbox[0]).range(32.0..=480.0).speed(1.0).suffix(" px wide"));
+        ui.add(egui::DragValue::new(&mut d.hitbox[1]).range(32.0..=480.0).speed(1.0).suffix(" px deep"));
+    }).response.on_hover_text("The hitbox: a tile is 32 px, a person about 40 px tall. Width plus depth up to about 600 px.");
+    ui.horizontal(|ui| {
+        ui.label("Walls");
+        ui.add(egui::DragValue::new(&mut b.height).range(16.0..=256.0).speed(1.0).suffix(" px high"));
+        ui.label("Roof");
+        egui::ComboBox::from_id_salt("building_roof").selected_text(roof_label(b.roof)).show_ui(ui, |ui| {
+            for k in [RoofKind::Gable, RoofKind::Hip, RoofKind::Shed, RoofKind::Flat] {
+                ui.selectable_value(&mut b.roof, k, roof_label(k));
+            }
+        });
+        if b.roof != RoofKind::Flat {
+            egui::ComboBox::from_id_salt("building_ridge")
+                .selected_text(match b.ridge {
+                    Ridge::Auto => "along the longer side",
+                    Ridge::EastWest => "ridge east-west",
+                    Ridge::NorthSouth => "ridge north-south",
+                })
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut b.ridge, Ridge::Auto, "along the longer side");
+                    ui.selectable_value(&mut b.ridge, Ridge::EastWest, "ridge east-west");
+                    ui.selectable_value(&mut b.ridge, Ridge::NorthSouth, "ridge north-south");
+                });
+        }
+    });
+    ui.horizontal(|ui| {
+        if b.roof != RoofKind::Flat {
+            ui.label("Pitch");
+            ui.add(egui::Slider::new(&mut b.pitch, 0.2..=1.6).step_by(0.05)).on_hover_text("The roof's rise per pixel across: 1 = 45 degrees");
+        }
+        ui.label("Overhang");
+        ui.add(egui::DragValue::new(&mut b.overhang).range(0.0..=32.0).speed(0.5).suffix(" px"));
+    });
+    ui.horizontal(|ui| {
+        ui.label("Base");
+        ui.add(egui::DragValue::new(&mut b.base_height).range(0.0..=64.0).speed(0.5).suffix(" px high")).on_hover_text("A band along the bottom of the walls (stone under timber), 0 = none");
+    });
+    egui::Grid::new("building_pictures").num_columns(2).show(ui, |ui| {
+        let rows: [(&str, &str, &mut SpriteRef); 5] = [
+            ("Walls", "building_wall", &mut b.wall),
+            ("Roof", "building_roof_pic", &mut b.roof_picture),
+            ("Gables", "building_gable", &mut b.gable),
+            ("Base", "building_base", &mut b.base),
+            ("Trim", "building_trim", &mut b.trim),
+        ];
+        for (label, id, sp) in rows {
+            ui.label(label).on_hover_text(match label {
+                "Walls" => "Tiled over the walls",
+                "Roof" => "Tiled over the roof, its top towards the ridge",
+                "Gables" => "The walls' triangles under a gable roof (empty: the walls' picture)",
+                "Base" => "The band along the bottom (needs a base height)",
+                _ => "The boards along the roof's edges (empty: the roof's picture, darker)",
+            });
+            widgets::sprite_field(ui, id, sp, cx.tex, cx.assets, cx.db, false);
+            ui.end_row();
+        }
+    });
+    // The plan: north up, clicks on a wall add a window or door there, inside a chimney.
+    ui.horizontal(|ui| {
+        ui.label("Click on the plan to add:");
+        ui.selectable_value(&mut tool, PlanTool::Window, "Window");
+        ui.selectable_value(&mut tool, PlanTool::Door, "Door");
+        ui.selectable_value(&mut tool, PlanTool::Chimney, "Chimney");
+    });
+    ui.horizontal_top(|ui| {
+        ui.vertical(|ui| {
+    let [fw, fd] = d.hitbox;
+            let avail = 360.0f32;
+            let k = ((avail - 40.0) / fw).min(220.0 / fd).max(0.2);
+            let (resp, painter) = ui.allocate_painter(vec2(fw * k + 40.0, fd * k + 40.0), Sense::click());
+            let o = resp.rect.min + vec2(20.0, 20.0);
+            let plan = egui::Rect::from_min_size(o, vec2(fw * k, fd * k));
+            painter.rect_filled(plan, 0.0, Color32::from_rgb(70, 64, 58));
+            painter.rect_stroke(plan, 0.0, egui::Stroke::new(3.0f32, Color32::from_rgb(200, 190, 170)), egui::StrokeKind::Middle);
+            painter.text(plan.center_top() - vec2(0.0, 10.0), egui::Align2::CENTER_CENTER, "N", egui::FontId::proportional(11.0), Color32::GRAY);
+            let wall_point = |op: &Opening| -> egui::Pos2 {
+                match op.side {
+                    WallSide::South => pos2(o.x + op.at * k, plan.max.y),
+                    WallSide::North => pos2(o.x + op.at * k, plan.min.y),
+                    WallSide::West => pos2(plan.min.x, o.y + op.at * k),
+                    WallSide::East => pos2(plan.max.x, o.y + op.at * k),
+                }
+            };
+            for op in &b.openings {
+                let p = wall_point(op);
+                let half = op.size[0] * k / 2.0;
+                let (a, c) = match op.side {
+                    WallSide::South | WallSide::North => (p - vec2(half, 0.0), p + vec2(half, 0.0)),
+                    _ => (p - vec2(0.0, half), p + vec2(0.0, half)),
+                };
+                let col = if op.sill <= 0.0 { Color32::from_rgb(150, 100, 60) } else { Color32::from_rgb(140, 190, 230) };
+                painter.line_segment([a, c], egui::Stroke::new(6.0f32, col));
+            }
+            for c in &b.chimneys {
+                let r = egui::Rect::from_center_size(pos2(o.x + c.at[0] * k, o.y + c.at[1] * k), vec2(c.size[0] * k, c.size[1] * k));
+                painter.rect_filled(r, 0.0, Color32::from_rgb(150, 80, 60));
+            }
+            resp.clone().on_hover_text("Click on a wall to add a window or door there, inside for a chimney; right-click one to remove it");
+            let hit = |p: egui::Pos2| -> Option<(WallSide, f32)> {
+                let q = ((p - o) / k).to_pos2();
+                let near = 8.0 / k;
+                if (q.y - fd).abs() < near && (0.0..=fw).contains(&q.x) {
+                    Some((WallSide::South, q.x))
+                } else if q.y.abs() < near && (0.0..=fw).contains(&q.x) {
+                    Some((WallSide::North, q.x))
+                } else if q.x.abs() < near && (0.0..=fd).contains(&q.y) {
+                    Some((WallSide::West, q.y))
+                } else if (q.x - fw).abs() < near && (0.0..=fd).contains(&q.y) {
+                    Some((WallSide::East, q.y))
+                } else {
+                    None
+                }
+            };
+            if let Some(p) = resp.interact_pointer_pos() {
+                if resp.clicked() {
+                    match (tool, hit(p)) {
+                        (PlanTool::Chimney, _) => {
+                            let q = (p - o) / k;
+                            if (0.0..=fw).contains(&q.x) && (0.0..=fd).contains(&q.y) {
+                                let picture = b.chimneys.last().map(|c| c.picture.clone()).unwrap_or_default();
+                                b.chimneys.push(Chimney { at: [q.x.round(), q.y.round()], picture, size: [14.0, 14.0], rise: 14.0 });
+                            }
+                        }
+                        (t, Some((side, at))) => {
+                            let door = t == PlanTool::Door;
+                            // Like the last of its kind.
+                            let like = b.openings.iter().rev().find(|op| (op.sill <= 0.0) == door).cloned();
+                            let (picture, size, sill) = like.map_or((SpriteRef::default(), if door { [26.0, 40.0] } else { [24.0, 24.0] }, if door { 0.0 } else { 24.0 }), |l| (l.picture, l.size, l.sill));
+                            b.openings.push(Opening { side, at: at.round(), picture, size, sill });
+                        }
+                        _ => {}
+                    }
+                } else if resp.secondary_clicked() {
+                    let q = (p - o) / k;
+                    if let Some(i) = b.chimneys.iter().position(|c| (c.at[0] - q.x).abs() < c.size[0] / 2.0 + 4.0 / k && (c.at[1] - q.y).abs() < c.size[1] / 2.0 + 4.0 / k) {
+                        b.chimneys.remove(i);
+                    } else if let Some(i) = b.openings.iter().position(|op| (wall_point(op) - p).length() < (op.size[0] * k / 2.0).max(8.0)) {
+                        b.openings.remove(i);
+                    }
+                }
+            }
+        });
+        // The model as the game draws it, rebuilt when anything changed.
+        if before.as_ref() != Some(&*b) || !cx.assets.models.has(&rustpg2d_engine::building::model_id(&id)) {
+            cx.assets.rebuild_building(&PropDef { id: id.clone(), name: name.clone(), hitbox, building: Some(b.clone()), ..Default::default() });
+        }
+        ui.vertical(|ui| {
+            let facing = [rustpg2d_engine::entity::Facing::Down, rustpg2d_engine::entity::Facing::Left, rustpg2d_engine::entity::Facing::Up, rustpg2d_engine::entity::Facing::Right][turn % 4];
+            let look = Appearance { model: rustpg2d_engine::building::model_id(&id), ..Default::default() };
+            let gear = rustpg2d_engine::render::model::Gear::default();
+            let req = rustpg2d_engine::render::model::PoseReq { look: &look, gear: &gear, anim: "idle", time: 0.0, once: false, facing, turn: 0, bust: false };
+            let (rect, _) = ui.allocate_exact_size(vec2(400.0, 280.0), Sense::hover());
+            ui.painter().rect_filled(rect, 4.0, Color32::from_rgb(58, 74, 52));
+            // (The UI tests run without a window: nothing renders there.)
+            if !ui::headless() && !widgets::paint_model_whole(ui, cx.assets, cx.db, &req, rect.shrink(8.0)) {
+                ui.ctx().request_repaint();
+            }
+            if ui::icon_button(ui, true, ph::ARROW_CLOCKWISE, "Turn", "", "Shows the building turned a quarter further, as placed copies turn with R").clicked() {
+                turn = (turn + 1) % 4;
+            }
+        });
+    });
+    // Each door and window, each chimney.
+    let mut remove = None;
+    for (i, op) in b.openings.iter_mut().enumerate() {
+        ui.push_id(("opening", i), |ui| {
+            ui.horizontal(|ui| {
+                ui.label(if op.sill <= 0.0 { "Door" } else { "Window" });
+                egui::ComboBox::from_id_salt("side").width(64.0).selected_text(side_label(op.side)).show_ui(ui, |ui| {
+                    for s in [WallSide::South, WallSide::East, WallSide::North, WallSide::West] {
+                        ui.selectable_value(&mut op.side, s, side_label(s));
+                    }
+                });
+                ui.add(egui::DragValue::new(&mut op.at).speed(1.0).prefix("at ").suffix(" px")).on_hover_text("Its middle: from the wall's west end (south and north walls) or north end (east and west walls)");
+                ui.add(egui::DragValue::new(&mut op.size[0]).range(4.0..=128.0).speed(0.5).suffix(" w"));
+                ui.add(egui::DragValue::new(&mut op.size[1]).range(4.0..=128.0).speed(0.5).suffix(" h"));
+                ui.add(egui::DragValue::new(&mut op.sill).range(0.0..=128.0).speed(0.5).prefix("sill ")).on_hover_text("How high its bottom is (0 = a door)");
+                if ui::icon_button(ui, true, ph::TRASH, "Remove", "", "Takes it out of the building").clicked() {
+                    remove = Some(i);
+                }
+            });
+            widgets::sprite_field(ui, "opening_picture", &mut op.picture, cx.tex, cx.assets, cx.db, true);
+        });
+    }
+    if let Some(i) = remove {
+        b.openings.remove(i);
+    }
+    let mut remove = None;
+    for (i, c) in b.chimneys.iter_mut().enumerate() {
+        ui.push_id(("chimney", i), |ui| {
+            ui.horizontal(|ui| {
+                ui.label("Chimney");
+                ui.add(egui::DragValue::new(&mut c.at[0]).speed(1.0).prefix("x "));
+                ui.add(egui::DragValue::new(&mut c.at[1]).speed(1.0).prefix("y "));
+                ui.add(egui::DragValue::new(&mut c.size[0]).range(4.0..=64.0).speed(0.5).suffix(" w"));
+                ui.add(egui::DragValue::new(&mut c.size[1]).range(4.0..=64.0).speed(0.5).suffix(" d"));
+                ui.add(egui::DragValue::new(&mut c.rise).range(0.0..=96.0).speed(0.5).prefix("rise "));
+                if ui::icon_button(ui, true, ph::TRASH, "Remove", "", "Takes it out of the building").clicked() {
+                    remove = Some(i);
+                }
+            });
+            widgets::sprite_field(ui, "chimney_picture", &mut c.picture, cx.tex, cx.assets, cx.db, false);
+        });
+    }
+    if let Some(i) = remove {
+        b.chimneys.remove(i);
+    }
+    if d.building != before || d.hitbox != hitbox {
+        cx.assets.rebuild_building(d);
+    }
+    ui.ctx().data_mut(|m| {
+        m.insert_temp(key, tool);
+        m.insert_temp(turn_key, turn);
+    });
+}
+
+fn roof_label(k: RoofKind) -> &'static str {
+    match k {
+        RoofKind::Gable => "Gable",
+        RoofKind::Hip => "Hip",
+        RoofKind::Shed => "Shed",
+        RoofKind::Flat => "Flat",
+    }
+}
+
+fn side_label(s: WallSide) -> &'static str {
+    match s {
+        WallSide::South => "South",
+        WallSide::East => "East",
+        WallSide::North => "North",
+        WallSide::West => "West",
+    }
+}
+
 fn turned_pictures_ui(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
     ui.add_space(4.0);
     let on = !d.turns.is_empty();

@@ -489,7 +489,14 @@ editor windows ask macroquad for bigger draw calls (`DRAW_VERTICES`, `DRAW_INDIC
 one mesh. Model textures are reduced to 32 colours when loaded (`model::quantize`), so colour
 features pick exact shades of it (`recolor.rs`: each shade by its brightness relative to the
 feature's middle shade); models without textures get a palette texel per
-material. Items' 3D models (`ItemDef.model`) load with the character models and are drawn in the
+material; models 96 px and taller (big props) keep 512 px and 48 colours (`model::BIG_MODEL`).
+**Buildings** (`building.rs`) are props with a `BuildingShape`: `building::build` makes a still
+`Model` (`Model::still`: one joint, no clips; units are tiles, x east, y up, z south, the origin in
+the footprint's middle) from the hitbox, walls, roof planes, door and window quads and chimney
+boxes, each face cut along its picture's size (`clip`, Sutherland-Hodgman) so every piece maps
+onto one cell of a packed texture atlas; `Models::load` registers it as `@building:<prop>`
+(`PropDef::model_at` names it), the editor rebuilds one while its form changes
+(`Assets::rebuild_building`, pictures from the loaded sheets). Items' 3D models (`ItemDef.model`) load with the character models and are drawn in the
 pose's scene, turned so their handle lies on the hand's grip axis. Unrigged models with a rig
 template (`ModelDef.rig`) are fitted when they load (`Model::fit_rig`): the mesh is turned, the
 template's joints are stretched from the template mesh's bounds over the model's (per axis) plus

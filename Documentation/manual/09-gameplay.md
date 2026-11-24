@@ -14,7 +14,10 @@ the cursor, and the map's border fades into its background colour.
 Walls and counters stand as solid blocks (props *Drawn as a block*: the starter library's
 building and dungeon walls, windows and pillars, 48 pixels high, and its counter, 20). Blocks
 between the viewer and the hero (south and east of them, within a few tiles) are cut down to a low
-stub, so the hero stays visible inside a room or behind a counter.
+stub, so the hero stays visible inside a room or behind a counter. Houses are 3D buildings made
+from their measurements (props with a [*Building*](05-database.md#props)): walls, a roof, doors,
+windows and chimneys turned with the view like everything else. Rooms have thin walls along their
+back (north and west) sides and are open to the front, as in the classic isometric games.
 
 ## Health and combat
 

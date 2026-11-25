@@ -1820,6 +1820,10 @@ fn render(c: &mut Cache, l: &Loaded, parts: &[&Loaded], items: &HashMap<String, 
 /// How far a still model's shadow reaches per unit of height (across the screen, toward the
 /// viewer): the sun stands high in the north-west.
 const SHADOW_RUN: Vec2 = Vec2::new(0.55, 0.35);
+/// The same shadow for an upright picture, per pixel of its height on the screen: a point that
+/// high (`h / cos 30°` above the ground) lands `SHADOW_RUN * that` along the ground, seen 30°
+/// from above (toward the viewer: down by its sine).
+pub const SHADOW_SHEAR: Vec2 = Vec2::new(0.55 / 0.866_025_4, 0.35 * 0.5 / 0.866_025_4);
 /// How dark the ground shadow of still models is.
 const SHADOW_ALPHA: f32 = 0.72;
 

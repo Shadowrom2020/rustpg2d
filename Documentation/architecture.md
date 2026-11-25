@@ -382,7 +382,7 @@ stands (entities, sorted / above decorations, ghosts, selection outlines) in its
 and `entity_hit` picks entities on the screen.
 
 `draw` runs: the view, parallax layers behind, the painted ground, flat decorations, the map
-border's fade, fish shadows, flat props, then entities, the player, sorted decorations and what
+border's fade, fish shadows, flat props, figures' blob shadows and the ground shadows of props drawn as pictures (`Assets::draw_prop_shadow`: the picture sheared along the sun as `model::SHADOW_SHEAR`, dark and half clear, unless `PropDef::shadow` is off), then entities, the player, sorted decorations and what
 flies in depth order (each through its upright camera), combat / the fight's tiles / gathering /
 activity / FX / mouse overlays, decorations above everyone, parallax above, the light pass when it is dark or the weather tints, weather, the save
 thumbnail, the debug overlay, the fade, HUD, windows, dialog, menus, console.

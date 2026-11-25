@@ -407,9 +407,8 @@ the western RPGs (Baldur's Gate, Planescape: Torment).
   gate; flames stay pictures. *Learned:* the outline can't tell a chest's front from its back, so
   every model is checked by eye against its concept (four needed a manual turn). Part 6
   (`feature/iso-art-nature`): 72 painted pictures and 18 state pictures (368 credits; balance 3,214),
-  cut out, scaled to the old picture's height, the foot at the frame's bottom middle. *Open:* the
-  pictures cast no shadow (a picture has no anchor below its foot; an anchor field would let a
-  baked shadow reach below it). Part 7 (`feature/iso-art-ground`): 42 painted ground textures
+  cut out, scaled to the old picture's height, the foot at the frame's bottom middle. The pictures' shadows came later (`feature/picture-shadows`: drawn at run time, the picture
+  sheared along the sun, rather than baked: no anchor field needed). Part 7 (`feature/iso-art-ground`): 42 painted ground textures
   (172 credits incl. a second grass; balance 3,042) from the old tile repeated 4 x 4 as the
   reference, so every stone and plank keeps its size; 128 px, seamless by cross-fading with a
   shifted copy. Next: ground shadows for 3D props and the see-through cover, kit fences and

@@ -137,6 +137,9 @@ fn average_color(img: &Image, r: Rect) -> Color {
     }
 }
 
+/// How dark a picture's ground shadow is (black, this clear).
+const PICTURE_SHADOW: f32 = 0.5;
+
 impl Assets {
     /// No images (tests).
     pub fn empty(tile_size: f32) -> Assets {
@@ -286,6 +289,37 @@ impl Assets {
         } else {
             self.draw_sprite_flipped(&SpriteRef { frame: sp.frame + frame, ..sp.into_owned() }, feet, tint, flip)
         }
+    }
+
+    /// Draws the ground shadow of prop `p` (state `state`, facing `facing`) standing at `feet`,
+    /// when it is drawn as a picture (models and blocks have their own; flat ones and those
+    /// without [`crate::defs::PropDef::shadow`] cast none): its picture sheared along the sun
+    /// like a 3D prop's shadow, dark and half clear. In the coordinates of its upright drawing
+    /// (the caller sets that camera); before the things standing there are drawn.
+    #[allow(clippy::too_many_arguments)]
+    pub fn draw_prop_shadow(&self, p: &crate::defs::PropDef, state: usize, facing: crate::entity::Facing, feet: Vec2, flip: bool, time: f64, alpha: f32) {
+        if !p.shadow || p.flat || p.block > 0.0 || p.building.is_some() || (!p.model_at(state).is_empty() && self.models.has(&p.model_at(state))) {
+            return;
+        }
+        let sp = p.picture_facing(state, facing, time);
+        let Some(s) = self.sheets.get(&sp.sheet) else { return };
+        let (cw, ch) = sp.cells();
+        let src = inset(s.region(sp.frame, cw, ch));
+        let size = s.world_of(src);
+        let (tw, th) = (s.texture.width().max(1.0), s.texture.height().max(1.0));
+        let (u0, u1) = if flip { ((src.x + src.w) / tw, src.x / tw) } else { (src.x / tw, (src.x + src.w) / tw) };
+        let (v0, v1) = (src.y / th, (src.y + src.h) / th);
+        // A point `h` above the feet in the picture lands `h * SHEAR` to the side on the ground.
+        let (w, h) = (size.x, size.y);
+        let top = feet + vec2(model::SHADOW_SHEAR.x * h, model::SHADOW_SHEAR.y * h);
+        let c = Color::new(0.0, 0.0, 0.0, alpha * PICTURE_SHADOW);
+        let v = |pos: Vec2, u: f32, vv: f32| Vertex::new(pos.x, pos.y, 0.0, u, vv, c);
+        let mesh = Mesh {
+            vertices: vec![v(feet + vec2(-w / 2.0, 0.0), u0, v1), v(feet + vec2(w / 2.0, 0.0), u1, v1), v(top + vec2(w / 2.0, 0.0), u1, v0), v(top + vec2(-w / 2.0, 0.0), u0, v0)],
+            indices: vec![0, 1, 2, 0, 2, 3],
+            texture: Some(s.texture.clone()),
+        };
+        draw_mesh(&mesh);
     }
 
     /// Draws prop `p` (state `state`, facing `facing`) standing at `feet` as a block `height`

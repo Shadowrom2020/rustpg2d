@@ -5539,6 +5539,7 @@
             intensity: 0.7,
             flicker: false,
         )),
+        shadow: false,
     ),
     (
         id: "carpet_runner",

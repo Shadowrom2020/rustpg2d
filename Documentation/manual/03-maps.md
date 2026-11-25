@@ -165,7 +165,10 @@ tiles behind them with *Black void* (flat, solid). The example's interiors are b
 wall, close to it (it hangs at wall height with its back to the wall); **R** turns it to face east
 for a west wall. It gives light, doesn't block the floor, and its *out* state is burnt out.
 **Fences** work the same: *Fence section* runs east to west on a tile's bottom edge, *Fence
-section (north to south)* across a tile's middle, *Wooden post* at the corners.
+section (north to south)* on the left edge of the tile it is placed in (it snaps to the tile's
+middle like the others), so a run of either meets the other's end. Every section carries a post at
+both ends, shared with its neighbour: runs end on a post and corners need nothing more. The library's
+*Fence, vertical*, *Fenced flower garden*, *Animal pen* and *Graveyard* structures are built this way.
 
 AI agents place them with `place_objects`, `scatter` and `erase_objects` ([chapter 13](13-ai-agents.md)).
 

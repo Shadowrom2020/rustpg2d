@@ -2336,15 +2336,15 @@
     (
         id: "wood_fence_picture",
         image: "sprites/prop_pictures/wood_fence.png",
-        frame_w: 62,
-        frame_h: 81,
+        frame_w: 70,
+        frame_h: 85,
         scale: 2,
     ),
     (
         id: "fence_section_picture",
         image: "sprites/prop_pictures/fence_section.png",
-        frame_w: 62,
-        frame_h: 81,
+        frame_w: 70,
+        frame_h: 85,
         scale: 2,
     ),
     (
@@ -2371,15 +2371,15 @@
     (
         id: "fence_end_left_picture",
         image: "sprites/prop_pictures/fence_end_left.png",
-        frame_w: 62,
-        frame_h: 81,
+        frame_w: 70,
+        frame_h: 85,
         scale: 2,
     ),
     (
         id: "fence_end_right_picture",
         image: "sprites/prop_pictures/fence_end_right.png",
-        frame_w: 62,
-        frame_h: 81,
+        frame_w: 70,
+        frame_h: 85,
         scale: 2,
     ),
     (
@@ -2483,8 +2483,8 @@
     (
         id: "fence_section_side_picture",
         image: "sprites/prop_pictures/fence_section_side.png",
-        frame_w: 62,
-        frame_h: 81,
+        frame_w: 106,
+        frame_h: 85,
         scale: 2,
     ),
     (

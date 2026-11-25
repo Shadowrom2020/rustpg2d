@@ -1940,6 +1940,9 @@ fn prop_form(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
     if !d.flat && d.block <= 0.0 && d.model.is_empty() && d.building.is_none() {
         ui.checkbox(&mut d.shadow, "Casts a shadow").on_hover_text("Its picture throws a shadow on the ground in the isometric view, as 3D props do (off for glows and light-only props).");
     }
+    ui.checkbox(&mut d.counter, "Counter (a market stall)").on_hover_text(
+        "Using it (E, right-click) talks to whoever keeps it: the character in, behind or in front of it, from its front, across it. Its own triggers run only when nobody does: give it an Interact trigger with a Dialog such as \"No one is tending the stall.\"",
+    );
     ui.checkbox(&mut d.door, "Door (E opens and closes it)").on_hover_text(
         "Needs a state named \"open\" (passable); its first state is the closed door. A lock keeps it shut until its key or a lockpick opens it; with the key, closing it locks it again. Villagers open unlocked doors on their way (locked ones when they carry the key) and close them behind them.",
     );

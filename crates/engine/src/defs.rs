@@ -1558,6 +1558,11 @@ pub struct PropDef {
     /// off for glows and light-only props.
     #[serde(default = "yes", skip_serializing_if = "is_true")]
     pub shadow: bool,
+    /// A counter (a market stall): using it talks to whoever keeps it (stands in, behind or in
+    /// front of it), from its front; its own triggers run only when nobody does ("No one is
+    /// here."). Props that do nothing themselves act like this anyway.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub counter: bool,
 }
 
 /// A building's shape ([`PropDef::building`]): its footprint is the prop's hitbox (width east to
@@ -1773,6 +1778,7 @@ impl Default for PropDef {
             block: 0.0,
             building: None,
             shadow: true,
+            counter: false,
         }
     }
 }

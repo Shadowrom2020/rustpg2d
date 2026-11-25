@@ -53,10 +53,12 @@ pub enum Tool {
     Ground,
     /// Place props freely as pictures (`decor_tool.rs`).
     Decor,
+    /// Walls along tile edges, rooms and houses dragged as rectangles (`build_tool.rs`).
+    Build,
 }
 
 impl Tool {
-    pub const ALL: [(Tool, &'static str, &'static str); 8] = [
+    pub const ALL: [(Tool, &'static str, &'static str); 9] = [
         (Tool::Select, "Select", "V"),
         (Tool::Ground, "Ground", "P"),
         (Tool::Collision, "Collision", "C"),
@@ -65,6 +67,7 @@ impl Tool {
         (Tool::Link, "Transition", "T"),
         (Tool::Structure, "Structures", "H"),
         (Tool::Decor, "Decorations", "O"),
+        (Tool::Build, "Build", "B"),
     ];
     pub fn icon(self) -> &'static str {
         use crate::ui::ph;
@@ -77,6 +80,7 @@ impl Tool {
             Tool::Structure => ph::HOUSE,
             Tool::Ground => ph::PAINT_BRUSH_BROAD,
             Tool::Decor => ph::TREE,
+            Tool::Build => ph::WALL,
         }
     }
     pub fn name(self) -> &'static str {
@@ -95,6 +99,7 @@ impl Tool {
             Tool::Link => "Drag over the exit area, choose the target map, then drag the arrival area on that map",
             Tool::Structure => "Pick a structure in the panel and click the map to place it; New from map area captures a rectangle as a structure",
             Tool::Ground => "Paint the ground with a material: brush, line or fill (left panel), [ ] change the size; Shift erases, right-click picks the material under the cursor",
+            Tool::Build => "Walls along tile edges (drag), rooms (drag a rectangle: floor and walls) and houses (drag a rectangle: a building in the look of another); left panel",
             Tool::Decor => "Place props freely as pictures: one per click, a line of wall pieces, a scatter brush (forests, flowers) or the eraser (left panel); right-click picks the one under the cursor",
         }
     }
@@ -325,6 +330,7 @@ pub struct Editor {
     pub ground_drag: Option<crate::ground_tool::GroundDrag>,
     /// The Decorations tool.
     pub decor: crate::decor_tool::DecorTool,
+    pub build: crate::build_tool::BuildTool,
     pub light_cache: (f64, String, Vec<rustpg2d_engine::render::lighting::Light>),
     /// Main editor: the Asset Library window it started.
     pub lib_window: crate::library_window::LibWindow,
@@ -582,6 +588,7 @@ impl Editor {
             ground_filter: String::new(),
             ground_drag: None,
             decor: Default::default(),
+            build: Default::default(),
             light_cache: (-1.0, String::new(), Vec::new()),
             status: (String::new(), 0.0),
             notices: Vec::new(),
@@ -1457,9 +1464,13 @@ impl Editor {
         self.char_look(def, inst).and_then(|(a, _)| self.assets.models.frame_size(&a.model)).map_or(macroquad::math::vec2(ts, ts * 1.5), |(w, h)| macroquad::math::vec2(w, h))
     }
 
-    /// Width of an entity definition's sprite in whole tiles (for snapping).
+    /// Width of an entity definition in whole tiles (for snapping): a prop's hitbox, else its
+    /// sprite (a prop's picture of its model can be narrower than its footprint).
     pub fn def_tiles_wide(&self, kind: EntityKind, def: &str) -> u32 {
         let ts = self.ts();
+        if let Some(p) = (kind == EntityKind::Prop).then(|| self.project.db.prop(def)).flatten() {
+            return (p.hitbox[0] / ts).round().max(1.0) as u32;
+        }
         self.def_sprite(kind, def).map_or(1, |s| (self.assets.sprite_size(&s, ts).x / ts).round().max(1.0) as u32)
     }
 
@@ -2056,7 +2067,7 @@ impl Editor {
                     ("Select", &[Tool::Select]),
                     ("Paint", &[Tool::Ground]),
                     ("Collision", &[Tool::Collision]),
-                    ("Objects", &[Tool::Decor, Tool::Entity, Tool::Zone, Tool::Link, Tool::Structure]),
+                    ("Objects", &[Tool::Decor, Tool::Build, Tool::Entity, Tool::Zone, Tool::Link, Tool::Structure]),
                 ];
                 for (caption, tools) in groups {
                     ui::group(ui, caption, |ui| {
@@ -2375,6 +2386,7 @@ impl Editor {
             }
             Tool::Ground => self.ground_palette(ui),
             Tool::Decor => self.decor_palette(ui),
+            Tool::Build => self.build_palette(ui),
             Tool::Collision => {
                 ui.heading("Collision");
                 ui.label("Left: force solid\nRight: force walkable\nShift+Left: back to automatic");

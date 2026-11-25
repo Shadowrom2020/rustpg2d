@@ -1910,10 +1910,10 @@ impl PropDef {
         }
     }
 
-    /// Whether placed copies turn in quarters (a model, or pictures from four sides): their
+    /// Whether placed copies turn in quarters (a model, pictures from four sides, a block): their
     /// facing then turns the picture and the hitbox. Others only mirror.
     pub fn turns(&self) -> bool {
-        !self.model.is_empty() || !self.turns.is_empty() || self.building.is_some() || self.states.iter().any(|s| !s.model.is_empty())
+        !self.model.is_empty() || !self.turns.is_empty() || self.building.is_some() || self.block > 0.0 || self.states.iter().any(|s| !s.model.is_empty())
     }
 
     /// The hitbox of a copy facing `f`: width and depth swapped when it is turned a quarter.

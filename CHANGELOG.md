@@ -145,6 +145,12 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   sheet `<id>_picture`), so the editor's lists show the model and the game's sizes match it; the old
   2D pictures they replace are gone (the eleven house pictures, the chairs and the sawhorse).
   Editor script `propictures [PROP]`.
+- **The Build tool (B)**: *Walls* dragged along tile edges (thin walls and fences on the edge,
+  north-to-south runs turned a quarter by themselves; thick walls fill the tiles), *Room* (drag the
+  floor: painted, with back walls or walls on all sides and a doorway) and *House* (drag the
+  footprint: a new building prop in the look of another, sized to it, door and windows laid out).
+  Wall blocks turn like models now (one wall prop serves both directions). Placing a prop snaps it
+  by its hitbox's width.
 ### Visual scripts
 - **Script functions made of nodes** (`defs/visual_scripts.ron`, first part): a visual script is a
   function whose nodes are the script API's functions (a step on the flow, or a value such as

@@ -140,6 +140,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **Obsolete 2D art removed**: the old ground textures the painted ones replaced (the example's 28,
   the starter library's 42), two unused tile pictures and the `biomes` / `trees_small` sheets no
   prop uses any more.
+- **Props shown as models have pictures of their models**: each prop that is a 3D model or a
+  building has a picture rendered from it, a frame per state (`sprites/prop_pictures/<id>.png`,
+  sheet `<id>_picture`), so the editor's lists show the model and the game's sizes match it; the old
+  2D pictures they replace are gone (the eleven house pictures, the chairs and the sawhorse).
+  Editor script `propictures [PROP]`.
 ### Visual scripts
 - **Script functions made of nodes** (`defs/visual_scripts.ron`, first part): a visual script is a
   function whose nodes are the script API's functions (a step on the flow, or a value such as

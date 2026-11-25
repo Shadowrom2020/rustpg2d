@@ -365,6 +365,103 @@ impl Editor {
     }
 }
 
+impl Editor {
+    /// Renders the pictures of props shown as 3D models (`only`: one prop, else every one):
+    /// each state's model as the game draws it, facing south, into `sprites/prop_pictures/<id>.png`
+    /// (a frame per state, twice the world's pixel density, the feet at the bottom middle), which
+    /// become the prop's and its states' pictures: icons in the editor, sizes in the game. Saves.
+    pub fn render_prop_pictures(&mut self, only: Option<&str>) -> String {
+        use rustpg2d_engine::defs::{Appearance, SheetDef, SpriteRef};
+        use rustpg2d_engine::entity::Facing;
+        use rustpg2d_engine::imageio::Rgba;
+        let db = self.project.db.clone();
+        let mut done = Vec::new();
+        for p in db.props.iter().filter(|p| only.is_none_or(|o| o == p.id)) {
+            let n = p.states.len() + 1;
+            let models: Vec<String> = (0..n).map(|k| p.model_at(k).into_owned()).collect();
+            if models[0].is_empty() || !models.iter().all(|m| self.assets.models.has(m)) {
+                continue;
+            }
+            // Each state: its pose cropped around the feet (left / right of them, above them).
+            let mut pics: Vec<(Rgba, u32, u32)> = Vec::new();
+            for m in &models {
+                let look = Appearance { model: m.clone(), ..Default::default() };
+                let gear = rustpg2d_engine::render::model::Gear::default();
+                let Some((img, (cw, ch))) = self.assets.models.sheet(&db, &self.assets.sheets, &look, &gear, &["idle".to_string()], &[Facing::Down], 1, macroquad::color::Color::new(0.0, 0.0, 0.0, 0.0)) else { break };
+                let (fx, fy) = (cw / 2, ch * 3 / 4);
+                // (Its solid pixels: the half-clear ground shadow doesn't widen it. A building's front
+                // corner reaches below the feet: the picture ends where the model does.)
+                let (mut lo_x, mut hi_x, mut top, mut bottom) = (fx, fx, fy, fy);
+                for y in 0..img.height as u32 {
+                    for x in 0..img.width as u32 {
+                        if img.get_pixel(x, y).a > 0.8 {
+                            lo_x = lo_x.min(x);
+                            hi_x = hi_x.max(x + 1);
+                            top = top.min(y);
+                            bottom = bottom.max(y);
+                        }
+                    }
+                }
+                let half = (fx - lo_x).max(hi_x - fx) + 1;
+                let (w, h) = (half * 2, bottom - top + 1);
+                let mut out = Rgba::new(w, h);
+                for y in 0..h {
+                    for x in 0..w {
+                        let (sx, sy) = (fx as i32 - half as i32 + x as i32, top as i32 + y as i32);
+                        if sx >= 0 && (sx as u32) < img.width as u32 {
+                            let c = img.get_pixel(sx as u32, sy as u32);
+                            out.set(x as i32, y as i32, [(c.r * 255.0) as u8, (c.g * 255.0) as u8, (c.b * 255.0) as u8, (c.a * 255.0) as u8]);
+                        }
+                    }
+                }
+                pics.push((out, w, h));
+            }
+            if pics.len() != n {
+                continue;
+            }
+            let (fw, fh) = (pics.iter().map(|p| p.1).max().unwrap_or(2), pics.iter().map(|p| p.2).max().unwrap_or(2));
+            let mut sheet = Rgba::new(fw * n as u32, fh);
+            for (k, (img, w, h)) in pics.iter().enumerate() {
+                let (ox, oy) = (k as u32 * fw + (fw - w) / 2, fh - h);
+                for y in 0..*h {
+                    for x in 0..*w {
+                        sheet.set((ox + x) as i32, (oy + y) as i32, img.get(x as i32, y as i32));
+                    }
+                }
+            }
+            let rel = format!("sprites/prop_pictures/{}.png", p.id);
+            let path = self.project.root.join(&rel);
+            let written = sheet.encode().map_err(|e| format!("{e:#}")).and_then(|png| std::fs::create_dir_all(path.parent().unwrap()).and_then(|_| std::fs::write(&path, png)).map_err(|e| e.to_string()));
+            if let Err(e) = written {
+                return format!("Writing {rel} failed: {e}");
+            }
+            let sid = format!("{}_picture", p.id);
+            let def = SheetDef { scale: rustpg2d_engine::render::model::PX as u32, ..SheetDef::new(&sid, &rel, fw, fh) };
+            let db = &mut self.project.db;
+            match db.sheets.iter_mut().find(|s| s.id == sid) {
+                Some(s) => *s = def,
+                None => db.sheets.push(def),
+            }
+            if let Some(d) = db.props.iter_mut().find(|d| d.id == p.id) {
+                d.sprite = SpriteRef::new(&sid, 0);
+                d.turns.clear();
+                for (k, st) in d.states.iter_mut().enumerate() {
+                    st.sprite = SpriteRef::new(&sid, k as u32 + 1);
+                }
+            }
+            done.push(p.id.clone());
+        }
+        if done.is_empty() {
+            return "No prop with a loaded 3D model to render".into();
+        }
+        self.project.db.reindex();
+        self.defs_dirty = true;
+        self.save_defs();
+        self.reload_assets();
+        format!("Rendered the pictures of {} props from their models: {}", done.len(), done.join(", "))
+    }
+}
+
 /// A change to how an item model is held: the item form's buttons and the `itemhold` script
 /// command.
 #[derive(Clone, Debug, PartialEq)]

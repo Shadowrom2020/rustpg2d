@@ -480,6 +480,11 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             Some(k) => ed.db.model_filter = k as u8,
             None => println!("[script] modelfilter: all, figures or pieces"),
         },
+        // propictures [PROP]: the pictures of props shown as 3D models, rendered from them.
+        "propictures" => {
+            let m = ed.render_prop_pictures(if arg(1).is_empty() { None } else { Some(arg(1)) });
+            println!("[script] {m}");
+        }
         // itemicon ITEM: its inventory icon rendered from its 3D model.
         "itemicon" => {
             let m = ed.render_item_icon(arg(1));

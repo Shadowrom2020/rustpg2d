@@ -767,13 +767,14 @@ impl Models {
 
     /// A contact sheet of `look` as the game draws it: a row per animation, `moments` moments of
     /// it per facing, on `ground` (image pixels, [`PX`] per world pixel; cells of `cell` pixels
-    /// with the feet at the same place in each). Rendered now, whatever the frame's budget.
+    /// with the feet at the same place in each: the middle, three quarters down). Rendered now, whatever the frame's budget.
     #[allow(clippy::too_many_arguments)]
     pub fn sheet(&self, db: &Database, sheets: &HashMap<String, super::SheetTex>, look: &Appearance, gear: &Gear, anims: &[String], facings: &[Facing], moments: usize, ground: Color) -> Option<(Image, (u32, u32))> {
         let look = self.look_of(look);
         let (fw, fh) = self.loaded.get(&look.model)?.frame;
         // Room for swings and for what the figure holds.
-        let (cw, ch) = (fw * 2, fh * 3 / 2);
+        // (Room below the feet too: a building's front corner reaches past them.)
+        let (cw, ch) = (fw * 2, fh * 2);
         let (cols, rows) = ((facings.len() * moments).max(1) as u32, anims.len().max(1) as u32);
         if cols * cw > 8192 || rows * ch > 8192 {
             return None;
@@ -788,7 +789,7 @@ impl Models {
                     let c = self.cache.borrow();
                     let Some(page) = c.pages.get(cell.page) else { continue };
                     let all = page.rt.texture.get_texture_data();
-                    let feet = ivec2(((fi * moments + m) as u32 * cw + cw / 2) as i32, (r as u32 * ch + ch - 8) as i32);
+                    let feet = ivec2(((fi * moments + m) as u32 * cw + cw / 2) as i32, (r as u32 * ch + ch * 3 / 4) as i32);
                     let top_left = feet - ivec2(cell.feet.x as i32, cell.feet.y as i32);
                     for y in 0..cell.rect.h as i32 {
                         for x in 0..cell.rect.w as i32 {

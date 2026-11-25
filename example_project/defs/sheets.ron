@@ -102,12 +102,6 @@
         frame_h: 32,
     ),
     (
-        id: "trees_small",
-        image: "sprites/trees_small.png",
-        frame_w: 32,
-        frame_h: 64,
-    ),
-    (
         id: "emotions",
         image: "sprites/emotions.png",
         frame_w: 32,
@@ -972,12 +966,6 @@
     (
         id: "chairs",
         image: "sprites/chairs.png",
-        frame_w: 32,
-        frame_h: 32,
-    ),
-    (
-        id: "biomes",
-        image: "sprites/biomes.png",
         frame_w: 32,
         frame_h: 32,
     ),

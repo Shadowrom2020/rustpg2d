@@ -4585,8 +4585,8 @@
         id: "dark_stone_wall",
         name: "Dark rock wall",
         sprite: (
-            sheet: "painted_walls",
-            frame: 30,
+            sheet: "dark_stone_wall_picture",
+            frame: 0,
         ),
         solid: true,
         default_state: "default",
@@ -4596,7 +4596,7 @@
         container: None,
         lock: None,
         snap: 32,
-        block: 48.0,
+        model: "rock_cliff_3d",
     ),
     (
         id: "small_pine",

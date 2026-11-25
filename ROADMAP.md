@@ -422,7 +422,9 @@ the western RPGs (Baldur's Gate, Planescape: Torment).
   watchtower, lookout tower, dungeon rooms, prison cell, fences and hedge rebuilt; tile-era pieces
   retired. Part 9 (`feature/art-prop-kind`): *Generate art* gets the *Prop / building 3D model*
   kind (concept, image-to-3D, stood on the ground and sized to the hitbox in the editor: no Blender
-  needed). Done 2026-11-25.
+  needed). Done 2026-11-25. Afterwards (`feature/iso-weak-spots`, 16 credits; balance 2,670): plaster
+  textures repainted, railing and prison bars as kit-built 3D pieces, rock cliffs as a rocky 3D tile,
+  picture shadows starting under the painted thing (props seemed to float).
 
 - [ ] Painted figures — `feature/painted-figures`
 

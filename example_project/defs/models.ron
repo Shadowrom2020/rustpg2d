@@ -26104,4 +26104,10 @@
         file: "models/market_stall_3d.glb",
         height: 86.5,
     ),
+    (
+        id: "rock_cliff_3d",
+        name: "Rock cliff (3D)",
+        file: "models/rock_cliff_3d.glb",
+        height: 51.0,
+    ),
 ]

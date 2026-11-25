@@ -1931,4 +1931,11 @@
         frame_h: 247,
         scale: 2,
     ),
+    (
+        id: "dark_stone_wall_picture",
+        image: "sprites/prop_pictures/dark_stone_wall.png",
+        frame_w: 92,
+        frame_h: 128,
+        scale: 2,
+    ),
 ]

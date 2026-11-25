@@ -44109,4 +44109,22 @@
         file: "models/market_stall_3d.glb",
         height: 86.5,
     ),
+    (
+        id: "iron_railing_3d",
+        name: "Iron railing (3D)",
+        file: "models/iron_railing_3d.glb",
+        height: 35.0,
+    ),
+    (
+        id: "prison_bars_3d",
+        name: "Prison bars (3D)",
+        file: "models/prison_bars_3d.glb",
+        height: 47.0,
+    ),
+    (
+        id: "rock_cliff_3d",
+        name: "Rock cliff (3D)",
+        file: "models/rock_cliff_3d.glb",
+        height: 51.0,
+    ),
 ]

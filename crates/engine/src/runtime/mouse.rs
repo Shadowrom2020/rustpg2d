@@ -40,11 +40,14 @@ pub(super) struct Order {
     approach: f32,
     /// Re-plans in a row caused by being stuck.
     replans: u8,
+    /// Talking to someone keeping a stall from its front, across it: being beside them on the
+    /// way there doesn't start the talk.
+    front: bool,
 }
 
 impl Order {
     fn new(goal: Goal, path: VecDeque<TilePos>, pos: Vec2) -> Self {
-        Order { goal, path, repath: REPATH_TIME, stuck: 0.0, last_pos: pos, approach: 0.0, replans: 0 }
+        Order { goal, path, repath: REPATH_TIME, stuck: 0.0, last_pos: pos, approach: 0.0, replans: 0, front: false }
     }
 }
 
@@ -134,6 +137,16 @@ impl Game {
         reach.overlaps(&e.body.rect()) || self.player.pos.distance(e.body.pos) <= ts * 1.5 || self.across_counter(i)
     }
 
+    /// Whether a path for talking to character `i` ends in front of the stall they keep, across
+    /// it (the planner takes that spot whenever it can be reached).
+    fn ends_in_front(&self, i: usize, path: &VecDeque<TilePos>) -> bool {
+        let end = path.back().copied().unwrap_or_else(|| self.player_tile());
+        let t = self.entity_tile(&self.loaded.entities[i]);
+        let (dx, dy) = (t.0 - end.0, t.1 - end.1);
+        let mid = (end.0 + dx / 2, end.1 + dy / 2);
+        self.keeps_counter(i) && ((dx.abs() == 2 && dy == 0) || (dy.abs() == 2 && dx == 0)) && (self.tile_solid(mid.0, mid.1) || self.prop_blocks(mid.0, mid.1))
+    }
+
     fn face_towards(&mut self, p: Vec2) {
         let d = p - self.player.pos;
         if let Some(f) = Facing::from_vec(d.x, d.y) {
@@ -185,7 +198,8 @@ impl Game {
                 };
                 // Characters behind a counter: stand in front of it (two tiles away, a solid
                 // tile or prop in between, e.g. a market stall) and talk across — unless walking
-                // round to them is shorter.
+                // round to them is shorter. Someone keeping a stall is always talked to across
+                // it, from the front (not from beside them in the back).
                 let counter = |p: TilePos| {
                     let (dx, dy) = (t.0 - p.0, t.1 - p.1);
                     let mid = (p.0 + dx / 2, p.1 + dy / 2);
@@ -193,7 +207,9 @@ impl Game {
                 };
                 let talk = tried_all && matches!(goal, Goal::Interact(_)) && self.loaded.entities[i].kind == EntityKind::Character;
                 let across = if talk { find_path(start, t, counter, blocked, MAX_NODES) } else { None };
+                let keeper = talk && self.keeps_counter(i);
                 match (path, across) {
+                    (_, Some(c)) if keeper => Some(c),
                     (Some(p), Some(c)) => Some(if c.len() <= p.len() { c } else { p }),
                     (None, None) if tried_all => over_gap(t, &|p: TilePos| near(p, t) && p != t),
                     (p, c) => p.or(c),
@@ -283,14 +299,20 @@ impl Game {
         }
         let goal = match self.entity_under(w) {
             Some(i) if self.loaded.entities[i].hostile && self.loaded.entities[i].max_hp > 0 => Goal::Attack(self.loaded.entities[i].uid),
-            Some(i) if right => Goal::Interact(self.loaded.entities[i].uid),
+            // A counter (a market stall) with someone keeping it: talk to them, across it.
+            Some(i) if right => Goal::Interact(self.loaded.entities[self.counter_keeper(i, 2).unwrap_or(i)].uid),
             None if right => Goal::InteractTile(tile),
             _ => Goal::Walk(tile),
         };
         self.click_marker = Some((w, 0.0));
-        // Already next to the target: no path needed.
+        // Already next to the target: no path needed. Someone keeping a stall: only from its
+        // front, when that can be reached (else from wherever the hero can talk to them).
+        let front = match goal {
+            Goal::Interact(u) => self.uid_index(u).filter(|&i| self.keeps_counter(i) && !self.across_counter(i)).and_then(|i| self.plan(goal).filter(|p| self.ends_in_front(i, p)).map(|p| (i, p))),
+            _ => None,
+        };
         let ready = match goal {
-            Goal::Interact(u) => self.uid_index(u).is_some_and(|i| self.in_reach(i)),
+            Goal::Interact(u) => front.is_none() && self.uid_index(u).is_some_and(|i| self.in_reach(i)),
             Goal::Attack(u) => self.uid_index(u).is_some_and(|i| self.starts_fight_with(i)),
             _ => false,
         };
@@ -300,10 +322,11 @@ impl Game {
                 _ => None,
             };
         }
-        let path = if ready { Some(VecDeque::new()) } else { self.plan(goal) };
+        let to_front = front.is_some();
+        let path = if ready { Some(VecDeque::new()) } else { front.map(|(_, p)| p).or_else(|| self.plan(goal)) };
         match path {
             Some(path) => {
-                self.order = Some(Order::new(goal, path, self.player.pos))
+                self.order = Some(Order { front: to_front, ..Order::new(goal, path, self.player.pos) })
             }
             None => {
                 // Ranged attacks don't need a path if the target is within range.
@@ -360,7 +383,7 @@ impl Game {
         match order.goal {
             Goal::Interact(uid) => {
                 let i = self.uid_index(uid)?;
-                if self.in_reach(i) {
+                if self.in_reach(i) && (!order.front || self.across_counter(i)) {
                     let p = self.loaded.entities[i].body.pos;
                     self.face_towards(p);
                     // A counter that does nothing itself (a market stall): talk to whoever

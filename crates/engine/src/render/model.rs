@@ -570,7 +570,7 @@ impl Models {
             let Some(shape) = &p.building else { continue };
             let built = crate::building::build_joined(shape, p.hitbox, picture, &others);
             let id = crate::building::model_id(&p.id);
-            let def = ModelDef { name: p.name.clone(), height: built.height, ..ModelDef::new(&id, "") };
+            let def = building_def(&id, &p.name, built.height);
             if let Some(w) = oversize(&p.id, &built.model) {
                 eprintln!("[models] {w}");
                 self.warnings.push(w);
@@ -599,7 +599,7 @@ impl Models {
             self.cache.borrow_mut().poses.retain(|k, _| k.model != id);
             if let (Some(shape), true) = (&q.building, q.model.is_empty()) {
                 let built = crate::building::build_joined(shape, q.hitbox, picture, &others);
-                let def = ModelDef { name: q.name.clone(), height: built.height, ..ModelDef::new(&id, "") };
+                let def = building_def(&id, &q.name, built.height);
                 self.loaded.insert(id, loaded(&def, &Database::default(), built.model, None));
             }
         }
@@ -1326,6 +1326,12 @@ fn facing_yaw(f: Facing) -> f32 {
     }
 }
 
+/// The model definition of a building's model `id`: drawn `height` world pixels tall from the
+/// ground (a roof alone floats: its own mesh is shorter than that).
+fn building_def(id: &str, name: &str, height: f32) -> ModelDef {
+    ModelDef { name: name.to_string(), height, stand: height / crate::project::TILE_SIZE as f32, ..ModelDef::new(id, "") }
+}
+
 /// Building props' shapes and footprints by id, `changed` instead of its copy in `db`.
 fn neighbours<'a>(db: &'a Database, changed: Option<&'a crate::defs::PropDef>) -> impl Fn(&str) -> Option<(crate::defs::BuildingShape, [f32; 2])> + 'a {
     move |id: &str| {
@@ -1344,13 +1350,20 @@ fn depth_material(c: &mut Cache) -> Material {
     c.depth_material.clone().unwrap()
 }
 
+/// How far hidden geometry is pushed away from the camera (model units: a tile).
+const OCCLUDER_BIAS: f32 = 0.06;
+
 /// Draws a still model's hidden geometry into the depth buffer (nothing when it has none).
 fn draw_occluder(c: &mut Cache, model: &Model, turn: Mat4) {
     if model.occluder.is_empty() {
         return;
     }
     gl_use_material(&depth_material(c));
-    let v: Vec<Vertex> = model.occluder.iter().map(|p| Vertex { position: turn.transform_point3(*p), uv: Vec2::ZERO, color: [255; 4], normal: Vec4::ZERO }).collect();
+    // A little farther from the camera than it is: where two joined buildings meet, both draw a
+    // hair past the line they meet on, so no crack shows between their pictures.
+    let e = ELEVATION.to_radians();
+    let away = -vec3(0.0, e.sin(), e.cos()) * OCCLUDER_BIAS;
+    let v: Vec<Vertex> = model.occluder.iter().map(|p| Vertex { position: turn.transform_point3(*p) + away, uv: Vec2::ZERO, color: [255; 4], normal: Vec4::ZERO }).collect();
     for chunk in v.chunks(30_000) {
         draw_mesh(&Mesh { vertices: chunk.to_vec(), indices: (0..chunk.len() as u16).collect(), texture: None });
     }

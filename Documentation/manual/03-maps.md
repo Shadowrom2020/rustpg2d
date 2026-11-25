@@ -129,9 +129,15 @@ by clicking. Its left panel picks the mode, the wall and the rest:
   roof runs on until it meets that one's: an L- or T-shaped house under one roof. Each is still a
   prop of its own (its own hitbox, drawn in front of or behind characters by it); a placed house
   that others use as well gets a copy of its own first.
-- **Roof**: drag over a room of walls: a roof alone (a building prop with *Roof only*), as high as
-  the chosen wall, in the chosen look and kind (gable, hip, shed, flat). It doesn't block the way;
-  in play it fades out like anything else in front of the hero, so the hero stays visible inside.
+- **Roof**: a roof alone (building props with *Roof only*) over walls you built, in the chosen look
+  and kind (gable, hip, shed, flat), as high as the tallest wall under or beside it (else the
+  chosen wall). *Draw* says how: **Rectangle** (drag: a roof at once), **Paint** (paint its tiles
+  by hand, any shape: an L, a T, a cross; a drag that starts on a marked tile clears, right-click
+  clears one) or **Fill inside walls** (click inside a house of walls: its tiles and those of its
+  walls are marked). **Build roof** (or Enter) cuts the marked tiles into rectangles, biggest
+  first, and roofs them joined, each smaller part's ridge pointing into the bigger part it meets,
+  so their roofs run into each other in valleys. It doesn't block the way; in play it fades out
+  like anything else in front of the hero, so the hero stays visible inside.
 - **Doors**: click a **house's wall** to put a door or window there (the house's own door and
   window pictures; a window clicked high on the wall sits that high: an upper floor's), or click a
   **wall piece** to put a *Door* (a door prop placed as an entity, so it opens in play), a *Window*
@@ -145,9 +151,9 @@ area: **Save as structure** in the panel (give it an id) captures those tiles (g
 houses, roofs and doors) as a structure of the *Built* category, to be placed again with the
 Structures tool. Editor scripts: `tool build`, `buildmode walls|room|house|roof|doors`, `buildwall
 PROP`, `buildfloor MATERIAL|-`, `buildsides all|back`, `buildroomroof on|off`, `buildstyle PROP`,
-`buildstoreys N`, `buildroof gable|hip|shed|flat`, `buildopening door|window|gap [PROP]`, `buildsave
+`buildstoreys N`, `buildroof gable|hip|shed|flat`, `buildroofdraw rectangle|paint|fill`, `buildroofmake` (*Build roof*), `buildroofclear`, `buildopening door|window|gap [PROP]`, `buildsave
 ID`, then `drag X1 Y1 X2 Y2`, `dragpath X1 Y1 X2 Y2 X3 Y3 …` or `click X Y [right]` (tiles);
-`status` prints `build=mode:wall:sides:style[:storeysN][:roof][:opening:door:window][:area=WxH@X,Y]`.
+`status` prints `build=mode:wall:sides:style[:storeysN][:roof:draw:marked][:opening:door:window][:area=WxH@X,Y]`.
 
 **Rooms** are drawn open to the viewer: a thin wall along the north and west sides of the floor,
 nothing in front. The starter library's thin walls (*Grey stone wall (thin)*, *Plaster window

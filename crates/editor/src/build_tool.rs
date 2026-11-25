@@ -49,6 +49,55 @@ impl BuildMode {
     }
 }
 
+/// How the Roof mode marks where the roof goes.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub enum RoofDraw {
+    /// Drag a rectangle: one roof.
+    #[default]
+    Rectangle,
+    /// Paint the tiles (any shape), then *Build roof*.
+    Paint,
+    /// Click inside walls: the tiles they enclose (and the walls' own), then *Build roof*.
+    Fill,
+}
+
+/// The rectangles (tiles: x, y, w, h) a set of tiles is cut into for roofs: the largest one first,
+/// then the largest of the rest, until none is left.
+pub fn cut_into_rects(cells: &std::collections::BTreeSet<(i32, i32)>) -> Vec<(i32, i32, i32, i32)> {
+    let mut left = cells.clone();
+    let mut out = Vec::new();
+    while !left.is_empty() {
+        let mut best = (0, 0, 0, 0);
+        for &(x, y) in &left {
+            let mut w = 0;
+            while left.contains(&(x + w, y)) {
+                w += 1;
+            }
+            // Each width from the widest down, as tall as all its rows reach.
+            let mut width = w;
+            while width > 0 {
+                let mut h = 1;
+                while (0..width).all(|k| left.contains(&(x + k, y + h))) {
+                    h += 1;
+                }
+                let better = width * h > best.2 * best.3 || width * h == best.2 * best.3 && (width - h).abs() < (best.2 - best.3).abs();
+                if better {
+                    best = (x, y, width, h);
+                }
+                width -= 1;
+            }
+        }
+        let (x, y, w, h) = best;
+        for ty in y..y + h {
+            for tx in x..x + w {
+                left.remove(&(tx, ty));
+            }
+        }
+        out.push(best);
+    }
+    out
+}
+
 /// What a click in the Doors mode puts into a wall.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum OpeningKind {
@@ -75,6 +124,11 @@ pub struct BuildTool {
     pub storeys: u8,
     /// Roof: its kind.
     pub roof: RoofKind,
+    /// Roof: dragged as a rectangle, painted tile by tile, or filled inside walls.
+    pub roof_draw: RoofDraw,
+    /// Roof, painted: the tiles marked for the roof so far, and whether the drag marks or clears.
+    pub roof_cells: std::collections::BTreeSet<(i32, i32)>,
+    pub roof_clearing: bool,
     /// Doors: what a click puts in, and the door prop / window wall prop for wall pieces.
     pub opening: OpeningKind,
     pub door: String,
@@ -104,6 +158,9 @@ impl Default for BuildTool {
             style: String::new(),
             storeys: 1,
             roof: RoofKind::Gable,
+            roof_draw: RoofDraw::Rectangle,
+            roof_cells: Default::default(),
+            roof_clearing: false,
             opening: OpeningKind::Door,
             door: String::new(),
             window: String::new(),
@@ -434,8 +491,22 @@ impl Editor {
                 self.build.start = None;
                 self.put_opening(world);
             }
+            BuildMode::Roof if self.build.roof_draw == RoofDraw::Paint => {
+                let t = self.tile_at(world);
+                self.build.roof_clearing = self.build.roof_cells.contains(&t);
+                self.build_drag(world);
+            }
+            BuildMode::Roof if self.build.roof_draw == RoofDraw::Fill => {
+                self.build.start = None;
+                self.fill_roof(world);
+            }
             _ => {}
         }
+    }
+
+    fn tile_at(&self, world: Vec2) -> (i32, i32) {
+        let ts = self.ts();
+        ((world.x / ts).floor() as i32, (world.y / ts).floor() as i32)
     }
 
     /// Walls: the painted wall from `a` on to `b` (wall points).
@@ -451,6 +522,16 @@ impl Editor {
 
     /// The mouse moved with the button down: painted walls follow it.
     pub fn build_drag(&mut self, world: Vec2) {
+        if self.build.mode == BuildMode::Roof && self.build.roof_draw == RoofDraw::Paint {
+            let t = self.tile_at(world);
+            let in_map = self.doc.as_ref().is_some_and(|d| d.map.in_bounds(t.0, t.1));
+            if self.build.roof_clearing {
+                self.build.roof_cells.remove(&t);
+            } else if in_map {
+                self.build.roof_cells.insert(t);
+            }
+            return;
+        }
         if self.build.mode != BuildMode::Walls {
             return;
         }
@@ -487,10 +568,11 @@ impl Editor {
             }
             BuildMode::Room => self.build_room(start, world),
             BuildMode::House => self.build_house(start, world),
-            BuildMode::Roof => {
+            BuildMode::Roof if self.build.roof_draw == RoofDraw::Rectangle => {
                 let r = self.build_rect(start, world);
                 self.build_roof(r);
             }
+            BuildMode::Roof => {}
             BuildMode::Openings => {}
         }
     }
@@ -514,6 +596,10 @@ impl Editor {
                 self.set_status(format!("Took away a piece of {}", p.name));
             }
             BuildMode::Openings => self.take_opening(world),
+            BuildMode::Roof if self.build.roof_draw != RoofDraw::Rectangle => {
+                let t = self.tile_at(world);
+                self.build.roof_cells.remove(&t);
+            }
             _ => {}
         }
     }
@@ -686,6 +772,121 @@ impl Editor {
         self.set_status(format!("Built the roof '{id}' ({tiles} tiles) at {wall_h} px"));
     }
 
+    /// The height (world pixels) a roof over tiles `cells` sits at: the tallest wall piece standing
+    /// on or beside them, else the chosen wall's.
+    fn roof_height(&self, cells: &std::collections::BTreeSet<(i32, i32)>) -> f32 {
+        let ts = self.ts();
+        let chosen = self.project.db.prop(&self.build.wall).filter(|w| w.block > 0.0).map_or(48.0, |w| w.block);
+        let Some(doc) = self.doc.as_ref() else { return chosen };
+        let near = |r: Rect| cells.iter().any(|&(x, y)| Rect::new((x - 1) as f32 * ts, (y - 1) as f32 * ts, 3.0 * ts, 3.0 * ts).overlaps(&r));
+        doc.map.decor.iter().filter_map(|d| self.build_footprint(d)).filter(|(p, r)| is_wall(p) && p.block > 0.0 && near(*r)).map(|(p, _)| p.block).fold(None, |m: Option<f32>, h| Some(m.map_or(h, |m| m.max(h)))).unwrap_or(chosen)
+    }
+
+    /// Fill: the tiles the walls around ground point `world` enclose, and those the walls stand
+    /// on, are marked for the roof (nothing when they don't close it in).
+    fn fill_roof(&mut self, world: Vec2) {
+        let ts = self.ts();
+        let Some(doc) = self.doc.as_ref() else { return };
+        // Thin walls block crossing their tile edge; thick ones fill their tile.
+        let mut edges: std::collections::HashSet<((i32, i32), (i32, i32))> = Default::default();
+        let mut solid: std::collections::BTreeSet<(i32, i32)> = Default::default();
+        for d in &doc.map.decor {
+            let Some((p, r)) = self.build_footprint(d) else { continue };
+            if !is_wall(&p) {
+                continue;
+            }
+            if thin(&p) {
+                let c = vec2(r.x + r.w / 2.0, r.y + r.h / 2.0);
+                if r.w >= r.h {
+                    // Along a horizontal edge: between the tiles north and south of it.
+                    let (x, e) = ((c.x / ts).floor() as i32, (c.y / ts).round() as i32);
+                    edges.insert(((x, e - 1), (x, e)));
+                } else {
+                    let (e, y) = ((c.x / ts).round() as i32, (c.y / ts).floor() as i32);
+                    edges.insert(((e - 1, y), (e, y)));
+                }
+            } else {
+                solid.insert((((r.x + r.w / 2.0) / ts).floor() as i32, ((r.y + r.h / 2.0) / ts).floor() as i32));
+            }
+        }
+        let start = self.tile_at(world);
+        if solid.contains(&start) {
+            return self.set_status("Click inside the walls, not on them");
+        }
+        let (mw, mh) = (doc.map.width as i32, doc.map.height as i32);
+        let mut seen: std::collections::BTreeSet<(i32, i32)> = [start].into();
+        let mut todo = vec![start];
+        let mut walls_on: std::collections::BTreeSet<(i32, i32)> = Default::default();
+        while let Some((x, y)) = todo.pop() {
+            if seen.len() > 1200 || x <= 0 || y <= 0 || x >= mw - 1 || y >= mh - 1 {
+                return self.set_status("Those walls don't close in a room: paint the roof instead, or close the walls");
+            }
+            for n in [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)] {
+                let key = if n < (x, y) { (n, (x, y)) } else { ((x, y), n) };
+                if edges.contains(&key) || seen.contains(&n) {
+                    continue;
+                }
+                if solid.contains(&n) {
+                    walls_on.insert(n);
+                    continue;
+                }
+                seen.insert(n);
+                todo.push(n);
+            }
+        }
+        let n = seen.len();
+        self.build.roof_cells.extend(seen);
+        self.build.roof_cells.extend(walls_on);
+        self.set_status(format!("Marked {n} tiles inside the walls for the roof: Build roof makes it"));
+    }
+
+    /// Roof, painted or filled: the marked tiles cut into rectangles, each a roof of its own,
+    /// joined where they touch (their roofs run into each other): one undo step.
+    pub fn build_marked_roof(&mut self) {
+        let cells = std::mem::take(&mut self.build.roof_cells);
+        if cells.is_empty() {
+            return self.set_status("Paint the roof's tiles first");
+        }
+        let ts = self.ts();
+        let Some(style) = self.build_style() else { return self.set_status("Pick a building whose roof to copy") };
+        let height = self.roof_height(&cells);
+        let rects: Vec<Rect> = cut_into_rects(&cells).into_iter().map(|(x, y, w, h)| Rect::new(x as f32 * ts, y as f32 * ts, w as f32 * ts, h as f32 * ts)).collect();
+        let mut ids: Vec<String> = Vec::new();
+        for _ in &rects {
+            let taken: Vec<&str> = ids.iter().map(String::as_str).collect();
+            let id = new_id(&self.project.db, &style.id, "roof", &taken);
+            ids.push(id);
+        }
+        let base = style.building.clone().unwrap_or_default();
+        for (k, r) in rects.iter().enumerate() {
+            let joins = rects.iter().enumerate().filter(|(j, o)| *j != k && touching(*r, **o, ts).is_some()).map(|(j, o)| Join { prop: ids[j].clone(), at: [o.x - r.x, o.y - r.y] }).collect();
+            // The biggest part's ridge runs along its longer side; every other part's points into
+            // the bigger part it meets (the cut comes biggest first), so their roofs meet.
+            let ridge = rects[..k].iter().find_map(|o| touching(*r, *o, ts)).map_or(Ridge::Auto, |side| if matches!(side, WallSide::North | WallSide::South) { Ridge::NorthSouth } else { Ridge::EastWest });
+            let shape = BuildingShape { walls: false, height, roof: self.build.roof, openings: Vec::new(), chimneys: Vec::new(), joins, base_height: 0.0, ridge, ..base.clone() };
+            let tiles = format!("{}x{}", (r.w / ts) as i32, (r.h / ts) as i32);
+            self.project.db.props.push(PropDef { id: ids[k].clone(), name: format!("Roof ({tiles})"), hitbox: [r.w, r.h], building: Some(shape), model: String::new(), solid: false, states: Vec::new(), triggers: Vec::new(), ..style.clone() });
+        }
+        self.project.db.reindex();
+        self.defs_dirty = true;
+        self.assets.rebuild_buildings(&self.project.db);
+        let Some(doc) = &mut self.doc else { return };
+        let mut added = Vec::new();
+        for (r, id) in rects.iter().zip(&ids) {
+            let d = Decor { def: doc.map.decor_slot(id), x: (r.x + r.w / 2.0) as i32, y: (r.y + r.h) as i32, flip: false, state: 0, layer: DecorLayer::Sorted };
+            doc.map.decor.push(d);
+            added.push(d);
+        }
+        doc.record_build(Vec::new(), 0, added, Vec::new(), None, &self.assets);
+        for r in &rects {
+            self.built_on(*r);
+        }
+        for id in &ids {
+            let _ = self.render_prop_pictures(Some(id));
+        }
+        self.set_status(format!("Built a roof over {} tiles ({} parts) at {height} px", cells.len(), rects.len()));
+    }
+
     /// The building prop decoration `i` shows, ready to be changed: its own prop, or a copy when
     /// other decorations of the map use it too or it came from elsewhere (the decoration then
     /// shows the copy).
@@ -850,6 +1051,22 @@ impl Editor {
     pub fn draw_build_hover(&self, world: Vec2, px: f32) {
         let ts = self.ts();
         let col = Color::new(1.0, 0.85, 0.2, 0.9);
+        if self.build.mode == BuildMode::Roof && self.build.roof_draw != RoofDraw::Rectangle {
+            // The marked tiles, their outline, and the tile under the cursor.
+            let cells = &self.build.roof_cells;
+            for &(x, y) in cells {
+                let (x0, y0) = (x as f32 * ts, y as f32 * ts);
+                draw_rectangle(x0, y0, ts, ts, Color::new(0.85, 0.35, 0.25, 0.35));
+                for (n, a, b) in [((x, y - 1), (x0, y0), (x0 + ts, y0)), ((x, y + 1), (x0, y0 + ts), (x0 + ts, y0 + ts)), ((x - 1, y), (x0, y0), (x0, y0 + ts)), ((x + 1, y), (x0 + ts, y0), (x0 + ts, y0 + ts))] {
+                    if !cells.contains(&n) {
+                        draw_line(a.0, a.1, b.0, b.1, 2.0 * px, col);
+                    }
+                }
+            }
+            let (x, y) = self.tile_at(world);
+            draw_rectangle_lines(x as f32 * ts, y as f32 * ts, ts, ts, 2.0 * px, col);
+            return;
+        }
         if self.build.mode == BuildMode::Openings {
             if let Some((_, _, r, _, _)) = self.build_pick(world, |p| is_wall(p) || is_house(p)) {
                 draw_rectangle_lines(r.x, r.y, r.w, r.h, 3.0 * px, col);
@@ -905,7 +1122,7 @@ impl Editor {
             BuildMode::Walls => "Drag: the wall follows the mouse along the tile edges, round corners too (Shift: a straight line). Thin walls and fences stand on the edges, thick walls fill the tiles. Right-click a piece to take it away.",
             BuildMode::Room => "Drag the room's floor. Its back walls (north, west) are built, or all four with a doorway in the south wall; with a roof, it gets one over it.",
             BuildMode::House => "Drag the house's footprint: a new building prop in the chosen look, its door in the middle of the front, windows along the walls. Drag it against another house and it becomes a wing of that one: an L-shaped house under one roof.",
-            BuildMode::Roof => "Drag over a room of walls: a roof alone, as high as the chosen wall, in the look of the chosen building. In play it fades out like anything else in front of the hero.",
+            BuildMode::Roof => "A roof alone over walls you built, in the look of the chosen building, as high as the walls under it (else the chosen wall). Drag a rectangle, or paint its tiles by hand (or fill a house of walls with a click) and Build roof: any shape, joined into one roof. In play it fades out like anything else in front of the hero.",
             BuildMode::Openings => "Click a house's wall: a door or window there. Click a wall piece: a door (it opens in play), a window piece or a gap. Right-click a house's door or window, or a door in a wall, to take it away.",
         });
         type Entry = (String, String, SpriteRef);
@@ -928,6 +1145,7 @@ impl Editor {
             });
         };
         let b = &mut self.build;
+        let mut build_marked = false;
         match b.mode {
             BuildMode::House | BuildMode::Roof => {
                 if b.mode == BuildMode::House {
@@ -938,6 +1156,23 @@ impl Editor {
                         }
                     });
                 } else {
+                    ui.horizontal(|ui| {
+                        ui.label("Draw");
+                        ui.selectable_value(&mut b.roof_draw, RoofDraw::Rectangle, "Rectangle").on_hover_text("Drag a rectangle: a roof over it at once");
+                        ui.selectable_value(&mut b.roof_draw, RoofDraw::Paint, "Paint").on_hover_text("Paint the roof's tiles by hand (any shape: L, T, a cross), then Build roof. A drag that starts on a marked tile clears instead; right-click clears one");
+                        ui.selectable_value(&mut b.roof_draw, RoofDraw::Fill, "Fill inside walls").on_hover_text("Click inside a house you built from walls: its tiles and those of its walls are marked; then Build roof");
+                    });
+                    if b.roof_draw != RoofDraw::Rectangle {
+                        ui.horizontal(|ui| {
+                            ui.label(format!("{} tiles marked", b.roof_cells.len()));
+                            if ui.add_enabled(!b.roof_cells.is_empty(), egui::Button::new(crate::ui::t(crate::ui::ph::HOUSE_LINE, "Build roof"))).on_hover_text("The marked tiles get a roof: cut into rectangles, joined where they meet so their roofs run into each other (Enter)").clicked() {
+                                build_marked = true;
+                            }
+                            if ui.add_enabled(!b.roof_cells.is_empty(), egui::Button::new("Clear")).clicked() {
+                                b.roof_cells.clear();
+                            }
+                        });
+                    }
                     ui.horizontal(|ui| {
                         ui.label("Roof");
                         for k in [RoofKind::Gable, RoofKind::Hip, RoofKind::Shed, RoofKind::Flat] {
@@ -987,6 +1222,10 @@ impl Editor {
                 thumbs(ui, "build_walls", &walls, &mut b.wall);
             }
         }
+        let enter = ui.input(|i| i.key_pressed(egui::Key::Enter)) && !ui.ctx().wants_keyboard_input();
+        if build_marked || enter && self.build.mode == BuildMode::Roof && !self.build.roof_cells.is_empty() {
+            self.build_marked_roof();
+        }
         // What was built, as a structure in one click (not while a structure is open itself).
         if self.editing_structure.is_some() {
             return;
@@ -1027,7 +1266,7 @@ impl Editor {
             s += &format!(":storeys{}", b.storeys);
         }
         if b.mode == BuildMode::Roof {
-            s += &format!(":{:?}", b.roof).to_lowercase();
+            s += &format!(":{:?}:{:?}:{}", b.roof, b.roof_draw, b.roof_cells.len()).to_lowercase();
         }
         if b.mode == BuildMode::Openings {
             s += &format!(":{:?}:{}:{}", b.opening, b.door, b.window).to_lowercase();
@@ -1107,6 +1346,20 @@ mod tests {
         assert_eq!(touching(a, Rect::new(160.0, 0.0, 64.0, 64.0), 32.0), None);
         // Corners alone don't count.
         assert_eq!(touching(a, Rect::new(128.0, 96.0, 64.0, 64.0), 32.0), None);
+    }
+
+    #[test]
+    fn hand_drawn_roofs_are_cut_into_rectangles() {
+        let cells = |v: &[(i32, i32, i32, i32)]| -> std::collections::BTreeSet<(i32, i32)> { v.iter().flat_map(|&(x, y, w, h)| (y..y + h).flat_map(move |ty| (x..x + w).map(move |tx| (tx, ty)))).collect() };
+        // An L: a 6 x 3 hall and a 3 x 3 wing below its east end.
+        let l = cells(&[(0, 0, 6, 3), (3, 3, 3, 3)]);
+        let rects = cut_into_rects(&l);
+        assert_eq!(rects.len(), 2, "{rects:?}");
+        assert_eq!(rects.iter().map(|r| r.2 * r.3).sum::<i32>(), 27);
+        assert_eq!(rects[0], (0, 0, 6, 3));
+        // A plain rectangle stays one; a cross is three.
+        assert_eq!(cut_into_rects(&cells(&[(2, 2, 4, 3)])), vec![(2, 2, 4, 3)]);
+        assert_eq!(cut_into_rects(&cells(&[(0, 2, 7, 3), (2, 0, 3, 2), (2, 5, 3, 2)])).len(), 3);
     }
 
     #[test]

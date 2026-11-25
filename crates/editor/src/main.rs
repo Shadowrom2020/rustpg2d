@@ -532,6 +532,16 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 _ => {}
             }
         }
+        // buildroofdraw rectangle|paint|fill · buildroofmake (= Build roof) · buildroofclear
+        "buildroofdraw" => {
+            ed.build.roof_draw = match arg(1) {
+                "paint" => build_tool::RoofDraw::Paint,
+                "fill" => build_tool::RoofDraw::Fill,
+                _ => build_tool::RoofDraw::Rectangle,
+            }
+        }
+        "buildroofmake" => ed.build_marked_roof(),
+        "buildroofclear" => ed.build.roof_cells.clear(),
         "buildsave" => {
             let r = ed.save_built_structure(arg(1));
             println!("[script] buildsave: {}", r.as_ref().map_or_else(|e| format!("{e:#}"), |m| m.clone()));

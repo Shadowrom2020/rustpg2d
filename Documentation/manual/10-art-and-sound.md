@@ -118,6 +118,13 @@ The 3D kinds:
   the icon itself (30 credits; a 32 px icon gives a bulky model). *Add to project* gives the item the model,
   held as its kind says (hold style, length, hold point estimated): check it in the preview of the
   item's *3D model* section.
+- **Prop / building 3D model** (since 0.35): the **Id** is an existing prop (make it first: its
+  hitbox's width is the model's). Meshy draws a concept from the prop's picture (and the
+  **description**, if any: needed when the prop has no picture) the way the library's props were
+  made, then models it (34 credits). *Add to project* stands the model on the ground in the middle of
+  its footprint, writes `models/<prop>_3d.glb`, adds the 3D model as wide as the hitbox (the hitbox
+  grows as deep as the model, so collision and the drawing order fit), gives the prop the model and
+  renders its pictures from it. Placed copies turn with **R** and cast a shadow.
 - **3D model clips**: more animations for a rigged 3D model of the project (the **Id**; no
   description): tick the **weapon animations** (`attack_1h` … `block_weapon`, mapped to those names
   with their hit points) or `sneak`, `craft`, `farm`, `chop`, `sleep`. Meshy rigs the model's file

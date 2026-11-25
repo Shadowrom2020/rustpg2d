@@ -93,7 +93,7 @@ frames of its sheet and a speed) plays it as a decoration too: torches, flags, w
 | Mode | Use |
 |---|---|
 | **Place** | Click: one of the chosen prop, on its grid when it snaps (*Snap to*) |
-| **Line** | Drag a straight line of a prop on its grid: a wall or a fence. A **wall set** (a prop with *Wall pieces*) swaps in the piece each spot needs by its neighbours (corners, ends, crossings), also where a new line meets an old one |
+| **Line** | Drag a straight line of a prop on its grid (its *Snap to*): a wall or a fence |
 | **Scatter** | Click or drag a brush: a **scatter set**'s props at random, keeping their spacing (*Forest*, *Rocks*, *Wild plants*; [Database › Scatter sets](05-database.md#scatter-sets)) |
 | **Erase** | Click or drag a brush: removes the decorations under it |
 

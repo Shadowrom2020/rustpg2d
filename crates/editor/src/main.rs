@@ -1323,7 +1323,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                     // 3D characters take their options in the SIZE place: female / male, from=SHEET, extra animations (clips: the ones to add), comma separated.
                     let opts: Vec<&str> = arg(3).split(',').collect();
                     let from = opts.iter().find_map(|o| o.strip_prefix("from=")).unwrap_or("").to_string();
-                    let req = art::ArtRequest { kind, id: arg(2).to_string(), attack: arg(4).to_string(), description: cmd[5.min(cmd.len())..].join(" "), tiles: (1, 1), portrait_for: String::new(), by_agent: false, female: opts.contains(&"female"), from, extras: opts.iter().filter(|o| art::EXTRAS.contains(o) || art::CLIP_CHOICES.iter().any(|c| c.0 == **o)).map(|o| o.to_string()).collect() };
+                    let req = art::ArtRequest { kind, id: arg(2).to_string(), attack: arg(4).to_string(), description: cmd[5.min(cmd.len())..].join(" "), portrait_for: String::new(), by_agent: false, female: opts.contains(&"female"), from, extras: opts.iter().filter(|o| art::EXTRAS.contains(o) || art::CLIP_CHOICES.iter().any(|c| c.0 == **o)).map(|o| o.to_string()).collect() };
                     match ed.start_art(req) {
                         Ok(id) => println!("[art] started job {id}"),
                         Err(e) => println!("[art] refused: {e:#}"),

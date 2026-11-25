@@ -186,20 +186,6 @@ pub const EAST: usize = 2;
 pub const SOUTH: usize = 4;
 pub const WEST: usize = 8;
 
-/// Which piece of the wall set `set` (a prop with 16 `pieces`) goes at a spot with neighbours
-/// `mask`; the set's own id when the slot is empty.
-pub fn wall_piece(db: &Database, set: &str, mask: usize) -> String {
-    db.prop(set).and_then(|d| d.pieces.get(mask & 15)).filter(|p| !p.is_empty()).cloned().unwrap_or_else(|| set.to_string())
-}
-
-/// The wall set a prop belongs to: itself when it has pieces, else a set listing it.
-pub fn wall_set_of(db: &Database, prop: &str) -> Option<String> {
-    if db.prop(prop).is_some_and(|d| !d.pieces.is_empty()) {
-        return Some(prop.to_string());
-    }
-    db.props.iter().find(|d| d.pieces.iter().any(|p| p == prop)).map(|d| d.id.clone())
-}
-
 /// What a map's decorations do, by `decor_defs` slot: built when a map is entered (and by the
 /// editor) from the prop definitions.
 #[derive(Clone, Debug, Default)]

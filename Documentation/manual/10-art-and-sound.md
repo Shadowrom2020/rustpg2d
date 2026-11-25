@@ -103,12 +103,11 @@ In the window, choose what to make, give it an id and describe it. The first row
 (characters are 3D models; see [Characters › How characters look](06-characters.md#how-characters-look)):
 
 - **Item icon**: 32 × 32, in the style of your *items* sheet's icons.
-- **Prop**: 1 to 4 tiles wide and high, standing on its bottom edge.
 - **Portrait**: head and shoulders for dialogs, 128 × 128 at 2×; *For character* makes it that
   character's dialog portrait when added.
 - **Painted image**: a picture for *Show image* (up to 1024 pixels).
 
-The second row makes pictures: the item icons, props, portraits and painted images above.
+The second row makes pictures: the item icons, portraits and painted images above.
 
 The 3D kinds:
 

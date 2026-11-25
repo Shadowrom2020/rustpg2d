@@ -41,8 +41,6 @@ impl<T> Locked<T> for Mutex<T> {
 pub enum ArtKind {
     /// An item icon (32 x 32).
     Icon,
-    /// A prop (w x h tiles).
-    Prop,
     /// A dialog portrait (128 x 128 at 2x).
     Portrait,
     /// A painted picture (Show image).
@@ -59,7 +57,7 @@ pub enum ArtKind {
 }
 
 impl ArtKind {
-    pub const ALL: [ArtKind; 8] = [ArtKind::Icon, ArtKind::Prop, ArtKind::Portrait, ArtKind::Image, ArtKind::Model3d, ArtKind::Creature3d, ArtKind::Gear3d, ArtKind::Clips3d];
+    pub const ALL: [ArtKind; 7] = [ArtKind::Icon, ArtKind::Portrait, ArtKind::Image, ArtKind::Model3d, ArtKind::Creature3d, ArtKind::Gear3d, ArtKind::Clips3d];
 
     /// A 3D job (models, not pictures).
     pub fn is_3d(self) -> bool {
@@ -69,7 +67,6 @@ impl ArtKind {
     pub fn name(self) -> &'static str {
         match self {
             ArtKind::Icon => "icon",
-            ArtKind::Prop => "prop",
             ArtKind::Portrait => "portrait",
             ArtKind::Image => "image",
             ArtKind::Model3d => "model",
@@ -82,7 +79,6 @@ impl ArtKind {
     pub fn label(self) -> &'static str {
         match self {
             ArtKind::Icon => "Item icon",
-            ArtKind::Prop => "Prop",
             ArtKind::Portrait => "Portrait",
             ArtKind::Image => "Painted image",
             ArtKind::Model3d => "3D character",
@@ -118,8 +114,6 @@ pub struct ArtRequest {
     pub description: String,
     /// Attack (`ATTACKS`), 3D characters.
     pub attack: String,
-    /// Props: size in tiles.
-    pub tiles: (u32, u32),
     /// Portraits: the character whose dialog portrait it becomes ("" = none).
     pub portrait_for: String,
     /// Started by an AI agent (shown as such).
@@ -245,9 +239,6 @@ impl ArtRequest {
         if let Some(e) = self.extras.iter().find(|e| !EXTRAS.contains(&e.as_str())) {
             return Err(anyhow!("unknown extra animation \"{e}\": {}", EXTRAS.join(", ")));
         }
-        if self.kind == ArtKind::Prop && !(1..=4).contains(&self.tiles.0) | !(1..=4).contains(&self.tiles.1) {
-            return Err(anyhow!("a prop is 1 to 4 tiles wide and high"));
-        }
         Ok(())
     }
 
@@ -262,11 +253,6 @@ impl ArtRequest {
                     aspect: "1:1".into(),
                 },
                 None => meshy::Request::FromText { prompt: format!("Pixel art inventory icon, 32x32 pixel look, dark outline, simple shading, one single object, centred, filling most of the square, plain flat background, no text: {desc}"), aspect: "1:1".into(), background: false },
-            },
-            ArtKind::Prop => meshy::Request::FromText {
-                prompt: format!("Pixel art game prop for a top-down RPG, seen from slightly above, detailed 16-bit style with a dark outline and soft shading, one single object, centred, plain flat background, no text, no ground shadow: {desc}"),
-                aspect: if self.tiles.0 > self.tiles.1 { "4:3" } else if self.tiles.1 > self.tiles.0 { "3:4" } else { "1:1" }.into(),
-                background: false,
             },
             ArtKind::Model3d => meshy::Request::FromText {
                 prompt: format!("Character turnaround sheet for a 3D model: the same character three times side by side, full body, standing straight in an A-pose with the arms slightly away from the body, both hands empty and open, no weapons, no sheaths or scabbards, nothing hanging from the belt. Left: front view. Middle: side view facing left. Right: back view. Stylized fantasy RPG character, clean shapes, soft shading, plain white background, no text, no shadows. The character: {desc}"),
@@ -623,10 +609,6 @@ fn convert_job(job: &Arc<Mutex<Job>>) -> Result<()> {
     let decode = |name: &str| -> Result<Rgba> { Rgba::decode(&png(name)?) };
     let (img, frame) = match req.kind {
         ArtKind::Icon => (convert::fit(&decode("picture")?, 32, 32, 1, false)?, (32, 32)),
-        ArtKind::Prop => {
-            let (w, h) = (req.tiles.0 * 64, req.tiles.1 * 64);
-            (convert::fit(&decode("picture")?, w, h, 2, true)?, (w, h))
-        }
         ArtKind::Portrait => {
             let p = decode("picture")?;
             let sq = convert::fit(&p, 128, 128, 0, false)?;
@@ -808,7 +790,7 @@ mod tests {
     use super::*;
 
     fn req(kind: ArtKind, attack: &str) -> ArtRequest {
-        ArtRequest { kind, id: "orc_shaman".into(), description: "an orc shaman with a staff".into(), attack: attack.into(), tiles: (1, 1), portrait_for: String::new(), by_agent: true, female: false, from: String::new(), extras: Vec::new() }
+        ArtRequest { kind, id: "orc_shaman".into(), description: "an orc shaman with a staff".into(), attack: attack.into(), portrait_for: String::new(), by_agent: true, female: false, from: String::new(), extras: Vec::new() }
     }
 
     #[test]

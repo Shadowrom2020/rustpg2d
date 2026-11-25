@@ -2,7 +2,7 @@
 //! references the requests use, and adding finished art to the project.
 
 use egui_macroquad::egui::{self, Color32};
-use rustpg2d_engine::defs::{CharacterDef, ItemDef, PropDef, SheetDef, SpriteRef};
+use rustpg2d_engine::defs::{CharacterDef, ItemDef, SheetDef, SpriteRef};
 use rustpg2d_engine::imageio::Rgba;
 
 use super::{api_key, meshy, save_key, ArtKind, ArtRequest, Job, Locked, References, Stage, ATTACKS};
@@ -16,7 +16,6 @@ pub struct ArtWindow {
     pub id: String,
     pub description: String,
     pub attack: String,
-    pub tiles: (u32, u32),
     /// Portraits: the character it is for ("" = none).
     pub portrait_for: String,
     /// 3D characters: a woman; the figure to model from ("" = a new turnaround picture).
@@ -32,7 +31,7 @@ pub struct ArtWindow {
 
 impl Default for ArtWindow {
     fn default() -> Self {
-        ArtWindow { open: false, kind: ArtKind::Model3d, id: String::new(), description: String::new(), attack: "none".into(), tiles: (1, 1), portrait_for: String::new(), female: false, from: String::new(), extras: Vec::new(), confirm: false, message: None, previews: Default::default() }
+        ArtWindow { open: false, kind: ArtKind::Model3d, id: String::new(), description: String::new(), attack: "none".into(), portrait_for: String::new(), female: false, from: String::new(), extras: Vec::new(), confirm: false, message: None, previews: Default::default() }
     }
 }
 
@@ -151,7 +150,7 @@ impl Editor {
         std::fs::write(self.project.root.join(&rel), &png)?;
         let (fw, fh) = j.frame;
         let sheet = match j.req.kind {
-            ArtKind::Prop | ArtKind::Portrait => SheetDef { scale: 2, ..SheetDef::new(id, &rel, fw, fh) },
+            ArtKind::Portrait => SheetDef { scale: 2, ..SheetDef::new(id, &rel, fw, fh) },
             ArtKind::Icon | ArtKind::Image => SheetDef::new(id, &rel, fw, fh),
             ArtKind::Model3d | ArtKind::Creature3d | ArtKind::Gear3d | ArtKind::Clips3d => unreachable!("3D jobs are added by apply_art_3d"),
         };
@@ -171,14 +170,6 @@ impl Editor {
             ArtKind::Icon if db.item(id).is_none() => {
                 db.upsert(ItemDef { name: name.clone(), icon: SpriteRef::new(id, 0), ..ItemDef::fresh(id) });
                 added.push(format!("item {id}"));
-            }
-            ArtKind::Prop if db.prop(id).is_none() => {
-                let mut p = PropDef::fresh(id);
-                p.name = name.clone();
-                p.sprite = SpriteRef::new(id, 0);
-                p.hitbox = [(fw / 2) as f32 * 0.8, 16.0];
-                db.upsert(p);
-                added.push(format!("prop {id}"));
             }
             _ => {}
         }
@@ -457,15 +448,6 @@ impl Editor {
                     ui.add(egui::TextEdit::singleline(&mut w.portrait_for).hint_text("(none)").desired_width(180.0)).on_hover_text("A character id: Add to project makes the picture its dialog portrait");
                     ui.end_row();
                 }
-                if w.kind == ArtKind::Prop {
-                    ui.label("Size in tiles");
-                    ui.horizontal(|ui| {
-                        ui.add(egui::DragValue::new(&mut w.tiles.0).range(1..=4));
-                        ui.label("x");
-                        ui.add(egui::DragValue::new(&mut w.tiles.1).range(1..=4));
-                    });
-                    ui.end_row();
-                }
             });
             match w.kind {
                 ArtKind::Model3d => ui.weak("A turnaround picture, a 3D model of it, a skeleton and animations (walk, idle, the attack, hit, sit). Takes a few minutes."),
@@ -586,7 +568,7 @@ impl Editor {
 
     fn req_from_form(&self) -> ArtRequest {
         let w = &self.art.window;
-        ArtRequest { kind: w.kind, id: w.id.trim().to_string(), description: w.description.clone(), attack: w.attack.clone(), tiles: w.tiles, portrait_for: w.portrait_for.trim().to_string(), by_agent: false, female: w.female, from: w.from.trim().to_string(), extras: w.extras.clone() }
+        ArtRequest { kind: w.kind, id: w.id.trim().to_string(), description: w.description.clone(), attack: w.attack.clone(), portrait_for: w.portrait_for.trim().to_string(), by_agent: false, female: w.female, from: w.from.trim().to_string(), extras: w.extras.clone() }
     }
 }
 

@@ -7,7 +7,7 @@ use macroquad::prelude::*;
 
 use crate::app::Editor;
 use crate::widgets;
-use rustpg2d_engine::decor::{self, Decor, DecorLayer};
+use rustpg2d_engine::decor::{Decor, DecorLayer};
 use rustpg2d_engine::map::Map;
 
 /// How the Decorations tool places.
@@ -84,55 +84,27 @@ pub fn snap_point(p: Vec2, s: f32) -> Vec2 {
     vec2((p.x / s).floor() * s + s / 2.0, (p.y / s).floor() * s + s)
 }
 
-/// Places a line of wall pieces of `set` from `a` to `b` (along the longer axis) on its grid and
-/// picks the pieces of every member of the set around it again; returns (added, removed).
-pub fn wall_line(map: &mut Map, db: &rustpg2d_engine::defs::Database, set: &str, a: Vec2, b: Vec2, layer: DecorLayer) -> (Vec<Decor>, Vec<Decor>) {
-    let s = db.prop(set).map_or(32, |d| if d.snap == 0 { 32 } else { d.snap }) as f32;
+/// Places a line of prop `prop` from `a` to `b` (along the longer axis) on its grid (its *Snap
+/// to*, else a tile), skipping spots it stands on already; returns (added, removed).
+pub fn wall_line(map: &mut Map, db: &rustpg2d_engine::defs::Database, prop: &str, a: Vec2, b: Vec2, layer: DecorLayer) -> (Vec<Decor>, Vec<Decor>) {
+    let s = db.prop(prop).map_or(32, |d| if d.snap == 0 { 32 } else { d.snap }) as f32;
     let (a, b) = (snap_point(a, s), snap_point(b, s));
     let b = if (b.x - a.x).abs() >= (b.y - a.y).abs() { vec2(b.x, a.y) } else { vec2(a.x, b.y) };
     let n = (((b - a).length() / s).round() as i32).max(0);
     let dir = if n == 0 { Vec2::ZERO } else { (b - a) / n as f32 };
-    let family: Vec<String> = std::iter::once(set.to_string()).chain(db.prop(set).map(|d| d.pieces.clone()).unwrap_or_default()).filter(|p| !p.is_empty()).collect();
-    let is_member = |map: &Map, d: &Decor| map.decor_defs.get(d.def as usize).is_some_and(|id| family.contains(id));
+    let slot = map.decor_slot(prop);
     let mut added = Vec::new();
-    let mut removed = Vec::new();
-    let slot = map.decor_slot(set);
     for k in 0..=n {
         let p = a + dir * k as f32;
         let (x, y) = (p.x.round() as i32, p.y.round() as i32);
-        if map.decor.iter().any(|d| d.x == x && d.y == y && is_member(map, d)) {
+        if map.decor.iter().any(|d| d.x == x && d.y == y && d.def == slot) {
             continue;
         }
         let d = Decor { def: slot, x, y, flip: false, state: 0, layer };
         map.decor.push(d);
         added.push(d);
     }
-    // Every member of the set near the line takes the piece its neighbours ask for.
-    let (lo, hi) = (a.min(b) - Vec2::splat(s * 1.5), a.max(b) + Vec2::splat(s * 1.5));
-    let members: Vec<(i32, i32)> = map.decor.iter().filter(|d| is_member(map, d)).map(|d| (d.x, d.y)).collect();
-    let si = s.round() as i32;
-    for i in 0..map.decor.len() {
-        let d = map.decor[i];
-        if !is_member(map, &d) || (d.x as f32) < lo.x || (d.x as f32) > hi.x || (d.y as f32) < lo.y || (d.y as f32) > hi.y {
-            continue;
-        }
-        let has = |dx: i32, dy: i32| members.contains(&(d.x + dx * si, d.y + dy * si));
-        let mask = if has(0, -1) { decor::NORTH } else { 0 } | if has(1, 0) { decor::EAST } else { 0 } | if has(0, 1) { decor::SOUTH } else { 0 } | if has(-1, 0) { decor::WEST } else { 0 };
-        let piece = decor::wall_piece(db, set, mask);
-        let def = map.decor_slot(&piece);
-        if def != d.def {
-            let new = Decor { def, ..d };
-            // A piece placed by this line: just its new look; an older one: removed and added.
-            if let Some(j) = added.iter().position(|x| *x == d) {
-                added[j] = new;
-            } else {
-                removed.push(d);
-                added.push(new);
-            }
-            map.decor[i] = new;
-        }
-    }
-    (added, removed)
+    (added, Vec::new())
 }
 
 impl Editor {
@@ -174,13 +146,12 @@ impl Editor {
         }
         if let Some(start) = self.decor.line_start.take() {
             let (prop, layer) = (self.decor.prop.clone(), self.decor.layer);
-            let set = decor::wall_set_of(&self.project.db, &prop).unwrap_or(prop);
             let db = &self.project.db;
             if let Some(doc) = &mut self.doc {
-                let (added, removed) = wall_line(&mut doc.map, db, &set, start, world, layer);
+                let (added, removed) = wall_line(&mut doc.map, db, &prop, start, world, layer);
                 let n = added.len();
                 doc.record_decor(added, removed);
-                self.set_status(format!("Placed {n} pieces of {set}"));
+                self.set_status(format!("Placed a line of {n} {prop}"));
             }
         }
     }
@@ -288,7 +259,7 @@ impl Editor {
             for m in DecorMode::ALL {
                 let help = match m {
                     DecorMode::Place => "Click: one of the chosen prop (on its grid when it snaps)",
-                    DecorMode::Line => "Drag a straight line of the chosen prop: wall sets join their pieces by their neighbours",
+                    DecorMode::Line => "Drag a straight line of the chosen prop on its grid: walls, fences",
                     DecorMode::Scatter => "Click or drag: the scatter set's props at random (forests, flowers)",
                     DecorMode::Erase => "Click or drag: removes the decorations under the brush",
                 };
@@ -346,24 +317,24 @@ impl Editor {
             ui.add(egui::TextEdit::singleline(&mut self.decor.filter).hint_text("search props").desired_width(150.0));
         });
         let f = self.decor.filter.to_lowercase();
-        let props: Vec<(String, String, rustpg2d_engine::defs::SpriteRef, bool)> = self
+        let props: Vec<(String, String, rustpg2d_engine::defs::SpriteRef)> = self
             .project
             .db
             .props
             .iter()
             .filter(|d| f.is_empty() || d.id.to_lowercase().contains(&f) || d.name.to_lowercase().contains(&f))
-            .filter(|d| self.decor.mode != DecorMode::Line || !d.pieces.is_empty() || d.snap > 0)
-            .map(|d| (d.id.clone(), d.name.clone(), d.sprite.clone(), !d.pieces.is_empty()))
+            .filter(|d| self.decor.mode != DecorMode::Line || d.snap > 0)
+            .map(|d| (d.id.clone(), d.name.clone(), d.sprite.clone()))
             .collect();
         if self.decor.mode == DecorMode::Line && props.is_empty() {
-            ui.weak("No wall sets yet: give a prop pieces (Database › Props › Wall pieces) or a grid to snap to.");
+            ui.weak("No props for lines yet: give a prop a grid to snap to (Database › Props › Snap to).");
         }
         let mut chosen = None;
         egui::ScrollArea::vertical().id_salt("decor_props").max_height(360.0).auto_shrink([false, true]).show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
-                for (id, name, sprite, set) in &props {
+                for (id, name, sprite) in &props {
                     let on = *id == self.decor.prop;
-                    let tip = format!("{name} ({id}){}", if *set { " · wall set" } else { "" });
+                    let tip = format!("{name} ({id})");
                     if widgets::sprite_thumb(ui, &self.tex, &self.assets, sprite, 40.0, on).on_hover_text(tip).clicked() {
                         chosen = Some(id.clone());
                     }
@@ -402,25 +373,15 @@ mod tests {
     use rustpg2d_engine::defs::{Database, PropDef};
 
     #[test]
-    fn wall_lines_join_their_pieces() {
-        // A wall set: the plain piece runs east-west; the mask picks the others.
-        let mut set = PropDef { snap: 32, ..PropDef::fresh("wall") };
-        set.pieces = vec![String::new(); 16];
-        set.pieces[decor::NORTH | decor::SOUTH] = "wall_v".into();
-        set.pieces[decor::EAST | decor::SOUTH] = "wall_corner".into();
-        let db = Database { props: vec![set, PropDef::fresh("wall_v"), PropDef::fresh("wall_corner")], ..Default::default() };
+    fn a_line_places_the_prop_on_its_grid() {
+        let db = Database { props: vec![PropDef { snap: 32, ..PropDef::fresh("wall") }], ..Default::default() };
         let mut map = Map::new("m", 20, 20);
-        // East along row 2, then down from its west end: the corner joins them.
         let (added, removed) = wall_line(&mut map, &db, "wall", vec2(70.0, 70.0), vec2(200.0, 75.0), DecorLayer::Sorted);
-        assert_eq!(added.len(), 5);
-        assert!(removed.is_empty());
-        let (added, removed) = wall_line(&mut map, &db, "wall", vec2(70.0, 70.0), vec2(72.0, 200.0), DecorLayer::Sorted);
-        assert_eq!(added.len(), 4 + 1, "four new pieces and the corner");
-        assert_eq!(removed.len(), 1, "the old end piece became the corner");
-        let at = |x: i32, y: i32| map.decor.iter().find(|d| d.x == x && d.y == y).map(|d| map.decor_defs[d.def as usize].clone());
-        assert_eq!(at(80, 96).as_deref(), Some("wall_corner"));
-        assert_eq!(at(80, 160).as_deref(), Some("wall_v"));
-        assert_eq!(at(144, 96).as_deref(), Some("wall"));
-        assert_eq!(map.decor.len(), 9);
+        assert_eq!((added.len(), removed.len()), (5, 0));
+        // Again over the same spots and on: only the new ones.
+        let (added, _) = wall_line(&mut map, &db, "wall", vec2(70.0, 70.0), vec2(270.0, 75.0), DecorLayer::Sorted);
+        assert_eq!(added.len(), 2);
+        assert!(map.decor.iter().all(|d| d.y == 96 && (d.x - 16) % 32 == 0));
     }
+
 }

@@ -166,7 +166,7 @@ crates/engine/src/      library: everything shared by game and editor
                         model `@building:<prop>` (Models::add_buildings / rebuild_building; PropDef::model_at gives it)
   decor.rs              decorations: Decor (a prop's picture at a pixel position; Flat / Sorted / Above),
                         Map.decor_defs + Map.decor, DecorIndex (by chunk), DecorLook, ScatterDef
-                        (defs/scatter.ron), wall sets (PropDef.pieces by neighbour mask); the runtime
+                        (defs/scatter.ron); the runtime
                         draws them sorted with characters and puts solid ones into the occupancy base
   hooks.rs              script hooks: HookDef (ProjectConfig.hooks: hook, function, priority), HOOKS (names, map
                         fields, docs), HookTable; ScriptHost::call_hook (map in, changed map or () out, under

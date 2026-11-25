@@ -411,8 +411,16 @@ the western RPGs (Baldur's Gate, Planescape: Torment).
   sheared along the sun, rather than baked: no anchor field needed). Part 7 (`feature/iso-art-ground`): 42 painted ground textures
   (172 credits incl. a second grass; balance 3,042) from the old tile repeated 4 x 4 as the
   reference, so every stone and plank keeps its size; 128 px, seamless by cross-fading with a
-  shifted copy. Next: ground shadows for 3D props and the see-through cover, kit fences and
-  railings, painted wall and roof textures, then the Meshy run for the one-offs, props and nature.
+  shifted copy. Later parts (2026-11-24/25): ground shadows of 3D props and the see-through cover (#325),
+  fences and hedges (#326), the east gate, wall torches and the mine (#331, #332), fences, posts, soil
+  plots and crops as models (#333), structures edited and drawn as in the game (#334), obsolete 2D art
+  and tools removed (#335-#337), pictures rendered from models (#339), the Build tool (#340, #341),
+  pictures casting shadows (#342). Part 8 (`feature/iso-art-finish`, 252 credits; balance 2,686): the
+  last top-down art painted (fire and light props per state, doors, cave mouth, dungeon bits), painted
+  textures for every wall block and the buildings' walls, roofs, doors and windows, a livelier grass,
+  rock cliffs; the pilot's cart and market stall as models; the library's town house, brick shop,
+  watchtower, lookout tower, dungeon rooms, prison cell, fences and hedge rebuilt; tile-era pieces
+  retired.
 
 - [ ] Painted figures — `feature/painted-figures`
 

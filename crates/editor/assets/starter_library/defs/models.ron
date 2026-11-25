@@ -44097,4 +44097,16 @@
         file: "models/soil_plot_3d.glb",
         height: 4.2,
     ),
+    (
+        id: "cart_3d",
+        name: "Cart (3D)",
+        file: "models/cart_3d.glb",
+        height: 37.0,
+    ),
+    (
+        id: "market_stall_3d",
+        name: "Market Stall (3D)",
+        file: "models/market_stall_3d.glb",
+        height: 86.5,
+    ),
 ]

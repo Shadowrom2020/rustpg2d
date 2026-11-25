@@ -262,10 +262,11 @@ and the preview while placing show structures as the game draws them.
 
 The example has 35 structures (pieces of nature and the buildings of the village); the starter
 library adds town houses, a brick shop, a watchtower, city walls, fences, hedges, a plaza, a market,
-a canal, a campsite and dungeon rooms, corridors and a prison cell. The example's buildings are
-single pictures (props such as *Stone house*, *Thatched cottage*, *Timber-framed hall*, *Chapel*,
-with an invisible *Window glow* light behind each lit window), its trees the tree props; the
-starter library's other structures still show their former tiles as decorations.
+a canal, a campsite and dungeon rooms, corridors and a prison cell. Their buildings are building
+props (*Stone house*, *Thatched cottage*, *Timber-framed hall*, *Chapel*, the library's *Town house
+(blue roof)*, *Brick shop* and *Stone watchtower*, with an invisible *Window glow* light behind each
+lit window), the lookout tower the *Watchtower* model, the dungeon rooms standing walls with torches
+hung on them, their trees the painted tree props.
 
 ## Map settings
 

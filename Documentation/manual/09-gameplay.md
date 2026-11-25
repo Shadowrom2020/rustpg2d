@@ -18,7 +18,7 @@ stub, so the hero stays visible inside a room or behind a counter. Houses are 3D
 from their measurements (props with a [*Building*](05-database.md#props)): walls, a roof, doors,
 windows and chimneys turned with the view like everything else. Rooms have thin walls along their
 back (north and west) sides and are open to the front, as in the classic isometric games.
-Buildings and other 3D props cast a shadow on the ground, down and to the right. Props, trees and
+Buildings and other 3D props cast a shadow on the ground, down and to the right, and so do props drawn as pictures (trees, rocks, lamps): their picture laid along the sun. Props, trees and
 buildings that stand in front of the hero, a companion or a foe near the hero turn see-through
 while they cover them, and solid again afterwards, so nobody disappears behind a house or a tree.
 

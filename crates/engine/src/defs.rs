@@ -1554,6 +1554,10 @@ pub struct PropDef {
     /// [`PropDef::model`] (that one, when set, wins).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub building: Option<BuildingShape>,
+    /// Whether its picture casts a shadow on the ground in the isometric view (as 3D props do);
+    /// off for glows and light-only props.
+    #[serde(default = "yes", skip_serializing_if = "is_true")]
+    pub shadow: bool,
 }
 
 /// A building's shape ([`PropDef::building`]): its footprint is the prop's hitbox (width east to
@@ -1768,6 +1772,7 @@ impl Default for PropDef {
             turns: vec![],
             block: 0.0,
             building: None,
+            shadow: true,
         }
     }
 }

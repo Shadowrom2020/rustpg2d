@@ -3348,6 +3348,25 @@ impl Game {
             };
             render::iso::blob_shadow(pos - vec2(0.0, hitbox.y * 0.45), hitbox.x.max(ts * 0.5) * 0.8, 0.4);
         }
+        // The ground shadows of props drawn as pictures (trees, lamps), under everything standing.
+        let db = &self.project.db;
+        for (drawn, feet, _) in &items {
+            let (p, state, facing, flip) = match *drawn {
+                Drawn::Decor(i) => {
+                    let d = &self.loaded.map.decor[i];
+                    let Some(p) = self.loaded.map.decor_defs.get(d.def as usize).and_then(|id| db.prop(id)) else { continue };
+                    (p, d.state_index(), d.facing(), d.flip)
+                }
+                Drawn::Entity(i) if self.loaded.entities[i].kind == EntityKind::Prop => {
+                    let e = &self.loaded.entities[i];
+                    let Some(p) = db.prop(&e.def) else { continue };
+                    (p, e.state, e.body.facing, false)
+                }
+                _ => continue,
+            };
+            set_camera(&iv.upright(*feet));
+            self.assets.draw_prop_shadow(p, state, facing, *feet, flip, get_time(), 1.0);
+        }
         let prints: Vec<render::iso::Footprint> = items.iter().map(|it| it.2).collect();
         let order = render::iso::order(&prints, 0.5);
         let covered = self.update_cover(&items, &order, &iv);

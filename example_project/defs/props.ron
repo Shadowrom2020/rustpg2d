@@ -4786,6 +4786,7 @@
             intensity: 0.7,
             flicker: false,
         )),
+        shadow: false,
     ),
     (
         id: "dungeon_torch",

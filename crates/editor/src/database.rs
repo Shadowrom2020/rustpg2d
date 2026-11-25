@@ -1937,6 +1937,9 @@ fn prop_form(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
     ui.checkbox(&mut d.flat, "Lies flat on the ground").on_hover_text(
         "A rug, a mat, a puddle: drawn under everyone (like a Flat decoration) instead of sorted with characters by its feet; as furniture it may lie under tables and chairs.",
     );
+    if !d.flat && d.block <= 0.0 && d.model.is_empty() && d.building.is_none() {
+        ui.checkbox(&mut d.shadow, "Casts a shadow").on_hover_text("Its picture throws a shadow on the ground in the isometric view, as 3D props do (off for glows and light-only props).");
+    }
     ui.checkbox(&mut d.door, "Door (E opens and closes it)").on_hover_text(
         "Needs a state named \"open\" (passable); its first state is the closed door. A lock keeps it shut until its key or a lockpick opens it; with the key, closing it locks it again. Villagers open unlocked doors on their way (locked ones when they carry the key) and close them behind them.",
     );

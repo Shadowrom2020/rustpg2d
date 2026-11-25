@@ -895,6 +895,26 @@ impl Editor {
             o.sort_by(|&a, &b| items[a].1.y.total_cmp(&items[b].1.y));
             o
         };
+        // The ground shadows of props drawn as pictures (isometric), under everything standing.
+        if iso.is_some() {
+            for (what, feet, _) in &items {
+                let (p, state, facing, flip) = match what {
+                    Drawn::Ent(e) if e.kind == EntityKind::Prop => match db.prop(&e.def) {
+                        Some(p) => (p, p.state_index(&e.state).unwrap_or(0), e.facing, false),
+                        None => continue,
+                    },
+                    Drawn::Decor(i) => {
+                        let d = &map.decor[*i];
+                        match map.decor_defs.get(d.def as usize).and_then(|id| db.prop(id)) {
+                            Some(p) => (p, d.state_index(), d.facing(), d.flip),
+                            None => continue,
+                        }
+                    }
+                    _ => continue,
+                };
+                self.standing(*feet, || self.assets.draw_prop_shadow(p, state, facing, *feet, flip, 0.0, tint.a));
+            }
+        }
         // Walls and counters drawn as blocks (isometric): boxes on their hitbox, at full height.
         let block = |p: &rustpg2d_engine::defs::PropDef, state: usize, facing, feet: Vec2| -> bool {
             let Some(v) = iso.filter(|_| p.block > 0.0) else { return false };

@@ -35,7 +35,10 @@ These are the default keys; players change them in *Options › Gameplay › Con
 | Right click | Walk to the character, item or prop under the cursor and interact with it |
 
 Characters behind a counter (one solid tile between, in a straight line) are talked to across it,
-with E or a right-click.
+with E or a right-click. A right-click on a market stall (or another counter that does nothing
+itself) talks to the person keeping it, inside, behind or in front of it; someone standing right
+behind a stall is always talked to from its front: the hero walks round to face them across the
+counter.
 
 **Climbing, jumping and falling:** walk onto a ladder, rope or rough wall to climb it (up and
 down only, slower); a rough wall needs an Athletics check, and when you find no hold, try again a

@@ -2417,6 +2417,48 @@ impl Game {
             })
     }
 
+    /// The tiles entity `i`'s hitbox covers.
+    fn entity_tiles(&self, i: usize) -> Vec<(i32, i32)> {
+        let ts = self.ts();
+        let r = self.loaded.entities[i].body.rect();
+        ((r.y / ts).floor() as i32..=((r.y + r.h - 0.001) / ts).floor() as i32).flat_map(|ty| ((r.x / ts).floor() as i32..=((r.x + r.w - 0.001) / ts).floor() as i32).map(move |tx| (tx, ty))).collect()
+    }
+
+    /// Who a click on prop `c` that does nothing itself (a market stall) is meant for: the
+    /// friendly character nearest to its middle among those in, behind, beside or in front of it
+    /// (at most `reach` tiles from its footprint).
+    pub(super) fn counter_keeper(&self, c: usize, reach: i32) -> Option<usize> {
+        if !self.inert_prop(c) {
+            return None;
+        }
+        let tiles = self.entity_tiles(c);
+        let mid = self.loaded.entities[c].body.rect().center();
+        (0..self.loaded.entities.len())
+            .filter(|&i| {
+                let e = &self.loaded.entities[i];
+                let t = self.tile_of(e.body.pos);
+                e.kind == EntityKind::Character && e.active && !e.hostile && tiles.iter().any(|&(x, y)| (x - t.0).abs().max((y - t.1).abs()) <= reach)
+            })
+            .min_by(|&a, &b| self.loaded.entities[a].body.pos.distance_squared(mid).total_cmp(&self.loaded.entities[b].body.pos.distance_squared(mid)))
+    }
+
+    /// Whether character `i` keeps a stall: stands right beside (not diagonally) a solid prop at
+    /// least a tile and a half wide that does nothing itself. Players talk to them across it.
+    pub(super) fn keeps_counter(&self, i: usize) -> bool {
+        let t = self.tile_of(self.loaded.entities[i].body.pos);
+        let ts = self.ts();
+        (0..self.loaded.entities.len()).any(|c| {
+            let e = &self.loaded.entities[c];
+            c != i
+                && e.active
+                && e.solid
+                && e.kind == EntityKind::Prop
+                && e.body.hitbox.x.max(e.body.hitbox.y) >= ts * 1.5
+                && self.inert_prop(c)
+                && self.entity_tiles(c).iter().any(|&(x, y)| (x - t.0).abs() + (y - t.1).abs() == 1)
+        })
+    }
+
     /// A prop E does nothing with (a market stall, a crate): someone across it is talked to.
     fn inert_prop(&self, i: usize) -> bool {
         let e = &self.loaded.entities[i];

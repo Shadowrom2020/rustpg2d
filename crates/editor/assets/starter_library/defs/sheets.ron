@@ -2676,4 +2676,25 @@
         frame_h: 473,
         scale: 2,
     ),
+    (
+        id: "iron_railing_picture",
+        image: "sprites/prop_pictures/iron_railing.png",
+        frame_w: 54,
+        frame_h: 85,
+        scale: 2,
+    ),
+    (
+        id: "prison_bars_picture",
+        image: "sprites/prop_pictures/prison_bars.png",
+        frame_w: 58,
+        frame_h: 108,
+        scale: 2,
+    ),
+    (
+        id: "dark_stone_wall_picture",
+        image: "sprites/prop_pictures/dark_stone_wall.png",
+        frame_w: 92,
+        frame_h: 128,
+        scale: 2,
+    ),
 ]

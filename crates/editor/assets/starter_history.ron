@@ -12017,6 +12017,16 @@
                 ],
             },
         ),
+        "model:iron_railing_3d": (
+            defs: [
+                8133198681292111769,
+            ],
+            files: {
+                "models/iron_railing_3d.glb": [
+                    15255368586658119502,
+                ],
+            },
+        ),
         "model:keg_rack_3d": (
             defs: [
                 2306124941594434921,
@@ -15082,6 +15092,16 @@
                 ],
             },
         ),
+        "model:prison_bars_3d": (
+            defs: [
+                212291518976191351,
+            ],
+            files: {
+                "models/prison_bars_3d.glb": [
+                    1856207291395549396,
+                ],
+            },
+        ),
         "model:pseudodragon": (
             defs: [
                 397717531867418826,
@@ -15264,6 +15284,16 @@
                 "models/rig_quadruped.glb": [
                     13080184976389929211,
                     14225693202550485023,
+                ],
+            },
+        ),
+        "model:rock_cliff_3d": (
+            defs: [
+                15006103915189915430,
+            ],
+            files: {
+                "models/rock_cliff_3d.glb": [
+                    15247264911344834267,
                 ],
             },
         ),
@@ -17431,6 +17461,7 @@
             defs: [
                 1346334913361850033,
                 1365302111361653421,
+                7896721478104433119,
                 9035441463301119290,
             ],
         ),
@@ -17834,6 +17865,7 @@
             defs: [
                 5525041192642174494,
                 10990970735987279383,
+                15177709530442798690,
             ],
         ),
         "prop:keg": (
@@ -18106,6 +18138,7 @@
             defs: [
                 219408574863200337,
                 5764976797892425016,
+                13856257261683075290,
             ],
         ),
         "prop:purple_arched_door": (
@@ -20263,6 +20296,7 @@
             files: {
                 "sprites/prop_pictures/cottage_red.png": [
                     547106345131419555,
+                    8092263997434396332,
                     15813166384419965832,
                 ],
             },
@@ -20284,6 +20318,7 @@
             files: {
                 "sprites/prop_pictures/cottage_red_small.png": [
                     11823753561732121526,
+                    14240662031594427727,
                     14457944655525746107,
                 ],
             },
@@ -20325,6 +20360,7 @@
             ],
             files: {
                 "sprites/prop_pictures/cottage_thatched.png": [
+                    12710681628202903100,
                     15188141431331455550,
                     15332819433843030969,
                 ],
@@ -20399,6 +20435,16 @@
             files: {
                 "sprites/painted/crystal.png": [
                     163325215231108023,
+                ],
+            },
+        ),
+        "sheet:dark_stone_wall_picture": (
+            defs: [
+                13382399628435876772,
+            ],
+            files: {
+                "sprites/prop_pictures/dark_stone_wall.png": [
+                    9700020134514933113,
                 ],
             },
         ),
@@ -20677,6 +20723,7 @@
             ],
             files: {
                 "sprites/prop_pictures/farmhouse_thatched.png": [
+                    6824726078270856110,
                     7987782897828432287,
                     8506881085339084031,
                 ],
@@ -23164,6 +23211,7 @@
             ],
             files: {
                 "sprites/prop_pictures/house_red.png": [
+                    14670701123086352746,
                     15626178883086666850,
                     16801570102529984373,
                 ],
@@ -23187,6 +23235,7 @@
                 "sprites/prop_pictures/house_red_small.png": [
                     739258602374421507,
                     6233352579342162029,
+                    7364544389159193638,
                 ],
             },
         ),
@@ -23282,6 +23331,16 @@
             files: {
                 "sprites/painted/iron_railing.png": [
                     14573617531299562447,
+                ],
+            },
+        ),
+        "sheet:iron_railing_picture": (
+            defs: [
+                17200809667575542812,
+            ],
+            files: {
+                "sprites/prop_pictures/iron_railing.png": [
+                    11019961565958209670,
                 ],
             },
         ),
@@ -24466,6 +24525,7 @@
             ],
             files: {
                 "sprites/painted/painted_walls.png": [
+                    9048706800064906225,
                     17907507918124745580,
                 ],
             },
@@ -24547,6 +24607,16 @@
             files: {
                 "sprites/painted/prison_bars.png": [
                     353576083271109506,
+                ],
+            },
+        ),
+        "sheet:prison_bars_picture": (
+            defs: [
+                94003774664761556,
+            ],
+            files: {
+                "sprites/prop_pictures/prison_bars.png": [
+                    11809360719705085515,
                 ],
             },
         ),

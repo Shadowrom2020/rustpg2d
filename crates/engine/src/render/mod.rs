@@ -310,7 +310,11 @@ impl Assets {
         let (u0, u1) = if flip { ((src.x + src.w) / tw, src.x / tw) } else { (src.x / tw, (src.x + src.w) / tw) };
         let (v0, v1) = (src.y / th, (src.y + src.h) / th);
         // A point `h` above the feet in the picture lands `h * SHEAR` to the side on the ground.
+        // The feet are the front corner of what is painted: its base reaches back about a quarter
+        // of its width, so the shadow starts there, under it (else it lies in front, the thing
+        // seeming to float above it).
         let (w, h) = (size.x, size.y);
+        let feet = feet - vec2(0.0, (w * 0.25).min(h * 0.35));
         let top = feet + vec2(model::SHADOW_SHEAR.x * h, model::SHADOW_SHEAR.y * h);
         let c = Color::new(0.0, 0.0, 0.0, alpha * PICTURE_SHADOW);
         let v = |pos: Vec2, u: f32, vv: f32| Vertex::new(pos.x, pos.y, 0.0, u, vv, c);

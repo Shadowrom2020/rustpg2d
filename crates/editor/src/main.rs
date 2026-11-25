@@ -1409,12 +1409,10 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             }
         }
         // Pixel editor: pxopen REL FW FH · pxtool NAME · pxcolor RRGGBB · pxat X Y [right] · pxsave
-        // pxopen REL FW FH [layout|seamless [FRAMES]]: `layout` labels the rows of the four-facing
-        // layout, `seamless` = a material's texture (FRAMES side by side; the selected one shown
+        // pxopen REL FW FH [seamless [FRAMES]]: `seamless` = a material's texture (FRAMES side by side; the selected one shown
         // with copies around it, drawing wraps; `pxframe N` selects)
         "pxopen" => {
             let layout = match arg(4) {
-                "layout" => pixel::Layout::Character,
                 "seamless" => pixel::Layout::Seamless((num(5) as u32).max(1)),
                 _ => pixel::Layout::Plain,
             };
@@ -1435,33 +1433,18 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // pxframe N: select frame N · pxclip copy|cut|paste|mirror (Ctrl+C / X / V)
         "pxframe" => ed.px.sel_frame = num(1) as u32,
         "pxclip" => ed.frame_clipboard(arg(1)),
-        // Four-facing sheets: pxanim walk|idle|attack|hurt down|left|right|up · pxplay on|off · pxonion on|off
-        // [next] · pxdup · pxnudge DX DY · pxrow copy|paste|clear|mirror [all] · pxfill standing ·
-        // pxreplace FROM TO frame|row|sheet (RRGGBB colours) · pxundo; `status` prints `pixel=`
-        "pxanim" => match (frame_ops::anim_index(arg(1)), frame_ops::dir_index(arg(2))) {
-            (Some(a), Some(d)) => ed.px.show_anim(a, d),
-            _ => println!("[script] pxanim: walk|idle|attack|hurt down|left|right|up"),
-        },
-        "pxplay" => ed.px.playing = arg(1) != "off",
+        // pxdup · pxnudge DX DY · pxreplace FROM TO frame|row|sheet (RRGGBB colours) · pxundo;
+        // `status` prints `pixel=`
         "pxundo" => {
             if let Some(d) = &mut ed.px.doc {
                 d.undo();
             }
         }
-        "pxonion" => {
-            ed.px.onion = arg(1) != "off";
-            ed.px.onion_next = ed.px.onion && arg(2) == "next";
-        }
-        "pxdup" | "pxnudge" | "pxrow" | "pxfill" | "pxreplace" => {
+        "pxdup" | "pxnudge" | "pxreplace" => {
             let rgb = |v: &str| u32::from_str_radix(v.trim_start_matches('#'), 16).ok().map(|v| [(v >> 16) as u8, (v >> 8) as u8, v as u8]);
             let op = match (arg(0), arg(1)) {
                 ("pxdup", _) => Some(pixel::FrameOp::Duplicate),
                 ("pxnudge", _) => Some(pixel::FrameOp::Nudge(num(1) as i32, num(2) as i32)),
-                ("pxrow", "copy") => Some(pixel::FrameOp::RowCopy),
-                ("pxrow", "paste") => Some(pixel::FrameOp::RowPaste),
-                ("pxrow", "clear") => Some(pixel::FrameOp::RowClear),
-                ("pxrow", "mirror") => Some(pixel::FrameOp::Mirror(arg(2) == "all")),
-                ("pxfill", _) => Some(pixel::FrameOp::FillStanding),
                 ("pxreplace", _) => match (rgb(arg(1)), rgb(arg(2))) {
                     (Some(from), Some(to)) => {
                         let scope = match arg(3) {

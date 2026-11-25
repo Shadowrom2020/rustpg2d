@@ -58,23 +58,9 @@ prop and character forms open it.
   form has it under its settings, beside a live preview of the material on a map
   ([Database › Materials](05-database.md#materials)).
 
-**Four-facing sheets**: with **Four-facing rows** on, the rows are labelled (blocks of walk, idle,
-attack and hurt, each facing down, left, right and up: 4 columns, 16 rows) and an **animation
-panel** replaces the row preview:
-
-- pick the **animation** (*Walk* 4 frames, *Idle* 2, *Attack* 4, *Hurt* 1) and the **facing**; it
-  plays at the chosen speed, *Pause* / *Next frame* step through it, and the **frame strip** below
-  selects a frame of it;
-- **Onion skin** shows the animation's previous frame (red) and, with *and the next*, the next
-  frame (green) faintly over the selected one, to draw the next pose in line;
-- **Duplicate →** copies the frame into the next column; the arrows (or **Shift+arrow keys**) move
-  the frame's pixels by one, e.g. to line up the feet;
-- **Copy row** / **Paste row** / **Clear row** work on the selected frame's row;
-- **Mirror Left → Right** makes the animation's Right row the mirrored Left row (*all animations*
-  for every animation);
-- **Fill idle & hurt** gives empty idle and hurt frames the standing walk frame of their facing;
-- **Replace colour** turns the right colour (pick it with the picker's right click) into the left
-  colour in the frame, its row or the sheet.
+Characters are 3D models, so the sprite editor has no four-facing character layout any more. AI
+agents (`edit_frames`) and editor scripts (`pxdup`, `pxnudge`, `pxreplace`) still duplicate,
+move and recolour frames.
 
 Every operation is one undo step.
 - **Ctrl+S** saves the PNG and updates it everywhere; Ctrl+Z / Ctrl+Y undo and redo.

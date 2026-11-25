@@ -943,8 +943,8 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
                 match art_target.clone() {
                     Some((rel, frame, character, sel)) => {
                         let h = ui.available_height().max(260.0);
-                        let layout = if character { crate::pixel::Layout::Character } else { crate::pixel::Layout::Plain };
-                        ed.pixel_embedded(ui, &rel, frame, layout, h);
+                        let _ = character;
+                        ed.pixel_embedded(ui, &rel, frame, crate::pixel::Layout::Plain, h);
                         // Select the definition's frame when the focus changes.
                         let focus = Some((rel.clone(), sel));
                         if ed.db.art_focus != focus && ed.px.doc.as_ref().is_some_and(|d| d.rel == rel) {
@@ -960,7 +960,8 @@ pub fn ui(ed: &mut Editor, ui: &mut egui::Ui) {
         });
     }
     if let Some((rel, frame, character, sel)) = paint.take() {
-        ed.open_pixel(&rel, frame, if character { crate::pixel::Layout::Character } else { crate::pixel::Layout::Plain });
+        let _ = character;
+        ed.open_pixel(&rel, frame, crate::pixel::Layout::Plain);
         if ed.px.doc.as_ref().is_some_and(|d| d.rel == rel) {
             ed.px.sel_frame = sel;
         }

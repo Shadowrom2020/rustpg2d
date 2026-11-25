@@ -1467,9 +1467,11 @@ fn render(c: &mut Cache, l: &Loaded, parts: &[&Loaded], items: &HashMap<String, 
             Vertex { position: turn.transform_point3(*p), uv: v.uv, color: [255; 4], normal: vec4(n.x, n.y, n.z, 0.0) }
         })
         .collect();
-    // A still model (a building, a cart: no clips, no bones) casts a shadow on the ground, down and
-    // to the right on the screen like the pre-rendered props': its points slid along the sun.
-    let shadow: Vec<Vertex> = if !req.bust && l.model.clips.is_empty() && l.model.joints.len() <= 1 {
+    // A still model (a building, a cart: no clips, no bones) standing on the ground casts a shadow
+    // on it, down and to the right on the screen like the pre-rendered props': its points slid
+    // along the sun. One hanging in the air (a torch on a wall) casts none.
+    let grounded = || vertices.iter().map(|v| v.position.y).fold(f32::MAX, f32::min) < l.height * 0.1;
+    let shadow: Vec<Vertex> = if !req.bust && l.model.clips.is_empty() && l.model.joints.len() <= 1 && grounded() {
         vertices.iter().map(|v| Vertex { position: vec3(v.position.x + v.position.y * SHADOW_RUN.x, 0.0, v.position.z + v.position.y * SHADOW_RUN.y), uv: v.uv, color: [0, 0, 0, 255], normal: v.normal }).collect()
     } else {
         Vec::new()

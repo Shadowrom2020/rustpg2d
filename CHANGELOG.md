@@ -70,7 +70,8 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **Shadows and see-through cover**: still 3D models (buildings, props with a model) cast a
   shadow on the ground toward the lower right, rendered with them. Props, trees and buildings drawn
   in front of the hero, a companion or a hostile character within 12 tiles fade to a third while
-  they cover them on the screen (a quarter of a second in and out). Autoplay `status` prints
+  they cover them on the screen (a quarter of a second in and out); models hanging in the air (a torch on a wall) cast
+  no ground shadow. Autoplay `status` prints
   `cover=N` (props see-through now).
 - **Fences that run along their line**: the starter library's *Fence section*, *Wooden fence* and
   the fence ends are thin blocks (32 x 4 px, 28 px high) showing their picture, *Fence section

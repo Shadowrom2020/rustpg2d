@@ -1,29 +1,7 @@
 //! Operations on the frames of a sprite sheet image: the sprite editor's buttons and the
-//! `edit_frames` agent tool use them. Frames are numbered row by row. Directional sheets may use
-//! the four-facing layout: 4 columns, blocks of 4 rows (down, left, right, up) for walk, idle,
-//! attack and hurt.
+//! `edit_frames` agent tool use them. Frames are numbered row by row.
 
 use rustpg2d_engine::imageio::Rgba;
-
-/// Rows per animation block of the four-facing layout (one per facing).
-pub const FACINGS: u32 = 4;
-/// The animation blocks of the four-facing layout: (name, frames).
-pub const ANIMS: [(&str, u32); 4] = [("walk", 4), ("idle", 2), ("attack", 4), ("hurt", 1)];
-pub const DIRS: [&str; 4] = ["down", "left", "right", "up"];
-
-/// The first frame of animation `anim` (0 walk, 1 idle, 2 attack, 3 hurt) facing `dir` (0 down,
-/// 1 left, 2 right, 3 up) in a sheet `cols` frames wide.
-pub fn anim_frame(anim: u32, dir: u32, cols: u32) -> u32 {
-    (anim * FACINGS + dir) * cols
-}
-
-pub fn anim_index(name: &str) -> Option<u32> {
-    ANIMS.iter().position(|a| a.0 == name).map(|k| k as u32)
-}
-
-pub fn dir_index(name: &str) -> Option<u32> {
-    DIRS.iter().position(|d| *d == name).map(|k| k as u32)
-}
 
 /// An image cut into frames.
 pub struct Frames<'a> {
@@ -65,10 +43,6 @@ impl Frames<'_> {
         }
     }
 
-    pub fn is_empty(&self, f: u32) -> bool {
-        self.get(f).px.as_chunks::<4>().0.iter().all(|p| p[3] == 0)
-    }
-
     /// The frames of row `r`.
     pub fn row(&self, r: u32) -> Vec<Rgba> {
         (0..self.cols()).map(|c| self.get(r * self.cols() + c)).collect()
@@ -107,49 +81,6 @@ impl Frames<'_> {
             }
         }
         self.put(f, &out, false);
-    }
-
-    /// The Right rows become the mirrored Left rows: of animation `anim`, or of every animation
-    /// the sheet has (None). Returns the rows written.
-    pub fn mirror_left_to_right(&mut self, anim: Option<u32>) -> Vec<u32> {
-        let blocks: Vec<u32> = match anim {
-            Some(a) => vec![a],
-            None => (0..self.rows() / FACINGS).collect(),
-        };
-        let mut done = Vec::new();
-        for b in blocks {
-            let (left, right) = (b * FACINGS + 1, b * FACINGS + 2);
-            if right >= self.rows() {
-                continue;
-            }
-            let cols = self.cols();
-            for c in 0..cols {
-                let src = self.get(left * cols + c);
-                self.put(right * cols + c, &src, true);
-            }
-            done.push(right);
-        }
-        done
-    }
-
-    /// Fills the empty idle (both frames) and hurt frames with the standing walk frame of their
-    /// facing. Returns how many frames were filled.
-    pub fn fill_standing(&mut self) -> u32 {
-        let cols = self.cols();
-        let mut n = 0;
-        for dir in 0..FACINGS {
-            let standing = self.get(anim_frame(0, dir, cols));
-            for (anim, count) in [(1, 2), (3, 1)] {
-                for c in 0..count.min(cols) {
-                    let f = anim_frame(anim, dir, cols) + c;
-                    if f / cols < self.rows() && self.is_empty(f) {
-                        self.put(f, &standing, false);
-                        n += 1;
-                    }
-                }
-            }
-        }
-        n
     }
 
     /// Replaces colour `from` (RGB, opaque pixels) by `to` in `frames` (None = the whole image).
@@ -195,14 +126,9 @@ mod tests {
     }
 
     #[test]
-    fn mirror_duplicate_nudge_and_fill() {
+    fn duplicate_nudge_rows_and_replace() {
         let mut img = sheet();
         let mut f = Frames { img: &mut img, frame: (2, 2) };
-        // Walk Left (row 1) frame 5 → Walk Right (row 2) frame 9, mirrored: its pixel moves right.
-        assert_eq!(f.mirror_left_to_right(Some(0)), vec![2]);
-        assert_eq!(f.get(9).get(1, 0), [5, 10, 20, 255]);
-        assert_eq!(f.get(9).get(0, 0)[3], 0);
-        assert_eq!(f.mirror_left_to_right(None), vec![2, 6, 10, 14]);
         // Duplicate frame 0 into 1; the last column can't.
         assert!(f.duplicate(0) && !f.duplicate(3));
         assert_eq!(f.get(1).get(0, 0)[0], 0);
@@ -210,17 +136,14 @@ mod tests {
         f.nudge(0, 0, 1);
         assert_eq!(f.get(0).get(0, 1)[0], 0);
         assert_eq!(f.get(0).get(0, 0)[3], 0);
-        // Fill: only empty idle / hurt frames take the standing frame.
+        // Copy row 2 into row 5, clear row 4.
+        let row = f.row(2);
+        f.put_row(5, &row);
+        assert_eq!(f.get(20).get(0, 0)[0], 8);
         f.clear_row(4);
-        f.put(13 * 4, &Rgba::new(2, 2), false);
-        let n = f.fill_standing();
-        assert_eq!(n, 3, "idle down (2 frames) and hurt left");
-        assert_eq!(f.get(16).get(0, 1)[0], 0, "idle down = the (nudged) standing frame 0");
-        assert_eq!(f.get(13 * 4).get(0, 0)[0], 4, "hurt left = walk left standing");
+        assert_eq!(f.get(16).get(0, 0)[3], 0);
         // Replace a colour in one frame, then in the whole sheet.
         assert_eq!(f.replace_color([7, 10, 20], [1, 2, 3, 255], Some(&[7])), 1);
-        assert_eq!(f.replace_color([9, 10, 20], [1, 2, 3, 255], None), 0, "frame 9 was overwritten by the mirror");
-        assert_eq!(anim_frame(2, 1, 4), 36);
-        assert_eq!((anim_index("hurt"), dir_index("up")), (Some(3), Some(3)));
+        assert_eq!(f.replace_color([9, 10, 20], [1, 2, 3, 255], None), 2, "frame 9 and its copy in row 5");
     }
 }

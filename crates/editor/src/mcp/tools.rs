@@ -201,14 +201,9 @@ pub struct ViewImageParams {
 pub struct EditFramesParams {
     /// The sprite sheet's id.
     pub sheet: String,
-    /// "mirror_rows" (Right rows = mirrored Left rows), "copy_row", "clear_row", "duplicate"
-    /// (a frame into the next column), "nudge" (move a frame's pixels), "replace_color",
-    /// "fill_standing" (empty idle / hurt frames get the standing walk frame); figures: "set_grip",
-    /// "clear_grips" (a frame's, or all), "estimate_hands", "swap_hands" (right and left grips trade
-    /// places in a row, or in every facing of an anim).
+    /// "copy_row", "clear_row", "duplicate" (a frame into the next column), "nudge" (move a
+    /// frame's pixels), "replace_color".
     pub op: String,
-    /// mirror_rows / swap_hands: the animation ("walk", "idle", "attack", "hurt"); mirror_rows: omitted = all.
-    pub anim: Option<String>,
     /// duplicate / nudge / replace_color (scope "frame"): the frame (row * columns + column).
     pub frame: Option<u32>,
     /// copy_row: the source row; clear_row / replace_color (scope "row") / swap_hands: the row.

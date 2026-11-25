@@ -149,7 +149,7 @@ impl Editor {
             let (dir, frame, size, layout) = match w.kind {
                 WKind::Prop => ("sprites", (ts, ts), (ts * w.cells.0, ts * w.cells.1), Layout::Plain),
                 WKind::Item => ("sprites", (ts, ts), (ts, ts), Layout::Plain),
-                WKind::Sheet => ("sprites", w.frame, (w.frame.0 * w.grid.0, w.frame.1 * w.grid.1), if w.frame.1 > w.frame.0 { Layout::Character } else { Layout::Plain }),
+                WKind::Sheet => ("sprites", w.frame, (w.frame.0 * w.grid.0, w.frame.1 * w.grid.1), Layout::Plain),
                 WKind::Material | WKind::Structure => ("materials", (ts, ts), (ts * w.grid.0, ts * w.grid.1), Layout::Plain),
             };
             let rel = free_path(&self.project, dir, &id);

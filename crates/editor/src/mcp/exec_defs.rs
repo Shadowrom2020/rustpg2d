@@ -390,7 +390,7 @@ impl Editor {
 
     /// `edit_frames`: frame operations on a sheet's image (see `frame_ops`).
     pub(crate) fn mcp_edit_frames(&mut self, p: EditFramesParams) -> Result<Reply, String> {
-        use crate::frame_ops::{anim_index, Frames};
+        use crate::frame_ops::Frames;
         self.mcp_need_project()?;
         let d = self.project.db.sheet(&p.sheet).ok_or_else(|| format!("\"{}\" is not a sprite sheet.{}", p.sheet, suggestions(&p.sheet, self.project.db.sheets.iter().map(|t| t.id.as_str()))))?.clone();
         let path = self.project.root.join(&d.image);
@@ -399,13 +399,6 @@ impl Editor {
         let (cols, rows) = (f.cols(), f.rows());
         let need = |v: Option<u32>, what: &str, max: u32| v.filter(|v| *v < max).ok_or(format!("{what} (below {max}) is needed for {}", p.op));
         let msg = match p.op.as_str() {
-            "mirror_rows" => {
-                let anim = match &p.anim {
-                    Some(a) => Some(anim_index(a).ok_or("anim: walk, idle, attack or hurt")?),
-                    None => None,
-                };
-                format!("Right rows {:?} are now the mirrored Left rows", f.mirror_left_to_right(anim))
-            }
             "copy_row" => {
                 let (from, to) = (need(p.row, "row", rows)?, need(p.to_row, "to_row", rows)?);
                 let frames = f.row(from);
@@ -441,7 +434,6 @@ impl Editor {
                 };
                 format!("Replaced {} pixel(s)", f.replace_color(from, [to[0], to[1], to[2], 255], frames.as_deref()))
             }
-            "fill_standing" => format!("{} empty idle / hurt frame(s) got the standing frame", f.fill_standing()),
             other => return Err(format!("unknown op \"{other}\": mirror_rows, copy_row, clear_row, duplicate, nudge, replace_color or fill_standing")),
         };
         std::fs::write(&path, img.encode().map_err(|e| format!("{e:#}"))?).map_err(|e| e.to_string())?;

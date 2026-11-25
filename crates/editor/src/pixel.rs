@@ -47,7 +47,6 @@ impl PxTool {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Layout {
     Plain,
-    Character,
     /// A ground material's texture: a picture repeated over the ground, or this many animation
     /// frames side by side. The canvas shows the selected frame with copies around it, and
     /// drawing wraps across its edges, so the seams can be painted away.
@@ -289,17 +288,7 @@ pub struct PixelState {
     grid: bool,
     resize: (u32, u32),
     checker: Option<TextureHandle>,
-    /// Figures: the animation (0 walk, 1 idle, 2 attack, 3 hurt) and facing (0 down, 1 left,
-    /// 2 right, 3 up) the animation panel shows, and whether it plays.
-    pub anim: u32,
-    pub dir: u32,
-    pub playing: bool,
-    /// Onion skin: the previous (and the next) frame of the animation shown faintly over the
-    /// selected one.
-    pub onion: bool,
-    pub onion_next: bool,
     /// A copied row (Copy row).
-    row_clip: Option<Vec<Rgba>>,
     /// Seamless textures: copies of the picture shown around it.
     pub tiled: bool,
 }
@@ -311,13 +300,6 @@ pub enum FrameOp {
     Duplicate,
     /// Shift the selected frame's contents.
     Nudge(i32, i32),
-    RowCopy,
-    RowPaste,
-    RowClear,
-    /// Right rows = the mirrored Left rows of the selected animation (true: of all animations).
-    Mirror(bool),
-    /// Empty idle and hurt frames get the standing frame.
-    FillStanding,
     /// Replace a colour in the selected frame / its row / the whole sheet.
     Replace { from: [u8; 3], to: [u8; 4], scope: Scope },
 }
@@ -346,12 +328,6 @@ impl Default for PixelState {
             grid: true,
             resize: (1, 1),
             checker: None,
-            anim: 0,
-            dir: 0,
-            playing: true,
-            onion: false,
-            onion_next: false,
-            row_clip: None,
             tiled: true,
         }
     }
@@ -400,27 +376,10 @@ impl PixelState {
     }
 
     /// Frames of the animation panel's animation: (first frame, count).
-    pub fn anim_frames(&self) -> Option<(u32, u32)> {
-        let d = self.doc.as_ref()?;
-        let start = crate::frame_ops::anim_frame(self.anim, self.dir, d.cols());
-        let count = crate::frame_ops::ANIMS[self.anim as usize % 4].1.min(d.cols());
-        (start < d.cols() * d.rows()).then_some((start, count))
-    }
-
-    /// Shows animation `anim` facing `dir` (selects its first frame).
-    pub fn show_anim(&mut self, anim: u32, dir: u32) {
-        self.anim = anim.min(3);
-        self.dir = dir.min(3);
-        if let Some((start, _)) = self.anim_frames() {
-            self.sel_frame = start;
-        }
-    }
-
     /// Runs a frame operation as one undo step. Returns a status message (None: nothing open, or
     /// nothing to do).
     pub fn frame_op(&mut self, op: FrameOp) -> Option<String> {
         let sel = self.frame()?;
-        let anim = self.anim;
         let d = self.doc.as_mut()?;
         let before = d.img.clone();
         let mut fr = d.frames();
@@ -431,27 +390,6 @@ impl PixelState {
             FrameOp::Nudge(dx, dy) => {
                 fr.nudge(sel, *dx, *dy);
                 Some(format!("Frame {sel} moved by {dx},{dy}"))
-            }
-            FrameOp::RowCopy => {
-                self.row_clip = Some(fr.row(row));
-                return Some(format!("Copied row {row}"));
-            }
-            FrameOp::RowPaste => {
-                let clip = self.row_clip.clone()?;
-                fr.put_row(row, &clip);
-                Some(format!("Pasted into row {row}"))
-            }
-            FrameOp::RowClear => {
-                fr.clear_row(row);
-                Some(format!("Cleared row {row}"))
-            }
-            FrameOp::Mirror(all) => {
-                let rows = fr.mirror_left_to_right(if *all { None } else { Some(anim) });
-                (!rows.is_empty()).then(|| format!("Right rows {rows:?} = the mirrored Left rows"))
-            }
-            FrameOp::FillStanding => {
-                let n = fr.fill_standing();
-                Some(format!("{n} empty idle / hurt frame(s) got the standing frame"))
             }
             FrameOp::Replace { from, to, scope } => {
                 let frames: Option<Vec<u32>> = match scope {
@@ -479,13 +417,9 @@ impl PixelState {
         match &self.doc {
             None => "closed".into(),
             Some(d) => format!(
-                "{}:frame{}:{}_{}:{}{}{}:undo{}",
+                "{}:frame{}{}:undo{}",
                 d.rel,
                 self.sel_frame,
-                crate::frame_ops::ANIMS[self.anim as usize % 4].0,
-                crate::frame_ops::DIRS[self.dir as usize % 4],
-                if self.playing { "playing" } else { "paused" },
-                if self.onion { ":onion" } else { "" },
                 if d.is_dirty() { ":dirty" } else { "" },
                 d.undo.len()
             ),
@@ -840,12 +774,6 @@ impl Editor {
         });
 
         ui.separator();
-        if let Some(d) = self.px.doc.as_mut().filter(|d| !d.layout.seamless()) {
-            let mut four = d.layout == Layout::Character;
-            if ui.checkbox(&mut four, "Four-facing rows").on_hover_text("The sheet's rows are facings (down, left, right, up) in blocks of walk, idle, attack and hurt: labelled rows and the animation panel").changed() {
-                d.layout = if four { Layout::Character } else { Layout::Plain };
-            }
-        }
         ui.horizontal(|ui| {
             for (t, icon, name, key, help) in PxTool::ALL {
                 if ui::tool_button(ui, self.px.tool == t, icon, name, key, help).clicked() {
@@ -1041,10 +969,6 @@ impl Editor {
             }
         });
 
-        if d.layout == Layout::Character {
-            self.animation_panel(ui);
-            return;
-        }
         // Preview: selected frame large + animation of its row.
         ui.separator();
         ui.horizontal(|ui| {
@@ -1063,135 +987,6 @@ impl Editor {
         });
         ui.weak("Left: selected frame. Right: its row played as an animation.");
         ui.ctx().request_repaint();
-    }
-
-    /// Figures: the animation panel (animation, facing, play / pause / step, frame strip, onion
-    /// skin) and the frame and row operations.
-    fn animation_panel(&mut self, ui: &mut egui::Ui) {
-        use crate::frame_ops::{ANIMS, DIRS};
-        ui.separator();
-        ui.label(egui::RichText::new("Animation").strong());
-        let (mut anim, mut dir) = (self.px.anim, self.px.dir);
-        ui.horizontal_wrapped(|ui| {
-            for (k, (name, n)) in ANIMS.iter().enumerate() {
-                let label = format!("{}{name} ({n})", name[..1].to_uppercase(), name = &name[1..]);
-                if ui.selectable_label(anim == k as u32, label).clicked() {
-                    anim = k as u32;
-                }
-            }
-        });
-        ui.horizontal(|ui| {
-            for (k, (icon, name)) in [(ph::ARROW_DOWN, DIRS[0]), (ph::ARROW_LEFT, DIRS[1]), (ph::ARROW_RIGHT, DIRS[2]), (ph::ARROW_UP, DIRS[3])].iter().enumerate() {
-                if ui.selectable_label(dir == k as u32, *icon).on_hover_text(*name).clicked() {
-                    dir = k as u32;
-                }
-            }
-            ui.separator();
-            let icon = if self.px.playing { ph::PAUSE } else { ph::PLAY };
-            if ui.button(icon).on_hover_text(if self.px.playing { "Pause" } else { "Play" }).clicked() {
-                self.px.playing = !self.px.playing;
-            }
-            if ui.button(ph::SKIP_FORWARD).on_hover_text("Next frame of the animation (pauses)").clicked() {
-                self.px.playing = false;
-                if let (Some((start, count)), Some(f)) = (self.px.anim_frames(), self.px.frame()) {
-                    let k = f.saturating_sub(start).min(count - 1);
-                    self.px.sel_frame = start + (k + 1) % count;
-                }
-            }
-        });
-        if (anim, dir) != (self.px.anim, self.px.dir) {
-            self.px.show_anim(anim, dir);
-        }
-        ui.horizontal(|ui| {
-            ui.label("Speed");
-            ui.add(egui::Slider::new(&mut self.px.fps, 1.0..=16.0).suffix(" fps"));
-        });
-        let Some((start, count)) = self.px.anim_frames() else {
-            ui.weak("This sheet has no rows for that animation yet: Canvas … Resize to 4 × 16 frames.");
-            return;
-        };
-        let sel = self.px.frame().unwrap_or(start);
-        let Some(d) = &mut self.px.doc else { return };
-        let tex = d.texture(ui.ctx());
-        let t = ui.input(|i| i.time);
-        let shown = if self.px.playing { start + (t * self.px.fps as f64) as u32 % count } else { sel };
-        ui.horizontal(|ui| {
-            frame_image(ui, d, &tex, shown, 120.0);
-            ui.vertical(|ui| {
-                ui.weak(if self.px.playing { "Playing" } else { "Paused: the selected frame" });
-                // The frame strip: click one to select it.
-                ui.horizontal_wrapped(|ui| {
-                    for k in 0..count {
-                        let f = start + k;
-                        let r = frame_image(ui, d, &tex, f, 44.0);
-                        if f == sel {
-                            ui.painter().rect_stroke(r.rect, 0.0, Stroke::new(2.0_f32, Color32::YELLOW), StrokeKind::Outside);
-                        }
-                        if r.interact(Sense::click()).on_hover_text(format!("frame {f}")).clicked() {
-                            self.px.sel_frame = f;
-                            self.px.playing = false;
-                        }
-                    }
-                });
-            });
-        });
-        ui.horizontal(|ui| {
-            ui.checkbox(&mut self.px.onion, "Onion skin").on_hover_text("The previous frame of the animation shown faintly (red) over the selected one, to line up the next pose");
-            ui.checkbox(&mut self.px.onion_next, "and the next").on_hover_text("The next frame too (green)");
-        });
-        ui.ctx().request_repaint();
-
-        ui.separator();
-        ui.label(egui::RichText::new("Frames and rows").strong());
-        let mut op: Option<FrameOp> = None;
-        ui.horizontal_wrapped(|ui| {
-            if ui.button(ui::t(ph::COPY_SIMPLE, &format!("Duplicate {}", ph::CARET_RIGHT))).on_hover_text("The selected frame into the next column").clicked() {
-                op = Some(FrameOp::Duplicate);
-            }
-            for (icon, dx, dy) in [(ph::ARROW_LEFT, -1, 0), (ph::ARROW_RIGHT, 1, 0), (ph::ARROW_UP, 0, -1), (ph::ARROW_DOWN, 0, 1)] {
-                if ui.small_button(icon).on_hover_text("Move the frame's pixels by one (Shift+arrow keys), e.g. to line up the feet").clicked() {
-                    op = Some(FrameOp::Nudge(dx, dy));
-                }
-            }
-        });
-        ui.horizontal_wrapped(|ui| {
-            if ui.button("Copy row").clicked() {
-                op = Some(FrameOp::RowCopy);
-            }
-            if ui.add_enabled(self.px.row_clip.is_some(), egui::Button::new("Paste row")).on_hover_text("Into the selected frame's row").clicked() {
-                op = Some(FrameOp::RowPaste);
-            }
-            if ui.button("Clear row").clicked() {
-                op = Some(FrameOp::RowClear);
-            }
-        });
-        ui.horizontal_wrapped(|ui| {
-            if ui.button(ui::t(ph::FLIP_HORIZONTAL, &format!("Mirror Left {} Right", ph::CARET_RIGHT))).on_hover_text("The Right row of this animation becomes the mirrored Left row").clicked() {
-                op = Some(FrameOp::Mirror(false));
-            }
-            if ui.button("(all animations)").on_hover_text("Every animation's Right row from its Left row").clicked() {
-                op = Some(FrameOp::Mirror(true));
-            }
-            if ui.button("Fill idle & hurt").on_hover_text("Empty idle and hurt frames get the standing walk frame of their facing").clicked() {
-                op = Some(FrameOp::FillStanding);
-            }
-        });
-        ui.horizontal_wrapped(|ui| {
-            ui.label("Replace colour");
-            let from = self.px.colors[1];
-            let to = self.px.colors[0];
-            ui.weak("right colour to left colour in the");
-            for (label, scope) in [("frame", Scope::Frame), ("row", Scope::Row), ("sheet", Scope::Sheet)] {
-                if ui.small_button(label).on_hover_text("Pick the colour to replace with the picker's right click; the left colour replaces it (e.g. a hair shade one step off the boots' shade, to split a colour feature)").clicked() && from[3] > 0 {
-                    op = Some(FrameOp::Replace { from: [from[0], from[1], from[2]], to, scope });
-                }
-            }
-        });
-        if let Some(op) = op {
-            if let Some(m) = self.px.frame_op(op) {
-                self.set_status(m);
-            }
-        }
     }
 
     fn pixel_canvas(&mut self, ui: &mut egui::Ui) {
@@ -1251,25 +1046,6 @@ impl Editor {
             }
         }
         painter.image(tex.id(), img_rect, view_uv, Color32::WHITE);
-        // Onion skin: the animation's previous (red) and next (green) frame over the selected one.
-        if d.layout == Layout::Character && (self.px.onion || self.px.onion_next) {
-            let sel = self.px.sel_frame.min(d.cols() * d.rows() - 1);
-            let cols = d.cols();
-            let row = sel / cols;
-            let count = if row < 16 { crate::frame_ops::ANIMS[(row / 4) as usize].1.min(cols) } else { cols };
-            let col = (sel % cols).min(count - 1);
-            let (prev, next) = (row * cols + (col + count - 1) % count, row * cols + (col + 1) % count);
-            let (sx, sy) = d.frame_origin(sel);
-            let dest = Rect::from_min_size(origin + vec2(sx as f32, sy as f32) * zoom, vec2(d.frame.0 as f32, d.frame.1 as f32) * zoom);
-            for (f, on, tint) in [(prev, self.px.onion, Color32::from_rgba_unmultiplied(255, 110, 110, 110)), (next, self.px.onion_next, Color32::from_rgba_unmultiplied(110, 255, 140, 110))] {
-                if on && f != sel {
-                    let (ox, oy) = d.frame_origin(f);
-                    let uv = Rect::from_min_size(pos2(ox as f32 / d.img.w as f32, oy as f32 / d.img.h as f32), vec2(d.frame.0 as f32 / d.img.w as f32, d.frame.1 as f32 / d.img.h as f32));
-                    painter.with_clip_rect(avail).image(tex.id(), dest, uv, tint);
-                }
-            }
-        }
-
         // Grids.
         if self.px.grid && zoom >= 8.0 {
             let c = Color32::from_rgba_unmultiplied(255, 255, 255, 22);
@@ -1299,15 +1075,6 @@ impl Editor {
             let fr = Rect::from_min_size(origin + vec2(fx as f32, fy as f32) * zoom, vec2(d.frame.0 as f32, d.frame.1 as f32) * zoom);
             painter.rect_stroke(fr, 0.0, Stroke::new(2.0_f32, Color32::YELLOW), StrokeKind::Outside);
         }
-        if d.layout == Layout::Character {
-            // Walk rows, then the animation rows (render::character::ANIM_ROWS).
-            const LABELS: [&str; 16] = ["Down", "Left", "Right", "Up", "Idle Down", "Idle Left", "Idle Right", "Idle Up", "Attack Down", "Attack Left", "Attack Right", "Attack Up", "Hurt Down", "Hurt Left", "Hurt Right", "Hurt Up"];
-            for (r, label) in LABELS.iter().enumerate().take(d.rows() as usize) {
-                let p = pos2(origin.x - 6.0, origin.y + (r as f32 + 0.5) * d.frame.1 as f32 * zoom);
-                painter.text(p, egui::Align2::RIGHT_CENTER, *label, egui::FontId::proportional(14.0), Color32::LIGHT_GRAY);
-            }
-        }
-
         // Input.
         let hover = resp.hover_pos().map(|p| {
             let q = (p - origin) / zoom;

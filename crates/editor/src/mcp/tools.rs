@@ -97,7 +97,7 @@ pub struct PlaceObjectsParams {
     pub prop: String,
     /// Feet positions [x, y] in tiles (fractions allowed; [3.5, 4] = the middle of tile 3's bottom edge… of row 3).
     pub points: Option<Vec<[f32; 2]>>,
-    /// A straight line [x1, y1, x2, y2] (tiles) of a wall set's pieces on the prop's grid; the pieces join their neighbours.
+    /// A straight line [x1, y1, x2, y2] (tiles) of the prop on its grid (walls, fences).
     pub line: Option<[f32; 4]>,
     /// "Flat" (under characters), "Sorted" (default: by its feet) or "Above" (over everyone).
     pub layer: Option<String>,
@@ -149,12 +149,10 @@ pub struct GenerateArtParams {
     pub kind: String,
     /// Id the asset will get (letters, digits, _).
     pub id: String,
-    /// What it looks like: build, colours, clothes, what it holds (characters), the object (icons, props).
+    /// What it looks like: build, colours, clothes, what it holds (characters), the object (icons).
     pub description: String,
     /// 3D characters: "none", "slash", "chop", "thrust", "bow", "club" or "cast" (default none).
     pub attack: Option<String>,
-    /// Props: width and height in tiles (1-4, default 1 x 1).
-    pub tiles: Option<[u32; 2]>,
     /// Portraits: the character id whose dialog portrait it becomes when applied.
     pub portrait_for: Option<String>,
     /// 3D characters ("model"): a woman (her sitting clip; the model is marked as a woman's).
@@ -839,7 +837,7 @@ with_params {
     /// Fills the connected area of the same ground material (or of no ground) at a point with a material. One undo step.
     #[tool]
     fill_ground: FillGround(p: FillGroundParams) => ed.mcp_fill_ground(p);
-    /// Places decorations: a prop as a picture at feet points, or a line of a wall set's pieces (they join their neighbours). Cheap in great numbers; props that do something (doors, chests, trees to chop) go in with add_entity. One undo step.
+    /// Places decorations: a prop as a picture at feet points, or a line of it on its grid. Cheap in great numbers; props that do something (doors, chests, trees to chop) go in with add_entity. One undo step.
     #[tool]
     place_objects: PlaceObjects(p: PlaceObjectsParams) => ed.mcp_place_objects(p);
     /// Scatters a scatter set's props at random inside circles (forests, flowers, rocks), keeping their spacing. One undo step.

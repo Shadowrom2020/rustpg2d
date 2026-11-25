@@ -128,6 +128,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   saves it back (*Done*, Ctrl+S) or leaves it (*Cancel*). The top-down grid editor and its editor
   script commands (`sttool`, `stpaint`, `stsize`, …) are gone; `stedit ID`, `stdone`, `stcancel`
   replace them.
+- **2D-only editor tools removed**: *Generate art › Prop* (top-down pixel props; the agent tool
+  `generate_art` lost its `tiles`) and wall sets (*Wall pieces* in the prop form; the Decorations
+  tool's *Line* places the chosen prop on its grid). Old projects still load: `PropDef.pieces` is read
+  and ignored.
 ### Visual scripts
 - **Script functions made of nodes** (`defs/visual_scripts.ron`, first part): a visual script is a
   function whose nodes are the script API's functions (a step on the flow, or a value such as

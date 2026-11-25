@@ -1524,8 +1524,8 @@ pub struct PropDef {
     /// Placed on a grid of this many pixels (16 or 32: wall pieces); 0 = anywhere.
     #[serde(default, skip_serializing_if = "is_zero_u16")]
     pub snap: u16,
-    /// A wall set: the prop for each neighbour mask (`decor::NORTH | EAST | SOUTH | WEST`, 16
-    /// entries; "" = this prop). A line of the set picks its pieces by their neighbours.
+    /// A wall set of earlier versions: the prop for each neighbour mask (16 entries). Still read
+    /// (and renamed with its props) so old projects load; nothing uses it any more.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub pieces: Vec<String>,
     /// An animated picture: the default state cycles through these frames of its sheet (a torch,

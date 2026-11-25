@@ -1969,7 +1969,6 @@ fn prop_form(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
             ui.add(egui::DragValue::new(&mut a.fps).range(0.5..=30.0).speed(0.1).suffix(" fps"));
         }
     });
-    wall_pieces_ui(ui, d, cx);
     ui.separator();
     prop_states_ui(ui, d, cx);
     turned_pictures_ui(ui, d, cx);
@@ -2102,34 +2101,6 @@ fn object_ui(ui: &mut egui::Ui, d: &mut PropDef) {
     ui.weak(format!("AC {}, {} hit points. Breaking it removes its lock (a container stays lootable) and fires its Defeated triggers.", o.armor_class(), o.max_hp()));
 }
 
-/// A wall set: the prop for each combination of neighbours (Decorations tool, Line).
-fn wall_pieces_ui(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
-    use rustpg2d_engine::decor::{EAST, NORTH, SOUTH, WEST};
-    let mut on = !d.pieces.is_empty();
-    if ui.checkbox(&mut on, "Wall set (pieces join their neighbours)").on_hover_text("A line drawn with the Decorations tool places this prop and swaps in the piece each spot needs by its neighbours: corners, ends, crossings. Empty pieces use this prop.").changed() {
-        d.pieces = if on { vec![String::new(); 16] } else { Vec::new() };
-        if on && d.snap == 0 {
-            d.snap = 32;
-        }
-    }
-    if d.pieces.is_empty() {
-        return;
-    }
-    d.pieces.resize(16, String::new());
-    egui::CollapsingHeader::new("Wall pieces").id_salt("wall_pieces").show(ui, |ui| {
-        let name = |m: usize| {
-            let parts: Vec<&str> = [(NORTH, "north"), (EAST, "east"), (SOUTH, "south"), (WEST, "west")].iter().filter(|(b, _)| m & b != 0).map(|(_, n)| *n).collect();
-            if parts.is_empty() { "alone".to_string() } else { parts.join(" + ") }
-        };
-        egui::Grid::new("pieces").num_columns(2).show(ui, |ui| {
-            for m in 0..16 {
-                ui.label(name(m)).on_hover_text("The neighbours of the spot that belong to the set");
-                widgets::suggest(ui, &format!("piece{m}"), &mut d.pieces[m], &cx.refs.props, 180.0);
-                ui.end_row();
-            }
-        });
-    });
-}
 
 /// Furniture: where and how the player uses the prop (sits, lies, stands at it).
 fn use_spot_ui(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {

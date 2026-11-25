@@ -254,8 +254,7 @@ impl Editor {
         let Some(doc) = &mut self.doc else { return Err("no map is open".into()) };
         let (mut added, mut removed) = (Vec::new(), Vec::new());
         if let Some(l) = p.line {
-            let set = rustpg2d_engine::decor::wall_set_of(db, &p.prop).unwrap_or(p.prop.clone());
-            (added, removed) = crate::decor_tool::wall_line(&mut doc.map, db, &set, vec2(l[0] * ts, l[1] * ts), vec2(l[2] * ts, l[3] * ts), layer);
+            (added, removed) = crate::decor_tool::wall_line(&mut doc.map, db, &p.prop, vec2(l[0] * ts, l[1] * ts), vec2(l[2] * ts, l[3] * ts), layer);
         }
         let slot = doc.map.decor_slot(&p.prop);
         for q in p.points.iter().flatten() {

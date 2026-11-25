@@ -33,14 +33,12 @@ impl Editor {
 
     pub(crate) fn mcp_generate_art(&mut self, p: GenerateArtParams) -> Result<Reply, String> {
         self.mcp_need_project()?;
-        let kind = ArtKind::parse(&p.kind).ok_or_else(|| format!("kind \"{}\" must be model, creature, gear, clips, icon, prop, portrait or image", p.kind))?;
-        let tiles = p.tiles.unwrap_or([1, 1]);
+        let kind = ArtKind::parse(&p.kind).ok_or_else(|| format!("kind \"{}\" must be model, creature, gear, clips, icon, portrait or image", p.kind))?;
         let req = ArtRequest {
             kind,
             id: p.id.trim().to_string(),
             description: p.description,
             attack: p.attack.unwrap_or_else(|| "none".into()),
-            tiles: (tiles[0], tiles[1]),
             portrait_for: p.portrait_for.unwrap_or_default(),
             by_agent: true,
             female: p.female.unwrap_or(false),

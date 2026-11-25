@@ -176,7 +176,8 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   kind `prop`): a concept from the prop's picture and description, then a Meshy model stood on the
   ground (`model::stand_on_ground`) and sized to the prop's hitbox, the prop showing it and its
   pictures rendered from it: creators make props the way the library's were made.
-- **Weak spots fixed**: the plaster walls repainted as single tiles (no beam grid); the iron
+- **Weak spots fixed**: the plaster walls repainted as single tiles (no beam grid; the plastered
+  houses use plain plaster, the beamed plaster stays on the interiors' walls, one beam along their top); the iron
   railing and the prison bars are 3D pieces (they turn, and the Build tool draws them as walls); the
   rock walls are a rocky 3D tile with an uneven top (`rock_cliff_3d`) instead of flat blocks; picture
   shadows start under the middle of what is painted, so props no longer seem to float (Mira's

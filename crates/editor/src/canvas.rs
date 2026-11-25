@@ -895,8 +895,25 @@ impl Editor {
             o.sort_by(|&a, &b| items[a].1.y.total_cmp(&items[b].1.y));
             o
         };
-        // The ground shadows of props drawn as pictures (isometric), under everything standing.
+        // The ground shadows of props (isometric): soft patches under 3D ones, then the shadows of
+        // those drawn as pictures, under everything standing.
         if iso.is_some() {
+            for (what, feet, _) in &items {
+                match what {
+                    Drawn::Ent(e) if e.kind == EntityKind::Prop => {
+                        if let Some(p) = db.prop(&e.def) {
+                            self.assets.draw_prop_contact(p, p.state_index(&e.state).unwrap_or(0), e.facing, *feet, tint.a);
+                        }
+                    }
+                    Drawn::Decor(i) => {
+                        let d = &map.decor[*i];
+                        if let Some(p) = map.decor_defs.get(d.def as usize).and_then(|id| db.prop(id)) {
+                            self.assets.draw_prop_contact(p, d.state_index(), d.facing(), *feet, tint.a);
+                        }
+                    }
+                    _ => {}
+                }
+            }
             for (what, feet, _) in &items {
                 let (p, state, facing, flip) = match what {
                     Drawn::Ent(e) if e.kind == EntityKind::Prop => match db.prop(&e.def) {

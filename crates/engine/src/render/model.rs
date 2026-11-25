@@ -268,6 +268,9 @@ struct Loaded {
     binds: RefCell<HashMap<String, std::rc::Rc<Vec<Option<usize>>>>>,
     /// Longer from nose to tail than it is wide ([`long_body`]): a still picture shows its side.
     long: bool,
+    /// A still model standing on the ground: where it stands (model units, x east / z south
+    /// from its origin, at rest), for its contact shadow; None for figures and things in the air.
+    ground: Option<Rect>,
 }
 
 /// The pieces the figure of `look` shows on body model `body`, as model ids in slot order: the
@@ -730,6 +733,19 @@ impl Models {
     }
 
     /// A model's frame size in world pixels (as a figure's frame).
+    /// Where still model `id` stands on the ground, turned to `facing`: world pixels from its
+    /// origin (x east, y south); None for figures and models in the air (a torch on a wall).
+    pub fn ground_rect(&self, id: &str, facing: Facing) -> Option<Rect> {
+        let l = self.loaded.get(id)?;
+        let g = l.ground?;
+        let k = l.def.height / l.height.max(1e-3);
+        let yaw = facing_yaw(facing);
+        let (s, c) = yaw.sin_cos();
+        let corners = [vec2(g.x, g.y), vec2(g.x + g.w, g.y), vec2(g.x, g.y + g.h), vec2(g.x + g.w, g.y + g.h)].map(|p| vec2(p.x * c + p.y * s, -p.x * s + p.y * c) * k);
+        let (lo, hi) = corners.iter().fold((Vec2::splat(f32::MAX), Vec2::splat(f32::MIN)), |(lo, hi), p| (lo.min(*p), hi.max(*p)));
+        Some(Rect::new(lo.x, lo.y, hi.x - lo.x, hi.y - lo.y))
+    }
+
     pub fn frame_size(&self, id: &str) -> Option<(f32, f32)> {
         self.loaded.get(id).map(|l| (l.frame.0 as f32 / PX, l.frame.1 as f32 / PX))
     }
@@ -1251,7 +1267,11 @@ fn loaded(def: &ModelDef, _db: &Database, model: Model, fitted: Option<Box<Fitte
     let (frame, ppu, target_y) = layout(def, height);
     let long = long_body(&model);
     let texture = model.texture.clone();
-    Loaded { def: effective(def, fitted.as_deref()), model, texture, align, hands, back, hip, frame, height, ppu, target_y, textures: RefCell::new(HashMap::new()), fitted, binds: RefCell::new(HashMap::new()), long }
+    let ground = (model.clips.is_empty() && model.joints.len() <= 1)
+        .then(|| model.bounds())
+        .filter(|(lo, _)| lo.y < height * 0.1)
+        .map(|(lo, hi)| Rect::new(lo.x, lo.z, hi.x - lo.x, hi.z - lo.z));
+    Loaded { def: effective(def, fitted.as_deref()), model, texture, align, hands, back, hip, frame, height, ppu, target_y, textures: RefCell::new(HashMap::new()), fitted, binds: RefCell::new(HashMap::new()), long, ground }
 }
 
 /// The standing figure's height in model units: [`ModelDef::stand`] when the file is only a

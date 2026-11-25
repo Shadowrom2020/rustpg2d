@@ -139,6 +139,8 @@ fn average_color(img: &Image, r: Rect) -> Color {
 
 /// How dark a picture's ground shadow is (black, this clear).
 const PICTURE_SHADOW: f32 = 0.5;
+/// How dark the contact shadow under a 3D prop is.
+const CONTACT_SHADOW: f32 = 0.35;
 
 impl Assets {
     /// No images (tests).
@@ -289,6 +291,20 @@ impl Assets {
         } else {
             self.draw_sprite_flipped(&SpriteRef { frame: sp.frame + frame, ..sp.into_owned() }, feet, tint, flip)
         }
+    }
+
+    /// Draws the contact shadow of prop `p` (state `state`, facing `facing`) standing at `feet`
+    /// when it is a 3D model on the ground: a soft dark patch where it stands
+    /// ([`iso::contact_shadow`]), through the ground camera (the caller sets it).
+    pub fn draw_prop_contact(&self, p: &crate::defs::PropDef, state: usize, facing: crate::entity::Facing, feet: Vec2, alpha: f32) {
+        let model = p.model_at(state);
+        if model.is_empty() || p.flat || !self.models.has(&model) {
+            return;
+        }
+        let Some(g) = self.models.ground_rect(&model, if p.turns() { facing } else { crate::entity::Facing::Down }) else { return };
+        // (The model's origin is the middle of the hitbox, as `draw_prop` places it.)
+        let origin = feet - vec2(0.0, p.hitbox_facing(facing)[1] / 2.0);
+        iso::contact_shadow(Rect::new(origin.x + g.x, origin.y + g.y, g.w, g.h), alpha * CONTACT_SHADOW);
     }
 
     /// Draws the ground shadow of prop `p` (state `state`, facing `facing`) standing at `feet`,

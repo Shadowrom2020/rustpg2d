@@ -53,7 +53,7 @@ pub enum Tool {
     Ground,
     /// Place props freely as pictures (`decor_tool.rs`).
     Decor,
-    /// Walls along tile edges, rooms and houses dragged as rectangles (`build_tool.rs`).
+    /// Walls painted along tile edges; rooms, houses and roofs dragged as rectangles; doors and windows clicked in (`build_tool.rs`).
     Build,
 }
 
@@ -99,7 +99,7 @@ impl Tool {
             Tool::Link => "Drag over the exit area, choose the target map, then drag the arrival area on that map",
             Tool::Structure => "Pick a structure in the panel and click the map to place it; New from map area captures a rectangle as a structure",
             Tool::Ground => "Paint the ground with a material: brush, line or fill (left panel), [ ] change the size; Shift erases, right-click picks the material under the cursor",
-            Tool::Build => "Walls along tile edges (drag), rooms (drag a rectangle: floor and walls) and houses (drag a rectangle: a building in the look of another); left panel",
+            Tool::Build => "Walls painted along tile edges (drag), rooms, houses and roofs (drag a rectangle), doors and windows (click); left panel",
             Tool::Decor => "Place props freely as pictures: one per click, a line of wall pieces, a scatter brush (forests, flowers) or the eraser (left panel); right-click picks the one under the cursor",
         }
     }
@@ -3110,6 +3110,23 @@ impl Editor {
                 widgets::triggers_ui(ui, &format!("z{uid}"), &mut z.triggers, refs, rustpg2d_engine::events::TriggerOwner::Zone);
             }
             Selection::Region(r) => region_req = crate::clipboard::region_inspector(ui, &doc.map, r, self.clipboard.as_ref()),
+            // A structure open on the canvas: only what a structure keeps (no music, weather,
+            // lighting, edges or triggers).
+            Selection::None if doc.map.name.starts_with("@structure:") => {
+                let id = doc.map.name.trim_start_matches("@structure:").to_string();
+                let name = self.project.db.structure(&id).map_or(id.clone(), |d| d.name.clone());
+                let map = &mut doc.map;
+                ui.heading(format!("Structure: {name}"));
+                ui.horizontal(|ui| {
+                    ui.label(format!("{} x {} tiles", map.width, map.height));
+                    if ui.button("Resize…").clicked() {
+                        self.resize = Some((map.width, map.height));
+                    }
+                });
+                ui.weak("Build it with the tools on the left: Build (walls, rooms, houses, roofs, doors), Ground, Decorations, Entities, Collision. Its ground, decorations, collision and entities are saved into the structure: Done or Ctrl+S.");
+                ui.weak(format!("Name, category and id: Database › Structures › {id}."));
+                ui.label(format!("{} decorations · {} entities", map.decor.len(), map.entities.len()));
+            }
             Selection::None => {
                 let map = &mut doc.map;
                 ui.heading(format!("Map: {}", map.name));

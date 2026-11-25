@@ -261,6 +261,31 @@ impl MapDoc {
         self.push(Edit::Ground { changes: cells.into_iter().map(|(x, y, old)| (x, y, old, new)).collect() });
     }
 
+    /// Records what a Build tool step changed as one undo step: painted ground cells (`(x, y,
+    /// old)`, now `new`), decorations added and removed, and the objects since `before` (a door
+    /// put into a wall).
+    pub fn record_build(&mut self, cells: Vec<(i32, i32, u8)>, new: u8, added: Vec<rustpg2d_engine::decor::Decor>, removed: Vec<rustpg2d_engine::decor::Decor>, before: Option<Objects>, assets: &Assets) {
+        self.end_stroke();
+        let mut group = Vec::new();
+        if !cells.is_empty() {
+            self.ground_overview(assets, cells.iter().map(|c| (c.0, c.1)));
+            group.push(Edit::Ground { changes: cells.into_iter().map(|(x, y, old)| (x, y, old, new)).collect() });
+        }
+        if !added.is_empty() || !removed.is_empty() {
+            self.overview.decor_stale = true;
+            group.push(Edit::Decor { added, removed });
+        }
+        if let Some(before) = before {
+            let after = Objects::of(&self.map);
+            if after != before {
+                group.push(Edit::Objects { before: Box::new(before), after: Box::new(after), tag: "build", time: Instant::now() });
+            }
+        }
+        if !group.is_empty() {
+            self.push(Edit::Group(group));
+        }
+    }
+
     /// Records decorations already added to / removed from the map as one undo step.
     pub fn record_decor(&mut self, added: Vec<rustpg2d_engine::decor::Decor>, removed: Vec<rustpg2d_engine::decor::Decor>) {
         if added.is_empty() && removed.is_empty() {

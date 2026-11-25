@@ -151,6 +151,23 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   footprint: a new building prop in the look of another, sized to it, door and windows laid out).
   Wall blocks turn like models now (one wall prop serves both directions). Placing a prop snaps it
   by its hitbox's width.
+- **Building made easier**: *Walls* are painted (the wall follows the mouse round corners; Shift
+  draws a straight line; right-click takes a piece away); houses get 1 to 3 **storeys**; a house
+  dragged against another one becomes its **wing**, the two joined under one roof (an L- or
+  T-shaped house: `BuildingShape.joins`, the roof running on into the other's, each model hiding
+  what the other covers through hidden depth-only geometry, `Model::occluder`); the new **Roof**
+  mode puts a roof alone over a room of walls (`BuildingShape.walls = false`, *Roof only* in the
+  building form; *With a roof* in the Room mode); the new **Doors** mode clicks a door or window
+  into a house's wall, or a door (an entity that opens), a window piece or a gap into a wall,
+  right-click takes it away; **Save as structure** keeps what was built on a map as a structure in
+  one click. Wall lists show only walls (no benches or carts).
+- **Hand-drawn roofs**: the Roof mode paints a roof's tiles by hand (or fills a house of walls with
+  one click) and *Build roof* covers any shape: the tiles are cut into rectangles, joined so their
+  roofs meet in valleys, as high as the walls under them. Roofs alone were drawn too big (their
+  model measured from its lowest point, not the ground); joined buildings no longer show a crack
+  where they meet.
+- **Structures on the canvas** show only what a structure keeps in the right panel (no music,
+  weather, lighting, edges or triggers).
 ### Visual scripts
 - **Script functions made of nodes** (`defs/visual_scripts.ron`, first part): a visual script is a
   function whose nodes are the script API's functions (a step on the flow, or a value such as

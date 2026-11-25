@@ -423,6 +423,8 @@ struct Cache {
     /// Targets the ground shadows of still models are drawn into (by size).
     shadow_scratch: HashMap<(u32, u32), RenderTarget>,
     material: Option<Material>,
+    depth_material: Option<Material>,
+    shadow_material: Option<Material>,
     frame: u64,
     renders: u32,
     renders_total: u64,
@@ -563,11 +565,12 @@ impl Models {
     /// Builds the models of the building props of `db` ([`crate::building`]), their pictures read
     /// through `read`.
     fn add_buildings(&mut self, db: &Database, picture: &dyn Fn(&crate::defs::SpriteRef) -> Option<crate::building::Picture>) {
+        let others = neighbours(db, None);
         for p in db.props.iter().filter(|p| p.model.is_empty()) {
             let Some(shape) = &p.building else { continue };
-            let built = crate::building::build(shape, p.hitbox, picture);
+            let built = crate::building::build_joined(shape, p.hitbox, picture, &others);
             let id = crate::building::model_id(&p.id);
-            let def = ModelDef { name: p.name.clone(), height: built.height, ..ModelDef::new(&id, "") };
+            let def = building_def(&id, &p.name, built.height);
             if let Some(w) = oversize(&p.id, &built.model) {
                 eprintln!("[models] {w}");
                 self.warnings.push(w);
@@ -584,16 +587,21 @@ impl Models {
         self.add_buildings(db, picture);
     }
 
-    /// Builds building prop `p`'s model again (its shape is being edited), its pictures through
-    /// `picture`; a prop that is no building loses it.
-    pub fn rebuild_building(&mut self, p: &crate::defs::PropDef, picture: &dyn Fn(&crate::defs::SpriteRef) -> Option<crate::building::Picture>) {
-        let id = crate::building::model_id(&p.id);
-        self.loaded.remove(&id);
-        self.cache.borrow_mut().poses.retain(|k, _| k.model != id);
-        if let (Some(shape), true) = (&p.building, p.model.is_empty()) {
-            let built = crate::building::build(shape, p.hitbox, picture);
-            let def = ModelDef { name: p.name.clone(), height: built.height, ..ModelDef::new(&id, "") };
-            self.loaded.insert(id, loaded(&def, &Database::default(), built.model, None));
+    /// Builds building prop `p`'s model again (its shape is being edited: `db` may still hold the
+    /// old one), and those of the buildings joined to it, their pictures through `picture`; a
+    /// prop that is no building loses it.
+    pub fn rebuild_building(&mut self, p: &crate::defs::PropDef, db: &Database, picture: &dyn Fn(&crate::defs::SpriteRef) -> Option<crate::building::Picture>) {
+        let others = neighbours(db, Some(p));
+        let partners: Vec<&crate::defs::PropDef> = db.props.iter().filter(|o| o.id != p.id && o.building.as_ref().is_some_and(|b| b.joins.iter().any(|j| j.prop == p.id))).collect();
+        for q in std::iter::once(p).chain(partners) {
+            let id = crate::building::model_id(&q.id);
+            self.loaded.remove(&id);
+            self.cache.borrow_mut().poses.retain(|k, _| k.model != id);
+            if let (Some(shape), true) = (&q.building, q.model.is_empty()) {
+                let built = crate::building::build_joined(shape, q.hitbox, picture, &others);
+                let def = building_def(&id, &q.name, built.height);
+                self.loaded.insert(id, loaded(&def, &Database::default(), built.model, None));
+            }
         }
     }
 
@@ -1318,6 +1326,75 @@ fn facing_yaw(f: Facing) -> f32 {
     }
 }
 
+/// The model definition of a building's model `id`: drawn `height` world pixels tall from the
+/// ground (a roof alone floats: its own mesh is shorter than that).
+fn building_def(id: &str, name: &str, height: f32) -> ModelDef {
+    ModelDef { name: name.to_string(), height, stand: height / crate::project::TILE_SIZE as f32, ..ModelDef::new(id, "") }
+}
+
+/// Building props' shapes and footprints by id, `changed` instead of its copy in `db`.
+fn neighbours<'a>(db: &'a Database, changed: Option<&'a crate::defs::PropDef>) -> impl Fn(&str) -> Option<(crate::defs::BuildingShape, [f32; 2])> + 'a {
+    move |id: &str| {
+        let p = changed.filter(|p| p.id == id).or_else(|| db.prop(id))?;
+        Some((p.building.clone()?, p.hitbox))
+    }
+}
+
+/// Draws into the depth buffer only: a still model's hidden geometry ([`Model::occluder`]).
+fn depth_material(c: &mut Cache) -> Material {
+    if c.depth_material.is_none() {
+        let pipeline = PipelineParams { depth_write: true, depth_test: Comparison::LessOrEqual, color_write: (false, false, false, false), ..Default::default() };
+        let m = load_material(ShaderSource::Glsl { vertex: VERTEX, fragment: FRAGMENT_DEPTH }, MaterialParams { pipeline_params: pipeline, uniforms: vec![], textures: vec![] }).expect("depth shader");
+        c.depth_material = Some(m);
+    }
+    c.depth_material.clone().unwrap()
+}
+
+/// How far hidden geometry is pushed away from the camera (model units: a tile).
+const OCCLUDER_BIAS: f32 = 0.06;
+
+/// Draws a still model's hidden geometry into the depth buffer (nothing when it has none).
+fn draw_occluder(c: &mut Cache, model: &Model, turn: Mat4) {
+    if model.occluder.is_empty() {
+        return;
+    }
+    gl_use_material(&depth_material(c));
+    // A little farther from the camera than it is: where two joined buildings meet, both draw a
+    // hair past the line they meet on, so no crack shows between their pictures.
+    let e = ELEVATION.to_radians();
+    let away = -vec3(0.0, e.sin(), e.cos()) * OCCLUDER_BIAS;
+    let v: Vec<Vertex> = model.occluder.iter().map(|p| Vertex { position: turn.transform_point3(*p) + away, uv: Vec2::ZERO, color: [255; 4], normal: Vec4::ZERO }).collect();
+    for chunk in v.chunks(30_000) {
+        draw_mesh(&Mesh { vertices: chunk.to_vec(), indices: (0..chunk.len() as u16).collect(), texture: None });
+    }
+    gl_use_default_material();
+}
+
+/// The ground shadow where hidden geometry doesn't cover it: its colour, depth tested.
+fn shadow_material(c: &mut Cache) -> Material {
+    if c.shadow_material.is_none() {
+        let pipeline = PipelineParams { depth_write: false, depth_test: Comparison::LessOrEqual, ..Default::default() };
+        let m = load_material(ShaderSource::Glsl { vertex: VERTEX, fragment: FRAGMENT_SHADOW }, MaterialParams { pipeline_params: pipeline, uniforms: vec![], textures: vec![] }).expect("shadow shader");
+        c.shadow_material = Some(m);
+    }
+    c.shadow_material.clone().unwrap()
+}
+
+const FRAGMENT_SHADOW: &str = r#"#version 100
+precision mediump float;
+varying lowp vec4 color;
+void main() {
+    gl_FragColor = color;
+}
+"#;
+
+const FRAGMENT_DEPTH: &str = r#"#version 100
+precision mediump float;
+void main() {
+    gl_FragColor = vec4(0.0);
+}
+"#;
+
 fn material(c: &mut Cache) -> Material {
     if c.material.is_none() {
         let pipeline = PipelineParams {
@@ -1676,6 +1753,7 @@ fn render(c: &mut Cache, l: &Loaded, parts: &[&Loaded], items: &HashMap<String, 
     push_camera_state();
     set_camera(&cam);
     clear_background(Color::new(0.0, 0.0, 0.0, 0.0));
+    draw_occluder(c, &l.model, turn);
     gl_use_material(&mat);
     let light = vec3(-0.45, 0.75, 0.55).normalize();
     mat.set_uniform("LightDir", light);
@@ -1691,20 +1769,29 @@ fn render(c: &mut Cache, l: &Loaded, parts: &[&Loaded], items: &HashMap<String, 
         tips.push((id.clone(), to_px(*tip)));
     }
     gl_use_default_material();
-    // The shadow, flat black in a target of its own (overlapping triangles stay one shade).
+    // The shadow, flat black in a target of its own (overlapping triangles stay one shade); a
+    // joined building's neighbour hides what falls under it.
     let shadow_rt = (!shadow.is_empty()).then(|| {
         let rt = c
             .shadow_scratch
             .entry((w, h))
             .or_insert_with(|| {
-                let rt = render_target_ex(w, h, RenderTargetParams { sample_count: 1, depth: false });
+                let rt = render_target_ex(w, h, RenderTargetParams { sample_count: 1, depth: true });
                 rt.texture.set_filter(FilterMode::Nearest);
                 rt
             })
             .clone();
         set_camera(&Camera3D { render_target: Some(rt.clone()), ..camera(w, h, shift) });
         clear_background(Color::new(0.0, 0.0, 0.0, 0.0));
-        draw_mesh(&Mesh { vertices: shadow, indices: l.model.indices.clone(), texture: None });
+        let cast = l.model.indices[..l.model.indices.len() - l.model.shadowless.min(l.model.indices.len())].to_vec();
+        if l.model.occluder.is_empty() {
+            draw_mesh(&Mesh { vertices: shadow, indices: cast, texture: None });
+        } else {
+            draw_occluder(c, &l.model, turn);
+            gl_use_material(&shadow_material(c));
+            draw_mesh(&Mesh { vertices: shadow, indices: cast, texture: None });
+            gl_use_default_material();
+        }
         rt
     });
     // Into the atlas, with a soft dark outline: the picture four times shifted by a pixel in a
@@ -1717,7 +1804,9 @@ fn render(c: &mut Cache, l: &Loaded, parts: &[&Loaded], items: &HashMap<String, 
     // (A tint multiplies: this darkens every colour to the outline's dark brown or below.)
     let dark = Color::new(0.15, 0.10, 0.09, 1.0);
     let (x, y) = (rect.x + 1.0, rect.y + 1.0);
-    for (dx, dy) in [(-1.0, 0.0), (1.0, 0.0), (0.0, -1.0), (0.0, 1.0)] {
+    // (Not for a joined building: its outline would draw a seam across the walls it shares.)
+    let outline: &[(f32, f32)] = if l.model.occluder.is_empty() { &[(-1.0, 0.0), (1.0, 0.0), (0.0, -1.0), (0.0, 1.0)] } else { &[] };
+    for (dx, dy) in outline {
         draw_texture_ex(&scratch.texture, x + dx, y + dy, dark, DrawTextureParams { dest_size: Some(vec2(w as f32, h as f32)), flip_y: true, ..Default::default() });
     }
     draw_texture_ex(&scratch.texture, x, y, WHITE, DrawTextureParams { dest_size: Some(vec2(w as f32, h as f32)), flip_y: true, ..Default::default() });

@@ -783,7 +783,7 @@ impl Editor {
         // A building: its model is built again.
         if kind == RefKind::Prop {
             if let Some(d) = self.project.db.prop(&id).cloned() {
-                self.assets.rebuild_building(&d);
+                self.assets.rebuild_building(&d, &self.project.db);
             }
         }
         // A model: the loaded one takes the new definition; a new model or other files are read.

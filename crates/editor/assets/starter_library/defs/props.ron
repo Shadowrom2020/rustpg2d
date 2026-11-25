@@ -4063,7 +4063,7 @@
             overhang: 6.0,
             wall: (
                 sheet: "painted_walls",
-                frame: 12,
+                frame: 23,
             ),
             roof_picture: (
                 sheet: "painted_walls",
@@ -4134,7 +4134,7 @@
             overhang: 6.0,
             wall: (
                 sheet: "painted_walls",
-                frame: 12,
+                frame: 23,
             ),
             roof_picture: (
                 sheet: "painted_walls",
@@ -4307,7 +4307,7 @@
             overhang: 6.0,
             wall: (
                 sheet: "painted_walls",
-                frame: 12,
+                frame: 23,
             ),
             roof_picture: (
                 sheet: "painted_walls",
@@ -4627,7 +4627,7 @@
             overhang: 10.0,
             wall: (
                 sheet: "painted_walls",
-                frame: 12,
+                frame: 23,
             ),
             roof_picture: (
                 sheet: "painted_walls",
@@ -4779,7 +4779,7 @@
             overhang: 6.0,
             wall: (
                 sheet: "painted_walls",
-                frame: 12,
+                frame: 23,
             ),
             roof_picture: (
                 sheet: "painted_walls",
@@ -4861,7 +4861,7 @@
             overhang: 10.0,
             wall: (
                 sheet: "painted_walls",
-                frame: 12,
+                frame: 23,
             ),
             roof_picture: (
                 sheet: "painted_walls",

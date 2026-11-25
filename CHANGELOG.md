@@ -183,6 +183,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   rock walls are a rocky 3D tile with an uneven top (`rock_cliff_3d`) instead of flat blocks; picture
   shadows start under the middle of what is painted, so props no longer seem to float (Mira's
   fireplace, the mill's sacks, the mine's rocks).
+- **Village look**: the red roofs repainted as even shingles (no stripes), the tavern's walls as a
+  calm half-timbering over a larger area (`painted_large`), the plastered houses' doors and windows
+  cut out of their plaster (`painted_openings`: no patches on the walls); the graveyard's and the
+  farm pen's fences meet at their corners (the north-south pieces and posts moved onto the tile
+  edges); the square's signpost moved out from behind the fish stall (Meshy: 16 credits).
 - **Counters** (`PropDef.counter`, *Counter (a market stall)* in the prop form): using one talks to
   whoever keeps it (a merchant with a shop beside, in front of or behind it, or anyone standing in
   it), from its front; its own triggers run only when nobody keeps it. The library's four stalls are

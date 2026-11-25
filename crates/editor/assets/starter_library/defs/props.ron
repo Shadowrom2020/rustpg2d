@@ -4118,16 +4118,16 @@
                 frame: 23,
             ),
             roof_picture: (
-                sheet: "painted_walls",
-                frame: 27,
+                sheet: "painted_large",
+                frame: 1,
             ),
             openings: [
                 (
                     side: South,
                     at: 80.0,
                     picture: (
-                        sheet: "painted_walls",
-                        frame: 24,
+                        sheet: "painted_openings",
+                        frame: 0,
                     ),
                     size: (28.0, 44.0),
                 ),
@@ -4135,8 +4135,8 @@
                     side: South,
                     at: 48.0,
                     picture: (
-                        sheet: "painted_walls",
-                        frame: 14,
+                        sheet: "painted_openings",
+                        frame: 1,
                     ),
                     size: (24.0, 24.0),
                     sill: 36.0,
@@ -4145,8 +4145,8 @@
                     side: South,
                     at: 112.0,
                     picture: (
-                        sheet: "painted_walls",
-                        frame: 14,
+                        sheet: "painted_openings",
+                        frame: 1,
                     ),
                     size: (24.0, 24.0),
                     sill: 36.0,
@@ -4155,8 +4155,8 @@
                     side: East,
                     at: 80.0,
                     picture: (
-                        sheet: "painted_walls",
-                        frame: 14,
+                        sheet: "painted_openings",
+                        frame: 1,
                     ),
                     size: (24.0, 24.0),
                     sill: 36.0,
@@ -4189,16 +4189,16 @@
                 frame: 23,
             ),
             roof_picture: (
-                sheet: "painted_walls",
-                frame: 27,
+                sheet: "painted_large",
+                frame: 1,
             ),
             openings: [
                 (
                     side: South,
                     at: 112.0,
                     picture: (
-                        sheet: "painted_walls",
-                        frame: 24,
+                        sheet: "painted_openings",
+                        frame: 0,
                     ),
                     size: (28.0, 44.0),
                 ),
@@ -4206,8 +4206,8 @@
                     side: South,
                     at: 48.0,
                     picture: (
-                        sheet: "painted_walls",
-                        frame: 14,
+                        sheet: "painted_openings",
+                        frame: 1,
                     ),
                     size: (24.0, 24.0),
                     sill: 36.0,
@@ -4216,8 +4216,8 @@
                     side: South,
                     at: 176.0,
                     picture: (
-                        sheet: "painted_walls",
-                        frame: 14,
+                        sheet: "painted_openings",
+                        frame: 1,
                     ),
                     size: (24.0, 24.0),
                     sill: 36.0,
@@ -4226,8 +4226,8 @@
                     side: East,
                     at: 80.0,
                     picture: (
-                        sheet: "painted_walls",
-                        frame: 14,
+                        sheet: "painted_openings",
+                        frame: 1,
                     ),
                     size: (24.0, 24.0),
                     sill: 36.0,
@@ -4256,8 +4256,8 @@
             pitch: 0.8,
             overhang: 6.0,
             wall: (
-                sheet: "painted_walls",
-                frame: 21,
+                sheet: "painted_large",
+                frame: 0,
             ),
             roof_picture: (
                 sheet: "painted_walls",
@@ -4268,8 +4268,8 @@
                     side: South,
                     at: 176.0,
                     picture: (
-                        sheet: "painted_walls",
-                        frame: 24,
+                        sheet: "painted_openings",
+                        frame: 0,
                     ),
                     size: (28.0, 44.0),
                 ),
@@ -4277,8 +4277,8 @@
                     side: South,
                     at: 48.0,
                     picture: (
-                        sheet: "painted_walls",
-                        frame: 14,
+                        sheet: "painted_openings",
+                        frame: 1,
                     ),
                     size: (24.0, 24.0),
                     sill: 36.0,
@@ -4287,8 +4287,8 @@
                     side: South,
                     at: 144.0,
                     picture: (
-                        sheet: "painted_walls",
-                        frame: 14,
+                        sheet: "painted_openings",
+                        frame: 1,
                     ),
                     size: (24.0, 24.0),
                     sill: 36.0,
@@ -4297,8 +4297,8 @@
                     side: South,
                     at: 240.0,
                     picture: (
-                        sheet: "painted_walls",
-                        frame: 14,
+                        sheet: "painted_openings",
+                        frame: 1,
                     ),
                     size: (24.0, 24.0),
                     sill: 36.0,
@@ -4307,8 +4307,8 @@
                     side: South,
                     at: 304.0,
                     picture: (
-                        sheet: "painted_walls",
-                        frame: 14,
+                        sheet: "painted_openings",
+                        frame: 1,
                     ),
                     size: (24.0, 24.0),
                     sill: 36.0,
@@ -4317,8 +4317,8 @@
                     side: East,
                     at: 80.0,
                     picture: (
-                        sheet: "painted_walls",
-                        frame: 14,
+                        sheet: "painted_openings",
+                        frame: 1,
                     ),
                     size: (24.0, 24.0),
                     sill: 36.0,
@@ -4362,16 +4362,16 @@
                 frame: 23,
             ),
             roof_picture: (
-                sheet: "painted_walls",
-                frame: 27,
+                sheet: "painted_large",
+                frame: 1,
             ),
             openings: [
                 (
                     side: South,
                     at: 112.0,
                     picture: (
-                        sheet: "painted_walls",
-                        frame: 24,
+                        sheet: "painted_openings",
+                        frame: 0,
                     ),
                     size: (28.0, 44.0),
                 ),
@@ -4379,8 +4379,8 @@
                     side: South,
                     at: 48.0,
                     picture: (
-                        sheet: "painted_walls",
-                        frame: 14,
+                        sheet: "painted_openings",
+                        frame: 1,
                     ),
                     size: (24.0, 24.0),
                     sill: 36.0,
@@ -4389,8 +4389,8 @@
                     side: South,
                     at: 144.0,
                     picture: (
-                        sheet: "painted_walls",
-                        frame: 14,
+                        sheet: "painted_openings",
+                        frame: 1,
                     ),
                     size: (24.0, 24.0),
                     sill: 36.0,
@@ -4399,8 +4399,8 @@
                     side: South,
                     at: 176.0,
                     picture: (
-                        sheet: "painted_walls",
-                        frame: 14,
+                        sheet: "painted_openings",
+                        frame: 1,
                     ),
                     size: (24.0, 24.0),
                     sill: 36.0,
@@ -4409,8 +4409,8 @@
                     side: East,
                     at: 80.0,
                     picture: (
-                        sheet: "painted_walls",
-                        frame: 14,
+                        sheet: "painted_openings",
+                        frame: 1,
                     ),
                     size: (24.0, 24.0),
                     sill: 36.0,
@@ -4690,8 +4690,8 @@
                     side: South,
                     at: 112.0,
                     picture: (
-                        sheet: "painted_walls",
-                        frame: 24,
+                        sheet: "painted_openings",
+                        frame: 0,
                     ),
                     size: (28.0, 44.0),
                 ),
@@ -4699,8 +4699,8 @@
                     side: South,
                     at: 48.0,
                     picture: (
-                        sheet: "painted_walls",
-                        frame: 14,
+                        sheet: "painted_openings",
+                        frame: 1,
                     ),
                     size: (24.0, 24.0),
                     sill: 36.0,
@@ -4709,8 +4709,8 @@
                     side: South,
                     at: 144.0,
                     picture: (
-                        sheet: "painted_walls",
-                        frame: 14,
+                        sheet: "painted_openings",
+                        frame: 1,
                     ),
                     size: (24.0, 24.0),
                     sill: 36.0,
@@ -4719,8 +4719,8 @@
                     side: South,
                     at: 176.0,
                     picture: (
-                        sheet: "painted_walls",
-                        frame: 14,
+                        sheet: "painted_openings",
+                        frame: 1,
                     ),
                     size: (24.0, 24.0),
                     sill: 36.0,
@@ -4729,8 +4729,8 @@
                     side: East,
                     at: 80.0,
                     picture: (
-                        sheet: "painted_walls",
-                        frame: 14,
+                        sheet: "painted_openings",
+                        frame: 1,
                     ),
                     size: (24.0, 24.0),
                     sill: 36.0,
@@ -4834,16 +4834,16 @@
                 frame: 23,
             ),
             roof_picture: (
-                sheet: "painted_walls",
-                frame: 27,
+                sheet: "painted_large",
+                frame: 1,
             ),
             openings: [
                 (
                     side: South,
                     at: 96.0,
                     picture: (
-                        sheet: "painted_walls",
-                        frame: 24,
+                        sheet: "painted_openings",
+                        frame: 0,
                     ),
                     size: (28.0, 44.0),
                 ),
@@ -4851,8 +4851,8 @@
                     side: South,
                     at: 48.0,
                     picture: (
-                        sheet: "painted_walls",
-                        frame: 14,
+                        sheet: "painted_openings",
+                        frame: 1,
                     ),
                     size: (24.0, 24.0),
                     sill: 36.0,
@@ -4861,8 +4861,8 @@
                     side: South,
                     at: 144.0,
                     picture: (
-                        sheet: "painted_walls",
-                        frame: 14,
+                        sheet: "painted_openings",
+                        frame: 1,
                     ),
                     size: (24.0, 24.0),
                     sill: 36.0,
@@ -4871,8 +4871,8 @@
                     side: East,
                     at: 80.0,
                     picture: (
-                        sheet: "painted_walls",
-                        frame: 14,
+                        sheet: "painted_openings",
+                        frame: 1,
                     ),
                     size: (24.0, 24.0),
                     sill: 36.0,
@@ -4924,8 +4924,8 @@
                     side: South,
                     at: 80.0,
                     picture: (
-                        sheet: "painted_walls",
-                        frame: 24,
+                        sheet: "painted_openings",
+                        frame: 0,
                     ),
                     size: (28.0, 44.0),
                 ),
@@ -4933,8 +4933,8 @@
                     side: South,
                     at: 48.0,
                     picture: (
-                        sheet: "painted_walls",
-                        frame: 14,
+                        sheet: "painted_openings",
+                        frame: 1,
                     ),
                     size: (24.0, 24.0),
                     sill: 36.0,
@@ -4943,8 +4943,8 @@
                     side: South,
                     at: 112.0,
                     picture: (
-                        sheet: "painted_walls",
-                        frame: 14,
+                        sheet: "painted_openings",
+                        frame: 1,
                     ),
                     size: (24.0, 24.0),
                     sill: 36.0,
@@ -4953,8 +4953,8 @@
                     side: East,
                     at: 80.0,
                     picture: (
-                        sheet: "painted_walls",
-                        frame: 14,
+                        sheet: "painted_openings",
+                        frame: 1,
                     ),
                     size: (24.0, 24.0),
                     sill: 36.0,
@@ -6229,8 +6229,8 @@
                 frame: 0,
             ),
             roof_picture: (
-                sheet: "painted_walls",
-                frame: 27,
+                sheet: "painted_large",
+                frame: 1,
             ),
             openings: [
                 (

@@ -2697,4 +2697,18 @@
         frame_h: 128,
         scale: 2,
     ),
+    (
+        id: "painted_openings",
+        image: "sprites/painted/painted_openings.png",
+        frame_w: 64,
+        frame_h: 64,
+        scale: 2,
+    ),
+    (
+        id: "painted_large",
+        image: "sprites/painted/painted_large.png",
+        frame_w: 256,
+        frame_h: 256,
+        scale: 2,
+    ),
 ]

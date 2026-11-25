@@ -184,6 +184,25 @@ pub fn blob_shadow(c: Vec2, radius: f32, alpha: f32) {
     draw_mesh(&Mesh { vertices, indices, texture: None });
 }
 
+/// A soft dark patch on the ground under something standing on rectangle `r` (world pixels,
+/// through the ground camera): darkest inside, fading out a little past its edges, so a 3D prop
+/// sits on the ground on every side, not only where its cast shadow falls.
+pub fn contact_shadow(r: Rect, alpha: f32) {
+    let m = (r.w.min(r.h) * 0.3).clamp(2.0, 10.0);
+    let inner = Rect::new(r.x + m * 0.5, r.y + m * 0.5, (r.w - m).max(1.0), (r.h - m).max(1.0));
+    let outer = Rect::new(r.x - m, r.y - m, r.w + 2.0 * m, r.h + 2.0 * m);
+    let v = |x: f32, y: f32, a: f32| macroquad::models::Vertex::new(x, y, 0.0, 0.0, 0.0, Color::new(0.0, 0.0, 0.0, a));
+    let corners = |q: Rect, a: f32| [v(q.x, q.y, a), v(q.right(), q.y, a), v(q.right(), q.bottom(), a), v(q.x, q.bottom(), a)];
+    let mut vertices = corners(inner, alpha).to_vec();
+    vertices.extend(corners(outer, 0.0));
+    let mut indices: Vec<u16> = vec![0, 1, 2, 0, 2, 3];
+    for k in 0..4u16 {
+        let (i0, i1, o0, o1) = (k, (k + 1) % 4, 4 + k, 4 + (k + 1) % 4);
+        indices.extend_from_slice(&[i0, o0, o1, i0, o1, i1]);
+    }
+    draw_mesh(&Mesh { vertices, indices, texture: None });
+}
+
 /// The map's border fading into `color` (the background past the edge) over `band` world pixels,
 /// for a map `w` × `h` pixels; drawn on the ground (through the ground camera).
 pub fn border_fade(w: f32, h: f32, band: f32, color: Color) {

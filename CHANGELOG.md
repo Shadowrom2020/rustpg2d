@@ -183,6 +183,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   rock walls are a rocky 3D tile with an uneven top (`rock_cliff_3d`) instead of flat blocks; picture
   shadows start under the middle of what is painted, so props no longer seem to float (Mira's
   fireplace, the mill's sacks, the mine's rocks).
+- **3D props sit on the ground**: a soft contact shadow under every still 3D model that stands
+  on the ground (`iso::contact_shadow`, `Models::ground_rect`), in the game and the editor; a stall
+  on thin legs no longer seems to float (its cast shadow falls only to the lower right).
 - **Pictures cast shadows**: props drawn as pictures (painted trees, rocks, lamps) throw a ground
   shadow along the sun like the 3D props, in the game and the editor; `PropDef.shadow` (*Casts a
   shadow* in the prop form) turns it off (the library's *Window glow*).

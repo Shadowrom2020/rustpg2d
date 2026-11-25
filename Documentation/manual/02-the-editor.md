@@ -44,7 +44,8 @@ From top to bottom:
 | Z | **Zones**: draw spawn points, portals, trigger areas, spawners |
 | T | **Transition**: link two maps with a two-way exit |
 | H | **Structures**: place ready-made houses, walls, rooms |
-| O | **Decorations**: trees, rocks, walls and fences placed freely; scatter brush, wall lines ([Maps › Decorations](03-maps.md#decorations)) |
+| O | **Decorations**: trees, rocks, walls and fences placed freely; scatter brush, lines ([Maps › Decorations](03-maps.md#decorations)) |
+| B | **Build**: walls along tile edges, rooms and houses dragged as rectangles ([Maps › Building walls, rooms and houses](03-maps.md#building-walls-rooms-and-houses)) |
 
 | Input | Action |
 |---|---|

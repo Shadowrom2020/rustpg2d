@@ -70,6 +70,8 @@ pub enum Drag {
     Ground,
     /// A Decorations tool line or brush stroke (its state: `Editor::decor`).
     Decor,
+    /// Build tool: a wall line or a room / house rectangle being dragged.
+    Build,
 }
 
 fn modifier_ctrl() -> bool {
@@ -418,6 +420,7 @@ impl Editor {
             (KeyCode::H, Tool::Structure),
             (KeyCode::P, Tool::Ground),
             (KeyCode::O, Tool::Decor),
+            (KeyCode::B, Tool::Build),
         ];
         for (k, t) in tools {
             if is_key_pressed(k) {
@@ -546,6 +549,10 @@ impl Editor {
                     self.drag = Some(Drag::Ground);
                 }
             }
+            Tool::Build => {
+                self.build_down(world);
+                self.drag = Some(Drag::Build);
+            }
             Tool::Decor => {
                 self.decor_down(world);
                 if self.decor.stroke.is_some() || self.decor.line_start.is_some() {
@@ -655,6 +662,9 @@ impl Editor {
             self.decor_drag_to(world);
             return;
         }
+        if matches!(self.drag, Some(Drag::Build)) {
+            return;
+        }
         let free = modifier_shift();
         match self.drag.take() {
             Some(Drag::Paint { last }) => {
@@ -713,6 +723,11 @@ impl Editor {
         if matches!(self.drag, Some(Drag::Decor)) {
             self.drag = None;
             self.decor_up(self.hover_world);
+            return;
+        }
+        if matches!(self.drag, Some(Drag::Build)) {
+            self.drag = None;
+            self.build_up(self.hover_world);
             return;
         }
         match self.drag.take() {
@@ -1164,6 +1179,7 @@ impl Editor {
                 }
                 (_, Tool::Ground) => self.draw_ground_hover(self.hover_world, px, modifier_shift()),
                 (_, Tool::Decor) => self.draw_decor_hover(self.hover_world, px),
+                (_, Tool::Build) => self.draw_build_hover(self.hover_world, px),
                 (_, Tool::Entity) if self.drag.is_none() && !self.place_def.is_empty() => {
                     // Ghost of the definition about to be placed (unless hovering an entity).
                     let wide = self.def_tiles_wide(self.place_kind, &self.place_def);

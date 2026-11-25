@@ -104,6 +104,27 @@ right-click takes the prop of the decoration under the cursor. Each click or str
 step. With *View › Collision* on, solid decorations show their hitboxes (red; yellow: low) and the
 painted ground its blocked cells.
 
+### Building walls, rooms and houses
+
+The **Build** tool (**B**) puts up walls, rooms and houses by dragging. Its left panel picks the
+mode, the wall and the rest:
+
+- **Walls**: drag along a tile edge. Thin walls and fences (the `*_thin` walls, *Fence section*)
+  stand on the edge, north-to-south runs are the same wall turned a quarter (corners meet by
+  themselves); thick walls (a town's stone wall) fill the tiles the drag passes. Pieces that stand
+  there already are kept. Remove pieces with the Decorations tool's *Erase*.
+- **Room**: drag the floor. It is painted with the chosen *Floor* material and gets its back walls
+  (north and west), open to the viewer like the example's interiors, or with *Walls on all four
+  sides* all four, a doorway left in the middle of the south wall.
+- **House**: drag the footprint and pick a *Look* (any building prop). A new building prop is made
+  in that look, as big as the rectangle (its door in the middle of the front, windows along the
+  walls, a chimney when the look has one) and placed there; *Database › Props* changes its doors,
+  windows and roof ([Database › Props › Building](05-database.md#props)).
+
+Each wall, floor and house is one undo step. Editor scripts: `tool build`, `buildmode
+walls|room|house`, `buildwall PROP`, `buildfloor MATERIAL|-`, `buildsides all|back`, `buildstyle
+PROP`, then `drag X1 Y1 X2 Y2` (tiles).
+
 **Rooms** are drawn open to the viewer: a thin wall along the north and west sides of the floor,
 nothing in front. The starter library's thin walls (*Grey stone wall (thin)*, *Plaster window
 (thin)*… and their *thin, north to south* versions) stand on a tile's edge: the north wall's pieces

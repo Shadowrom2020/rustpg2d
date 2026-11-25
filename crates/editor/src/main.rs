@@ -11,6 +11,7 @@
 mod srd_import;
 mod app;
 mod art;
+mod build_tool;
 mod builder;
 mod canvas;
 mod cleanup;
@@ -485,6 +486,19 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             let m = ed.render_prop_pictures(if arg(1).is_empty() { None } else { Some(arg(1)) });
             println!("[script] {m}");
         }
+        // buildmode walls|room|house · buildwall PROP · buildfloor MATERIAL|- · buildsides all|back ·
+        // buildstyle PROP: the Build tool (then `drag X1 Y1 X2 Y2` in tiles)
+        "buildmode" => {
+            ed.build.mode = match arg(1) {
+                "room" => build_tool::BuildMode::Room,
+                "house" => build_tool::BuildMode::House,
+                _ => build_tool::BuildMode::Walls,
+            }
+        }
+        "buildwall" => ed.build.wall = arg(1).to_string(),
+        "buildfloor" => ed.build.floor = if arg(1) == "-" { String::new() } else { arg(1).to_string() },
+        "buildsides" => ed.build.all_sides = arg(1) == "all",
+        "buildstyle" => ed.build.style = arg(1).to_string(),
         // itemicon ITEM: its inventory icon rendered from its 3D model.
         "itemicon" => {
             let m = ed.render_item_icon(arg(1));
@@ -756,7 +770,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
         // watchanswer reload|keep: answers the "changed on disk" banner
         "watchanswer" => ed.watch_answer(arg(1) == "reload"),
         "status" => println!(
-            "[status] {} repo={} library={} script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} projectfile={} notices={} search={} usages={} problems={} plugins={} libupdate={} starter={} art={} pixel={} mode={:?} dbtab={:?} dbsel={} dblist={}/{} itemfilter={} libshown={} script={:?} ground={} decor={} dbtable={} testsetup={} anim={} timeline={} cleanup={} nodes={} buildings={} msg={}",
+            "[status] {} repo={} library={} script_pick={} open={} project={} pending={} map={:?} fog={} dirty={} library_mode={} defs_dirty={} dbundo={} multi={} lib_dialog={} builder={} preview={:?} music={:?} sel={:?} schedule={} clipboard={} pasting={} graph={},{} mcp={} watch={} projectfile={} notices={} search={} usages={} problems={} plugins={} libupdate={} starter={} art={} pixel={} mode={:?} dbtab={:?} dbsel={} dblist={}/{} itemfilter={} libshown={} script={:?} ground={} decor={} build={} dbtable={} testsetup={} anim={} timeline={} cleanup={} nodes={} buildings={} msg={}",
             TIMING.with(|t| t.borrow_mut().take()),
             match repo_mode::root() {
                 None => "off".to_string(),
@@ -806,6 +820,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             ed.db.script_file.as_ref().and_then(|f| f.file_name()).map(|f| f.to_string_lossy().to_string()),
             ed.ground_status(),
             ed.decor_status(),
+            ed.build_status(),
             ed.db.table.status(ed.db.tab),
             ed.testplay_status(),
             ed.db.anim_preview.status(ed.project.db.animation(&ed.db.anim_preview.id).map_or(0.0, |d| d.length(|s| ed.assets.sheets.get(s).map_or(1, |t| t.count.max(1))))),
@@ -1541,6 +1556,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 "structure" => Tool::Structure,
                 "ground" => Tool::Ground,
                 "decor" => Tool::Decor,
+                "build" => Tool::Build,
                 "link" => Tool::Link,
                 _ => Tool::Select,
             }

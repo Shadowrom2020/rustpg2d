@@ -161,6 +161,17 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   into a house's wall, or a door (an entity that opens), a window piece or a gap into a wall,
   right-click takes it away; **Save as structure** keeps what was built on a map as a structure in
   one click. Wall lists show only walls (no benches or carts).
+- **The last top-down art painted** (Meshy, 252 credits): fire and light props with a picture per
+  state (campfire, street lamp, oven, hearth, fireplace, forge, brazier, candle stand, torch, lantern,
+  candle ledge), doors, the cave mouth, cobweb, prison bars, iron railing and rope; painted textures
+  for every wall block and the buildings' walls, roofs, doors and windows (`painted_walls`); a livelier
+  grass; rock for the cliffs (*Dark rock wall*). The cart and the market stall are 3D models.
+- **Library structures rebuilt for the isometric view**: the town house, brick shop and stone
+  watchtower are building props, the lookout tower the watchtower model, the dungeon rooms and the
+  prison cell have standing walls (torches hung on them), the iron fence and hedge stand up, the pens
+  and the graveyard use the 3D posts. Tile-era pieces nothing needs any more are retired: roof
+  tiles, eaves and chimneys, trunks, the lookout's rails, decks and ladders, the tall fence post,
+  the blue bed and the lawn patch (*Update asset library* offers to remove them).
 - **Pictures cast shadows**: props drawn as pictures (painted trees, rocks, lamps) throw a ground
   shadow along the sun like the 3D props, in the game and the editor; `PropDef.shadow` (*Casts a
   shadow* in the prop form) turns it off (the library's *Window glow*).

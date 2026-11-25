@@ -106,24 +106,48 @@ painted ground its blocked cells.
 
 ### Building walls, rooms and houses
 
-The **Build** tool (**B**) puts up walls, rooms and houses by dragging. Its left panel picks the
-mode, the wall and the rest:
+The **Build** tool (**B**) puts up walls, rooms, houses and roofs by dragging, and doors and windows
+by clicking. Its left panel picks the mode, the wall and the rest:
 
-- **Walls**: drag along a tile edge. Thin walls and fences (the `*_thin` walls, *Fence section*)
-  stand on the edge, north-to-south runs are the same wall turned a quarter (corners meet by
-  themselves); thick walls (a town's stone wall) fill the tiles the drag passes. Pieces that stand
-  there already are kept. Remove pieces with the Decorations tool's *Erase*.
+- **Walls**: drag, and the wall follows the mouse along the tile edges, round corners too (with
+  **Shift**: a straight line from where the drag began). Thin walls and fences (the `*_thin`
+  walls, *Fence section*) stand on the edges, north-to-south runs are the same wall turned a
+  quarter (corners meet by themselves); thick walls (a town's stone wall, a hedge) fill the tiles
+  the mouse passes. Pieces that stand there already are kept. **Right-click** a piece to take it
+  away. The whole drag is one undo step.
 - **Room**: drag the floor. It is painted with the chosen *Floor* material and gets its back walls
   (north and west), open to the viewer like the example's interiors, or with *Walls on all four
-  sides* all four, a doorway left in the middle of the south wall.
-- **House**: drag the footprint and pick a *Look* (any building prop). A new building prop is made
-  in that look, as big as the rectangle (its door in the middle of the front, windows along the
-  walls, a chimney when the look has one) and placed there; *Database › Props* changes its doors,
-  windows and roof ([Database › Props › Building](05-database.md#props)).
+  sides* all four, a doorway left in the middle of the south wall. *With a roof* puts a roof over
+  it (the *Roof* mode's kind and look).
+- **House**: drag the footprint, pick a *Look* (any building prop) and the *Storeys* (1 to 3: each
+  further one 48 px higher, with windows of its own). A new building prop is made in that look, as
+  big as the rectangle (its door in the middle of the front, windows along the walls, a chimney
+  when the look has one) and placed there; *Database › Props* changes its doors, windows and roof
+  ([Database › Props › Building](05-database.md#props)). **Drag a house against another one** (or
+  start the drag inside it) and it becomes a **wing** of that one: as high and in its look, the two
+  props are *joined* (*Joined to* in their forms), and where a ridge points into the other house its
+  roof runs on until it meets that one's: an L- or T-shaped house under one roof. Each is still a
+  prop of its own (its own hitbox, drawn in front of or behind characters by it); a placed house
+  that others use as well gets a copy of its own first.
+- **Roof**: drag over a room of walls: a roof alone (a building prop with *Roof only*), as high as
+  the chosen wall, in the chosen look and kind (gable, hip, shed, flat). It doesn't block the way;
+  in play it fades out like anything else in front of the hero, so the hero stays visible inside.
+- **Doors**: click a **house's wall** to put a door or window there (the house's own door and
+  window pictures; a window clicked high on the wall sits that high: an upper floor's), or click a
+  **wall piece** to put a *Door* (a door prop placed as an entity, so it opens in play), a *Window*
+  piece (one of the wall props with a window) or a *Gap* (a doorway) in its place.
+  **Right-click** a house's door or window, or a door put into a wall, to take it away (the wall
+  piece comes back).
 
-Each wall, floor and house is one undo step. Editor scripts: `tool build`, `buildmode
-walls|room|house`, `buildwall PROP`, `buildfloor MATERIAL|-`, `buildsides all|back`, `buildstyle
-PROP`, then `drag X1 Y1 X2 Y2` (tiles).
+Each wall, floor, house, roof and door is one undo step (the changed building props themselves are
+undone in the Database, *Edit › Undo* there). Everything built on one map is remembered as an
+area: **Save as structure** in the panel (give it an id) captures those tiles (ground, walls,
+houses, roofs and doors) as a structure of the *Built* category, to be placed again with the
+Structures tool. Editor scripts: `tool build`, `buildmode walls|room|house|roof|doors`, `buildwall
+PROP`, `buildfloor MATERIAL|-`, `buildsides all|back`, `buildroomroof on|off`, `buildstyle PROP`,
+`buildstoreys N`, `buildroof gable|hip|shed|flat`, `buildopening door|window|gap [PROP]`, `buildsave
+ID`, then `drag X1 Y1 X2 Y2`, `dragpath X1 Y1 X2 Y2 X3 Y3 …` or `click X Y [right]` (tiles);
+`status` prints `build=mode:wall:sides:style[:storeysN][:roof][:opening:door:window][:area=WxH@X,Y]`.
 
 **Rooms** are drawn open to the viewer: a thin wall along the north and west sides of the floor,
 nothing in front. The starter library's thin walls (*Grey stone wall (thin)*, *Plaster window
@@ -212,8 +236,9 @@ box, *Add from library…*). Pick one: a transparent preview follows the mouse, 
 right-click or Esc stops. Each placement is one undo step. Placed structures are ordinary ground,
 decorations and entities.
 
-**Capturing your own**: *New from map area…* in the Structures palette (or *Save as structure…* on
-a selected region): drag a rectangle on the map, then give it an id, a name and a category. Untick
+**Capturing your own**: *Save as structure* in the Build tool's panel takes what you built there;
+*New from map area…* in the Structures palette (or *Save as structure…* on a selected region):
+drag a rectangle on the map, then give it an id, a name and a category. Untick
 *Include the ground* for things that should stand on any ground. Its ground, the decorations and
 entities standing in it and its collision overrides become the structure; with the ground, placing
 it clears the area's decorations first.
@@ -221,7 +246,8 @@ it clears the area's decorations first.
 **Editing a structure** happens on the map canvas: *Edit on the map* in *Database › Structures*
 (new ones with *New asset… › Structure* open there at once) opens the structure as a small map of
 its own, drawn as in the game, with every map tool: the Ground tool, decorations and their layers,
-objects, collision, **R** to turn, *Resize…* in the map's settings for its size. A bar over the
+objects, collision, the Build tool, **R** to turn. The right panel shows only what a structure
+keeps (its size with *Resize…*; no music, weather, lighting, edges or triggers). A bar over the
 map shows which structure is open: **Done** (or Ctrl+S) saves it back into the structure and goes
 back to your map, **Cancel** goes back without saving; opening another map saves it first.
 Structures with no ground keep none unless you paint some. The palette's thumbnails, the Database

@@ -277,6 +277,21 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             mouse.push_back(frame(b, 0, false, false, true));
             mouse.push_back(frame(b, 0, false, false, false));
         }
+        // dragpath X1 Y1 X2 Y2 X3 Y3 …: a drag through several points (tiles), e.g. a wall round a corner
+        "dragpath" => {
+            let pts: Vec<Vec2> = (1..cmd.len()).step_by(2).filter(|&k| k + 1 < cmd.len()).map(|k| at(ed, num(k), num(k + 1))).collect();
+            if let Some(&a) = pts.first() {
+                mouse.push_back(frame(a, 0, true, true, false));
+                for w in pts.windows(2) {
+                    for i in 1..=12 {
+                        mouse.push_back(frame(w[0].lerp(w[1], i as f32 / 12.0), 0, true, false, false));
+                    }
+                }
+                let b = *pts.last().unwrap();
+                mouse.push_back(frame(b, 0, false, false, true));
+                mouse.push_back(frame(b, 0, false, false, false));
+            }
+        }
         // containeradd ITEM COUNT / containersize N: edit the selected entity's container
         "containeradd" | "containersize" => {
             if let (Some(doc), Selection::Entity(uid)) = (&mut ed.doc, ed.sel) {
@@ -469,7 +484,7 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
                 (Ok(shape), Some(d)) => {
                     d.building = shape;
                     let d = d.clone();
-                    ed.assets.rebuild_building(&d);
+                    ed.assets.rebuild_building(&d, &ed.project.db);
                     ed.defs_dirty = true;
                 }
                 (Err(e), _) => println!("[script] bshape: {e}"),
@@ -486,19 +501,42 @@ fn run_script_cmd(ed: &mut Editor, cmd: &[String], wait: &mut f32, shot: &mut Op
             let m = ed.render_prop_pictures(if arg(1).is_empty() { None } else { Some(arg(1)) });
             println!("[script] {m}");
         }
-        // buildmode walls|room|house · buildwall PROP · buildfloor MATERIAL|- · buildsides all|back ·
-        // buildstyle PROP: the Build tool (then `drag X1 Y1 X2 Y2` in tiles)
-        "buildmode" => {
-            ed.build.mode = match arg(1) {
-                "room" => build_tool::BuildMode::Room,
-                "house" => build_tool::BuildMode::House,
-                _ => build_tool::BuildMode::Walls,
-            }
-        }
+        // buildmode walls|room|house|roof|doors · buildwall PROP · buildfloor MATERIAL|- · buildsides
+        // all|back · buildroomroof on|off · buildstyle PROP · buildstoreys N · buildroof
+        // gable|hip|shed|flat · buildopening door|window|gap [PROP] · buildsave ID: the Build tool
+        // (then `drag X1 Y1 X2 Y2` / `click X Y [right]` in tiles)
+        "buildmode" => ed.build.mode = build_tool::BuildMode::parse(arg(1)).unwrap_or_default(),
         "buildwall" => ed.build.wall = arg(1).to_string(),
         "buildfloor" => ed.build.floor = if arg(1) == "-" { String::new() } else { arg(1).to_string() },
         "buildsides" => ed.build.all_sides = arg(1) == "all",
+        "buildroomroof" => ed.build.room_roof = arg(1) == "on",
         "buildstyle" => ed.build.style = arg(1).to_string(),
+        "buildstoreys" => ed.build.storeys = (num(1) as u8).clamp(1, 3),
+        "buildroof" => {
+            ed.build.roof = match arg(1) {
+                "hip" => rustpg2d_engine::defs::RoofKind::Hip,
+                "shed" => rustpg2d_engine::defs::RoofKind::Shed,
+                "flat" => rustpg2d_engine::defs::RoofKind::Flat,
+                _ => rustpg2d_engine::defs::RoofKind::Gable,
+            }
+        }
+        "buildopening" => {
+            ed.build.opening = match arg(1) {
+                "window" => build_tool::OpeningKind::Window,
+                "gap" => build_tool::OpeningKind::Gap,
+                _ => build_tool::OpeningKind::Door,
+            };
+            match ed.build.opening {
+                build_tool::OpeningKind::Door if !arg(2).is_empty() => ed.build.door = arg(2).to_string(),
+                build_tool::OpeningKind::Window if !arg(2).is_empty() => ed.build.window = arg(2).to_string(),
+                _ => {}
+            }
+        }
+        "buildsave" => {
+            let r = ed.save_built_structure(arg(1));
+            println!("[script] buildsave: {}", r.as_ref().map_or_else(|e| format!("{e:#}"), |m| m.clone()));
+            ed.show_result(r);
+        }
         // itemicon ITEM: its inventory icon rendered from its 3D model.
         "itemicon" => {
             let m = ed.render_item_icon(arg(1));

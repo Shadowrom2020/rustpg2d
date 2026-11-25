@@ -2228,7 +2228,7 @@ fn building_ui(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
             for (id, name) in &others {
                 if ui.selectable_label(false, format!("{name} ({id})")).clicked() {
                     if let Some(o) = cx.db.prop(id).and_then(|p| p.building.clone()) {
-                        *b = BuildingShape { openings: std::mem::take(&mut b.openings), chimneys: std::mem::take(&mut b.chimneys), ..o };
+                        *b = BuildingShape { openings: std::mem::take(&mut b.openings), chimneys: std::mem::take(&mut b.chimneys), joins: std::mem::take(&mut b.joins), walls: b.walls, ..o };
                     }
                 }
             }
@@ -2273,7 +2273,26 @@ fn building_ui(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
     ui.horizontal(|ui| {
         ui.label("Base");
         ui.add(egui::DragValue::new(&mut b.base_height).range(0.0..=64.0).speed(0.5).suffix(" px high")).on_hover_text("A band along the bottom of the walls (stone under timber), 0 = none");
+        let mut roof_only = !b.walls;
+        if ui.checkbox(&mut roof_only, "Roof only").on_hover_text("No walls: the roof alone, as high as the walls would be (over a room built of wall props; the Build tool's Roof mode makes these)").changed() {
+            b.walls = !roof_only;
+        }
     });
+    if !b.joins.is_empty() {
+        ui.horizontal_wrapped(|ui| {
+            ui.label("Joined to");
+            let mut drop = None;
+            for (k, j) in b.joins.iter().enumerate() {
+                ui.monospace(&j.prop).on_hover_text(format!("Its footprint's north-west corner is {} px east and {} px south of this one's (the Build tool's House mode joins houses dragged against each other). Where they meet, the roofs run into each other.", j.at[0], j.at[1]));
+                if ui.small_button(ph::X).on_hover_text("Not joined to it any more").clicked() {
+                    drop = Some(k);
+                }
+            }
+            if let Some(k) = drop {
+                b.joins.remove(k);
+            }
+        });
+    }
     egui::Grid::new("building_pictures").num_columns(2).show(ui, |ui| {
         let rows: [(&str, &str, &mut SpriteRef); 5] = [
             ("Walls", "building_wall", &mut b.wall),
@@ -2381,7 +2400,7 @@ fn building_ui(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
         });
         // The model as the game draws it, rebuilt when anything changed.
         if before.as_ref() != Some(&*b) || !cx.assets.models.has(&rustpg2d_engine::building::model_id(&id)) {
-            cx.assets.rebuild_building(&PropDef { id: id.clone(), name: name.clone(), hitbox, building: Some(b.clone()), ..Default::default() });
+            cx.assets.rebuild_building(&PropDef { id: id.clone(), name: name.clone(), hitbox, building: Some(b.clone()), ..Default::default() }, cx.db);
         }
         ui.vertical(|ui| {
             let facing = [rustpg2d_engine::entity::Facing::Down, rustpg2d_engine::entity::Facing::Left, rustpg2d_engine::entity::Facing::Up, rustpg2d_engine::entity::Facing::Right][turn % 4];
@@ -2445,7 +2464,7 @@ fn building_ui(ui: &mut egui::Ui, d: &mut PropDef, cx: &mut Cx) {
         b.chimneys.remove(i);
     }
     if d.building != before || d.hitbox != hitbox {
-        cx.assets.rebuild_building(d);
+        cx.assets.rebuild_building(d, cx.db);
     }
     ui.ctx().data_mut(|m| {
         m.insert_temp(key, tool);

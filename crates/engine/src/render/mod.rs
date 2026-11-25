@@ -215,10 +215,10 @@ impl Assets {
         self.models = models;
     }
 
-    /// Builds building prop `p`'s model again (its shape is being edited).
-    pub fn rebuild_building(&mut self, p: &crate::defs::PropDef) {
+    /// Builds building prop `p`'s model again (its shape is being edited), and those joined to it.
+    pub fn rebuild_building(&mut self, p: &crate::defs::PropDef, db: &crate::defs::Database) {
         let mut models = std::mem::take(&mut self.models);
-        models.rebuild_building(p, &|sp| self.sprite_picture(sp));
+        models.rebuild_building(p, db, &|sp| self.sprite_picture(sp));
         self.models = models;
     }
 

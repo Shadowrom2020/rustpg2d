@@ -1385,6 +1385,9 @@ impl From<LockSpecRepr> for LockSpec {
 fn yes() -> bool {
     true
 }
+fn is_true(b: &bool) -> bool {
+    *b
+}
 impl LockSpec {
     /// Whether an opened lock can be locked (closed) again.
     pub fn can_relock(&self) -> bool {
@@ -1592,12 +1595,28 @@ pub struct BuildingShape {
     pub openings: Vec<Opening>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub chimneys: Vec<Chimney>,
+    /// Whether it has walls; without them it is a roof alone, `height` above the ground (over a
+    /// room of wall props).
+    #[serde(default = "yes", skip_serializing_if = "is_true")]
+    pub walls: bool,
+    /// Buildings it is joined to (an L-shaped house of two): where they meet, its roof runs on
+    /// into theirs and each hides what the other covers.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub joins: Vec<Join>,
+}
+
+/// Another building prop a building is joined to ([`BuildingShape::joins`]).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Join {
+    pub prop: String,
+    /// Where its footprint's north-west corner is, from this one's (world pixels, both unturned).
+    pub at: [f32; 2],
 }
 
 /// The serde defaults: 64 px walls, a gable roof 3/4 steep reaching 6 px past them.
 impl Default for BuildingShape {
     fn default() -> Self {
-        BuildingShape { height: wall_height(), roof: RoofKind::Gable, ridge: Ridge::Auto, pitch: roof_pitch(), overhang: roof_overhang(), wall: SpriteRef::default(), roof_picture: SpriteRef::default(), gable: SpriteRef::default(), base: SpriteRef::default(), base_height: 0.0, trim: SpriteRef::default(), openings: vec![], chimneys: vec![] }
+        BuildingShape { height: wall_height(), roof: RoofKind::Gable, ridge: Ridge::Auto, pitch: roof_pitch(), overhang: roof_overhang(), wall: SpriteRef::default(), roof_picture: SpriteRef::default(), gable: SpriteRef::default(), base: SpriteRef::default(), base_height: 0.0, trim: SpriteRef::default(), openings: vec![], chimneys: vec![], walls: true, joins: vec![] }
     }
 }
 

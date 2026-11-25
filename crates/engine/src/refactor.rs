@@ -680,6 +680,9 @@ fn db_pass(db: &mut Database, config: &mut ProjectConfig, kind: RefKind, old: &s
         for t in d.building.iter_mut().flat_map(|b| b.pictures_mut()).filter(|t| !t.is_empty()) {
             r.fix(RefKind::Sheet, &mut t.sheet);
         }
+        for j in d.building.iter_mut().flat_map(|b| b.joins.iter_mut()) {
+            r.fix(RefKind::Prop, &mut j.prop);
+        }
         if !d.model.is_empty() {
             r.fix(RefKind::Model, &mut d.model);
         }
@@ -1016,6 +1019,9 @@ pub fn refs_of_prop(d: &crate::defs::PropDef) -> Vec<(RefKind, String)> {
     for t in d.building.iter_mut().flat_map(|b| b.pictures_mut()).filter(|t| !t.is_empty()) {
         r.fix(RefKind::Sheet, &mut t.sheet);
     }
+    for j in d.building.iter_mut().flat_map(|b| b.joins.iter_mut()) {
+        r.fix(RefKind::Prop, &mut j.prop);
+    }
     if !d.model.is_empty() {
         r.fix(RefKind::Model, &mut d.model);
     }
@@ -1116,6 +1122,21 @@ mod tests {
         let mut config = ProjectConfig::new("t");
         assert_eq!(rename_in_db(&mut db, &mut config, RefKind::Sheet, "doors", "house_doors"), 1);
         assert_eq!(db.props[0].building.as_ref().unwrap().openings[0].picture.sheet, "house_doors");
+    }
+
+    /// A joined building travels with the one it is joined to and follows its rename.
+    #[test]
+    fn joined_buildings_travel_and_follow_renames() {
+        use crate::defs::{BuildingShape, Join, PropDef};
+        let mut db = Database::default();
+        let joined = |other: &str| Some(BuildingShape { joins: vec![Join { prop: other.into(), at: [0.0, 160.0] }], ..Default::default() });
+        db.props.push(PropDef { id: "hall".into(), building: joined("wing"), ..Default::default() });
+        db.props.push(PropDef { id: "wing".into(), building: joined("hall"), ..Default::default() });
+        db.reindex();
+        assert!(db.refs_of(RefKind::Prop, "hall").contains(&(RefKind::Prop, "wing".to_string())));
+        let mut config = ProjectConfig::new("t");
+        assert!(rename_in_db(&mut db, &mut config, RefKind::Prop, "wing", "east_wing") >= 1);
+        assert_eq!(db.props[0].building.as_ref().unwrap().joins[0].prop, "east_wing");
     }
 
     /// A stat block's spells follow a spell's rename, but don't travel with the character.

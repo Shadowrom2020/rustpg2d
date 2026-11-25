@@ -72,6 +72,12 @@ pub struct Model {
     pub clips: Vec<Clip>,
     /// The base-colour texture (at most [`TEXTURE_MAX`] pixels on a side), if any.
     pub texture: Option<Image>,
+    /// Hidden triangles (corners, three each) of a still model: drawn into the depth only, so
+    /// they hide what is behind them without being seen (a joined building's neighbour).
+    pub occluder: Vec<Vec3>,
+    /// How many of the last indices make faces that cast no ground shadow (a joined building's
+    /// parts inside its neighbour).
+    pub shadowless: usize,
 }
 
 /// Textures are downsized to this: figures are drawn a few dozen pixels tall.
@@ -87,7 +93,7 @@ impl Model {
     /// A model that never moves (a building made by [`crate::building`]): one joint, no clips.
     pub fn still(vertices: Vec<SkinVertex>, indices: Vec<u16>, texture: Option<Image>) -> Model {
         let root = Node { name: String::new(), parent: None, t: Vec3::ZERO, r: Quat::IDENTITY, s: Vec3::ONE };
-        Model { vertices, indices, nodes: vec![root], order: vec![0], joints: vec![0], inverse_bind: vec![Mat4::IDENTITY], clips: Vec::new(), texture }
+        Model { vertices, indices, nodes: vec![root], order: vec![0], joints: vec![0], inverse_bind: vec![Mat4::IDENTITY], clips: Vec::new(), texture, occluder: Vec::new(), shadowless: 0 }
     }
 
     /// Reads a `.glb` (one skinned mesh; several primitives are merged, the first textured
@@ -170,7 +176,7 @@ impl Model {
             // Unrigged: one joint, the mesh's own node (rig templates add bones later).
             None => (vec![mesh_node.index()], vec![Mat4::IDENTITY]),
         };
-        let mut m = Model { vertices, indices, nodes, order, joints, inverse_bind, clips: Vec::new(), texture };
+        let mut m = Model { vertices, indices, nodes, order, joints, inverse_bind, clips: Vec::new(), texture, occluder: Vec::new(), shadowless: 0 };
         m.clips = read_clips(&g.document, blob, &|i| Some(i));
         Ok(m)
     }
@@ -477,7 +483,7 @@ impl Model {
                 }
             }
         }
-        Ok(Model { vertices, indices: self.indices.clone(), nodes, order: tpl.order.clone(), joints: tpl.joints.clone(), inverse_bind, clips, texture: self.texture.clone() })
+        Ok(Model { vertices, indices: self.indices.clone(), nodes, order: tpl.order.clone(), joints: tpl.joints.clone(), inverse_bind, clips, texture: self.texture.clone(), occluder: Vec::new(), shadowless: 0 })
     }
 
     /// The rest pose's height (model units) and the lowest point: for framing.
@@ -1325,7 +1331,7 @@ mod tests {
     fn column() -> Model {
         let vertices: Vec<SkinVertex> = (0..=8).map(|i| SkinVertex { pos: Vec3::new(if i % 2 == 0 { 0.5 } else { -0.5 }, i as f32 * 0.5, 0.0), normal: Vec3::Z, uv: Vec2::ZERO, joints: [0; 4], weights: [1.0, 0.0, 0.0, 0.0] }).collect();
         let nodes = vec![Node { name: "Column".into(), parent: None, t: Vec3::ZERO, r: Quat::IDENTITY, s: Vec3::ONE }];
-        Model { vertices, indices: vec![0, 1, 2], nodes, order: vec![0], joints: vec![0], inverse_bind: vec![Mat4::IDENTITY], clips: Vec::new(), texture: None }
+        Model { vertices, indices: vec![0, 1, 2], nodes, order: vec![0], joints: vec![0], inverse_bind: vec![Mat4::IDENTITY], clips: Vec::new(), texture: None, occluder: Vec::new(), shadowless: 0 }
     }
 
     #[test]

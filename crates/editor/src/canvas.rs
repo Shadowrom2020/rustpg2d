@@ -77,7 +77,7 @@ pub enum Drag {
 fn modifier_ctrl() -> bool {
     crate::ui::command_down()
 }
-fn modifier_shift() -> bool {
+pub fn modifier_shift() -> bool {
     is_key_down(KeyCode::LeftShift) || is_key_down(KeyCode::RightShift)
 }
 
@@ -529,6 +529,7 @@ impl Editor {
                 self.place_structure.clear();
                 self.capture.dragging = false;
             }
+            Tool::Build => self.build_right(self.hover_world),
             _ => {}
         }
     }
@@ -663,6 +664,7 @@ impl Editor {
             return;
         }
         if matches!(self.drag, Some(Drag::Build)) {
+            self.build_drag(world);
             return;
         }
         let free = modifier_shift();

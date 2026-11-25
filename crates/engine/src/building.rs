@@ -200,9 +200,20 @@ fn outward(poly: &[Vec3]) -> Vec3 {
 struct Builder<'a> {
     mesh: Mesh,
     atlas: &'a Atlas,
+    /// Faces inside a joined building, made last: they cast no shadow (that one's covers it).
+    late: Vec<(Vec<Vec3>, Vec3, usize)>,
 }
 
 impl Builder<'_> {
+    /// [`Builder::tiled`], or kept for the end when `hidden` (inside a joined building).
+    fn face(&mut self, poly: &[Vec3], origin: Vec3, cell: usize, hidden: bool) {
+        if hidden {
+            self.late.push((poly.to_vec(), origin, cell));
+        } else {
+            self.tiled(poly, origin, cell);
+        }
+    }
+
     /// Face `poly` (convex, flat) tiled with cell `cell`: the picture upright along the face (up
     /// the slope on roofs, north on flat ones), tiles counted from `origin`.
     fn tiled(&mut self, poly: &[Vec3], origin: Vec3, cell: usize) {
@@ -255,8 +266,93 @@ fn roof_y(r: &Roof, x: f32, z: f32) -> f32 {
 }
 
 /// Builds the model of a building with footprint `hitbox` (world pixels: width, depth), its
-/// pictures through `picture`.
+/// pictures through `picture`. Without the buildings it is joined to: see [`build_joined`].
 pub fn build(shape: &BuildingShape, hitbox: [f32; 2], picture: &dyn Fn(&SpriteRef) -> Option<Picture>) -> Built {
+    build_joined(shape, hitbox, picture, &|_| None)
+}
+
+/// A building prop's shape and footprint, by id (for [`BuildingShape::joins`]).
+pub type Neighbours<'a> = dyn Fn(&str) -> Option<(BuildingShape, [f32; 2])> + 'a;
+
+/// [`build`] with the buildings it is joined to, found through `others`: its roof runs on into
+/// theirs where they meet, and their shapes go into the model as hidden geometry
+/// ([`Model::occluder`]), so whichever of the two is drawn later leaves out what the other
+/// covers.
+pub fn build_joined(shape: &BuildingShape, hitbox: [f32; 2], picture: &dyn Fn(&SpriteRef) -> Option<Picture>, others: &Neighbours) -> Built {
+    let ends = roof_ends(shape, hitbox, others);
+    let (mesh, image, height, shadowless) = geometry(shape, hitbox, picture, ends);
+    let mut occluder = Vec::new();
+    for j in &shape.joins {
+        let Some((mut other, size)) = others(&j.prop) else { continue };
+        let their_ends = roof_ends(&other, size, others);
+        other.openings.clear();
+        let (m, ..) = geometry(&other, size, &|_| None, their_ends);
+        // Their footprint's middle from ours (units).
+        let off = vec3((j.at[0] + size[0] / 2.0 - hitbox[0] / 2.0) / U, 0.0, (j.at[1] + size[1] / 2.0 - hitbox[1] / 2.0) / U);
+        occluder.extend(m.indices.iter().map(|&i| m.vertices[i as usize].pos + off));
+    }
+    let Mesh { vertices, indices } = mesh;
+    let mut model = Model::still(vertices, indices, Some(image));
+    model.occluder = occluder;
+    model.shadowless = shadowless;
+    Built { model, height }
+}
+
+/// How far a roof reaches past the walls at one end of its ridge (world pixels), and across
+/// what span of its footprint's middle line (into a joined building: no wider than that one).
+#[derive(Clone, Copy, Debug)]
+struct End {
+    reach: f32,
+    joined: bool,
+    across: (f32, f32),
+}
+
+/// The roof's ends at the low and high end of its ridge: the overhang, or on into a joined
+/// building that end touches until it meets that one's roof.
+fn roof_ends(shape: &BuildingShape, hitbox: [f32; 2], others: &Neighbours) -> [End; 2] {
+    let o = shape.overhang.max(0.0);
+    let mut ends = [End { reach: o, joined: false, across: (f32::MIN, f32::MAX) }; 2];
+    let (w, d) = (hitbox[0], hitbox[1]);
+    let along_x = ridge_along_x(shape, w, d);
+    let (len, across) = if along_x { (w, d) } else { (d, w) };
+    let ridge = shape.height + shape.pitch.max(0.0) * across / 2.0;
+    for j in &shape.joins {
+        let Some((other, size)) = others(&j.prop) else { continue };
+        // Their footprint along our ridge (a0..a1) and across it (b0..b1), ours from 0.
+        let (a0, b0, la, lb) = if along_x { (j.at[0], j.at[1], size[0], size[1]) } else { (j.at[1], j.at[0], size[1], size[0]) };
+        if !(b0 < across / 2.0 && across / 2.0 < b0 + lb) {
+            continue;
+        }
+        // (The ridge's high end is the east one, or the north one: footprint y grows southward.)
+        let end = if (a0 - len).abs() < 1.0 {
+            along_x as usize
+        } else if (a0 + la).abs() < 1.0 {
+            !along_x as usize
+        } else {
+            continue;
+        };
+        // Their roof rises away from the wall we touch when their ridge crosses ours.
+        let theirs_along = ridge_along_x(&other, size[0], size[1]);
+        let k = other.pitch.max(0.0);
+        let reach = if theirs_along != along_x && k > 0.01 && other.roof != RoofKind::Flat { (ridge - other.height) / k } else { la / 2.0 };
+        // (Across: footprint y grows southward = +z, x eastward = +x: both as the roof's b.)
+        ends[end] = End { reach: reach.clamp(o, la), joined: true, across: (b0 - across / 2.0, b0 + lb - across / 2.0) };
+    }
+    ends
+}
+
+fn ridge_along_x(shape: &BuildingShape, w: f32, d: f32) -> bool {
+    match shape.ridge {
+        Ridge::Auto => w >= d,
+        Ridge::EastWest => true,
+        Ridge::NorthSouth => false,
+    }
+}
+
+/// The building's faces, its atlas, its height (world pixels) and how many of the last indices
+/// cast no shadow (inside a joined building); the roof reaching past the walls as `ends` say at
+/// the low and high end of its ridge.
+fn geometry(shape: &BuildingShape, hitbox: [f32; 2], picture: &dyn Fn(&SpriteRef) -> Option<Picture>, ends: [End; 2]) -> (Mesh, Image, f32, usize) {
     let get = |sp: &SpriteRef| if sp.is_empty() { None } else { picture(sp) };
     // The atlas: wall, roof, gable, base, trim, chimney top, then each opening and chimney.
     let wall = get(&shape.wall);
@@ -275,7 +371,7 @@ pub fn build(shape: &BuildingShape, hitbox: [f32; 2], picture: &dyn Fn(&SpriteRe
     let first_chimney = pics.len();
     pics.extend(shape.chimneys.iter().map(|c| (get(&c.picture), [140, 130, 122, 255], 1.0)));
     let atlas = Atlas::pack(&pics);
-    let mut b = Builder { mesh: Mesh::default(), atlas: &atlas };
+    let mut b = Builder { mesh: Mesh::default(), atlas: &atlas, late: Vec::new() };
 
     let (w, d) = (hitbox[0].max(8.0) / U, hitbox[1].max(8.0) / U);
     let h = shape.height.max(8.0) / U;
@@ -283,11 +379,7 @@ pub fn build(shape: &BuildingShape, hitbox: [f32; 2], picture: &dyn Fn(&SpriteRe
     let o = shape.overhang.max(0.0) / U;
     let k = shape.pitch.max(0.0);
     let bh = (shape.base_height / U).clamp(0.0, h);
-    let along_x = match shape.ridge {
-        Ridge::Auto => w >= d,
-        Ridge::EastWest => true,
-        Ridge::NorthSouth => false,
-    };
+    let along_x = ridge_along_x(shape, hitbox[0], hitbox[1]);
 
     let roof_dims = Roof { kind: shape.roof, along_x, w, d, h, k };
     // The walls: south, east, north, west, each from its left end as seen from outside.
@@ -297,13 +389,23 @@ pub fn build(shape: &BuildingShape, hitbox: [f32; 2], picture: &dyn Fn(&SpriteRe
         (WallSide::North, vec3(hw, 0.0, -hd), vec3(-1.0, 0.0, 0.0), w),
         (WallSide::West, vec3(-hw, 0.0, -hd), vec3(0.0, 0.0, 1.0), d),
     ];
+    let joined = [ends[0].joined, ends[1].joined];
+    // The wall at a joined end of the ridge stands inside the other building.
+    let inside = |side: WallSide| match (along_x, side) {
+        (true, WallSide::East) | (false, WallSide::North) => joined[1],
+        (true, WallSide::West) | (false, WallSide::South) => joined[0],
+        _ => false,
+    };
     for (side, start, dir, len) in walls {
         let end = start + dir * len;
-        if bh > 0.0 {
-            b.tiled(&[start, end, end + Vec3::Y * bh, start + Vec3::Y * bh], start, c_base);
+        let hidden = inside(side);
+        if bh > 0.0 && shape.walls {
+            b.face(&[start, end, end + Vec3::Y * bh, start + Vec3::Y * bh], start, c_base, hidden);
         }
         let s = start + Vec3::Y * bh;
-        b.tiled(&[s, end + Vec3::Y * bh, end + Vec3::Y * h, start + Vec3::Y * h], s, c_wall);
+        if shape.walls {
+            b.face(&[s, end + Vec3::Y * bh, end + Vec3::Y * h, start + Vec3::Y * h], s, c_wall, hidden);
+        }
         // What rises above the eaves at this wall: a gable, or a shed roof's back wall.
         let across_side = if along_x { matches!(side, WallSide::East | WallSide::West) } else { matches!(side, WallSide::North | WallSide::South) };
         let top = |p: Vec3| roof_y(&roof_dims, p.x, p.z);
@@ -311,19 +413,19 @@ pub fn build(shape: &BuildingShape, hitbox: [f32; 2], picture: &dyn Fn(&SpriteRe
             RoofKind::Gable if across_side => {
                 let mid = (start + end) / 2.0;
                 let apex = vec3(mid.x, top(mid), mid.z);
-                b.tiled(&[start + Vec3::Y * h, end + Vec3::Y * h, apex], s, c_gable);
+                b.face(&[start + Vec3::Y * h, end + Vec3::Y * h, apex], s, c_gable, hidden);
             }
             RoofKind::Shed => {
                 let (ys, ye) = (top(start), top(end));
                 if ys > h + 1e-3 || ye > h + 1e-3 {
-                    b.tiled(&[start + Vec3::Y * h, end + Vec3::Y * h, vec3(end.x, ye, end.z), vec3(start.x, ys, start.z)], s, c_gable);
+                    b.face(&[start + Vec3::Y * h, end + Vec3::Y * h, vec3(end.x, ye, end.z), vec3(start.x, ys, start.z)], s, c_gable, hidden);
                 }
             }
             _ => {}
         }
         // Its doors and windows.
         let n = dir.cross(Vec3::Y);
-        for (i, op) in shape.openings.iter().enumerate().filter(|(_, op)| op.side == side) {
+        for (i, op) in shape.openings.iter().enumerate().filter(|(_, op)| op.side == side && shape.walls) {
             let from_left = match side {
                 WallSide::South | WallSide::West => op.at / U,
                 WallSide::East | WallSide::North => len - op.at / U,
@@ -337,14 +439,29 @@ pub fn build(shape: &BuildingShape, hitbox: [f32; 2], picture: &dyn Fn(&SpriteRe
     // The roof, built with the ridge along `a` and mapped onto x / z.
     let (la, lb) = if along_x { (hw, hd) } else { (hd, hw) };
     let to_xz = |a: f32, y: f32, bb: f32| if along_x { vec3(a, y, bb) } else { vec3(bb, y, -a) };
-    let (ra, rb) = (la + o, lb + o);
+    // The roof's reach past the walls at the ridge's low (-a) and high (+a) end: the overhang, or
+    // on into a joined building. A joined end has no hip and no boards, and what reaches into the
+    // other building is no wider than the walls (it would stick out where both are flush).
+    let (lo_end, hi_end) = (la + ends[0].reach / U, la + ends[1].reach / U);
+    let (m0, m1) = (if joined[0] { la } else { lo_end }, if joined[1] { la } else { hi_end });
+    let rb = lb + o;
+    // The pieces reaching into joined buildings: their spans along the ridge and across it (to
+    // each side of the ridge: no further than the walls or the other building).
+    let reaches: Vec<(f32, f32, [f32; 2])> = [(ends[0], -lo_end, -la), (ends[1], la, hi_end)]
+        .into_iter()
+        .filter(|r| r.0.joined)
+        .map(|(e, a0, a1)| (a0, a1, [(lb.min(e.across.1 / U) - 0.02).max(0.0), (lb.min(-e.across.0 / U) - 0.02).max(0.0)]))
+        .collect();
+    let side_of = |s: f32, span: [f32; 2]| if s > 0.0 { span[0] } else { span[1] };
+    let board = |b: &mut Builder, p0: Vec3, p1: Vec3, t: f32| b.tiled(&[p0, p1, p1 - Vec3::Y * t, p0 - Vec3::Y * t], p0 - Vec3::Y * t, c_trim);
     match shape.roof {
         RoofKind::Gable | RoofKind::Hip => {
             let eave = h - k * o;
             let ridge = h + k * lb;
-            let rl = if shape.roof == RoofKind::Hip { (ra - rb).max(0.0) } else { ra };
+            let hip = |reach: f32, joined: bool| if shape.roof == RoofKind::Hip && !joined { (reach - rb).max(0.0) } else { reach };
+            let (rl0, rl1) = (hip(m0, joined[0]), hip(m1, joined[1]));
             for s in [1.0f32, -1.0] {
-                let slope = [to_xz(-ra, eave, s * rb), to_xz(ra, eave, s * rb), to_xz(rl, ridge, 0.0), to_xz(-rl, ridge, 0.0)];
+                let slope = [to_xz(-m0, eave, s * rb), to_xz(m1, eave, s * rb), to_xz(rl1, ridge, 0.0), to_xz(-rl0, ridge, 0.0)];
                 let poly: Vec<Vec3> = slope.iter().copied().fold(Vec::new(), |mut v, p| {
                     if v.last().is_none_or(|q: &Vec3| (*q - p).length() > 1e-4) {
                         v.push(p);
@@ -352,38 +469,54 @@ pub fn build(shape: &BuildingShape, hitbox: [f32; 2], picture: &dyn Fn(&SpriteRe
                     v
                 });
                 b.tiled(&poly, slope[0], c_roof);
+                for &(a0, a1, span) in &reaches {
+                    let rbx = side_of(s, span);
+                    let y = h + k * (lb - rbx);
+                    if rbx > 0.0 {
+                        b.face(&[to_xz(a0, y, s * rbx), to_xz(a1, y, s * rbx), to_xz(a1, ridge, 0.0), to_xz(a0, ridge, 0.0)], slope[0], c_roof, true);
+                    }
+                }
                 // The board along the eave.
-                let (e0, e1) = (to_xz(-ra, eave, s * rb), to_xz(ra, eave, s * rb));
-                b.tiled(&[e0, e1, e1 - Vec3::Y * BOARD, e0 - Vec3::Y * BOARD], e0 - Vec3::Y * BOARD, c_trim);
-                if shape.roof == RoofKind::Hip {
-                    let end = [to_xz(s * ra, eave, -rb), to_xz(s * ra, eave, rb), to_xz(s * rl, ridge, 0.0)];
-                    b.tiled(&end, end[0], c_roof);
-                    let (f0, f1) = (to_xz(s * ra, eave, -rb), to_xz(s * ra, eave, rb));
-                    b.tiled(&[f0, f1, f1 - Vec3::Y * BOARD, f0 - Vec3::Y * BOARD], f0 - Vec3::Y * BOARD, c_trim);
-                } else {
-                    // The boards along the gable's edges.
-                    for side in [1.0f32, -1.0] {
-                        let (p0, p1) = (to_xz(side * ra, eave, s * rb), to_xz(side * ra, ridge, 0.0));
-                        b.tiled(&[p0, p1, p1 - Vec3::Y * BOARD, p0 - Vec3::Y * BOARD], p0 - Vec3::Y * BOARD, c_trim);
+                board(&mut b, to_xz(-m0, eave, s * rb), to_xz(m1, eave, s * rb), BOARD);
+                // The ends: a hip, else the boards along the gable's edges.
+                for (sign, reach, rl, joined) in [(-1.0f32, m0, rl0, joined[0]), (1.0, m1, rl1, joined[1])] {
+                    if joined || s < 0.0 && shape.roof == RoofKind::Hip {
+                        continue;
+                    }
+                    if shape.roof == RoofKind::Hip {
+                        let end = [to_xz(sign * reach, eave, -rb), to_xz(sign * reach, eave, rb), to_xz(sign * rl, ridge, 0.0)];
+                        b.tiled(&end, end[0], c_roof);
+                        board(&mut b, to_xz(sign * reach, eave, -rb), to_xz(sign * reach, eave, rb), BOARD);
+                    } else {
+                        board(&mut b, to_xz(sign * reach, eave, s * rb), to_xz(sign * reach, ridge, 0.0), BOARD);
                     }
                 }
             }
         }
         RoofKind::Shed => {
-            let (front, back) = (h - k * o, h + k * (2.0 * lb + o));
-            let slope = [to_xz(-ra, front, rb), to_xz(ra, front, rb), to_xz(ra, back, -rb), to_xz(-ra, back, -rb)];
+            let y_at = |bb: f32| h + k * (lb - bb);
+            let slope = [to_xz(-m0, y_at(rb), rb), to_xz(m1, y_at(rb), rb), to_xz(m1, y_at(-rb), -rb), to_xz(-m0, y_at(-rb), -rb)];
             b.tiled(&slope, slope[0], c_roof);
-            for (p0, p1) in [(slope[0], slope[1]), (slope[3], slope[0]), (slope[1], slope[2]), (slope[2], slope[3])] {
-                b.tiled(&[p0, p1, p1 - Vec3::Y * BOARD, p0 - Vec3::Y * BOARD], p0 - Vec3::Y * BOARD, c_trim);
+            for &(a0, a1, [p, n]) in &reaches {
+                b.face(&[to_xz(a0, y_at(p), p), to_xz(a1, y_at(p), p), to_xz(a1, y_at(-n), -n), to_xz(a0, y_at(-n), -n)], slope[0], c_roof, true);
+            }
+            for (i, (p0, p1)) in [(slope[0], slope[1]), (slope[1], slope[2]), (slope[2], slope[3]), (slope[3], slope[0])].into_iter().enumerate() {
+                if !(i == 1 && joined[1] || i == 3 && joined[0]) {
+                    board(&mut b, p0, p1, BOARD);
+                }
             }
         }
         RoofKind::Flat => {
             let y = h + BOARD;
-            let top = [to_xz(-ra, y, -rb), to_xz(ra, y, -rb), to_xz(ra, y, rb), to_xz(-ra, y, rb)];
+            let top = [to_xz(-m0, y, -rb), to_xz(m1, y, -rb), to_xz(m1, y, rb), to_xz(-m0, y, rb)];
             b.tiled(&top, top[0], c_roof);
+            for &(a0, a1, [p, n]) in &reaches {
+                b.face(&[to_xz(a0, y, -n), to_xz(a1, y, -n), to_xz(a1, y, p), to_xz(a0, y, p)], top[0], c_roof, true);
+            }
             for i in 0..4 {
-                let (p0, p1) = (top[i], top[(i + 1) % 4]);
-                b.tiled(&[p0, p1, p1 - Vec3::Y * BOARD * 2.0, p0 - Vec3::Y * BOARD * 2.0], p0 - Vec3::Y * BOARD * 2.0, c_trim);
+                if !(i == 1 && joined[1] || i == 3 && joined[0]) {
+                    board(&mut b, top[i], top[(i + 1) % 4], BOARD * 2.0);
+                }
             }
         }
     }
@@ -405,8 +538,12 @@ pub fn build(shape: &BuildingShape, hitbox: [f32; 2], picture: &dyn Fn(&SpriteRe
     }
 
     let height = b.mesh.vertices.iter().map(|v| v.pos.y).fold(h, f32::max) * U;
-    let Mesh { vertices, indices } = b.mesh;
-    Built { model: Model::still(vertices, indices, Some(atlas.image)), height }
+    let cast = b.mesh.indices.len();
+    for (poly, origin, cell) in std::mem::take(&mut b.late) {
+        b.tiled(&poly, origin, cell);
+    }
+    let shadowless = b.mesh.indices.len() - cast;
+    (b.mesh, atlas.image, height, shadowless)
 }
 
 #[cfg(test)]
@@ -466,6 +603,45 @@ mod tests {
             };
             assert!(b.height > roof_top - 1.0, "{roof:?} {}", b.height);
         }
+    }
+
+    #[test]
+    fn a_roof_alone_has_no_walls() {
+        let b = build(&BuildingShape { walls: false, height: 48.0, ..shape(RoofKind::Gable) }, [160.0, 128.0], &plain);
+        let (lo, _) = bounds(&b.model);
+        // Nothing below the eaves (the roof's edge hangs a little lower than the walls' top).
+        assert!(lo.y > 48.0 / 32.0 - 0.3, "{lo}");
+        assert!((b.height - (48.0 + 0.75 * 64.0)).abs() < 0.01, "{}", b.height);
+    }
+
+    #[test]
+    fn joined_buildings_hide_each_other_and_share_a_roof() {
+        use crate::defs::Join;
+        // A 224 x 160 hall (ridge east-west) and a 128 x 160 wing south of its east end (ridge
+        // north-south, into the hall).
+        let hall = BuildingShape { joins: vec![Join { prop: "wing".into(), at: [96.0, 160.0] }], ..shape(RoofKind::Gable) };
+        let wing = BuildingShape { joins: vec![Join { prop: "hall".into(), at: [-96.0, -160.0] }], ridge: Ridge::NorthSouth, ..shape(RoofKind::Gable) };
+        let (h2, w2) = (hall.clone(), wing.clone());
+        let others = move |id: &str| match id {
+            "hall" => Some((h2.clone(), [224.0, 160.0])),
+            "wing" => Some((w2.clone(), [128.0, 160.0])),
+            _ => None,
+        };
+        let w = build_joined(&wing, [128.0, 160.0], &plain, &others);
+        // The hall is the wing's hidden geometry, north of it.
+        assert!(!w.model.occluder.is_empty() && w.model.occluder.iter().all(|p| p.z < -2.5 + 0.3));
+        // The wing's roof runs north past its wall into the hall (as far as its ridge needs to meet
+        // the hall's roof: 64 px), no wider than its walls there; that part casts no shadow.
+        let (lo, _) = bounds(&w.model);
+        assert!((lo.z - (-2.5 - 64.0 / 32.0)).abs() < 0.05, "{lo}");
+        assert!(w.model.shadowless > 0 && w.model.shadowless < w.model.indices.len());
+        // The hall's ridge runs along the wing's wall: it doesn't reach into the wing.
+        let h = build_joined(&hall, [224.0, 160.0], &plain, &others);
+        let (_, hi) = bounds(&h.model);
+        assert!((hi.z - (2.5 + 6.0 / 32.0)).abs() < 1e-3, "{hi}");
+        assert!(!h.model.occluder.is_empty() && h.model.shadowless == 0);
+        // Alone, neither has hidden geometry.
+        assert!(build(&wing, [128.0, 160.0], &plain).model.occluder.is_empty());
     }
 
     #[test]

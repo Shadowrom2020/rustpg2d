@@ -496,7 +496,17 @@ the footprint's middle) from the hitbox, walls, roof planes, door and window qua
 boxes, each face cut along its picture's size (`clip`, Sutherland-Hodgman) so every piece maps
 onto one cell of a packed texture atlas; `Models::load` registers it as `@building:<prop>`
 (`PropDef::model_at` names it), the editor rebuilds one while its form changes
-(`Assets::rebuild_building`, pictures from the loaded sheets). Items' 3D models (`ItemDef.model`) load with the character models and are drawn in the
+(`Assets::rebuild_building`, pictures from the loaded sheets; it rebuilds the buildings joined to
+it too). A shape without `walls` is a roof alone. **Joined buildings** (`BuildingShape.joins`: the
+other prop and its footprint's offset) stay separate props, so each keeps its own hitbox for
+collision and depth order; `building::build_joined` runs a roof whose ridge points into the other
+building on until it meets that one's roof (`roof_ends`), no wider than the other's footprint, and
+puts the other's shape into `Model::occluder`: triangles the pose renderer draws into the depth
+buffer only, before the model. Whichever of the two sprites is drawn later is then transparent
+where the other is nearer the camera, so the pair composes like one model in any order; their
+ground shadows are depth-tested against the same geometry, the faces inside the other building
+(`Model::shadowless`, the last indices) cast none, and joined buildings skip the dark outline
+(it would draw a seam across shared walls). Items' 3D models (`ItemDef.model`) load with the character models and are drawn in the
 pose's scene, turned so their handle lies on the hand's grip axis. Unrigged models with a rig
 template (`ModelDef.rig`) are fitted when they load (`Model::fit_rig`): the mesh is turned, the
 template's joints are stretched from the template mesh's bounds over the model's (per axis) plus

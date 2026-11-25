@@ -54,14 +54,17 @@ pub enum ArtKind {
     /// More clips for an existing rigged 3D model (`id`): its file rigged again by Meshy, the
     /// chosen animations ([`CLIP_CHOICES`], [`EXTRAS`]) as a shared clip file.
     Clips3d,
+    /// The 3D model of an existing prop (`id`): a concept picture (from its picture and the
+    /// description), then a model fitted to its footprint (a stall, a well, a cart, a building).
+    Prop3d,
 }
 
 impl ArtKind {
-    pub const ALL: [ArtKind; 7] = [ArtKind::Icon, ArtKind::Portrait, ArtKind::Image, ArtKind::Model3d, ArtKind::Creature3d, ArtKind::Gear3d, ArtKind::Clips3d];
+    pub const ALL: [ArtKind; 8] = [ArtKind::Icon, ArtKind::Portrait, ArtKind::Image, ArtKind::Model3d, ArtKind::Creature3d, ArtKind::Gear3d, ArtKind::Prop3d, ArtKind::Clips3d];
 
     /// A 3D job (models, not pictures).
     pub fn is_3d(self) -> bool {
-        matches!(self, ArtKind::Model3d | ArtKind::Creature3d | ArtKind::Gear3d | ArtKind::Clips3d)
+        matches!(self, ArtKind::Model3d | ArtKind::Creature3d | ArtKind::Gear3d | ArtKind::Clips3d | ArtKind::Prop3d)
     }
 
     pub fn name(self) -> &'static str {
@@ -73,6 +76,7 @@ impl ArtKind {
             ArtKind::Creature3d => "creature",
             ArtKind::Gear3d => "gear",
             ArtKind::Clips3d => "clips",
+            ArtKind::Prop3d => "prop",
         }
     }
 
@@ -85,6 +89,7 @@ impl ArtKind {
             ArtKind::Creature3d => "3D creature",
             ArtKind::Gear3d => "Item 3D model",
             ArtKind::Clips3d => "3D model clips",
+            ArtKind::Prop3d => "Prop / building 3D model",
         }
     }
 
@@ -202,6 +207,7 @@ impl ArtRequest {
             ArtKind::Gear3d if !self.description.trim().is_empty() => vec!["views", "model"],
             ArtKind::Gear3d => vec!["model"],
             ArtKind::Clips3d => vec!["rig", "clips"],
+            ArtKind::Prop3d => vec!["views", "model"],
             _ => vec!["picture"],
         }
     }
@@ -227,7 +233,7 @@ impl ArtRequest {
             }
             return Ok(());
         }
-        if self.description.trim().len() < 8 && self.kind != ArtKind::Gear3d {
+        if self.description.trim().len() < 8 && !matches!(self.kind, ArtKind::Gear3d | ArtKind::Prop3d) {
             return Err(anyhow!("describe it in a few words (what it looks like, what it wears or holds)"));
         }
         if self.id.trim().is_empty() || !self.id.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
@@ -268,6 +274,13 @@ impl ArtRequest {
                 let prompt = format!("A single item for a 3D model, drawn as a clean illustration: the whole object with its full shape visible, centred and filling the image (long things such as weapons and tools standing upright with the handle or grip at the bottom, seen from the side), true to real proportions (slender shafts and handles, not chunky), stylized fantasy RPG prop, clean shapes, soft shading, plain white background, no hands, no text, no shadows: {desc}");
                 match &refs.icon {
                     Some(icon) => meshy::Request::FromImages { prompt: format!("{prompt}. The reference is the item's small pixel-art icon: keep its colours and parts, but draw it detailed and in proper proportions."), refs: vec![icon.clone()], aspect: "1:1".into() },
+                    None => meshy::Request::FromText { prompt, aspect: "1:1".into(), background: false },
+                }
+            }
+            ArtKind::Prop3d => {
+                let prompt = format!("A single object for a 3D model, drawn as a clean illustration: the whole object standing on its base, seen from the front and a little from above and from the right, its full shape visible, centred and filling the image, true to real proportions, medieval fantasy, painted textures, realistic but painterly, soft even light, plain white background, no ground, no people, no text, no shadows: {desc}");
+                match &refs.icon {
+                    Some(picture) => meshy::Request::FromImages { prompt: format!("{prompt}. The reference is the prop's small game picture: keep its shape, colours and parts, but draw it detailed and in proper proportions."), refs: vec![picture.clone()], aspect: "1:1".into() },
                     None => meshy::Request::FromText { prompt, aspect: "1:1".into(), background: false },
                 }
             }
@@ -545,7 +558,10 @@ fn step3d(job: &Arc<Mutex<Job>>, k: usize, key: &str, req: &ArtRequest, refs: &R
             // From the picture drawn first, else from the icon.
             let drawn = job.locked().pictures.iter().find(|p| p.name == "views").and_then(|p| p.png.clone());
             match drawn {
-                Some(png) => ("image-to-3d", serde_json::json!({ "image_url": meshy::data_uri(&png), "should_texture": true, "should_remesh": true, "target_polycount": 4000, "texture_prompt": req.description.trim() })),
+                Some(png) => {
+                    let polycount = if req.kind == ArtKind::Prop3d { 6000 } else { 4000 };
+                    ("image-to-3d", serde_json::json!({ "image_url": meshy::data_uri(&png), "should_texture": true, "should_remesh": true, "target_polycount": polycount, "texture_prompt": req.description.trim() }))
+                }
                 None => {
                     let icon = refs.icon.clone().ok_or_else(|| anyhow!("the item has no icon to model it from"))?;
                     ("image-to-3d", serde_json::json!({ "image_url": icon, "should_texture": true, "should_remesh": true, "target_polycount": 1500, "texture_prompt": req.description.trim() }))
@@ -620,7 +636,7 @@ fn convert_job(job: &Arc<Mutex<Job>>) -> Result<()> {
             (p, f)
         }
         // 3D jobs: the picture they were made from (the files are kept in `made`).
-        ArtKind::Model3d | ArtKind::Creature3d | ArtKind::Gear3d | ArtKind::Clips3d => {
+        ArtKind::Model3d | ArtKind::Creature3d | ArtKind::Gear3d | ArtKind::Clips3d | ArtKind::Prop3d => {
             let p = decode("views").or_else(|_| Rgba::decode(&placeholder_png()))?;
             let p = convert::shrink(&p, 512);
             let f = (p.w, p.h);
@@ -827,6 +843,10 @@ mod tests {
         let from = ArtRequest { from: "hero".into(), ..r.clone() };
         assert_eq!(from.pictures(), vec!["model", "rig", "clips"]);
         assert_eq!(req(ArtKind::Creature3d, "none").pictures(), vec!["views", "model"]);
+        // A prop: a concept, then the model; its picture can stand in for a description.
+        assert_eq!(req(ArtKind::Prop3d, "none").pictures(), vec!["views", "model"]);
+        assert!(ArtRequest { description: String::new(), ..req(ArtKind::Prop3d, "none") }.check().is_ok());
+        assert_eq!(ArtKind::parse("prop"), Some(ArtKind::Prop3d));
         assert_eq!(ArtRequest { from: "wolf".into(), ..req(ArtKind::Creature3d, "none") }.pictures(), vec!["model"]);
         assert_eq!(ArtState::cost(&ArtRequest { description: String::new(), ..req(ArtKind::Gear3d, "none") }, "nano-banana-2-lite"), COST_MODEL);
         // Described: a picture first, then the model from it.

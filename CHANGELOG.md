@@ -172,6 +172,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   and the graveyard use the 3D posts. Tile-era pieces nothing needs any more are retired: roof
   tiles, eaves and chimneys, trunks, the lookout's rails, decks and ladders, the tall fence post,
   the blue bed and the lawn patch (*Update asset library* offers to remove them).
+- **Generate art: Prop / building 3D model** (*Assets › Generate art…*, agent tool `generate_art`
+  kind `prop`): a concept from the prop's picture and description, then a Meshy model stood on the
+  ground (`model::stand_on_ground`) and sized to the prop's hitbox, the prop showing it and its
+  pictures rendered from it: creators make props the way the library's were made.
 - **Pictures cast shadows**: props drawn as pictures (painted trees, rocks, lamps) throw a ground
   shadow along the sun like the 3D props, in the game and the editor; `PropDef.shadow` (*Casts a
   shadow* in the prop form) turns it off (the library's *Window glow*).

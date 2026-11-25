@@ -82,6 +82,17 @@ impl Editor {
                 }
                 refs.model = Some(meshy::data_uri_of(&std::fs::read(self.project.root.join(&m.file))?, "application/octet-stream"));
             }
+            ArtKind::Prop3d => {
+                let prop = db.prop(&req.id).ok_or_else(|| anyhow::anyhow!("no prop \"{}\" to make a 3D model of: make the prop first (its hitbox is the model's footprint)", req.id))?;
+                if let Ok((im, fw, fh)) = sheet_image(&prop.sprite.sheet) {
+                    let cols = (im.w / fw).max(1);
+                    let (x, y) = ((prop.sprite.frame % cols) * fw, (prop.sprite.frame / cols) * fh);
+                    refs.icon = framed(&im, x, y, fw * prop.sprite.w.max(1), fh * prop.sprite.h.max(1), 512).ok();
+                }
+                if refs.icon.is_none() && req.description.trim().len() < 8 {
+                    anyhow::bail!("prop \"{}\" has no picture: describe it in a few words", req.id);
+                }
+            }
             ArtKind::Gear3d => {
                 let item = db.item(&req.id).ok_or_else(|| anyhow::anyhow!("no item \"{}\" to make a 3D model of", req.id))?;
                 let (im, fw, fh) = sheet_image(&item.icon.sheet).map_err(|_| anyhow::anyhow!("item \"{}\" has no icon to model it from", req.id))?;
@@ -152,7 +163,7 @@ impl Editor {
         let sheet = match j.req.kind {
             ArtKind::Portrait => SheetDef { scale: 2, ..SheetDef::new(id, &rel, fw, fh) },
             ArtKind::Icon | ArtKind::Image => SheetDef::new(id, &rel, fw, fh),
-            ArtKind::Model3d | ArtKind::Creature3d | ArtKind::Gear3d | ArtKind::Clips3d => unreachable!("3D jobs are added by apply_art_3d"),
+            ArtKind::Model3d | ArtKind::Creature3d | ArtKind::Gear3d | ArtKind::Clips3d | ArtKind::Prop3d => unreachable!("3D jobs are added by apply_art_3d"),
         };
         let mut added = vec![format!("sprite sheet {id} ({rel})")];
         let db = &mut self.project.db;
@@ -205,6 +216,11 @@ impl Editor {
             ArtKind::Gear3d => {
                 let rel = write(self, id, &file("model.glb")?)?;
                 added.push(self.use_item_model(&j.req.id, &rel));
+            }
+            ArtKind::Prop3d => {
+                let (glb, size) = rustpg2d_engine::model::stand_on_ground(&file("model.glb")?)?;
+                let rel = write(self, &format!("{}_3d", j.req.id), &glb)?;
+                added.push(self.use_prop_model(&j.req.id, &rel, size)?);
             }
             ArtKind::Clips3d => {
                 let model = j.req.id.clone();
@@ -387,6 +403,7 @@ impl Editor {
                 ui.label("Id");
                 ui.add(egui::TextEdit::singleline(&mut w.id).hint_text(match w.kind {
                     ArtKind::Gear3d => "an item id: iron_sword",
+                    ArtKind::Prop3d => "a prop id: market_stall",
                     ArtKind::Clips3d => "a 3D model id: hero",
                     _ => "orc_shaman",
                 }).desired_width(180.0));
@@ -453,6 +470,7 @@ impl Editor {
                 ArtKind::Model3d => ui.weak("A turnaround picture, a 3D model of it, a skeleton and animations (walk, idle, the attack, hit, sit). Takes a few minutes."),
                 ArtKind::Creature3d => ui.weak("A picture and a 3D model of it, without a skeleton: give it a rig template to animate it."),
                 ArtKind::Gear3d => ui.weak("A 3D model of the item from its icon (the description, if any, guides the colours). It is held in hands of 3D characters."),
+                ArtKind::Prop3d => ui.weak("A 3D model of the prop with this id: a concept picture from its picture (and the description, if any), then a model, stood on the ground, as wide as the prop's hitbox (which grows as deep as the model; make the prop first). Placed copies turn with R; it casts a shadow."),
                 ArtKind::Clips3d => ui.weak("More animations for the rigged 3D model with this id (no description needed): its file is rigged again (5 credits) and the clips are fitted to its own skeleton. Other models with the same bones can then share them (Database › 3D models › Copy clips)."),
                 _ => ui.label(""),
             };

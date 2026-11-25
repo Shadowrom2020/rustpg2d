@@ -145,7 +145,7 @@ pub struct ObjectParams {
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct GenerateArtParams {
-    /// "model" (a rigged, animated 3D character: a person), "creature" (an unrigged 3D model of an animal or creature; animate it with fit_rig) "gear" (the 3D model of the existing item `id`: with a description from a clean picture drawn first, its icon as the reference; without one from the icon) or "clips" (more animations, `extras`, for the existing rigged 3D model `id`: its file rigged again, the clips fitted to its skeleton; no description needed); pictures: "icon", "prop", "portrait" or "image".
+    /// "model" (a rigged, animated 3D character: a person), "creature" (an unrigged 3D model of an animal or creature; animate it with fit_rig) "gear" (the 3D model of the existing item `id`: with a description from a clean picture drawn first, its icon as the reference; without one from the icon) "clips" (more animations, `extras`, for the existing rigged 3D model `id`: its file rigged again, the clips fitted to its skeleton; no description needed) or "prop" (the 3D model of the existing prop `id`: a concept from its picture and the description, then a model stood on the ground and sized to its hitbox); pictures: "icon", "portrait" or "image".
     pub kind: String,
     /// Id the asset will get (letters, digits, _).
     pub id: String,

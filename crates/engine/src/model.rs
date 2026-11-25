@@ -1143,7 +1143,7 @@ pub fn compact(glb: &[u8], keep_mesh: bool) -> Result<Vec<u8>> {
     let mut bin = Vec::new();
     let mut views = Vec::new();
     for (old, bytes) in &new_views {
-        while bin.len() % 4 != 0 {
+        while !bin.len().is_multiple_of(4) {
             bin.push(0);
         }
         let mut v = match old {
@@ -1186,12 +1186,17 @@ pub fn compact(glb: &[u8], keep_mesh: bool) -> Result<Vec<u8>> {
         b.byte_length = USize64(bin.len() as u64);
         b.uri = None;
     }
-    // GLB: header, JSON chunk (padded with spaces), BIN chunk (padded with zeros).
+    write_glb(&root, bin)
+}
+
+/// A glTF binary of `root` and its binary chunk `bin`: header, JSON chunk (padded with spaces),
+/// BIN chunk (padded with zeros).
+fn write_glb(root: &gltf::json::Root, mut bin: Vec<u8>) -> Result<Vec<u8>> {
     let mut json = root.to_vec().map_err(|e| anyhow!("writing the model: {e}"))?;
-    while json.len() % 4 != 0 {
+    while !json.len().is_multiple_of(4) {
         json.push(b' ');
     }
-    while bin.len() % 4 != 0 {
+    while !bin.len().is_multiple_of(4) {
         bin.push(0);
     }
     let total = 12 + 8 + json.len() + if bin.is_empty() { 0 } else { 8 + bin.len() };
@@ -1208,6 +1213,31 @@ pub fn compact(glb: &[u8], keep_mesh: bool) -> Result<Vec<u8>> {
         out.extend_from_slice(&bin);
     }
     Ok(out)
+}
+
+/// A still model (a prop) made to stand where props stand: its lowest point on the ground and
+/// the middle of its footprint at the origin (a new root node moves the scene; nothing else
+/// changes). Returns the file and the model's size (width, height, depth, in its units).
+pub fn stand_on_ground(glb: &[u8]) -> Result<(Vec<u8>, Vec3)> {
+    let model = Model::load(glb)?;
+    let (lo, hi) = model.bounds();
+    let shift = Vec3::new(-(lo.x + hi.x) / 2.0, -lo.y, -(lo.z + hi.z) / 2.0);
+    let g = gltf::Gltf::from_slice(glb).context("not a glTF binary")?;
+    let blob: Vec<u8> = g.blob.clone().unwrap_or_default();
+    let mut root = g.document.into_json();
+    let scene = root.scene.map_or(0, |s| s.value());
+    let tops: Vec<gltf::json::Index<gltf::json::Node>> = match root.scenes.get(scene) {
+        Some(s) => s.nodes.clone(),
+        None => (0..root.nodes.len() as u32).map(gltf::json::Index::new).collect(),
+    };
+    let node = gltf::json::Node { children: Some(tops), translation: Some([shift.x, shift.y, shift.z]), name: Some("stand".into()), ..Default::default() };
+    root.nodes.push(node);
+    let top = gltf::json::Index::new(root.nodes.len() as u32 - 1);
+    match root.scenes.get_mut(scene) {
+        Some(s) => s.nodes = vec![top],
+        None => root.scenes.push(gltf::json::Scene { nodes: vec![top], name: None, extensions: Default::default(), extras: Default::default() }),
+    }
+    Ok((write_glb(&root, blob)?, hi - lo))
 }
 
 /// Colours a model's texture is reduced to: the pixel look, and colour features can be picked as
@@ -1565,5 +1595,27 @@ mod tests {
         assert_eq!(colors.len(), 8);
         assert!(g.bytes[0] < 32 && g.bytes[255 * 4] > 224);
         assert!(Model::load(b"not a model").is_err());
+    }
+}
+
+#[cfg(test)]
+mod stand_tests {
+    use super::*;
+
+    #[test]
+    fn a_prop_model_is_stood_on_the_ground_in_its_middle() {
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../example_project/models/well_3d.glb");
+        let glb = std::fs::read(path).unwrap();
+        // Moved off first, as a model from elsewhere comes.
+        let (lo0, hi0) = Model::load(&glb).unwrap().bounds();
+        let (fixed, size) = stand_on_ground(&glb).unwrap();
+        let (lo, hi) = Model::load(&fixed).unwrap().bounds();
+        assert!(lo.y.abs() < 1e-4, "{lo}");
+        assert!((lo.x + hi.x).abs() < 1e-3 && (lo.z + hi.z).abs() < 1e-3, "{lo} {hi}");
+        assert!(((hi - lo) - (hi0 - lo0)).length() < 1e-3 && (size - (hi0 - lo0)).length() < 1e-3);
+        // Again: nothing moves.
+        let (twice, _) = stand_on_ground(&fixed).unwrap();
+        let (lo2, _) = Model::load(&twice).unwrap().bounds();
+        assert!((lo2 - lo).length() < 1e-4);
     }
 }

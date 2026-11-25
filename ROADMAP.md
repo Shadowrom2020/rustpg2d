@@ -296,7 +296,7 @@ the western RPGs (Baldur's Gate, Planescape: Torment).
   lights, an interior with cut walls, an old project with pictures only; editor scripts painting,
   placing and selecting on the projected canvas; screenshots of each.
 
-- [ ] Isometric art with Meshy — `feature/iso-art-pilot`, `feature/iso-art`
+- [x] Isometric art with Meshy — `feature/iso-art-pilot`, `feature/iso-art`
 
   **Goal.** The starter library's and the example's ground materials, buildings, props and
   nature for the isometric view, made with Meshy where it is strong. (The user's request,
@@ -420,7 +420,9 @@ the western RPGs (Baldur's Gate, Planescape: Torment).
   textures for every wall block and the buildings' walls, roofs, doors and windows, a livelier grass,
   rock cliffs; the pilot's cart and market stall as models; the library's town house, brick shop,
   watchtower, lookout tower, dungeon rooms, prison cell, fences and hedge rebuilt; tile-era pieces
-  retired.
+  retired. Part 9 (`feature/art-prop-kind`): *Generate art* gets the *Prop / building 3D model*
+  kind (concept, image-to-3D, stood on the ground and sized to the hitbox in the editor: no Blender
+  needed). Done 2026-11-25.
 
 - [ ] Painted figures — `feature/painted-figures`
 

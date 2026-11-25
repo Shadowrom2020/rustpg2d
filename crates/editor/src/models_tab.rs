@@ -286,6 +286,35 @@ impl Editor {
         msg
     }
 
+    /// Gives prop `prop` the still 3D model `rel` (a `.glb` under the project standing on the
+    /// ground in its middle, `size` its width, height and depth in its units): a model definition
+    /// `<prop>_3d` as tall as fits the prop's hitbox, the prop showing it, its pictures rendered
+    /// from it. Returns the status message.
+    pub fn use_prop_model(&mut self, prop: &str, rel: &str, size: macroquad::math::Vec3) -> anyhow::Result<String> {
+        let hitbox = self.project.db.prop(prop).map(|p| p.hitbox).ok_or_else(|| anyhow::anyhow!("the prop \"{prop}\" is gone"))?;
+        self.compact_file(rel, true)?;
+        // Drawn `height` px tall, its footprint is size.x / size.y * height wide: as wide as the
+        // hitbox, which grows deeper when the model is (old props' hitboxes are often only their
+        // feet), so collision and drawing order fit what is drawn.
+        let fit = hitbox[0] / size.x.max(1e-3);
+        let height = (size.y * fit).max(4.0).round();
+        let depth = ((size.z * fit) / 2.0).round() * 2.0;
+        let db = &mut self.project.db;
+        let id = rustpg2d_engine::refactor::unique_id(&format!("{prop}_3d"), |c| db.model(c).is_some());
+        let name = db.prop(prop).map_or(prop.to_string(), |p| p.name.clone());
+        db.models.push(ModelDef { name: format!("{name} (3D)"), height, ..ModelDef::new(&id, rel) });
+        if let Some(p) = db.props.iter_mut().find(|p| p.id == prop) {
+            p.model = id.clone();
+            p.hitbox[1] = p.hitbox[1].max(depth);
+        }
+        db.reindex();
+        self.defs_dirty = true;
+        self.save_defs();
+        self.reload_assets();
+        let pictures = self.render_prop_pictures(Some(prop));
+        Ok(format!("Prop {prop} shows the 3D model {id} ({height} px tall, on a {} x {} px footprint); {pictures}", hitbox[0], hitbox[1].max(depth)))
+    }
+
     /// Gives item `id` the 3D model `rel` (a `.glb` under the project): its hold point and handle
     /// direction estimated from its shape. Returns the status message.
     pub fn use_item_model(&mut self, id: &str, rel: &str) -> String {

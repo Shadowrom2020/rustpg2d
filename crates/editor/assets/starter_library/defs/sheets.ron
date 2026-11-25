@@ -108,12 +108,6 @@
         frame_h: 32,
     ),
     (
-        id: "trees_small",
-        image: "sprites/trees_small.png",
-        frame_w: 32,
-        frame_h: 64,
-    ),
-    (
         id: "emotions",
         image: "sprites/emotions.png",
         frame_w: 32,

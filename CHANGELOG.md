@@ -136,6 +136,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   rows*, the animation panel with its onion skin and playback, the row tools (copy, paste, clear,
   mirror Left → Right, fill idle & hurt) and the editor script commands `pxanim`, `pxplay`,
   `pxonion`, `pxrow`, `pxfill`; `edit_frames` lost `mirror_rows` and `fill_standing`.
+- **Obsolete 2D art removed**: the old ground textures the painted ones replaced (the example's 28,
+  the starter library's 42), two unused tile pictures and the `biomes` / `trees_small` sheets no
+  prop uses any more.
 ### Visual scripts
 - **Script functions made of nodes** (`defs/visual_scripts.ron`, first part): a visual script is a
   function whose nodes are the script API's functions (a step on the flow, or a value such as

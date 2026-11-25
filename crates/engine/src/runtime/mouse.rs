@@ -388,7 +388,7 @@ impl Game {
                     self.face_towards(p);
                     // A counter that does nothing itself (a market stall): talk to whoever
                     // stands behind it.
-                    let i = if self.inert_prop(i) { self.behind_counter(i).unwrap_or(i) } else { i };
+                    let i = if self.counter_prop(i) { self.behind_counter(i).unwrap_or(i) } else { i };
                     self.interact_entity(i);
                     self.combat.hold_e = super::HOLD_REPEAT;
                     return None;

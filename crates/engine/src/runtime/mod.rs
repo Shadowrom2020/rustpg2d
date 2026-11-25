@@ -2424,11 +2424,11 @@ impl Game {
         ((r.y / ts).floor() as i32..=((r.y + r.h - 0.001) / ts).floor() as i32).flat_map(|ty| ((r.x / ts).floor() as i32..=((r.x + r.w - 0.001) / ts).floor() as i32).map(move |tx| (tx, ty))).collect()
     }
 
-    /// Who a click on prop `c` that does nothing itself (a market stall) is meant for: the
-    /// friendly character nearest to its middle among those in, behind, beside or in front of it
-    /// (at most `reach` tiles from its footprint).
+    /// Who a click on counter `c` (a market stall) is meant for: the friendly character nearest
+    /// to its middle among those standing in it, or merchants (with a shop) right beside it or
+    /// at most `reach` tiles straight in front of or behind it. Passers-by don't keep a stall.
     pub(super) fn counter_keeper(&self, c: usize, reach: i32) -> Option<usize> {
-        if !self.inert_prop(c) {
+        if !self.counter_prop(c) {
             return None;
         }
         let tiles = self.entity_tiles(c);
@@ -2437,14 +2437,23 @@ impl Game {
             .filter(|&i| {
                 let e = &self.loaded.entities[i];
                 let t = self.tile_of(e.body.pos);
-                e.kind == EntityKind::Character && e.active && !e.hostile && tiles.iter().any(|&(x, y)| (x - t.0).abs().max((y - t.1).abs()) <= reach)
+                // Right beside it, or up to `reach` tiles straight in front of or behind it.
+                let near = |&(x, y): &(i32, i32)| {
+                    let (dx, dy) = ((x - t.0).abs(), (y - t.1).abs());
+                    dx.max(dy) <= 1 || (dx == 0 && dy <= reach) || (dy == 0 && dx <= reach)
+                };
+                let merchant = || self.shop_spec(e.uid).is_some();
+                e.kind == EntityKind::Character && e.active && !e.hostile && (tiles.contains(&t) || (tiles.iter().any(near) && merchant()))
             })
             .min_by(|&a, &b| self.loaded.entities[a].body.pos.distance_squared(mid).total_cmp(&self.loaded.entities[b].body.pos.distance_squared(mid)))
     }
 
-    /// Whether character `i` keeps a stall: stands right beside (not diagonally) a solid prop at
-    /// least a tile and a half wide that does nothing itself. Players talk to them across it.
+    /// Whether character `i` keeps a stall: a merchant (with a shop) standing right beside (not
+    /// diagonally) a solid counter at least a tile and a half wide. Players talk to them across it.
     pub(super) fn keeps_counter(&self, i: usize) -> bool {
+        if self.shop_spec(self.loaded.entities[i].uid).is_none() {
+            return false;
+        }
         let t = self.tile_of(self.loaded.entities[i].body.pos);
         let ts = self.ts();
         (0..self.loaded.entities.len()).any(|c| {
@@ -2454,9 +2463,17 @@ impl Game {
                 && e.solid
                 && e.kind == EntityKind::Prop
                 && e.body.hitbox.x.max(e.body.hitbox.y) >= ts * 1.5
-                && self.inert_prop(c)
+                && self.counter_prop(c)
                 && self.entity_tiles(c).iter().any(|&(x, y)| (x - t.0).abs() + (y - t.1).abs() == 1)
         })
+    }
+
+    /// A counter: a prop that does nothing itself (a crate) or one marked as a counter
+    /// ([`crate::defs::PropDef::counter`], a market stall with a "No one is here" trigger): whoever
+    /// keeps it is talked to instead of it.
+    pub(super) fn counter_prop(&self, i: usize) -> bool {
+        let e = &self.loaded.entities[i];
+        e.kind == EntityKind::Prop && (self.inert_prop(i) || self.project.db.prop(&e.def).is_some_and(|d| d.counter))
     }
 
     /// A prop E does nothing with (a market stall, a crate): someone across it is talked to.
@@ -2473,7 +2490,7 @@ impl Game {
 
     fn facing_entity(&self) -> Option<usize> {
         let near = self.facing_entity_near().map(|i| self.user_of(i).unwrap_or(i));
-        if near.is_some_and(|i| !self.inert_prop(i)) {
+        if near.is_some_and(|i| !self.counter_prop(i)) {
             return near;
         }
         // A counter prop right in front (a market stall, several tiles wide): whoever stands

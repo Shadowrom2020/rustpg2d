@@ -155,7 +155,7 @@ impl Game {
     }
 
     /// The merchant spec of a character on the current map (a visitor's from its home map).
-    fn shop_spec(&self, uid: u32) -> Option<ShopSpec> {
+    pub(super) fn shop_spec(&self, uid: u32) -> Option<ShopSpec> {
         let (_, _, e) = self.merchant_home(uid)?;
         self.project.db.shop_of(e).cloned()
     }

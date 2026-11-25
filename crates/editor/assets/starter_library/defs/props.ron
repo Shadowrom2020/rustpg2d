@@ -1436,10 +1436,23 @@
         default_state: "default",
         states: [],
         hitbox: (96.0, 64.0),
-        triggers: [],
+        triggers: [
+            (
+                on: Interact,
+                conditions: [],
+                actions: [
+                    Dialog(
+                        speaker: "",
+                        text: "No one is tending the stall right now.",
+                    ),
+                ],
+                once: false,
+            ),
+        ],
         container: None,
         lock: None,
         model: "market_stall_3d",
+        counter: true,
     ),
     (
         id: "fountain",
@@ -1513,10 +1526,23 @@
         default_state: "default",
         states: [],
         hitbox: (92.0, 24.0),
-        triggers: [],
+        triggers: [
+            (
+                on: Interact,
+                conditions: [],
+                actions: [
+                    Dialog(
+                        speaker: "",
+                        text: "No one is tending the produce stall right now.",
+                    ),
+                ],
+                once: false,
+            ),
+        ],
         container: None,
         lock: None,
         model: "stall_produce_3d",
+        counter: true,
     ),
     (
         id: "stall_fish",
@@ -1529,10 +1555,23 @@
         default_state: "default",
         states: [],
         hitbox: (92.0, 24.0),
-        triggers: [],
+        triggers: [
+            (
+                on: Interact,
+                conditions: [],
+                actions: [
+                    Dialog(
+                        speaker: "",
+                        text: "No one is tending the fish stall right now.",
+                    ),
+                ],
+                once: false,
+            ),
+        ],
         container: None,
         lock: None,
         model: "stall_fish_3d",
+        counter: true,
     ),
     (
         id: "stall_bread",
@@ -1545,10 +1584,23 @@
         default_state: "default",
         states: [],
         hitbox: (92.0, 24.0),
-        triggers: [],
+        triggers: [
+            (
+                on: Interact,
+                conditions: [],
+                actions: [
+                    Dialog(
+                        speaker: "",
+                        text: "No one is tending the bread stall right now.",
+                    ),
+                ],
+                once: false,
+            ),
+        ],
         container: None,
         lock: None,
         model: "stall_bread_3d",
+        counter: true,
     ),
     (
         id: "windmill",

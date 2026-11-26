@@ -4,6 +4,7 @@
 
 pub mod doc;
 pub mod art;
+pub mod commands;
 pub mod defs;
 pub mod files;
 pub mod frame_ops;
@@ -20,6 +21,7 @@ pub mod repo_mode;
 pub mod search;
 pub mod starter;
 pub mod testsetup;
+pub mod timeline;
 pub mod workspace;
 
 pub use workspace::{Gpu, Workspace};

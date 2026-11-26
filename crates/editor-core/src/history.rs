@@ -167,6 +167,14 @@ struct Step {
     extra: Option<Extra>,
 }
 
+/// What a look at the definitions found.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Seen {
+    Nothing,
+    Step,
+    Merged,
+}
+
 #[derive(Default)]
 pub struct DbHistory {
     /// The project these steps belong to.
@@ -211,19 +219,19 @@ impl DbHistory {
 
     /// Compares the definitions with the previous frame's and records a step when they changed.
     /// `focus`: the text field that has the keyboard now.
-    /// True when something had changed.
-    fn observe(&mut self, root: &PathBuf, db: &Database, config: &ProjectConfig, focus: Option<u64>, now: f64) -> bool {
+    /// What the look found: nothing, a new step, or more typing into the latest step.
+    fn observe(&mut self, root: &PathBuf, db: &Database, config: &ProjectConfig, focus: Option<u64>, now: f64) -> Seen {
         if self.root.as_ref() != Some(root) {
             self.clear();
             self.root = Some(root.clone());
         }
         let Some(last) = &self.last else {
             self.last = Some(Box::new((db.clone(), config.clone())));
-            return false;
+            return Seen::Nothing;
         };
         let changed = last.0 != *db || last.1 != *config;
         if !changed && self.pending.is_none() {
-            return false;
+            return Seen::Nothing;
         }
         let extra = self.pending.take();
         // Typing on in the same field: the step that field's first change made covers it.
@@ -246,7 +254,11 @@ impl DbHistory {
         self.typing = focus.map(|f| (f, now));
         self.redo.clear();
         self.last = Some(Box::new((db.clone(), config.clone())));
-        true
+        if same_field {
+            Seen::Merged
+        } else {
+            Seen::Step
+        }
     }
 
     /// After undo / redo: the current state is the new baseline.
@@ -273,17 +285,20 @@ impl DbHistory {
 
 impl Workspace {
     /// Records what changed in the definitions and project settings since the last call as an
-    /// undo step. `focus`: the text field that has the keyboard (any number that stays the same
+    /// undo step, and notes new steps (theirs and the open maps') on the workspace's timeline. `focus`: the text field that has the keyboard (any number that stays the same
     /// for the same field): more typing into it within a moment stays one step.
     pub fn history_frame(&mut self, focus: Option<u64>) {
         if !self.project_open {
             return;
         }
         let root = self.project.root.clone();
-        if self.db_hist.observe(&root, &self.project.db, &self.project.config, focus, crate::now()) {
+        let seen = self.db_hist.observe(&root, &self.project.db, &self.project.config, focus, crate::now());
+        if seen != Seen::Nothing {
             self.defs_dirty = self.defs_saved.0 != self.project.db || self.defs_saved.1 != self.project.config;
             self.stale = true;
+            self.search_stale = true;
         }
+        self.timeline_frame(seen == Seen::Step);
     }
 
     /// Undoes the latest definition change.

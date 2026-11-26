@@ -165,6 +165,9 @@ impl Workspace {
             let tool = req.call.name();
             // A tool that panics (a bug, or data it didn't expect) answers with an error; the
             // editor keeps running with its project as it was before the call's undo step.
+            // What the tool changes is one named entry of the history.
+            self.history_frame(None);
+            self.begin(&format!("Agent: {tool}"));
             let result = match rustpg2d_engine::desktop::catch_panic(|| self.mcp_exec(req.call)) {
                 Ok(r) => r,
                 Err(msg) => {
@@ -176,6 +179,7 @@ impl Workspace {
                     Err(format!("internal error in {tool}: {msg} (the editor kept running; read the map or definition again before going on)"))
                 }
             };
+            self.history_frame(None);
             match result {
                 Ok(exec::Reply::Shot(spec)) => {
                     self.mcp.shots.push(ShotRequest { spec, reply: req.reply, started: req.started, summary: req.summary });

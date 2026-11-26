@@ -125,6 +125,8 @@ pub struct Workspace {
     pub art_settings: crate::art::ArtSettings,
     /// The asset library.
     pub lib: crate::library::LibState,
+    /// Every undoable change in the order it was made.
+    pub timeline: crate::timeline::Timeline,
     /// The agent server and what it saw change on disk.
     pub mcp: crate::mcp::McpState,
     pub watch: crate::mcp::watcher::Watch,
@@ -154,7 +156,7 @@ impl Workspace {
         let assets = if gpu == Gpu::Yes && project_open { Assets::load(&project) } else { no_assets() };
         let maps = if project_open { project.list_maps() } else { Vec::new() };
         let defs_saved = Box::new((project.db.clone(), project.config.clone()));
-        Workspace { project, project_open, project_file: None, maps, doc: None, parked: BTreeMap::new(), assets, gpu, defs_dirty: false, defs_saved, db_hist: DbHistory::default(), notices: Vec::new(), defs_warnings: Vec::new(), status: (String::new(), 0.0), sel: Selection::None, cam: Cam { center: gfx::math::Vec2::ZERO, zoom: 1.0 }, view: ViewOpts::default(), db: ScriptBuffer::default(), looking_at: String::new(), asking: None, library_mode: false, refs: Default::default(), map_refs: Default::default(), problems: crate::problems::Problems::new(), search: Default::default(), usages: Default::default(), art: Default::default(), art_settings: { let s = files::load_settings(); crate::art::ArtSettings { model: s.meshy_model, budget: s.meshy_budget, ask: s.meshy_ask } }, lib: Default::default(), mcp: Default::default(), watch: Default::default(), search_stale: true, scripts_rev: 0, stale: true }
+        Workspace { project, project_open, project_file: None, maps, doc: None, parked: BTreeMap::new(), assets, gpu, defs_dirty: false, defs_saved, db_hist: DbHistory::default(), notices: Vec::new(), defs_warnings: Vec::new(), status: (String::new(), 0.0), sel: Selection::None, cam: Cam { center: gfx::math::Vec2::ZERO, zoom: 1.0 }, view: ViewOpts::default(), db: ScriptBuffer::default(), looking_at: String::new(), asking: None, library_mode: false, refs: Default::default(), map_refs: Default::default(), problems: crate::problems::Problems::new(), search: Default::default(), usages: Default::default(), art: Default::default(), art_settings: { let s = files::load_settings(); crate::art::ArtSettings { model: s.meshy_model, budget: s.meshy_budget, ask: s.meshy_ask } }, lib: Default::default(), timeline: Default::default(), mcp: Default::default(), watch: Default::default(), search_stale: true, scripts_rev: 0, stale: true }
     }
 
     /// A workspace on the project folder `root` (`file`: the project file it is the working copy
@@ -332,20 +334,6 @@ impl Workspace {
         }
         self.doc = Some(MapDoc::new(map, &self.assets));
         self.stale = true;
-    }
-
-    /// Undoes the latest change of the map being worked on.
-    pub fn map_undo(&mut self) {
-        if let Some(d) = &mut self.doc {
-            d.undo(&self.assets);
-        }
-    }
-
-    /// Redoes the latest undone change of the map being worked on.
-    pub fn map_redo(&mut self) {
-        if let Some(d) = &mut self.doc {
-            d.redo(&self.assets);
-        }
     }
 
     /// Closes an open map without saving it. False when it isn't open.

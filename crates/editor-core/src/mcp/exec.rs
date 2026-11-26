@@ -272,23 +272,17 @@ impl Workspace {
     pub(crate) fn mcp_undo(&mut self, p: UndoParams, redo: bool) -> Result<Reply, String> {
         self.mcp_writable()?;
         let steps = p.steps.unwrap_or(1).clamp(1, 50);
-        let assets = &self.assets;
-        let Some(doc) = &mut self.doc else { return Err("no map is open".into()) };
+        let Some(name) = self.doc.as_ref().map(|d| d.map.name.clone()) else { return Err("no map is open".into()) };
+        let at = crate::timeline::Where::Map(name);
         let mut n = 0;
         for _ in 0..steps {
-            if redo {
-                if !doc.can_redo() {
-                    break;
-                }
-                doc.redo(assets);
-            } else {
-                if !doc.can_undo() {
-                    break;
-                }
-                doc.undo(assets);
+            let done = if redo { self.redo_at(&at) } else { self.undo_at(&at) };
+            if done.is_none() {
+                break;
             }
             n += 1;
         }
+        let Some(doc) = &self.doc else { return Err("no map is open".into()) };
         let dirty = doc.is_dirty();
         text(format!(
             "{} {n} step(s) on map \"{}\".{}",

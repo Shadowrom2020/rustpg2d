@@ -704,10 +704,16 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   every file byte for byte, two maps stay open with their changes, a rename reaches maps and
   scripts and undoes; the 0.35 tests of the copied files (40 in all, among them "the manual
   names every agent tool").
-  Still open: one history over maps and definitions with named commands and the registry;
-  pictures without a window (map screenshots, thumbnails: with the map view of part 6); the
-  editor script on the core; imports (Tiled, Aseprite: part 11 decides); the cleanup of unused
-  files; structures' capture window logic and the clipboard.
+  - **one history** (`timeline.rs`): the definitions' steps and each open map's in the order
+    they were made, each with a name; *Undo* takes back the latest wherever it was, a document
+    can undo its own latest change. Agents' writes are entries named after the tool.
+  - **the command registry** (`commands.rs`): `Workspace::run("edit.rename", …)` /
+    `run_line("map.open house")`; the first thirteen commands (save, undo, redo, rename, open
+    and close a map, search, usages, the project check, reload, the agent server).
+  Still open: more commands as the parts bring their features; pictures without a window (map
+  screenshots, thumbnails: with the map view of part 6); the editor script running command
+  lines; imports (Tiled, Aseprite: part 11 decides); the cleanup of unused files; structures'
+  capture and the clipboard.
 
   **Decided while building.**
   - **Changes are observed, not funnelled:** forms and tools change the definitions directly

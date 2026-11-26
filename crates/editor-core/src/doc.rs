@@ -70,6 +70,11 @@ impl MapDoc {
         self.undo.last().map(|(id, _)| *id)
     }
 
+    /// How many steps can be undone (the workspace's timeline watches it grow).
+    pub fn undo_depth(&self) -> usize {
+        self.undo.len()
+    }
+
     /// Whether the map differs from the saved file. Undoing back to the saved state (or
     /// redoing to it) makes it clean again.
     pub fn is_dirty(&self) -> bool {

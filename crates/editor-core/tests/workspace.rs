@@ -59,12 +59,16 @@ fn a_change_undone_and_saved_leaves_the_files_as_they_were() {
     ws.history_frame(Some(7));
     ws.project.db.items[1].name = "Changed too".into();
     ws.history_frame(None);
-    assert!(ws.db_hist.can_undo() && ws.defs_dirty && ws.is_dirty());
-    ws.db_undo();
+    assert!(ws.can_undo() && ws.defs_dirty && ws.is_dirty());
+    assert_eq!(ws.timeline.status(), "2/0");
+    ws.undo();
     assert_eq!(ws.project.db.items[0].name, "Changed");
-    ws.db_undo();
+    ws.undo();
     assert_eq!(ws.project.db.items[0].name, first);
     assert!(!ws.defs_dirty, "back at the saved definitions");
+    ws.redo();
+    assert_eq!(ws.project.db.items[0].name, "Changed");
+    ws.undo();
 
     // A map edit and its undo.
     let doc = ws.doc.as_mut().unwrap();
@@ -72,7 +76,10 @@ fn a_change_undone_and_saved_leaves_the_files_as_they_were() {
     doc.paint_collision(0, 0, if was == 1 { 2 } else { 1 });
     doc.end_stroke();
     assert!(ws.is_dirty());
-    ws.map_undo();
+    ws.begin("Paint collision");
+    ws.history_frame(None);
+    assert_eq!(ws.timeline.done.last().map(|c| c.label.as_str()), Some("Paint collision"));
+    assert!(ws.undo().is_some_and(|m| m.contains("Paint collision") && m.contains("map ")));
     assert!(!ws.is_dirty());
 
     ws.save_all();
@@ -110,7 +117,69 @@ fn renaming_an_item_reaches_maps_and_scripts_and_undoes() {
     assert!(ws.project.db.has(RefKind::Item, "healing_draught") && !ws.project.db.has(RefKind::Item, "potion"));
     assert!(ws.try_rename_id(RefKind::Item, "healing_draught", "bad id!").is_err());
     assert!(ws.try_rename_id(RefKind::Item, "healing_draught", "apple").is_err(), "taken");
-    ws.db_undo();
+    ws.undo();
     assert!(ws.project.db.has(RefKind::Item, "potion") && !ws.project.db.has(RefKind::Item, "healing_draught"));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn one_history_over_maps_and_definitions() {
+    let dir = example_copy("timeline");
+    let mut ws = Workspace::new(dir.clone(), Gpu::No).unwrap();
+    ws.history_frame(None);
+    ws.open_map("house");
+    // A map edit, a definition edit, another map's edit: three entries, in that order.
+    ws.doc.as_mut().unwrap().paint_collision(2, 2, 1);
+    ws.doc.as_mut().unwrap().end_stroke();
+    ws.history_frame(None);
+    let name = ws.project.db.items[0].name.clone();
+    ws.begin("Rename the first item");
+    ws.project.db.items[0].name = "Other".into();
+    ws.history_frame(None);
+    ws.open_map("village");
+    ws.doc.as_mut().unwrap().paint_collision(3, 3, 1);
+    ws.doc.as_mut().unwrap().end_stroke();
+    ws.history_frame(None);
+    let labels: Vec<String> = ws.timeline.done.iter().map(|c| format!("{}@{}", c.label, c.at.describe())).collect();
+    assert_eq!(labels, ["Edit map@map house", "Rename the first item@definitions", "Edit map@map village"]);
+
+    // A document's own undo leaves the later changes elsewhere alone.
+    use rustpg2d_editor_core::timeline::Where;
+    assert!(ws.undo_at(&Where::Map("house".into())).is_some());
+    assert!(!ws.parked["house"].is_dirty() && ws.doc.as_ref().unwrap().is_dirty());
+    assert_eq!(ws.project.db.items[0].name, "Other");
+    // Undo takes the latest wherever it was: the village, then the item.
+    assert!(ws.undo().unwrap().contains("map village"));
+    assert!(ws.undo().unwrap().contains("Rename the first item"));
+    assert_eq!(ws.project.db.items[0].name, name);
+    assert!(!ws.is_dirty() && !ws.can_undo() && ws.can_redo());
+    // And back again.
+    while ws.redo().is_some() {}
+    assert_eq!(ws.project.db.items[0].name, "Other");
+    assert!(ws.parked["house"].is_dirty() && ws.doc.as_ref().unwrap().is_dirty());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn commands_run_by_name_and_name_their_changes() {
+    let dir = example_copy("commands");
+    let mut ws = Workspace::new(dir.clone(), Gpu::No).unwrap();
+    assert!(ws.run_line("map.open house").unwrap().contains("house"));
+    assert!(ws.run_line("map.open nowhere").is_err());
+    assert!(ws.run_line("no.such").is_err());
+    // A rename is one history entry under the command's title, and undo takes it back.
+    ws.run_line("edit.rename item potion healing_draught").unwrap();
+    assert_eq!(ws.timeline.done.last().map(|c| c.label.as_str()), Some("Rename"));
+    assert!(ws.project.db.has(RefKind::Item, "healing_draught"));
+    let hits = ws.run_line("find.search healing_draught").unwrap();
+    assert!(hits.contains("hit(s)") && hits.contains("healing_draught"), "{hits}");
+    assert!(ws.run_line("edit.undo").unwrap().contains("Rename"));
+    assert!(ws.project.db.has(RefKind::Item, "potion"));
+    let usages = ws.run_line("find.usages item potion").unwrap();
+    assert!(usages.contains("usage(s) of item"), "{usages}");
+    assert!(ws.run_line("edit.undo").is_err(), "nothing left");
+    let problems = ws.run_line("check.problems").unwrap();
+    assert!(problems.starts_with("0 error(s)"), "the example has no errors: {problems}");
+    assert!(ws.run_line("file.save_all").is_ok() && !ws.is_dirty());
     let _ = std::fs::remove_dir_all(&dir);
 }

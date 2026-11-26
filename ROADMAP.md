@@ -894,11 +894,11 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     input hook), `size W H`, `allfields on|off`.
   Still open: the hand-made editors (triggers as an event sheet in part 7; stat blocks,
   buildings, class levels), a state picked among the states of the prop in question, tool
-  kinds and piece styles, units and ranges on numbers, problems at the field, live previews (a prop with its states, an
-  item in a hand, a moving character), pictures of structures, the table view, filters (tag,
-  *has problems*, *unused*) and bulk actions, folders and tags (`editor/meta.ron`), the
-  *New…* gallery, *From library…* in pickers (part 9), the schema as the agents' field descriptions and
-  the manual's reference tables.
+  kinds and piece styles, units and ranges on numbers, problems at the field, live previews (a
+  prop with its states, an item in a hand, a moving character), pictures of structures, the
+  table view, filters (tag, *has problems*, *unused*) and bulk actions, folders and tags
+  (`editor/meta.ron`), the *New…* gallery, *From library…* in pickers (part 9), the schema as
+  the agents' field descriptions and the manual's reference tables.
 
   **Decided while building.**
   - *The shape is derived, not written.* A hand-written table per kind would repeat ~300 types

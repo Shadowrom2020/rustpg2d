@@ -799,7 +799,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   and find the layout again; Ctrl+P and the palette reach a map, an item and a command.
   Screenshots of Home, Overview and a mixed layout in both themes.
 
-- [ ] Part 4: The Project browser and asset editors — `feature/studio`
+- [~] Part 4: The Project browser and asset editors — `feature/studio`
 
   **Goal.** The Database, restructured: every kind of thing has an obvious place, lists show what
   they hold, and an asset's editor shows the asset.
@@ -844,6 +844,23 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     (fetched with what it needs).
   - **New…** (Ctrl+N): pick the kind, then where it starts from (blank, a copy, the library, a
     file, Meshy), with a preview.
+
+  **Progress.** The ground the schema stands on: every definition of every kind can be edited.
+  - `editor-core`: `def_value` / `set_def_value` (a definition as data and back, refused with
+    the reason when it isn't one), `new_def`, `duplicate_def`, `delete_def` (refused while
+    something uses it), the commands `defs.new` (Ctrl+N), `defs.duplicate`, `defs.delete`.
+  - `studio/form.rs`: a form made from a definition's data: each field gets a control by what
+    it holds (text, number, switch, list with add / remove / move, groups folded), in the
+    definition's own order; a header with Rename, Duplicate, Delete, Find usages and *Used by*
+    as links. What is typed but isn't valid yet stays in the form with the reason; the
+    definition changes when it is. Every change is a history entry.
+  - The browser's fixed groups with a *+ New* per kind (part 3's shell).
+  - Script: `field KIND ID /POINTER VALUE` changes a field as the form does.
+  Still open, which is most of the part: the field schema itself (labels, help, sections,
+  basic / advanced, choices instead of typed variant names, pickers for ids, fixed-size lists
+  such as a grip's three numbers without *Add*), the hand-made editors (triggers, stat blocks,
+  buildings, class levels), live previews, thumbnails and the grid / table views, filters and
+  bulk actions, folders and tags (`editor/meta.ron`), the *New…* gallery.
 
   **Engine.** The schema tables (in `editor-core`, beside the definitions' use) and
   `editor/meta.ron` (folders, tags, notes, origin per asset). Definition formats unchanged.

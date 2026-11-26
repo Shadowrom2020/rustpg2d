@@ -28,7 +28,8 @@ being rewritten on a new foundation, in twelve parts. While it lasts:
   branch again through agents.
 - **The new editor is `crates/studio`** (binary `rustpg2d-studio`): the shell (`shell.rs`: dock,
   Project browser, command palette, Go to anything, Problems, History, Overview) and the game in
-  a tab (`play.rs`). Definitions show as text and maps as facts until parts 4 and 6.
+  a tab (`play.rs`). Definitions have a plain form made from their data (`form.rs`; the script's
+  `field KIND ID /POINTER VALUE` fills it in); maps show as facts until part 6.
   `RUSTPG2D_STUDIO_SCRIPT="wait 2; status; tab def:item:potion; goto elder; pick 0; palette
   rename; map.open house; edit.undo; tab play; shot /path/a.png; quit" target/debug/rustpg2d-studio
   <project> [--map M --spawn S]` drives it: `shot` = the whole window, a line that is no script

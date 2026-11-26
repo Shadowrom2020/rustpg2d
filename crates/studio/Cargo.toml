@@ -11,6 +11,8 @@ rustpg2d-engine.workspace = true
 editor-core.workspace = true
 gfx.workspace = true
 anyhow.workspace = true
+# Definitions as data for the forms; fields keep the order of their definition, not the alphabet's.
+serde_json = { version = "1", features = ["preserve_order"] }
 # The shell: egui on wgpu, the same device the engine draws with (`gfx::init`).
 eframe = { version = "0.37", default-features = false, features = ["wgpu", "x11", "wayland", "default_fonts"] }
 # Panels and document tabs that can be arranged.

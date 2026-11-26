@@ -108,6 +108,51 @@ pub const COMMANDS: &[Command] = &[
         },
     },
     Command {
+        id: "defs.new",
+        title: "New definition",
+        keys: "Ctrl+N",
+        params: &["kind", "id"],
+        help: "Adds a definition of a kind with the values a new one starts with.",
+        changes: true,
+        run: |ws, a| {
+            need_project(ws)?;
+            let kind = kind_named(arg(a, 0, "kind")?)?;
+            let id = arg(a, 1, "id")?;
+            ws.new_def(kind, id)?;
+            Ok(format!("New {} \"{id}\"", kind.name()))
+        },
+    },
+    Command {
+        id: "defs.duplicate",
+        title: "Duplicate definition",
+        keys: "",
+        params: &["kind", "id", "new id"],
+        help: "Adds a copy of a definition under a new id.",
+        changes: true,
+        run: |ws, a| {
+            need_project(ws)?;
+            let kind = kind_named(arg(a, 0, "kind")?)?;
+            let (id, new) = (arg(a, 1, "id")?, arg(a, 2, "new id")?);
+            ws.duplicate_def(kind, id, new)?;
+            Ok(format!("Copied {} \"{id}\" as \"{new}\"", kind.name()))
+        },
+    },
+    Command {
+        id: "defs.delete",
+        title: "Delete definition",
+        keys: "",
+        params: &["kind", "id", "force"],
+        help: "Removes a definition; one that is still used only with the word force.",
+        changes: true,
+        run: |ws, a| {
+            need_project(ws)?;
+            let kind = kind_named(arg(a, 0, "kind")?)?;
+            let id = arg(a, 1, "id")?;
+            ws.delete_def(kind, id, a.get(2).is_some_and(|f| f == "force"))?;
+            Ok(format!("Deleted {} \"{id}\"", kind.name()))
+        },
+    },
+    Command {
         id: "map.open",
         title: "Open map",
         keys: "",

@@ -97,6 +97,8 @@ pub enum PaletteKind {
 enum Ask {
     Open(Tab),
     Run(String),
+    /// The command palette with this typed (a command waiting for its words).
+    Palette(String),
 }
 
 pub struct Shell {
@@ -109,6 +111,9 @@ pub struct Shell {
     /// The browser's lists: (kind, id, name), made again when the project changed.
     lists: Vec<(RefKind, Vec<(String, String)>)>,
     browser_filter: String,
+    /// Forms holding something that isn't a valid definition yet: what was typed and why it
+    /// can't be taken (the definition itself stays as it was until it can).
+    forms: std::collections::HashMap<(RefKind, String), (serde_json::Value, String)>,
     /// Answers of commands, newest last (the script prints them too).
     pub log: Vec<String>,
 }
@@ -130,7 +135,7 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), browser_filter: String::new(), log: Vec::new() }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), browser_filter: String::new(), forms: Default::default(), log: Vec::new() }
     }
 
     /// Shows `tab`: brings it to the front when it is open, else opens it beside the documents.
@@ -195,13 +200,36 @@ impl Shell {
             Ok(m) => format!("{line}: {}", m.lines().next().unwrap_or_default()),
             Err(e) => format!("{line}: failed: {e}"),
         });
-        // A command may have opened a map: its tab follows.
-        if line.starts_with("map.open ") && r.is_ok() {
-            if let Some(m) = self.ws.doc.as_ref().map(|d| d.map.name.clone()) {
-                self.show_tab(Tab::Map(m));
+        // What a command opened or made gets its tab.
+        if r.is_ok() {
+            let words: Vec<&str> = line.split_whitespace().collect();
+            match words.as_slice() {
+                ["map.open", ..] => {
+                    if let Some(m) = self.ws.doc.as_ref().map(|d| d.map.name.clone()) {
+                        self.show_tab(Tab::Map(m));
+                    }
+                }
+                ["defs.new", kind, id] | ["defs.duplicate", kind, _, id] => {
+                    if let Some(t) = self.tab_named(&format!("def:{kind}:{id}")) {
+                        self.show_tab(t);
+                    }
+                }
+                _ => {}
             }
         }
         r
+    }
+
+    /// Changes one field of a definition as its form does: `pointer` is the field's place in the
+    /// definition's data (`/name`, `/weapon/damage`, `/stages/0`), `text` its new value as data
+    /// (`12`, `"a text"`, `true`). The script's way to fill in forms.
+    pub fn set_field(&mut self, kind: RefKind, id: &str, pointer: &str, text: &str) -> Result<String, String> {
+        let mut value = self.ws.def_value(kind, id).ok_or_else(|| format!("there is no {} \"{id}\"", kind.name()))?;
+        let new: serde_json::Value = serde_json::from_str(text).map_err(|e| format!("{text} isn't data: {e}"))?;
+        *value.pointer_mut(pointer).ok_or_else(|| format!("{} \"{id}\" has no field {pointer}", kind.name()))? = new;
+        self.ws.set_def_value(kind, id, value)?;
+        self.ws.history_frame(None);
+        Ok(format!("{} {id}{pointer} = {text}", kind.name()))
     }
 
     /// `tabs=… focus=… history=… problems=… palette=…` for the script's `status`.
@@ -258,7 +286,7 @@ impl Shell {
 
         let mut asks = Vec::new();
         {
-            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, filter: &mut self.browser_filter, rs, asks: &mut asks };
+            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, filter: &mut self.browser_filter, forms: &mut self.forms, rs, asks: &mut asks };
             DockArea::new(&mut self.dock).show_inside(ui, &mut viewer);
         }
         for ask in asks {
@@ -267,6 +295,7 @@ impl Shell {
                 Ask::Run(line) => {
                     let _ = self.run(&line);
                 }
+                Ask::Palette(text) => self.open_palette(PaletteKind::Commands, &text),
             }
         }
         self.palette_ui(&ctx);
@@ -462,6 +491,7 @@ struct Viewer<'a> {
     start: &'a rustpg2d_engine::runtime::StartOptions,
     lists: &'a [(RefKind, Vec<(String, String)>)],
     filter: &'a mut String,
+    forms: &'a mut std::collections::HashMap<(RefKind, String), (serde_json::Value, String)>,
     rs: Option<&'a eframe::egui_wgpu::RenderState>,
     asks: &'a mut Vec<Ask>,
 }
@@ -529,6 +559,9 @@ impl Viewer<'_> {
                         continue;
                     }
                     egui::CollapsingHeader::new(format!("{}s ({})", kind.label(), rows.len())).id_salt(("kind", kind.name())).default_open(!f.is_empty() && rows.len() <= 12).show(ui, |ui| {
+                        if *kind != RefKind::Map && ui.small_button(format!("+ New {}", kind.label().to_lowercase())).clicked() {
+                            self.asks.push(Ask::Palette(format!("defs.new {} ", kind.name())));
+                        }
                         for (id, name) in &rows {
                             let label = if name == id { id.clone() } else { format!("{name}  ({id})") };
                             if ui.selectable_label(false, label).clicked() {
@@ -649,13 +682,26 @@ impl Viewer<'_> {
     }
 
     fn definition(&mut self, ui: &mut egui::Ui, kind: RefKind, id: &str) {
-        let Some(text) = editor_core::defs::ron_of(&self.ws.project.db, kind, id) else {
+        let key = (kind, id.to_string());
+        let Some(saved) = self.ws.def_value(kind, id) else {
+            self.forms.remove(&key);
             ui.weak(format!("{} \"{id}\" is gone (renamed or deleted).", kind.label()));
             return;
         };
-        ui.heading(id);
-        ui.weak(kind.label());
         ui.horizontal(|ui| {
+            ui.heading(saved.get("name").and_then(|n| n.as_str()).filter(|n| !n.is_empty()).unwrap_or(id));
+            ui.weak(format!("{} · {id}", kind.label()));
+        });
+        ui.horizontal(|ui| {
+            if ui.button("Rename…").on_hover_text("Changes the id, and every place that names it").clicked() {
+                self.asks.push(Ask::Palette(format!("edit.rename {} {id} ", kind.name())));
+            }
+            if ui.button("Duplicate…").clicked() {
+                self.asks.push(Ask::Palette(format!("defs.duplicate {} {id} ", kind.name())));
+            }
+            if ui.button("Delete").on_hover_text("Refused while something still uses it").clicked() {
+                self.asks.push(Ask::Run(format!("defs.delete {} {id}", kind.name())));
+            }
             if ui.button("Find usages").clicked() {
                 self.asks.push(Ask::Run(format!("find.usages {} {id}", kind.name())));
             }
@@ -664,19 +710,51 @@ impl Viewer<'_> {
             }
         });
         if self.ws.usages.of.as_ref().is_some_and(|(k, i)| *k == kind && i == id) {
-            for u in &self.ws.usages.list {
-                if ui.link(format!("{}: {}", u.target.describe(), u.label)).clicked() {
-                    match &u.target {
-                        Target::Def(k, i) => self.asks.push(Ask::Open(Tab::Def(*k, i.clone()))),
-                        Target::Map(m) | Target::MapTriggers(m) | Target::Entity(m, _) | Target::Zone(m, _) => self.asks.push(Ask::Open(Tab::Map(m.clone()))),
-                        _ => {}
+            egui::CollapsingHeader::new("Used by").default_open(true).show(ui, |ui| {
+                for u in &self.ws.usages.list {
+                    if ui.link(format!("{}: {}", u.target.describe(), u.label)).clicked() {
+                        match &u.target {
+                            Target::Def(k, i) => self.asks.push(Ask::Open(Tab::Def(*k, i.clone()))),
+                            Target::Map(m) | Target::MapTriggers(m) | Target::Entity(m, _) | Target::Zone(m, _) => self.asks.push(Ask::Open(Tab::Map(m.clone()))),
+                            _ => {}
+                        }
                     }
+                }
+            });
+        }
+        ui.separator();
+        // The form shows what was typed last, also while that isn't a valid definition yet.
+        let mut value = self.forms.get(&key).map_or_else(|| saved.clone(), |(v, _)| v.clone());
+        let mut changed = false;
+        if let serde_json::Value::Object(map) = &mut value {
+            for (field, v) in map.iter_mut().filter(|(f, _)| f.as_str() != "id") {
+                ui.push_id(field.as_str(), |ui| changed |= crate::form::value_ui(ui, &crate::form::label_of(field), v, 1));
+            }
+        }
+        if changed {
+            match self.ws.set_def_value(kind, id, value.clone()) {
+                Ok(()) => {
+                    self.forms.remove(&key);
+                }
+                Err(e) => {
+                    self.forms.insert(key.clone(), (value, e));
                 }
             }
         }
-        ui.separator();
-        ui.weak("Its form comes with part 4 of the Studio; this is the definition as its file holds it.");
-        ui.add(egui::Label::new(egui::RichText::new(text).monospace()).selectable(true));
+        if let Some((_, why)) = self.forms.get(&key) {
+            ui.separator();
+            ui.colored_label(egui::Color32::LIGHT_RED, format!("Not taken yet: {why}"));
+            if ui.button("Back to how it was").clicked() {
+                self.forms.remove(&key);
+            }
+        }
+        let notes = self.ws.def_notes(kind);
+        if !notes.is_empty() {
+            ui.separator();
+            egui::CollapsingHeader::new("About these fields").show(ui, |ui| {
+                ui.label(notes);
+            });
+        }
     }
 
     fn map(&mut self, ui: &mut egui::Ui, name: &str) {

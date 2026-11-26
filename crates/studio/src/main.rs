@@ -5,9 +5,11 @@
 //! example. `rustpg2d-studio --headless PROJECT [--mcp PORT] [--seconds N]` opens no window: the
 //! agent server works on the project (`editor-core`'s workspace). `RUSTPG2D_STUDIO_SCRIPT="wait 3; status; shot /path/a.png; quit"` drives it for tests
 //! (`wait SECS`, `status`, `shot PATH` = the whole window, `tab NAME`, `palette TEXT` / `goto
-//! TEXT` / `pick N`, `key NAME` = a key for the game, `pause` / `resume`, `quit`; any other line
+//! TEXT` / `pick N`, `field KIND ID /POINTER VALUE` = a form's field, `key NAME` = a key for the
+//! game, `pause` / `resume`, `quit`; any other line
 //! is a command of the editor, e.g. `map.open village` or `edit.undo`).
 
+mod form;
 mod play;
 mod shell;
 
@@ -90,6 +92,15 @@ impl Studio {
                     if let Some(a) = &self.shell.palette.answer {
                         println!("[palette] answer: {a:?}");
                     }
+                }
+                // A form's field: `field KIND ID /POINTER VALUE…` (the value as data: 12, "text", true).
+                "field" => {
+                    let kind = rustpg2d_engine::refactor::RefKind::ALL.iter().copied().find(|k| k.name() == arg(1));
+                    let r = match kind {
+                        Some(k) => self.shell.set_field(k, arg(2), arg(3), &cmd[4.min(cmd.len())..].join(" ")),
+                        None => Err(format!("'{}' is not a kind", arg(1))),
+                    };
+                    println!("[field] {}", r.unwrap_or_else(|e| format!("failed: {e}")));
                 }
                 "key" => {
                     if let (Some(p), Some(k)) = (self.shell.play.as_mut(), play::key_named(arg(1))) {

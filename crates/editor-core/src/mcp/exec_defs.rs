@@ -185,6 +185,13 @@ macro_rules! on_defs {
     };
 }
 
+/// [`on_defs`] for any kind: `None` for kinds without definitions.
+macro_rules! on_defs_opt {
+    ($db:expr, $kind:expr, $f:ident ( $($arg:expr),* )) => {
+        rustpg2d_engine::with_def_kind!($kind, |T| Some($f(T::list_mut($db) $(, $arg)*)), else => None)
+    };
+}
+
 fn ids<T: DefFacts>(list: &mut [T]) -> Vec<String> {
     list.iter().map(|d| d.id().to_string()).collect()
 }
@@ -777,27 +784,118 @@ impl Workspace {
         self.project.db = copy;
         self.project.db.reindex();
         self.defs_dirty = true;
-        if matches!(kind, RefKind::Material | RefKind::Sheet | RefKind::Sound) {
-            self.reload_assets();
-        }
-        // A building: its model is built again.
-        if kind == RefKind::Prop {
-            if let Some(d) = self.project.db.prop(&id).cloned() {
-                self.assets.rebuild_building(&d, &self.project.db);
-            }
-        }
-        // A model: the loaded one takes the new definition; a new model or other files are read.
-        if kind == RefKind::Model {
-            let fits = self.project.db.model(&id).cloned().is_some_and(|d| self.assets.models.set_def(&d));
-            if !fits {
-                self.reload_assets();
-            }
-        }
+        self.def_changed(kind, &id, true);
         let mut msg = format!("{} {} \"{id}\".", if replaced { "Replaced" } else { "Created" }, kind.name());
         for w in warnings {
             msg += &format!("\nWarning: {w}");
         }
         self.mcp_after_write(msg)
+    }
+
+    /// A definition was replaced: what is built from it follows. `art`: pictures and sounds are
+    /// read again at once for the kinds that name files (a form typing a path waits for
+    /// *Reload art* instead).
+    pub fn def_changed(&mut self, kind: RefKind, id: &str, art: bool) {
+        if self.gpu == crate::Gpu::No {
+            return;
+        }
+        if art && matches!(kind, RefKind::Material | RefKind::Sheet | RefKind::Sound) {
+            self.reload_assets();
+        }
+        // A building: its model is built again.
+        if kind == RefKind::Prop {
+            if let Some(d) = self.project.db.prop(id).cloned() {
+                self.assets.rebuild_building(&d, &self.project.db);
+            }
+        }
+        // A model: the loaded one takes the new definition; a new model or other files are read.
+        if kind == RefKind::Model {
+            let fits = self.project.db.model(id).cloned().is_some_and(|d| self.assets.models.set_def(&d));
+            if !fits && art {
+                self.reload_assets();
+            }
+        }
+    }
+
+    /// A definition as JSON (how forms and agents see it).
+    pub fn def_value(&self, kind: RefKind, id: &str) -> Option<Value> {
+        use rustpg2d_engine::defs::Def;
+        let db = &self.project.db;
+        rustpg2d_engine::with_def_kind!(kind, |T| T::list(db).iter().find(|d| d.id() == id).and_then(|d| serde_json::to_value(d).ok()), else => None)
+    }
+
+    /// Replaces definition `id` with `value` (its JSON form; the id itself changes only by a
+    /// rename). Nothing changes when the value isn't a valid definition: the error says why.
+    pub fn set_def_value(&mut self, kind: RefKind, id: &str, value: Value) -> Result<(), String> {
+        if value.get("id").and_then(|v| v.as_str()) != Some(id) {
+            return Err("the id changes with Rename, which follows it through the project".into());
+        }
+        let db = &mut self.project.db;
+        on_defs_opt!(db, kind, upsert(value, false)).ok_or_else(|| format!("{} has no definitions", kind.name()))??;
+        self.project.db.reindex();
+        self.def_changed(kind, id, false);
+        Ok(())
+    }
+
+    /// Adds a fresh definition (the values a new one starts with).
+    pub fn new_def(&mut self, kind: RefKind, id: &str) -> Result<(), String> {
+        if !crate::rename::valid_name(id) {
+            return Err("ids use letters, digits, '_' and '-'".into());
+        }
+        if self.project.db.has(kind, id) {
+            return Err(format!("{} \"{id}\" exists", kind.name()));
+        }
+        if !RefKind::DEFS.contains(&kind) {
+            return Err(format!("a {} isn't a definition", kind.name()));
+        }
+        let (value, _) = template(kind, id, &self.project.db);
+        let db = &mut self.project.db;
+        on_defs_opt!(db, kind, upsert(value, false)).ok_or_else(|| format!("{} has no definitions", kind.name()))??;
+        self.project.db.reindex();
+        self.def_changed(kind, id, true);
+        Ok(())
+    }
+
+    /// Adds a copy of definition `id` as `new_id`.
+    pub fn duplicate_def(&mut self, kind: RefKind, id: &str, new_id: &str) -> Result<(), String> {
+        if !crate::rename::valid_name(new_id) {
+            return Err("ids use letters, digits, '_' and '-'".into());
+        }
+        if self.project.db.has(kind, new_id) {
+            return Err(format!("{} \"{new_id}\" exists", kind.name()));
+        }
+        let mut value = self.def_value(kind, id).ok_or_else(|| format!("there is no {} \"{id}\"", kind.name()))?;
+        value["id"] = Value::String(new_id.to_string());
+        let db = &mut self.project.db;
+        on_defs_opt!(db, kind, upsert(value, false)).ok_or_else(|| format!("{} has no definitions", kind.name()))??;
+        self.project.db.reindex();
+        self.def_changed(kind, new_id, true);
+        Ok(())
+    }
+
+    /// Removes definition `id`. Refused while something uses it, unless `force`.
+    pub fn delete_def(&mut self, kind: RefKind, id: &str, force: bool) -> Result<(), String> {
+        if !self.project.db.has(kind, id) {
+            return Err(format!("there is no {} \"{id}\"", kind.name()));
+        }
+        let users = self.users_of(kind, id);
+        if !users.is_empty() && !force {
+            return Err(format!("{} \"{id}\" is used by {} (delete with `force` to remove it anyway)", kind.name(), users.join(", ")));
+        }
+        let db = &mut self.project.db;
+        on_defs_opt!(db, kind, remove(id));
+        self.project.db.reindex();
+        Ok(())
+    }
+
+    /// The words on a kind's fields that agents get with a fresh definition (until the field
+    /// schema of part 4 replaces them).
+    pub fn def_notes(&self, kind: RefKind) -> &'static str {
+        if RefKind::DEFS.contains(&kind) {
+            template(kind, "id", &self.project.db).1
+        } else {
+            ""
+        }
     }
 
     /// Everything that still uses a definition: other definitions, maps, scripts.

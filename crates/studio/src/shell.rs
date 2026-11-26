@@ -22,6 +22,8 @@ pub enum Tab {
     Play,
     Problems,
     History,
+    /// A page of the game's settings (`schema::PAGES`), by its title.
+    Settings(&'static str),
     /// Everything of a kind, as a grid of pictures or a list.
     Kind(RefKind),
     /// A definition.
@@ -45,6 +47,7 @@ impl Tab {
                 }
             }
             Tab::History => "History".into(),
+            Tab::Settings(page) => page.to_string(),
             Tab::Kind(k) => plural(k.label()),
             Tab::Def(k, id) => format!("{}: {id}", k.label()),
             Tab::Map(m) => {
@@ -62,6 +65,7 @@ impl Tab {
             Tab::Play => "play".into(),
             Tab::Problems => "problems".into(),
             Tab::History => "history".into(),
+            Tab::Settings(page) => format!("settings:{}", editor_core::schema::page_slug(page)),
             Tab::Kind(k) => format!("kind:{}", k.name()),
             Tab::Def(k, id) => format!("def:{}:{id}", k.name()),
             Tab::Map(m) => format!("map:{m}"),
@@ -260,7 +264,7 @@ impl Shell {
             return;
         }
         // Next to another document when there is one, else in the first leaf.
-        let doc = self.dock.find_tab_from(|t| matches!(t, Tab::Overview | Tab::Kind(_) | Tab::Def(..) | Tab::Map(_) | Tab::Play));
+        let doc = self.dock.find_tab_from(|t| matches!(t, Tab::Overview | Tab::Settings(_) | Tab::Kind(_) | Tab::Def(..) | Tab::Map(_) | Tab::Play));
         match doc {
             Some(path) => {
                 self.dock.set_focused_node_and_surface(path.node_path());
@@ -280,6 +284,7 @@ impl Shell {
             ("problems", None, _) => Tab::Problems,
             ("history", None, _) => Tab::History,
             ("map", Some(m), None) if self.ws.maps.iter().any(|x| x == m) => Tab::Map(m.to_string()),
+            ("settings", Some(page), None) => Tab::Settings(editor_core::schema::PAGES.iter().find(|(t, ..)| editor_core::schema::page_slug(t) == page)?.0),
             ("kind", Some(kind), None) => Tab::Kind(RefKind::ALL.iter().copied().find(|k| k.name() == kind && k.is_def())?),
             ("def", Some(kind), Some(id)) => {
                 let k = RefKind::ALL.iter().copied().find(|k| k.name() == kind)?;
@@ -354,6 +359,27 @@ impl Shell {
         self.ws.set_def_value(kind, id, value)?;
         self.ws.history_frame(None);
         Ok(format!("{} {id}{pointer} = {text}", kind.name()))
+    }
+
+    /// Changes one of the game's settings as its page does: `pointer` is its place in the
+    /// project's settings (`/day_minutes`, `/rules/show_checks`), `text` its new value as data.
+    pub fn set_setting(&mut self, pointer: &str, text: &str) -> Result<String, String> {
+        let mut value = self.ws.config_value();
+        let new: serde_json::Value = serde_json::from_str(text).map_err(|e| format!("{text} isn't data: {e}"))?;
+        if editor_core::schema::project().at(pointer).is_none() {
+            return Err(format!("the settings have no {pointer}"));
+        }
+        match value.pointer_mut(pointer) {
+            Some(place) => *place = new,
+            None => {
+                let (parent, field) = pointer.rsplit_once('/').ok_or_else(|| format!("{pointer} isn't a setting's place (/day_minutes)"))?;
+                let group = value.pointer_mut(parent).and_then(|p| p.as_object_mut()).ok_or_else(|| format!("the settings have no {parent} to put {field} into"))?;
+                group.insert(field.to_string(), new);
+            }
+        }
+        self.ws.set_config_value(value)?;
+        self.ws.history_frame(None);
+        Ok(format!("settings{pointer} = {text}"))
     }
 
     /// `tabs=… focus=… history=… problems=… palette=…` for the script's `status`.
@@ -711,6 +737,7 @@ impl egui_dock::TabViewer for Viewer<'_> {
             Tab::Play => self.play_tab(ui),
             Tab::Problems => self.problems(ui),
             Tab::History => self.history(ui),
+            Tab::Settings(page) => self.settings(ui, page),
             Tab::Kind(k) => self.kind(ui, *k),
             Tab::Def(k, id) => self.definition(ui, *k, id),
             Tab::Map(m) => self.map(ui, m),
@@ -732,8 +759,15 @@ impl Viewer<'_> {
             f.is_empty() || id.to_lowercase().contains(&f) || name.to_lowercase().contains(&f) || meta.of(kind, id).is_some_and(|m| m.folder.to_lowercase().contains(&f) || m.tags.iter().any(|t| t.to_lowercase().contains(&f)))
         };
         egui::CollapsingHeader::new("Game").default_open(true).show(ui, |ui| {
-            if ui.selectable_label(false, "Overview").clicked() {
+            if f.is_empty() && ui.selectable_label(false, "Overview").clicked() {
                 self.asks.push(Ask::Open(Tab::Overview));
+            }
+            // The settings' pages (what is typed also finds a page by a setting's name).
+            for (page, about, fields) in editor_core::schema::PAGES {
+                let fits = f.is_empty() || page.to_lowercase().contains(&f) || about.to_lowercase().contains(&f) || fields.split_whitespace().any(|k| editor_core::schema::label(&format!("ProjectConfig.{}", k.trim_start_matches('~')), k.trim_start_matches('~')).to_lowercase().contains(&f));
+                if fits && ui.selectable_label(false, *page).on_hover_text(*about).clicked() {
+                    self.asks.push(Ask::Open(Tab::Settings(page)));
+                }
             }
         });
         // While something is typed, what fits is shown open and the rest is out of the way.
@@ -1090,6 +1124,36 @@ impl Viewer<'_> {
                 ui.data_mut(|d| d.insert_temp(bid, text));
             }
         });
+    }
+
+    /// A page of the game's settings: the form of its fields of the project's settings.
+    fn settings(&mut self, ui: &mut egui::Ui, page: &str) {
+        let Some((title, about, fields)) = editor_core::schema::PAGES.iter().find(|(t, ..)| *t == page) else { return };
+        ui.horizontal(|ui| {
+            ui.heading(*title);
+            ui.weak(*about);
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.checkbox(self.show_all, "Show all fields");
+            });
+        });
+        ui.separator();
+        let mut value = self.ws.config_value();
+        let mut pics = self.rs.map(|rs| crate::thumbs::Pics { thumbs: &mut *self.thumbs, ws: &*self.ws, rs });
+        let pictures = pics.as_mut().map(|p| p as &mut dyn crate::form::Pictures);
+        let mut cx = crate::form::Cx { lists: self.lists, maps: &self.ws.maps, show_all: *self.show_all, compact: false, pictures, refs: Some(&self.ws.refs), asks: Vec::new() };
+        let changed = crate::form::page_ui(ui, &mut cx, editor_core::schema::project(), &mut value, fields);
+        for ask in cx.asks {
+            match ask {
+                crate::form::Ask::Open(RefKind::Map, map) => self.asks.push(Ask::Open(Tab::Map(map))),
+                crate::form::Ask::Open(k, i) => self.asks.push(Ask::Open(Tab::Def(k, i))),
+                crate::form::Ask::New(k) => self.asks.push(Ask::New(Some(k))),
+            }
+        }
+        if changed {
+            if let Err(e) = self.ws.set_config_value(value) {
+                self.ws.set_status(e);
+            }
+        }
     }
 
     /// What can be done with a definition as a whole.

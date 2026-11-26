@@ -45,6 +45,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   already in use.
 - ***New…*** (Ctrl+N, part 4): pick what to make (each kind says what it is), give it a name,
   and start blank or from a copy picked from a list with pictures; the id is made from the name.
+- **The game's settings have pages of their own** (part 5): Game, Hero & party, Rules, World,
+  Look & feel, Title & menus, Sound, Languages, Scripts & plugins, first in the Project
+  browser, each a form like a definition's (the browser's filter finds a page by a setting's
+  name).
 - **A kind as a table** (part 4): a column per field, cells changed in place, a click on a
   column's head sorts by it; a change in a ticked row is made in every ticked row (set the
   price of ten items at once).

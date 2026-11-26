@@ -996,7 +996,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     Hunting Bow clicked (its picture beside the list), *Create*: the tab of `moon_blade` opens,
     one history step, and after saving `items.ron` has it with the bow's values.
 
-- [ ] Part 5: Game settings and rules — `feature/studio`
+- [~] Part 5: Game settings and rules — `feature/studio`
 
   **Goal.** The settings of the game and its rules have a home of their own instead of one long
   form among the Database's tabs.
@@ -1020,10 +1020,32 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
       exporting (problems, missing translations, unused files, attribution).
   - They are forms of the field schema, so *Find a setting* reaches them.
 
+  **Progress.** The pages exist, as forms of the field schema.
+  - `schema::PAGES`: nine pages (Game · Hero & party · Rules · World · Look & feel · Title &
+    menus · Sound · Languages · Scripts & plugins), each the fields of the project's settings
+    it shows, with labels of their own; a test keeps every setting on exactly one page.
+  - The *Game* group of the Project browser lists them under the Overview; the browser's
+    filter finds a page by a setting's name. A page is a tab (`settings:rules` for scripts)
+    with the same controls as a definition's form: pickers for the start map, the player's
+    character, the skin, the sounds; defaults dimmed; *Show all fields*.
+  - `Workspace::config_value` / `set_config_value` (refused with the reason when it isn't
+    valid settings); a change is a step of the history (*Change the game's settings*). Script:
+    `setting /POINTER VALUE`.
+  Still open: what a plain form doesn't give. The factions as a table of standings, the title
+  screen's live preview, the translation table, the hooks with their script functions and the
+  plugins' parameters by their kinds, the game's icon, **Publishing** (the export as a page
+  with its check), the spawn point picked among the start map's, and *Find a setting* across
+  forms and pages.
+
   **Engine.** None: `ProjectConfig` keeps its shape; the pages group its fields.
 
   **Verify.** `egui_kittest`: a change on each page saved and reloaded. Screenshots of Rules,
   Title & menus and Publishing. An export from the page runs.
+  - Done so far: `every_setting_is_on_one_page`; `settings_change_as_data_are_saved_and_undone`
+    (a setting of seven pages changed, an invalid one refused with the reason, saved, read by a
+    second workspace, one undo). In the window: the Rules and World pages looked at;
+    `setting /day_minutes 30` and `/rules/show_checks false` are two history steps, in
+    `project.ron` after saving, undone twice; `/nonsense` is refused.
 
 - [ ] Part 6: The map workspace — `feature/studio`
 

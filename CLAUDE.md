@@ -41,7 +41,8 @@ being rewritten on a new foundation, in twelve parts. While it lasts:
   `RUSTPG2D_FOLDER_PROJECTS=1` for test runs. The script can use the window for real: `click X Y`,
   `click X Y ctrl`, `hover X Y`, `wheel DY` (at the pointer), `type TEXT`, `press Enter|Escape|Tab|…`, `size W H`;
   `field KIND ID /POINTER VALUE` changes a field without the UI, `allfields on|off` = *Show all
-  fields*, `new [KIND]` opens the *New…* gallery (`defs.make KIND [from:ID] NAME` makes one
+  fields*, `setting /POINTER VALUE` changes one of the game's settings (tabs `settings:rules`,
+  `settings:hero-party`…), `new [KIND]` opens the *New…* gallery (`defs.make KIND [from:ID] NAME` makes one
   without it). Form behaviour is tested in `form.rs` (`ui_tests`: egui_kittest clicks and types
   through AccessKit; every control must have a name, so pass a row's label id on with
   `labelled_by`).
@@ -53,7 +54,9 @@ being rewritten on a new foundation, in twelve parts. While it lasts:
   read them. The editor's tables are in `schema.rs`: `LABELS`, `SECTIONS` (a new field of a
   definition needs its section: test `every_field_has_its_section`), `REFERENCES` (a new field
   holding an id: test `references_agree_with_renames` prints the line to add; it must also be
-  followed in `refactor.rs`, or go to `NOT_FOLLOWED`).
+  followed in `refactor.rs`, or go to `NOT_FOLLOWED`), `NAMES` (flags, variables, script
+  functions… offered where typed), `PAGES` (the settings' pages: a new field of `ProjectConfig`
+  needs its page, test `every_setting_is_on_one_page`).
 - **The engine draws through `crates/gfx`** (wgpu, winit, kira), which keeps macroquad's drawing
   names: `use gfx::prelude::*` where `macroquad::prelude` was. Shaders are WGSL
   (`gfx::material`). The game is drawn into a picture (`gfx::Screen`); `gfx::with_screen` draws

@@ -250,3 +250,38 @@ fn a_new_definition_is_made_from_its_name() {
     assert!(ws.project.db.item("moon_blade").is_none() && ws.project.db.item("sun_blade").is_none());
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn settings_change_as_data_are_saved_and_undone() {
+    let dir = example_copy("settings");
+    let mut ws = Workspace::new(dir.clone(), Gpu::No).unwrap();
+    ws.history_frame(None);
+    let before = ws.project.config.clone();
+    // A setting of every page of the settings (`schema::PAGES`), changed as a form does.
+    let mut value = ws.config_value();
+    value["name"] = "Another Game".into();
+    value["inventory_size"] = 31.into();
+    value["rules"]["show_checks"] = (!before.rules.show_checks).into();
+    value["day_minutes"] = 30.0.into();
+    value["dialog_portraits"] = (!before.dialog_portraits).into();
+    value["battle_music"] = "".into();
+    value["languages"] = serde_json::json!(["de", "fr"]);
+    ws.set_config_value(value).unwrap();
+    ws.history_frame(None);
+    assert!(ws.is_dirty() && ws.timeline.status().starts_with("1/"));
+    // What isn't valid settings changes nothing, and says why.
+    let mut bad = ws.config_value();
+    bad["inventory_size"] = "many".into();
+    let e = ws.set_config_value(bad).unwrap_err();
+    assert!(e.contains("inventory_size") || e.contains("invalid type"), "{e}");
+    assert_eq!(ws.project.config.inventory_size, 31);
+    // Saved, a second workspace reads the same.
+    ws.save_all();
+    let again = Workspace::new(dir.clone(), Gpu::No).unwrap();
+    assert_eq!(again.project.config, ws.project.config);
+    assert_eq!((again.project.config.name.as_str(), again.project.config.day_minutes, again.project.config.languages.len()), ("Another Game", 30.0, 2));
+    // One step back: as it was.
+    ws.run_line("edit.undo").unwrap();
+    assert_eq!(ws.project.config, before);
+    let _ = std::fs::remove_dir_all(&dir);
+}

@@ -947,6 +947,23 @@ pub fn definition_ui(ui: &mut egui::Ui, cx: &mut Cx, node: Node, value: &mut Val
     changed
 }
 
+/// A page of fields of an object (the settings' pages): the ones `list` names, in its order
+/// (`~` before a name: for advanced use). True when something changed.
+pub fn page_ui(ui: &mut egui::Ui, cx: &mut Cx, node: Node, value: &mut Value, list: &str) -> bool {
+    let (Shape::Struct(fields), Value::Object(map)) = (node.shape(), value) else { return false };
+    let mut changed = false;
+    for key in list.split_whitespace() {
+        let advanced = key.starts_with('~');
+        if advanced && !cx.show_all {
+            continue;
+        }
+        if let Some(field) = fields.iter().find(|f| f.key == key.trim_start_matches('~')) {
+            changed |= field_ui(ui, cx, field, map, 1);
+        }
+    }
+    changed
+}
+
 /// The control of a plain value the schema says nothing about. True when it changed.
 fn plain(ui: &mut egui::Ui, v: &mut Value, by: egui::Id) -> bool {
     match v {

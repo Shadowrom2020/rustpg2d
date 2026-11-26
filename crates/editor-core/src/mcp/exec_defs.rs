@@ -837,6 +837,24 @@ impl Workspace {
         Ok(())
     }
 
+    /// The project's settings as data (the settings pages' forms).
+    pub fn config_value(&self) -> Value {
+        serde_json::to_value(&self.project.config).unwrap_or(Value::Null)
+    }
+
+    /// Replaces the project's settings with `value` (their JSON form). Nothing changes when it
+    /// isn't valid settings: the error says why.
+    pub fn set_config_value(&mut self, value: Value) -> Result<(), String> {
+        let config: rustpg2d_engine::project::ProjectConfig = serde_json::from_value(value).map_err(|e| format!("the settings aren't valid: {e}"))?;
+        if config != self.project.config {
+            self.begin_unnamed("Change the game's settings");
+            self.project.config = config;
+            self.defs_dirty = true;
+            self.stale = true;
+        }
+        Ok(())
+    }
+
     /// Adds a fresh definition (the values a new one starts with).
     pub fn new_def(&mut self, kind: RefKind, id: &str) -> Result<(), String> {
         if !crate::rename::valid_name(id) {

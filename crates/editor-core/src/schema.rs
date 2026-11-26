@@ -409,6 +409,35 @@ const LABELS: &[(&str, &str)] = &[
     ("ModelDef.shared_clips", "Animations from other models"),
     ("ModelDef.female", "Offered as female"),
     ("ModelDef.playable", "Offered in the character creator"),
+    ("ProjectConfig.name", "The game's name"),
+    ("ProjectConfig.start_map", "It starts on"),
+    ("ProjectConfig.start_spawn", "At the spawn point"),
+    ("ProjectConfig.scale", "Zoom"),
+    ("ProjectConfig.player", "The player's character"),
+    ("ProjectConfig.player_portrait", "The player's portrait"),
+    ("ProjectConfig.creation", "Character creator"),
+    ("ProjectConfig.inventory_size", "Bag slots"),
+    ("ProjectConfig.companion_down", "A companion at 0 hit points"),
+    ("ProjectConfig.progression", "Experience and levels"),
+    ("ProjectConfig.rules", "The SRD's options"),
+    ("ProjectConfig.skills", "Magic"),
+    ("ProjectConfig.srd", "The SRD's content in the game"),
+    ("ProjectConfig.day_minutes", "A day lasts (minutes)"),
+    ("ProjectConfig.start_hour", "The game starts at (hour)"),
+    ("ProjectConfig.map_titles", "Maps' titles"),
+    ("ProjectConfig.skin", "UI skin"),
+    ("ProjectConfig.fonts", "Fonts"),
+    ("ProjectConfig.dialog_portraits", "Portraits in dialogs"),
+    ("ProjectConfig.auto_emotions", "Emotions by themselves"),
+    ("ProjectConfig.eight_facings", "Characters face eight ways"),
+    ("ProjectConfig.title", "Title screen"),
+    ("ProjectConfig.menu", "Pause menu"),
+    ("ProjectConfig.sfx", "The game's sounds"),
+    ("ProjectConfig.battle_music", "Music of fights"),
+    ("ProjectConfig.language", "Written in"),
+    ("ProjectConfig.languages", "Translated into"),
+    ("ProjectConfig.hooks", "Script hooks"),
+    ("ProjectConfig.model_atlas_mb", "Memory for drawn figures (MB)"),
     ("Trigger.on", "When"),
     ("Trigger.conditions", "If"),
     ("Trigger.actions", "Do"),
@@ -543,6 +572,26 @@ const SECTIONS: &[(&str, Sections)] = &[
     ("AnimationDef", &[("Basics", "id name"), ("Parts", "cels emitters flashes sounds")]),
     ("VisualScript", &[("Basics", "id name description params returns"), ("Graph (edited in the node editor)", "~nodes ~links")]),
 ];
+
+/// The pages of the game's settings (the *Game* group of the Project browser): `(title, what
+/// is on it, fields)`, the fields of the project's settings (`ProjectConfig`) separated by
+/// spaces, one with `~` before it for advanced use. Every field is on one page (a test).
+pub const PAGES: &[(&str, &str, &str)] = &[
+    ("Game", "What the game is called and where it starts.", "name start_map start_spawn scale credits ~tile_size ~model_atlas_mb"),
+    ("Hero & party", "The player's character, the character creator, the bag, companions, levels.", "player player_portrait creation inventory_size companion_down progression"),
+    ("Rules", "The SRD's options, magic, and what the game says about the rules it uses.", "rules skills srd ~rules_version"),
+    ("World", "The day, the factions and how they stand to each other, the maps' titles.", "day_minutes start_hour factions map_titles"),
+    ("Look & feel", "The UI's skin and fonts, portraits and emotions in dialogs, how characters face.", "skin fonts dialog_portraits auto_emotions eight_facings"),
+    ("Title & menus", "The title screen, the pause menu, the action bar.", "title menu action_bar"),
+    ("Sound", "The sounds the game itself plays, and the music of fights.", "sfx battle_music"),
+    ("Languages", "The language the game is written in and the ones it is translated into.", "language languages"),
+    ("Scripts & plugins", "Script functions the game calls at its own moments, and plugins.", "hooks plugins"),
+];
+
+/// A page's name in scripts and tab names: `Hero & party` -> `hero-party`.
+pub fn page_slug(title: &str) -> String {
+    title.to_lowercase().split(|c: char| !c.is_ascii_alphanumeric()).filter(|p| !p.is_empty()).collect::<Vec<_>>().join("-")
+}
 
 /// The kinds of definition (or `Map`) the field at `site` names, when it holds an id: the form
 /// shows a picker there. Empty: no id.
@@ -867,6 +916,22 @@ mod tests {
         // A blank weapon is one the engine reads.
         let blank = weapon.blank();
         serde_json::from_value::<rustpg2d_engine::defs::Weapon>(blank.clone()).unwrap_or_else(|e| panic!("{e}: {blank}"));
+    }
+
+    #[test]
+    fn every_setting_is_on_one_page() {
+        let Shape::Struct(fields) = project().shape() else { panic!("the settings have fields") };
+        let listed: Vec<&str> = PAGES.iter().flat_map(|(_, _, f)| f.split_whitespace()).map(|f| f.trim_start_matches('~')).collect();
+        for f in &fields {
+            assert_eq!(listed.iter().filter(|l| **l == f.key).count(), 1, "ProjectConfig.{} must be on exactly one page of PAGES", f.key);
+        }
+        for l in &listed {
+            assert!(fields.iter().any(|f| f.key == *l), "PAGES names {l}, which isn't a setting");
+        }
+        assert_eq!(page_slug("Hero & party"), "hero-party");
+        let mut slugs: Vec<String> = PAGES.iter().map(|(t, ..)| page_slug(t)).collect();
+        slugs.dedup();
+        assert_eq!(slugs.len(), PAGES.len());
     }
 
     #[test]

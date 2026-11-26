@@ -5,7 +5,8 @@
 //! example. `rustpg2d-studio --headless PROJECT [--mcp PORT] [--seconds N]` opens no window: the
 //! agent server works on the project (`editor-core`'s workspace). `RUSTPG2D_STUDIO_SCRIPT="wait 3; status; shot /path/a.png; quit"` drives it for tests
 //! (`wait SECS`, `status`, `shot PATH` = the whole window, `tab NAME`, `palette TEXT` / `goto
-//! TEXT` / `pick N`, `field KIND ID /POINTER VALUE` = a form's field, `key NAME` = a key for the
+//! TEXT` / `pick N`, `field KIND ID /POINTER VALUE` = a form's field, `setting /POINTER VALUE` = one
+//! of the game's settings, `key NAME` = a key for the
 //! game, `pause` / `resume`, `quit`; the window's own input: `click X Y [ctrl]`, `hover X Y`, `wheel DY`,
 //! `type TEXT`, `press KEY` (egui's key names: Enter, Escape, Tab, ArrowDown…), `size W H`,
 //! `allfields on|off`, `new [KIND]` = the New… gallery; any other line
@@ -110,6 +111,8 @@ impl Studio {
                     };
                     println!("[field] {}", r.unwrap_or_else(|e| format!("failed: {e}")));
                 }
+                // One of the game's settings: `setting /POINTER VALUE…`.
+                "setting" => println!("[setting] {}", self.shell.set_setting(arg(1), &cmd[2.min(cmd.len())..].join(" ")).unwrap_or_else(|e| format!("failed: {e}"))),
                 "key" => {
                     if let (Some(p), Some(k)) = (self.shell.play.as_mut(), play::key_named(arg(1))) {
                         p.tap(k);

@@ -50,7 +50,11 @@ being rewritten on a new foundation, in twelve parts. While it lasts:
   grid|zones|collision|light|weather|above on|off [HOUR]`, `mapplace KIND ID` (character, prop, item, structure, scatter), `mapzone KIND`,
   `mapground MATERIAL|erase [brush|line|rect|fill] [WIDTH] [square] [snap]`,
   `mapselect NAME`, `mapact delete|duplicate|turn|interactive|scenery`, `mapshot X Y W H PATH [ZOOM]` (a picture of
-  tiles as agents get it; `status` adds a `[mapview]` line), `new [KIND]` opens the *New…* gallery (`defs.make KIND [from:ID] NAME` makes one
+  tiles as agents get it; `status` adds a `[mapview]` line), the Play tab: `play
+  title|start|here|again|window|MAP X Y [setup]`, `key NAME`, `pause` / `resume`, `playstep`,
+  `playspeed N`, `playflag NAME on|off`, `playvar NAME VALUE`, `playstate on|off`, `playinspect
+  on|off`, `playkeep [-]` (the running game's state as the test setup; `status` adds the game's
+  own line in full as `[game]`), `new [KIND]` opens the *New…* gallery (`defs.make KIND [from:ID] NAME` makes one
   without it). Form behaviour is tested in `form.rs` (`ui_tests`: egui_kittest clicks and types
   through AccessKit; every control must have a name, so pass a row's label id on with
   `labelled_by`).
@@ -149,14 +153,15 @@ crates/editor-core/src/ the editor without its UI (0.36): workspace.rs (Workspac
                         status), doc.rs (MapDoc + undo), history.rs (definitions' undo: history_frame), meta.rs (the
                         creator's folders, tags, notes, favourites: editor/meta.ron, `Workspace::meta_edit`), schema.rs (the
                         field schema: shapes from the engine's types + labels, sections, id fields), rename.rs,
-                        refs.rs, search.rs, problems.rs, mapops.rs, mapedit.rs (what changes the open map, a step each), models.rs, library.rs, starter.rs, art/ (Meshy
+                        refs.rs, search.rs, problems.rs, mapops.rs, mapedit.rs (what changes the open map, a step each),
+                        testsetup.rs (what a test-play starts with: kept per project, written as a save), models.rs, library.rs, starter.rs, art/ (Meshy
                         jobs), project_file.rs, files.rs (settings, recent), repo_mode.rs, mcp/ (the agent server:
                         tools.rs = the catalogue, exec*.rs, play.rs, watcher.rs, server.rs)
 crates/studio/src/      the new editor (0.36): main.rs (the eframe window; `--headless PROJECT --mcp PORT` = the agent
                         server without a window), shell.rs (dock, browser, palettes, tabs), form.rs (forms from the
                         field schema), thumbs.rs (pictures of assets from the engine's textures), gallery.rs (New…),
                         mapview.rs (a map's tab: view, tools, Outliner, Inspector) over scene.rs (a map drawn as the game does),
-                        play.rs (the game in a panel); examples/mcp_smoke.rs
+                        play.rs (the game in a panel: its bar, the State panel); examples/mcp_smoke.rs
 crates/engine/src/      library: everything shared by game and editor
   defs.rs               Database: sheets, items, props (+states, container, lock, anim),
                         characters (+shop), sounds, quests, structures; serde formats of defs/*.ron

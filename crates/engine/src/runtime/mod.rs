@@ -73,6 +73,7 @@ mod soundscape;
 mod stealth;
 mod emotions;
 mod mouse;
+pub use mouse::Pointed;
 mod movement;
 mod survival;
 mod actionbar;
@@ -1930,16 +1931,23 @@ impl Game {
 
     /// Runs one frame: update and draw.
     pub fn frame(&mut self) {
-        input::poll_pad();
-        input::update_device();
         let real = get_frame_time();
-        let dt = real.min(0.05);
         let t0 = get_time();
-        self.update(dt);
+        self.step(real);
         let t1 = get_time();
         self.draw();
         let t2 = get_time();
         self.perf_sample(real, (t1 - t0) as f32, (t2 - t1) as f32);
+    }
+
+    /// Looks at the devices and moves the game on by `real` seconds (at most a twentieth of a
+    /// second at once): what [`Game::frame`] does before it draws. Whoever shows the game
+    /// itself (an editor's Play panel) calls it by hand: more than once a frame to fast-forward,
+    /// with a part of the time for slow motion, once for a single step.
+    pub fn step(&mut self, real: f32) {
+        input::poll_pad();
+        input::update_device();
+        self.update(real.min(0.05));
     }
 
     fn perf_sample(&self, real: f32, update: f32, draw: f32) {

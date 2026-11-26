@@ -70,6 +70,10 @@ impl Studio {
                 "status" => {
                     let game = self.shell.play.as_ref().map(|p| p.status()).unwrap_or_else(|| "play=none".into());
                     println!("[status] fps={:.0} {} | {}", self.fps, self.shell.status(), &game[..game.len().min(300)]);
+                    // (The running game's own line in full: its clock, flags, variables…)
+                    if self.shell.play.is_some() {
+                        println!("[game] {game}");
+                    }
                     let map = self.shell.map_status();
                     if !map.is_empty() {
                         println!("[mapview] {map}");
@@ -247,6 +251,39 @@ impl Studio {
                         p.paused = arg(0) == "pause";
                     }
                 }
+                // The Play tab: `play title|start|here|again|window|MAP X Y [setup]`, `playstep` (one step
+                // while paused), `playspeed N`, `playflag NAME on|off`, `playvar NAME VALUE`,
+                // `playstate on|off` (the State panel), `playinspect on|off`.
+                "play" => match arg(1) {
+                    "title" => self.shell.play_from(shell::PlayFrom::Title),
+                    "start" => self.shell.play_from(shell::PlayFrom::Start),
+                    "again" => self.shell.play_from(shell::PlayFrom::Again),
+                    "here" | "" => self.shell.play_here(),
+                    "window" => self.shell.play_window(),
+                    map => self.shell.play_from(shell::PlayFrom::Tile(map.to_string(), (arg(2).parse().unwrap_or(0), arg(3).parse().unwrap_or(0)), arg(4) == "setup")),
+                },
+                // The running game's state becomes the test setup (`playkeep`; `playkeep -` forgets it).
+                "playkeep" => {
+                    let setup = if arg(1) == "-" { Some(Default::default()) } else { self.shell.play.as_ref().map(|p| p.as_setup()) };
+                    match setup {
+                        Some(s) => {
+                            println!("[testsetup] {}", s.summary());
+                            self.shell.ws.set_test_setup(s);
+                        }
+                        None => println!("[script] no game is running"),
+                    }
+                }
+                "playstep" | "playspeed" | "playflag" | "playvar" | "playstate" | "playinspect" => match self.shell.play.as_mut() {
+                    Some(p) => match arg(0) {
+                        "playstep" => p.step(),
+                        "playspeed" => p.speed = arg(1).parse().unwrap_or(1.0),
+                        "playflag" => p.set_flag(arg(1), arg(2) != "off"),
+                        "playvar" => p.set_var(arg(1), arg(2).parse().unwrap_or(0)),
+                        "playstate" => p.show_state = arg(1) != "off",
+                        _ => p.inspect = arg(1) != "off",
+                    },
+                    None => println!("[script] no game is running"),
+                },
                 // The window's own input, as a mouse and a keyboard would make it.
                 "click" | "hover" => {
                     let pos = egui::pos2(arg(1).parse().unwrap_or(0.0), arg(2).parse().unwrap_or(0.0));

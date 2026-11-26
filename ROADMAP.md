@@ -1134,12 +1134,27 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     changed between them, objects and scenery alike.
   - **Agents see maps again:** `screenshot_map` is answered from the same drawing, without
     the map's tab being shown.
+  - **Play inside the editor** (`studio/src/play.rs`): *Play from here* in the map's menu
+    starts the game in the Play tab with the hero on that tile (everything is saved first);
+    F5 from the title screen, F6 on the map being worked on. The tab's bar: *Restart*,
+    *Pause*, *Step* (a sixtieth of a second), the clock at 1/4 to 4 times, *Inspect* (a
+    click on a character, a prop or an item in the running game opens what it is; Alt+click
+    at any time), *State*, *Own window* (the real runner, started the same way).
+  - **The State panel:** the running game's map, day and hour, flags, variables, quests,
+    party and bag, searched and changed while it runs (a flag ticked off, a variable
+    dragged, a quest's stage, an item given).
+  - **The test setup** (`editor-core/src/testsetup.rs`): *Keep as the test setup* takes what
+    the running game holds (the hero's level and class, the bag, flags, variables, quests,
+    the clock, the party); *Play from here with the test setup* loads a game in progress
+    with it on the tile, so the map's *Map enter* events (an intro) don't run. Kept per
+    project in the editor's settings.
   Still open: dragging from the Project browser; a structure's ghost (its footprint is
   shown); Build; transitions drawn between maps; hide and
   lock in the Outliner; layers; align; *Find usages*, *Play from here*, *Save as structure*
   and *Replace with…* in the menu; the routes and schedules of characters on the map; map
-  settings; the World view; play inside the editor with its State panel; a region of tiles
-  copied and pasted.
+  settings; the World view; a region of tiles copied and pasted. Of playing: the test
+  setup's own form (it is made by playing), the console and script errors as panels (part
+  7), a click in the game leading to the thing's place on its map (it opens its definition).
 
   **Decided while building.**
   - **The world is drawn by the engine, the editor's marks by both.** What lies on the ground
@@ -1154,9 +1169,15 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     `Workspace::prop_acts`. The creator can still turn either into the other.
   - **Scenery has no number**, so a selected piece is told by what it is (`Selection::Scenery`
     holds the decoration); moving it changes the selection with it.
+  - **The game in the tab reads the project's files**, like the runner: playing saves first.
+    Its clock is the tab's: `Game::step` (new) moves the game on by hand, several times a
+    frame to fast-forward; `Game::thing_under_pointer` (new) says what a click would open.
+  - **A test setup is made by playing**, not by filling in a form first: play to where the
+    test starts, keep the state.
 
   **Engine.** `Game` embeddable (part 1). The canvas draws through the engine's renderer into a
-  texture, as the old `canvas.rs` drew on the screen.
+  texture, as the old `canvas.rs` drew on the screen. Added for the Play tab: `Game::step`
+  (devices and one update, what `frame` does before drawing) and `Game::thing_under_pointer`.
 
   **Verify.** Editor script: each tool on a scratch copy (paint, place, turn, link two maps),
   `status` fields as today; the Play panel started from a tile, a flag set in the State panel
@@ -1182,6 +1203,16 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     tiles, a field as a line, a fill; an oak, a row of fence, a forest brushed on, a small
     cottage, a chest (placed as an object); a tree picked by a click and dragged three
     tiles; twelve steps undone by their names.
+  - Playing, in the window: started on a village tile (the intro runs, as in a new game);
+    `shrine_lit` set and `mira_talks` given a value through the State's functions, both in
+    the game's own status, the achievement that waits for the flag unlocked at once; kept
+    as the test setup (`L1:items0:flags2:vars1…`) and there again in the next game, which
+    starts without the intro; paused, the game's clock stands at 08:08 through a second and
+    a half and one step, runs eight game minutes in two seconds at 4x and none to speak of
+    at 1/4; the elder answers E; an *Inspect* click on a market stall opens the stall's
+    definition. `a_crafted_save_has_the_setup_and_finds_the_party` (and a running game's
+    state gives the setup back). Not shown: a line of dialog changing with a flag set in
+    the panel (the scripted hero did not get to face the walking child whose line it is).
 
 - [ ] Part 7: Events, conversations and scripts — `feature/studio`
 

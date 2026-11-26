@@ -53,6 +53,13 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   lists everything on it, and the **Inspector** shows the selected thing as a form with
   only the fields that mean something for it. Every change is a named step of the one
   history. Agents' `screenshot_map` works again.
+- **Play inside the editor** (part 6): right-click a map, *Play from here*, and the game
+  runs in the Play tab with the hero on that tile (F5: from the title screen, F6: on the
+  open map). Pause, single steps, a slower or faster clock; *Inspect* opens what is clicked
+  in the running game; the **State** panel shows and changes its flags, variables, quests,
+  party and bag. *Keep as the test setup* remembers that state, and *Play from here with
+  the test setup* starts a game in progress with it (no intro). *Own window* runs the
+  real game beside the editor.
 - **Terrain, scenery, structures and scatter sets on the map** (part 6): *Terrain* paints
   materials with a brush, a line, a rectangle or a fill. *Place* now takes everything from
   one list: a prop that only stands there is put down as scenery, one that does something

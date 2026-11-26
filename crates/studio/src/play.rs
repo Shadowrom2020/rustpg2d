@@ -7,7 +7,22 @@ use anyhow::{Context, Result};
 use eframe::egui;
 use gfx::input::{Input, KeyCode, MouseButton};
 use rustpg2d_engine::project::Project;
-use rustpg2d_engine::runtime::{Game, StartOptions};
+use rustpg2d_engine::runtime::{Game, Pointed, StartOptions};
+
+/// What the Play panel asks of the window.
+pub enum PlayAsk {
+    /// Start again: as it was started, from the title screen, or on the start map.
+    Again,
+    FromTitle,
+    FromStart,
+    /// The same start in the game's own window (the real runner).
+    OwnWindow,
+    /// Open what was clicked in the game.
+    Open(Pointed),
+    /// Keep the running game's state as the project's test setup; forget the setup.
+    KeepSetup(Box<editor_core::testsetup::TestSetup>),
+    ForgetSetup,
+}
 
 pub struct PlayView {
     game: Game,
@@ -16,6 +31,17 @@ pub struct PlayView {
     /// The screen's picture as egui knows it, and the size it was registered at.
     texture: Option<(egui::TextureId, (u32, u32))>,
     pub paused: bool,
+    /// How fast the game's clock runs against the real one (0.25 to 4).
+    pub speed: f32,
+    /// One step while paused, with the next frame.
+    step_once: bool,
+    /// Clicks tell what is under them instead of playing (Alt+click does it at any time).
+    pub inspect: bool,
+    /// The State panel is shown, and what its lists are searched for.
+    pub show_state: bool,
+    state_filter: String,
+    /// What is typed into the State panel's "add" rows: a flag, a variable, an item.
+    add: [String; 3],
     /// Keys the script tapped: down for this frame, up in the next.
     tapped: Vec<KeyCode>,
 }
@@ -27,7 +53,7 @@ impl PlayView {
         let mut input = Input::new();
         // The game is made with its screen current: it sizes things by it.
         let game = gfx::with_screen(&mut screen, &mut input, || Game::new(project, start))?;
-        Ok(PlayView { game, screen, input, texture: None, paused: false, tapped: Vec::new() })
+        Ok(PlayView { game, screen, input, texture: None, paused: false, speed: 1.0, step_once: false, inspect: false, show_state: false, state_filter: String::new(), add: Default::default(), tapped: Vec::new() })
     }
 
     pub fn status(&self) -> String {
@@ -40,16 +66,209 @@ impl PlayView {
         self.tapped.push(key);
     }
 
+    /// One step with the next frame, while paused.
+    pub fn step(&mut self) {
+        self.step_once = true;
+    }
+
+    /// Sets or clears a flag of the running game (what the State panel's boxes do).
+    pub fn set_flag(&mut self, flag: &str, on: bool) {
+        if on {
+            self.game.world.flags.insert(flag.to_string());
+        } else {
+            self.game.world.flags.remove(flag);
+        }
+    }
+
+    /// The running game's state as a test setup (its level, bag, flags, quests, clock, party).
+    pub fn as_setup(&self) -> editor_core::testsetup::TestSetup {
+        editor_core::testsetup::TestSetup::of(&self.game.world)
+    }
+
+    /// Sets a variable of the running game.
+    pub fn set_var(&mut self, name: &str, value: i64) {
+        self.game.world.vars.insert(name.to_string(), value);
+    }
+
+    /// The panel: its bar, the State panel when it is on, the game in the rest.
+    /// `setup`: the project's test setup as the State panel says it (empty: there is none).
+    pub fn show(&mut self, ui: &mut egui::Ui, rs: &eframe::egui_wgpu::RenderState, setup: &str) -> Vec<PlayAsk> {
+        let mut asks = Vec::new();
+        egui::Panel::top("play bar").show(ui, |ui| self.bar(ui, &mut asks));
+        if self.show_state {
+            egui::Panel::right("play state").default_size(300.0).resizable(true).show(ui, |ui| self.state_panel(ui, setup, &mut asks));
+        }
+        self.game_view(ui, rs, &mut asks);
+        asks
+    }
+
+    fn bar(&mut self, ui: &mut egui::Ui, asks: &mut Vec<PlayAsk>) {
+        ui.horizontal_wrapped(|ui| {
+            ui.menu_button("Restart", |ui| {
+                if ui.button("As it was started").clicked() {
+                    asks.push(PlayAsk::Again);
+                    ui.close();
+                }
+                if ui.button("From the title screen").on_hover_text("As players get it (F5)").clicked() {
+                    asks.push(PlayAsk::FromTitle);
+                    ui.close();
+                }
+                if ui.button("On the start map").on_hover_text("Without the title screen").clicked() {
+                    asks.push(PlayAsk::FromStart);
+                    ui.close();
+                }
+            });
+            if ui.selectable_label(self.paused, "Pause").on_hover_text("Stops the game's clock; the panel stays as it is").clicked() {
+                self.paused = !self.paused;
+            }
+            if ui.add_enabled(self.paused, egui::Button::new("Step")).on_hover_text("One sixtieth of a second further").clicked() {
+                self.step_once = true;
+            }
+            ui.separator();
+            ui.weak("Speed");
+            for (speed, label) in [(0.25, "1/4"), (0.5, "1/2"), (1.0, "1x"), (2.0, "2x"), (4.0, "4x")] {
+                if ui.selectable_label(self.speed == speed, label).clicked() {
+                    self.speed = speed;
+                }
+            }
+            ui.separator();
+            ui.toggle_value(&mut self.inspect, "Inspect").on_hover_text("A click on a character, a prop or an item opens what it is instead of playing (Alt+click does it at any time)");
+            ui.toggle_value(&mut self.show_state, "State").on_hover_text("Flags, variables, quests, the party and the bag of the running game: seen and changed");
+            ui.separator();
+            if ui.button("Own window").on_hover_text("The same start in the game's own window, as players run it: for the last check").clicked() {
+                asks.push(PlayAsk::OwnWindow);
+            }
+        });
+    }
+
+    /// What the running game holds: seen, searched and changed while it runs.
+    fn state_panel(&mut self, ui: &mut egui::Ui, setup: &str, asks: &mut Vec<PlayAsk>) {
+        ui.add_space(4.0);
+        ui.horizontal_wrapped(|ui| {
+            if ui.button("Keep as the test setup").on_hover_text("What the game holds now (the hero's level, the bag, flags, variables, quests, the hour, the party) is what Play from here with the test setup starts with").clicked() {
+                asks.push(PlayAsk::KeepSetup(Box::new(self.as_setup())));
+            }
+            if !setup.is_empty() && ui.button("Forget it").on_hover_text(format!("The test setup now: {setup}")).clicked() {
+                asks.push(PlayAsk::ForgetSetup);
+            }
+        });
+        ui.add(egui::TextEdit::singleline(&mut self.state_filter).hint_text("Search").desired_width(f32::INFINITY)).widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, "Search the state"));
+        let f = self.state_filter.trim().to_lowercase();
+        let fits = |name: &str| f.is_empty() || name.to_lowercase().contains(&f);
+        let world = &mut self.game.world;
+        let add = &mut self.add;
+        egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.label(format!("On {}", world.current_map));
+                ui.separator();
+                ui.label("Day");
+                ui.add(egui::DragValue::new(&mut world.day)).widget_info(|| egui::WidgetInfo::labeled(egui::Role::SpinButton, true, "Day"));
+                ui.label("Hour");
+                ui.add(egui::DragValue::new(&mut world.hour).range(0.0..=23.99).speed(0.05).fixed_decimals(1)).widget_info(|| egui::WidgetInfo::labeled(egui::Role::SpinButton, true, "Hour"));
+            });
+            egui::CollapsingHeader::new(format!("Flags ({})", world.flags.len())).default_open(true).show(ui, |ui| {
+                let mut off = None;
+                for flag in world.flags.iter().filter(|n| fits(n)) {
+                    let mut on = true;
+                    if ui.checkbox(&mut on, flag.as_str()).on_hover_text("Untick to clear it").changed() {
+                        off = Some(flag.clone());
+                    }
+                }
+                if let Some(flag) = off {
+                    world.flags.remove(&flag);
+                }
+                ui.horizontal(|ui| {
+                    let r = ui.add(egui::TextEdit::singleline(&mut add[0]).hint_text("a flag to set").desired_width(150.0));
+                    r.widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, "A flag to set"));
+                    let enter = r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                    if (ui.button("Set").clicked() || enter) && !add[0].trim().is_empty() {
+                        world.flags.insert(add[0].trim().to_string());
+                        add[0].clear();
+                    }
+                });
+            });
+            egui::CollapsingHeader::new(format!("Variables ({})", world.vars.len())).default_open(true).show(ui, |ui| {
+                for (name, value) in world.vars.iter_mut().filter(|(n, _)| fits(n)) {
+                    ui.horizontal(|ui| {
+                        let by = ui.label(name.as_str()).id;
+                        ui.add(egui::DragValue::new(value)).labelled_by(by);
+                    });
+                }
+                ui.horizontal(|ui| {
+                    let r = ui.add(egui::TextEdit::singleline(&mut add[1]).hint_text("a variable").desired_width(150.0));
+                    r.widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, "A variable to add"));
+                    let enter = r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                    if (ui.button("Add").clicked() || enter) && !add[1].trim().is_empty() {
+                        world.vars.entry(add[1].trim().to_string()).or_insert(0);
+                        add[1].clear();
+                    }
+                });
+            });
+            egui::CollapsingHeader::new(format!("Quests ({})", world.quests.len())).default_open(true).show(ui, |ui| {
+                use rustpg2d_engine::quest::QuestStatus;
+                for (id, q) in world.quests.iter_mut().filter(|(n, _)| fits(n)) {
+                    ui.horizontal(|ui| {
+                        let by = ui.label(id.as_str()).id;
+                        ui.add(egui::DragValue::new(&mut q.stage).prefix("stage ")).labelled_by(by);
+                        for (status, label) in [(QuestStatus::Active, "active"), (QuestStatus::Completed, "done"), (QuestStatus::Failed, "failed")] {
+                            if ui.selectable_label(q.status == status, label).clicked() {
+                                q.status = status;
+                            }
+                        }
+                    });
+                }
+                if world.quests.is_empty() {
+                    ui.weak("None started.");
+                }
+            });
+            egui::CollapsingHeader::new(format!("Party ({})", world.companions.len())).default_open(true).show(ui, |ui| {
+                for c in &world.companions {
+                    ui.label(format!("{}{}{}", if c.name.is_empty() { format!("#{}", c.uid) } else { c.name.clone() }, c.hp.map_or(String::new(), |hp| format!(" · {hp} hit points")), if c.down.is_some() { " · down" } else { "" }));
+                }
+                if world.companions.is_empty() {
+                    ui.weak("The hero is alone.");
+                }
+            });
+            let held = world.inventory.slots.iter().flatten().count();
+            egui::CollapsingHeader::new(format!("Bag ({held})")).default_open(true).show(ui, |ui| {
+                for stack in world.inventory.slots.iter_mut() {
+                    let Some(st) = stack.as_mut().filter(|st| fits(&st.item)) else { continue };
+                    let mut gone = false;
+                    ui.horizontal(|ui| {
+                        let by = ui.label(st.item.as_str()).id;
+                        ui.add(egui::DragValue::new(&mut st.count).range(0..=9999)).labelled_by(by);
+                        gone = st.count == 0;
+                    });
+                    if gone {
+                        *stack = None;
+                    }
+                }
+                ui.horizontal(|ui| {
+                    let r = ui.add(egui::TextEdit::singleline(&mut add[2]).hint_text("an item's id").desired_width(150.0));
+                    r.widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, "An item to give"));
+                    let enter = r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                    if (ui.button("Give").clicked() || enter) && !add[2].trim().is_empty() {
+                        world.inventory.add(add[2].trim(), 1);
+                        add[2].clear();
+                    }
+                });
+            });
+        });
+    }
+
     /// Runs a frame of the game at the panel's size and shows it.
-    pub fn show(&mut self, ui: &mut egui::Ui, rs: &eframe::egui_wgpu::RenderState) {
+    fn game_view(&mut self, ui: &mut egui::Ui, rs: &eframe::egui_wgpu::RenderState, asks: &mut Vec<PlayAsk>) {
         let rect = ui.available_rect_before_wrap();
         let response = ui.allocate_rect(rect, egui::Sense::click());
         let ppp = ui.ctx().pixels_per_point();
         let size = ((rect.width() * ppp).round().max(1.0) as u32, (rect.height() * ppp).round().max(1.0) as u32);
         self.screen.resize(size.0, size.1, ppp);
 
-        // The panel's input becomes the game's.
+        // The panel's input becomes the game's. While inspecting (or with Alt held) the
+        // pointer's buttons stay here: a click asks what is under it.
         let over = response.hovered();
+        let inspecting = self.inspect || ui.input(|i| i.modifiers.alt);
+        let mut clicked = false;
         ui.input(|i| {
             if let Some(pos) = i.pointer.latest_pos() {
                 let p = (pos - rect.min) * ppp;
@@ -67,6 +286,7 @@ impl PlayView {
                         }
                     }
                     egui::Event::Text(t) if over => t.chars().for_each(|c| self.input.char(c)),
+                    egui::Event::PointerButton { button, pressed, .. } if inspecting && over => clicked |= *pressed && *button == egui::PointerButton::Primary,
                     egui::Event::PointerButton { button, pressed, .. } if over || !*pressed => {
                         let b = match button {
                             egui::PointerButton::Primary => MouseButton::Left,
@@ -85,10 +305,30 @@ impl PlayView {
             }
         });
 
-        if !self.paused {
-            let game = &mut self.game;
-            gfx::with_screen(&mut self.screen, &mut self.input, || game.frame());
+        // The game's clock: stopped, a step at a time, slower or faster than the real one. (A
+        // fast clock takes several steps a frame; keys pressed count in the first.)
+        let real = gfx::time::get_frame_time();
+        let (steps, dt) = match (self.paused, std::mem::take(&mut self.step_once)) {
+            (true, true) => (1, 1.0 / 60.0),
+            (true, false) => (0, 0.0),
+            (false, _) if self.speed > 1.0 => (self.speed.round() as u32, real),
+            (false, _) => (1, real * self.speed),
+        };
+        let game = &mut self.game;
+        let plain = !self.paused && self.speed == 1.0;
+        for _ in 0..if plain { 0 } else { steps } {
+            gfx::with_screen(&mut self.screen, &mut self.input, || game.step(dt));
+            self.input.end_frame();
         }
+        let pointed = gfx::with_screen(&mut self.screen, &mut self.input, || {
+            // (At the real clock's speed the game runs its own frame, measuring itself.)
+            if plain {
+                game.frame();
+            } else {
+                game.draw();
+            }
+            (inspecting && over).then(|| game.thing_under_pointer()).flatten()
+        });
         self.input.end_frame();
         for k in self.tapped.drain(..) {
             self.input.key_up(k);
@@ -110,6 +350,17 @@ impl PlayView {
             }
         };
         ui.painter().image(id, rect, egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)), egui::Color32::WHITE);
+        if self.paused {
+            ui.painter().text(rect.left_top() + egui::vec2(10.0, 8.0), egui::Align2::LEFT_TOP, "Paused", egui::FontId::proportional(14.0), egui::Color32::from_rgb(255, 220, 120));
+        }
+        // What a click would open, said at the pointer.
+        if let Some(p) = pointed {
+            let what = if p.name.is_empty() { p.def.clone() } else { format!("{} ({})", p.name, p.def) };
+            response.clone().on_hover_text_at_pointer(format!("{what}: click to open what it is"));
+            if clicked {
+                asks.push(PlayAsk::Open(p));
+            }
+        }
     }
 }
 

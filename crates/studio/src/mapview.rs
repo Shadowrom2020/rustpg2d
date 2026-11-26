@@ -145,6 +145,8 @@ pub enum Ask {
     OpenDef(RefKind, String),
     OpenMap(String),
     New(RefKind),
+    /// Play the game with the hero on this tile of this map; true: with the test setup.
+    PlayHere((i32, i32), bool),
 }
 
 /// What the window lends a map tab for a frame.
@@ -205,6 +207,8 @@ pub struct MapView {
     pending: Option<(Selection, serde_json::Value, String)>,
     /// A thing to bring into view with the next frame.
     reveal: Option<Selection>,
+    /// The tile the right button was last pressed on (the menu's *Play from here*).
+    menu_tile: (i32, i32),
     /// The things under the last press, when the front one was selected already: a click
     /// without a drag goes on to the next.
     cycle: Option<Vec<Selection>>,
@@ -248,6 +252,7 @@ impl Default for MapView {
             outliner_filter: String::new(),
             pending: None,
             reveal: None,
+            menu_tile: (0, 0),
             cycle: None,
             shift: false,
             draw_ms: 0.0,
@@ -331,6 +336,11 @@ impl MapView {
     pub fn select(&mut self, sel: Selection) {
         self.sel = vec![sel];
         self.reveal = Some(sel);
+    }
+
+    /// The world point in the middle of the view.
+    pub fn center(&self) -> Vec2 {
+        self.cam.map_or(Vec2::ZERO, |c| c.0)
     }
 
     /// Looks at world point `center` at `zoom` (the script's `mapview`).
@@ -1530,6 +1540,8 @@ impl MapView {
         // The right button selects what is under it (unless that is selected already).
         if resp.secondary_clicked() {
             if let (Some(doc), Some(w)) = (doc_of(p.ws, name), self.hover) {
+                let ts = p.ws.ts();
+                self.menu_tile = ((w.x / ts).floor() as i32, (w.y / ts).floor() as i32);
                 let at = self.look().to_screen(w);
                 let stack = self.things_at(p.ws, &doc.map, at);
                 if !stack.iter().any(|s| self.sel.contains(s)) {
@@ -1545,11 +1557,24 @@ impl MapView {
         };
         let scenery = matches!(self.sel.as_slice(), [Selection::Scenery(_)]);
         let any = !self.sel.is_empty();
+        let tile = self.menu_tile;
+        let setup = {
+            let setup = p.ws.test_setup();
+            if setup == Default::default() { "No test setup yet: a new hero, nothing done".to_string() } else { format!("The test setup: {}", setup.summary()) }
+        };
         resp.context_menu(|ui| {
+            if ui.button("Play from here").on_hover_text(format!("A new game with the hero on tile {}, {}: the map's Map enter events run", tile.0, tile.1)).clicked() {
+                p.asks.push(Ask::PlayHere(tile, false));
+                ui.close();
+            }
+            if ui.button("Play from here with the test setup").on_hover_text(format!("{}. A game in progress loaded here: the map's Map enter events don't run. The Play tab's State panel keeps a running game's state as the setup.", setup)).clicked() {
+                p.asks.push(Ask::PlayHere(tile, true));
+                ui.close();
+            }
             if !any {
-                ui.weak("Nothing here");
                 return;
             }
+            ui.separator();
             if let Some((rk, id)) = &def {
                 if ui.button("Edit definition").clicked() {
                     p.asks.push(Ask::OpenDef(*rk, id.clone()));
@@ -2003,6 +2028,7 @@ mod ui_tests {
                         Ask::OpenDef(k, id) => format!("open {} {id}", k.name()),
                         Ask::OpenMap(m) => format!("map {m}"),
                         Ask::New(k) => format!("new {}", k.name()),
+                        Ask::PlayHere(t, setup) => format!("play {},{}{}", t.0, t.1, if setup { " setup" } else { "" }),
                     });
                 }
             },

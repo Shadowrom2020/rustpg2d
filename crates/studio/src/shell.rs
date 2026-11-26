@@ -206,6 +206,22 @@ enum Ask {
     New(Option<RefKind>),
     /// Look for what nothing uses.
     FindUnused,
+    /// Start the game in the Play tab: from the title screen, on the start map, on a map at a
+    /// tile, or again as it was started.
+    Play(PlayFrom),
+    /// The game in its own window, started as the Play tab's was.
+    PlayWindow,
+}
+
+/// Where a game in the Play tab starts.
+#[derive(Clone, Debug, PartialEq)]
+pub enum PlayFrom {
+    Title,
+    Start,
+    /// A map and the tile the hero stands on; true: with the project's test setup (a saved
+    /// game loaded there: the map's *Map enter* events don't run).
+    Tile(String, (i32, i32), bool),
+    Again,
 }
 
 pub struct Shell {
@@ -385,6 +401,99 @@ impl Shell {
     }
 
     /// `tabs=… focus=… history=… problems=… palette=…` for the script's `status`.
+    /// Starts the game in the Play tab (everything is saved first: the game reads the
+    /// project's files).
+    pub fn play_from(&mut self, from: PlayFrom) {
+        if !self.ws.project_open {
+            return;
+        }
+        if self.ws.is_dirty() {
+            self.ws.save_all();
+        }
+        let ts = self.ws.ts();
+        let base = rustpg2d_engine::runtime::StartOptions { dev: true, ..Default::default() };
+        self.start = match from {
+            PlayFrom::Again => self.start.clone(),
+            PlayFrom::Title => rustpg2d_engine::runtime::StartOptions { title: true, ..base },
+            PlayFrom::Start => base,
+            PlayFrom::Tile(map, (x, y), setup) => {
+                let mut start = rustpg2d_engine::runtime::StartOptions { map: Some(map.clone()), pos: Some(gfx::math::vec2((x as f32 + 0.5) * ts, (y as f32 + 0.5) * ts)), ..base };
+                if setup {
+                    match self.ws.write_test_save(&map, (x, y)) {
+                        Ok((file, problems)) => {
+                            start.load = Some(file);
+                            if !problems.is_empty() {
+                                self.log.push(format!("The test setup has problems: {}", problems.join(", ")));
+                            }
+                        }
+                        Err(e) => {
+                            self.ws.set_status(format!("Could not write the test save: {e}"));
+                            return;
+                        }
+                    }
+                }
+                start
+            }
+        };
+        self.play = None;
+        self.play_error = None;
+        self.show_tab(Tab::Play);
+        let where_ = match (&self.start.map, self.start.title) {
+            (Some(m), _) if self.start.load.is_some() => format!("on {m} with the test setup ({})", self.ws.test_setup().summary()),
+            (Some(m), _) => format!("on {m}"),
+            (None, true) => "from the title screen".into(),
+            (None, false) => "on the start map".into(),
+        };
+        self.ws.set_status(format!("Playing {where_}"));
+    }
+
+    /// On the map being worked on, where its view looks (the tile in the middle).
+    pub fn play_here(&mut self) {
+        let ts = self.ws.ts();
+        let Some((view, name)) = self.map_view() else {
+            return self.play_from(PlayFrom::Start);
+        };
+        let c = view.center();
+        self.play_from(PlayFrom::Tile(name, ((c.x / ts).floor() as i32, (c.y / ts).floor() as i32), false));
+    }
+
+    /// The game in its own window (the real runner beside this program), started as the Play
+    /// tab's was.
+    pub fn play_window(&mut self) {
+        if !self.ws.project_open {
+            return;
+        }
+        if self.ws.is_dirty() {
+            self.ws.save_all();
+        }
+        let runner = rustpg2d_engine::release::Platform::host().game_runner();
+        let Some(exe) = std::env::current_exe().ok().map(|e| e.with_file_name(runner)).filter(|e| e.is_file()) else {
+            self.ws.set_status(format!("{runner} (the game) was not found next to the editor; from source run `cargo build -p rustpg2d-game`"));
+            return;
+        };
+        let mut cmd = std::process::Command::new(exe);
+        cmd.arg(self.ws.project.root.canonicalize().unwrap_or_else(|_| self.ws.project.root.clone())).arg("--dev");
+        if !self.start.title {
+            cmd.arg("--no-title");
+        }
+        if let Some(file) = &self.start.load {
+            cmd.arg("--load").arg(file);
+        }
+        if let Some(m) = &self.start.map {
+            cmd.args(["--map", m]);
+            if let Some(s) = &self.start.spawn {
+                cmd.args(["--spawn", s]);
+            }
+            if let Some(p) = self.start.pos {
+                cmd.args(["--pos", &format!("{},{}", p.x, p.y)]);
+            }
+        }
+        match cmd.spawn() {
+            Ok(_) => self.ws.set_status("The game runs in its own window"),
+            Err(e) => self.ws.set_status(format!("The game could not be started: {e}")),
+        }
+    }
+
     /// The view of the map being worked on, with the map's name.
     pub fn map_view(&mut self) -> Option<(&mut crate::mapview::MapView, String)> {
         let name = self.ws.doc.as_ref()?.map.name.clone();
@@ -498,6 +607,8 @@ impl Shell {
                 Ask::Palette(text) => self.open_palette(PaletteKind::Commands, &text),
                 Ask::New(kind) => self.new_asset = Some(crate::gallery::NewAsset::of(kind)),
                 Ask::FindUnused => self.find_unused(),
+                Ask::Play(from) => self.play_from(from),
+                Ask::PlayWindow => self.play_window(),
             }
         }
         self.gallery_ui(&ctx, rs);
@@ -519,6 +630,12 @@ impl Shell {
         }
         if escape && self.palette.open.is_some() {
             self.palette.open = None;
+        }
+        let (f5, f6) = ctx.input(|i| (i.key_pressed(egui::Key::F5), i.key_pressed(egui::Key::F6)));
+        if f5 {
+            self.play_from(PlayFrom::Title);
+        } else if f6 {
+            self.play_here();
         }
         // (A text field with the keyboard keeps Ctrl+Z for its own typing.)
         if save {
@@ -593,9 +710,29 @@ impl Shell {
             }
         }
         ui.separator();
-        if ui.button("Play").on_hover_text("Runs the game here, in a tab").clicked() {
-            self.show_tab(Tab::Play);
-        }
+        ui.menu_button("Play", |ui| {
+            if ui.button("From the title screen   F5").on_hover_text("The game as players get it, here in a tab").clicked() {
+                self.play_from(PlayFrom::Title);
+                ui.close();
+            }
+            if ui.button("On this map   F6").on_hover_text("On the map being worked on, where its view looks (right-click the map for an exact spot)").clicked() {
+                self.play_here();
+                ui.close();
+            }
+            if ui.button("On the start map").clicked() {
+                self.play_from(PlayFrom::Start);
+                ui.close();
+            }
+            ui.separator();
+            if ui.button("In its own window").on_hover_text("The real game beside the editor, started as the Play tab's was").clicked() {
+                self.play_window();
+                ui.close();
+            }
+            if ui.button("Show the Play tab").clicked() {
+                self.show_tab(Tab::Play);
+                ui.close();
+            }
+        });
     }
 
     /// The entries the palette shows for its text: (label, detail, what Enter does).
@@ -966,9 +1103,37 @@ impl Viewer<'_> {
             }
         }
         match (self.play.as_mut(), self.rs) {
-            (Some(p), Some(rs)) => p.show(ui, rs),
+            (Some(p), Some(rs)) => {
+                let setup = self.ws.test_setup();
+                let summary = if setup == Default::default() { String::new() } else { setup.summary() };
+                for ask in p.show(ui, rs, &summary) {
+                    use crate::play::PlayAsk;
+                    self.asks.push(match ask {
+                        PlayAsk::Again => Ask::Play(PlayFrom::Again),
+                        PlayAsk::FromTitle => Ask::Play(PlayFrom::Title),
+                        PlayAsk::FromStart => Ask::Play(PlayFrom::Start),
+                        PlayAsk::OwnWindow => Ask::PlayWindow,
+                        // What was clicked in the game: its place on its map when it is placed
+                        // there, else (spawned in play) what it is.
+                        PlayAsk::Open(p) => Ask::Open(Tab::Def(editor_core::mapedit::kind_ref(p.kind), p.def)),
+                        PlayAsk::KeepSetup(setup) => {
+                            self.ws.set_status(format!("The test setup: {}", setup.summary()));
+                            self.ws.set_test_setup(*setup);
+                            continue;
+                        }
+                        PlayAsk::ForgetSetup => {
+                            self.ws.set_test_setup(Default::default());
+                            self.ws.set_status("The test setup is forgotten");
+                            continue;
+                        }
+                    });
+                }
+            }
             _ => {
                 ui.colored_label(egui::Color32::LIGHT_RED, self.play_error.clone().unwrap_or_else(|| "The game can't run here.".into()));
+                if ui.button("Try again").clicked() {
+                    self.asks.push(Ask::Play(PlayFrom::Again));
+                }
             }
         }
     }
@@ -1601,6 +1766,7 @@ impl Viewer<'_> {
                 crate::mapview::Ask::OpenDef(k, id) => self.asks.push(Ask::Open(Tab::Def(k, id))),
                 crate::mapview::Ask::OpenMap(m) => self.asks.push(Ask::Open(Tab::Map(m))),
                 crate::mapview::Ask::New(k) => self.asks.push(Ask::New(Some(k))),
+                crate::mapview::Ask::PlayHere(tile, setup) => self.asks.push(Ask::Play(PlayFrom::Tile(name.to_string(), tile, setup))),
             }
         }
     }

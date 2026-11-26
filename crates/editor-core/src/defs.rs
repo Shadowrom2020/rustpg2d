@@ -41,6 +41,92 @@ pub fn list(db: &Database, kind: rustpg2d_engine::refactor::RefKind) -> Vec<(Str
         .collect(), else => Vec::new())
 }
 
+/// The category of every definition of `kind`, told from what it is: `(id, rank, label)`, the
+/// rank for the order categories are listed in. Empty for kinds without categories. (Lists use
+/// it to group and filter: items by the SRD's categories, props by what they do, characters by
+/// creature type, spells by level; the creator's own tags come on top.)
+pub fn categories(db: &Database, kind: rustpg2d_engine::refactor::RefKind) -> Vec<(String, u32, String)> {
+    use rustpg2d_engine::item_category::{self, ItemCat};
+    use rustpg2d_engine::refactor::RefKind;
+    let row = |id: &str, rank: usize, label: &str| (id.to_string(), rank as u32, label.to_string());
+    match kind {
+        RefKind::Item => {
+            let ammo = item_category::ammo_of(db);
+            db.items
+                .iter()
+                .map(|d| {
+                    let c = item_category::category(d, &ammo);
+                    row(&d.id, ItemCat::ALL.iter().position(|x| *x == c).unwrap_or(99), c.label())
+                })
+                .collect()
+        }
+        RefKind::Prop => db
+            .props
+            .iter()
+            .map(|d| {
+                let (rank, label) = if d.building.is_some() || d.block > 0.0 || !d.pieces.is_empty() {
+                    (0, "Walls and buildings")
+                } else if d.door {
+                    (1, "Doors and gates")
+                } else if d.container.is_some() {
+                    (2, "Containers")
+                } else if d.use_spot.is_some() {
+                    (3, "Furniture to use")
+                } else if d.light.is_some() {
+                    (4, "Lights")
+                } else if d.gather.is_some() || d.plot {
+                    (5, "Gathering and farming")
+                } else if d.trap.is_some() {
+                    (6, "Traps")
+                } else if d.lock.is_some() || !d.triggers.is_empty() || d.states.len() > 1 {
+                    (7, "Things that react")
+                } else if d.carry.is_some() {
+                    (8, "Things to carry")
+                } else {
+                    (9, "Scenery")
+                };
+                row(&d.id, rank, label)
+            })
+            .collect(),
+        RefKind::Character => db
+            .characters
+            .iter()
+            .map(|d| match d.stats.as_ref().map(|s| s.creature_type.split(" (").next().unwrap_or("").trim().to_lowercase()).filter(|t| !t.is_empty()) {
+                // "humanoid (any race)" -> Humanoids
+                Some(t) => {
+                    let label = format!("{}{}s", t[..1].to_uppercase(), &t[1..]);
+                    (d.id.clone(), if t == "humanoid" { 1 } else { 2 + t.bytes().next().unwrap_or(b'a') as u32 }, label)
+                }
+                None => row(&d.id, 0, "Without a stat block"),
+            })
+            .collect(),
+        RefKind::Spell => db.spells.iter().map(|d| row(&d.id, d.level as usize, &if d.level == 0 { "Cantrips".to_string() } else { format!("Level {}", d.level) })).collect(),
+        RefKind::Model => db
+            .models
+            .iter()
+            .map(|d| {
+                if d.part.is_some() {
+                    row(&d.id, 2, "Pieces (hair, outfits, headwear)")
+                } else if d.id.starts_with("rig_") {
+                    row(&d.id, 3, "Rig templates")
+                } else if d.playable {
+                    row(&d.id, 0, "Offered in the character creator")
+                } else {
+                    row(&d.id, 1, "Figures, creatures and things")
+                }
+            })
+            .collect(),
+        RefKind::Structure => {
+            let mut names: Vec<&str> = db.structures.iter().map(|d| d.category.as_str()).collect();
+            names.sort_unstable();
+            names.dedup();
+            db.structures.iter().map(|d| row(&d.id, names.iter().position(|n| *n == d.category).unwrap_or(0), if d.category.is_empty() { "Other" } else { &d.category })).collect()
+        }
+        RefKind::Sheet => db.sheets.iter().map(|d| row(&d.id, d.kind as usize, &format!("{:?}", d.kind))).collect(),
+        _ => Vec::new(),
+    }
+}
+
 /// A definition as the text of its file entry (RON).
 pub fn ron_of(db: &Database, kind: rustpg2d_engine::refactor::RefKind, id: &str) -> Option<String> {
     use rustpg2d_engine::defs::Def;
@@ -98,4 +184,28 @@ impl Workspace {
         Ok(msg)
     }
 
+}
+
+#[cfg(test)]
+mod tests {
+    use rustpg2d_engine::refactor::RefKind;
+
+    #[test]
+    fn definitions_are_put_into_categories_by_what_they_are() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../example_project");
+        let db = rustpg2d_engine::project::Project::load(&dir).unwrap().db;
+        let of = |kind: RefKind, id: &str| super::categories(&db, kind).into_iter().find(|(i, ..)| i == id).map(|(_, _, label)| label);
+        assert_eq!(of(RefKind::Item, "iron_sword").as_deref(), Some("Martial melee weapons"));
+        assert_eq!(of(RefKind::Prop, "chest").as_deref(), Some("Containers"));
+        assert_eq!(of(RefKind::Spell, "fire-bolt").as_deref(), Some("Cantrips"));
+        assert_eq!(super::categories(&db, RefKind::Item).len(), db.items.len(), "every item has one");
+        assert!(super::categories(&db, RefKind::Quest).is_empty(), "quests have none");
+        // Ranks give the categories' order: the same label never has two ranks.
+        for kind in RefKind::ALL {
+            let mut seen = std::collections::HashMap::new();
+            for (_, rank, label) in super::categories(&db, kind) {
+                assert_eq!(*seen.entry(label.clone()).or_insert(rank), rank, "{kind:?}: {label}");
+            }
+        }
+    }
 }

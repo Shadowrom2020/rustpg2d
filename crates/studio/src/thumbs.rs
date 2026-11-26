@@ -47,6 +47,10 @@ pub struct Thumbs {
     shown: HashMap<usize, (Texture2D, egui::TextureId, u64)>,
     /// Ground materials are pictures in memory: their textures, made when first shown.
     materials: HashMap<String, Texture2D>,
+    /// Sheets as egui blends them (colours multiplied by their alpha), by the sheet's texture:
+    /// made when a sheet is first shown. The engine's own textures keep colour and alpha apart,
+    /// which egui would draw with bright fringes around soft edges.
+    sheets: HashMap<usize, Texture2D>,
     frame: u64,
     generation: u64,
 }
@@ -65,6 +69,7 @@ impl Thumbs {
         self.generation = ws.assets.generation;
         if reloaded {
             self.materials.clear();
+            self.sheets.clear();
         }
         let frame = self.frame;
         let old: Vec<usize> = self.shown.iter().filter(|(_, (_, _, last))| reloaded || frame - last > KEEP_FRAMES).map(|(k, _)| *k).collect();
@@ -98,9 +103,21 @@ impl Thumbs {
             return None;
         }
         let uv = egui::Rect::from_min_max(egui::pos2(src.x / tw, src.y / th), egui::pos2((src.x + src.w) / tw, (src.y + src.h) / th));
+        let texture = self
+            .sheets
+            .entry(sheet.texture.key())
+            .or_insert_with(|| {
+                let mut bytes = sheet.image.bytes.clone();
+                for px in bytes.as_chunks_mut::<4>().0 {
+                    let a = px[3] as u32;
+                    *px = [(px[0] as u32 * a / 255) as u8, (px[1] as u32 * a / 255) as u8, (px[2] as u32 * a / 255) as u8, px[3]];
+                }
+                Texture2D::from_rgba8(sheet.image.width, sheet.image.height, &bytes)
+            })
+            .clone();
         // Pixel art stays crisp; big painted pictures are shown smaller than they are: smoothed.
         let smooth = src.w.max(src.h) > 80.0;
-        Some(Thumb { texture: self.id(rs, &sheet.texture, smooth), uv, size: egui::vec2(src.w, src.h) })
+        Some(Thumb { texture: self.id(rs, &texture, smooth), uv, size: egui::vec2(src.w, src.h) })
     }
 
     /// How many frames a sheet has, for a picker of one.

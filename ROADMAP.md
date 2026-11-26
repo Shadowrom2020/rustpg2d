@@ -876,6 +876,12 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     asked for, so a list of hundreds costs what it shows.
   - **Everything of a kind** in a tab (*Show all* in the browser, script `tab kind:item`): cards
     with pictures or a list, with a filter and *+ New*.
+  - **Categories told from what a thing is** (`editor_core::defs::categories`): items by the
+    SRD's categories (`item_category.rs`), props by what they do (walls and buildings, doors,
+    containers, furniture to use, lights, gathering and farming, traps, things that react,
+    scenery), characters by creature type, spells by level, models (playable, figures, pieces,
+    rig templates), structures by their category, sheets by kind. The browser lists a kind
+    under them; a kind's tab filters by one.
   - The browser's fixed groups with a *+ New* per kind (part 3's shell); while something is
     typed into its filter, what fits is shown open and the rest is out of the way.
   - Script: `field KIND ID /POINTER VALUE` changes a field as the form does; `click X Y`,
@@ -885,8 +891,8 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   buildings, class levels), other pickers than definitions (flags, variables, script functions,
   factions, a sheet's frame as a picture), units and ranges on numbers, the mark on fields
   changed from their default, problems at the field, live previews (a prop with its states, an
-  item in a hand, a moving character), pictures of structures, the table view, filters (category,
-  tag, *has problems*, *unused*) and bulk actions, folders and tags (`editor/meta.ron`), the
+  item in a hand, a moving character), pictures of structures, the table view, filters (tag,
+  *has problems*, *unused*) and bulk actions, folders and tags (`editor/meta.ron`), the
   *New…* gallery, *From library…* in pickers (part 9), the schema as the agents' field descriptions and
   the manual's reference tables.
 
@@ -906,6 +912,12 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     `NOT_FOLLOWED`. They get pickers; renaming those ids still leaves them behind, as in 0.35.
     The schema walk (`schema::texts`) can replace the hand-written rename and usage passes;
     that belongs to part 11's clean-up, with a test of its own.
+  - *Pictures are the engine's textures, not copies.* egui gets the sheet's texture and the
+    part that is the sprite, or the model atlas's page and the pose's part. One exception: egui
+    blends colours already multiplied by their alpha, the engine keeps them apart, so a sheet
+    shown in the UI gets a multiplied copy the first time (else soft edges get bright fringes).
+  - *Categories are derived first, tags come on top.* A project that was never sorted by hand
+    is sorted already; `editor/meta.ron` (folders, tags) refines it when it is built.
   - *Help is the doc comment for now.* It was written for developers; where it reads badly for
     creators it gets a line in the tables (or a better comment).
 
@@ -927,7 +939,9 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     creatures each filling their card) and materials; the browser filtered by "sword" with its
     icons; the Elder's header and portrait; the Iron Sword's *Pick the frame…* with the chosen
     frame marked; the model picker's list with figures. `tests/headless.rs` checks `Cell::drawn`
-    on the hero's pose.
+    on the hero's pose. Categories: the browser's Props and Items under their categories, the
+    Props tab with *Containers* clicked (5 of 187); test
+    `definitions_are_put_into_categories_by_what_they_are`.
 
 - [ ] Part 5: Game settings and rules — `feature/studio`
 

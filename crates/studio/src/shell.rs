@@ -80,6 +80,24 @@ pub const GROUPS: &[(&str, &[RefKind])] = &[
     ("Art & sound", &[RefKind::Model, RefKind::Sheet, RefKind::Animation, RefKind::Sound, RefKind::Font, RefKind::Skin]),
 ];
 
+/// The categories of definitions (`editor_core::defs::categories`), by kind and id.
+type Cats = std::collections::HashMap<RefKind, std::collections::HashMap<String, (u32, String)>>;
+
+/// The categories among `rows` in their order, with how many rows each has.
+fn categories_of(cats: Option<&std::collections::HashMap<String, (u32, String)>>, rows: &[(String, String)]) -> Vec<(u32, String, usize)> {
+    let mut found: Vec<(u32, String, usize)> = Vec::new();
+    for (id, _) in rows {
+        if let Some((rank, label)) = cats.and_then(|c| c.get(id)) {
+            match found.iter_mut().find(|(_, l, _)| l == label) {
+                Some(entry) => entry.2 += 1,
+                None => found.push((*rank, label.clone(), 1)),
+            }
+        }
+    }
+    found.sort();
+    found
+}
+
 /// The palette over the window: commands (Ctrl+Shift+P) or *Go to anything* (Ctrl+P).
 #[derive(Default)]
 pub struct Palette {
@@ -114,6 +132,8 @@ pub struct Shell {
     pub palette: Palette,
     /// The browser's lists: (kind, id, name), made again when the project changed.
     lists: Vec<(RefKind, Vec<(String, String)>)>,
+    /// What each definition is, where its kind has categories: id -> (rank, label).
+    cats: Cats,
     browser_filter: String,
     /// Forms holding something that isn't a valid definition yet: what was typed and why it
     /// can't be taken (the definition itself stays as it was until it can).
@@ -143,7 +163,7 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), log: Vec::new() }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), log: Vec::new() }
     }
 
     /// Shows `tab`: brings it to the front when it is open, else opens it beside the documents.
@@ -266,6 +286,7 @@ impl Shell {
             return;
         }
         self.lists = GROUPS.iter().flat_map(|(_, kinds)| kinds.iter()).filter(|k| **k != RefKind::Map).map(|k| (*k, editor_core::defs::list(&self.ws.project.db, *k))).collect();
+        self.cats = self.lists.iter().map(|(k, _)| (*k, editor_core::defs::categories(&self.ws.project.db, *k).into_iter().map(|(id, rank, label)| (id, (rank, label))).collect())).filter(|(_, c): &(RefKind, std::collections::HashMap<String, (u32, String)>)| !c.is_empty()).collect();
         self.ws.stale = false;
     }
 
@@ -298,7 +319,7 @@ impl Shell {
 
         let mut asks = Vec::new();
         {
-            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, rs, asks: &mut asks };
+            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, rs, asks: &mut asks };
             DockArea::new(&mut self.dock).show_inside(ui, &mut viewer);
         }
         for ask in asks {
@@ -502,6 +523,7 @@ struct Viewer<'a> {
     play_error: &'a mut Option<String>,
     start: &'a rustpg2d_engine::runtime::StartOptions,
     lists: &'a [(RefKind, Vec<(String, String)>)],
+    cats: &'a Cats,
     filter: &'a mut String,
     forms: &'a mut std::collections::HashMap<(RefKind, String), (serde_json::Value, String)>,
     show_all: &'a mut bool,
@@ -593,24 +615,41 @@ impl Viewer<'_> {
                                 }
                             });
                         }
-                        let pictures = crate::thumbs::has_pictures(*kind);
-                        for (id, name) in rows {
-                            let label = if name == id { id.clone() } else { format!("{name}  ({id})") };
-                            let clicked = ui
-                                .horizontal(|ui| {
-                                    if let (true, Some(rs)) = (pictures, self.rs) {
-                                        crate::thumbs::boxed(ui, 18.0, || self.thumbs.of(self.ws, rs, *kind, id));
+                        // Nothing typed: by what they are, where the kind has categories.
+                        let cats = self.cats.get(kind);
+                        let groups = if filtering { Vec::new() } else { categories_of(cats, rows) };
+                        if groups.len() > 1 {
+                            for (_, label, n) in &groups {
+                                egui::CollapsingHeader::new(format!("{label} ({n})")).id_salt(("cat", kind.name(), label)).show(ui, |ui| {
+                                    for (id, name) in rows.iter().filter(|(id, _)| cats.and_then(|c| c.get(id)).is_some_and(|(_, l)| l == label)) {
+                                        self.browser_row(ui, *kind, id, name);
                                     }
-                                    ui.selectable_label(false, label).clicked()
-                                })
-                                .inner;
-                            if clicked {
-                                self.asks.push(Ask::Open(if *kind == RefKind::Map { Tab::Map(id.clone()) } else { Tab::Def(*kind, id.clone()) }));
+                                });
+                            }
+                        } else {
+                            for (id, name) in rows {
+                                self.browser_row(ui, *kind, id, name);
                             }
                         }
                     });
                 }
             });
+        }
+    }
+
+    /// A definition (or map) in the browser: its picture and name, opened by a click.
+    fn browser_row(&mut self, ui: &mut egui::Ui, kind: RefKind, id: &str, name: &str) {
+        let label = if name == id { id.to_string() } else { format!("{name}  ({id})") };
+        let clicked = ui
+            .horizontal(|ui| {
+                if let (true, Some(rs)) = (crate::thumbs::has_pictures(kind), self.rs) {
+                    crate::thumbs::boxed(ui, 18.0, || self.thumbs.of(self.ws, rs, kind, id));
+                }
+                ui.selectable_label(false, label).clicked()
+            })
+            .inner;
+        if clicked {
+            self.asks.push(Ask::Open(if kind == RefKind::Map { Tab::Map(id.to_string()) } else { Tab::Def(kind, id.to_string()) }));
         }
     }
 
@@ -838,8 +877,26 @@ impl Viewer<'_> {
                 self.asks.push(Ask::Palette(format!("defs.new {} ", kind.name())));
             }
         });
+        // What they are: one category at a time, or all.
+        let cats = self.cats.get(&kind);
+        let groups = categories_of(cats, all);
+        let cid = ui.scope_id().with("category");
+        let mut category: String = ui.data_mut(|d| d.get_temp(cid).unwrap_or_default());
+        if groups.len() > 1 {
+            ui.horizontal_wrapped(|ui| {
+                if ui.selectable_label(category.is_empty(), format!("All ({})", all.len())).clicked() {
+                    category.clear();
+                }
+                for (_, label, n) in &groups {
+                    if ui.selectable_label(category == *label, format!("{label} ({n})")).clicked() {
+                        category = label.clone();
+                    }
+                }
+            });
+        }
         let f = filter.trim().to_lowercase();
-        let rows: Vec<&(String, String)> = all.iter().filter(|(id, name)| f.is_empty() || id.to_lowercase().contains(&f) || name.to_lowercase().contains(&f)).collect();
+        let in_category = |id: &str| category.is_empty() || cats.and_then(|c| c.get(id)).is_some_and(|(_, l)| *l == category);
+        let rows: Vec<&(String, String)> = all.iter().filter(|(id, name)| in_category(id) && (f.is_empty() || id.to_lowercase().contains(&f) || name.to_lowercase().contains(&f))).collect();
         ui.weak(if rows.len() == all.len() { format!("{}", all.len()) } else { format!("{} of {}", rows.len(), all.len()) });
         ui.separator();
         let mut open = None;
@@ -872,6 +929,7 @@ impl Viewer<'_> {
         }
         ui.data_mut(|d| {
             d.insert_temp(fid, filter);
+            d.insert_temp(cid, category);
             d.insert_persisted(lid, as_list);
         });
     }

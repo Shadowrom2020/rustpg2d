@@ -91,5 +91,18 @@ fn the_example_draws_without_a_window() {
         }
         panic!("{off:.2} % of the pixels differ from tests/golden/house.png (this run's picture: {})", actual.display());
     }
+
+    // The same game in a view of its own, with its own input: how an editor's panel shows it.
+    let mut view = gfx::Screen::new(640, 360, 1.0);
+    let mut input = gfx::input::Input::new();
+    gfx::with_screen(&mut view, &mut input, || {
+        assert_eq!((gfx::window::screen_width(), gfx::window::screen_height()), (640.0, 360.0));
+        game.frame();
+    });
+    assert_eq!(gfx::window::screen_width(), 1280.0, "the screen is the window's again");
+    let small = view.texture().get_texture_data();
+    assert_eq!((small.width, small.height), (640, 360));
+    let lit = small.bytes.as_chunks::<4>().0.iter().filter(|p| p[0] > 90 && p[1] > 60).count();
+    assert!(lit > 2000, "the view shows the room ({lit} bright pixels)");
     let _ = std::fs::remove_dir_all(&tmp);
 }

@@ -1,10 +1,38 @@
 # CLAUDE.md
 
 Instructions for Claude Code sessions on **R(ust)PG2D**, a 2D top-down RPG engine with an editor
-(Rust, macroquad + egui; Linux, Windows and macOS). The shared rules for everyone — branching concept, checks
+(Rust; wgpu, winit and egui; Linux, Windows, macOS and the web). The shared rules for everyone — branching concept, checks
 before merging, commit messages — are in AGENTS.md and apply in full:
 
 @AGENTS.md
+
+## The Studio branch (0.36.0)
+
+`feature/studio` is the long-lived branch of ROADMAP.md, *0.36.0 — The Studio*: the editor is
+being rewritten on a new foundation, in twelve parts. While it lasts:
+
+- **There is no editor on this branch.** `crates/editor` is the 0.35 editor (macroquad + egui
+  0.31), out of the workspace and kept only to read (`exclude` in `Cargo.toml`). Everything below
+  that needs the editor (its script commands, the agent server, repository mode, *Example content*
+  through `library_send`) describes 0.35 and comes back with the new editor; until then example
+  content is edited with a 0.35 editor in a `master` worktree and merged in. `scripts/ci/smoke.sh`
+  skips the editor's checks without the binary.
+- **The engine draws through `crates/gfx`** (wgpu, winit, kira), which keeps macroquad's drawing
+  names: `use gfx::prelude::*` where `macroquad::prelude` was. Shaders are WGSL
+  (`gfx::material`). The game is drawn into a picture (`gfx::Screen`); `gfx::with_screen` draws
+  it into any view with its own input, `gfx::init_headless` / `gfx::window::run_headless` draw
+  without a window (tests, `model_sheet`).
+- **Roadmap parts, not one item per branch:** work the parts in order on this branch, push to it
+  (the draft pull request #356 runs CI), and keep each part's *Progress*, *Decided while
+  building* and *Verify* notes in ROADMAP.md true.
+- **Checks that draw:** `cargo test` runs `crates/engine/tests/headless.rs` (the example's house
+  off screen against `tests/golden/house.png`; `RUSTPG2D_BLESS=1` rewrites the picture, look at
+  it first). Comparing with 0.35: `scripts/studio/shots.sh GAME OUT` with both runners, then
+  `scripts/studio/compare.py BASE NEW SHEET.png` (`RUSTPG2D_FIXED_STEP` makes the frames equal;
+  the 0.35 runner needs a macroquad patched for it, see ROADMAP part 1).
+- **Environment:** `RUSTPG2D_ALLOW_SOFTWARE=1` lets the game draw on a software renderer (Xvfb,
+  containers); `RUSTPG2D_GFX_INFO=1` prints the adapter; `RUSTPG2D_VSYNC=0`;
+  `RUSTPG2D_WAYLAND=1` (windows are X11 by default on Linux).
 
 ## Working with the user
 
@@ -63,6 +91,12 @@ the data model, formats and compatibility rules, caveats); keep it current when 
 changes. The modules:
 
 ```
+crates/gfx/src/         the platform layer (0.36): lib.rs (the context, begin / end frame, with_screen), batch.rs
+                        (the draw list: draw calls with their projection, one render pass per run into the same
+                        picture), texture.rs (Image, Texture2D, RenderTarget, Screen, read-backs), material.rs
+                        (WGSL materials, declarations generated), camera.rs, shapes.rs, text.rs (+ atlas; macroquad's
+                        code), input.rs (Input: fed by the window or an embedder), window.rs (winit: desktop and
+                        the web's canvas), audio.rs (kira), web.rs (the browser's services), time.rs, gpu.rs
 crates/engine/src/      library: everything shared by game and editor
   defs.rs               Database: sheets, items, props (+states, container, lock, anim),
                         characters (+shop), sounds, quests, structures; serde formats of defs/*.ron
@@ -309,7 +343,7 @@ crates/engine/src/      library: everything shared by game and editor
   sys.rs                the game's file / clock access: native std::fs (+ a mounted data.pack), web =
                         in-memory files from data.pack + localStorage (web/rustpg2d.js plugin); use it,
                         not std::fs, in game code
-  web/                  index.html, mq_js_bundle.js (macroquad's loader, vendored), rustpg2d.js (plugin)
+  web/                  index.html of exported web games (the runner pair comes from `cargo xtask-web`)
   desktop.rs            Windows start-up of game and editor (attach console, panic message box);
                         icon.rs = window icons, hero_icon (icon.png, else the player portrait) /
                         fit_icon / emblem (also the packages' icons; exports write the icon as
@@ -414,12 +448,11 @@ scripts/art/meshy/      the Meshy pipeline that drew the 2D figures of 0.16 / 0.
   items, short comments that explain *why*. Rust 2021; clippy must pass with `-D warnings`.
 - Errors: `anyhow::Result` with `.context(...)` in IO code; the game never panics on bad
   data — log with `eprintln!` (prefix like `[game]`, `[events]`) and carry on.
-- Don't add dependencies without a good reason. Pinned stack: macroquad 0.4.16 (with
-  `features = ["audio"]`), egui-macroquad 0.17.3 (egui 0.31) and with it egui-phosphor 0.9 (each
-  later egui-phosphor needs a newer egui; Dependabot ignores all four, and egui_kittest 0.31.1, the
-  editor's UI tests, with them), image 0.24 and lewton 0.9
-  (macroquad's versions: `image` only turns on the JPEG decoder of macroquad's copy; ignored too), postcard + lz4_flex, ron,
-  rhai, rfd, zip 9, png 0.18 (`imageio.rs`; macroquad keeps its own png 0.17 internally).
+- Don't add dependencies without a good reason. The stack: wgpu 30 (the version egui-wgpu uses:
+  the editor will hand its device to `gfx`), winit 0.30, kira 0.12 (without its default
+  features), fontdue 0.9, glam 0.30 (`scalar-math`: the vertex layout needs unaligned `Vec4`),
+  image 0.25 (PNG, JPEG), wasm-bindgen (xtask's `wasm-bindgen-cli-support` must be the same
+  version: a test), lewton 0.9, postcard + lz4_flex, ron, rhai, zip 9, png 0.18 (`imageio.rs`).
 - **Compatibility** (maps, defs and save games of older versions load). Until 1.0.0 this is the default, not an
   absolute: a break is allowed only when keeping compatibility costs more than the feature, or makes it impossible.
   The user must agree to the break, and it comes with a conversion where possible (ROADMAP.md, *Compatibility until
@@ -439,12 +472,12 @@ scripts/art/meshy/      the Meshy pipeline that drew the 2D figures of 0.16 / 0.
     changes, add the previous release's file as a fixture (its README says how); never edit one.
 - Tiles are always 32 px; sizes in code are in pixels at that size (`Game::u()` = ts/16 scales
   effects). Rhai reserves `var`, hence `get_var` / `set_var`.
-- Game UI (macroquad's default font, ProggyClean) has Latin-1 only (ä, ö, ü, ß, é, · work): no `∞`, `▲`, `✔`, `–`, `“` in `draw_text`.
+- Game UI (the built-in font, ProggyClean) has Latin-1 only (ä, ö, ü, ß, é, · work): no `∞`, `▲`, `✔`, `–`, `“` in `draw_text`.
   New runtime texts: draw them with the runtime's `draw_text` (`runtime/text.rs`, already imported in
   the runtime files) and add a line to every built-in language file, `engine/lang/de.ron` and the eight others (whole
   English string, `{}` for values; a test fails until each file has it).
   Content that is already translated (dialog lines, names) goes through `text::draw_plain` / `measure_plain`;
-  never call macroquad's text functions in the runtime (they skip the project's fonts). A new HUD / dialog
+  never call `gfx`'s text functions directly in the runtime (they skip the project's fonts). A new HUD / dialog
   drawing function starts with `let _font = text::role(Role::Hud | Role::Dialog);`. Window chrome
   (panels, buttons, tabs, selection, toasts, HUD frame and bars) and window text colours go through
   `runtime/skin.rs` (`skin::panel`, `skin::button_picture` / `button_fill`, `skin::cursor`,
@@ -610,7 +643,9 @@ copy; set `RUSTPG2D_FOLDER_PROJECTS=1` to work on the folder itself.
   a Ctrl combination send a Ctrl key-up, or egui keeps ignoring typed text. There is no xdotool / Xvfb on this machine, and XTest on XWayland may prompt the
   user, so don't use it.
 - **Web game:** `rustup target add wasm32-unknown-unknown`, `cargo build --release --target
-  wasm32-unknown-unknown -p rustpg2d-game`, export with `exportweb`, serve the folder with
+  wasm32-unknown-unknown -p rustpg2d-game`, then `cargo xtask-web` (wasm-bindgen's step: writes
+  `target/web/rustpg2d-game.wasm` + `.js`), export with `exportweb` (without an editor: `cargo run
+  -p rustpg2d-engine --example export_web -- PROJECT OUT`), serve the folder with
   `python3 -m http.server PORT --bind 127.0.0.1` (background) and open it headless with a
   scratch profile: `brave --headless=new --user-data-dir=<scratch> --use-angle=swiftshader
   --enable-unsafe-swiftshader --enable-logging=stderr --v=0 "http://127.0.0.1:PORT/index.html?autoplay=<url-encoded script>"`
@@ -687,7 +722,7 @@ copy; set `RUSTPG2D_FOLDER_PROJECTS=1` to work on the folder itself.
   asset library*, which needs `crates/editor/assets/starter_history.ron` to know every shipped
   version: after changing the starter library run `cargo run -p rustpg2d-editor --example
   starter_history` (the test `starter_history_covers_the_starter` fails until then).
-- macroquad `Image::export_png` flips vertically.
+- `gfx`'s `Image::export_png` flips vertically (as macroquad's did: right for `get_screen_data`, whose rows come bottom first).
 - Characters are 3D models (figures were removed in 0.18; their sheets load as plain sprites). Colour
   features match exact colours of a model's 32-colour texture: `model_info` tells where each colour
   sits on the model (0 = feet, 1 = top) to keep the hair's browns apart from the boots'. Meshy files

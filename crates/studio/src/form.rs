@@ -138,6 +138,30 @@ fn label_cell(ui: &mut egui::Ui, label: &str, help: &str) -> egui::Id {
     .inner
 }
 
+/// The label of a field's row; true when *Back to the default* was picked from its menu.
+fn field_label(ui: &mut egui::Ui, row: Row) -> (egui::Id, bool) {
+    let size = egui::vec2(LABEL_WIDTH, ui.spacing().interact_size.y);
+    ui.allocate_ui_with_layout(size, egui::Layout::left_to_right(egui::Align::Center), |ui| {
+        ui.set_min_width(LABEL_WIDTH);
+        let mut r = ui.add(egui::Label::new(row.label).truncate().sense(if row.reset { egui::Sense::click() } else { egui::Sense::hover() }));
+        let id = r.id;
+        if !row.help.is_empty() {
+            r = r.on_hover_text(row.help);
+        }
+        let mut reset = false;
+        if row.reset {
+            r.context_menu(|ui| {
+                if ui.button("Back to the default").clicked() {
+                    reset = true;
+                    ui.close();
+                }
+            });
+        }
+        (id, reset)
+    })
+    .inner
+}
+
 /// A group's header: folds, shows the label with its help and a few words on what is inside
 /// (`[label, help, about]`), and what `extra` adds at its end. Returns (changed in the body, what `extra` returned).
 fn group<R>(ui: &mut egui::Ui, salt: impl std::hash::Hash + std::fmt::Debug, [label, help, about]: [&str; 3], open: bool, extra: impl FnOnce(&mut egui::Ui) -> R, body: impl FnOnce(&mut egui::Ui) -> bool) -> (bool, R) {
@@ -472,17 +496,24 @@ pub struct Row<'a> {
     pub site: &'a str,
     pub label: &'a str,
     pub help: &'a str,
+    /// A field that holds something else than its default: its label's menu (right-click)
+    /// puts it back.
+    pub reset: bool,
 }
 
 /// A value under its label: on a row when it fits there, else as a group that folds. True when
 /// it changed.
 pub fn node_ui(ui: &mut egui::Ui, cx: &mut Cx, node: Node, row: Row, v: &mut Value, depth: usize) -> bool {
-    let Row { site, label, help } = row;
+    let Row { site, label, help, .. } = row;
     let shape = node.shape();
     if is_inline(&shape) {
         return ui
             .horizontal(|ui| {
-                let by = label_cell(ui, label, help);
+                let (by, reset) = field_label(ui, row);
+                if reset {
+                    *v = node.blank();
+                    return true;
+                }
                 inline(ui, cx, node, site, v, by)
             })
             .inner;
@@ -524,10 +555,15 @@ pub fn node_ui(ui: &mut egui::Ui, cx: &mut Cx, node: Node, row: Row, v: &mut Val
             let now = schema::variant_of(&variants, v);
             let pick = ui
                 .horizontal(|ui| {
-                    let by = label_cell(ui, label, help);
-                    variant_combo(ui, &variants, now, by)
+                    let (by, reset) = field_label(ui, row);
+                    (variant_combo(ui, &variants, now, by), reset)
                 })
                 .inner;
+            let (pick, reset) = pick;
+            if reset {
+                *v = node.blank();
+                return true;
+            }
             let mut changed = false;
             if let Some(k) = pick {
                 *v = switched(v, &variants[k]);
@@ -564,8 +600,21 @@ fn blank_past_default(node: Node) -> Value {
 /// One field of an object: shown with its default while the object leaves it out.
 fn field_ui(ui: &mut egui::Ui, cx: &mut Cx, field: &Field, map: &mut serde_json::Map<String, Value>, depth: usize) -> bool {
     let (site, label, help) = (field.site(), field.label(), field.node.help());
-    let row = Row { site: &site, label: &label, help: &help };
-    ui.push_id(field.key, |ui| match map.get_mut(field.key) {
+    // What still holds its default is shown dimmed: what was set stands out.
+    let at_default = map.get(field.key).is_none_or(|v| *v == field.node.blank());
+    let row = Row { site: &site, label: &label, help: &help, reset: !at_default };
+    ui.push_id(field.key, |ui| {
+        if at_default {
+            ui.visuals_mut().widgets.noninteractive.fg_stroke.color = ui.visuals().weak_text_color();
+        }
+        field_value_ui(ui, cx, field, row, map, depth)
+    })
+    .inner
+}
+
+/// The field's value, or its default while the object leaves it out.
+fn field_value_ui(ui: &mut egui::Ui, cx: &mut Cx, field: &Field, row: Row, map: &mut serde_json::Map<String, Value>, depth: usize) -> bool {
+    match map.get_mut(field.key) {
         Some(v) => node_ui(ui, cx, field.node, row, v, depth),
         None => {
             let mut v = field.node.blank();
@@ -575,8 +624,7 @@ fn field_ui(ui: &mut egui::Ui, cx: &mut Cx, field: &Field, map: &mut serde_json:
             }
             changed
         }
-    })
-    .inner
+    }
 }
 
 /// What an enum value's variant holds (`n`): its fields, or its one value.
@@ -587,7 +635,7 @@ fn variant_data(ui: &mut egui::Ui, cx: &mut Cx, n: Node, v: &mut Value, depth: u
     if matches!(n.shape(), Shape::Struct(_)) {
         body(ui, cx, n, &site, data, depth)
     } else {
-        node_ui(ui, cx, n, Row { site: &site, label: "Value", help: "" }, data, depth)
+        node_ui(ui, cx, n, Row { site: &site, label: "Value", help: "", reset: false }, data, depth)
     }
 }
 
@@ -763,7 +811,7 @@ fn body(ui: &mut egui::Ui, cx: &mut Cx, node: Node, site: &str, v: &mut Value, d
                 *v = node.blank();
             }
             for (k, (n, item)) in nodes.iter().zip(v.as_array_mut().into_iter().flatten()).enumerate() {
-                ui.push_id(k, |ui| changed |= node_ui(ui, cx, *n, Row { site: &format!("{site}.{k}"), label: &format!("{}.", k + 1), help: "" }, item, depth + 1));
+                ui.push_id(k, |ui| changed |= node_ui(ui, cx, *n, Row { site: &format!("{site}.{k}"), label: &format!("{}.", k + 1), help: "", reset: false }, item, depth + 1));
             }
         }
         Shape::Map(inner) => {
@@ -782,7 +830,7 @@ fn body(ui: &mut egui::Ui, cx: &mut Cx, node: Node, site: &str, v: &mut Value, d
                         if ui.small_button("x").on_hover_text("Remove").clicked() {
                             remove = Some(key.clone());
                         }
-                        ui.vertical(|ui| changed |= node_ui(ui, cx, inner, Row { site, label: key, help: "" }, item, depth + 1));
+                        ui.vertical(|ui| changed |= node_ui(ui, cx, inner, Row { site, label: key, help: "", reset: false }, item, depth + 1));
                     });
                 });
             }
@@ -1046,6 +1094,18 @@ mod ui_tests {
         h.get_by_label("Ally").click();
         h.run();
         assert_eq!(h.state().value["use_on"], "Ally");
+    }
+
+    #[test]
+    fn a_field_goes_back_to_its_default_from_its_label() {
+        let mut h = form(RefKind::Item, "iron_sword");
+        h.run();
+        assert_eq!(h.state().value["max_stack"], 1);
+        h.get_by_role_and_label(egui::accesskit::Role::Label, "Stack size").click_secondary();
+        h.run();
+        h.get_by_label("Back to the default").click();
+        h.run();
+        assert_eq!(h.state().value["max_stack"], 99);
     }
 
     #[test]

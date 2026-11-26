@@ -860,8 +860,9 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     *+ New…*, *Open*); a row for fixed-size values; nothing-or-something as *+ Add* / *Remove*;
     lists with add (of an enum: from the searchable list of its variants), remove, move; named
     entries; colours. Fields a file leaves out are shown with their default, so a form shows
-    everything a definition can have; *Show all fields* adds the advanced ones. Every control is
-    named by its label (AccessKit).
+    everything a definition can have; what still holds its default is dimmed, so what was set
+    stands out, and a label's menu (right-click) has *Back to the default*. *Show all fields*
+    adds the advanced ones. Every control is named by its label (AccessKit).
   - `editor-core`: `def_value` / `set_def_value` (a definition as data and back, refused with
     the reason when it isn't one), `new_def`, `duplicate_def`, `delete_def` (refused while
     something uses it), the commands `defs.new` (Ctrl+N), `defs.duplicate`, `defs.delete`. What
@@ -893,8 +894,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     input hook), `size W H`, `allfields on|off`.
   Still open: the hand-made editors (triggers as an event sheet in part 7; stat blocks,
   buildings, class levels), a state picked among the states of the prop in question, tool
-  kinds and piece styles, units and ranges on numbers, the mark on fields
-  changed from their default, problems at the field, live previews (a prop with its states, an
+  kinds and piece styles, units and ranges on numbers, problems at the field, live previews (a prop with its states, an
   item in a hand, a moving character), pictures of structures, the table view, filters (tag,
   *has problems*, *unused*) and bulk actions, folders and tags (`editor/meta.ron`), the
   *New…* gallery, *From library…* in pickers (part 9), the schema as the agents' field descriptions and
@@ -933,8 +933,8 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   of the browser, a grid, a table and three asset documents.
   - Done so far: `every_field_has_its_section` (all 24 kinds), `references_agree_with_renames`;
     `form.rs`'s UI tests through AccessKit (sections and advanced fields, a choice picked from
-    its list, an id picked by searching and opened; egui_kittest also fails any control without
-    a name).
+    its list, an id picked by searching and opened, a field put back to its default from its
+    label's menu; egui_kittest also fails any control without a name).
   - A scripted run in the window on a copy of the example, with real clicks: the Iron Sword's
     *Used on* opened and *Ally* clicked, *Teaches* opened, "fire" typed, *Fire Bolt* clicked: two
     history entries, saved, `items.ron` has `use_on: Ally` and `teaches: "fire-bolt"`, two undos

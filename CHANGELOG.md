@@ -28,7 +28,8 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **Forms that know their fields** (part 4): every definition's form has sections, a label and
   help for each field, a choice for every enum, a searchable picker for every id (with *+ New…*
   and *Open*), lists with add / remove / move, and shows the fields a file leaves out with
-  their defaults; *Show all fields* adds the rarely needed ones. New, duplicate, delete, rename
+  their defaults, dimmed, so what was set stands out (right-click a label: *Back to the
+  default*); *Show all fields* adds the rarely needed ones. New, duplicate, delete, rename
   and usages are in the form's header. The forms are made from the engine's own types
   (`cargo run -p rustpg2d-engine --features schema --example schema -- item` prints a kind's
   JSON Schema), so a new engine field appears in its form without editor work.

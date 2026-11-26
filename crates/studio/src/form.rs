@@ -28,6 +28,14 @@ pub enum Ask {
     New(RefKind),
 }
 
+/// The pictures a form can show: a sprite, a definition's thumbnail, a sheet's frames to pick
+/// from. (A form without them, in tests, shows the fields alone.)
+pub trait Pictures {
+    fn sprite(&mut self, sprite: &rustpg2d_engine::defs::SpriteRef) -> Option<crate::thumbs::Thumb>;
+    fn of(&mut self, kind: RefKind, id: &str) -> Option<crate::thumbs::Thumb>;
+    fn frames(&self, sheet: &str) -> Option<crate::thumbs::SheetFrames>;
+}
+
 /// What a form needs from around it.
 pub struct Cx<'a> {
     /// Id and name of every definition, by kind (the pickers' lists).
@@ -35,6 +43,7 @@ pub struct Cx<'a> {
     pub maps: &'a [String],
     /// Also the fields for advanced use.
     pub show_all: bool,
+    pub pictures: Option<&'a mut dyn Pictures>,
     pub asks: Vec<Ask>,
 }
 
@@ -173,9 +182,19 @@ fn picker(ui: &mut egui::Ui, cx: &mut Cx, kinds: &[RefKind], s: &mut String, by:
             if kinds.len() > 1 {
                 ui.weak(format!("{}s", kind.label()));
             }
+            let pictures = crate::thumbs::has_pictures(*kind) && cx.pictures.is_some();
             for (id, name) in hits.iter().take(MAX_PICKS) {
                 let label = if name == id { id.clone() } else { format!("{name}  ({id})") };
-                if ui.selectable_label(id == s, label).clicked() {
+                let clicked = if pictures {
+                    ui.horizontal(|ui| {
+                        crate::thumbs::boxed(ui, 20.0, || cx.pictures.as_mut().and_then(|p| p.of(*kind, id)));
+                        ui.selectable_label(id == s, label).clicked()
+                    })
+                    .inner
+                } else {
+                    ui.selectable_label(id == s, label).clicked()
+                };
+                if clicked {
                     pick = Some(id.clone());
                 }
             }
@@ -515,6 +534,62 @@ fn variant_data(ui: &mut egui::Ui, cx: &mut Cx, n: Node, v: &mut Value, depth: u
     }
 }
 
+/// A sprite: its picture beside its fields, and the sheet's frames to pick one from.
+fn sprite_ui(ui: &mut egui::Ui, cx: &mut Cx, fields: &[Field], v: &mut Value, depth: usize) -> bool {
+    let now: Option<rustpg2d_engine::defs::SpriteRef> = serde_json::from_value(v.clone()).ok();
+    let Value::Object(map) = v else { return false };
+    let mut changed = false;
+    ui.horizontal(|ui| {
+        crate::thumbs::boxed(ui, 64.0, || cx.pictures.as_mut().zip(now.as_ref()).and_then(|(p, s)| p.sprite(s)));
+        ui.vertical(|ui| {
+            for field in fields {
+                changed |= field_ui(ui, cx, field, map, depth);
+            }
+            let sheet = now.as_ref().map(|s| s.sheet.clone()).unwrap_or_default();
+            let Some(frames) = cx.pictures.as_ref().and_then(|p| p.frames(&sheet)).filter(|f| f.count > 1) else { return };
+            let pick = ui
+                .menu_button("Pick the frame…", |ui| {
+                    let mut pick = None;
+                    egui::ScrollArea::both().max_height(380.0).max_width(560.0).show(ui, |ui| {
+                        ui.spacing_mut().item_spacing = egui::vec2(2.0, 2.0);
+                        for row in 0..frames.count.div_ceil(frames.columns) {
+                            ui.horizontal(|ui| {
+                                for frame in (row * frames.columns..((row + 1) * frames.columns).min(frames.count)).take(64) {
+                                    let (rect, r) = ui.allocate_exact_size(egui::vec2(36.0, 36.0), egui::Sense::click());
+                                    r.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, format!("Frame {frame}")));
+                                    if !ui.is_rect_visible(rect) {
+                                        continue;
+                                    }
+                                    let chosen = now.as_ref().is_some_and(|s| s.frame == frame);
+                                    if chosen || r.hovered() {
+                                        ui.painter().rect_filled(rect, 3.0, if chosen { ui.visuals().selection.bg_fill } else { ui.visuals().widgets.hovered.bg_fill });
+                                    }
+                                    if let Some(t) = cx.pictures.as_mut().and_then(|p| p.sprite(&rustpg2d_engine::defs::SpriteRef::new(&sheet, frame))) {
+                                        t.paint(ui, rect.shrink(2.0));
+                                    }
+                                    if r.on_hover_text(format!("Frame {frame}")).clicked() {
+                                        pick = Some(frame);
+                                    }
+                                }
+                            });
+                        }
+                    });
+                    if pick.is_some() {
+                        ui.close();
+                    }
+                    pick
+                })
+                .inner
+                .flatten();
+            if let Some(frame) = pick {
+                map.insert("frame".into(), Value::from(frame));
+                changed = true;
+            }
+        });
+    });
+    changed
+}
+
 /// The inside of a group (no header of its own).
 fn body(ui: &mut egui::Ui, cx: &mut Cx, node: Node, site: &str, v: &mut Value, depth: usize) -> bool {
     let mut changed = false;
@@ -523,6 +598,9 @@ fn body(ui: &mut egui::Ui, cx: &mut Cx, node: Node, site: &str, v: &mut Value, d
         Shape::Struct(fields) => {
             if !v.is_object() {
                 *v = blank_past_default(node);
+            }
+            if node.type_name() == "SpriteRef" && cx.pictures.is_some() {
+                return sprite_ui(ui, cx, &fields, v, depth);
             }
             let Value::Object(map) = v else { return false };
             for field in &fields {
@@ -875,7 +953,7 @@ mod ui_tests {
         let state = State { kind, value, show_all: false, lists, asks: Vec::new() };
         Harness::builder().with_size(egui::vec2(900.0, 4000.0)).build_ui_state(
             |ui, state: &mut State| {
-                let mut cx = Cx { lists: &state.lists, maps: &[], show_all: state.show_all, asks: Vec::new() };
+                let mut cx = Cx { lists: &state.lists, maps: &[], show_all: state.show_all, pictures: None, asks: Vec::new() };
                 definition_ui(ui, &mut cx, schema::of_kind(state.kind).unwrap(), &mut state.value);
                 for ask in cx.asks {
                     state.asks.push(match ask {

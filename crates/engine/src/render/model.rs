@@ -220,6 +220,9 @@ pub struct Cell {
     /// The head bone (the base of the head) in the cell, for portraits.
     pub head: Option<Vec2>,
     pub tips: Vec<(String, Vec2)>,
+    /// The part of the cell the figure covers with what it wears and holds (cell pixels): a
+    /// person stands in the middle of a roomy frame, a cow fills hers. Thumbnails show this part.
+    pub drawn: Rect,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -1736,6 +1739,12 @@ fn render(c: &mut Cache, l: &Loaded, parts: &[&Loaded], items: &HashMap<String, 
     }
     // The frame: the standard one, grown by whatever sticks out of it (a spear, a swung arm),
     // in steps of 8 pixels and at most one and a half figures each way.
+    // What the figure itself covers (without its shadow), in the standard frame's pixels.
+    let (mut flo, mut fhi) = (vec2(f32::MAX, f32::MAX), vec2(f32::MIN, f32::MIN));
+    for p in vertices.iter().map(|v| v.position).chain(pieces.iter().flat_map(|m| m.vertices.iter().map(|v| v.position))).chain(held.iter().flat_map(|(m, ..)| m.vertices.iter().map(|v| v.position))) {
+        let s = to_px0(p);
+        (flo, fhi) = (flo.min(s), fhi.max(s));
+    }
     let (left, right, top, bottom) = if req.bust {
         (0, 0, 0, 0)
     } else {
@@ -1831,7 +1840,11 @@ fn render(c: &mut Cache, l: &Loaded, parts: &[&Loaded], items: &HashMap<String, 
     let feet = to_px(Vec3::ZERO) + vec2(1.0, 1.0);
     let head = l.model.node("head").map(|n| to_px(turn.transform_point3(world[n].w_axis.truncate())) + vec2(1.0, 1.0));
     let base = Rect::new(left as f32, top as f32, (w0 + 2) as f32, (h0 + 2) as f32);
-    Cell { page, rect, base, feet, head, tips: tips.into_iter().map(|(id, p)| (id, p + vec2(1.0, 1.0))).collect() }
+    // (With the outline's pixel around it, inside the cell.)
+    let whole = vec2((w + 2) as f32, (h + 2) as f32);
+    let (dlo, dhi) = ((flo + vec2(left as f32, top as f32)).floor().max(Vec2::ZERO), (fhi + vec2(left as f32 + 2.0, top as f32 + 2.0)).ceil().min(whole));
+    let drawn = if dhi.x > dlo.x && dhi.y > dlo.y { Rect::new(dlo.x, dlo.y, dhi.x - dlo.x, dhi.y - dlo.y) } else { Rect::new(0.0, 0.0, whole.x, whole.y) };
+    Cell { page, rect, base, feet, head, tips: tips.into_iter().map(|(id, p)| (id, p + vec2(1.0, 1.0))).collect(), drawn }
 }
 
 /// How far a still model's shadow reaches per unit of height (across the screen, toward the

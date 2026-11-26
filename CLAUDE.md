@@ -29,7 +29,10 @@ being rewritten on a new foundation, in twelve parts. While it lasts:
 - **The new editor is `crates/studio`** (binary `rustpg2d-studio`): the shell (`shell.rs`: dock,
   Project browser, command palette, Go to anything, Problems, History, Overview) and the game in
   a tab (`play.rs`). Definitions have forms made from the field schema (`form.rs` over
-  `editor-core/src/schema.rs`); maps show as facts until part 6.
+  `editor-core/src/schema.rs`); pictures of assets are the engine's own textures shown by egui
+  (`thumbs.rs`: `Thumbs::of(kind, id)`, `sprite`, `figure`; ask through `thumbs::boxed` so only
+  what is on screen is fetched); `Tab::Kind` (script `tab kind:item`) is everything of a kind
+  as cards or a list; maps show as facts until part 6.
   `RUSTPG2D_STUDIO_SCRIPT="wait 2; status; tab def:item:potion; goto elder; pick 0; palette
   rename; map.open house; edit.undo; tab play; shot /path/a.png; quit" target/debug/rustpg2d-studio
   <project> [--map M --spawn S]` drives it: `shot` = the whole window, a line that is no script
@@ -138,7 +141,8 @@ crates/editor-core/src/ the editor without its UI (0.36): workspace.rs (Workspac
                         tools.rs = the catalogue, exec*.rs, play.rs, watcher.rs, server.rs)
 crates/studio/src/      the new editor (0.36): main.rs (the eframe window; `--headless PROJECT --mcp PORT` = the agent
                         server without a window), shell.rs (dock, browser, palettes, tabs), form.rs (forms from the
-                        field schema), play.rs (the game in a panel); examples/mcp_smoke.rs
+                        field schema), thumbs.rs (pictures of assets from the engine's textures), play.rs (the game
+                        in a panel); examples/mcp_smoke.rs
 crates/engine/src/      library: everything shared by game and editor
   defs.rs               Database: sheets, items, props (+states, container, lock, anim),
                         characters (+shop), sounds, quests, structures; serde formats of defs/*.ron

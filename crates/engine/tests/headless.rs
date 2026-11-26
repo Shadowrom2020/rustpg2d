@@ -104,5 +104,24 @@ fn the_example_draws_without_a_window() {
     assert_eq!((small.width, small.height), (640, 360));
     let lit = small.bytes.as_chunks::<4>().0.iter().filter(|p| p[0] > 90 && p[1] > 60).count();
     assert!(lit > 2000, "the view shows the room ({lit} bright pixels)");
+
+    // A pose knows the part of its cell the figure covers (an editor's thumbnails show that
+    // part): a person stands in the middle of a roomy frame.
+    {
+        use rustpg2d_engine::render::model::{Gear, PoseReq};
+        let hero = game.project.db.character(&game.project.config.player).expect("the player's character").appearance.clone();
+        let models = &game.assets.models;
+        let look = models.look_of(&hero);
+        let req = PoseReq { look: &look, gear: &Gear::default(), anim: "idle", time: 0.0, once: false, facing: rustpg2d_engine::entity::Facing::Down, turn: 0, bust: false };
+        gfx::begin_frame();
+        models.begin_frame();
+        let cell = models.pose(&game.project.db, &game.assets.sheets, &req).expect("the hero's pose");
+        let (page, uv, _) = models.cell_texture(&cell).expect("the pose's page");
+        gfx::end_frame();
+        let (cw, ch) = (uv.w * page.width(), uv.h * page.height());
+        let d = cell.drawn;
+        assert!(d.x >= 0.0 && d.y >= 0.0 && d.x + d.w <= cw + 0.5 && d.y + d.h <= ch + 0.5, "{d:?} lies in the {cw}x{ch} cell");
+        assert!(d.w > 12.0 && d.w < cw * 0.7 && d.h > ch * 0.5, "{d:?} of {cw}x{ch}: a standing person");
+    }
     let _ = std::fs::remove_dir_all(&tmp);
 }

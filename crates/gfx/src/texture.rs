@@ -286,6 +286,12 @@ impl Texture2D {
         })
     }
 
+    /// A number that is this texture's alone while it lives (its clones share it): a key for
+    /// what is kept per texture elsewhere (an editor UI's own handle for it).
+    pub fn key(&self) -> usize {
+        Arc::as_ptr(&self.0) as usize
+    }
+
     /// The texture's view, to show it with other wgpu code (an editor's UI).
     pub fn view(&self) -> &wgpu::TextureView {
         &self.0.view

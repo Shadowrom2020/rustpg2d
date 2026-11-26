@@ -22,6 +22,8 @@ pub enum Tab {
     Play,
     Problems,
     History,
+    /// Everything of a kind, as a grid of pictures or a list.
+    Kind(RefKind),
     /// A definition.
     Def(RefKind, String),
     /// A map.
@@ -43,6 +45,7 @@ impl Tab {
                 }
             }
             Tab::History => "History".into(),
+            Tab::Kind(k) => format!("{}s", k.label()),
             Tab::Def(k, id) => format!("{}: {id}", k.label()),
             Tab::Map(m) => {
                 let dirty = ws.open_maps().iter().any(|d| d.map.name == *m && d.is_dirty());
@@ -51,7 +54,7 @@ impl Tab {
         }
     }
 
-    /// `overview`, `def:item:potion`, `map:village`: how scripts and `status` name a tab.
+    /// `overview`, `kind:item`, `def:item:potion`, `map:village`: how scripts and `status` name a tab.
     pub fn name(&self) -> String {
         match self {
             Tab::Browser => "project".into(),
@@ -59,6 +62,7 @@ impl Tab {
             Tab::Play => "play".into(),
             Tab::Problems => "problems".into(),
             Tab::History => "history".into(),
+            Tab::Kind(k) => format!("kind:{}", k.name()),
             Tab::Def(k, id) => format!("def:{}:{id}", k.name()),
             Tab::Map(m) => format!("map:{m}"),
         }
@@ -116,6 +120,8 @@ pub struct Shell {
     forms: std::collections::HashMap<(RefKind, String), (serde_json::Value, String)>,
     /// Forms also show the fields for advanced use.
     pub show_all: bool,
+    /// The engine's textures as egui shows them (thumbnails, pictures in forms).
+    thumbs: crate::thumbs::Thumbs,
     /// Answers of commands, newest last (the script prints them too).
     pub log: Vec<String>,
 }
@@ -137,7 +143,7 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), browser_filter: String::new(), forms: Default::default(), show_all: false, log: Vec::new() }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), log: Vec::new() }
     }
 
     /// Shows `tab`: brings it to the front when it is open, else opens it beside the documents.
@@ -150,7 +156,7 @@ impl Shell {
             return;
         }
         // Next to another document when there is one, else in the first leaf.
-        let doc = self.dock.find_tab_from(|t| matches!(t, Tab::Overview | Tab::Def(..) | Tab::Map(_) | Tab::Play));
+        let doc = self.dock.find_tab_from(|t| matches!(t, Tab::Overview | Tab::Kind(_) | Tab::Def(..) | Tab::Map(_) | Tab::Play));
         match doc {
             Some(path) => {
                 self.dock.set_focused_node_and_surface(path.node_path());
@@ -170,6 +176,7 @@ impl Shell {
             ("problems", None, _) => Tab::Problems,
             ("history", None, _) => Tab::History,
             ("map", Some(m), None) if self.ws.maps.iter().any(|x| x == m) => Tab::Map(m.to_string()),
+            ("kind", Some(kind), None) => Tab::Kind(RefKind::ALL.iter().copied().find(|k| k.name() == kind && k.is_def())?),
             ("def", Some(kind), Some(id)) => {
                 let k = RefKind::ALL.iter().copied().find(|k| k.name() == kind)?;
                 self.ws.project.db.has(k, id).then(|| Tab::Def(k, id.to_string()))?
@@ -268,6 +275,9 @@ impl Shell {
         self.ws.history_frame(ctx.memory(|m| m.focused()).map(|id| id.value()));
         self.lists();
         self.shortcuts(&ctx);
+        if let Some(rs) = rs {
+            self.thumbs.begin_frame(&self.ws, rs);
+        }
 
         egui::Panel::top("menu").show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| self.menus(ui));
@@ -288,7 +298,7 @@ impl Shell {
 
         let mut asks = Vec::new();
         {
-            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, rs, asks: &mut asks };
+            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, rs, asks: &mut asks };
             DockArea::new(&mut self.dock).show_inside(ui, &mut viewer);
         }
         for ask in asks {
@@ -495,6 +505,7 @@ struct Viewer<'a> {
     filter: &'a mut String,
     forms: &'a mut std::collections::HashMap<(RefKind, String), (serde_json::Value, String)>,
     show_all: &'a mut bool,
+    thumbs: &'a mut crate::thumbs::Thumbs,
     rs: Option<&'a eframe::egui_wgpu::RenderState>,
     asks: &'a mut Vec<Ask>,
 }
@@ -530,6 +541,7 @@ impl egui_dock::TabViewer for Viewer<'_> {
             Tab::Play => self.play_tab(ui),
             Tab::Problems => self.problems(ui),
             Tab::History => self.history(ui),
+            Tab::Kind(k) => self.kind(ui, *k),
             Tab::Def(k, id) => self.definition(ui, *k, id),
             Tab::Map(m) => self.map(ui, m),
         }
@@ -550,24 +562,49 @@ impl Viewer<'_> {
                 self.asks.push(Ask::Open(Tab::Overview));
             }
         });
+        // While something is typed, what fits is shown open and the rest is out of the way.
+        let filtering = !f.is_empty();
         for (group, kinds) in GROUPS {
-            egui::CollapsingHeader::new(*group).default_open(*group == "World" || !f.is_empty()).show(ui, |ui| {
-                for kind in kinds.iter() {
-                    let rows: Vec<(String, String)> = if *kind == RefKind::Map {
+            let found: Vec<(RefKind, Vec<(String, String)>)> = kinds
+                .iter()
+                .map(|kind| {
+                    let rows = if *kind == RefKind::Map {
                         self.ws.maps.iter().filter(|m| fits(m, m)).map(|m| (m.clone(), m.clone())).collect()
                     } else {
                         self.lists.iter().find(|(k, _)| k == kind).map(|(_, l)| l.iter().filter(|(id, name)| fits(id, name)).cloned().collect()).unwrap_or_default()
                     };
-                    if rows.is_empty() && !f.is_empty() {
-                        continue;
-                    }
-                    egui::CollapsingHeader::new(format!("{}s ({})", kind.label(), rows.len())).id_salt(("kind", kind.name())).default_open(!f.is_empty() && rows.len() <= 12).show(ui, |ui| {
-                        if *kind != RefKind::Map && ui.small_button(format!("+ New {}", kind.label().to_lowercase())).clicked() {
-                            self.asks.push(Ask::Palette(format!("defs.new {} ", kind.name())));
+                    (*kind, rows)
+                })
+                .filter(|(_, rows): &(RefKind, Vec<(String, String)>)| !filtering || !rows.is_empty())
+                .collect();
+            if filtering && found.is_empty() {
+                continue;
+            }
+            egui::CollapsingHeader::new(*group).default_open(*group == "World").open(filtering.then_some(true)).show(ui, |ui| {
+                for (kind, rows) in &found {
+                    egui::CollapsingHeader::new(format!("{}s ({})", kind.label(), rows.len())).id_salt(("kind", kind.name())).open(filtering.then_some(rows.len() <= 40)).show(ui, |ui| {
+                        if *kind != RefKind::Map {
+                            ui.horizontal(|ui| {
+                                if ui.small_button(format!("+ New {}", kind.label().to_lowercase())).clicked() {
+                                    self.asks.push(Ask::Palette(format!("defs.new {} ", kind.name())));
+                                }
+                                if ui.small_button("Show all").on_hover_text("All of them in a tab, as pictures or a list").clicked() {
+                                    self.asks.push(Ask::Open(Tab::Kind(*kind)));
+                                }
+                            });
                         }
-                        for (id, name) in &rows {
+                        let pictures = crate::thumbs::has_pictures(*kind);
+                        for (id, name) in rows {
                             let label = if name == id { id.clone() } else { format!("{name}  ({id})") };
-                            if ui.selectable_label(false, label).clicked() {
+                            let clicked = ui
+                                .horizontal(|ui| {
+                                    if let (true, Some(rs)) = (pictures, self.rs) {
+                                        crate::thumbs::boxed(ui, 18.0, || self.thumbs.of(self.ws, rs, *kind, id));
+                                    }
+                                    ui.selectable_label(false, label).clicked()
+                                })
+                                .inner;
+                            if clicked {
                                 self.asks.push(Ask::Open(if *kind == RefKind::Map { Tab::Map(id.clone()) } else { Tab::Def(*kind, id.clone()) }));
                             }
                         }
@@ -692,27 +729,15 @@ impl Viewer<'_> {
             return;
         };
         ui.horizontal(|ui| {
-            ui.heading(saved.get("name").and_then(|n| n.as_str()).filter(|n| !n.is_empty()).unwrap_or(id));
-            ui.weak(format!("{} · {id}", kind.label()));
-        });
-        ui.horizontal(|ui| {
-            if ui.button("Rename…").on_hover_text("Changes the id, and every place that names it").clicked() {
-                self.asks.push(Ask::Palette(format!("edit.rename {} {id} ", kind.name())));
+            if let (true, Some(rs)) = (crate::thumbs::has_pictures(kind), self.rs) {
+                crate::thumbs::boxed(ui, 56.0, || self.thumbs.of(self.ws, rs, kind, id));
             }
-            if ui.button("Duplicate…").clicked() {
-                self.asks.push(Ask::Palette(format!("defs.duplicate {} {id} ", kind.name())));
-            }
-            if ui.button("Delete").on_hover_text("Refused while something still uses it").clicked() {
-                self.asks.push(Ask::Run(format!("defs.delete {} {id}", kind.name())));
-            }
-            if ui.button("Find usages").clicked() {
-                self.asks.push(Ask::Run(format!("find.usages {} {id}", kind.name())));
-            }
-            if self.ws.usages.of.as_ref().is_some_and(|(k, i)| *k == kind && i == id) {
-                ui.label(format!("{} usage(s)", self.ws.usages.list.len()));
-            }
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.checkbox(self.show_all, "Show all fields").on_hover_text("Also the fields that are rarely needed: values from before the SRD rules, data other tools edit");
+            ui.vertical(|ui| {
+                ui.horizontal(|ui| {
+                    ui.heading(saved.get("name").or(saved.get("title")).and_then(|n| n.as_str()).filter(|n| !n.is_empty()).unwrap_or(id));
+                    ui.weak(format!("{} · {id}", kind.label()));
+                });
+                self.definition_buttons(ui, kind, id);
             });
         });
         if self.ws.usages.of.as_ref().is_some_and(|(k, i)| *k == kind && i == id) {
@@ -731,7 +756,9 @@ impl Viewer<'_> {
         ui.separator();
         // The form shows what was typed last, also while that isn't a valid definition yet.
         let mut value = self.forms.get(&key).map_or_else(|| saved.clone(), |(v, _)| v.clone());
-        let mut cx = crate::form::Cx { lists: self.lists, maps: &self.ws.maps, show_all: *self.show_all, asks: Vec::new() };
+        let mut pics = self.rs.map(|rs| crate::thumbs::Pics { thumbs: &mut *self.thumbs, ws: &*self.ws, rs });
+        let pictures = pics.as_mut().map(|p| p as &mut dyn crate::form::Pictures);
+        let mut cx = crate::form::Cx { lists: self.lists, maps: &self.ws.maps, show_all: *self.show_all, pictures, asks: Vec::new() };
         let changed = match editor_core::schema::of_kind(kind) {
             Some(node) => crate::form::definition_ui(ui, &mut cx, node, &mut value),
             None => crate::form::value_ui(ui, kind.label(), &mut value),
@@ -767,6 +794,86 @@ impl Viewer<'_> {
                 ui.label(notes);
             });
         }
+    }
+
+    /// What can be done with a definition as a whole.
+    fn definition_buttons(&mut self, ui: &mut egui::Ui, kind: RefKind, id: &str) {
+        ui.horizontal(|ui| {
+            if ui.button("Rename…").on_hover_text("Changes the id, and every place that names it").clicked() {
+                self.asks.push(Ask::Palette(format!("edit.rename {} {id} ", kind.name())));
+            }
+            if ui.button("Duplicate…").clicked() {
+                self.asks.push(Ask::Palette(format!("defs.duplicate {} {id} ", kind.name())));
+            }
+            if ui.button("Delete").on_hover_text("Refused while something still uses it").clicked() {
+                self.asks.push(Ask::Run(format!("defs.delete {} {id}", kind.name())));
+            }
+            if ui.button("Find usages").clicked() {
+                self.asks.push(Ask::Run(format!("find.usages {} {id}", kind.name())));
+            }
+            if self.ws.usages.of.as_ref().is_some_and(|(k, i)| *k == kind && i == id) {
+                ui.label(format!("{} usage(s)", self.ws.usages.list.len()));
+            }
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.checkbox(self.show_all, "Show all fields").on_hover_text("Also the fields that are rarely needed: values from before the SRD rules, data other tools edit");
+            });
+        });
+    }
+
+    /// Everything of a kind: cards with pictures (or a plain list), filtered by what is typed.
+    fn kind(&mut self, ui: &mut egui::Ui, kind: RefKind) {
+        let all: &[(String, String)] = self.lists.iter().find(|(k, _)| *k == kind).map_or(&[], |(_, l)| l.as_slice());
+        let (fid, lid) = (ui.scope_id().with("filter"), egui::Id::unique(("kind as list", kind.name())));
+        let mut filter: String = ui.data_mut(|d| d.get_temp(fid).unwrap_or_default());
+        let pictures = crate::thumbs::has_pictures(kind) && self.rs.is_some();
+        let mut as_list: bool = ui.data_mut(|d| d.get_persisted(lid).unwrap_or(!pictures));
+        ui.horizontal(|ui| {
+            ui.heading(format!("{}s", kind.label()));
+            ui.add(egui::TextEdit::singleline(&mut filter).hint_text("Filter").desired_width(220.0));
+            if pictures {
+                ui.selectable_value(&mut as_list, false, "Pictures");
+                ui.selectable_value(&mut as_list, true, "List");
+            }
+            if ui.button(format!("+ New {}", kind.label().to_lowercase())).clicked() {
+                self.asks.push(Ask::Palette(format!("defs.new {} ", kind.name())));
+            }
+        });
+        let f = filter.trim().to_lowercase();
+        let rows: Vec<&(String, String)> = all.iter().filter(|(id, name)| f.is_empty() || id.to_lowercase().contains(&f) || name.to_lowercase().contains(&f)).collect();
+        ui.weak(if rows.len() == all.len() { format!("{}", all.len()) } else { format!("{} of {}", rows.len(), all.len()) });
+        ui.separator();
+        let mut open = None;
+        if as_list || !pictures {
+            for (id, name) in &rows {
+                ui.horizontal(|ui| {
+                    if let (true, Some(rs)) = (pictures, self.rs) {
+                        crate::thumbs::boxed(ui, 22.0, || self.thumbs.of(self.ws, rs, kind, id));
+                    }
+                    if ui.selectable_label(false, name.as_str()).clicked() {
+                        open = Some(id.clone());
+                    }
+                    if name != id {
+                        ui.weak(id.as_str());
+                    }
+                });
+            }
+        } else if let Some(rs) = self.rs {
+            ui.horizontal_wrapped(|ui| {
+                ui.spacing_mut().item_spacing = egui::vec2(6.0, 6.0);
+                for (id, name) in &rows {
+                    if crate::thumbs::card(ui, name, id, || self.thumbs.of(self.ws, rs, kind, id)).clicked() {
+                        open = Some(id.clone());
+                    }
+                }
+            });
+        }
+        if let Some(id) = open {
+            self.asks.push(Ask::Open(Tab::Def(kind, id)));
+        }
+        ui.data_mut(|d| {
+            d.insert_temp(fid, filter);
+            d.insert_persisted(lid, as_list);
+        });
     }
 
     fn map(&mut self, ui: &mut egui::Ui, name: &str) {

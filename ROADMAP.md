@@ -867,16 +867,27 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     something uses it), the commands `defs.new` (Ctrl+N), `defs.duplicate`, `defs.delete`. What
     is typed but isn't valid yet stays in the form with the reason. Every change is a history
     entry. A header with Rename, Duplicate, Delete, Find usages and *Used by* as links.
-  - The browser's fixed groups with a *+ New* per kind (part 3's shell).
+  - **Pictures** (`studio/thumbs.rs`): egui shows the engine's own textures, nothing is drawn
+    or copied a second time: an item's or spell's icon and a prop's picture are their cells of
+    their sheet, a character, model or race is the pose the game's model atlas renders (the part
+    the figure covers: `Cell::drawn`, new in the engine), a material its texture. They are in
+    the browser's rows, in an asset's header, in the pickers' lists, and beside a sprite's
+    fields, where *Pick the frame…* shows the sheet's frames to click. Only what is on screen is
+    asked for, so a list of hundreds costs what it shows.
+  - **Everything of a kind** in a tab (*Show all* in the browser, script `tab kind:item`): cards
+    with pictures or a list, with a filter and *+ New*.
+  - The browser's fixed groups with a *+ New* per kind (part 3's shell); while something is
+    typed into its filter, what fits is shown open and the rest is out of the way.
   - Script: `field KIND ID /POINTER VALUE` changes a field as the form does; `click X Y`,
     `hover X Y`, `wheel DY`, `type TEXT`, `press KEY` are real input in the window (eframe's
     input hook), `size W H`, `allfields on|off`.
   Still open: the hand-made editors (triggers as an event sheet in part 7; stat blocks,
   buildings, class levels), other pickers than definitions (flags, variables, script functions,
   factions, a sheet's frame as a picture), units and ranges on numbers, the mark on fields
-  changed from their default, problems at the field, live previews, thumbnails and the grid /
-  table views, filters and bulk actions, folders and tags (`editor/meta.ron`), the *New…*
-  gallery, *From library…* in pickers (part 9), the schema as the agents' field descriptions and
+  changed from their default, problems at the field, live previews (a prop with its states, an
+  item in a hand, a moving character), pictures of structures, the table view, filters (category,
+  tag, *has problems*, *unused*) and bulk actions, folders and tags (`editor/meta.ron`), the
+  *New…* gallery, *From library…* in pickers (part 9), the schema as the agents' field descriptions and
   the manual's reference tables.
 
   **Decided while building.**
@@ -912,6 +923,11 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     *Used on* opened and *Ally* clicked, *Teaches* opened, "fire" typed, *Fire Bolt* clicked: two
     history entries, saved, `items.ron` has `use_on: Ally` and `teaches: "fire-bolt"`, two undos
     take them back. Hovering *Stack size* shows its help; the wheel scrolls the form.
+  - Pictures, looked at in the window: the cards of all items, props, characters (people and
+    creatures each filling their card) and materials; the browser filtered by "sword" with its
+    icons; the Elder's header and portrait; the Iron Sword's *Pick the frame…* with the chosen
+    frame marked; the model picker's list with figures. `tests/headless.rs` checks `Cell::drawn`
+    on the hero's pose.
 
 - [ ] Part 5: Game settings and rules — `feature/studio`
 

@@ -14,6 +14,7 @@
 mod form;
 mod play;
 mod shell;
+mod thumbs;
 
 use std::collections::VecDeque;
 use std::path::PathBuf;

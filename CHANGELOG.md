@@ -32,6 +32,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   and usages are in the form's header. The forms are made from the engine's own types
   (`cargo run -p rustpg2d-engine --features schema --example schema -- item` prints a kind's
   JSON Schema), so a new engine field appears in its form without editor work.
+- **Pictures everywhere** (part 4): the Project browser's rows, an asset's header and the
+  pickers' lists show the item's icon, the prop's picture, the character as the game draws it.
+  *Show all* opens everything of a kind in a tab, as cards with pictures or as a list, with a
+  filter. A sprite's fields have its picture beside them and *Pick the frame…*: the sheet's
+  frames to click.
 
 - **The agent server runs without a window:** `rustpg2d-studio --headless PROJECT --mcp PORT`
   opens a project and serves every agent tool (map screenshots excepted) where there is no

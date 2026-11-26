@@ -191,13 +191,15 @@ impl<'a> Node<'a> {
         self.at.get("default")
     }
 
-    /// The name of the type here, when it is a named one (`SpriteRef`, `Trigger`).
+    /// The name of the type here, when the place is a named type's (`SpriteRef`, `Trigger`,
+    /// the definition itself); empty for a plain value or a list.
     pub fn type_name(self) -> &'a str {
-        let r = self.resolved();
-        if std::ptr::eq(r.at, self.at) && !self.at.get("title").is_some_and(|_| std::ptr::eq(self.at, self.root)) {
-            ""
+        if self.at.get("$ref").is_some() {
+            self.resolved().ty
+        } else if std::ptr::eq(self.at, self.root) {
+            self.ty
         } else {
-            r.ty
+            ""
         }
     }
 
@@ -781,7 +783,10 @@ mod tests {
         assert!(matches!(get("max_stack").node.shape(), Shape::Int { min: Some(0), .. }));
         assert_eq!(get("max_stack").node.default(), Some(&Value::from(99)));
         assert!(get("max_stack").node.help().contains("inventory slot"));
+        assert_eq!(get("icon").node.type_name(), "SpriteRef");
+        assert_eq!(get("max_stack").node.type_name(), "");
         let Shape::Optional(weapon) = get("weapon").node.shape() else { panic!("a weapon or none") };
+        assert_eq!(weapon.type_name(), "Weapon");
         assert!(matches!(weapon.shape(), Shape::Struct(_)));
         let Shape::Choice(targets) = get("use_on").node.shape() else { panic!("an enum") };
         assert_eq!(targets.iter().map(|v| v.name).collect::<Vec<_>>(), ["Player", "Ally", "Choose"]);

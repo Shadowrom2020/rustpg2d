@@ -3,7 +3,7 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
-## Unreleased
+## 0.35.0-alpha.1 — 2026-11-26
 
 ### Isometric view
 - **The world is isometric** (`render/iso.rs`): the square grid of the maps is shown as 2:1

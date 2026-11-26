@@ -180,6 +180,8 @@ fn headless(project: PathBuf, port: u16, seconds: Option<f64>) -> std::process::
 }
 
 fn main() -> std::process::ExitCode {
+    // Started in a checkout of R(ust)PG2D: the asset library is the starter library's folder.
+    editor_core::repo_mode::init();
     let args: Vec<String> = std::env::args().skip(1).collect();
     let opt = |name: &str| args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).cloned();
     if let Some(project) = opt("--headless") {

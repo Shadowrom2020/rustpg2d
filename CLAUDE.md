@@ -22,7 +22,10 @@ being rewritten on a new foundation, in twelve parts. While it lasts:
   `target/debug/rustpg2d-studio --headless <project> --mcp PORT [--seconds N]` (set
   `RUSTPG2D_FOLDER_PROJECTS=1 RUSTPG2D_REPO=0` and the scratch `RUSTPG2D_EDITOR_CONFIG` /
   `RUSTPG2D_LIBRARY` for tests), driven by `target/debug/examples/mcp_smoke PORT headless` or any
-  MCP client. Map screenshots need a window (not there yet).
+  MCP client. Map screenshots need a window (not there yet). Started in the repository's root
+  without `RUSTPG2D_REPO=0` it is in repository mode: `--headless example_project` edits the real
+  example and `library_send` the real starter library, so example content can be edited on this
+  branch again through agents.
 - **The new editor is `crates/studio`** (binary `rustpg2d-studio`): so far a window with the
   running game in a panel. `RUSTPG2D_STUDIO_SCRIPT="wait 3; status; shot /path/a.png; quit"
   target/debug/rustpg2d-studio <project> [--map M --spawn S]` drives it (`shot` = the whole

@@ -122,8 +122,9 @@ The order weighs how many creators each step unlocks against its size:
 3. **The SRD 5.1 ruleset:** the rules of the tabletop's open reference document, with turn-based
    combat, classes and spells, instead of yet another JRPG maker (the user's decision, 2026-11-16).
 4. **Content:** one content release, right after the rules (moved before *Reach* on 2026-11-20).
-5. **Reach:** editor comfort, then a way in for new creators, then the platforms (*Everywhere*
-   moved to just before 1.0.0 on 2026-11-23, the user's decision).
+5. **Reach:** editor comfort, then the editor rewritten on a new foundation (*The Studio*, the
+   user's request of 2026-11-26), then a way in for new creators, then the platforms
+   (*Everywhere* moved to just before 1.0.0 on 2026-11-23, the user's decision).
 6. **1.0.0:** the formats freeze.
 
 Each version has a theme, and items may move between versions.
@@ -468,10 +469,508 @@ the western RPGs (Baldur's Gate, Planescape: Torment).
   and piece; autoplay: the creator with hair and outfit choices, equipped armour shown, a fight;
   screenshots next to the painted props.
 
-## 0.36.0 — Learning
+## 0.36.0 — The Studio
+
+The editor rewritten from the ground up, on a new foundation, to be the best possible place to
+make a game in (the user's request, 2026-11-26: "the editor works, but is not intuitive and the UI
+lacks convenience"). Everything old goes; libraries, architecture and compatibility may change.
+
+**Decided with the user (2026-11-26).**
+- **Foundation:** the editor is an eframe application (the current egui) drawing with wgpu. The
+  engine's renderer leaves macroquad, so that the game draws inside the editor (map views,
+  previews, a play panel) and the editor is no longer held at egui 0.31 by `egui-macroquad`.
+- **Older projects:** the new editor opens projects saved by 0.35, through one conversion. Every
+  converter for older versions is removed. 0.35.0 is the bridge: an older project is opened and
+  saved there first. 0.35.0 final is cut from `master` before this release's branch merges.
+- **Sharing:** one pack format, and online sources the editor browses and installs from.
+- **One long-lived branch,** `feature/studio`, merged into `master` once at the end (an agreed
+  exception to AGENTS.md's short-lived branches).
+  - A draft pull request into `master` is opened with the first push, so CI runs on every push.
+  - `master` takes only bugfixes meanwhile; merge `master` into the branch after each.
+  - The parts below are worked in order, each on this branch. A part is done when the branch
+    builds, passes clippy and the tests, and its *Verify* is done; mark it then.
+  - The old editor does not survive part 1 (it needs macroquad). Until the new one can do the
+    work, look things up in the old code on `master` (`git show master:crates/editor/src/…`) and
+    edit example content with a 0.35 editor in a `master` worktree, merged in as above.
+
+**What every screen is judged by.**
+1. **One workspace, no modes.** Maps, assets, scripts and settings are documents in tabs, side by
+   side; panels are arranged freely and remembered.
+2. **Found in two clicks, without searching.** Everything has one obvious place in the Project
+   browser. Searching (Ctrl+P) is the shortcut, not the only way.
+3. **Every reference is a link.** Wherever an id is shown it has a picture, opens on a click, and
+   its picker can create what is missing in place.
+4. **Every operation is a command:** it has a name, can be undone, can get a shortcut, and is
+   reachable from the command palette, the editor script and the agent server alike.
+5. **Work is never lost:** one undo history, a working copy saved as you go, recovery after a
+   crash, *Undo* on a toast instead of "Are you sure?".
+6. **Help is where the creator is:** every field explains itself, every empty place says what to
+   do next, every problem is shown where it is and offers its fix.
+7. **Seen as the game shows it:** every preview is drawn by the game's own renderer, and the game
+   plays inside the editor.
+8. **Old concepts leave the UI:** nothing is offered that the isometric, 3D-figure, SRD engine no
+   longer uses.
+
+Read the current documentation of eframe / egui, wgpu, winit and the audio library when part 1
+starts and pin the versions then (looked up on 2026-11-26, APIs not read: egui / eframe 0.37,
+wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses.
+
+- [ ] Part 1: The engine on wgpu — `feature/studio`
+
+  **Goal.** The engine draws, plays sound and reads input through a layer of its own instead of
+  macroquad: the game looks and plays as in 0.35, and can be drawn into any number of views inside
+  another application.
+
+  **Design.**
+  - **A new crate, `crates/gfx`:** the window and its events (winit), drawing (wgpu), text
+    (fontdue, the rasteriser macroquad used, so glyphs keep their pixels), sound (kira; `lewton`
+    still decodes music for the gapless loops of `audio.rs`), keys, mouse, touch and gamepads
+    (`gilrs`; the browser's Gamepad API on the web), and files (`sys.rs`).
+  - **Port by a look-alike API.** The runtime's calls keep their names and meaning
+    (`draw_rectangle`, `draw_line`, `draw_circle`, `draw_triangle`, `draw_texture_ex`, `draw_mesh`,
+    `set_camera`, `render_target`, `Texture2D`, `Image`, `Color`, `Rect`, `Vec2`, `KeyCode`,
+    `get_time`, `screen_width`…), offered by the engine over a *current frame* (what is being drawn
+    into, with which input). The runtime's files change their imports, not their logic. Tidying the
+    API afterwards is not part of this item.
+  - **The game is handed its world:** `Game` takes its input and its render target from the
+    caller (`screen_width` is the target's width), so several games and views can live in one
+    process, and none needs a window. The game binary is a winit loop around it; autoplay's input
+    injection is the same path.
+  - **Shaders in WGSL:** the painted ground (`render/ground.rs`), the figures' cel shader and
+    outline (`render/model.rs`), the light map (`render/lighting.rs`), picture blend modes
+    (`runtime/pictures.rs`), the screen effects (`runtime/juice.rs`) and the one in
+    `runtime/mod.rs`. CPU skinning and the atlas pages of `render/model.rs` stay as they are.
+  - **Web:** wasm-bindgen with wgpu's WebGL2 backend (WebGPU where the browser has it); the web
+    side of `sys.rs` moves to web-sys (storage, the fetch of `data.pack`, the query string),
+    replacing `web/mq_js_bundle.js` and `web/rustpg2d.js`; `xtask` builds the web runner (the
+    bindgen step as a library, no tool to install). Rhai gets its default features back there.
+  - **No software rendering for players:** a software adapter (llvmpipe, lavapipe, WARP) gets the
+    existing message box, as today; `RUSTPG2D_ALLOW_SOFTWARE=1` lets tests and CI through.
+  - **A device from outside:** `gfx` can be given the device and queue eframe created, and can
+    make its own without a window (tests, the headless agent server's thumbnails).
+  - **Screenshots:** autoplay `shot`, photo mode and save thumbnails read back from the target
+    (no more vertical flip).
+  - **Gone:** macroquad, miniquad, egui-macroquad, the `image` 0.24 pin and macroquad's own png.
+
+  **Engine.** This part is the engine: `crates/gfx`, every `use macroquad` (101 of the engine's
+  201 files, 82 of them in `runtime/`), `crates/game/src/main.rs`, `audio.rs`, `sys.rs`, `web/`,
+  `release.rs` (the web export's files), `desktop.rs`, `glibc_compat.rs` checks, `xtask`
+  (`dist`, the web build), the CI apt lines and the Flatpak permissions (ROADMAP step 11).
+
+  **Verify.**
+  - A fixed set of autoplay screenshots (title, village by day and night, a dungeon, a fight, the
+    character window, a dialog, the shop, the map screen, weather) taken with 0.35 and with the new
+    renderer, compared picture by picture; differences explained or fixed.
+  - `status` frame times on the forest map, old against new (`RUSTPG2D_PERF=1`).
+  - `scripts/ci/smoke.sh` (the game half) passes; sound heard: music loop, a fade, footsteps.
+  - Linux (AppImage on Debian 12, glibc ≤ 2.34), Windows under Wine (try this first: Wine's
+    graphics were fragile on this machine), the test Mac, the browser (headless Brave, saves kept
+    across runs).
+  - Tests render without a window: one golden picture each for ground, a figure, text.
+
+- [ ] Part 2: The editor core — `feature/studio`
+
+  **Goal.** Everything the editor knows and does, without any UI: one place that the windows, the
+  editor script and the agent server all work through.
+
+  **Design.**
+  - **A new crate, `crates/editor-core`** (no egui). The **workspace**: the project (settings,
+    definitions), the open maps (loaded when first needed), the library, what is selected in each
+    document.
+  - **Commands.** Every change to the project is a command the workspace runs: *paint ground*,
+    *place a prop*, *set a field of a definition*, *rename an id*, *install a pack*. A command has
+    an id, a title, parameters, and leaves an undo record.
+    - One history for everything, replacing the map's (`doc.rs`) and the definitions'
+      (`db_undo.rs`). Undo in a document undoes that document's last change; a history panel
+      shows all of it. Typing in a field stays one step (the coalescing of `db_undo.rs`).
+    - Definition changes are recorded as patches (`mcp/patch.rs`), map changes as the edits of
+      `doc.rs`.
+    - The **command registry** lists them all: the palette, shortcuts, the script and the agent
+      tools are generated from it or checked against it.
+  - **Questions it answers:** search (`search.rs`), usages and renames (`refactor.rs`), the
+    problems of the project, kept current as assets change instead of on request (`problems.rs`),
+    unused assets (`unused.rs`).
+  - **Services:** the project file and its working copy (`project_file.rs`), files changed on disk
+    (`mcp/watcher.rs`), imports (models, pictures, sounds, fonts), thumbnails (rendered off screen
+    by the game's renderer, cached by content), background jobs (art, packing, downloads).
+  - **Three ways in, one behaviour:** the UI (part 3), the editor script
+    (`RUSTPG2D_EDITOR_SCRIPT`) and the agent server (`mcp/`, moved here) issue the same commands.
+    The agent server also runs without a window: `rustpg2d-editor --headless PROJECT --mcp PORT`.
+  - **Editor data in the project:** `editor/` in the project file holds what only the editor
+    needs (folders, tags, notes, favourites, layouts, where an asset came from). Exports leave it
+    out.
+
+  **Engine.** None beyond part 1. The crate takes over the logic of the old `app.rs`, `doc.rs`,
+  `db_undo.rs`, `maps.rs`, `multisel.rs`, `clipboard.rs`, `structures.rs`, `search.rs`,
+  `problems.rs`, `cleanup.rs`, `project_file.rs`, `files.rs`, `import/`, `art/` (jobs) and `mcp/`.
+
+  **Verify.** Tests without a window: every command applied to a copy of the example and undone
+  leaves the files byte for byte as they were; `mcp_smoke` against the headless server; the test
+  that `13-ai-agents.md` names every agent tool passes with the 0.35 catalogue.
+
+- [ ] Part 3: The shell — `feature/studio`
+
+  **Goal.** The window creators work in: one workspace where everything is a tab, with the ways to
+  get anywhere and do anything.
+
+  **Design.**
+  - **Layout:** the Project browser on the left, documents in the middle (tabs, split side by
+    side), the Inspector on the right, Problems / Output / Help at the bottom, a status bar (save
+    state, background jobs, problem counts). Docking with `egui_dock` or `egui_tiles` (choose when
+    starting; it must tear panels off into windows). Presets (*Mapping*, *Writing*, *Data*) and
+    the creator's own layout, remembered per project.
+  - **Several windows:** any panel or document can be dragged out into an OS window of its own
+    (a map on one screen, an item on the other). The asset library is a panel of this program,
+    not a second process.
+  - **Home** (no project open): recent projects with a picture of their title screen, *New
+    project* (blank, the example, samples), *Open*, *Learn*, what is new in this version, the
+    state of the starter pack.
+  - **Overview** (the first document of a project): the game's card, a **checklist to a playable
+    game** worked out from the project (a start map, a hero, a title screen, no problems, an
+    export), the documents last worked on, a notes list.
+  - **Getting around:** back / forward (Alt+Left / Right), breadcrumbs, pinned tabs, favourites
+    (a star on any asset), *Go to anything* (Ctrl+P: maps, assets, script functions, characters on
+    maps, dialog lines, settings, with previews), the **command palette** (Ctrl+Shift+P), a
+    shortcut sheet with rebinding (from the backlog).
+  - **Drag and drop:** files dropped on the window are imported by kind (pictures, `.glb`,
+    sounds, fonts, packs); assets are dragged from the browser onto maps and into fields.
+  - **Look:** a theme of its own (light and dark, a UI scale setting), one set of parts used
+    everywhere: toolbars, property rows, cards, id chips, empty states, toasts with *Undo*.
+  - **Settings** (the editor's own): appearance, shortcuts, saving, the agent server, the Meshy
+    account, pack sources.
+
+  **Engine.** None. New: `crates/editor` (the eframe application over `editor-core`), the dock,
+  the theme, `ui.rs`' icon helpers carried over.
+
+  **Verify.** `egui_kittest`: open the example, open three documents, split, tear one off, restart
+  and find the layout again; Ctrl+P and the palette reach a map, an item and a command.
+  Screenshots of Home, Overview and a mixed layout in both themes.
+
+- [ ] Part 4: The Project browser and asset editors — `feature/studio`
+
+  **Goal.** The Database, restructured: every kind of thing has an obvious place, lists show what
+  they hold, and an asset's editor shows the asset.
+
+  **Design.**
+  - **Fixed groups** at the top (so a thing is always in the same place), the creator's folders
+    and tags inside them:
+    - **Game:** Overview and the settings pages (part 5).
+    - **World:** maps, the World view (part 6), structures, ground materials, scatter sets.
+    - **Objects:** props, by what they are (furniture, nature, buildings, containers, doors,
+      lights, crops…).
+    - **Characters:** characters (people, creatures), races, classes, backgrounds, factions.
+    - **Items:** items by category (`item_category.rs`), recipes.
+    - **Rules:** spells, diseases.
+    - **Story:** quests, cut-scenes, common events, achievements, scripts, visual scripts, flags
+      and variables (part 7).
+    - **Art & sound:** 3D models, pictures (sprite sheets), animations, sounds and music, fonts,
+      UI skins.
+    - **Languages** and **Plugins.**
+  - **Lists:** as a list, a grid of thumbnails or a table (`db_table.rs`); sorted and filtered by
+    category, tag, *has problems*, *unused*, *from pack…*; several selected at once for tagging,
+    moving, duplicating, sending to the library, deleting.
+  - **An asset is a document:** a header (picture, name, id with rename, tags, where it came
+    from, how often it is used), its sections, a live preview beside them (the prop as the game
+    draws it with its states, the item in a figure's hand, the character moving, a spell's area),
+    and *Used by* at the end.
+  - **The field schema.** One table per kind of definition describes every field: its label, its
+    help text, how it is edited (text, a line players read, a number with its range and unit, a
+    choice, a reference to a kind, a dice expression, a colour, a list…), its section, whether it
+    is basic or advanced, its default. From that one table come:
+    - the form, the table view's columns and bulk editing;
+    - *Find a setting* (a field by its name, across all forms and settings pages);
+    - the mark on fields changed from their default, and *Reset*;
+    - problems shown at the field;
+    - the field descriptions agents get, and the manual's reference tables (a test compares).
+
+    A test fails when a serde field of a definition is missing from its table. What a table can't
+    express (triggers, stat blocks, building shapes, class levels, schedules) stays a hand-made
+    editor plugged into it.
+  - **One picker** for every reference: search, thumbnails, the last used, filters, **+ New…**
+    (made from a template, edited in a side panel, back to the field) and **From library…**
+    (fetched with what it needs).
+  - **New…** (Ctrl+N): pick the kind, then where it starts from (blank, a copy, the library, a
+    file, Meshy), with a preview.
+
+  **Engine.** The schema tables (in `editor-core`, beside the definitions' use) and
+  `editor/meta.ron` (folders, tags, notes, origin per asset). Definition formats unchanged.
+
+  **Verify.** The schema coverage test. `egui_kittest`: for every kind, change a field, save,
+  reload (the old `ui_tests.rs` cases carried over); a picker's *+ New…*; bulk tagging. Screenshots
+  of the browser, a grid, a table and three asset documents.
+
+- [ ] Part 5: Game settings and rules — `feature/studio`
+
+  **Goal.** The settings of the game and its rules have a home of their own instead of one long
+  form among the Database's tabs.
+
+  **Design.**
+  - **Pages** of the *Game* group, each a document with previews where there is something to see:
+    - **Game:** name, icon, window size, where it starts, credits.
+    - **Hero & party:** the player's character, the character creator (what it offers, the
+      starting kit), the bag's size, what happens to a companion at 0 hit points.
+    - **Rules:** the SRD options (scores, proficiencies, shown checks, encumbrance, food and
+      water, reactions), magic, experience and levels; the SRD attribution's state.
+    - **World:** the length of a day and the starting hour, factions (as a table of standings),
+      money, map titles.
+    - **Look & feel:** fonts by role, the UI skin, dialog portraits, emotions, facings.
+    - **Title & menus:** the title screen with a live preview, the pause menu, the action bar.
+    - **Sound:** the game's sounds, battle music.
+    - **Languages:** the languages offered, and a **translation table** (every text beside its
+      translations, missing ones first) next to the template export.
+    - **Scripts & hooks:** the hooks; plugins and their parameters.
+    - **Publishing:** the export as a page: targets, ids, icons, remembered; a check before
+      exporting (problems, missing translations, unused files, attribution).
+  - They are forms of the field schema, so *Find a setting* reaches them.
+
+  **Engine.** None: `ProjectConfig` keeps its shape; the pages group its fields.
+
+  **Verify.** `egui_kittest`: a change on each page saved and reloaded. Screenshots of Rules,
+  Title & menus and Publishing. An export from the page runs.
+
+- [ ] Part 6: The map workspace — `feature/studio`
+
+  **Goal.** Building the world is direct: fewer tools that do more, everything on a map listed
+  and reachable, and the game playing in the editor.
+
+  **Design.**
+  - **Maps are documents:** several open, side by side, each with its view and selection.
+  - **Tools, regrouped:**
+    - **Select** (V): click, box, move, turn, duplicate with handles on the canvas; align.
+    - **Terrain** (P): ground materials with brush, line, rectangle, fill.
+    - **Place** (N): one palette for props, characters, items, structures and scatter sets, also
+      fed by dragging from the Project browser. A prop is placed as scenery; *Make interactive*
+      in the Inspector turns it into an object with states and triggers, and back. Creators no
+      longer choose between "Entities" and "Decorations" before placing (the map still stores
+      decorations and entities).
+    - **Build** (B): walls, rooms, houses, roofs, doors and windows, as today.
+    - **Zones** (Z): every kind of zone, and map transitions as part of it.
+    - **Collision** (C): the overlay edited by hand.
+  - **Outliner:** everything on the map in a list (characters, objects, zones, lights), with
+    search, hide, lock, rename; layers switched on and off (ground, decorations, objects, zones,
+    collision, light, fog).
+  - **Right-click anything:** *Edit definition*, *Find usages*, *Play from here*, *Save as
+    structure*, *Replace with…*.
+  - **Inspector:** what the placed thing changes against its definition is marked and can be
+    reset; its events in the editor of part 7.
+  - **Map settings** as a panel (light, weather, music, parallax, fog, edges); time of day and
+    weather previews on the canvas's own bar.
+  - **The World view:** every map as a card with its picture, the transitions as arrows between
+    them; drag from one map to another to link them; maps nothing leads to are marked.
+  - **Play inside the editor:** a Play panel runs the game in this process, on the same renderer:
+    from the start, from here, from a test setup (`testplay.rs`); pause, step, speed.
+    - While it runs, a **State** panel shows flags, variables, quests, the party and the bag, and
+      changes them.
+    - Clicking a character or prop in the running game opens its definition or its place on the
+      map.
+    - Scripts reload while it runs; the console is a panel; script errors link to their line.
+    - *Play in its own window* (the real runner) stays for the last check.
+  - The top-down view stays as a view option unless the user removes it in part 11.
+
+  **Engine.** `Game` embeddable (part 1). The canvas draws through the engine's renderer into a
+  texture, as the old `canvas.rs` drew on the screen.
+
+  **Verify.** Editor script: each tool on a scratch copy (paint, place, turn, link two maps),
+  `status` fields as today; the Play panel started from a tile, a flag set in the State panel
+  changes a dialog; `egui_kittest` snapshot of the canvas with the Outliner. Frame times of the
+  canvas on the largest map.
+
+- [ ] Part 7: Events, conversations and scripts — `feature/studio`
+
+  **Goal.** What happens in the game is as easy to write and to read as it is to place a prop.
+
+  **Design.**
+  - **The event sheet** replaces the trigger editor (`widgets.rs`): *When* / *If* / *Do* as rows
+    with a one-line summary each, opened in place; drag to reorder, fold, select several, copy
+    between characters and maps; the action palette searched and grouped as `07-events.md`;
+    *Try it* plays from here with the trigger fired.
+  - **Conversations:** runs of *Say* and *Choice* actions shown as a conversation: who speaks
+    (with the portrait), the branches of a choice side by side, conditions on them; written like
+    a script, line after line. Beside it the game's own dialog box drawing the selected line
+    (fonts, skin, message codes). Stored as the actions they are.
+  - **Flags and variables:** a page listing every flag, variable and text variable with where it
+    is set and where it is read (the API table's collectors and `refactor.rs`), a note for each,
+    and rename.
+  - **Scripts:** files in tabs, the functions of a file as an outline, completion and
+    documentation from the API table, errors at the line, *Go to* for ids, a function run in the
+    Play panel.
+  - **Documents of their own:** the map's Events graph (`graph.rs`) and visual scripts
+    (`nodes.rs`) on one node canvas, the cut-scene timeline, the animation editor, the quest
+    designer.
+
+  **Engine.** None; maybe an *off* mark on an action (a row switched off while testing), asked
+  for when the part starts.
+
+  **Verify.** `egui_kittest`: build a trigger with a condition and three actions, reorder, copy to
+  another character, undo; write a conversation with a choice and play it; rename a flag from its
+  page (script and triggers follow). Screenshots.
+
+- [ ] Part 8: Workshops — `feature/studio`
+
+  **Goal.** Making a prop, a structure or a character is done on the thing itself, not in number
+  fields.
+
+  **Design.**
+  - **The prop workshop:** the prop large, as the game draws it. On it: the hitbox dragged by its
+    corners, the anchor, the spot it is used from, the light's place and reach. The states as a
+    strip, each with its preview.
+    - **Starts from:** a model file dropped in, a picture, measurements (a building: ridge,
+      overhang and openings dragged on the preview), a copy, Meshy.
+    - **What it is:** presets fill the fields and triggers of a *Container*, *Door with a lock*,
+      *Light*, *Seat*, *Bed*, *Crop*, *Gathering spot*, *Sign*, *Trap*. Presets are templates in
+      the library (content), so more can be added and shared.
+  - **Structures:** select on a map, *Save as structure*; a structure opens as a document on the
+    map canvas (as 0.35 does); its thumbnail renders itself; houses of the Build tool save the
+    same way.
+  - **The character workshop:** one document for look (model, pieces, colours), rules (stat block
+    or class), day (schedule, route), talk, shop, loot; presets *Villager*, *Merchant*, *Guard*,
+    *Companion*, *Monster* (from the library's SRD monsters).
+  - **Items, spells, quests:** templates in *New…* (*Weapon*, *Potion*, *Key*, *Scroll of…*).
+  - **Import helpers:** a model's check (size, rig, clips, what is missing and its fix), a
+    sound's loop heard, a picture's frames cut.
+  - **Pictures:** the pixel editor as a document (icons, seamless material textures).
+  - **Generate art:** a panel with the jobs, opened from each workshop's *Generate…*.
+
+  **Engine.** None. The presets are library content (*Content route*).
+
+  **Verify.** Editor script and `egui_kittest`: a prop from a `.glb` to a placed, opened chest
+  without typing a number; a house saved as a structure and placed on another map; a merchant
+  from the preset trades in the Play panel. Screenshots of each workshop.
+
+- [ ] Part 9: Library and sharing — `feature/studio`
+
+  **Goal.** What a creator makes can be given to others, and what others made can be found,
+  installed and kept up to date, from inside the editor.
+
+  **Design.**
+  - **One pack format** replaces asset packages (`.r2dpack`), the starter library file (`.r2dlib`)
+    and plugin files (`.r2dplugin`). A pack has a manifest (id, title, author, version, licence
+    with its attribution text, description, tags, the engine versions it fits, preview pictures,
+    the packs it needs) and holds assets with their files and script functions, plugins, and
+    templates. Packs and plugin files made with 0.35 can still be installed.
+  - **The library** is the installed packs and the creator's own assets. Its panel shows packs as
+    cards (preview, version, *update available*) and assets with filters (kind, tag, pack,
+    licence), large previews (a model turning, a sound playing), and *Add to project* naming what
+    comes along.
+  - **Updates:** a project remembers which pack and version each asset came from. The editor
+    offers what changed per asset: added, updated, edited by you, retired (`starter_update.rs`,
+    for every pack).
+  - **The starter library is a pack** (`rustpg2d.starter`), installed and updated the same way;
+    `starter_pack.rs`, `starter_ui.rs`, `library_update.rs` and `starter_history.ron` fold into it.
+  - **Sources:** a source is a web address with an index file: the packs it offers, each with its
+    manifest, download address, size and SHA-256. The editor lists sources (the project's own one
+    with the starter pack is preset), browses and searches them, installs and updates, and checks
+    every download's SHA-256. No accounts, no server of ours: any static web space works (a GitHub
+    repository's pages or releases).
+  - **Before installing:** a pack with scripts or plugins says so and lists the functions.
+  - **Share…** on any selection (assets, a structure, a plugin): the pack is put together with
+    what the selection needs (`library::deps`, the script functions dialog), the manifest filled
+    from what was entered last time, previews rendered, and written as a file together with its
+    index entry. *Export source folder* writes an index and the packs for a folder to upload.
+    A pack file dropped on the editor is installed.
+  - **Same id twice:** the same content is skipped; different content asks: replace, keep, or
+    install as a copy under a new id (renamed inside the pack).
+  - **Licences reach the game:** the packs a game uses are listed with their attribution on the
+    Publishing page and offered for the credits.
+
+  **Engine.** `packs.rs` out of `library.rs`, `starter_pack.rs`, `plugins.rs` (pack / unpack) and
+  `starter_update.rs`; the origin of assets in `editor/meta.ron`; `xtask` writes the starter pack
+  and the official index; HTTPS with `ureq` as `art/meshy.rs` and the starter download do.
+
+  **Verify.** A source served from the scratchpad (`python3 -m http.server`): browse, install,
+  a version 2 offered and applied, a changed asset kept, a wrong SHA-256 refused. A shared pack
+  installed into a fresh library and used in a new project. The starter pack installed through
+  the same path. A 0.35 `.r2dpack` and `.r2dplugin` installed.
+
+- [ ] Part 10: Help and guidance — `feature/studio`
+
+  **Goal.** A new creator gets from an empty project to a playable game without leaving the
+  editor to find out how.
+
+  **Design.**
+  - **The manual inside:** a Help panel shows the Creator's Manual (shipped in the editor, so it
+    works offline), searched, and opened by F1 at the chapter for whatever has the focus.
+  - **Fields explain themselves:** the schema's help text on hover and, longer, in the Help panel.
+  - **Empty places say what to do next:** an empty list, map or page names what belongs there and
+    offers the action.
+  - **Problems with fixes:** the list is always current and grouped; an entry goes to its place,
+    and where it can, offers the fix (*Create the missing item*, *Pick another*, *Remove the
+    reference*). Fields with a problem are marked.
+  - **Guided tours:** a tour is a list of steps kept as data. Each step points at the control to
+    use and is ticked when the command behind it ran. The first three: *Your first map*, *A
+    character who talks*, *A quest*. The Learning release writes its tutorials as tours.
+  - **Agents:** the agent server as today, with a button that copies the set-up for an agent.
+  - **What's new** after an update.
+
+  **Engine.** None. Tours and the manual's anchors are data in the editor crate.
+
+  **Verify.** Each tour followed on a fresh project by `egui_kittest`, ending with a play-test
+  that starts. F1 from five places opens the right chapter. A broken reference fixed from the
+  Problems panel.
+
+- [ ] Part 11: Old things leave — `feature/studio`
+
+  **Goal.** Nothing remains that only older versions needed, in the code or in the UI.
+
+  **Design.**
+  - **Removed without asking** (the user's decision on older projects): the 16 px migration
+    (`migrate.rs`), the tile converter (`convert_tiles.rs`, `old_tiles.rs`, `io::decode_tiles`,
+    the v1 / v2 map readers and `EntityV1`), the 0.27 skill tree conversion (`srd_convert.rs`),
+    the rust2d folder adoption (`legacy.rs`), the upgrade steps of definitions (`SpellDef::upgrade`,
+    `ItemDef::upgrade`, rules versions below the current one, 0.27's status effects), the legacy
+    `Appearance.body`, `PropDef.pieces`, the conversion of project folders on open, the fixtures of
+    versions before 0.35 and their tests.
+  - **Listed to the user before removal** (their rule of 2026-11-24 for tools): the Tiled import,
+    the Aseprite import, pictures held in the hand without a model, what is left of sprite-sheet
+    figures and props, the top-down view, Meshy's 2D kinds.
+  - **One conversion, 0.35 → 0.36,** run by the editor on open with a backup copy beside the
+    project: everything this release reshapes (editor data, pack origins, whatever the parts
+    above recorded under *Decided while building*). The game and the editor refuse older projects
+    with a message that names 0.35.
+  - **Save games** of 0.35 load where the fields allow it; it is not promised (**Breaking**).
+  - **Fixture:** the example project as of the 0.35.0 tag, for the conversion's test.
+
+  **Engine.** The removals above; `convert_035.rs`.
+
+  **Verify.** The 0.35 example converts and plays through the smoke run; a 0.34 project is
+  refused with the message; `cargo test --workspace` without the old fixtures.
+
+- [ ] Part 12: Tests, documentation, switch-over — `feature/studio`
+
+  **Goal.** The new editor replaces the old one completely, and the rules for working on it are
+  true again.
+
+  **Design.**
+  - **The parity table:** every feature of the 0.35 editor (its menus, the 126 editor script
+    commands, the agent tools, the manual's editor chapters) with its place in the new editor or
+    *removed* and why. Made when part 3 starts, kept in this item, ticked as parts land. The
+    branch merges when no row is open.
+  - **The editor script** runs commands from the registry and can click: controls are found by
+    their label through the accessibility tree, in the live program. `status` keeps the fields
+    the smoke run and `17-testing.md` use.
+  - **UI tests:** `egui_kittest` over the whole program, with snapshot pictures of the main
+    screens. The patched-egui workaround of CLAUDE.md is gone.
+  - **Agent server:** the 0.35 catalogue plus tools for packs and sources; `13-ai-agents.md`.
+  - **CI and packages:** the apt lines (Vulkan for the Xvfb runs), `smoke.sh`, the web build, the
+    release builds, `xtask dist`, Dependabot's ignore list (the egui pins are gone; egui's crates
+    move together as a group).
+  - **Documentation:** the manual's editor chapters rewritten and every editor screenshot taken
+    again; `architecture.md`; CLAUDE.md's workspace map, coding guide and verification sections;
+    AGENTS.md; the README; the CHANGELOG with its **Breaking** lines.
+  - **The merge:** the draft pull request is made ready and merged; 0.36.0 is cut when the user
+    asks.
+
+  **Engine.** None.
+
+  **Verify.** The parity table has no open row. The example built from an empty project by an
+  agent through the server reaches a play-test. `scripts/ci/smoke.sh` whole. The packages of every
+  platform start (the release pull request's *Packages* check, run by hand on the branch before
+  the merge).
+
+## 0.37.0 — Learning
 
 A way in for new creators: tutorials and small games to learn from (moved from 0.35.0 on
-2026-11-23, the user's decision).
+2026-11-23, and behind *The Studio* on 2026-11-26, so that they teach the new editor).
 
 - [ ] Tutorials — `feature/tutorials`
 
@@ -487,11 +986,16 @@ A way in for new creators: tutorials and small games to learn from (moved from 0
     - plugins → plugins;
     - parallel processes → parallel common events;
     - a JRPG battle system → SRD turn-based combat.
+  - **Guided tours:** each tutorial is also a tour inside the editor (0.36, *Help and guidance*:
+    steps kept as data, each pointing at its control and ticked when done), opened from Home ›
+    *Learn* and from its chapter.
   - **README:** links to them.
 
-  **Engine.** None (docs). The screenshots are taken with editor and autoplay scripts.
+  **Engine.** None (docs and tour data). The screenshots are taken with editor and autoplay
+  scripts.
 
-  **Verify.** Follow each tutorial on a fresh project and fix every step that doesn't match.
+  **Verify.** Follow each tutorial on a fresh project and fix every step that doesn't match; each
+  tour run by the editor's UI tests.
 
 - [ ] Sample projects — `feature/sample-projects`
 
@@ -514,15 +1018,17 @@ A way in for new creators: tutorials and small games to learn from (moved from 0
   **Goal.** Somewhere for creators to meet, show their games and share assets.
 
   **Design.** GitHub Discussions, a showcase page, issue templates (some exist), and a curated
-  index of community assets and plugins in the repository.
+  index of community packs: a pack source (0.36, *Library and sharing*) kept in a repository,
+  preset in the editor beside the official one, with the rules for getting a pack listed.
 
   **Engine.** None. These are the user's settings and decisions.
 
   **Verify.** None.
 
-## 0.37.0 — Everywhere
+## 0.38.0 — Everywhere
 
-Touch screens, phones, Steam and signed downloads.
+Touch screens, phones, Steam and signed downloads. The engine lines below name the platform layer
+of 0.36 (`crates/gfx`: winit, wgpu), which replaced macroquad.
 
 - [ ] Touch controls — `feature/touch`
 
@@ -539,8 +1045,8 @@ Touch screens, phones, Steam and signed downloads.
     - pinch to zoom in photo mode.
   - **Look:** buttons in the skin's style.
 
-  **Engine.** `runtime/input.rs` (macroquad `touches()`), `mouse.rs`, UI hit tests; autoplay
-  `touch X Y`, `touchhold`, `swipe`.
+  **Engine.** `runtime/input.rs` (the touch events of `crates/gfx`), `mouse.rs`, UI hit tests;
+  autoplay `touch X Y`, `touchhold`, `swipe`.
 
   **Verify.** Autoplay touch commands: walk, talk, fight, shop and menus; screenshots of the
   buttons; `status` prints `touch=`.
@@ -559,8 +1065,8 @@ Touch screens, phones, Steam and signed downloads.
     - `data.pack` keeps everything else and shows its download progress.
     - Desktop stays as it is.
 
-  **Engine.** `sys.rs` (web), `web/rustpg2d.js`, `release::export_web`, model loading in
-  `render/model.rs`.
+  **Engine.** `sys.rs` (web), the web files of the export (`web/`), `release::export_web`, model
+  loading in `render/model.rs`.
 
   **Verify.** Headless Brave with a phone viewport and touch emulation: start, walk, talk.
   Measure the start download size before and after.
@@ -606,8 +1112,8 @@ Touch screens, phones, Steam and signed downloads.
   **Goal.** Games as Android apps.
 
   **Design.**
-  - **Runner:** macroquad runs on Android through `cargo-quad-apk` (or its docker image), built
-    in CI.
+  - **Runner:** the game on Android through winit's `android-activity` and wgpu (Vulkan, GLES
+    for older devices), packaged by `xtask` in CI; check the tools of the day when it starts.
   - **Export:** writes an APK / AAB with the game's `data.pack` in its assets, the icon and the
     app id, signed with the creator's keystore.
   - **Controls:** touch, from above.
@@ -641,14 +1147,14 @@ The promise creators need for a commercial release: what works with 1.0 keeps wo
     compatibility (the legacy `body` of `Appearance`, `EntityV1`) become migration steps where a
     conversion can replace them.
   - **Old versions:** decide which pre-1.0 versions 1.0 still opens. The default is: projects of
-    0.20 and later through the migration chain, older ones through the existing converters.
-    Confirm with the user.
+    0.36 and later through the migration chain (0.36 removed every older converter and opens 0.35
+    projects through one conversion). Confirm with the user.
   - **Fixtures:** 1.0.0 files of every format.
 
   **Engine.** `migrate.rs`, the version fields, the compat fixtures and tests.
 
   **Verify.** Every fixture of every earlier version opens (or is refused with a clear message,
-  as decided). A 0.23.0 project migrates and plays.
+  as decided). A 0.36.0 project migrates and plays.
 
 - [ ] The stability promise — `feature/stability-promise`
 
@@ -729,7 +1235,15 @@ The promise creators need for a commercial release: what works with 1.0 keeps wo
   Maker only). The full design block is in git history (ROADMAP.md, 0.32.0).
 - **Vehicles:** a boat, a ship, an airship over the world map; a world-map mode with a smaller
   character and a different scale.
-- **A shortcut sheet in the editor,** and gamepad remapping in its play-test preview.
+- **Gamepad remapping in the editor's play panel** (the shortcut sheet went into 0.36, *The
+  shell*).
+- **An assistant inside the editor** (left out of 0.36): a chat panel that works on the project
+  through the agent tools. Needs a decision on whose account and key it uses; the agent server
+  for outside agents exists.
+- **Linked structures** (left out of 0.36): placed copies of a structure that follow when the
+  structure changes. Structures are stamps today; this needs the map to remember what was placed.
+- **Skinning on the GPU** (left out of 0.36): figures are skinned on the CPU and cached in atlas
+  pages; with wgpu the skinning could move into a shader.
 - **Consoles:** need publisher programmes; not planned.
 - **Visible helmets, hats, backpacks and quivers** (moved from 0.20.0):
   - item models on the head and back bones of the 3D characters (`HoldStyle::Head` / `Back`;

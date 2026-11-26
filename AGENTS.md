@@ -27,6 +27,11 @@ release/0.2.0                           o-------o
 Note: this repository's main branch is called `master` (not `main`). Until 0.18.2 it used
 git-flow with a `develop` branch, hotfix branches and back-merge pull requests; those are gone.
 
+**One agreed exception (2026-11-26):** `feature/studio`, the rewrite of the editor and of the
+engine's platform layer (ROADMAP.md, *0.36.0 — The Studio*), lives until that work is complete and
+merges into `master` once. A draft pull request into `master` is open from its first push, so CI
+runs on every push. `master` takes only bugfixes meanwhile, and each is merged into the branch.
+
 ### Rules
 
 1. **`master` is protected** (a GitHub ruleset, for everyone including admins): no direct pushes,

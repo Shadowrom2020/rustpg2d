@@ -43,6 +43,8 @@ pub struct Cx<'a> {
     pub maps: &'a [String],
     /// Also the fields for advanced use.
     pub show_all: bool,
+    /// A table's cells: every text on one line.
+    pub compact: bool,
     pub pictures: Option<&'a mut dyn Pictures>,
     /// The names the project uses (flags, variables, script functions…), offered where one is typed.
     pub refs: Option<&'a editor_core::refs::Refs>,
@@ -408,7 +410,7 @@ fn inline(ui: &mut egui::Ui, cx: &mut Cx, node: Node, site: &str, v: &mut Value,
                 picker(ui, cx, kinds, s, by)
             } else if let Some(names) = schema::names(site, key) {
                 named(ui, &cx.names(names), s, by)
-            } else if s.contains('\n') || s.len() > 60 {
+            } else if !cx.compact && (s.contains('\n') || s.len() > 60) {
                 ui.add(egui::TextEdit::multiline(s).desired_rows(2).desired_width(460.0)).labelled_by(by).changed()
             } else {
                 ui.add(egui::TextEdit::singleline(s).desired_width(280.0)).labelled_by(by).changed()
@@ -504,6 +506,46 @@ pub struct Row<'a> {
     /// A field that holds something else than its default: its label's menu (right-click)
     /// puts it back.
     pub reset: bool,
+}
+
+/// Whether a field's value fits into a table's cell (a text, a number, a switch, a choice,
+/// an id).
+pub fn fits_cell(field: &Field) -> bool {
+    is_inline(&field.node.shape())
+}
+
+/// How wide a table's column for the field is, in points.
+pub fn cell_width(field: &Field) -> f32 {
+    fn width(shape: &Shape, picker: bool) -> f32 {
+        match shape {
+            Shape::Text if picker => 360.0,
+            Shape::Text | Shape::Color => 300.0,
+            Shape::Int { .. } | Shape::Float => 76.0,
+            Shape::Bool => 48.0,
+            Shape::Choice(_) => 224.0,
+            Shape::Fixed(nodes) => nodes.len() as f32 * 60.0 + 16.0,
+            Shape::Optional(inner) => width(&inner.shape(), picker) + 34.0,
+            _ => 120.0,
+        }
+    }
+    width(&field.node.shape(), !field.reference().is_empty() || schema::names(&field.site(), field.key).is_some())
+}
+
+/// A field's control alone, as a table's cell shows it (the default while the object leaves
+/// the field out). `by`: the column's header, which names the control. True when it changed.
+pub fn cell(ui: &mut egui::Ui, cx: &mut Cx, field: &Field, map: &mut serde_json::Map<String, Value>, by: egui::Id) -> bool {
+    let site = field.site();
+    match map.get_mut(field.key) {
+        Some(v) => inline(ui, cx, field.node, &site, v, by),
+        None => {
+            let mut v = field.node.blank();
+            let changed = inline(ui, cx, field.node, &site, &mut v, by);
+            if changed {
+                map.insert(field.key.to_string(), v);
+            }
+            changed
+        }
+    }
 }
 
 /// A value under its label: on a row when it fits there, else as a group that folds. True when
@@ -1065,7 +1107,7 @@ mod ui_tests {
         let state = State { kind, value, show_all: false, lists, asks: Vec::new() };
         Harness::builder().with_size(egui::vec2(900.0, 4000.0)).build_ui_state(
             |ui, state: &mut State| {
-                let mut cx = Cx { lists: &state.lists, maps: &[], show_all: state.show_all, pictures: None, refs: None, asks: Vec::new() };
+                let mut cx = Cx { lists: &state.lists, maps: &[], show_all: state.show_all, compact: false, pictures: None, refs: None, asks: Vec::new() };
                 definition_ui(ui, &mut cx, schema::of_kind(state.kind).unwrap(), &mut state.value);
                 for ask in cx.asks {
                     state.asks.push(match ask {

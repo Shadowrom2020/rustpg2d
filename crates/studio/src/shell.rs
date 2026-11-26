@@ -1010,7 +1010,7 @@ impl Viewer<'_> {
         let mut value = self.forms.get(&key).map_or_else(|| saved.clone(), |(v, _)| v.clone());
         let mut pics = self.rs.map(|rs| crate::thumbs::Pics { thumbs: &mut *self.thumbs, ws: &*self.ws, rs });
         let pictures = pics.as_mut().map(|p| p as &mut dyn crate::form::Pictures);
-        let mut cx = crate::form::Cx { lists: self.lists, maps: &self.ws.maps, show_all: *self.show_all, pictures, refs: Some(&self.ws.refs), asks: Vec::new() };
+        let mut cx = crate::form::Cx { lists: self.lists, maps: &self.ws.maps, show_all: *self.show_all, compact: false, pictures, refs: Some(&self.ws.refs), asks: Vec::new() };
         let changed = match editor_core::schema::of_kind(kind) {
             Some(node) => crate::form::definition_ui(ui, &mut cx, node, &mut value),
             None => crate::form::value_ui(ui, kind.label(), &mut value),
@@ -1122,14 +1122,19 @@ impl Viewer<'_> {
         let (fid, lid) = (ui.scope_id().with("filter"), egui::Id::unique(("kind as list", kind.name())));
         let mut filter: String = ui.data_mut(|d| d.get_temp(fid).unwrap_or_default());
         let pictures = crate::thumbs::has_pictures(kind) && self.rs.is_some();
-        let mut as_list: bool = ui.data_mut(|d| d.get_persisted(lid).unwrap_or(!pictures));
+        // 0 = cards with pictures, 1 = a list, 2 = a table with a column per field.
+        let mut view: u8 = ui.data_mut(|d| d.get_persisted(lid).unwrap_or(if pictures { 0 } else { 1 }));
+        if view == 0 && !pictures {
+            view = 1;
+        }
         ui.horizontal(|ui| {
             ui.heading(plural(kind.label()));
             ui.add(egui::TextEdit::singleline(&mut filter).hint_text("Filter").desired_width(220.0));
             if pictures {
-                ui.selectable_value(&mut as_list, false, "Pictures");
-                ui.selectable_value(&mut as_list, true, "List");
+                ui.selectable_value(&mut view, 0, "Pictures");
             }
+            ui.selectable_value(&mut view, 1, "List");
+            ui.selectable_value(&mut view, 2, "Table").on_hover_text("A column per field: compare, sort and change many at once");
             if ui.button(format!("+ New {}", kind.label().to_lowercase())).clicked() {
                 self.asks.push(Ask::New(Some(kind)));
             }
@@ -1214,7 +1219,13 @@ impl Viewer<'_> {
         let sid = ui.scope_id().with("chosen");
         let mut chosen: std::collections::BTreeSet<String> = ui.data_mut(|d| d.get_temp(sid).unwrap_or_default());
         chosen.retain(|id| all.iter().any(|(i, _)| i == id));
-        if !chosen.is_empty() {
+        if chosen.is_empty() {
+            // (The row is always there: choosing the first doesn't push everything down.)
+            ui.horizontal(|ui| {
+                ui.set_min_height(ui.spacing().interact_size.y);
+                ui.weak("Choose several (Ctrl+click a card, a row's box) to tag, move, change or delete them together.");
+            });
+        } else {
             ui.horizontal_wrapped(|ui| {
                 ui.strong(format!("{} chosen", chosen.len()));
                 let what = format!("{} {}", chosen.len(), plural(kind.label()).to_lowercase());
@@ -1259,7 +1270,10 @@ impl Viewer<'_> {
         ui.weak(if rows.len() == all.len() { format!("{}", all.len()) } else { format!("{} of {}", rows.len(), all.len()) });
         ui.separator();
         let mut open = None;
-        if as_list || !pictures {
+        if view == 2 {
+            let ids: Vec<String> = rows.iter().map(|(id, _)| id.clone()).collect();
+            open = self.kind_table(ui, kind, &ids, &mut chosen);
+        } else if view == 1 {
             for (id, name) in &rows {
                 ui.horizontal(|ui| {
                     let mut on = chosen.contains(id);
@@ -1320,8 +1334,175 @@ impl Viewer<'_> {
             d.insert_temp(wid, which);
             d.insert_temp(tid, tag);
             d.insert_temp(sid, chosen);
-            d.insert_persisted(lid, as_list);
+            d.insert_persisted(lid, view);
         });
+    }
+
+    /// A kind as a table: a row per definition, a column per field that fits into a cell (the
+    /// *Columns* menu picks which), cells changed in place. A click on a column's head sorts by
+    /// it. A change in a chosen row is made in every chosen row. Returns the id to open.
+    fn kind_table(&mut self, ui: &mut egui::Ui, kind: RefKind, ids: &[String], chosen: &mut std::collections::BTreeSet<String>) -> Option<String> {
+        use editor_core::schema::{self, Shape};
+        let Some(node) = schema::of_kind(kind) else { return None };
+        let Shape::Struct(fields) = node.shape() else { return None };
+        let cells: Vec<&schema::Field> = fields.iter().filter(|f| f.key != "id" && crate::form::fits_cell(f)).collect();
+        // The columns: as chosen before, else the first section's fields.
+        let col_id = egui::Id::unique(("columns", kind.name()));
+        let first: Vec<String> = schema::sections(node.ty).first().map(|(_, list)| list.split_whitespace().filter(|k| !k.starts_with('~')).map(str::to_string).collect()).unwrap_or_default();
+        let mut columns: Vec<String> = ui.data_mut(|d| d.get_persisted(col_id)).unwrap_or_else(|| cells.iter().filter(|f| first.is_empty() || first.iter().any(|k| k == f.key)).take(7).map(|f| f.key.to_string()).collect());
+        let sort_id = ui.scope_id().with("sort");
+        let mut sort: (String, bool) = ui.data_mut(|d| d.get_temp(sort_id).unwrap_or_default());
+        ui.horizontal(|ui| {
+            ui.menu_button("Columns", |ui| {
+                egui::ScrollArea::vertical().max_height(360.0).show(ui, |ui| {
+                    for f in &cells {
+                        let mut on = columns.iter().any(|c| c == f.key);
+                        if ui.checkbox(&mut on, f.label()).changed() {
+                            if on {
+                                columns.push(f.key.to_string());
+                            } else {
+                                columns.retain(|c| c != f.key);
+                            }
+                        }
+                    }
+                });
+            });
+            if !chosen.is_empty() {
+                ui.weak(format!("A change in a chosen row is made in all {} chosen.", chosen.len()));
+            }
+        });
+        // (In the definition's order, whatever order they were ticked in.)
+        let shown: Vec<&schema::Field> = cells.iter().copied().filter(|f| columns.iter().any(|c| c == f.key)).collect();
+        // Sorted by a column: the order is worked out again when something changed.
+        let mut order: Vec<String> = ids.to_vec();
+        if !sort.0.is_empty() {
+            let stamp = format!("{}|{}|{}|{}|{}", sort.0, sort.1, self.ws.timeline.status(), ids.len(), ids.first().map_or("", String::as_str));
+            let cache_id = ui.scope_id().with("order");
+            let cached: Option<(String, Vec<String>)> = ui.data_mut(|d| d.get_temp(cache_id));
+            order = match cached {
+                Some((s, o)) if s == stamp => o,
+                _ => {
+                    let blank = shown.iter().find(|f| f.key == sort.0).map(|f| f.node.blank()).unwrap_or(serde_json::Value::Null);
+                    let mut keyed: Vec<(serde_json::Value, String)> = ids.iter().map(|id| (self.ws.def_value(kind, id).and_then(|v| v.get(&sort.0).cloned()).unwrap_or_else(|| blank.clone()), id.clone())).collect();
+                    keyed.sort_by(|(a, _), (b, _)| {
+                        let by_number = a.as_f64().zip(b.as_f64()).map(|(x, y)| x.total_cmp(&y));
+                        let o = by_number.unwrap_or_else(|| a.as_str().map(str::to_lowercase).unwrap_or_else(|| a.to_string()).cmp(&b.as_str().map(str::to_lowercase).unwrap_or_else(|| b.to_string())));
+                        if sort.1 {
+                            o.reverse()
+                        } else {
+                            o
+                        }
+                    });
+                    let o: Vec<String> = keyed.into_iter().map(|(_, id)| id).collect();
+                    ui.data_mut(|d| d.insert_temp(cache_id, (stamp, o.clone())));
+                    o
+                }
+            };
+        }
+        let row_height = ui.spacing().interact_size.y + 2.0;
+        let name_width = 250.0;
+        let mut open = None;
+        let mut edits: Vec<(String, String, serde_json::Value)> = Vec::new();
+        let mut asks = Vec::new();
+        let pictures = crate::thumbs::has_pictures(kind);
+        let names: std::collections::HashMap<&str, &str> = self.lists.iter().find(|(k, _)| *k == kind).map(|(_, l)| l.iter().map(|(id, name)| (id.as_str(), name.as_str())).collect()).unwrap_or_default();
+        egui::ScrollArea::horizontal().id_salt("table").show(ui, |ui| {
+            // The heads: a click sorts by the column, another turns the order round.
+            let mut heads: Vec<egui::Id> = Vec::new();
+            ui.horizontal(|ui| {
+                ui.allocate_ui_with_layout(egui::vec2(name_width + 26.0, row_height), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                    ui.set_min_width(name_width + 26.0);
+                    if ui.selectable_label(sort.0.is_empty(), kind.label()).on_hover_text("In the order of the project's file").clicked() {
+                        sort = Default::default();
+                    }
+                });
+                for f in &shown {
+                    ui.allocate_ui_with_layout(egui::vec2(crate::form::cell_width(f), row_height), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                        ui.set_min_width(crate::form::cell_width(f));
+                        let mark = if sort.0 == f.key { if sort.1 { "  v" } else { "  ^" } } else { "" };
+                        let r = ui.selectable_label(sort.0 == f.key, format!("{}{mark}", f.label()));
+                        heads.push(r.id);
+                        let help = f.node.help();
+                        if r.clicked() {
+                            sort = if sort.0 == f.key { (sort.0.clone(), !sort.1) } else { (f.key.to_string(), false) };
+                        }
+                        if !help.is_empty() {
+                            r.on_hover_text(help);
+                        }
+                    });
+                }
+            });
+            ui.separator();
+            let height = (ui.available_height() - 4.0).max(row_height * 6.0);
+            egui::ScrollArea::vertical().id_salt("rows").max_height(height).auto_shrink([false, false]).show_rows(ui, row_height, order.len(), |ui, range| {
+                let mut pics = self.rs.map(|rs| crate::thumbs::Pics { thumbs: &mut *self.thumbs, ws: &*self.ws, rs });
+                let pictures_for = pics.as_mut().map(|p| p as &mut dyn crate::form::Pictures);
+                let mut cx = crate::form::Cx { lists: self.lists, maps: &self.ws.maps, show_all: true, compact: true, pictures: pictures_for, refs: Some(&self.ws.refs), asks: Vec::new() };
+                for id in &order[range] {
+                    let Some(mut value) = self.ws.def_value(kind, id) else { continue };
+                    ui.push_id(id.as_str(), |ui| {
+                        ui.horizontal(|ui| {
+                            let mut on = chosen.contains(id);
+                            if ui.checkbox(&mut on, "").changed() {
+                                if on {
+                                    chosen.insert(id.clone());
+                                } else {
+                                    chosen.remove(id);
+                                }
+                            }
+                            ui.allocate_ui_with_layout(egui::vec2(name_width, row_height), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                ui.set_min_width(name_width);
+                                if pictures {
+                                    crate::thumbs::boxed(ui, row_height - 2.0, || cx.pictures.as_mut().and_then(|p| p.of(kind, id)));
+                                }
+                                let name = names.get(id.as_str()).copied().unwrap_or(id.as_str());
+                                if ui.add(egui::Label::new(name).truncate().sense(egui::Sense::click())).on_hover_text(format!("Open {name}  ({id})")).clicked() {
+                                    open = Some(id.clone());
+                                }
+                            });
+                            let Some(map) = value.as_object_mut() else { return };
+                            for (f, head) in shown.iter().zip(&heads) {
+                                ui.allocate_ui_with_layout(egui::vec2(crate::form::cell_width(f), row_height), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                    ui.set_min_width(crate::form::cell_width(f));
+                                    ui.push_id(f.key, |ui| {
+                                        if crate::form::cell(ui, &mut cx, f, map, *head) {
+                                            edits.push((id.clone(), f.key.to_string(), map.get(f.key).cloned().unwrap_or(serde_json::Value::Null)));
+                                        }
+                                    });
+                                });
+                            }
+                        });
+                    });
+                }
+                asks.append(&mut cx.asks);
+            });
+        });
+        // A change: in its row, and in every chosen row when the row is one of them.
+        for (id, key, new) in edits {
+            let targets: Vec<String> = if chosen.contains(&id) { chosen.iter().cloned().collect() } else { vec![id] };
+            if targets.len() > 1 {
+                self.ws.begin(&format!("Change {} of {} {}", key.replace('_', " "), targets.len(), plural(kind.label()).to_lowercase()));
+            }
+            for target in targets {
+                let Some(mut value) = self.ws.def_value(kind, &target) else { continue };
+                value[key.as_str()] = new.clone();
+                if let Err(e) = self.ws.set_def_value(kind, &target, value) {
+                    self.ws.set_status(format!("{target}: {e}"));
+                }
+            }
+        }
+        for ask in asks {
+            match ask {
+                crate::form::Ask::Open(RefKind::Map, map) => self.asks.push(Ask::Open(Tab::Map(map))),
+                crate::form::Ask::Open(k, i) => self.asks.push(Ask::Open(Tab::Def(k, i))),
+                crate::form::Ask::New(k) => self.asks.push(Ask::New(Some(k))),
+            }
+        }
+        ui.data_mut(|d| {
+            d.insert_persisted(col_id, columns);
+            d.insert_temp(sort_id, sort);
+        });
+        open
     }
 
     fn map(&mut self, ui: &mut egui::Ui, name: &str) {

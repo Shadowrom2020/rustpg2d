@@ -903,6 +903,10 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     has a mark in the browser and on its card, its header says what is wrong, and a kind's tab
     shows *with problems* alone. *unused* (sheets, models, sounds, materials, fonts: what the
     clean-up of unused files looks at) shows what no definition, map, setting or script names.
+  - **A kind as a table:** a row per definition, a column per field that fits into a cell (the
+    schema says which; *Columns* picks, the first section's by default), cells changed in
+    place with the forms' controls, a click on a column's head sorts by it. A change in a
+    chosen row is made in every chosen row, as one history step.
   - **Names in use** (`schema::names`, table `NAMES`): where a flag, a variable, a script
     function, a faction, a prop's state, a target, a crafting station or an emotion is typed,
     a button beside the field lists the ones the project uses (`Workspace::refs`); a new one
@@ -915,8 +919,8 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   Still open: the hand-made editors (triggers as an event sheet in part 7; stat blocks,
   buildings, class levels), a state picked among the states of the prop in question, tool
   kinds and piece styles, units and ranges on numbers, problems at the field, live previews (a
-  prop with its states, an item in a hand, a moving character), pictures of structures, the
-  table view, problems at the very field, *unused* for items, props and characters (nothing
+  prop with its states, an item in a hand, a moving character), pictures of structures,
+  problems at the very field, *unused* for items, props and characters (nothing
   places or names them), folders as a tree with drag and drop,
   where an asset came from (a pack: part 9), *New…* from the library, a file or Meshy (parts 8
   and 9), *From library…* in pickers (part 9), the schema as
@@ -984,6 +988,9 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     "no_such_spell", which doesn't exist"; a sheet made and named by nothing is under *unused
     (1)*. The script's `field` now reaches fields a file leaves out and refuses a field the
     kind doesn't have (`Node::at`).
+  - The table, in the window: the items with Name, Description, Stack size and Value; sorted by
+    Value downwards (Ring of Protection 4000 first); Gate Key and Bronze Key ticked, 77 typed
+    into one's Value: both have 77, one step *Change value of 2 items*, one undo.
   - *New…*: `a_new_definition_is_made_from_its_name` (blank, numbered id, a copy, a quest's
     title, undo). In the window: *Item*, "Moon Blade" typed, *as a copy of another item*, the
     Hunting Bow clicked (its picture beside the list), *Create*: the tab of `moon_blade` opens,

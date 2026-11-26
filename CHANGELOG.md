@@ -45,6 +45,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   already in use.
 - ***New…*** (Ctrl+N, part 4): pick what to make (each kind says what it is), give it a name,
   and start blank or from a copy picked from a list with pictures; the id is made from the name.
+- **A kind as a table** (part 4): a column per field, cells changed in place, a click on a
+  column's head sorts by it; a change in a ticked row is made in every ticked row (set the
+  price of ten items at once).
 - **Problems where they are** (part 4): after *Check the project* an asset with a problem is
   marked in the browser and on its card, its form says what is wrong, and a kind's tab can
   show only those, or (pictures, models, sounds, materials, fonts) only what nothing uses.

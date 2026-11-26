@@ -6,7 +6,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::occupancy::{OCC_CHAR, OCC_PROP};
 use super::paperdoll::Anim;

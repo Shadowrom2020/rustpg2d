@@ -2,7 +2,7 @@
 //! pull in, let go before the line snaps). Keyboard, gamepad and autoplay play it with Confirm /
 //! Interact and Cancel. (The lockpicking game of 0.27 and older became a DEX check: `locks.rs`.)
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::skin;
 
@@ -74,7 +74,7 @@ fn seed() -> u32 {
     if std::env::var_os("RUSTPG2D_AUTOPLAY").is_some() {
         0x2545_f491
     } else {
-        macroquad::rand::rand() | 1
+        gfx::rand::rand() | 1
     }
 }
 
@@ -187,7 +187,7 @@ impl Game {
                     return;
                 }
                 let table = self.loaded.map.zones.iter().find(|z| z.uid == f.zone).and_then(|z| z.loot.clone()).unwrap_or_default();
-                match pick_catch(&table, macroquad::rand::gen_range(0.0, 1.0)) {
+                match pick_catch(&table, gfx::rand::gen_range(0.0, 1.0)) {
                     Some((item, n)) => {
                         let lost = self.world.give_item(&item, n);
                         self.item_given(&item, n - lost, lost);

@@ -7,7 +7,7 @@
 //! hurt run to an ally, catch their breath and come back. The state lives in [`Ai`] on each
 //! character (not saved).
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::patrol::Walk;
 use super::{Game, Mover};

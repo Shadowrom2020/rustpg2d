@@ -3,7 +3,7 @@
 //! around its edges, so the layer moves with the world and always fills the screen. Drawn on
 //! top of the lit scene (the game: after the light pass); `brightness` dims them at night.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use crate::map::{Weather, WeatherKind};
 

@@ -2,7 +2,7 @@
 //! (`render/model.rs`). [`Game::look`] says which: the character's model; a look of an older
 //! project that names a figure plays the model of the same id; anything else is the mannequin.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::Game;
 pub(super) use crate::render::character::Anim;
@@ -33,7 +33,7 @@ impl Game {
     /// [`Self::model_cell`] turned a further eighth (`turn`: -1, 0, 1; see `diagonal_turn`).
     pub(super) fn model_cell_turned(&self, a: &Appearance, gear: &Gear, pose: (Facing, Anim), turn: i8) -> Option<Cell> {
         let a = &self.look(a);
-        let (anim, time, once) = self.assets.models.clip_req(&self.project.db, a, gear, pose.1, macroquad::time::get_time() as f32);
+        let (anim, time, once) = self.assets.models.clip_req(&self.project.db, a, gear, pose.1, gfx::time::get_time() as f32);
         let req = PoseReq { look: a, gear, anim: &anim, time, once, facing: pose.0, turn, bust: false };
         self.assets.models.pose(&self.project.db, &self.assets.sheets, &req)
     }
@@ -93,7 +93,7 @@ impl Game {
 
     /// Breathing frame (0 / 1) of a character standing still; `seed` keeps neighbours apart.
     fn breath(seed: u32) -> u32 {
-        ((macroquad::time::get_time() * 1.25 + (seed % 97) as f64 * 0.37) as u32) % 2
+        ((gfx::time::get_time() * 1.25 + (seed % 97) as f64 * 0.37) as u32) % 2
     }
 
     /// What the player shows: a strike, blocking, being hurt, sneaking, walking or breathing.

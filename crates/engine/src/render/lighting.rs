@@ -3,8 +3,8 @@
 //! plus the lights) is drawn into a render target with the world camera, then multiplied over
 //! the screen.
 
-use macroquad::miniquad::{BlendFactor, BlendState, BlendValue, Equation, PipelineParams};
-use macroquad::prelude::*;
+use gfx::material::{BlendFactor, BlendState, BlendValue, Equation, PipelineParams};
+use gfx::prelude::*;
 
 use crate::defs::LightSpec;
 use crate::map::{LightMode, MapLighting};
@@ -70,28 +70,6 @@ impl Light {
     }
 }
 
-const VERTEX: &str = r#"#version 100
-attribute vec3 position;
-attribute vec2 texcoord;
-attribute vec4 color0;
-varying lowp vec2 uv;
-varying lowp vec4 color;
-uniform mat4 Model;
-uniform mat4 Projection;
-void main() {
-    gl_Position = Projection * Model * vec4(position, 1);
-    color = color0 / 255.0;
-    uv = texcoord;
-}"#;
-
-const FRAGMENT: &str = r#"#version 100
-varying lowp vec2 uv;
-varying lowp vec4 color;
-uniform sampler2D Texture;
-void main() {
-    gl_FragColor = color * texture2D(Texture, uv);
-}"#;
-
 /// Draws darkness and lights; keeps its render target and textures between frames.
 pub struct LightPass {
     rt: Option<(RenderTarget, u32, u32)>,
@@ -124,7 +102,7 @@ impl LightPass {
         glow.set_filter(FilterMode::Linear);
         // Multiplies the screen with the light map: result = screen color × light color.
         let multiply = load_material(
-            ShaderSource::Glsl { vertex: VERTEX, fragment: FRAGMENT },
+            ShaderSource::Wgsl { source: DEFAULT_SHADER },
             MaterialParams {
                 pipeline_params: PipelineParams {
                     color_blend: Some(BlendState::new(Equation::Add, BlendFactor::Value(BlendValue::DestinationColor), BlendFactor::Zero)),

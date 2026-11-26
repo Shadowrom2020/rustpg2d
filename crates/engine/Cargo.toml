@@ -6,7 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
-macroquad.workspace = true
+gfx.workspace = true
 serde.workspace = true
 ron.workspace = true
 postcard.workspace = true
@@ -15,19 +15,17 @@ anyhow.workspace = true
 png = "0.18"
 # Portable math functions (glibc_compat.rs).
 libm = "0.2"
-# Decodes music (Ogg Vorbis) to make its loops gapless (audio.rs); macroquad already uses it.
+# Decodes music (Ogg Vorbis) to make its loops gapless (audio.rs).
 lewton = "0.9"
 # 3D character models (model.rs): glTF binary files from Meshy, Blender and other tools.
 gltf = { version = "1", default-features = false, features = ["utils", "names"] }
-# JPEG textures of models: turns on the jpeg decoder of the image crate macroquad already uses.
-image = { version = "0.24", default-features = false, features = ["jpeg"] }
-# Which characters a project font has glyphs for (fonts.rs); macroquad's fontdue already uses it.
+# Which characters a project font has glyphs for (fonts.rs).
 ttf-parser = { version = "0.25", default-features = false, features = ["no-std-float"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 rhai.workspace = true
 zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs"] }
-# Gamepads (macroquad reads only keyboard and mouse); needs libudev on Linux.
+# Gamepads (the platform layer reads keyboard, mouse and touch); needs libudev on Linux.
 gilrs = "0.11"
 
 # The web game (wasm32-unknown-unknown, loaded by macroquad's JS, no wasm-bindgen): Rhai without

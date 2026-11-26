@@ -5,8 +5,8 @@
 //! can switch shakes, flashes and hit-stop off (Options › Shake & flash) and the numbers too
 //! (Options › Damage numbers).
 
-use macroquad::miniquad::{BlendFactor, BlendState, BlendValue, Equation, PipelineParams};
-use macroquad::prelude::*;
+use gfx::material::{BlendFactor, BlendState, BlendValue, Equation, PipelineParams};
+use gfx::prelude::*;
 
 use super::text::{draw_text, measure_text};
 use super::Game;
@@ -69,27 +69,26 @@ pub(super) struct Juice {
     screen_flash: Option<([f32; 4], f32, f32)>,
 }
 
-const WHITE_VERTEX: &str = r#"#version 100
-attribute vec3 position;
-attribute vec2 texcoord;
-attribute vec4 color0;
-varying lowp vec2 uv;
-varying lowp vec4 color;
-uniform mat4 Model;
-uniform mat4 Projection;
-void main() {
-    gl_Position = Projection * Model * vec4(position, 1);
-    color = color0 / 255.0;
-    uv = texcoord;
-}"#;
-
 /// The texture's shape in white (the vertex color's alpha fades it).
-const WHITE_FRAGMENT: &str = r#"#version 100
-varying lowp vec2 uv;
-varying lowp vec4 color;
-uniform sampler2D Texture;
-void main() {
-    gl_FragColor = vec4(color.rgb, texture2D(Texture, uv).a * color.a);
+const WHITE_SHADER: &str = r#"
+struct VertexOutput {
+    @builtin(position) position: vec4<f32>,
+    @location(0) uv: vec2<f32>,
+    @location(1) color: vec4<f32>,
+};
+
+@vertex
+fn vs_main(v: VertexInput) -> VertexOutput {
+    var out: VertexOutput;
+    out.position = u.Projection * u.Model * vec4<f32>(v.position, 1.0);
+    out.color = v.color0;
+    out.uv = v.texcoord;
+    return out;
+}
+
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    return vec4<f32>(in.color.rgb, textureSample(Texture, TextureSampler, in.uv).a * in.color.a);
 }"#;
 
 impl Game {
@@ -234,7 +233,7 @@ impl Game {
             // Alpha blending like the default material (a material without it draws its quads opaque).
             let blend = BlendState::new(Equation::Add, BlendFactor::Value(BlendValue::SourceAlpha), BlendFactor::OneMinusValue(BlendValue::SourceAlpha));
             let params = MaterialParams { pipeline_params: PipelineParams { color_blend: Some(blend), alpha_blend: Some(blend), ..Default::default() }, ..Default::default() };
-            load_material(ShaderSource::Glsl { vertex: WHITE_VERTEX, fragment: WHITE_FRAGMENT }, params)
+            load_material(ShaderSource::Wgsl { source: WHITE_SHADER }, params)
                 .map_err(|e| eprintln!("[render] hit flash shader: {e}"))
                 .ok()
         });

@@ -16,7 +16,7 @@ pub mod weather;
 
 use std::collections::HashMap;
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use crate::defs::SpriteRef;
 use crate::map::Map;

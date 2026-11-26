@@ -4,7 +4,7 @@
 //! takes a spell attack or a saving throw and the parts after it (damage, healing, conditions,
 //! buffs, light, unlocking, a script). Concentration: one spell at a time, a CON save on damage.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::{AttackSpec, Who};
 use crate::grid::{feet_spot, feet_tile, TilePos};

@@ -3,7 +3,7 @@
 //! grows through its stages over in-game hours (`EntityState::planted`, so also while the
 //! player is elsewhere), faster while it rains on the plot's map; E on a ripe crop harvests it.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::Game;
 use crate::defs::Crop;

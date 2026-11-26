@@ -5,7 +5,7 @@
 //! Loot: click a container stack to take it, right-click takes one, click your own stack to
 //! store it, drag between the grids, "Take all" (T). Esc / I closes.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::input::{self, Act};
 use super::ui::{panel, slot_grid, slot_grid_size, DragState, SlotEvent, PAD, SLOT};

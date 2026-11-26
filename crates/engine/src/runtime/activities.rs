@@ -5,7 +5,7 @@
 //! pure functions of the time, so nothing is saved. Talking to one pauses it for a moment (it
 //! turns to the player), then it goes back to work.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::Game;
 use crate::entity::{Activity, ActivityKind, Facing};

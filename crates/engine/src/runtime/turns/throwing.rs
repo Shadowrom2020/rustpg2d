@@ -5,7 +5,7 @@
 //! (free in a fight). After the fight the surviving characters take back what they threw; the
 //! hero's lies there until picked up.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::{AttackSpec, Who};
 use crate::defs::{EquipSlot, ItemDef};

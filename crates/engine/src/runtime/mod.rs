@@ -94,7 +94,7 @@ mod worldmap;
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use anyhow::{anyhow, Context, Result};
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use crate::audio::Audio;
 use crate::defs::{Behavior, Weapon};

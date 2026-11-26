@@ -3,7 +3,7 @@
 //! the *Long rest* action): full HP, half the level's hit dice back, one level of exhaustion
 //! less, the conditions with a duration over.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::input::{self, Act};
 use super::skin;

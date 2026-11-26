@@ -4,7 +4,7 @@
 //! the + and - keys zoom, Space centers on the player, M or Esc close. On maps with fog of war
 //! only the explored tiles (`WorldState::explored`) are shown.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::skin;
 

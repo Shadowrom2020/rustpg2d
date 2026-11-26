@@ -4,7 +4,7 @@
 //! the exit leading there (a portal, a transition or a map edge). The world map pins the same
 //! spots. Players switch them off in *Options › Quest markers*.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::Game;
 use crate::entity::EntityKind;

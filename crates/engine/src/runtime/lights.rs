@@ -1,6 +1,6 @@
 //! Light sources of the running game and the HUD clock.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::{Game, RtEntity};
 use crate::defs::{EquipSlot, LightSpec};

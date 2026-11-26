@@ -7,6 +7,6 @@ license.workspace = true
 
 [dependencies]
 rustpg2d-engine.workspace = true
-macroquad.workspace = true
+gfx.workspace = true
 anyhow.workspace = true
 ron.workspace = true

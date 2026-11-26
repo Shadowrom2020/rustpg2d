@@ -7,9 +7,9 @@
 
 use crate::defs::{BuildingShape, Database, Ridge, RoofKind, SpriteRef, WallSide};
 use crate::model::{Model, SkinVertex};
-use macroquad::color::Color;
-use macroquad::math::{vec2, vec3, Vec2, Vec3};
-use macroquad::texture::Image;
+use gfx::color::Color;
+use gfx::math::{vec2, vec3, Vec2, Vec3};
+use gfx::texture::Image;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
@@ -72,7 +72,7 @@ pub fn picture_reader<'a>(db: &'a Database, read: &'a dyn Fn(&str) -> std::io::R
 /// The pictures a building uses, packed into one texture.
 struct Atlas {
     /// Per entry: its rectangle in the atlas (pixels) and its world size (units).
-    cells: Vec<(macroquad::math::Rect, Vec2)>,
+    cells: Vec<(gfx::math::Rect, Vec2)>,
     image: Image,
 }
 
@@ -120,7 +120,7 @@ impl Atlas {
                     image.set_pixel((px as i32 + 1 + xx) as u32, (py as i32 + 1 + yy) as u32, c);
                 }
             }
-            cells.push((macroquad::math::Rect::new(px as f32 + 1.0, py as f32 + 1.0, w as f32, h as f32), *size));
+            cells.push((gfx::math::Rect::new(px as f32 + 1.0, py as f32 + 1.0, w as f32, h as f32), *size));
         }
         Atlas { cells, image }
     }

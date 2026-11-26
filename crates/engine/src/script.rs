@@ -447,7 +447,7 @@ fn register_api(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     engine.register_fn("is_home", with!(ctx, |c, m: &str| c.world.homes.contains(m)));
     engine.register_fn("player_hp", with!(ctx, |c| c.world.player_hp.unwrap_or(0) as i64));
     // random(n): integer in 0..n
-    engine.register_fn("random", |n: i64| if n <= 0 { 0 } else { macroquad::rand::gen_range(0, n) });
+    engine.register_fn("random", |n: i64| if n <= 0 { 0 } else { gfx::rand::gen_range(0, n) });
 
     // Queued world actions.
     engine.register_fn("say", with!(ctx, |c, text: &str| c.actions.push(Action::Dialog {

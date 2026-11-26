@@ -1,6 +1,6 @@
 //! Zones (portals, spawn points, trigger areas) and map-edge links.
 
-use macroquad::math::{vec2, Rect, Vec2};
+use gfx::math::{vec2, Rect, Vec2};
 use serde::{Deserialize, Serialize};
 
 use crate::events::Trigger;

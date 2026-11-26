@@ -5,7 +5,7 @@
 //! Click a row to select it, click *Make* (or double-click the row, or press Enter / E) to make
 //! one; hold Shift for up to ten. Up / Down or the mouse wheel select, Esc closes.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::input::{self, Act};
 use super::ui::{panel, ListClick, ScrollList, PAD};

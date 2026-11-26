@@ -2,7 +2,7 @@
 //! tiles), pause at each, loop or go back and forth. Talking to them, dialogs and scripted
 //! moves pause the patrol; its progress is saved with the character's state.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::occupancy::{Occupancy, OCC_CHAR, OCC_PROP};
 use super::{Game, Mover};

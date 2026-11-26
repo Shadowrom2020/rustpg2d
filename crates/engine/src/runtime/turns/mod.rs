@@ -21,7 +21,7 @@ pub(in crate::runtime) mod vision;
 pub(super) use actions::TurnAct;
 pub(super) use casting::CastAt;
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::juice::NumberKind;
 use super::Game;

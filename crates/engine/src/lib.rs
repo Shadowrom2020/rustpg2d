@@ -82,7 +82,7 @@ pub mod state;
 pub mod sys;
 pub mod structure;
 
-pub use macroquad;
+pub use gfx;
 
 /// Fingerprint of the engine sources this binary was built from. The editor compares it
 /// with `rustpg2d-game --engine-build` before a play-test to catch a stale game binary.

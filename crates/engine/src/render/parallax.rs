@@ -2,7 +2,7 @@
 //! tiles or over the map. Shared by the game and the editor's preview; drawn in world space
 //! with the map's camera set.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::Assets;
 use crate::map::ParallaxLayer;

@@ -4,7 +4,7 @@
 //! knock out. Keys, mouse and autoplay (`turn menu`, `turn pick K`) pick a row; Cancel closes it
 //! (not the finishing blow's: that one waits for an answer).
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::{Aim, Who};
 use crate::runtime::input::{self, Act};

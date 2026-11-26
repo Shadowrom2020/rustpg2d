@@ -1,6 +1,6 @@
 //! Key locks on props (gates, doors, chests).
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::{Game, Source};
 use crate::defs::{LockSpec, OnUnlock};

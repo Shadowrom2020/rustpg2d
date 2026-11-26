@@ -11,7 +11,7 @@
 //! - **silence**: no spell with a verbal component is cast inside;
 //! - **walls** stop walking and sight (the tiles become solid while it stands).
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::turns::{Side, Who};
 use super::Game;

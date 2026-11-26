@@ -5,12 +5,12 @@
 //! animation frames). No
 //! big pictures are baked: editing a cell re-uploads one 130 x 130 texture.
 //!
-//! GLSL ES 100 (the web build): no texture arrays, the material table is a texture (WebGL 1
-//! can't index uniform arrays with values read from textures).
+//! WGSL, kept to what WebGL 2 can do (the web build): no texture arrays; the material table is a
+//! texture.
 
 use std::collections::HashMap;
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use crate::defs::Database;
 use crate::ground::{Edge, MaterialDef, CELL, CHUNK_CELLS, MAX_MATERIALS};
@@ -27,127 +27,138 @@ const INFO_W: u32 = 128;
 /// Cell textures kept (least recently drawn ones go first).
 const MAX_CHUNKS: usize = 256;
 
-const VERTEX: &str = r#"#version 100
-attribute vec3 position;
-attribute vec2 texcoord;
-attribute vec4 color0;
-varying highp vec2 uv;
-varying lowp vec4 color;
-uniform mat4 Model;
-uniform mat4 Projection;
-void main() {
-    gl_Position = Projection * Model * vec4(position, 1);
-    color = color0 / 255.0;
-    uv = texcoord;
-}"#;
+/// The ground shader (WGSL; the declarations of uniforms and textures are written in front by
+/// `load_material`).
+const SHADER: &str = r#"
+struct VertexOutput {
+    @builtin(position) position: vec4<f32>,
+    @location(0) uv: vec2<f32>,
+    @location(1) color: vec4<f32>,
+};
 
-const FRAGMENT: &str = r#"#version 100
-#ifdef GL_FRAGMENT_PRECISION_HIGH
-precision highp float;
-#else
-precision mediump float;
-#endif
-varying highp vec2 uv;
-varying lowp vec4 color;
-uniform sampler2D Texture;
-uniform sampler2D Atlas;
-uniform sampler2D Info;
-uniform sampler2D Noise;
-uniform vec2 Origin;
-uniform vec2 AtlasPx;
-// macroquad's clock: (seconds, sin, cos, 0).
-uniform vec4 _Time;
-
-const float CELL = 8.0;
-const float CELLS = 128.0;
-const float SIDE = 130.0;
-
-float cellAt(vec2 c) {
-    c = clamp(c, vec2(-1.0), vec2(CELLS));
-    return floor(texture2D(Texture, (c + 1.5) / SIDE).r * 255.0 + 0.5);
+@vertex
+fn vs_main(v: VertexInput) -> VertexOutput {
+    var out: VertexOutput;
+    out.position = u.Projection * u.Model * vec4<f32>(v.position, 1.0);
+    out.color = v.color0;
+    out.uv = v.texcoord;
+    return out;
 }
 
-vec4 info(float v, float row) {
-    return texture2D(Info, vec2((v + 0.5) / 128.0, (row + 0.5) / 4.0));
+const CELL: f32 = 8.0;
+const CELLS: f32 = 128.0;
+const SIDE: f32 = 130.0;
+
+// GLSL's mod: the result has the sign of y.
+fn fmod(x: f32, y: f32) -> f32 {
+    return x - y * floor(x / y);
 }
 
-float byte(float x) {
+fn fmod2(x: vec2<f32>, y: vec2<f32>) -> vec2<f32> {
+    return x - y * floor(x / y);
+}
+
+fn cellAt(c0: vec2<f32>) -> f32 {
+    let c = clamp(c0, vec2<f32>(-1.0), vec2<f32>(CELLS));
+    return floor(textureSampleLevel(Texture, TextureSampler, (c + 1.5) / SIDE, 0.0).r * 255.0 + 0.5);
+}
+
+fn info(v: f32, row: f32) -> vec4<f32> {
+    return textureSampleLevel(Info, InfoSampler, vec2<f32>((v + 0.5) / 128.0, (row + 0.5) / 4.0), 0.0);
+}
+
+fn byte8(x: f32) -> f32 {
     return floor(x * 255.0 + 0.5);
 }
 
+fn noiseAt(f: vec2<f32>) -> vec2<f32> {
+    return textureSampleLevel(Noise, NoiseSampler, (fmod2(f, vec2<f32>(64.0)) + 0.5) / 64.0, 0.0).rg;
+}
+
 // Smooth value noise (two channels, -0.5..0.5), one noise texel per `CELL` pixels.
-vec2 noise(vec2 p) {
-    vec2 f = floor(p);
-    vec2 t = p - f;
+fn noise(p: vec2<f32>) -> vec2<f32> {
+    let f = floor(p);
+    var t = p - f;
     t = t * t * (3.0 - 2.0 * t);
-    vec2 a = texture2D(Noise, (mod(f, 64.0) + 0.5) / 64.0).rg;
-    vec2 b = texture2D(Noise, (mod(f + vec2(1.0, 0.0), 64.0) + 0.5) / 64.0).rg;
-    vec2 c = texture2D(Noise, (mod(f + vec2(0.0, 1.0), 64.0) + 0.5) / 64.0).rg;
-    vec2 d = texture2D(Noise, (mod(f + vec2(1.0, 1.0), 64.0) + 0.5) / 64.0).rg;
+    let a = noiseAt(f);
+    let b = noiseAt(f + vec2<f32>(1.0, 0.0));
+    let c = noiseAt(f + vec2<f32>(0.0, 1.0));
+    let d = noiseAt(f + vec2<f32>(1.0, 1.0));
     return mix(mix(a, b, t.x), mix(c, d, t.x), t.y) - 0.5;
+}
+
+fn isCell(c: vec2<f32>, v: f32) -> f32 {
+    return select(0.0, 1.0, cellAt(c) == v);
 }
 
 // How much of the area around chunk-local point p (pixels) holds value v: bilinear over the
 // cell centres (0.5 = the edge).
-float cover(float v, vec2 p) {
-    vec2 c = p / CELL - 0.5;
-    vec2 f = floor(c);
-    vec2 t = c - f;
-    float a = cellAt(f) == v ? 1.0 : 0.0;
-    float b = cellAt(f + vec2(1.0, 0.0)) == v ? 1.0 : 0.0;
-    float d = cellAt(f + vec2(0.0, 1.0)) == v ? 1.0 : 0.0;
-    float e = cellAt(f + vec2(1.0, 1.0)) == v ? 1.0 : 0.0;
+fn cover(v: f32, p: vec2<f32>) -> f32 {
+    let c = p / CELL - 0.5;
+    let f = floor(c);
+    let t = c - f;
+    let a = isCell(f, v);
+    let b = isCell(f + vec2<f32>(1.0, 0.0), v);
+    let d = isCell(f + vec2<f32>(0.0, 1.0), v);
+    let e = isCell(f + vec2<f32>(1.0, 1.0), v);
     return mix(mix(a, b, t.x), mix(d, e, t.x), t.y);
 }
 
-vec4 texel(float v, vec2 world) {
-    vec4 i0 = info(v, 0.0);
-    vec4 i3 = info(v, 3.0);
-    vec2 size = vec2(byte(i0.z), byte(i0.w)) * 8.0;
-    vec2 flow = vec2(byte(i3.x), byte(i3.y)) - 128.0;
-    vec2 q = floor(world - mod(flow * _Time.x, size));
-    vec2 slot = vec2(byte(i0.x), byte(i0.y)) * 256.0;
+fn texel(v: f32, world: vec2<f32>) -> vec4<f32> {
+    let i0 = info(v, 0.0);
+    let i3 = info(v, 3.0);
+    let size = vec2<f32>(byte8(i0.z), byte8(i0.w)) * 8.0;
+    let flow = vec2<f32>(byte8(i3.x), byte8(i3.y)) - 128.0;
+    let q = floor(world - fmod2(flow * u._Time.x, size));
+    let slot = vec2<f32>(byte8(i0.x), byte8(i0.y)) * 256.0;
     // Animation: the frame of the clock, laid out in rows of as many as fit in the slot.
-    float frames = byte(i3.z);
-    float k = frames > 1.0 ? mod(floor(_Time.x * byte(i3.w) / 10.0), frames) : 0.0;
-    float cols = floor(256.0 / size.x);
-    vec2 frame = vec2(mod(k, cols), floor(k / cols)) * size;
-    return texture2D(Atlas, (slot + frame + mod(q, size) + 0.5) / AtlasPx);
+    let frames = byte8(i3.z);
+    var k = 0.0;
+    if (frames > 1.0) {
+        k = fmod(floor(u._Time.x * byte8(i3.w) / 10.0), frames);
+    }
+    let cols = floor(256.0 / size.x);
+    let frame = vec2<f32>(fmod(k, cols), floor(k / cols)) * size;
+    return textureSampleLevel(Atlas, AtlasSampler, (slot + frame + fmod2(q, size) + 0.5) / u.AtlasPx, 0.0);
 }
 
-void main() {
-    vec2 local = uv * CELLS * CELL;
-    vec2 world = Origin + local;
-    vec2 c = floor(local / CELL - 0.5);
-    float vs[4];
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    let local = in.uv * CELLS * CELL;
+    let world = u.Origin + local;
+    let c = floor(local / CELL - 0.5);
+    var vs: array<f32, 4>;
     vs[0] = cellAt(c);
-    vs[1] = cellAt(c + vec2(1.0, 0.0));
-    vs[2] = cellAt(c + vec2(0.0, 1.0));
-    vs[3] = cellAt(c + vec2(1.0, 1.0));
+    vs[1] = cellAt(c + vec2<f32>(1.0, 0.0));
+    vs[2] = cellAt(c + vec2<f32>(0.0, 1.0));
+    vs[3] = cellAt(c + vec2<f32>(1.0, 1.0));
     if (vs[0] == vs[1] && vs[0] == vs[2] && vs[0] == vs[3]) {
         if (vs[0] == 0.0) {
             discard;
         }
-        gl_FragColor = texel(vs[0], world) * color;
-        return;
+        return texel(vs[0], world) * in.color;
     }
     // Materials of the four cells around, drawn from the lowest priority up.
-    float pr[4];
-    for (int i = 0; i < 4; i++) {
-        pr[i] = vs[i] == 0.0 ? -1.0 : byte(info(vs[i], 1.0).z) + vs[i] / 256.0;
-        for (int j = 0; j < 4; j++) {
-            if (j < i && vs[j] == vs[i]) {
+    var pr: array<f32, 4>;
+    for (var i = 0; i < 4; i++) {
+        if (vs[i] == 0.0) {
+            pr[i] = -1.0;
+        } else {
+            pr[i] = byte8(info(vs[i], 1.0).z) + vs[i] / 256.0;
+        }
+        for (var j = 0; j < i; j++) {
+            if (vs[j] == vs[i]) {
                 pr[i] = -2.0;
             }
         }
     }
-    vec4 col = vec4(0.0);
-    float last = -1.5;
-    bool first = true;
-    for (int k = 0; k < 4; k++) {
-        float best = 1000.0;
-        float bv = -1.0;
-        for (int i = 0; i < 4; i++) {
+    var col = vec4<f32>(0.0);
+    var last = -1.5;
+    var first = true;
+    for (var k = 0; k < 4; k++) {
+        var best = 1000.0;
+        var bv = -1.0;
+        for (var i = 0; i < 4; i++) {
             if (pr[i] > last && pr[i] < best) {
                 best = pr[i];
                 bv = vs[i];
@@ -157,50 +168,53 @@ void main() {
             break;
         }
         last = best;
-        vec4 tex = bv == 0.0 ? vec4(0.0) : texel(bv, world);
+        var tex = vec4<f32>(0.0);
+        if (bv != 0.0) {
+            tex = texel(bv, world);
+        }
         if (first) {
             col = tex;
             first = false;
             continue;
         }
-        vec4 e = info(bv, 1.0);
-        float soft = e.x;
-        float amp = byte(e.y) / 32.0;
-        float pix = max(1.0, byte(e.w));
-        float w;
-        float a;
+        let e = info(bv, 1.0);
+        let soft = e.x;
+        let amp = byte8(e.y) / 32.0;
+        let pix = max(1.0, byte8(e.w));
+        var w = 0.0;
+        var a = 0.0;
         if (soft > 0.75) {
             w = cover(bv, local + noise(world / CELL) * 2.0 * amp);
             a = smoothstep(0.1, 0.9, w);
         } else if (soft > 0.25) {
             // Straight: the cell under the pixel decides; the rim is a band of the neighbouring
             // cells along the material's cells.
-            vec2 cl = floor(local / CELL);
-            a = cellAt(cl) == bv ? 1.0 : 0.0;
-            vec4 rim = info(bv, 2.0);
+            let cl = floor(local / CELL);
+            a = isCell(cl, bv);
+            let rim = info(bv, 2.0);
             if (rim.a > 0.0 && a < 0.5) {
-                vec2 f = local - cl * CELL;
-                float r = min(byte(rim.a), 4.0);
-                float near = 0.0;
-                if (f.x < r && cellAt(cl + vec2(-1.0, 0.0)) == bv) near = 1.0;
-                if (CELL - f.x <= r && cellAt(cl + vec2(1.0, 0.0)) == bv) near = 1.0;
-                if (f.y < r && cellAt(cl + vec2(0.0, -1.0)) == bv) near = 1.0;
-                if (CELL - f.y <= r && cellAt(cl + vec2(0.0, 1.0)) == bv) near = 1.0;
-                if (f.x < r && f.y < r && cellAt(cl + vec2(-1.0, -1.0)) == bv) near = 1.0;
-                if (CELL - f.x <= r && f.y < r && cellAt(cl + vec2(1.0, -1.0)) == bv) near = 1.0;
-                if (f.x < r && CELL - f.y <= r && cellAt(cl + vec2(-1.0, 1.0)) == bv) near = 1.0;
-                if (CELL - f.x <= r && CELL - f.y <= r && cellAt(cl + vec2(1.0, 1.0)) == bv) near = 1.0;
-                col = mix(col, vec4(rim.rgb, 1.0), near);
+                let f = local - cl * CELL;
+                let r = min(byte8(rim.a), 4.0);
+                var close = 0.0;
+                if (f.x < r && cellAt(cl + vec2<f32>(-1.0, 0.0)) == bv) { close = 1.0; }
+                if (CELL - f.x <= r && cellAt(cl + vec2<f32>(1.0, 0.0)) == bv) { close = 1.0; }
+                if (f.y < r && cellAt(cl + vec2<f32>(0.0, -1.0)) == bv) { close = 1.0; }
+                if (CELL - f.y <= r && cellAt(cl + vec2<f32>(0.0, 1.0)) == bv) { close = 1.0; }
+                if (f.x < r && f.y < r && cellAt(cl + vec2<f32>(-1.0, -1.0)) == bv) { close = 1.0; }
+                if (CELL - f.x <= r && f.y < r && cellAt(cl + vec2<f32>(1.0, -1.0)) == bv) { close = 1.0; }
+                if (f.x < r && CELL - f.y <= r && cellAt(cl + vec2<f32>(-1.0, 1.0)) == bv) { close = 1.0; }
+                if (CELL - f.x <= r && CELL - f.y <= r && cellAt(cl + vec2<f32>(1.0, 1.0)) == bv) { close = 1.0; }
+                col = mix(col, vec4<f32>(rim.rgb, 1.0), close);
             }
         } else {
             // Crisp: the whole art pixel takes one value (pixel-art steps).
-            vec2 ps = (floor(world / pix) + 0.5) * pix;
-            w = cover(bv, ps - Origin + noise(ps / CELL) * 2.0 * amp);
+            let ps = (floor(world / pix) + 0.5) * pix;
+            w = cover(bv, ps - u.Origin + noise(ps / CELL) * 2.0 * amp);
             a = step(0.5, w);
-            vec4 rim = info(bv, 2.0);
+            let rim = info(bv, 2.0);
             if (rim.a > 0.0) {
-                float ra = step(0.5 - byte(rim.a) / CELL * 0.5, w) * (1.0 - a);
-                col = mix(col, vec4(rim.rgb, 1.0), ra);
+                let ra = step(0.5 - byte8(rim.a) / CELL * 0.5, w) * (1.0 - a);
+                col = mix(col, vec4<f32>(rim.rgb, 1.0), ra);
             }
         }
         col = mix(col, tex, a);
@@ -208,7 +222,7 @@ void main() {
     if (col.a < 0.01) {
         discard;
     }
-    gl_FragColor = col * color;
+    return col * in.color;
 }"#;
 
 /// The ground shader, the material atlas and table of the map being drawn, and the chunks'
@@ -248,18 +262,18 @@ impl GroundRenderer {
     fn shader(&mut self) -> Option<Material> {
         if self.material.is_none() && !self.failed {
             match load_material(
-                ShaderSource::Glsl { vertex: VERTEX, fragment: FRAGMENT },
+                ShaderSource::Wgsl { source: SHADER },
                 MaterialParams {
                     uniforms: vec![UniformDesc::new("Origin", UniformType::Float2), UniformDesc::new("AtlasPx", UniformType::Float2)],
                     textures: vec!["Atlas".into(), "Info".into(), "Noise".into()],
                     // See-through textures (an abyss over a parallax layer) blend like sprites.
-                    pipeline_params: macroquad::miniquad::PipelineParams {
-                        color_blend: Some(macroquad::miniquad::BlendState::new(
-                            macroquad::miniquad::Equation::Add,
-                            macroquad::miniquad::BlendFactor::Value(macroquad::miniquad::BlendValue::SourceAlpha),
-                            macroquad::miniquad::BlendFactor::OneMinusValue(macroquad::miniquad::BlendValue::SourceAlpha),
+                    pipeline_params: gfx::material::PipelineParams {
+                        color_blend: Some(gfx::material::BlendState::new(
+                            gfx::material::Equation::Add,
+                            gfx::material::BlendFactor::Value(gfx::material::BlendValue::SourceAlpha),
+                            gfx::material::BlendFactor::OneMinusValue(gfx::material::BlendValue::SourceAlpha),
                         )),
-                        alpha_blend: Some(macroquad::miniquad::BlendState::new(macroquad::miniquad::Equation::Add, macroquad::miniquad::BlendFactor::Zero, macroquad::miniquad::BlendFactor::One)),
+                        alpha_blend: Some(gfx::material::BlendState::new(gfx::material::Equation::Add, gfx::material::BlendFactor::Zero, gfx::material::BlendFactor::One)),
                         ..Default::default()
                     },
                 },

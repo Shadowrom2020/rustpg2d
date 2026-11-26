@@ -4,7 +4,7 @@
 //! would play a sheet; weapon and stat-block attack hits, items used and class actions play
 //! their own.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::Game;
 use crate::defs::LightSpec;

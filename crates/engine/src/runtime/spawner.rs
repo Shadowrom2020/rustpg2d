@@ -2,7 +2,7 @@
 //! the map: a spawner's `count` of one character, an encounter's listed monsters or a group
 //! picked within the party's XP budget (`srd::encounter`).
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::Game;
 use crate::entity::{EntityKind, Facing};

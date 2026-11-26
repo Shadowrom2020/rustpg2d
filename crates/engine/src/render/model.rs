@@ -10,8 +10,8 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
-use macroquad::miniquad::{BlendFactor, BlendState, BlendValue, Equation};
-use macroquad::prelude::*;
+use gfx::material::{BlendFactor, BlendState, BlendValue, Equation};
+use gfx::prelude::*;
 
 use crate::defs::{Appearance, ClipMap, Database, HoldStyle, ModelDef, DEFAULT_HIT};
 use crate::entity::Facing;
@@ -471,40 +471,38 @@ pub struct Models {
     pub warnings: Vec<String>,
 }
 
-const VERTEX: &str = r#"#version 100
-attribute vec3 position;
-attribute vec2 texcoord;
-attribute vec4 color0;
-attribute vec4 normal;
-varying lowp vec2 uv;
-varying lowp vec4 color;
-varying mediump vec3 n;
-uniform mat4 Model;
-uniform mat4 Projection;
-void main() {
-    gl_Position = Projection * Model * vec4(position, 1.0);
-    uv = texcoord;
-    color = color0 / 255.0;
-    n = normal.xyz;
+/// The vertex half of the model shaders (WGSL): the normal travels to the fragment shader.
+const VERTEX: &str = r#"
+struct VertexOutput {
+    @builtin(position) position: vec4<f32>,
+    @location(0) uv: vec2<f32>,
+    @location(1) color: vec4<f32>,
+    @location(2) n: vec3<f32>,
+};
+
+@vertex
+fn vs_main(v: VertexInput) -> VertexOutput {
+    var out: VertexOutput;
+    out.position = u.Projection * u.Model * vec4<f32>(v.position, 1.0);
+    out.uv = v.texcoord;
+    out.color = v.color0;
+    out.n = v.normal.xyz;
+    return out;
 }
 "#;
 
-const FRAGMENT: &str = r#"#version 100
-precision mediump float;
-varying lowp vec2 uv;
-varying lowp vec4 color;
-varying mediump vec3 n;
-uniform sampler2D Texture;
-uniform vec3 LightDir;
-uniform float Shade;
-void main() {
-    vec4 c = texture2D(Texture, uv) * color;
-    if (c.a < 0.5) discard;
-    float d = dot(normalize(n), LightDir);
+const FRAGMENT: &str = r#"
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    let c = textureSample(Texture, TextureSampler, in.uv) * in.color;
+    if (c.a < 0.5) {
+        discard;
+    }
+    let d = dot(normalize(in.n), u.LightDir);
     // Soft light like the pre-rendered props': a warm sun from the north-west over a cool sky.
-    float sun = smoothstep(-0.3, 0.85, d);
-    vec3 light = mix(vec3(0.58, 0.62, 0.72), vec3(1.06, 1.02, 0.93), sun);
-    gl_FragColor = vec4(c.rgb * mix(vec3(1.0), light, Shade), 1.0);
+    let sun = smoothstep(-0.3, 0.85, d);
+    let light = mix(vec3<f32>(0.58, 0.62, 0.72), vec3<f32>(1.06, 1.02, 0.93), sun);
+    return vec4<f32>(c.rgb * mix(vec3<f32>(1.0), light, u.Shade), 1.0);
 }
 "#;
 
@@ -1364,7 +1362,7 @@ fn neighbours<'a>(db: &'a Database, changed: Option<&'a crate::defs::PropDef>) -
 fn depth_material(c: &mut Cache) -> Material {
     if c.depth_material.is_none() {
         let pipeline = PipelineParams { depth_write: true, depth_test: Comparison::LessOrEqual, color_write: (false, false, false, false), ..Default::default() };
-        let m = load_material(ShaderSource::Glsl { vertex: VERTEX, fragment: FRAGMENT_DEPTH }, MaterialParams { pipeline_params: pipeline, uniforms: vec![], textures: vec![] }).expect("depth shader");
+        let m = load_material(ShaderSource::Wgsl { source: &format!("{VERTEX}{FRAGMENT_DEPTH}") }, MaterialParams { pipeline_params: pipeline, uniforms: vec![], textures: vec![] }).expect("depth shader");
         c.depth_material = Some(m);
     }
     c.depth_material.clone().unwrap()
@@ -1394,24 +1392,23 @@ fn draw_occluder(c: &mut Cache, model: &Model, turn: Mat4) {
 fn shadow_material(c: &mut Cache) -> Material {
     if c.shadow_material.is_none() {
         let pipeline = PipelineParams { depth_write: false, depth_test: Comparison::LessOrEqual, ..Default::default() };
-        let m = load_material(ShaderSource::Glsl { vertex: VERTEX, fragment: FRAGMENT_SHADOW }, MaterialParams { pipeline_params: pipeline, uniforms: vec![], textures: vec![] }).expect("shadow shader");
+        let m = load_material(ShaderSource::Wgsl { source: &format!("{VERTEX}{FRAGMENT_SHADOW}") }, MaterialParams { pipeline_params: pipeline, uniforms: vec![], textures: vec![] }).expect("shadow shader");
         c.shadow_material = Some(m);
     }
     c.shadow_material.clone().unwrap()
 }
 
-const FRAGMENT_SHADOW: &str = r#"#version 100
-precision mediump float;
-varying lowp vec4 color;
-void main() {
-    gl_FragColor = color;
+const FRAGMENT_SHADOW: &str = r#"
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    return in.color;
 }
 "#;
 
-const FRAGMENT_DEPTH: &str = r#"#version 100
-precision mediump float;
-void main() {
-    gl_FragColor = vec4(0.0);
+const FRAGMENT_DEPTH: &str = r#"
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    return vec4<f32>(0.0);
 }
 "#;
 
@@ -1424,7 +1421,7 @@ fn material(c: &mut Cache) -> Material {
             ..Default::default()
         };
         let m = load_material(
-            ShaderSource::Glsl { vertex: VERTEX, fragment: FRAGMENT },
+            ShaderSource::Wgsl { source: &format!("{VERTEX}{FRAGMENT}") },
             MaterialParams { pipeline_params: pipeline, uniforms: vec![UniformDesc::new("LightDir", UniformType::Float3), UniformDesc::new("Shade", UniformType::Float1)], textures: vec![] },
         )
         .expect("model shader");

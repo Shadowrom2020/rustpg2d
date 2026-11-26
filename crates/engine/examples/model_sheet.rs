@@ -8,28 +8,27 @@
 //! files, for clips the standard names don't find, e.g. `--clip attack_2h=Armature|Heavy_Hammer_Swing|baselayer`)
 use std::collections::HashMap;
 
-use macroquad::prelude::*;
+use rustpg2d_engine::gfx;
+use rustpg2d_engine::gfx::prelude::*;
 use rustpg2d_engine::defs::{Appearance, Database, ModelDef, RigFit};
 use rustpg2d_engine::entity::Facing;
 use rustpg2d_engine::model::guess_clips;
 use rustpg2d_engine::render::model::{Gear, Models, PoseReq};
 
-fn conf() -> macroquad::conf::Conf {
-    macroquad::conf::Conf {
-        miniquad_conf: miniquad::conf::Conf { window_title: "model_sheet".into(), window_width: 1600, window_height: 900, ..Default::default() },
-        update_on: None,
-        default_filter_mode: FilterMode::Nearest,
-        draw_call_vertex_capacity: rustpg2d_engine::render::model::DRAW_VERTICES,
-        draw_call_index_capacity: rustpg2d_engine::render::model::DRAW_INDICES,
-    }
-}
-
 fn clip_names(path: &str) -> Vec<String> {
     std::fs::read(path).ok().and_then(|b| rustpg2d_engine::model::clip_names(&b).ok()).unwrap_or_default()
 }
 
-#[macroquad::main(conf)]
-async fn main() {
+/// Renders off screen: no window is opened.
+fn main() {
+    if let Err(e) = gfx::window::run_headless(1600, 900, run()) {
+        eprintln!("model_sheet: {e}");
+        std::process::exit(1);
+    }
+}
+
+async fn run() {
+    set_default_filter_mode(FilterMode::Nearest);
     let args: Vec<String> = std::env::args().skip(1).collect();
     let (Some(out), Some(file)) = (args.first(), args.get(1)) else {
         eprintln!("usage: model_sheet OUT.png MODEL.glb [--clips FILE.glb]… [--template TEMPLATE.glb [--turn DEGREES]] [--height PIXELS] [--anims walk,idle,…]");

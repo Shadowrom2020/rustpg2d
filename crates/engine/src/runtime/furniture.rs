@@ -3,7 +3,7 @@
 //! passes: the clock jumps, HP and mana are restored, the world moves on). Moving, attacking or
 //! E stands the player up again. The Sleep action / `sleep(hours)` sleeps without a bed.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::{Game, Mover, Source};
 use crate::defs::{Pose, SpriteRef};

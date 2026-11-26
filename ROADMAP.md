@@ -515,7 +515,7 @@ Read the current documentation of eframe / egui, wgpu, winit and the audio libra
 starts and pin the versions then (looked up on 2026-11-26, APIs not read: egui / eframe 0.37,
 wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses.
 
-- [ ] Part 1: The engine on wgpu — `feature/studio`
+- [~] Part 1: The engine on wgpu — `feature/studio`
 
   **Goal.** The engine draws, plays sound and reads input through a layer of its own instead of
   macroquad: the game looks and plays as in 0.35, and can be drawn into any number of views inside
@@ -552,6 +552,36 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     (no more vertical flip).
   - **Gone:** macroquad, miniquad, egui-macroquad, the `image` 0.24 pin and macroquad's own png.
 
+  **Progress.** `crates/gfx` (device, the draw list, textures and render targets, materials in
+  WGSL, cameras, shapes, text, input, the window loop on winit, sound on kira); the engine and
+  the game on it (imports and the seven shaders; nothing else of the 101 files changed); the
+  comparison set (`scripts/studio/shots.sh`, `compare.py`, `RUSTPG2D_FIXED_STEP`). Still open:
+  the web build, Windows and macOS, the software-adapter message, CI and the smoke run, golden
+  pictures in the tests.
+
+  **Decided while building.**
+  - **Draw calls wait for the frame's end.** macroquad sent them to the GPU at every camera
+    change; the isometric view changes the camera per upright object. Each draw call keeps the
+    projection it was made under, and one render pass is made per run of draw calls into the
+    same picture. Clearing is an entry of the list.
+  - **Everything is drawn into a picture** (`gfx::Screen`), which the window copies to its
+    surface: the same path for the game, the editor's views and tests, and screenshots are a
+    read-back. All pictures are `Rgba8Unorm` (no sRGB conversion, as OpenGL drew).
+  - **OpenGL's conventions are kept where the engine counts on them:** render targets are drawn
+    upside down (the engine's cameras and texture coordinates expect it), clip space depth is
+    converted from -1..1, and the screen is drawn 1/128 pixel lower so that lines exactly between
+    two pixel rows land on the row OpenGL chose (the UI's box outlines). `get_screen_data` still
+    comes bottom row first and `export_png` still turns it over (so the note above about the
+    flip is not done: tidying that API is left for later).
+  - **macroquad's own code is reused** for shapes, text, the glyph atlas, cameras, colours and
+    rectangles (MIT OR Apache-2.0; `crates/gfx/LICENSE-macroquad-MIT`), so layout and glyph
+    pixels are the same. `quad-rand` stays as `gfx::rand`.
+  - **Material shaders** get their declarations (uniform block, textures, vertex input) written
+    in front by `load_material` from the declared uniforms, so a shader and its uniform layout
+    can't disagree.
+  - **The old editor** is out of the workspace (`exclude` in `Cargo.toml`) and stays in the tree
+    to read until its parts are rebuilt.
+
   **Engine.** This part is the engine: `crates/gfx`, every `use macroquad` (101 of the engine's
   201 files, 82 of them in `runtime/`), `crates/game/src/main.rs`, `audio.rs`, `sys.rs`, `web/`,
   `release.rs` (the web export's files), `desktop.rs`, `glibc_compat.rs` checks, `xtask`
@@ -561,6 +591,10 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   - A fixed set of autoplay screenshots (title, village by day and night, a dungeon, a fight, the
     character window, a dialog, the shop, the map screen, weather) taken with 0.35 and with the new
     renderer, compared picture by picture; differences explained or fixed.
+    *Done 2026-11-26 on Linux (Vulkan, NVIDIA): 18 pictures, both runners stepping a sixtieth
+    of a second per frame (0.35 with a patched macroquad in a scratch worktree). The UI screens
+    are identical; world scenes differ in 0.0-0.5 % of pixels, single pixels along rotated
+    edges. No dialog or shop picture in the set yet.*
   - `status` frame times on the forest map, old against new (`RUSTPG2D_PERF=1`).
   - `scripts/ci/smoke.sh` (the game half) passes; sound heard: music loop, a fade, footsteps.
   - Linux (AppImage on Debian 12, glibc ≤ 2.34), Windows under Wine (try this first: Wine's

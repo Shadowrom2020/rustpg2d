@@ -8,7 +8,7 @@
 
 use std::cell::Cell;
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::input::{self, Act, Device, Pad};
 

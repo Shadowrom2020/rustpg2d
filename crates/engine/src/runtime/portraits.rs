@@ -2,7 +2,7 @@
 //! render of their model (in their colours). Nothing to set up per character: the speaker is
 //! found from the dialog's speaker text (`ProjectConfig::dialog_portraits` turns it off).
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::Game;
 use crate::defs::{Appearance, SpriteRef};

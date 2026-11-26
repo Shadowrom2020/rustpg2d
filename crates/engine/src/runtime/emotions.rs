@@ -5,7 +5,7 @@
 //! themselves (`ProjectConfig::auto_emotions`): enemies noticing, losing and fleeing from the
 //! player, sleepers, companions learning a spell. Not saved.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::Game;
 use crate::defs::SheetKind;
@@ -165,7 +165,7 @@ impl Game {
                 draw(m, e.body.pos, h);
             } else if let (Some((sheet, first, last, fps)), Some(seat)) = (&sleepy, &e.npc_seat) {
                 if seat.lying() {
-                    let m = Emote { name: "sleepy".into(), sheet: sheet.clone(), first: *first, last: *last, fps: *fps, t: macroquad::time::get_time() as f32 + e.uid as f32, seconds: None };
+                    let m = Emote { name: "sleepy".into(), sheet: sheet.clone(), first: *first, last: *last, fps: *fps, t: gfx::time::get_time() as f32 + e.uid as f32, seconds: None };
                     draw(&m, e.body.pos + vec2(0.0, -4.0 * u), h * 0.6);
                 }
             }

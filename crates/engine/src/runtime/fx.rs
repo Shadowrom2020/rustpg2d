@@ -3,7 +3,7 @@
 //! optionally glowing; timed lights at a point (Light at point) and area healing (Heal area).
 //! Positions in the actions / scripts are tile coordinates.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::Game;
 use crate::defs::LightSpec;

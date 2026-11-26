@@ -4,8 +4,8 @@
 
 use std::cell::RefCell;
 
-use macroquad::miniquad::{BlendFactor, BlendState, BlendValue, Equation};
-use macroquad::prelude::*;
+use gfx::material::{BlendFactor, BlendState, BlendValue, Equation};
+use gfx::prelude::*;
 
 use super::Game;
 use crate::pictures::{Blend, Picture, PictureLook, PictureTargets, MAX_LAYER};
@@ -15,34 +15,12 @@ thread_local! {
     static ADD: RefCell<Option<Option<Material>>> = const { RefCell::new(None) };
 }
 
-const VERTEX: &str = r#"#version 100
-attribute vec3 position;
-attribute vec2 texcoord;
-attribute vec4 color0;
-varying lowp vec2 uv;
-varying lowp vec4 color;
-uniform mat4 Model;
-uniform mat4 Projection;
-void main() {
-    gl_Position = Projection * Model * vec4(position, 1);
-    color = color0 / 255.0;
-    uv = texcoord;
-}"#;
-
-const FRAGMENT: &str = r#"#version 100
-varying lowp vec2 uv;
-varying lowp vec4 color;
-uniform sampler2D Texture;
-void main() {
-    gl_FragColor = color * texture2D(Texture, uv);
-}"#;
-
 pub(super) fn additive() -> Option<Material> {
     ADD.with(|m| {
         m.borrow_mut()
             .get_or_insert_with(|| {
                 load_material(
-                    ShaderSource::Glsl { vertex: VERTEX, fragment: FRAGMENT },
+                    ShaderSource::Wgsl { source: DEFAULT_SHADER },
                     MaterialParams {
                         pipeline_params: PipelineParams {
                             color_blend: Some(BlendState::new(Equation::Add, BlendFactor::Value(BlendValue::SourceAlpha), BlendFactor::One)),

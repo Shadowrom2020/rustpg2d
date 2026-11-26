@@ -4,7 +4,7 @@
 //! them), `poison` (poisons lying there or carried, poisonous creatures), creature types
 //! (`undead`, `fiend`…).
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::Game;
 use crate::entity::EntityKind;

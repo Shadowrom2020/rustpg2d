@@ -4,7 +4,7 @@
 //! (tints, the HUD badges, badges over characters). The conditions and their rules are in
 //! [`crate::srd::conditions`].
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::text::{draw_text, measure_text};
 use super::Game;
@@ -286,7 +286,7 @@ impl Game {
             for k in 0..n {
                 let t = k as f32 / n as f32 * std::f32::consts::TAU;
                 let color = [0, 0, 0, (a * 255.0) as u8];
-                vertices.push(macroquad::models::Vertex { position: vec3(c.x + t.cos() * r, c.y + t.sin() * r, 0.0), uv: vec2(0.0, 0.0), color, normal: vec4(0.0, 0.0, 1.0, 0.0) });
+                vertices.push(gfx::models::Vertex { position: vec3(c.x + t.cos() * r, c.y + t.sin() * r, 0.0), uv: vec2(0.0, 0.0), color, normal: vec4(0.0, 0.0, 1.0, 0.0) });
             }
         }
         let mut indices = Vec::new();
@@ -297,7 +297,7 @@ impl Game {
                 indices.extend_from_slice(&[a, b, c2, b, d, c2]);
             }
         }
-        draw_mesh(&macroquad::models::Mesh { vertices, indices, texture: None });
+        draw_mesh(&gfx::models::Mesh { vertices, indices, texture: None });
     }
 
     /// The player's conditions as a row of badges (label and seconds left) from `(x, y)`;

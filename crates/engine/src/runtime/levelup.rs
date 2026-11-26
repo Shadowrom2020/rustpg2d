@@ -3,7 +3,7 @@
 //! with their texts, and a row per choice: the subclass, an ability score improvement (+2 / +1
 //! +1, or the feat), a fighting style, expertise, skills. *Done* stores the picks (`HeroClass`).
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::input::{self, Act};
 use super::skin;

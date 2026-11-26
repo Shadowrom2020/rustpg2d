@@ -3,6 +3,23 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## Unreleased
+
+### Engine
+- **The engine draws with wgpu** (Vulkan, Metal, DirectX 12) through a platform layer of its own,
+  `crates/gfx`, instead of macroquad: the window (winit), drawing, text, input and sound (kira).
+  The game looks as before (compared picture by picture with 0.35); the drawing functions keep
+  their names, shaders are WGSL. Part 1 of the editor's rewrite (ROADMAP.md, *0.36.0 — The
+  Studio*): the game can be drawn into any number of views inside another program.
+- `RUSTPG2D_FIXED_STEP=SECONDS`: every frame of the game takes that long whatever the real clock
+  says, so a scripted run draws the same frames every time.
+- `RUSTPG2D_ALLOW_SOFTWARE=1` lets the game start on a software renderer (tests, CI); without it
+  a machine without a graphics driver gets a message.
+
+### Maintenance
+- The 0.35 editor is no longer built on this branch (it needs macroquad); it stays in the tree
+  until the new editor replaces it.
+
 ## 0.35.0-alpha.1 — 2026-11-26
 
 ### Isometric view

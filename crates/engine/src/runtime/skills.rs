@@ -6,7 +6,7 @@
 
 use std::collections::HashMap;
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::input::{self, Act};
 use super::turns::Who;

@@ -4,7 +4,7 @@
 //! (`PropDef::climb_dc`; a failure finds no hold for two seconds). In fights nobody steps into a drop
 //! but fliers; walkers long-jump one as part of their move (`turns/` `reachable`).
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::occupancy::OCC_DROP;
 use super::Game;

@@ -19,7 +19,7 @@
 //! works), joining a fight at once. They go with the spell's time or concentration, at 0 hit
 //! points, and when the map is left (they aren't saved).
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::turns::{Fighter, Side, Who};
 use super::{Game, RtEntity};

@@ -2,7 +2,7 @@
 
 use std::collections::VecDeque;
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::{input, Game, RtEntity, Source};
 use crate::entity::{EntityKind, Facing};

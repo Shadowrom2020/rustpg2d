@@ -27,7 +27,7 @@
 
 use std::collections::BTreeMap;
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::skin;
 

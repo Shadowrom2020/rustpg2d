@@ -2,7 +2,7 @@
 //! and the spells (opened by the HUD button or C / I, K, L; Tab cycles the tabs). The tabs' contents
 //! are drawn by `inventory_ui.rs` and `skills.rs` inside the rect from [`Game::window_content`].
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::inventory_ui::Side;
 use super::input::{self, Act};

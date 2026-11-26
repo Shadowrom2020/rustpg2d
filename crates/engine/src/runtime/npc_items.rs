@@ -1,7 +1,7 @@
 //! What NPCs wear, hold and carry: combat values from their equipment, dropping it all when
 //! defeated, and changes by actions / scripts (saved per NPC in `WorldState::npc_items`).
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::{Game, RtEntity};
 use crate::defs::{Database, EquipSlot};

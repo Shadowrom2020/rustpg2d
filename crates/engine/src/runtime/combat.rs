@@ -1,6 +1,6 @@
 //! Real-time combat: player attacks, hostile characters, knockback, defeat and game over.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use crate::hooks;
 use super::{input, Arrival, Game, Mover, Source};
@@ -308,7 +308,7 @@ impl Game {
             // (An object next to the hero is in reach of any swing, bare hands too: a fist's narrow
             // arc would miss one a few pixels off the line.)
             let (reach, arc) = if object { (reach.max(ts), arc.max(60f32.to_radians())) } else { (reach, arc) };
-            (object || self.project.db.prop(&e.def).is_some_and(|d| d.gather.is_some())) && (to.length() < ts * 0.5 || (to.length() - radius <= reach && to.angle_between(dir).abs() <= arc))
+            (object || self.project.db.prop(&e.def).is_some_and(|d| d.gather.is_some())) && (to.length() < ts * 0.5 || (to.length() - radius <= reach && to.angle_to(dir).abs() <= arc))
         });
         // (A gathering prop takes a gathering hit; an object an attack: crates, doors.)
         if let Some(i) = prop {

@@ -4,6 +4,8 @@
 # starter asset library file (`cargo run -p xtask --features dist -- starter-pack [DIR]` writes only that).
 xtask = "run --quiet --package xtask --"
 xtask-dist = "run --quiet --package xtask --features dist -- dist"
+# The web game runner: `cargo build --release --target wasm32-unknown-unknown -p rustpg2d-game`, then this.
+xtask-web = "run --quiet --release --package xtask --features web -- web"
 
 # The web game: macroquad's JS loader (mq_js_bundle.js) provides the functions miniquad /
 # quad-snd declare in `extern` blocks; current Rust no longer leaves undefined symbols to the

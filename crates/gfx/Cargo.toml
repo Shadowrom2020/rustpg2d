@@ -8,7 +8,7 @@ description = "R(ust)PG2D's platform layer: window, drawing (wgpu), text, input.
 
 [dependencies]
 # The same wgpu as egui-wgpu / eframe 0.37 uses: the editor hands its device to this crate.
-wgpu = "30"
+wgpu = { version = "30", features = ["webgl", "fragile-send-sync-non-atomic-wasm"] }
 glam = { version = "0.30", features = ["scalar-math", "bytemuck"] }
 bytemuck = { version = "1", features = ["derive"] }
 # Text: the rasteriser macroquad used, so glyphs keep their pixels.
@@ -25,3 +25,14 @@ kira = { version = "0.12", default-features = false, features = ["cpal", "ogg", 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 winit = "0.30"
 pollster = "0.4"
+
+# The web game: a canvas of the page (winit), WebGL 2 (wgpu), and the browser's own services.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+winit = "0.30"
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+# Reading a texture back at once goes straight to WebGL (the same glow as wgpu's GL backend):
+# wgpu's own read-back needs a turn of the browser's event loop.
+glow = "0.17"
+web-sys = { version = "0.3", features = ["Window", "Document", "Location", "Navigator", "Storage", "Performance", "console", "Gamepad", "GamepadButton", "Blob", "BlobPropertyBag", "Url", "HtmlAnchorElement", "HtmlElement", "Element", "Node", "HtmlCanvasElement", "Response"] }

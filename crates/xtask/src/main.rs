@@ -4,6 +4,10 @@
 //!   downloads (editor, game runners, example project): `rustpg2d-X.Y.Z-x86_64.AppImage`,
 //!   `rustpg2d-X.Y.Z.flatpak`, the Windows zip and the macOS app (see `dist.rs`), plus
 //!   `SHA256SUMS`. Expects `cargo build --release` first (binaries in `target/release`).
+//! - `web [--wasm FILE] [--out DIR]` (`cargo xtask-web`, feature `web`) — the game runner for
+//!   browsers: wasm-bindgen's step on `target/wasm32-unknown-unknown/release/rustpg2d-game.wasm`,
+//!   writing `rustpg2d-game.wasm` and `rustpg2d-game.js` into `target/web` (what web exports and
+//!   the packages take).
 //! - `check-version BRANCH` — a release branch (`release/X.Y.Z`) names a valid SemVer version
 //!   above the newest `v*` tag that matches Cargo.toml and the CHANGELOG.
 //! - `check-branch HEAD BASE` — the branch model: which branches may open pull requests into
@@ -21,6 +25,8 @@ use anyhow::{bail, Context, Result};
 
 #[cfg(feature = "dist")]
 mod dist;
+#[cfg(feature = "web")]
+mod web;
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -31,6 +37,10 @@ fn main() {
         Some("starter-pack") => dist::starter_pack(args.get(1).map(std::path::Path::new)).map(|_| ()),
         #[cfg(not(feature = "dist"))]
         Some("dist") => Err(anyhow::anyhow!("dist needs the engine: run `cargo xtask-dist` (xtask with --features dist)")),
+        #[cfg(feature = "web")]
+        Some("web") => web::web(&args[1..]),
+        #[cfg(not(feature = "web"))]
+        Some("web") => Err(anyhow::anyhow!("web needs wasm-bindgen: run `cargo xtask-web` (xtask with --features web)")),
         Some("check-version") => args.get(1).context("usage: check-version BRANCH").and_then(|b| check_version(&root(), b)),
         Some("check-branch") => match (args.get(1), args.get(2)) {
             (Some(h), Some(b)) => check_branch(h, b).map(|m| println!("{m}")),
@@ -39,7 +49,7 @@ fn main() {
         Some("release-notes") => {
             args.get(1).context("usage: release-notes X.Y.Z").and_then(|v| release_notes(&read(&root().join("CHANGELOG.md"))?, v)).map(|n| print!("{n}"))
         }
-        _ => Err(anyhow::anyhow!("tasks: dist, starter-pack, check-version, check-branch, release-notes (see crates/xtask/src/main.rs)")),
+        _ => Err(anyhow::anyhow!("tasks: dist, starter-pack, web, check-version, check-branch, release-notes (see crates/xtask/src/main.rs)")),
     };
     if let Err(e) = res {
         eprintln!("error: {e:#}");

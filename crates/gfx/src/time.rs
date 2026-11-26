@@ -33,7 +33,7 @@ impl Clock {
         }
         #[cfg(target_arch = "wasm32")]
         {
-            crate::window::web_now()
+            crate::web::now()
         }
     }
 

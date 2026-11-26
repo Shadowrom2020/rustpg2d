@@ -95,6 +95,7 @@ pub fn poll_once<F: Future<Output = ()> + ?Sized>(f: Pin<&mut F>) -> bool {
 
 /// Runs a program's future without a window: frames are drawn off screen, as fast as they come,
 /// until it finishes (tools that render pictures, tests).
+#[cfg(not(target_arch = "wasm32"))]
 pub fn run_headless(width: u32, height: u32, main: impl Future<Output = ()>) -> Result<(), crate::Error> {
     crate::init_headless(width, height)?;
     let mut main = std::pin::pin!(main);
@@ -108,28 +109,9 @@ pub fn run_headless(width: u32, height: u32, main: impl Future<Output = ()>) -> 
     }
 }
 
-/// Waits for a future of wgpu (they are ready at once on desktops).
-pub(crate) fn block_on<T>(f: impl Future<Output = T>) -> T {
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        pollster::block_on(f)
-    }
-    #[cfg(target_arch = "wasm32")]
-    {
-        let mut f = std::pin::pin!(f);
-        let waker = noop_waker();
-        match f.as_mut().poll(&mut TaskContext::from_waker(&waker)) {
-            Poll::Ready(v) => v,
-            Poll::Pending => panic!("gfx: a GPU answer wasn't ready"),
-        }
-    }
-}
+pub use app::run;
 
-#[cfg(not(target_arch = "wasm32"))]
-pub use native::run;
-
-#[cfg(not(target_arch = "wasm32"))]
-mod native {
+mod app {
     use std::future::Future;
     use std::pin::Pin;
     use std::sync::Arc;
@@ -139,7 +121,6 @@ mod native {
     use winit::event::{ElementState, MouseScrollDelta, WindowEvent};
     use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
     use winit::keyboard::{Key, KeyCode as Physical, NamedKey, PhysicalKey};
-    use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
     use winit::window::{CursorGrabMode, Fullscreen, Window, WindowId};
 
     use crate::conf::Conf;
@@ -161,11 +142,15 @@ mod native {
         main: Option<Pin<Box<dyn Future<Output = ()>>>>,
         shown: Option<Shown>,
         error: Option<Error>,
+        /// The web: the device is asked for in the background; this is where its answer lands.
+        #[cfg(target_arch = "wasm32")]
+        pending: std::rc::Rc<std::cell::RefCell<Option<Result<Shown, Error>>>>,
     }
 
     /// Opens the window and runs `main` in it, one step per frame, until it finishes. Fails when
     /// there is no graphics adapter to draw with (a software renderer doesn't count, see
     /// [`gpu::software_allowed`]).
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn run(conf: Conf, main: impl Future<Output = ()> + 'static) -> Result<(), Error> {
         let event_loop = event_loop()?;
         event_loop.set_control_flow(ControlFlow::Poll);
@@ -179,11 +164,23 @@ mod native {
         }
     }
 
+    /// The web: draws on the page's canvas and runs `main`, one step per frame of the browser.
+    /// Returns at once; the browser keeps calling. A browser that can't draw gets a message.
+    #[cfg(target_arch = "wasm32")]
+    pub fn run(conf: Conf, main: impl Future<Output = ()> + 'static) -> Result<(), Error> {
+        use winit::platform::web::EventLoopExtWebSys;
+        let event_loop = EventLoop::new().map_err(|e| Error::Gpu(e.to_string()))?;
+        event_loop.set_control_flow(ControlFlow::Wait);
+        event_loop.spawn_app(App { conf, main: Some(Box::pin(main)), shown: None, error: None, pending: Default::default() });
+        Ok(())
+    }
+
     /// The event loop. On Linux a window of X11 where there is one (also under Wayland, through
     /// XWayland), as macroquad's were: a Wayland compositor stops handing out frames to a window
     /// that is covered, and a game waiting for the display then stands still (scripted runs with
     /// the window behind others never finish). `RUSTPG2D_WAYLAND=1` asks for a Wayland window;
     /// without an X server it is one anyway.
+    #[cfg(not(target_arch = "wasm32"))]
     fn event_loop() -> Result<EventLoop<()>, Error> {
         #[allow(unused_mut)]
         let mut builder = EventLoop::builder();
@@ -199,51 +196,64 @@ mod native {
         builder.build().map_err(|e| Error::Gpu(e.to_string()))
     }
 
-    impl App {
-        fn open(&mut self, event_loop: &ActiveEventLoop) -> Result<Shown, Error> {
-            let c = &self.conf;
-            let mut attrs = Window::default_attributes()
-                .with_title(c.window_title.clone())
-                .with_inner_size(LogicalSize::new(c.window_width.max(1) as f64, c.window_height.max(1) as f64))
-                .with_resizable(c.window_resizable);
+    /// The window as the configuration asks for it (the web: the page's canvas).
+    fn make_window(c: &Conf, event_loop: &ActiveEventLoop) -> Result<Arc<Window>, Error> {
+        #[allow(unused_mut)]
+        let mut attrs = Window::default_attributes().with_title(c.window_title.clone()).with_resizable(c.window_resizable);
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            attrs = attrs.with_inner_size(LogicalSize::new(c.window_width.max(1) as f64, c.window_height.max(1) as f64));
             if c.fullscreen {
                 attrs = attrs.with_fullscreen(Some(Fullscreen::Borderless(None)));
             }
             if let Some(icon) = &c.icon {
                 attrs = attrs.with_window_icon(winit::window::Icon::from_rgba(icon.big.to_vec(), 64, 64).ok());
             }
-            let window = Arc::new(event_loop.create_window(attrs).map_err(|e| Error::Gpu(e.to_string()))?);
-            let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_with_display_handle_from_env(Box::new(event_loop.owned_display_handle())));
-            let surface = instance.create_surface(window.clone()).map_err(|e| Error::Gpu(e.to_string()))?;
-            let adapter = pollster::block_on(gpu::adapter(&instance, Some(&surface)))?;
-            let (device, queue) = pollster::block_on(adapter.request_device(&gpu::device_descriptor(&adapter))).map_err(|e| Error::Gpu(e.to_string()))?;
-            let size = window.inner_size();
-            let caps = surface.get_capabilities(&adapter);
-            // `RUSTPG2D_GFX_INFO=1`: what the game draws with (bug reports).
-            if std::env::var_os("RUSTPG2D_GFX_INFO").is_some() {
-                let i = adapter.get_info();
-                eprintln!("[gfx] {} ({:?}, {:?}, driver {} {}); present modes {:?}; formats {:?}", i.name, i.backend, i.device_type, i.driver, i.driver_info, caps.present_modes, caps.formats);
-            }
-            let format = caps.formats.iter().copied().find(|f| !f.is_srgb()).or(caps.formats.first().copied()).ok_or_else(|| Error::Gpu("the window can't be drawn to".into()))?;
-            let view_format = format.remove_srgb_suffix();
-            let config = wgpu::SurfaceConfiguration {
-                usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-                format,
-                color_space: wgpu::SurfaceColorSpace::Auto,
-                width: size.width.max(1),
-                height: size.height.max(1),
-                present_mode: if c.vsync { wgpu::PresentMode::AutoVsync } else { wgpu::PresentMode::AutoNoVsync },
-                alpha_mode: caps.alpha_modes.first().copied().unwrap_or(wgpu::CompositeAlphaMode::Auto),
-                view_formats: if view_format != format { vec![view_format] } else { vec![] },
-                desired_maximum_frame_latency: 2,
-            };
-            surface.configure(&device, &config);
-            let blit = blit_pipeline(&device, view_format);
-            crate::init(device, queue, size.width.max(1), size.height.max(1), c);
-            get_context().screen.resize(size.width, size.height, window.scale_factor() as f32);
-            Ok(Shown { window, surface, config, view_format, blit })
         }
+        #[cfg(target_arch = "wasm32")]
+        {
+            use winit::platform::web::WindowAttributesExtWebSys;
+            attrs = match crate::web::canvas() {
+                Some(canvas) => attrs.with_canvas(Some(canvas)),
+                None => attrs.with_append(true),
+            };
+        }
+        Ok(Arc::new(event_loop.create_window(attrs).map_err(|e| Error::Gpu(e.to_string()))?))
+    }
 
+    /// The device for the window, its surface set up, and this crate's context on it.
+    async fn connect(window: Arc<Window>, instance: wgpu::Instance, c: Conf) -> Result<Shown, Error> {
+        let surface = instance.create_surface(window.clone()).map_err(|e| Error::Gpu(e.to_string()))?;
+        let adapter = gpu::adapter(&instance, Some(&surface)).await?;
+        let (device, queue) = adapter.request_device(&gpu::device_descriptor(&adapter)).await.map_err(|e| Error::Gpu(e.to_string()))?;
+        let size = window.inner_size();
+        let caps = surface.get_capabilities(&adapter);
+        // `RUSTPG2D_GFX_INFO=1`: what the game draws with (bug reports).
+        if std::env::var_os("RUSTPG2D_GFX_INFO").is_some() {
+            let i = adapter.get_info();
+            eprintln!("[gfx] {} ({:?}, {:?}, driver {} {}); present modes {:?}; formats {:?}", i.name, i.backend, i.device_type, i.driver, i.driver_info, caps.present_modes, caps.formats);
+        }
+        let format = caps.formats.iter().copied().find(|f| !f.is_srgb()).or(caps.formats.first().copied()).ok_or_else(|| Error::Gpu("the window can't be drawn to".into()))?;
+        let view_format = format.remove_srgb_suffix();
+        let config = wgpu::SurfaceConfiguration {
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            format,
+            color_space: wgpu::SurfaceColorSpace::Auto,
+            width: size.width.max(1),
+            height: size.height.max(1),
+            present_mode: if c.vsync { wgpu::PresentMode::AutoVsync } else { wgpu::PresentMode::AutoNoVsync },
+            alpha_mode: caps.alpha_modes.first().copied().unwrap_or(wgpu::CompositeAlphaMode::Auto),
+            view_formats: if view_format != format { vec![view_format] } else { vec![] },
+            desired_maximum_frame_latency: 2,
+        };
+        surface.configure(&device, &config);
+        let blit = blit_pipeline(&device, view_format);
+        crate::init(device, queue, size.width.max(1), size.height.max(1), &c);
+        get_context().screen.resize(size.width, size.height, window.scale_factor() as f32);
+        Ok(Shown { window, surface, config, view_format, blit })
+    }
+
+    impl App {
         fn frame(&mut self, event_loop: &ActiveEventLoop) {
             let Some(shown) = &mut self.shown else { return };
             crate::begin_frame();
@@ -321,16 +331,57 @@ mod native {
             if self.shown.is_some() {
                 return;
             }
-            match self.open(event_loop) {
-                Ok(s) => self.shown = Some(s),
+            let window = match make_window(&self.conf, event_loop) {
+                Ok(w) => w,
                 Err(e) => {
                     self.error = Some(e);
-                    event_loop.exit();
+                    return event_loop.exit();
                 }
+            };
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_with_display_handle_from_env(Box::new(event_loop.owned_display_handle())));
+                match pollster::block_on(connect(window, instance, self.conf.clone())) {
+                    Ok(s) => self.shown = Some(s),
+                    Err(e) => {
+                        self.error = Some(e);
+                        event_loop.exit();
+                    }
+                }
+            }
+            #[cfg(target_arch = "wasm32")]
+            {
+                let (pending, conf) = (self.pending.clone(), self.conf.clone());
+                window.request_redraw();
+                let again = window.clone();
+                wasm_bindgen_futures::spawn_local(async move {
+                    // WebGL 2 only: reading a texture back at once (screenshots, save thumbnails)
+                    // goes through its context, see `Texture2D::get_texture_data`.
+                    let mut desc = wgpu::InstanceDescriptor::new_without_display_handle();
+                    desc.backends = wgpu::Backends::GL;
+                    let instance = wgpu::Instance::new(desc);
+                    let r = connect(window, instance, conf).await;
+                    *pending.borrow_mut() = Some(r);
+                    again.request_redraw();
+                });
             }
         }
 
         fn window_event(&mut self, event_loop: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
+            // The web: the device arrives a little after the canvas.
+            #[cfg(target_arch = "wasm32")]
+            if self.shown.is_none() {
+                match self.pending.borrow_mut().take() {
+                    Some(Ok(s)) => self.shown = Some(s),
+                    Some(Err(e)) => {
+                        crate::web::log("error", &format!("R(ust)PG2D: {e}"));
+                        crate::web::alert(&format!("The game can't start: {e}"));
+                        self.main = None;
+                        return event_loop.exit();
+                    }
+                    None => {}
+                }
+            }
             if self.shown.is_none() {
                 return;
             }
@@ -352,9 +403,17 @@ mod native {
                 }
                 WindowEvent::Focused(false) => input.release_all(),
                 WindowEvent::KeyboardInput { event, .. } => {
-                    let key = key_code(&event.key_without_modifiers(), event.physical_key);
+                    #[cfg(not(target_arch = "wasm32"))]
+                    let logical = {
+                        use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
+                        event.key_without_modifiers()
+                    };
+                    #[cfg(target_arch = "wasm32")]
+                    let logical = event.logical_key.clone();
+                    let key = key_code(&logical, event.physical_key);
                     match event.state {
                         ElementState::Pressed => {
+                            crate::audio::user_gesture();
                             input.key_down(key, event.repeat);
                             if let Some(text) = &event.text {
                                 for c in text.chars().filter(|c| !c.is_control()) {
@@ -373,11 +432,12 @@ mod native {
                         winit::event::MouseButton::Middle => MouseButton::Middle,
                         _ => MouseButton::Unknown,
                     };
+                    crate::audio::user_gesture();
                     input.mouse_button(b, state == ElementState::Pressed);
                 }
                 WindowEvent::MouseWheel { delta, .. } => match delta {
                     MouseScrollDelta::LineDelta(x, y) => input.wheel(x, y),
-                    // Touchpads: about 40 pixels make a notch.
+                    // Touchpads (and browsers): about 40 pixels make a notch.
                     MouseScrollDelta::PixelDelta(p) => input.wheel(p.x as f32 / 40.0, p.y as f32 / 40.0),
                 },
                 WindowEvent::Touch(t) => {
@@ -387,7 +447,16 @@ mod native {
                         winit::event::TouchPhase::Ended => TouchPhase::Ended,
                         winit::event::TouchPhase::Cancelled => TouchPhase::Cancelled,
                     };
+                    crate::audio::user_gesture();
                     input.touch(t.id, phase, t.location.x as f32, t.location.y as f32);
+                }
+                // The web: a frame per frame of the browser.
+                #[cfg(target_arch = "wasm32")]
+                WindowEvent::RedrawRequested => {
+                    self.frame(event_loop);
+                    if let Some(s) = &self.shown {
+                        s.window.request_redraw();
+                    }
                 }
                 _ => {}
             }
@@ -396,6 +465,7 @@ mod native {
         /// A frame whenever the events are through: presenting waits for the display (vsync), so
         /// this paces itself. (Asking for redraws instead is throttled a second time by Wayland's
         /// frame callbacks, and every few frames one is missed.)
+        #[cfg(not(target_arch = "wasm32"))]
         fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
             self.frame(event_loop);
         }

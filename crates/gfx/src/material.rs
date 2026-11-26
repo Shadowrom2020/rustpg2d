@@ -377,9 +377,12 @@ pub fn load_material(shader: ShaderSource, params: MaterialParams) -> Result<Mat
         return Err(Error::Shader(format!("the uniforms take {size} bytes, more than a block's {}", crate::batch::UNIFORM_BLOCK)));
     }
 
+    // (The web has no answer at once: a shader that doesn't validate shows in the console.)
+    #[cfg(not(target_arch = "wasm32"))]
     let scope = gpu.device.push_error_scope(wgpu::ErrorFilter::Validation);
     let module = gpu.device.create_shader_module(wgpu::ShaderModuleDescriptor { label: Some("gfx material"), source: wgpu::ShaderSource::Wgsl(text.into()) });
-    if let Some(e) = crate::window::block_on(scope.pop()) {
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Some(e) = pollster::block_on(scope.pop()) {
         return Err(Error::Shader(e.to_string()));
     }
     let textures_layout = (!params.textures.is_empty())

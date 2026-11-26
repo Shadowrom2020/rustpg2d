@@ -4,6 +4,7 @@ pub use crate::batch::{DrawMode, Vertex};
 pub use crate::camera::*;
 pub use crate::color::{colors::*, Color};
 pub use crate::conf::Conf;
+pub use crate::file::load_file;
 pub use crate::input::*;
 pub use crate::material::*;
 pub use crate::math::*;

@@ -97,15 +97,12 @@ jobs:
         run: rustup target add wasm32-unknown-unknown
       - if: steps.tested.outputs.skip != 'true'
         run: cargo clippy --locked --target wasm32-unknown-unknown -p rustpg2d-game -- -D warnings
-      # Game and editor also compile for Windows (no linking; the Windows job tests them
-      # natively). The editor's TLS library (ring, for Generate art) compiles C: the MinGW C
-      # compiler is needed even for a check.
+      # The game also compiles for Windows (no linking; the Windows job tests it natively).
+      # (The editor joins again when the new one exists: ROADMAP.md, 0.36.0.)
       - if: steps.tested.outputs.skip != 'true'
         run: rustup target add x86_64-pc-windows-gnu
       - if: steps.tested.outputs.skip != 'true'
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends gcc-mingw-w64-x86-64
-      - if: steps.tested.outputs.skip != 'true'
-        run: cargo clippy --locked --target x86_64-pc-windows-gnu -p rustpg2d-game -p rustpg2d-editor -- -D warnings
+        run: cargo clippy --locked --target x86_64-pc-windows-gnu -p rustpg2d-game -- -D warnings
 
   smoke:
     name: Runtime smoke
@@ -136,13 +133,14 @@ jobs:
         with:
           shared-key: smoke
       - if: steps.tested.outputs.skip != 'true'
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends libasound2-dev libudev-dev xvfb xauth libgl1-mesa-dri libglx-mesa0 libxi6 libxcursor1 libxkbcommon-x11-0
+        # Vulkan's software renderer (lavapipe) draws under Xvfb; smoke.sh allows it.
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends libasound2-dev libudev-dev xvfb xauth mesa-vulkan-drivers libvulkan1 libxi6 libxcursor1 libxrandr2 libxkbcommon-x11-0
       # The repository's dev profile (optimized dependencies): what developers and the editor's
-      # play-test run; opt-level 0 renders too slowly under llvmpipe for timed autoplay steps.
+      # play-test run; opt-level 0 renders too slowly in software for timed autoplay steps.
+      # (The editor and the agent server's smoke client join again when the new editor exists:
+      # ROADMAP.md, 0.36.0; smoke.sh skips their checks without the binary.)
       - if: steps.tested.outputs.skip != 'true'
-        run: cargo build --locked -p rustpg2d-game -p rustpg2d-editor
-      - if: steps.tested.outputs.skip != 'true'
-        run: cargo build --locked -p rustpg2d-editor --example mcp_smoke
+        run: cargo build --locked -p rustpg2d-game
       - if: steps.tested.outputs.skip != 'true'
         run: scripts/ci/smoke.sh
       - uses: actions/upload-artifact@v7
@@ -206,7 +204,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: macos
-      - run: cargo clippy --locked -p rustpg2d-editor -p rustpg2d-game -- -D warnings
+      - run: cargo clippy --locked -p rustpg2d-game -- -D warnings
       # The engine's tests on macOS (paths, export, signing).
       - run: cargo test --locked -p rustpg2d-engine --lib
 

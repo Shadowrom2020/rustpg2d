@@ -4,7 +4,7 @@
 //! - **Web** (`wasm32`): there is no file system. The exported game's files are fetched before
 //!   the game starts ([`web::mount`], from `data/files.ron`) and kept in memory; what the game
 //!   writes (save games, settings, achievements, thumbnails) is kept in memory too and stored in
-//!   the browser's `localStorage` (via `web/rustpg2d.js`), from where [`web::mount`] restores it
+//!   the browser's `localStorage` (`gfx::web`), from where [`web::mount`] restores it
 //!   next time. Paths are the same relative paths as natively (`data/maps/village.map`).
 //!
 //! - **Packed games**: an exported game's `data.pack` ([`crate::pack`]) is mounted natively with
@@ -201,8 +201,7 @@ mod imp {
     }
 
     pub fn unix_now() -> u64 {
-        // SAFETY: a plain function of the page's JS (web/rustpg2d.js).
-        unsafe { super::web::rustpg2d_now() as u64 }
+        gfx::web::unix_now() as u64
     }
 }
 
@@ -217,54 +216,21 @@ pub mod web {
         pub(super) static FILES: RefCell<BTreeMap<String, Vec<u8>>> = const { RefCell::new(BTreeMap::new()) };
     }
 
-    // web/rustpg2d.js (a miniquad plugin).
-    extern "C" {
-        pub(super) fn rustpg2d_now() -> f64;
-        fn rustpg2d_storage_set(key: *const u8, key_len: usize, value: *const u8, value_len: usize);
-        fn rustpg2d_storage_remove(key: *const u8, key_len: usize);
-        fn rustpg2d_storage_dump() -> usize;
-        fn rustpg2d_storage_take(dest: *mut u8);
-        fn rustpg2d_query_dump() -> usize;
-        fn rustpg2d_language_dump() -> usize;
-        fn rustpg2d_query_take(dest: *mut u8);
-        fn rustpg2d_pad_buttons() -> u32;
-        fn rustpg2d_pad_axis(i: u32) -> f32;
-        fn rustpg2d_pad_id_dump() -> usize;
-        fn rustpg2d_pad_id_take(dest: *mut u8);
-        fn rustpg2d_download(name: *const u8, name_len: usize, data: *const u8, data_len: usize);
-    }
-
-    /// macroquad's loader checks that a JS plugin's crate is there (web/rustpg2d.js, version 3).
-    #[no_mangle]
-    pub extern "C" fn rustpg2d_crate_version() -> u32 {
-        3
-    }
-
     /// Offers `data` as a browser download named `name` (photos).
     pub fn download(name: &str, data: &[u8]) {
-        // SAFETY: pointers into live buffers, lengths in bytes; the JS copies them.
-        unsafe { rustpg2d_download(name.as_ptr(), name.len(), data.as_ptr(), data.len()) }
+        gfx::web::download(name, data);
     }
 
     /// The first connected gamepad (the browser's Gamepad API): its buttons in the standard
     /// layout as bits 0-15 (the order of `runtime::input::Pad::ALL`) and its left stick (x, y;
     /// y grows downwards).
     pub fn pad_state() -> (u32, f32, f32) {
-        // SAFETY: plain values from the JS plugin.
-        unsafe { (rustpg2d_pad_buttons(), rustpg2d_pad_axis(0), rustpg2d_pad_axis(1)) }
+        gfx::web::pad_state()
     }
 
     /// The first connected gamepad's name ("" = none).
     pub fn pad_id() -> String {
-        // SAFETY: the JS copies `len` bytes into the buffer it was asked for.
-        unsafe {
-            let len = rustpg2d_pad_id_dump();
-            let mut buf = vec![0u8; len];
-            if len > 0 {
-                rustpg2d_pad_id_take(buf.as_mut_ptr());
-            }
-            String::from_utf8_lossy(&buf).into_owned()
-        }
+        gfx::web::pad_id()
     }
 
     /// A path as the key of the file table: components joined with `/`, without `.`.
@@ -277,15 +243,9 @@ pub mod web {
 
     /// Stores (or with `None` removes) a written file in `localStorage` (base64).
     pub(super) fn store(key: &str, data: Option<&[u8]>) {
-        // SAFETY: pointers into live buffers, lengths in bytes; the JS copies them.
-        unsafe {
-            match data {
-                Some(d) => {
-                    let v = super::base64(d);
-                    rustpg2d_storage_set(key.as_ptr(), key.len(), v.as_ptr(), v.len());
-                }
-                None => rustpg2d_storage_remove(key.as_ptr(), key.len()),
-            }
+        match data {
+            Some(d) => gfx::web::storage_set(key, &super::base64(d)),
+            None => gfx::web::storage_remove(key),
         }
     }
 
@@ -296,18 +256,9 @@ pub mod web {
             for (k, v) in files {
                 f.insert(k, v);
             }
-            // SAFETY: the JS fills exactly `len` bytes.
-            let dump = unsafe {
-                let len = rustpg2d_storage_dump();
-                let mut buf = vec![0u8; len];
-                rustpg2d_storage_take(buf.as_mut_ptr());
-                buf
-            };
-            for line in String::from_utf8_lossy(&dump).lines() {
-                if let Some((k, v)) = line.split_once('\t') {
-                    if let Some(bytes) = super::unbase64(v) {
-                        f.insert(k.to_string(), bytes);
-                    }
+            for (k, v) in gfx::web::storage_dump() {
+                if let Some(bytes) = super::unbase64(&v) {
+                    f.insert(k, bytes);
                 }
             }
         });
@@ -315,29 +266,13 @@ pub mod web {
 
     /// The browser's language (`navigator.language`, e.g. "de-DE").
     pub fn browser_language() -> String {
-        // SAFETY: as in `mount`.
-        let raw = unsafe {
-            let len = rustpg2d_language_dump();
-            let mut buf = vec![0u8; len];
-            rustpg2d_query_take(buf.as_mut_ptr());
-            buf
-        };
-        String::from_utf8_lossy(&raw).into_owned()
+        gfx::web::language()
     }
 
     /// The page's query string without `?`, URL-decoded (`?autoplay=…` drives automated runs).
     pub fn query() -> String {
-        // SAFETY: as in `mount`.
-        let raw = unsafe {
-            let len = rustpg2d_query_dump();
-            let mut buf = vec![0u8; len];
-            rustpg2d_query_take(buf.as_mut_ptr());
-            buf
-        };
-        String::from_utf8_lossy(&raw).into_owned()
+        gfx::web::query()
     }
-
-
 }
 
 /// Standard base64 (the web game keeps binary files as text in `localStorage`); [`crate::hash`]'s.

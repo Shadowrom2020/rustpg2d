@@ -301,6 +301,41 @@ impl Texture2D {
         crate::flush();
         let gpu = &get_context().gpu;
         let (w, h) = (self.0.width, self.0.height);
+        #[cfg(target_arch = "wasm32")]
+        {
+            let mut bytes = vec![0u8; (w * h * 4) as usize];
+            if !self.read_webgl(gpu, &mut bytes) {
+                crate::logging::write("warn", "[gfx] reading a texture back failed");
+            }
+            Image { width: w as u16, height: h as u16, bytes }
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        self.read_buffer(gpu, w, h)
+    }
+
+    /// The web: `readPixels` on a framebuffer of the texture, through wgpu's WebGL context.
+    #[cfg(target_arch = "wasm32")]
+    fn read_webgl(&self, gpu: &Gpu, bytes: &mut [u8]) -> bool {
+        use glow::HasContext;
+        // Safety: the device and the texture are wgpu's GL backend's (the only one of the web
+        // build); the framebuffer made here is unbound and deleted again.
+        unsafe {
+            let (Some(device), Some(texture)) = (gpu.device.as_hal::<wgpu::hal::api::Gles>(), self.0.texture.as_hal::<wgpu::hal::api::Gles>()) else { return false };
+            let wgpu::hal::gles::TextureInner::Texture { raw, .. } = texture.inner else { return false };
+            let gl = device.context().lock();
+            let Ok(fbo) = gl.create_framebuffer() else { return false };
+            gl.bind_framebuffer(glow::READ_FRAMEBUFFER, Some(fbo));
+            gl.framebuffer_texture_2d(glow::READ_FRAMEBUFFER, glow::COLOR_ATTACHMENT0, glow::TEXTURE_2D, Some(raw), 0);
+            gl.read_pixels(0, 0, self.0.width as i32, self.0.height as i32, glow::RGBA, glow::UNSIGNED_BYTE, glow::PixelPackData::Slice(Some(bytes)));
+            gl.bind_framebuffer(glow::READ_FRAMEBUFFER, None);
+            gl.delete_framebuffer(fbo);
+        }
+        true
+    }
+
+    /// Desktops: a copy into a buffer, mapped when the GPU is done.
+    #[cfg(not(target_arch = "wasm32"))]
+    fn read_buffer(&self, gpu: &Gpu, w: u32, h: u32) -> Image {
         let row = (w * 4).div_ceil(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT) * wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
         let buffer = gpu.device.create_buffer(&wgpu::BufferDescriptor { label: Some("gfx readback"), size: (row * h) as u64, usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ, mapped_at_creation: false });
         let mut enc = gpu.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("gfx readback") });

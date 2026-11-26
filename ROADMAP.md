@@ -555,9 +555,11 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   **Progress.** `crates/gfx` (device, the draw list, textures and render targets, materials in
   WGSL, cameras, shapes, text, input, the window loop on winit, sound on kira); the engine and
   the game on it (imports and the seven shaders; nothing else of the 101 files changed); the
-  comparison set (`scripts/studio/shots.sh`, `compare.py`, `RUSTPG2D_FIXED_STEP`). Still open:
-  the web build, Windows and macOS, the software-adapter message, CI and the smoke run, golden
-  pictures in the tests.
+  comparison set (`scripts/studio/shots.sh`, `compare.py`, `RUSTPG2D_FIXED_STEP`); the web game
+  (wasm-bindgen, WebGL 2, `cargo xtask-web`, the browser's services in `gfx::web`). Still open:
+  a Windows and a macOS run, the software-adapter message seen on a machine without a driver,
+  golden pictures in the tests, the release workflows (`builds.yml`, `xtask dist`) for the web
+  pair.
 
   **Decided while building.**
   - **Draw calls wait for the frame's end.** macroquad sent them to the GPU at every camera
@@ -585,6 +587,18 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     59 a second with 40 ms hitches), and a covered one gets none at all, so a scripted run with
     the window behind others would stand still. Frames are drawn when the events are through;
     presenting waits for the display.
+  - **The web game draws with WebGL 2 only,** not WebGPU: reading a picture back at once
+    (screenshots, save thumbnails, photo mode) is a `readPixels` on wgpu's WebGL context
+    (`Texture2D::get_texture_data`); wgpu's own read-back needs a turn of the browser's event
+    loop, which the engine's callers don't give. WebGPU would need those callers to wait.
+  - **32-bit indices into one vertex list:** WebGL 2 can't add a draw call's first vertex
+    itself. Meshes still come with 16-bit indices (65,535 vertices each).
+  - **The web runner is a pair** (`rustpg2d-game.wasm` + `rustpg2d-game.js`, written into
+    `target/web` by `cargo xtask-web`: wasm-bindgen's second step as a library); the export
+    copies both. The JavaScript files of `crates/engine/web` are gone: storage, the clock, the
+    query string, gamepads, downloads and fetching are Rust (`gfx::web`). On the web the sound
+    device opens with the player's first key or click (browsers allow it only then); loops
+    started before (the music) start with it.
   - **The old editor** is out of the workspace (`exclude` in `Cargo.toml`) and stays in the tree
     to read until its parts are rebuilt.
 
@@ -614,6 +628,13 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   - Linux (AppImage on Debian 12, glibc ≤ 2.34), Windows under Wine (try this first: Wine's
     graphics were fragile on this machine), the test Mac, the browser (headless Brave, saves kept
     across runs).
+    *The browser: done 2026-11-26 (headless Brave on SwiftShader, the example exported with
+    `cargo run -p rustpg2d-engine --example export_web`): the title screen draws as on the
+    desktop, `status` and `shot` come out in the console, a changed option is still there in a
+    second run with the same profile. Not checked: sound in a browser, a real graphics card
+    (SwiftShader ran at 8 to 30 frames a second), the download size (the runner is 17 MB before
+    compression, macroquad's was smaller). Windows compiles (clippy for
+    `x86_64-pc-windows-gnu`); not run yet.*
   - Tests render without a window: one golden picture each for ground, a figure, text.
 
 - [ ] Part 2: The editor core — `feature/studio`

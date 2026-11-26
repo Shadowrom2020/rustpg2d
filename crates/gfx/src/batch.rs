@@ -89,7 +89,6 @@ impl Pipe {
 }
 
 struct DrawCall {
-    vertices_start: usize,
     vertices_count: usize,
     indices_start: usize,
     indices_count: usize,
@@ -146,7 +145,8 @@ pub struct Batch {
     cmds: Vec<Cmd>,
     state: State,
     vertices: Vec<Vertex>,
-    indices: Vec<u16>,
+    /// Indices into `vertices` as a whole (WebGL 2 can't add a draw call's first vertex itself).
+    indices: Vec<u32>,
     /// `None` = the screen's pixel grid.
     pub camera_matrix: Option<Mat4>,
     /// The screen's size in points, for the default projection.
@@ -311,7 +311,6 @@ impl Batch {
                     && dc.pipe.same(&pipe)
                     && dc.target == self.state.target
                     && dc.draw_mode == self.state.draw_mode
-                    && dc.vertices_count + vertices.len() <= u16::MAX as usize
             }
             _ => false,
         };
@@ -321,7 +320,6 @@ impl Batch {
                 Pipe::Default(_) => (None, Vec::new()),
             };
             self.cmds.push(Cmd::Draw(DrawCall {
-                vertices_start: self.vertices.len(),
                 vertices_count: 0,
                 indices_start: self.indices.len(),
                 indices_count: 0,
@@ -339,9 +337,9 @@ impl Batch {
             self.state.break_batching = false;
         }
         let Some(Cmd::Draw(dc)) = self.cmds.last_mut() else { return };
-        let base = dc.vertices_count as u16;
+        let base = self.vertices.len() as u32;
         self.vertices.extend_from_slice(vertices);
-        self.indices.extend(indices.iter().map(|i| *i + base));
+        self.indices.extend(indices.iter().map(|i| *i as u32 + base));
         dc.vertices_count += vertices.len();
         dc.indices_count += indices.len();
     }
@@ -473,9 +471,6 @@ impl Batch {
             block[128..144].copy_from_slice(bytemuck::cast_slice(&time));
             k += 1;
         }
-        if self.indices.len() % 2 == 1 {
-            self.indices.push(0);
-        }
         let (vertex_len, index_len) = (std::mem::size_of_val(&self.vertices[..]) as u64, std::mem::size_of_val(&self.indices[..]) as u64);
         self.buffers(gpu, vertex_len, index_len, uniform_bytes.len() as u64);
         {
@@ -551,7 +546,7 @@ impl Batch {
             });
             passes += 1;
             pass.set_vertex_buffer(0, b.vertices.slice(..));
-            pass.set_index_buffer(b.indices.slice(..), wgpu::IndexFormat::Uint16);
+            pass.set_index_buffer(b.indices.slice(..), wgpu::IndexFormat::Uint32);
             for (c, r) in cmds[start..at].iter().zip(&ready[start..at]) {
                 let (Cmd::Draw(dc), Some((pipeline, extra))) = (c, r) else { continue };
                 pass.set_pipeline(pipeline);
@@ -576,7 +571,7 @@ impl Batch {
                 }
                 pass.set_viewport(vx as f32, vy as f32, vw as f32, vh as f32, 0.0, 1.0);
                 pass.set_scissor_rect(sx, sy, sw, sh);
-                pass.draw_indexed(dc.indices_start as u32..(dc.indices_start + dc.indices_count) as u32, dc.vertices_start as i32, 0..1);
+                pass.draw_indexed(dc.indices_start as u32..(dc.indices_start + dc.indices_count) as u32, 0, 0..1);
             }
         }
         gpu.queue.submit([encoder.finish()]);

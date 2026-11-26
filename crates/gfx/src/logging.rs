@@ -10,7 +10,7 @@ pub fn write(level: &str, text: &str) {
         }
     }
     #[cfg(target_arch = "wasm32")]
-    crate::window::web_log(level, text);
+    crate::web::log(level, text);
 }
 
 #[doc(hidden)]

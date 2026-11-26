@@ -22,9 +22,11 @@ struct Entry {
 }
 
 struct Mixer {
-    /// `None`: no sound device.
+    /// `None`: no sound device (the web: not yet, see [`user_gesture`]).
     manager: Option<AudioManager<DefaultBackend>>,
     sounds: HashMap<u64, Entry>,
+    /// The web: loops started before the browser allowed sound (the music), to start with it.
+    waiting: Vec<(u64, PlaySoundParams)>,
 }
 
 static MIXER: Mutex<Option<Mixer>> = Mutex::new(None);
@@ -32,12 +34,31 @@ static NEXT: AtomicU64 = AtomicU64::new(1);
 
 fn with_mixer<R>(f: impl FnOnce(&mut Mixer) -> R) -> R {
     let mut m = MIXER.lock().unwrap_or_else(|e| e.into_inner());
-    let mixer = m.get_or_insert_with(|| {
-        // (A device that panics while it is opened counts as none.)
-        let manager = std::panic::catch_unwind(|| AudioManager::<DefaultBackend>::new(AudioManagerSettings::default())).ok().and_then(|r| r.map_err(|e| eprintln!("[audio] no sound device: {e}")).ok());
-        Mixer { manager, sounds: HashMap::new() }
-    });
+    let mixer = m.get_or_insert_with(|| Mixer { manager: if cfg!(target_arch = "wasm32") { None } else { open_device() }, sounds: HashMap::new(), waiting: Vec::new() });
     f(mixer)
+}
+
+/// Opens the sound device. (One that panics while it is opened counts as none.)
+fn open_device() -> Option<AudioManager<DefaultBackend>> {
+    std::panic::catch_unwind(|| AudioManager::<DefaultBackend>::new(AudioManagerSettings::default())).ok().and_then(|r| r.map_err(|e| crate::logging::write("warn", &format!("[audio] no sound device: {e}"))).ok())
+}
+
+/// The player pressed a key or a button. Browsers allow sound only from then on: the web opens
+/// its sound device now and starts the loops that were asked for before. Nothing elsewhere.
+pub fn user_gesture() {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let waiting = with_mixer(|m| {
+            if m.manager.is_some() {
+                return Vec::new();
+            }
+            m.manager = open_device();
+            std::mem::take(&mut m.waiting)
+        });
+        for (id, params) in waiting {
+            play_id(id, params);
+        }
+    }
 }
 
 struct Handle(u64);
@@ -99,8 +120,15 @@ pub async fn load_sound_from_bytes(data: &[u8]) -> Result<Sound, Error> {
 
 /// Starts the sound (again, beside the times it already plays).
 pub fn play_sound(sound: &Sound, params: PlaySoundParams) {
+    play_id(sound.0 .0, params);
+}
+
+fn play_id(id: u64, params: PlaySoundParams) {
     with_mixer(|m| {
-        let (Some(manager), Some(e)) = (m.manager.as_mut(), m.sounds.get_mut(&sound.0 .0)) else { return };
+        if m.manager.is_none() && cfg!(target_arch = "wasm32") && params.looped {
+            m.waiting.push((id, params));
+        }
+        let (Some(manager), Some(e)) = (m.manager.as_mut(), m.sounds.get_mut(&id)) else { return };
         e.playing.retain(|h| h.state() != PlaybackState::Stopped);
         let mut data = e.data.volume(decibels(params.volume));
         if params.looped {
@@ -108,7 +136,7 @@ pub fn play_sound(sound: &Sound, params: PlaySoundParams) {
         }
         match manager.play(data) {
             Ok(h) => e.playing.push(h),
-            Err(err) => eprintln!("[audio] {err}"),
+            Err(err) => crate::logging::write("warn", &format!("[audio] {err}")),
         }
     });
 }
@@ -116,6 +144,7 @@ pub fn play_sound(sound: &Sound, params: PlaySoundParams) {
 /// Stops every playing of the sound.
 pub fn stop_sound(sound: &Sound) {
     with_mixer(|m| {
+        m.waiting.retain(|(id, _)| *id != sound.0 .0);
         if let Some(e) = m.sounds.get_mut(&sound.0 .0) {
             for mut h in e.playing.drain(..) {
                 h.stop(Tween::default());
@@ -127,6 +156,11 @@ pub fn stop_sound(sound: &Sound) {
 /// Sets the loudness of every playing of the sound.
 pub fn set_sound_volume(sound: &Sound, volume: f32) {
     with_mixer(|m| {
+        for (id, params) in &mut m.waiting {
+            if *id == sound.0 .0 {
+                params.volume = volume;
+            }
+        }
         if let Some(e) = m.sounds.get_mut(&sound.0 .0) {
             for h in &mut e.playing {
                 h.set_volume(decibels(volume), Tween::default());

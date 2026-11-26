@@ -11,6 +11,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   The game looks as before (compared picture by picture with 0.35); the drawing functions keep
   their names, shaders are WGSL. Part 1 of the editor's rewrite (ROADMAP.md, *0.36.0 — The
   Studio*): the game can be drawn into any number of views inside another program.
+- **The web game** is built with wasm-bindgen and draws with WebGL 2: the runner is the pair
+  `rustpg2d-game.wasm` + `rustpg2d-game.js` (`cargo xtask-web` writes it into `target/web`), and
+  an exported web game no longer has `mq_js_bundle.js` and `rustpg2d.js`.
 - `RUSTPG2D_FIXED_STEP=SECONDS`: every frame of the game takes that long whatever the real clock
   says, so a scripted run draws the same frames every time.
 - `RUSTPG2D_ALLOW_SOFTWARE=1` lets the game start on a software renderer (tests, CI); without it

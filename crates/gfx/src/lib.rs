@@ -18,6 +18,7 @@ pub mod batch;
 pub mod camera;
 pub mod color;
 pub mod conf;
+pub mod file;
 pub mod gpu;
 pub mod input;
 pub mod logging;
@@ -29,6 +30,8 @@ pub mod shapes;
 pub mod text;
 pub mod texture;
 pub mod time;
+#[cfg(target_arch = "wasm32")]
+pub mod web;
 pub mod window;
 
 mod rect;
@@ -110,6 +113,7 @@ pub fn init(device: wgpu::Device, queue: wgpu::Queue, width: u32, height: u32, c
 }
 
 /// Sets up drawing on this thread without a window: pictures are drawn off screen (tests, tools).
+#[cfg(not(target_arch = "wasm32"))]
 pub fn init_headless(width: u32, height: u32) -> Result<(), Error> {
     if ready() {
         return Ok(());

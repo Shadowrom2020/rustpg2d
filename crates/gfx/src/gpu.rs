@@ -67,7 +67,8 @@ pub fn texture_entries(n: usize) -> Vec<wgpu::BindGroupLayoutEntry> {
 /// May a software renderer (llvmpipe, lavapipe, WARP) be used? Players get a message instead; tests
 /// and CI set `RUSTPG2D_ALLOW_SOFTWARE=1`.
 pub fn software_allowed() -> bool {
-    std::env::var("RUSTPG2D_ALLOW_SOFTWARE").is_ok_and(|v| v != "0" && !v.is_empty())
+    // (In a browser the browser chose what draws.)
+    cfg!(target_arch = "wasm32") || std::env::var("RUSTPG2D_ALLOW_SOFTWARE").is_ok_and(|v| v != "0" && !v.is_empty())
 }
 
 /// What the device must be able to do. Kept to what WebGL2 offers, so every backend qualifies.
@@ -103,9 +104,4 @@ pub fn headless_device() -> Result<(wgpu::Device, wgpu::Queue), Error> {
         let adapter = adapter(&instance, None).await?;
         adapter.request_device(&device_descriptor(&adapter)).await.map_err(|e| Error::Gpu(e.to_string()))
     })
-}
-
-#[cfg(target_arch = "wasm32")]
-pub fn headless_device() -> Result<(wgpu::Device, wgpu::Queue), Error> {
-    Err(Error::Gpu("no drawing without a canvas in the browser".into()))
 }

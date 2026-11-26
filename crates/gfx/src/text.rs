@@ -48,12 +48,6 @@ pub struct TextDimensions {
     pub offset_y: f32,
 }
 
-#[allow(dead_code)]
-fn require_fn_to_be_send() {
-    fn require_send<T: Send>() {}
-    require_send::<Font>();
-}
-
 impl std::fmt::Debug for Font {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Font")

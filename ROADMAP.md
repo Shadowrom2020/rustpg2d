@@ -557,7 +557,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   the game on it (imports and the seven shaders; nothing else of the 101 files changed); the
   comparison set (`scripts/studio/shots.sh`, `compare.py`, `RUSTPG2D_FIXED_STEP`); the web game
   (wasm-bindgen, WebGL 2, `cargo xtask-web`, the browser's services in `gfx::web`). Still open:
-  a macOS run and a real Windows machine, somebody listening to the sound. (`builds.yml` and `xtask dist` know the
+  a real Windows machine, somebody listening to the sound. (`builds.yml` and `xtask dist` know the
   web pair; they are run again when there is an editor to package.)
 
   **Decided while building.**
@@ -641,7 +641,13 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     Windows: done 2026-11-26 under Wine (MinGW build from a container): the game draws through
     Vulkan on the real graphics card, without the software-OpenGL workaround Wine needed
     before; its picture of the house matches Linux's. Not checked: a real Windows machine
-    (DirectX 12), macOS (the test Mac wasn't reachable).*
+    (DirectX 12).
+    macOS: done 2026-11-26 on the test Mac (M2, macOS 27.2, Metal; a debug build made there):
+    the game holds 60 frames a second in the house and the village, its picture of the house
+    differs from Linux's in 0.2 % of pixels, and the new editor window shows the game in its
+    panel. Handing a village frame to Metal takes about 5 ms there (0.3 ms with Vulkan on
+    Linux): worth a look before big maps. Not checked: an exported `.app` (the export needs the
+    editor), sound.*
   - Tests render without a window: one golden picture each for ground, a figure, text.
     *Done 2026-11-26 as one picture: `crates/engine/tests/headless.rs` loads the example's
     house, plays 90 frames without a window and compares the screen with

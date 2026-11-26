@@ -41,7 +41,8 @@ being rewritten on a new foundation, in twelve parts. While it lasts:
   `RUSTPG2D_FOLDER_PROJECTS=1` for test runs. The script can use the window for real: `click X Y`,
   `click X Y ctrl`, `hover X Y`, `wheel DY` (at the pointer), `type TEXT`, `press Enter|Escape|Tab|…`, `size W H`;
   `field KIND ID /POINTER VALUE` changes a field without the UI, `allfields on|off` = *Show all
-  fields*. Form behaviour is tested in `form.rs` (`ui_tests`: egui_kittest clicks and types
+  fields*, `new [KIND]` opens the *New…* gallery (`defs.make KIND [from:ID] NAME` makes one
+  without it). Form behaviour is tested in `form.rs` (`ui_tests`: egui_kittest clicks and types
   through AccessKit; every control must have a name, so pass a row's label id on with
   `labelled_by`).
 - **The field schema** (`crates/editor-core/src/schema.rs`): shapes come from the engine's types
@@ -142,8 +143,8 @@ crates/editor-core/src/ the editor without its UI (0.36): workspace.rs (Workspac
                         tools.rs = the catalogue, exec*.rs, play.rs, watcher.rs, server.rs)
 crates/studio/src/      the new editor (0.36): main.rs (the eframe window; `--headless PROJECT --mcp PORT` = the agent
                         server without a window), shell.rs (dock, browser, palettes, tabs), form.rs (forms from the
-                        field schema), thumbs.rs (pictures of assets from the engine's textures), play.rs (the game
-                        in a panel); examples/mcp_smoke.rs
+                        field schema), thumbs.rs (pictures of assets from the engine's textures), gallery.rs (New…),
+                        play.rs (the game in a panel); examples/mcp_smoke.rs
 crates/engine/src/      library: everything shared by game and editor
   defs.rs               Database: sheets, items, props (+states, container, lock, anim),
                         characters (+shop), sounds, quests, structures; serde formats of defs/*.ron

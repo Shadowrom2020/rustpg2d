@@ -8,10 +8,11 @@
 //! TEXT` / `pick N`, `field KIND ID /POINTER VALUE` = a form's field, `key NAME` = a key for the
 //! game, `pause` / `resume`, `quit`; the window's own input: `click X Y [ctrl]`, `hover X Y`, `wheel DY`,
 //! `type TEXT`, `press KEY` (egui's key names: Enter, Escape, Tab, ArrowDown…), `size W H`,
-//! `allfields on|off`; any other line
+//! `allfields on|off`, `new [KIND]` = the New… gallery; any other line
 //! is a command of the editor, e.g. `map.open village` or `edit.undo`).
 
 mod form;
+mod gallery;
 mod play;
 mod shell;
 mod thumbs;
@@ -149,6 +150,8 @@ impl Studio {
                 },
                 "size" => ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(arg(1).parse().unwrap_or(1500.0), arg(2).parse().unwrap_or(800.0)))),
                 "allfields" => self.shell.show_all = arg(1) != "off",
+                // The *New…* gallery (Ctrl+N), with a kind picked: `new [KIND]`.
+                "new" => self.shell.new_asset = Some(gallery::NewAsset::of(rustpg2d_engine::refactor::RefKind::ALL.iter().copied().find(|k| k.name() == arg(1)))),
                 "quit" => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
                 // Anything else is a command of the editor (`map.open village`, `edit.undo`…).
                 _ => {

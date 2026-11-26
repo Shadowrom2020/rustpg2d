@@ -894,6 +894,11 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   - **Several at once:** in a kind's tab Ctrl+click chooses cards (a box per row in the list);
     the chosen are tagged, untagged, moved to a folder, made favourites or deleted together
     (one history step for the notes; a deletion is refused per asset while it is used).
+  - ***New…*** (Ctrl+N, every *+ New*, a picker's *+ New…*; `studio/gallery.rs`): the kinds as
+    the browser groups them, each with a sentence on what it is (`defs::about`); a name, from
+    which the id is made (`defs::id_from_name`, numbered when taken); it starts blank or as a
+    copy of another, picked from a list with pictures. `Workspace::make_def` and the command
+    `defs.make KIND [from:ID] NAME` do the same without the window. One history step.
   - **Names in use** (`schema::names`, table `NAMES`): where a flag, a variable, a script
     function, a faction, a prop's state, a target, a crafting station or an emotion is typed,
     a button beside the field lists the ones the project uses (`Workspace::refs`); a new one
@@ -908,7 +913,8 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   kinds and piece styles, units and ranges on numbers, problems at the field, live previews (a
   prop with its states, an item in a hand, a moving character), pictures of structures, the
   table view, the filters *has problems* and *unused*, folders as a tree with drag and drop,
-  where an asset came from (a pack: part 9), the *New…* gallery, *From library…* in pickers (part 9), the schema as
+  where an asset came from (a pack: part 9), *New…* from the library, a file or Meshy (parts 8
+  and 9), *From library…* in pickers (part 9), the schema as
   the agents' field descriptions and the manual's reference tables.
 
   **Decided while building.**
@@ -968,6 +974,10 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     window: the Potion's header with its folder, tag and notes; *Favourites* in the browser;
     three items chosen with Ctrl+click, *Tag…*, "quest" typed, Enter: one step *Tag 3 items*,
     three entries in `editor/meta.ron`, undone and redone.
+  - *New…*: `a_new_definition_is_made_from_its_name` (blank, numbered id, a copy, a quest's
+    title, undo). In the window: *Item*, "Moon Blade" typed, *as a copy of another item*, the
+    Hunting Bow clicked (its picture beside the list), *Create*: the tab of `moon_blade` opens,
+    one history step, and after saving `items.ron` has it with the bow's values.
 
 - [ ] Part 5: Game settings and rules — `feature/studio`
 

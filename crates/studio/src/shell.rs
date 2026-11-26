@@ -170,6 +170,8 @@ enum Ask {
     Run(String),
     /// The command palette with this typed (a command waiting for its words).
     Palette(String),
+    /// The *New…* gallery, with this kind picked.
+    New(Option<RefKind>),
 }
 
 pub struct Shell {
@@ -191,6 +193,8 @@ pub struct Shell {
     pub show_all: bool,
     /// The engine's textures as egui shows them (thumbnails, pictures in forms).
     thumbs: crate::thumbs::Thumbs,
+    /// The *New…* gallery while it is open.
+    pub new_asset: Option<crate::gallery::NewAsset>,
     /// Answers of commands, newest last (the script prints them too).
     pub log: Vec<String>,
 }
@@ -212,7 +216,7 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), log: Vec::new() }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, log: Vec::new() }
     }
 
     /// Shows `tab`: brings it to the front when it is open, else opens it beside the documents.
@@ -378,12 +382,17 @@ impl Shell {
                     let _ = self.run(&line);
                 }
                 Ask::Palette(text) => self.open_palette(PaletteKind::Commands, &text),
+                Ask::New(kind) => self.new_asset = Some(crate::gallery::NewAsset::of(kind)),
             }
         }
+        self.gallery_ui(&ctx, rs);
         self.palette_ui(&ctx);
     }
 
     fn shortcuts(&mut self, ctx: &egui::Context) {
+        if ctx.input(|i| i.modifiers.command && i.key_pressed(egui::Key::N)) && self.ws.project_open {
+            self.new_asset = Some(crate::gallery::NewAsset::of(None));
+        }
         let (commands, search, save, undo, redo, escape) = ctx.input(|i| {
             let c = i.modifiers.command;
             (c && i.modifiers.shift && i.key_pressed(egui::Key::P), c && !i.modifiers.shift && i.key_pressed(egui::Key::P), c && i.key_pressed(egui::Key::S), c && !i.modifiers.shift && i.key_pressed(egui::Key::Z), c && (i.key_pressed(egui::Key::Y) || (i.modifiers.shift && i.key_pressed(egui::Key::Z))), i.key_pressed(egui::Key::Escape))
@@ -406,6 +415,26 @@ impl Shell {
             } else if redo {
                 let _ = self.run("edit.redo");
             }
+        }
+    }
+
+    /// The *New…* gallery: makes what it asks for and opens it.
+    fn gallery_ui(&mut self, ctx: &egui::Context, rs: Option<&eframe::egui_wgpu::RenderState>) {
+        let Some(state) = self.new_asset.as_mut() else { return };
+        let mut pics = rs.map(|rs| crate::thumbs::Pics { thumbs: &mut self.thumbs, ws: &self.ws, rs });
+        let pictures = pics.as_mut().map(|p| p as &mut dyn crate::form::Pictures);
+        match crate::gallery::show(ctx, state, GROUPS, &self.lists, pictures) {
+            Some(crate::gallery::Outcome::Create { kind, name, from }) => match self.ws.make_def(kind, &name, from.as_deref()) {
+                Ok(id) => {
+                    self.new_asset = None;
+                    self.log.push(format!("Made {} \"{id}\"", kind.name()));
+                    self.lists.clear();
+                    self.show_tab(Tab::Def(kind, id));
+                }
+                Err(e) => state.error = Some(e),
+            },
+            Some(crate::gallery::Outcome::Cancel) => self.new_asset = None,
+            None => {}
         }
     }
 
@@ -439,6 +468,8 @@ impl Shell {
         if let Some(c) = run {
             if c.id == "find.search" {
                 self.open_palette(PaletteKind::Search, "");
+            } else if c.id == "defs.new" {
+                self.new_asset = Some(crate::gallery::NewAsset::of(None));
             } else if c.params.is_empty() {
                 let _ = self.run(c.id);
             } else {
@@ -686,7 +717,7 @@ impl Viewer<'_> {
                         if *kind != RefKind::Map {
                             ui.horizontal(|ui| {
                                 if ui.small_button(format!("+ New {}", kind.label().to_lowercase())).clicked() {
-                                    self.asks.push(Ask::Palette(format!("defs.new {} ", kind.name())));
+                                    self.asks.push(Ask::New(Some(*kind)));
                                 }
                                 if ui.small_button("Show all").on_hover_text("All of them in a tab, as pictures or a list").clicked() {
                                     self.asks.push(Ask::Open(Tab::Kind(*kind)));
@@ -906,7 +937,7 @@ impl Viewer<'_> {
             match ask {
                 crate::form::Ask::Open(RefKind::Map, map) => self.asks.push(Ask::Open(Tab::Map(map))),
                 crate::form::Ask::Open(k, i) => self.asks.push(Ask::Open(Tab::Def(k, i))),
-                crate::form::Ask::New(k) => self.asks.push(Ask::Palette(format!("defs.new {} ", k.name()))),
+                crate::form::Ask::New(k) => self.asks.push(Ask::New(Some(k))),
             }
         }
         if changed {
@@ -1018,7 +1049,7 @@ impl Viewer<'_> {
                 ui.selectable_value(&mut as_list, true, "List");
             }
             if ui.button(format!("+ New {}", kind.label().to_lowercase())).clicked() {
-                self.asks.push(Ask::Palette(format!("defs.new {} ", kind.name())));
+                self.asks.push(Ask::New(Some(kind)));
             }
         });
         // What they are: one category at a time, or all.

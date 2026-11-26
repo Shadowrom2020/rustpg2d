@@ -226,3 +226,27 @@ fn tags_and_folders_are_written_follow_renames_and_undo() {
     assert_eq!(Meta::load(&dir), ws.meta);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn a_new_definition_is_made_from_its_name() {
+    let dir = example_copy("make");
+    let mut ws = Workspace::new(dir.clone(), Gpu::No).unwrap();
+    ws.history_frame(None);
+    // Blank, with the name; the id is made from it, and numbered when taken.
+    assert_eq!(ws.run_line("defs.make item Moon Blade").unwrap(), "Made item \"moon_blade\"");
+    assert_eq!(ws.project.db.item("moon_blade").unwrap().name, "Moon Blade");
+    assert_eq!(ws.make_def(RefKind::Item, "Moon Blade", None).unwrap(), "moon_blade_2");
+    // A copy of another, renamed; a quest's name is its title.
+    ws.run_line("defs.make item from:iron_sword Sun Blade").unwrap();
+    let (sun, iron) = (ws.project.db.item("sun_blade").unwrap().clone(), ws.project.db.item("iron_sword").unwrap().clone());
+    assert_eq!((sun.name.as_str(), &sun.weapon, &sun.icon), ("Sun Blade", &iron.weapon, &iron.icon));
+    let quest = ws.make_def(RefKind::Quest, "Find the Cat", None).unwrap();
+    assert_eq!(ws.project.db.quests.iter().find(|q| q.id == quest).unwrap().title, "Find the Cat");
+    assert!(ws.make_def(RefKind::Item, "  ", None).is_err());
+    // Each is one step.
+    for _ in 0..4 {
+        ws.run_line("edit.undo").unwrap();
+    }
+    assert!(ws.project.db.item("moon_blade").is_none() && ws.project.db.item("sun_blade").is_none());
+    let _ = std::fs::remove_dir_all(&dir);
+}

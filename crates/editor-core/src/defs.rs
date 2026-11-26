@@ -41,6 +41,57 @@ pub fn list(db: &Database, kind: rustpg2d_engine::refactor::RefKind) -> Vec<(Str
         .collect(), else => Vec::new())
 }
 
+/// What a kind of definition is, in a sentence (the *New…* gallery, hover texts).
+pub fn about(kind: rustpg2d_engine::refactor::RefKind) -> &'static str {
+    use rustpg2d_engine::refactor::RefKind::*;
+    match kind {
+        Sheet => "A picture file cut into frames: icons, portraits, effects, a prop's picture.",
+        Item => "Something carried: a weapon, armour, a potion, a key, a tool, money.",
+        Prop => "Something that stands on a map: furniture, a chest, a door, a tree, a wall, a building.",
+        Character => "Someone or something that lives: a villager, a merchant, a monster, the hero.",
+        Sound => "A sound effect or a piece of music.",
+        Quest => "A task for the player, with its steps and rewards.",
+        Structure => "A piece of map kept to place again: a house, a room, a wall with its gate.",
+        Spell => "A spell: how it is cast, whom it reaches and what it does.",
+        Recipe => "How something is made: ingredients, tools, where, and what comes out.",
+        Achievement => "A deed the game remembers for the player.",
+        Race => "A people: looks, size, speed, traits (humans, elves, goblins).",
+        Model => "A 3D figure or a piece of one: a body, hair, an outfit, a creature.",
+        Material => "Ground to paint maps with: grass, a path, water, a floor.",
+        Scatter => "A set of props the scatter brush spreads: a forest, a flower meadow.",
+        Font => "A font for the game's texts.",
+        Skin => "The look of the game's windows, buttons and bars.",
+        CommonEvent => "A list of actions with a name, called from anywhere or running by itself.",
+        Background => "What the hero was before the adventure: proficiencies and gear.",
+        Class => "A class with its levels and features (fighter, wizard).",
+        Disease => "An illness: how it is caught, what it does, how it ends.",
+        Cutscene => "A scene on a timeline: who walks where, says what, when.",
+        Animation => "An effect drawn over the map: a slash, an explosion, sparks.",
+        VisualScript => "A script function made of nodes instead of typed code.",
+        Skill => "A proficiency: a skill or a tool of the rules.",
+        Map => "A place of the game: its ground, what stands on it, who lives there.",
+    }
+}
+
+/// An id made from a name: `Potion of Healing` -> `potion_of_healing` (letters, digits and `_`;
+/// `thing` when nothing is left).
+pub fn id_from_name(name: &str) -> String {
+    let mut id = String::new();
+    for c in name.trim().chars() {
+        if c.is_ascii_alphanumeric() {
+            id.push(c.to_ascii_lowercase());
+        } else if !id.is_empty() && !id.ends_with('_') {
+            id.push('_');
+        }
+    }
+    let id = id.trim_end_matches('_');
+    if id.is_empty() {
+        "thing".to_string()
+    } else {
+        id.to_string()
+    }
+}
+
 /// The category of every definition of `kind`, told from what it is: `(id, rank, label)`, the
 /// rank for the order categories are listed in. Empty for kinds without categories. (Lists use
 /// it to group and filter: items by the SRD's categories, props by what they do, characters by
@@ -134,6 +185,31 @@ pub fn ron_of(db: &Database, kind: rustpg2d_engine::refactor::RefKind, id: &str)
 }
 
 impl Workspace {
+    /// Makes a new definition from its name: the id is made from the name (and a number when
+    /// it is taken), the definition starts blank or, with `from`, as a copy of that one, and
+    /// gets the name. One step of the history. Returns the id.
+    pub fn make_def(&mut self, kind: rustpg2d_engine::refactor::RefKind, name: &str, from: Option<&str>) -> Result<String, String> {
+        let name = name.trim();
+        if name.is_empty() {
+            return Err("it needs a name".into());
+        }
+        let id = rustpg2d_engine::refactor::unique_id(&id_from_name(name), |c| self.project.db.has(kind, c));
+        self.begin(&format!("New {}: {name}", kind.label().to_lowercase()));
+        match from {
+            Some(from) => self.duplicate_def(kind, from, &id)?,
+            None => self.new_def(kind, &id)?,
+        }
+        // (A quest has a title, most others a name, a few only their id.)
+        if let Some(mut value) = self.def_value(kind, &id) {
+            let field = ["name", "title"].into_iter().find(|f| value.get(*f).is_some_and(|v| v.is_string()));
+            if let Some(field) = field {
+                value[field] = serde_json::Value::String(name.to_string());
+                self.set_def_value(kind, &id, value)?;
+            }
+        }
+        Ok(id)
+    }
+
     /// Sprite of an entity definition (props / items; characters a `@char:` marker that
     /// `widgets::paint_sprite` paints from their figure).
     pub fn def_sprite(&self, kind: EntityKind, def: &str) -> Option<rustpg2d_engine::defs::SpriteRef> {
@@ -200,6 +276,9 @@ mod tests {
         assert_eq!(of(RefKind::Spell, "fire-bolt").as_deref(), Some("Cantrips"));
         assert_eq!(super::categories(&db, RefKind::Item).len(), db.items.len(), "every item has one");
         assert!(super::categories(&db, RefKind::Quest).is_empty(), "quests have none");
+        assert_eq!(super::id_from_name("  Potion of Healing! "), "potion_of_healing");
+        assert_eq!(super::id_from_name("+1 Sword"), "1_sword");
+        assert_eq!(super::id_from_name("???"), "thing");
         // Ranks give the categories' order: the same label never has two ranks.
         for kind in RefKind::ALL {
             let mut seen = std::collections::HashMap::new();

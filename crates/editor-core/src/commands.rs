@@ -136,6 +136,22 @@ pub const COMMANDS: &[Command] = &[
         },
     },
     Command {
+        id: "defs.make",
+        title: "New from a name",
+        keys: "",
+        params: &["kind", "name"],
+        help: "Makes a new definition from its name (the id is made from it). A first word from:ID after the kind starts it as a copy of that definition.",
+        changes: true,
+        run: |ws, a| {
+            need_project(ws)?;
+            let kind = kind_named(arg(a, 0, "kind")?)?;
+            let from = a.get(1).and_then(|w| w.strip_prefix("from:"));
+            let name = a[(1 + from.is_some() as usize).min(a.len())..].join(" ");
+            let id = ws.make_def(kind, &name, from)?;
+            Ok(format!("Made {} \"{id}\"", kind.name()))
+        },
+    },
+    Command {
         id: "defs.duplicate",
         title: "Duplicate definition",
         keys: "",

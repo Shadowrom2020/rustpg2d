@@ -180,6 +180,25 @@ impl<'a> Node<'a> {
         self
     }
 
+    /// The place a JSON pointer leads to from here (`/weapon/damage`, `/on_use/0/actions`, a
+    /// variant by its name: `/behavior/Chase/sight`); `None` when the data has no such place.
+    pub fn at(self, pointer: &str) -> Option<Node<'a>> {
+        let mut node = self;
+        for part in pointer.split('/').skip(1) {
+            while let Shape::Optional(inner) = node.shape() {
+                node = inner;
+            }
+            node = match node.shape() {
+                Shape::Struct(fields) => fields.into_iter().find(|f| f.key == part)?.node,
+                Shape::List(inner) | Shape::Map(inner) => inner,
+                Shape::Fixed(nodes) => *nodes.get(part.parse::<usize>().ok()?)?,
+                Shape::Choice(variants) => variants.into_iter().find(|v| v.name == part)?.data?,
+                _ => return None,
+            };
+        }
+        Some(node)
+    }
+
     /// The doc comment of the field (else of its type), tidied for reading; may be empty.
     pub fn help(self) -> String {
         let text = self.at.get("description").or_else(|| self.resolved().at.get("description")).and_then(Value::as_str).unwrap_or("");
@@ -842,6 +861,9 @@ mod tests {
         let Shape::Choice(targets) = get("use_on").node.shape() else { panic!("an enum") };
         assert_eq!(targets.iter().map(|v| v.name).collect::<Vec<_>>(), ["Player", "Ally", "Choose"]);
         assert!(!targets[1].help().is_empty());
+        assert!(matches!(item.at("/weapon/ranged/ammo").map(|n| n.shape()), Some(Shape::Text)));
+        assert!(item.at("/teaches").is_some() && item.at("/nonsense").is_none() && item.at("/weapon/nonsense").is_none());
+        assert!(item.at("/on_use/0/actions/3/GiveItem/count").is_some());
         // A blank weapon is one the engine reads.
         let blank = weapon.blank();
         serde_json::from_value::<rustpg2d_engine::defs::Weapon>(blank.clone()).unwrap_or_else(|e| panic!("{e}: {blank}"));

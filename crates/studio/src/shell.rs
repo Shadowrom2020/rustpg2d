@@ -83,6 +83,34 @@ pub const GROUPS: &[(&str, &[RefKind])] = &[
 /// The categories of definitions (`editor_core::defs::categories`), by kind and id.
 type Cats = std::collections::HashMap<RefKind, std::collections::HashMap<String, (u32, String)>>;
 
+/// What is known to be wrong with assets, and which nothing uses.
+#[derive(Default)]
+pub struct Marks {
+    /// By definition: the texts of its problems, errors first (after *Check the project*).
+    problems: std::collections::HashMap<(RefKind, String), Vec<(bool, String)>>,
+    /// Definitions nothing uses (after *Unused* was asked for; `None` = not looked yet).
+    unused: Option<std::collections::HashSet<(RefKind, String)>>,
+}
+
+impl Marks {
+    fn problems_of(&self, kind: RefKind, id: &str) -> &[(bool, String)] {
+        self.problems.get(&(kind, id.to_string())).map_or(&[], Vec::as_slice)
+    }
+
+    fn is_unused(&self, kind: RefKind, id: &str) -> bool {
+        self.unused.as_ref().is_some_and(|u| u.contains(&(kind, id.to_string())))
+    }
+
+    /// The colour of an asset's mark: red for an error, yellow for a warning, grey when unused.
+    fn color(&self, ui: &egui::Ui, kind: RefKind, id: &str) -> Option<egui::Color32> {
+        match self.problems_of(kind, id).first() {
+            Some((true, _)) => Some(ui.visuals().error_fg_color),
+            Some((false, _)) => Some(ui.visuals().warn_fg_color),
+            None => self.is_unused(kind, id).then(|| ui.visuals().weak_text_color()),
+        }
+    }
+}
+
 /// The categories among `rows` in their order, with how many rows each has.
 fn categories_of(cats: Option<&std::collections::HashMap<String, (u32, String)>>, rows: &[(String, String)]) -> Vec<(u32, String, usize)> {
     let mut found: Vec<(u32, String, usize)> = Vec::new();
@@ -172,6 +200,8 @@ enum Ask {
     Palette(String),
     /// The *New…* gallery, with this kind picked.
     New(Option<RefKind>),
+    /// Look for what nothing uses.
+    FindUnused,
 }
 
 pub struct Shell {
@@ -195,6 +225,7 @@ pub struct Shell {
     thumbs: crate::thumbs::Thumbs,
     /// The *New…* gallery while it is open.
     pub new_asset: Option<crate::gallery::NewAsset>,
+    marks: Marks,
     /// Answers of commands, newest last (the script prints them too).
     pub log: Vec<String>,
 }
@@ -216,7 +247,7 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, log: Vec::new() }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, marks: Marks::default(), log: Vec::new() }
     }
 
     /// Shows `tab`: brings it to the front when it is open, else opens it beside the documents.
@@ -308,7 +339,18 @@ impl Shell {
     pub fn set_field(&mut self, kind: RefKind, id: &str, pointer: &str, text: &str) -> Result<String, String> {
         let mut value = self.ws.def_value(kind, id).ok_or_else(|| format!("there is no {} \"{id}\"", kind.name()))?;
         let new: serde_json::Value = serde_json::from_str(text).map_err(|e| format!("{text} isn't data: {e}"))?;
-        *value.pointer_mut(pointer).ok_or_else(|| format!("{} \"{id}\" has no field {pointer}", kind.name()))? = new;
+        match value.pointer_mut(pointer) {
+            Some(place) => *place = new,
+            // A field the definition leaves out while it holds its default: put into its group.
+            None => {
+                if !editor_core::schema::of_kind(kind).is_some_and(|n| n.at(pointer).is_some()) {
+                    return Err(format!("{} definitions have no field {pointer}", kind.label()));
+                }
+                let (parent, field) = pointer.rsplit_once('/').ok_or_else(|| format!("{pointer} isn't a field's place (/name, /weapon/damage)"))?;
+                let group = value.pointer_mut(parent).and_then(|p| p.as_object_mut()).ok_or_else(|| format!("{} \"{id}\" has no {parent} to put {field} into", kind.name()))?;
+                group.insert(field.to_string(), new);
+            }
+        }
         self.ws.set_def_value(kind, id, value)?;
         self.ws.history_frame(None);
         Ok(format!("{} {id}{pointer} = {text}", kind.name()))
@@ -339,8 +381,23 @@ impl Shell {
             return;
         }
         self.lists = GROUPS.iter().flat_map(|(_, kinds)| kinds.iter()).filter(|k| **k != RefKind::Map).map(|k| (*k, editor_core::defs::list(&self.ws.project.db, *k))).collect();
+        // (What was unused may be used now.)
+        if self.marks.unused.is_some() {
+            self.find_unused();
+        }
         self.cats = self.lists.iter().map(|(k, _)| (*k, editor_core::defs::categories(&self.ws.project.db, *k).into_iter().map(|(id, rank, label)| (id, (rank, label))).collect())).filter(|(_, c): &(RefKind, std::collections::HashMap<String, (u32, String)>)| !c.is_empty()).collect();
         self.ws.stale = false;
+    }
+
+    /// Looks for the definitions nothing uses (`engine::unused`).
+    fn find_unused(&mut self) {
+        match rustpg2d_engine::unused::find_in(&self.ws.project) {
+            Ok(u) => self.marks.unused = Some(u.deletable().defs.into_iter().map(|d| (d.kind, d.id)).collect()),
+            Err(e) => {
+                self.marks.unused = None;
+                self.ws.set_status(format!("Looking for unused assets failed: {e:#}"));
+            }
+        }
     }
 
     /// One frame of the window.
@@ -351,6 +408,15 @@ impl Shell {
         self.shortcuts(&ctx);
         if let Some(rs) = rs {
             self.thumbs.begin_frame(&self.ws, rs);
+        }
+        // What the last project check found, by definition (errors first).
+        self.marks.problems.clear();
+        for p in &self.ws.problems.list {
+            if let Target::Def(kind, id) = &p.target {
+                let entry = self.marks.problems.entry((*kind, id.clone())).or_default();
+                let error = p.severity == editor_core::problems::Severity::Error;
+                entry.insert(if error { 0 } else { entry.len() }, (error, p.text.clone()));
+            }
         }
 
         egui::Panel::top("menu").show(ui, |ui| {
@@ -372,7 +438,7 @@ impl Shell {
 
         let mut asks = Vec::new();
         {
-            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, rs, asks: &mut asks };
+            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, rs, asks: &mut asks };
             DockArea::new(&mut self.dock).show_inside(ui, &mut viewer);
         }
         for ask in asks {
@@ -383,6 +449,7 @@ impl Shell {
                 }
                 Ask::Palette(text) => self.open_palette(PaletteKind::Commands, &text),
                 Ask::New(kind) => self.new_asset = Some(crate::gallery::NewAsset::of(kind)),
+                Ask::FindUnused => self.find_unused(),
             }
         }
         self.gallery_ui(&ctx, rs);
@@ -608,6 +675,7 @@ struct Viewer<'a> {
     forms: &'a mut std::collections::HashMap<(RefKind, String), (serde_json::Value, String)>,
     show_all: &'a mut bool,
     thumbs: &'a mut crate::thumbs::Thumbs,
+    marks: &'a Marks,
     rs: Option<&'a eframe::egui_wgpu::RenderState>,
     asks: &'a mut Vec<Ask>,
 }
@@ -774,7 +842,12 @@ impl Viewer<'_> {
                 if let (true, Some(rs)) = (crate::thumbs::has_pictures(kind), self.rs) {
                     crate::thumbs::boxed(ui, 18.0, || self.thumbs.of(self.ws, rs, kind, id));
                 }
-                ui.selectable_label(false, label).clicked()
+                let clicked = ui.selectable_label(false, label).clicked();
+                if let Some((error, text)) = self.marks.problems_of(kind, id).first() {
+                    let color = if *error { ui.visuals().error_fg_color } else { ui.visuals().warn_fg_color };
+                    ui.colored_label(color, "!").on_hover_text(text);
+                }
+                clicked
             })
             .inner;
         if clicked {
@@ -910,6 +983,15 @@ impl Viewer<'_> {
             });
         });
         self.notes(ui, kind, id);
+        for (error, text) in self.marks.problems_of(kind, id).iter().take(6) {
+            ui.horizontal_wrapped(|ui| {
+                ui.colored_label(if *error { ui.visuals().error_fg_color } else { ui.visuals().warn_fg_color }, if *error { "Error" } else { "Warning" });
+                ui.label(text);
+            });
+        }
+        if self.marks.is_unused(kind, id) {
+            ui.weak("Nothing uses it (no other definition, map, setting or script names it).");
+        }
         if self.ws.usages.of.as_ref().is_some_and(|(k, i)| *k == kind && i == id) {
             egui::CollapsingHeader::new("Used by").default_open(true).show(ui, |ui| {
                 for u in &self.ws.usages.list {
@@ -1052,6 +1134,37 @@ impl Viewer<'_> {
                 self.asks.push(Ask::New(Some(kind)));
             }
         });
+        // Only the ones something is wrong with, or the ones nothing uses.
+        let with_problems = all.iter().filter(|(id, _)| !self.marks.problems_of(kind, id).is_empty()).count();
+        let wid = ui.scope_id().with("which");
+        let mut which: u8 = ui.data_mut(|d| d.get_temp(wid).unwrap_or(0));
+        ui.horizontal_wrapped(|ui| {
+            ui.weak("Show");
+            ui.selectable_value(&mut which, 0, "all");
+            let checked = self.ws.problems.built;
+            let label = if checked { format!("with problems ({with_problems})") } else { "with problems…".to_string() };
+            if ui.selectable_value(&mut which, 1, label).on_hover_text("What the project check found wrong").clicked() && !checked {
+                self.asks.push(Ask::Run("check.problems".into()));
+            }
+            // (The kinds with files of their own: what the clean-up of unused files looks at.)
+            if matches!(kind, RefKind::Sheet | RefKind::Model | RefKind::Sound | RefKind::Material | RefKind::Font) {
+                let label = match &self.marks.unused {
+                    Some(_) => format!("unused ({})", all.iter().filter(|(id, _)| self.marks.is_unused(kind, id)).count()),
+                    None => "unused…".to_string(),
+                };
+                if ui.selectable_value(&mut which, 2, label).on_hover_text("What no other definition, map, setting or script names").clicked() && self.marks.unused.is_none() {
+                    self.asks.push(Ask::FindUnused);
+                }
+            } else if which == 2 {
+                which = 0;
+            }
+        });
+        let marks = self.marks;
+        let shown = |id: &str| match which {
+            1 => !marks.problems_of(kind, id).is_empty(),
+            2 => marks.is_unused(kind, id),
+            _ => true,
+        };
         // What they are: one category at a time, or all.
         let cats = self.cats.get(&kind);
         let groups = categories_of(cats, all);
@@ -1096,7 +1209,7 @@ impl Viewer<'_> {
         let f = filter.trim().to_lowercase();
         let in_category = |id: &str| category.is_empty() || cats.and_then(|c| c.get(id)).is_some_and(|(_, l)| *l == category);
         let tagged = |id: &str| tag.is_empty() || meta.has_tag(kind, id, &tag);
-        let rows: Vec<&(String, String)> = all.iter().filter(|(id, name)| in_category(id) && tagged(id) && (f.is_empty() || id.to_lowercase().contains(&f) || name.to_lowercase().contains(&f))).collect();
+        let rows: Vec<&(String, String)> = all.iter().filter(|(id, name)| shown(id) && in_category(id) && tagged(id) && (f.is_empty() || id.to_lowercase().contains(&f) || name.to_lowercase().contains(&f))).collect();
         // Several chosen at once (Ctrl+click a card, a row's box): tagged, moved, deleted together.
         let sid = ui.scope_id().with("chosen");
         let mut chosen: std::collections::BTreeSet<String> = ui.data_mut(|d| d.get_temp(sid).unwrap_or_default());
@@ -1166,6 +1279,11 @@ impl Viewer<'_> {
                     if name != id {
                         ui.weak(id.as_str());
                     }
+                    if let Some((error, text)) = marks.problems_of(kind, id).first() {
+                        ui.colored_label(if *error { ui.visuals().error_fg_color } else { ui.visuals().warn_fg_color }, text);
+                    } else if marks.is_unused(kind, id) {
+                        ui.weak("unused");
+                    }
                     if let Some(m) = meta.of(kind, id) {
                         if !m.folder.is_empty() {
                             ui.weak(format!("in {}", m.folder));
@@ -1180,7 +1298,8 @@ impl Viewer<'_> {
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing = egui::vec2(6.0, 6.0);
                 for (id, name) in &rows {
-                    let r = crate::thumbs::card(ui, name, id, chosen.contains(id), || self.thumbs.of(self.ws, rs, kind, id));
+                    let mark = marks.color(ui, kind, id);
+                    let r = crate::thumbs::card(ui, name, id, chosen.contains(id), mark, || self.thumbs.of(self.ws, rs, kind, id));
                     // Ctrl+click chooses (several at once); a plain click opens.
                     if r.clicked() && ui.input(|i| i.modifiers.command) {
                         if !chosen.remove(id) {
@@ -1198,6 +1317,7 @@ impl Viewer<'_> {
         ui.data_mut(|d| {
             d.insert_temp(fid, filter);
             d.insert_temp(cid, category);
+            d.insert_temp(wid, which);
             d.insert_temp(tid, tag);
             d.insert_temp(sid, chosen);
             d.insert_persisted(lid, as_list);

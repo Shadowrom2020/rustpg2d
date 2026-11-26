@@ -45,6 +45,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   already in use.
 - ***New…*** (Ctrl+N, part 4): pick what to make (each kind says what it is), give it a name,
   and start blank or from a copy picked from a list with pictures; the id is made from the name.
+- **Problems where they are** (part 4): after *Check the project* an asset with a problem is
+  marked in the browser and on its card, its form says what is wrong, and a kind's tab can
+  show only those, or (pictures, models, sounds, materials, fonts) only what nothing uses.
 - **Your own order** (part 4): every definition and map can have a folder, tags, notes and a
   favourite mark (`editor/meta.ron` in the project; the game doesn't read it). Favourites are
   first in the browser, a kind's folders come before its categories, the filter finds tags, and

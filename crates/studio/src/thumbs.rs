@@ -215,7 +215,7 @@ pub fn has_pictures(kind: RefKind) -> bool {
 }
 
 /// A card to click: a picture with a name under it.
-pub fn card(ui: &mut egui::Ui, name: &str, id: &str, selected: bool, thumb: impl FnOnce() -> Option<Thumb>) -> egui::Response {
+pub fn card(ui: &mut egui::Ui, name: &str, id: &str, selected: bool, mark: Option<egui::Color32>, thumb: impl FnOnce() -> Option<Thumb>) -> egui::Response {
     let size = egui::vec2(104.0, 112.0);
     let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click());
     response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, name));
@@ -237,6 +237,10 @@ pub fn card(ui: &mut egui::Ui, name: &str, id: &str, selected: bool, thumb: impl
     let picture = egui::Rect::from_min_size(rect.min + egui::vec2(12.0, 6.0), egui::vec2(80.0, 80.0));
     if let Some(t) = thumb() {
         t.paint(ui, picture);
+    }
+    // (Something is wrong with it, or nothing uses it: a dot in its corner.)
+    if let Some(color) = mark {
+        ui.painter().circle_filled(rect.right_top() + egui::vec2(-10.0, 10.0), 4.0, color);
     }
     let font = egui::TextStyle::Small.resolve(ui.style());
     let galley = ui.painter().layout(name.to_string(), font, ui.visuals().text_color(), rect.width() - 8.0);

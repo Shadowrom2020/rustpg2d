@@ -156,6 +156,8 @@ pub struct Parts<'a> {
     pub lists: &'a [(RefKind, Vec<(String, String)>)],
     pub thumbs: &'a mut Thumbs,
     pub show_all: bool,
+    /// A transition zone waiting for its other side to be drawn on another map: (map, zone).
+    pub link: &'a mut Option<(String, String)>,
     pub asks: Vec<Ask>,
 }
 
@@ -435,6 +437,13 @@ impl MapView {
             }
             if doc_of(p.ws, name).is_some_and(|d| d.is_dirty()) {
                 ui.weak("changed");
+            }
+            if let Some((map, zone)) = p.link.clone() {
+                ui.separator();
+                ui.colored_label(ui.visuals().warn_fg_color, format!("{map}: {zone} waits for its other side")).on_hover_text("Open another map and draw a Transition zone there (Zones tool): the two become each other's other side.");
+                if ui.small_button("Stop").clicked() {
+                    *p.link = None;
+                }
             }
         });
     }
@@ -728,7 +737,33 @@ impl MapView {
                 ui.label(egui::RichText::new(name).strong());
                 ui.weak(format!("{} x {} tiles · {} characters, objects and items · {} pieces of scenery · {} zones", m.width, m.height, m.entities.len(), m.decor.len(), m.zones.len()));
                 ui.add_space(6.0);
-                ui.weak("Select something on the map or in the list above to see and change it here.");
+                ui.weak("Select something on the map or in the list above to see and change it here. Below: the map itself.");
+                ui.separator();
+                // The map's own settings (the map being worked on: a map beside it shows its facts).
+                let current = p.ws.doc.as_ref().is_some_and(|d| d.map.name == name);
+                let Some(saved) = current.then(|| p.ws.map_settings_value()).flatten() else { return };
+                let mut value = self.pending.as_ref().filter(|(s, ..)| *s == Selection::None).map_or_else(|| saved.clone(), |(_, v, _)| v.clone());
+                let mut pics = p.rs.map(|rs| crate::thumbs::Pics { thumbs: &mut *p.thumbs, ws: &*p.ws, rs });
+                let pictures = pics.as_mut().map(|x| x as &mut dyn crate::form::Pictures);
+                let mut cx = crate::form::Cx { lists: p.lists, maps: &p.ws.maps, show_all: p.show_all, compact: true, pictures, refs: Some(&p.ws.refs), asks: Vec::new() };
+                let changed = crate::form::sections_ui(ui, &mut cx, schema::map_settings(), &mut value, schema::MAP_SECTIONS);
+                for ask in cx.asks {
+                    match ask {
+                        crate::form::Ask::Open(RefKind::Map, map) => p.asks.push(Ask::OpenMap(map)),
+                        crate::form::Ask::Open(k, i) => p.asks.push(Ask::OpenDef(k, i)),
+                        crate::form::Ask::New(k) => p.asks.push(Ask::New(k)),
+                    }
+                }
+                if changed {
+                    self.pending = p.ws.set_map_settings_value(value.clone()).err().map(|e| (Selection::None, value, e));
+                }
+                if let Some((_, _, why)) = self.pending.as_ref().filter(|(s, ..)| *s == Selection::None) {
+                    ui.separator();
+                    ui.colored_label(egui::Color32::LIGHT_RED, format!("Not taken yet: {why}"));
+                    if ui.button("Back to how it was").clicked() {
+                        self.pending = None;
+                    }
+                }
             }
             [Selection::Scenery(d)] => {
                 let d = *d;
@@ -843,6 +878,12 @@ impl MapView {
                     }
                     if ui.button("Delete").on_hover_text("Del").clicked() {
                         act = Some("delete");
+                    }
+                    let transition = saved.pointer("/kind/Transition/target_map").is_some();
+                    if transition && ui.button("Link…").on_hover_text("Draw a Transition zone on another map after this: the two become each other's other side").clicked() {
+                        *p.link = Some((name.to_string(), title.clone()));
+                        self.tool = Tool::Zones;
+                        self.zone_kind = "Transition".into();
                     }
                 });
                 if let Some(act) = act {
@@ -1302,7 +1343,10 @@ impl MapView {
             Some(Drag::NewZone { from, at: start, pick }) => match pick.filter(|_| (at - start).length() < 4.0 * ppp) {
                 Some(pick) => self.sel = vec![pick],
                 None => match self.zone_of_kind(p.ws).and_then(|kind| p.ws.add_zone(kind, rect_of(from, tile))) {
-                    Ok(uid) => self.sel = vec![Selection::Zone(uid)],
+                    Ok(uid) => {
+                        self.sel = vec![Selection::Zone(uid)];
+                        self.transition_drawn(p, name, uid);
+                    }
                     Err(e) => p.ws.set_status(e),
                 },
             },
@@ -1458,6 +1502,29 @@ impl MapView {
                 let cells = p.ws.ground_fill(world, value);
                 let n = p.ws.ground_commit(cells, value);
                 p.ws.set_status(format!("Filled {n} cells"));
+            }
+        }
+    }
+
+    /// A transition zone was drawn: the first of a pair waits for its other side; the second,
+    /// on another map, makes them each other's.
+    fn transition_drawn(&mut self, p: &mut Parts, name: &str, uid: u32) {
+        let Some(zone) = p.ws.doc.as_ref().and_then(|d| d.map.zones.iter().find(|z| z.uid == uid)).filter(|z| matches!(&z.kind, ZoneKind::Transition { target_map, .. } if target_map.is_empty())).map(|z| z.name.clone()) else { return };
+        match p.link.clone() {
+            Some((other, there)) if other != name => {
+                // (The zone's own step gets its name before the link's two.)
+                p.ws.history_frame(None);
+                match p.ws.link_transitions((&other, &there), (name, &zone)) {
+                    Ok(()) => {
+                        *p.link = None;
+                        p.ws.set_status(format!("{name} and {other} are linked: walking into one side arrives beside the other"));
+                    }
+                    Err(e) => p.ws.set_status(e),
+                }
+            }
+            _ => {
+                *p.link = Some((name.to_string(), zone));
+                p.ws.set_status("Now draw the transition's other side on another map (Zones, Transition)");
             }
         }
     }
@@ -1989,6 +2056,7 @@ mod ui_tests {
         thumbs: Thumbs,
         lists: Vec<(RefKind, Vec<(String, String)>)>,
         asks: Vec<String>,
+        link: Option<(String, String)>,
         dir: std::path::PathBuf,
     }
 
@@ -2017,11 +2085,11 @@ mod ui_tests {
         ws.history_frame(None);
         ws.open_map("village");
         let lists: Vec<(RefKind, Vec<(String, String)>)> = RefKind::ALL.iter().map(|k| (*k, editor_core::defs::list(&ws.project.db, *k))).collect();
-        let state = State { ws, view: MapView::default(), thumbs: Thumbs::default(), lists, asks: Vec::new(), dir };
+        let state = State { ws, view: MapView::default(), thumbs: Thumbs::default(), lists, asks: Vec::new(), link: None, dir };
         Harness::builder().with_size(egui::vec2(1300.0, 1400.0)).build_ui_state(
             |ui, s: &mut State| {
                 s.ws.history_frame(None);
-                let mut parts = Parts { ws: &mut s.ws, rs: None, lists: &s.lists, thumbs: &mut s.thumbs, show_all: false, asks: Vec::new() };
+                let mut parts = Parts { ws: &mut s.ws, rs: None, lists: &s.lists, thumbs: &mut s.thumbs, show_all: false, link: &mut s.link, asks: Vec::new() };
                 s.view.show(ui, &mut parts, "village");
                 for ask in parts.asks {
                     s.asks.push(match ask {

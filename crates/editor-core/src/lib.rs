@@ -26,6 +26,7 @@ pub mod starter;
 pub mod testsetup;
 pub mod timeline;
 pub mod workspace;
+pub mod world;
 
 pub use workspace::{Gpu, Workspace};
 

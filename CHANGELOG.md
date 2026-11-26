@@ -18,6 +18,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   says, so a scripted run draws the same frames every time.
 - `RUSTPG2D_ALLOW_SOFTWARE=1` lets the game start on a software renderer (tests, CI); without it
   a machine without a graphics driver gets a message.
+- `Game::step` and `Game::thing_under_pointer` (an editor shows the game itself: its clock
+  by hand, what a click would open); `map::MapSettings` (what a map is besides its ground
+  and what stands on it, for forms).
 
 ### Editor
 - **The new editor's window** (`rustpg2d-studio`, part 3 of *The Studio*), egui 0.37 on the
@@ -60,6 +63,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   party and bag. *Keep as the test setup* remembers that state, and *Play from here with
   the test setup* starts a game in progress with it (no intro). *Own window* runs the
   real game beside the editor.
+- **The World view and linked maps** (part 6): *World › World view* shows every map as a
+  card with the ways between them as arrows, and marks a way that leads nowhere and a map
+  nothing leads to. A Transition zone drawn on one map and the next one drawn on another
+  become each other's other side. With nothing selected, a map's Inspector is the map's
+  own settings (light, weather, music, edges, events).
 - **Terrain, scenery, structures and scatter sets on the map** (part 6): *Terrain* paints
   materials with a brush, a line, a rectangle or a fill. *Place* now takes everything from
   one list: a prop that only stands there is put down as scenery, one that does something

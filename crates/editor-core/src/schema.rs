@@ -23,6 +23,39 @@ struct Store {
     entity: Value,
     zone: Value,
     trigger: Value,
+    map_settings: Value,
+}
+
+/// A schema as the forms read it: a plain value that may be left out (`"type": ["string",
+/// "null"]`, what an `Option<String>` gives) is written like every other optional thing, as
+/// one of two (`anyOf`: the value, or nothing), so its control is the value's own with a way
+/// to say "none".
+fn tidy_schema(mut v: Value) -> Value {
+    fn walk(v: &mut Value) {
+        match v {
+            Value::Object(m) => {
+                for x in m.values_mut() {
+                    walk(x);
+                }
+                let optional = m.get("type").and_then(Value::as_array).filter(|t| t.len() == 2 && t.iter().any(|x| x == "null")).and_then(|t| t.iter().find(|x| *x != "null").cloned());
+                if let Some(ty) = optional {
+                    let mut inner = std::mem::take(m);
+                    inner.insert("type".into(), ty);
+                    // (What says something about the field stays with the field.)
+                    for key in ["description", "default"] {
+                        if let Some(x) = inner.remove(key) {
+                            m.insert(key.into(), x);
+                        }
+                    }
+                    m.insert("anyOf".into(), Value::Array(vec![Value::Object(inner), serde_json::json!({"type": "null"})]));
+                }
+            }
+            Value::Array(a) => a.iter_mut().for_each(walk),
+            _ => {}
+        }
+    }
+    walk(&mut v);
+    v
 }
 
 fn store() -> &'static Store {
@@ -30,11 +63,12 @@ fn store() -> &'static Store {
     STORE.get_or_init(|| {
         use rustpg2d_engine::schema;
         Store {
-            kinds: RefKind::ALL.iter().filter_map(|k| Some((*k, schema::of_kind(*k)?.to_value()))).collect(),
-            project: schema::project().to_value(),
-            entity: schema::entity().to_value(),
-            zone: schema::zone().to_value(),
-            trigger: schema::trigger().to_value(),
+            kinds: RefKind::ALL.iter().filter_map(|k| Some((*k, tidy_schema(schema::of_kind(*k)?.to_value())))).collect(),
+            project: tidy_schema(schema::project().to_value()),
+            entity: tidy_schema(schema::entity().to_value()),
+            zone: tidy_schema(schema::zone().to_value()),
+            trigger: tidy_schema(schema::trigger().to_value()),
+            map_settings: tidy_schema(schema::map_settings().to_value()),
         }
     })
 }
@@ -61,6 +95,11 @@ pub fn entity() -> Node<'static> {
 /// A zone of a map.
 pub fn zone() -> Node<'static> {
     root(&store().zone)
+}
+
+/// A map's settings.
+pub fn map_settings() -> Node<'static> {
+    root(&store().map_settings)
 }
 
 /// A trigger.
@@ -475,6 +514,9 @@ pub fn entity_sections(kind: &str) -> Sections {
     }
 }
 
+/// The sections of a map's settings.
+pub const MAP_SECTIONS: Sections = &[("Light and weather", "lighting weather fog background"), ("Sound", "music battle_music"), ("Beyond the edges", "edges parallax"), ("Events", "triggers")];
+
 /// The Inspector's sections of a zone.
 pub const ZONE_SECTIONS: Sections = &[("Zone", "name kind"), ("Place (tiles)", "x y w h"), ("Events", "triggers"), ("Spawned characters", "~loot"), ("", "uid")];
 
@@ -697,6 +739,7 @@ const REFERENCES: &[(&str, &[RefKind])] = {
         ("Cond.Skill.skill", &[Skill]),
         ("Costly.item", &[Item]),
         ("CutsceneDef.map", &[Map]),
+        ("EdgeLink.target_map", &[Map]),
         ("EncounterEntry.character", &[Character]),
         ("EntityInstance.def", &[Item, Prop, Character]),
         ("FeatureEffect.Act.anim", &[Animation]),
@@ -728,11 +771,14 @@ const REFERENCES: &[(&str, &[RefKind])] = {
         ("LockSpec.key", &[Item]),
         ("LootEntry.item", &[Item]),
         ("MagicItem.attune_by", &[Race, Class]),
+        ("MapSettings.battle_music", &[Sound]),
+        ("MapSettings.music", &[Sound]),
         ("MaterialDef.step", &[Sound]),
         ("ModelDef.parts", &[Model]),
         ("ModelPart.fits", &[Model]),
         ("NineSlice.sheet", &[Sheet]),
         ("NodeKind.Call.function", &[VisualScript]),
+        ("ParallaxLayer.sheet", &[Sheet]),
         ("ProjectConfig.battle_music", &[Sound]),
         ("ProjectConfig.map_titles#key", &[Map]),
         ("ProjectConfig.player", &[Character]),
@@ -1026,6 +1072,7 @@ mod tests {
         Entity(Value),
         Zone(Value),
         Trigger(Value),
+        Settings(Value),
         Project(Value),
     }
 
@@ -1036,13 +1083,14 @@ mod tests {
                 Sample::Entity(_) => entity(),
                 Sample::Zone(_) => zone(),
                 Sample::Trigger(_) => trigger(),
+                Sample::Settings(_) => map_settings(),
                 Sample::Project(_) => project(),
             }
         }
 
         fn value(&self) -> &Value {
             match self {
-                Sample::Def(_, v) | Sample::Entity(v) | Sample::Zone(v) | Sample::Trigger(v) | Sample::Project(v) => v,
+                Sample::Def(_, v) | Sample::Entity(v) | Sample::Zone(v) | Sample::Trigger(v) | Sample::Settings(v) | Sample::Project(v) => v,
             }
         }
 
@@ -1062,6 +1110,7 @@ mod tests {
                 Sample::Entity(_) => map.entities.push(serde_json::from_value(v.clone()).unwrap_or_else(|e| panic!("{}", bad(e)))),
                 Sample::Zone(_) => map.zones.push(serde_json::from_value(v.clone()).unwrap_or_else(|e| panic!("{}", bad(e)))),
                 Sample::Trigger(_) => map.triggers.push(serde_json::from_value(v.clone()).unwrap_or_else(|e| panic!("{}", bad(e)))),
+                Sample::Settings(_) => serde_json::from_value::<rustpg2d_engine::map::MapSettings>(v.clone()).unwrap_or_else(|e| panic!("{}", bad(e))).apply(&mut map),
             }
             for kind in RefKind::ALL {
                 match self {
@@ -1077,7 +1126,7 @@ mod tests {
                             out.push((kind, serde_json::to_value(&config).unwrap()));
                         }
                     }
-                    Sample::Entity(_) | Sample::Zone(_) | Sample::Trigger(_) => {
+                    Sample::Entity(_) | Sample::Zone(_) | Sample::Trigger(_) | Sample::Settings(_) => {
                         let mut map = map.clone();
                         if rename_in_map(&mut map, kind, old, new) > 0 {
                             out.push((
@@ -1085,6 +1134,7 @@ mod tests {
                                 match self {
                                     Sample::Entity(_) => serde_json::to_value(&map.entities[0]),
                                     Sample::Zone(_) => serde_json::to_value(&map.zones[0]),
+                                    Sample::Settings(_) => serde_json::to_value(rustpg2d_engine::map::MapSettings::of(&map)),
                                     _ => serde_json::to_value(&map.triggers[0]),
                                 }
                                 .unwrap(),
@@ -1177,6 +1227,7 @@ mod tests {
         all(entity(), &Sample::Entity);
         all(zone(), &Sample::Zone);
         all(trigger(), &Sample::Trigger);
+        all(map_settings(), &Sample::Settings);
         out
     }
 

@@ -154,13 +154,15 @@ crates/editor-core/src/ the editor without its UI (0.36): workspace.rs (Workspac
                         creator's folders, tags, notes, favourites: editor/meta.ron, `Workspace::meta_edit`), schema.rs (the
                         field schema: shapes from the engine's types + labels, sections, id fields), rename.rs,
                         refs.rs, search.rs, problems.rs, mapops.rs, mapedit.rs (what changes the open map, a step each),
-                        testsetup.rs (what a test-play starts with: kept per project, written as a save), models.rs, library.rs, starter.rs, art/ (Meshy
+                        testsetup.rs (what a test-play starts with: kept per project, written as a save),
+                        world.rs (the maps and the ways between them: survey_world, link_transitions), models.rs, library.rs, starter.rs, art/ (Meshy
                         jobs), project_file.rs, files.rs (settings, recent), repo_mode.rs, mcp/ (the agent server:
                         tools.rs = the catalogue, exec*.rs, play.rs, watcher.rs, server.rs)
 crates/studio/src/      the new editor (0.36): main.rs (the eframe window; `--headless PROJECT --mcp PORT` = the agent
                         server without a window), shell.rs (dock, browser, palettes, tabs), form.rs (forms from the
                         field schema), thumbs.rs (pictures of assets from the engine's textures), gallery.rs (New…),
                         mapview.rs (a map's tab: view, tools, Outliner, Inspector) over scene.rs (a map drawn as the game does),
+                        worldview.rs (every map and the ways between them),
                         play.rs (the game in a panel: its bar, the State panel); examples/mcp_smoke.rs
 crates/engine/src/      library: everything shared by game and editor
   defs.rs               Database: sheets, items, props (+states, container, lock, anim),

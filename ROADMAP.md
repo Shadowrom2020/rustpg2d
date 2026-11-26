@@ -1134,6 +1134,20 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     changed between them, objects and scenery alike.
   - **Agents see maps again:** `screenshot_map` is answered from the same drawing, without
     the map's tab being shown.
+  - **Map settings:** with nothing selected the Inspector is the map's own form (light and
+    weather, music, what lies beyond its edges, its events), from the field schema
+    (`MapSettings`, new in the engine: what a map is besides its ground and what stands on
+    it).
+  - **Transitions are drawn on both maps:** a Transition zone drawn on one map waits for its
+    other side (the bar says so); the next one drawn on another map makes the two each
+    other's (`Workspace::link_transitions`, a step of each map called *Link house and
+    village*). *Link…* on a transition's Inspector makes an existing one wait.
+  - **The World view** (`studio/src/worldview.rs`, the *World* group's first entry, tab
+    `world`): every map as a card with its picture (a pixel a tile), in columns by how many
+    maps lie between it and the start map; portals, transitions and edges as arrows from
+    where they start to where they arrive; a way that leads nowhere and a map nothing leads
+    to are marked and say why; a click opens the map, cards can be dragged
+    (`Workspace::survey_world`).
   - **Play inside the editor** (`studio/src/play.rs`): *Play from here* in the map's menu
     starts the game in the Play tab with the hero on that tile (everything is saved first);
     F5 from the title screen, F6 on the map being worked on. The tab's bar: *Restart*,
@@ -1150,9 +1164,10 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     project in the editor's settings.
   Still open: dragging from the Project browser; a structure's ghost (its footprint is
   shown); Build; transitions drawn between maps; hide and
-  lock in the Outliner; layers; align; *Find usages*, *Play from here*, *Save as structure*
-  and *Replace with…* in the menu; the routes and schedules of characters on the map; map
-  settings; the World view; a region of tiles copied and pasted. Of playing: the test
+  lock in the Outliner; layers; align; *Find usages*, *Save as structure* and *Replace
+  with…* in the menu; the routes and schedules of characters on the map; a region of tiles
+  copied and pasted; in the World view: linking by dragging from card to card, the cards'
+  places kept. Of playing: the test
   setup's own form (it is made by playing), the console and script errors as panels (part
   7), a click in the game leading to the thing's place on its map (it opens its definition).
 
@@ -1174,6 +1189,10 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     frame to fast-forward; `Game::thing_under_pointer` (new) says what a click would open.
   - **A test setup is made by playing**, not by filling in a form first: play to where the
     test starts, keep the state.
+  - **A value that may be left out is one control with a way to say "none"**, also when it
+    is plain text or a number: the schema the forms read writes `Option<String>` like every
+    other optional thing (`tidy_schema`). The map's fight music showed it: it was a bare
+    text field, it is a sound picker now, and the rename check found that renames follow it.
 
   **Engine.** `Game` embeddable (part 1). The canvas draws through the engine's renderer into a
   texture, as the old `canvas.rs` drew on the screen. Added for the Play tab: `Game::step`
@@ -1213,6 +1232,13 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     definition. `a_crafted_save_has_the_setup_and_finds_the_party` (and a running game's
     state gives the setup back). Not shown: a line of dialog changing with a flag set in
     the panel (the scripted hero did not get to face the walking child whose line it is).
+  - `the_world_is_surveyed_and_two_maps_are_linked` (the example: 19 maps all reached from
+    the village, no way that leads nowhere; two unlinked transitions are two problems,
+    linked they are a pair, as two steps named *Link house and village*; the map being
+    worked on stays). `references_agree_with_renames` covers the map's settings (music,
+    fight music, an edge's map, a parallax layer's sheet). In the window: a transition
+    drawn in the house and one in the village link themselves; the World view shows 19 maps
+    and 38 ways; the village's settings in the Inspector.
 
 - [ ] Part 7: Events, conversations and scripts — `feature/studio`
 

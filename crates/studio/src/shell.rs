@@ -30,6 +30,8 @@ pub enum Tab {
     Def(RefKind, String),
     /// A map.
     Map(String),
+    /// Every map and the ways between them.
+    World,
 }
 
 impl Tab {
@@ -37,6 +39,7 @@ impl Tab {
         match self {
             Tab::Browser => "Project".into(),
             Tab::Overview => "Overview".into(),
+            Tab::World => "World".into(),
             Tab::Play => "Play".into(),
             Tab::Problems => {
                 let (e, w) = ws.problems.counts();
@@ -62,6 +65,7 @@ impl Tab {
         match self {
             Tab::Browser => "project".into(),
             Tab::Overview => "overview".into(),
+            Tab::World => "world".into(),
             Tab::Play => "play".into(),
             Tab::Problems => "problems".into(),
             Tab::History => "history".into(),
@@ -248,6 +252,10 @@ pub struct Shell {
     marks: Marks,
     /// The open maps' views (camera, selection, tool), by map.
     pub maps: std::collections::HashMap<String, crate::mapview::MapView>,
+    /// The World view.
+    pub world: crate::worldview::WorldView,
+    /// A transition zone waiting for its other side to be drawn on another map: (map, zone).
+    pub link: Option<(String, String)>,
     /// Answers of commands, newest last (the script prints them too).
     pub log: Vec<String>,
 }
@@ -269,7 +277,7 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, marks: Marks::default(), maps: Default::default(), log: Vec::new() }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, log: Vec::new() }
     }
 
     /// Shows `tab`: brings it to the front when it is open, else opens it beside the documents.
@@ -282,7 +290,7 @@ impl Shell {
             return;
         }
         // Next to another document when there is one, else in the first leaf.
-        let doc = self.dock.find_tab_from(|t| matches!(t, Tab::Overview | Tab::Settings(_) | Tab::Kind(_) | Tab::Def(..) | Tab::Map(_) | Tab::Play));
+        let doc = self.dock.find_tab_from(|t| matches!(t, Tab::Overview | Tab::World | Tab::Settings(_) | Tab::Kind(_) | Tab::Def(..) | Tab::Map(_) | Tab::Play));
         match doc {
             Some(path) => {
                 self.dock.set_focused_node_and_surface(path.node_path());
@@ -298,6 +306,7 @@ impl Shell {
         Some(match (parts.next()?, parts.next(), parts.next()) {
             ("project", None, _) => Tab::Browser,
             ("overview", None, _) => Tab::Overview,
+            ("world", None, _) => Tab::World,
             ("play", None, _) => Tab::Play,
             ("problems", None, _) => Tab::Problems,
             ("history", None, _) => Tab::History,
@@ -505,8 +514,13 @@ impl Shell {
     pub fn map_act(&mut self, what: &str) {
         let Some(name) = self.ws.doc.as_ref().map(|d| d.map.name.clone()) else { return };
         let view = self.maps.entry(name.clone()).or_default();
-        let mut parts = crate::mapview::Parts { ws: &mut self.ws, rs: None, lists: &self.lists, thumbs: &mut self.thumbs, show_all: self.show_all, asks: Vec::new() };
+        let mut parts = crate::mapview::Parts { ws: &mut self.ws, rs: None, lists: &self.lists, thumbs: &mut self.thumbs, show_all: self.show_all, link: &mut self.link, asks: Vec::new() };
         view.act(&mut parts, &name, what);
+    }
+
+    /// The World view's line for `status`.
+    pub fn world_status(&self) -> String {
+        self.world.status()
     }
 
     /// The map view's line for `status` (empty without an open map).
@@ -595,7 +609,7 @@ impl Shell {
 
         let mut asks = Vec::new();
         {
-            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, rs, asks: &mut asks };
+            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, rs, asks: &mut asks };
             DockArea::new(&mut self.dock).show_inside(ui, &mut viewer);
         }
         for ask in asks {
@@ -862,6 +876,8 @@ struct Viewer<'a> {
     thumbs: &'a mut crate::thumbs::Thumbs,
     marks: &'a Marks,
     maps: &'a mut std::collections::HashMap<String, crate::mapview::MapView>,
+    world: &'a mut crate::worldview::WorldView,
+    link: &'a mut Option<(String, String)>,
     rs: Option<&'a eframe::egui_wgpu::RenderState>,
     asks: &'a mut Vec<Ask>,
 }
@@ -894,6 +910,11 @@ impl egui_dock::TabViewer for Viewer<'_> {
         match tab {
             Tab::Browser => self.browser(ui),
             Tab::Overview => self.overview(ui),
+            Tab::World => {
+                if let Some(map) = self.world.show(ui, self.ws) {
+                    self.asks.push(Ask::Open(Tab::Map(map)));
+                }
+            }
             Tab::Play => self.play_tab(ui),
             Tab::Problems => self.problems(ui),
             Tab::History => self.history(ui),
@@ -974,6 +995,9 @@ impl Viewer<'_> {
                 continue;
             }
             egui::CollapsingHeader::new(*group).default_open(*group == "World").open(filtering.then_some(true)).show(ui, |ui| {
+                if *group == "World" && !filtering && ui.selectable_label(false, "World view").on_hover_text("Every map and the ways between them").clicked() {
+                    self.asks.push(Ask::Open(Tab::World));
+                }
                 for (kind, rows) in &found {
                     egui::CollapsingHeader::new(format!("{} ({})", plural(kind.label()), rows.len())).id_salt(("kind", kind.name())).open(filtering.then_some(rows.len() <= 40)).show(ui, |ui| {
                         if *kind != RefKind::Map {
@@ -1759,7 +1783,7 @@ impl Viewer<'_> {
 
     fn map(&mut self, ui: &mut egui::Ui, name: &str) {
         let view = self.maps.entry(name.to_string()).or_default();
-        let mut parts = crate::mapview::Parts { ws: &mut *self.ws, rs: self.rs, lists: self.lists, thumbs: &mut *self.thumbs, show_all: *self.show_all, asks: Vec::new() };
+        let mut parts = crate::mapview::Parts { ws: &mut *self.ws, rs: self.rs, lists: self.lists, thumbs: &mut *self.thumbs, show_all: *self.show_all, link: &mut *self.link, asks: Vec::new() };
         view.show(ui, &mut parts, name);
         for ask in parts.asks {
             match ask {

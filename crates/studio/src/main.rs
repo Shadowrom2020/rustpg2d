@@ -20,6 +20,7 @@ mod play;
 mod scene;
 mod shell;
 mod thumbs;
+mod worldview;
 
 use std::collections::VecDeque;
 use std::path::PathBuf;
@@ -78,6 +79,7 @@ impl Studio {
                     if !map.is_empty() {
                         println!("[mapview] {map}");
                     }
+                    println!("[world] {} link={}", self.shell.world_status(), self.shell.link.as_ref().map_or("-".to_string(), |(m, z)| format!("{m}:{z}")));
                 }
                 // A picture of tiles of the map being worked on, as agents get it:
                 // `mapshot X Y W H PATH [ZOOM]`.

@@ -445,6 +445,41 @@ impl Workspace {
         Ok(())
     }
 
+    /// The settings of the map being worked on as data (light, weather, music, what lies
+    /// beyond its edges, its own events).
+    pub fn map_settings_value(&self) -> Option<Value> {
+        serde_json::to_value(rustpg2d_engine::map::MapSettings::of(&self.doc.as_ref()?.map)).ok()
+    }
+
+    /// Replaces the map's settings with `value`. Nothing changes when it isn't valid settings,
+    /// or names music, a sheet or a map the project doesn't have.
+    pub fn set_map_settings_value(&mut self, value: Value) -> Result<(), String> {
+        let new: rustpg2d_engine::map::MapSettings = serde_json::from_value(value).map_err(|e| e.to_string())?;
+        for m in std::iter::once(&new.music).chain(new.battle_music.iter()).filter(|m| !m.is_empty()) {
+            if self.project.db.sound(m).is_none() {
+                return Err(format!("there is no sound \"{m}\""));
+            }
+        }
+        for (side, e) in [("north", &new.edges.north), ("south", &new.edges.south), ("east", &new.edges.east), ("west", &new.edges.west)] {
+            if let Some(e) = e.as_ref().filter(|e| !self.maps.contains(&e.target_map)) {
+                return Err(format!("the {side} edge leads to \"{}\", which isn't a map", e.target_map));
+            }
+        }
+        if let Some(l) = new.parallax.iter().find(|l| self.project.db.sheet(&l.sheet).is_none()) {
+            return Err(format!("there is no sprite sheet \"{}\"", l.sheet));
+        }
+        let Some(doc) = &mut self.doc else { return Err("no map is open".into()) };
+        if new == rustpg2d_engine::map::MapSettings::of(&doc.map) {
+            return Ok(());
+        }
+        let before = Objects::of(&doc.map);
+        new.apply(&mut doc.map);
+        doc.record_objects(before, "map-settings");
+        self.begin_unnamed("Change the map's settings");
+        self.stale = true;
+        Ok(())
+    }
+
     /// A zone as data.
     pub fn zone_value(&self, uid: u32) -> Option<Value> {
         self.doc.as_ref()?.map.zones.iter().find(|z| z.uid == uid).and_then(|z| serde_json::to_value(z).ok())

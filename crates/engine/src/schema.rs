@@ -58,6 +58,11 @@ pub fn zone() -> Schema {
     of::<crate::map::Zone>()
 }
 
+/// A map's settings (what it is besides its ground and what stands on it).
+pub fn map_settings() -> Schema {
+    of::<crate::map::MapSettings>()
+}
+
 /// A trigger (of a definition, a placed object, a zone or a map).
 pub fn trigger() -> Schema {
     of::<crate::events::Trigger>()

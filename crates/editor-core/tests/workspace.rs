@@ -416,3 +416,47 @@ fn scenery_ground_scatter_and_structures_are_steps_of_a_map() {
     assert!(!ws.is_dirty());
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn the_world_is_surveyed_and_two_maps_are_linked() {
+    use rustpg2d_editor_core::world::Way;
+    use rustpg2d_engine::map::ZoneKind;
+    let dir = example_copy("world");
+    let mut ws = Workspace::new(dir.clone(), Gpu::No).unwrap();
+    ws.history_frame(None);
+    // The example: every map is reached from the village, every way leads somewhere.
+    let world = ws.survey_world();
+    assert_eq!(world.len(), ws.maps.len());
+    let village = world.iter().find(|m| m.name == "village").unwrap();
+    assert_eq!(village.distance, Some(0));
+    assert!(village.links.iter().any(|l| l.way == Way::Portal && l.to_map == "house" && l.to.is_some()));
+    assert_eq!(village.picture.len(), (village.width * village.height * 4) as usize);
+    let wrong: Vec<String> = world.iter().flat_map(|m| m.links.iter().filter(|l| !l.problem.is_empty()).map(move |l| format!("{}:{} {}", m.name, l.zone, l.problem))).collect();
+    assert!(wrong.is_empty(), "{wrong:?}");
+    assert!(world.iter().all(|m| m.reached && m.distance.is_some()), "{:?}", world.iter().filter(|m| !m.reached).map(|m| &m.name).collect::<Vec<_>>());
+
+    // A transition drawn on each of two maps: unlinked they are a problem, linked they are a pair.
+    let blank = ZoneKind::Transition { target_map: String::new(), target_zone: String::new() };
+    ws.open_map("house");
+    let a = ws.add_zone(blank.clone(), (3, 3, 2, 1)).unwrap();
+    let a = ws.describe_object(rustpg2d_editor_core::workspace::Selection::Zone(a));
+    ws.open_map("village");
+    let b = ws.add_zone(blank, (22, 50, 2, 1)).unwrap();
+    let b = ws.describe_object(rustpg2d_editor_core::workspace::Selection::Zone(b));
+    ws.history_frame(None);
+    let world = ws.survey_world();
+    assert_eq!(world.iter().flat_map(|m| &m.links).filter(|l| l.problem.contains("nowhere")).count(), 2);
+    assert!(ws.link_transitions(("house", &a), ("house", &a)).is_err(), "not a map with itself");
+    ws.link_transitions(("house", &a), ("village", &b)).unwrap();
+    ws.history_frame(None);
+    assert_eq!(ws.doc.as_ref().unwrap().map.name, "village", "the map being worked on stays");
+    let world = ws.survey_world();
+    let pair: Vec<_> = world.iter().flat_map(|m| m.links.iter().map(move |l| (m.name.as_str(), l))).filter(|(_, l)| l.way == Way::Transition && (l.zone == a || l.zone == b)).collect();
+    assert_eq!(pair.len(), 2);
+    assert!(pair.iter().all(|(_, l)| l.problem.is_empty() && l.to.is_some()), "{pair:?}");
+    assert_eq!(ws.timeline.done.iter().rev().take(2).map(|c| c.label.as_str()).collect::<Vec<_>>(), ["Link house and village"; 2]);
+    // A map nothing leads to is told.
+    while ws.undo().is_some() {}
+    assert!(!ws.is_dirty());
+    let _ = std::fs::remove_dir_all(&dir);
+}

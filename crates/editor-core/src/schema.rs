@@ -451,7 +451,32 @@ pub fn sections(ty: &str) -> &'static [(&'static str, &'static str)] {
     SECTIONS.iter().find(|(t, _)| *t == ty).map_or(&[], |(_, s)| s)
 }
 
-type Sections = &'static [(&'static str, &'static str)];
+pub type Sections = &'static [(&'static str, &'static str)];
+
+/// The Inspector's sections of a placed thing, by what it is (`Prop`, `Character`, `Item`): the
+/// fields that mean something for it. The section without a title holds what the Inspector
+/// shows itself or what means nothing for that kind.
+pub fn entity_sections(kind: &str) -> Sections {
+    match kind {
+        "Prop" => &[
+            ("Placed here", "name facing state active ~frame"),
+            ("Its own, instead of the definition's", "container lock loot light"),
+            ("Events", "triggers"),
+            ("", "uid kind def x y count patrol schedule shop appearance equipment inventory portrait activity faction stats"),
+        ],
+        "Character" => &[
+            ("Placed here", "name facing active faction"),
+            ("Daily life", "patrol schedule activity"),
+            ("Their own, instead of the definition's", "appearance equipment inventory portrait shop loot stats light"),
+            ("Events", "triggers"),
+            ("", "uid kind def x y count state frame container lock"),
+        ],
+        _ => &[("Placed here", "name count active light"), ("Events", "triggers"), ("", "uid kind def x y facing state frame container lock loot patrol schedule shop appearance equipment inventory portrait activity faction stats")],
+    }
+}
+
+/// The Inspector's sections of a zone.
+pub const ZONE_SECTIONS: Sections = &[("Zone", "name kind"), ("Place (tiles)", "x y w h"), ("Events", "triggers"), ("Spawned characters", "~loot"), ("", "uid")];
 
 const SECTIONS: &[(&str, Sections)] = &[
     ("SheetDef", &[("Picture", "id image frame_w frame_h scale"), ("Use", "kind ~tags")]),
@@ -970,6 +995,23 @@ mod tests {
             for l in &listed {
                 if !fields.iter().any(|f| f.key == *l) {
                     problems.push(format!("{}: the sections name {l}, which isn't a field", node.ty));
+                }
+            }
+        }
+        // The Inspector's tables: every field of a placed thing and of a zone, once.
+        let mut tables: Vec<(String, Node, Sections)> = ["Prop", "Character", "Item"].iter().map(|k| (format!("entity_sections({k})"), entity(), entity_sections(k))).collect();
+        tables.push(("ZONE_SECTIONS".into(), zone(), ZONE_SECTIONS));
+        for (name, node, table) in tables {
+            let Shape::Struct(fields) = node.shape() else { panic!("{name} has fields") };
+            let listed: Vec<&str> = table.iter().flat_map(|(_, f)| f.split_whitespace()).map(|f| f.trim_start_matches('~')).collect();
+            for f in &fields {
+                if listed.iter().filter(|l| **l == f.key).count() != 1 {
+                    problems.push(format!("{name}: {} must be in one section (the one without a title: not shown)", f.key));
+                }
+            }
+            for l in &listed {
+                if !fields.iter().any(|f| f.key == *l) {
+                    problems.push(format!("{name}: {l} isn't a field"));
                 }
             }
         }

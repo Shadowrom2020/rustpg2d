@@ -129,12 +129,40 @@ fn summary(v: &Value) -> String {
     }
 }
 
+/// Forms shown from here on are in a narrow panel (a map's Inspector): shorter labels and
+/// fields. Switch it off again after the form.
+pub fn set_narrow(ctx: &egui::Context, narrow: bool) {
+    ctx.data_mut(|d| d.insert_temp(egui::Id::unique("narrow forms"), narrow));
+}
+
+fn narrow(ui: &egui::Ui) -> bool {
+    ui.data(|d| d.get_temp(egui::Id::unique("narrow forms"))).unwrap_or(false)
+}
+
+fn label_width(ui: &egui::Ui) -> f32 {
+    if narrow(ui) {
+        112.0
+    } else {
+        LABEL_WIDTH
+    }
+}
+
+/// The width of a text field: `wide` in a form with room, less in a narrow one.
+fn text_width(ui: &egui::Ui, wide: f32) -> f32 {
+    if narrow(ui) {
+        (wide * 0.6).min(190.0)
+    } else {
+        wide
+    }
+}
+
 /// The label of a row, with the field's help when the pointer rests on it. Returns the label's
 /// id: the row's controls are named by it (screen readers, and the tests, find "Stack size").
 fn label_cell(ui: &mut egui::Ui, label: &str, help: &str) -> egui::Id {
-    let size = egui::vec2(LABEL_WIDTH, ui.spacing().interact_size.y);
+    let width = label_width(ui);
+    let size = egui::vec2(width, ui.spacing().interact_size.y);
     ui.allocate_ui_with_layout(size, egui::Layout::left_to_right(egui::Align::Center), |ui| {
-        ui.set_min_width(LABEL_WIDTH);
+        ui.set_min_width(width);
         let r = ui.add(egui::Label::new(label).truncate());
         let id = r.id;
         if !help.is_empty() {
@@ -147,9 +175,10 @@ fn label_cell(ui: &mut egui::Ui, label: &str, help: &str) -> egui::Id {
 
 /// The label of a field's row; true when *Back to the default* was picked from its menu.
 fn field_label(ui: &mut egui::Ui, row: Row) -> (egui::Id, bool) {
-    let size = egui::vec2(LABEL_WIDTH, ui.spacing().interact_size.y);
+    let width = label_width(ui);
+    let size = egui::vec2(width, ui.spacing().interact_size.y);
     ui.allocate_ui_with_layout(size, egui::Layout::left_to_right(egui::Align::Center), |ui| {
-        ui.set_min_width(LABEL_WIDTH);
+        ui.set_min_width(width);
         let mut r = ui.add(egui::Label::new(row.label).truncate().sense(if row.reset { egui::Sense::click() } else { egui::Sense::hover() }));
         let id = r.id;
         if !row.help.is_empty() {
@@ -281,7 +310,7 @@ fn picker(ui: &mut egui::Ui, cx: &mut Cx, kinds: &[RefKind], s: &mut String, by:
 /// A name the project makes up (a flag, a script function): typed, or taken from the ones in
 /// use, which the button beside the field lists (those that contain what is typed first).
 fn named(ui: &mut egui::Ui, known: &[String], s: &mut String, by: egui::Id) -> bool {
-    let mut changed = ui.add(egui::TextEdit::singleline(s).desired_width(230.0)).labelled_by(by).changed();
+    let mut changed = ui.add(egui::TextEdit::singleline(s).desired_width(text_width(ui, 230.0))).labelled_by(by).changed();
     if known.is_empty() {
         return changed;
     }
@@ -411,9 +440,9 @@ fn inline(ui: &mut egui::Ui, cx: &mut Cx, node: Node, site: &str, v: &mut Value,
             } else if let Some(names) = schema::names(site, key) {
                 named(ui, &cx.names(names), s, by)
             } else if !cx.compact && (s.contains('\n') || s.len() > 60) {
-                ui.add(egui::TextEdit::multiline(s).desired_rows(2).desired_width(460.0)).labelled_by(by).changed()
+                ui.add(egui::TextEdit::multiline(s).desired_rows(2).desired_width(text_width(ui, 460.0))).labelled_by(by).changed()
             } else {
-                ui.add(egui::TextEdit::singleline(s).desired_width(280.0)).labelled_by(by).changed()
+                ui.add(egui::TextEdit::singleline(s).desired_width(text_width(ui, 280.0))).labelled_by(by).changed()
             }
         }
         Shape::Color => {
@@ -918,13 +947,21 @@ fn body(ui: &mut egui::Ui, cx: &mut Cx, node: Node, site: &str, v: &mut Value, d
 /// The form of a definition: its sections with their fields (the id is in the tab's header).
 /// True when something changed.
 pub fn definition_ui(ui: &mut egui::Ui, cx: &mut Cx, node: Node, value: &mut Value) -> bool {
+    sections_ui(ui, cx, node, value, schema::sections(node.ty))
+}
+
+/// [`definition_ui`] with the sections given: (title, the fields' keys; `~` before a key: for
+/// advanced use). A section without a title is not shown (what the form's owner shows itself).
+pub fn sections_ui(ui: &mut egui::Ui, cx: &mut Cx, node: Node, value: &mut Value, sections: &[(&str, &str)]) -> bool {
     let (Shape::Struct(fields), Value::Object(map)) = (node.shape(), value) else { return false };
-    let sections = schema::sections(node.ty);
     let mut changed = false;
     let mut placed: Vec<&str> = vec!["id"];
     for (title, list) in sections {
         let keys: Vec<(&str, bool)> = list.split_whitespace().map(|k| (k.trim_start_matches('~'), k.starts_with('~'))).collect();
         placed.extend(keys.iter().map(|(k, _)| *k));
+        if title.is_empty() {
+            continue;
+        }
         let shown: Vec<&Field> = keys.iter().filter(|(k, advanced)| *k != "id" && (cx.show_all || !advanced)).filter_map(|(k, _)| fields.iter().find(|f| f.key == *k)).collect();
         if shown.is_empty() {
             continue;
@@ -987,9 +1024,9 @@ fn plain(ui: &mut egui::Ui, v: &mut Value, by: egui::Id) -> bool {
         }
         Value::String(s) => {
             if s.contains('\n') || s.len() > 60 {
-                ui.add(egui::TextEdit::multiline(s).desired_rows(2).desired_width(460.0)).labelled_by(by).changed()
+                ui.add(egui::TextEdit::multiline(s).desired_rows(2).desired_width(text_width(ui, 460.0))).labelled_by(by).changed()
             } else {
-                ui.add(egui::TextEdit::singleline(s).desired_width(280.0)).labelled_by(by).changed()
+                ui.add(egui::TextEdit::singleline(s).desired_width(text_width(ui, 280.0))).labelled_by(by).changed()
             }
         }
         // Nothing set: what is typed is read as data (a number, "a text", true, {…}).

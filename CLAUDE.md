@@ -32,7 +32,9 @@ being rewritten on a new foundation, in twelve parts. While it lasts:
   `editor-core/src/schema.rs`); pictures of assets are the engine's own textures shown by egui
   (`thumbs.rs`: `Thumbs::of(kind, id)`, `sprite`, `figure`; ask through `thumbs::boxed` so only
   what is on screen is fetched); `Tab::Kind` (script `tab kind:item`) is everything of a kind
-  as cards or a list; maps show as facts until part 6.
+  as cards or a list. A map is a tab (`mapview.rs`: `MapView` per map with camera, tool,
+  selection; `scene.rs` draws it with the engine's renderer into a `gfx::Screen`, the Outliner
+  and the Inspector's form beside it); what changes a map is in `editor-core/src/mapedit.rs`.
   `RUSTPG2D_STUDIO_SCRIPT="wait 2; status; tab def:item:potion; goto elder; pick 0; palette
   rename; map.open house; edit.undo; tab play; shot /path/a.png; quit" target/debug/rustpg2d-studio
   <project> [--map M --spawn S]` drives it: `shot` = the whole window, a line that is no script
@@ -42,7 +44,12 @@ being rewritten on a new foundation, in twelve parts. While it lasts:
   `click X Y ctrl`, `hover X Y`, `wheel DY` (at the pointer), `type TEXT`, `press Enter|Escape|Tab|…`, `size W H`;
   `field KIND ID /POINTER VALUE` changes a field without the UI, `allfields on|off` = *Show all
   fields*, `setting /POINTER VALUE` changes one of the game's settings (tabs `settings:rules`,
-  `settings:hero-party`…), `new [KIND]` opens the *New…* gallery (`defs.make KIND [from:ID] NAME` makes one
+  `settings:hero-party`…), the map view by tiles (a whole number is a tile's middle):
+  `mapclick X Y [ctrl|shift|right|double]`, `mapdrag X1 Y1 X2 Y2`, `maphover X Y` (real pointer
+  input), `mapview CX CY ZOOM`, `maptool select|place|zones|collision`, `mapopt
+  grid|zones|collision|light|weather|above on|off [HOUR]`, `mapplace KIND ID`, `mapzone KIND`,
+  `mapselect NAME`, `mapact delete|duplicate|turn`, `mapshot X Y W H PATH [ZOOM]` (a picture of
+  tiles as agents get it; `status` adds a `[mapview]` line), `new [KIND]` opens the *New…* gallery (`defs.make KIND [from:ID] NAME` makes one
   without it). Form behaviour is tested in `form.rs` (`ui_tests`: egui_kittest clicks and types
   through AccessKit; every control must have a name, so pass a row's label id on with
   `labelled_by`).
@@ -141,12 +148,13 @@ crates/editor-core/src/ the editor without its UI (0.36): workspace.rs (Workspac
                         status), doc.rs (MapDoc + undo), history.rs (definitions' undo: history_frame), meta.rs (the
                         creator's folders, tags, notes, favourites: editor/meta.ron, `Workspace::meta_edit`), schema.rs (the
                         field schema: shapes from the engine's types + labels, sections, id fields), rename.rs,
-                        refs.rs, search.rs, problems.rs, mapops.rs, models.rs, library.rs, starter.rs, art/ (Meshy
+                        refs.rs, search.rs, problems.rs, mapops.rs, mapedit.rs (what changes the open map, a step each), models.rs, library.rs, starter.rs, art/ (Meshy
                         jobs), project_file.rs, files.rs (settings, recent), repo_mode.rs, mcp/ (the agent server:
                         tools.rs = the catalogue, exec*.rs, play.rs, watcher.rs, server.rs)
 crates/studio/src/      the new editor (0.36): main.rs (the eframe window; `--headless PROJECT --mcp PORT` = the agent
                         server without a window), shell.rs (dock, browser, palettes, tabs), form.rs (forms from the
                         field schema), thumbs.rs (pictures of assets from the engine's textures), gallery.rs (New…),
+                        mapview.rs (a map's tab: view, tools, Outliner, Inspector) over scene.rs (a map drawn as the game does),
                         play.rs (the game in a panel); examples/mcp_smoke.rs
 crates/engine/src/      library: everything shared by game and editor
   defs.rs               Database: sheets, items, props (+states, container, lock, anim),

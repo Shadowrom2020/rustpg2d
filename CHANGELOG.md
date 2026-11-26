@@ -45,6 +45,14 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   already in use.
 - ***New…*** (Ctrl+N, part 4): pick what to make (each kind says what it is), give it a name,
   and start blank or from a copy picked from a list with pictures; the id is made from the name.
+- **Maps open as tabs with their own view** (part 6): the map as the game draws it, with
+  the hour's light, the weather, the grid, zone areas and blocked tiles to switch on, and a
+  view from above. Tools: *Select* (click, box, drag to move, R, Ctrl+D, Del), *Place*
+  (characters, objects and items from one list with pictures), *Zones* (every kind, drawn
+  by dragging, sized by their corners) and *Collision*. Beside the map the **Outliner**
+  lists everything on it, and the **Inspector** shows the selected thing as a form with
+  only the fields that mean something for it. Every change is a named step of the one
+  history. Agents' `screenshot_map` works again.
 - **The game's settings have pages of their own** (part 5): Game, Hero & party, Rules, World,
   Look & feel, Title & menus, Sound, Languages, Scripts & plugins, first in the Project
   browser, each a form like a definition's (the browser's filter finds a page by a setting's

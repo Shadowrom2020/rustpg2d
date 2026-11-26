@@ -10,6 +10,7 @@ pub mod files;
 pub mod frame_ops;
 pub mod history;
 pub mod library;
+pub mod mapedit;
 pub mod mapops;
 pub mod mcp;
 pub mod meta;

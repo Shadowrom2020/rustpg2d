@@ -9,12 +9,15 @@
 //! of the game's settings, `key NAME` = a key for the
 //! game, `pause` / `resume`, `quit`; the window's own input: `click X Y [ctrl]`, `hover X Y`, `wheel DY`,
 //! `type TEXT`, `press KEY` (egui's key names: Enter, Escape, Tab, ArrowDown…), `size W H`,
-//! `allfields on|off`, `new [KIND]` = the New… gallery; any other line
+//! `allfields on|off`, `new [KIND]` = the New… gallery; the map view by tiles: `mapclick`, `mapdrag`,
+//! `maphover`, `mapview`, `maptool`, `mapopt`, `mapplace`, `mapzone`, `mapselect`, `mapact`, `mapshot`; any other line
 //! is a command of the editor, e.g. `map.open village` or `edit.undo`).
 
 mod form;
 mod gallery;
+mod mapview;
 mod play;
+mod scene;
 mod shell;
 mod thumbs;
 
@@ -67,6 +70,114 @@ impl Studio {
                 "status" => {
                     let game = self.shell.play.as_ref().map(|p| p.status()).unwrap_or_else(|| "play=none".into());
                     println!("[status] fps={:.0} {} | {}", self.fps, self.shell.status(), &game[..game.len().min(300)]);
+                    let map = self.shell.map_status();
+                    if !map.is_empty() {
+                        println!("[mapview] {map}");
+                    }
+                }
+                // A picture of tiles of the map being worked on, as agents get it:
+                // `mapshot X Y W H PATH [ZOOM]`.
+                "mapshot" => {
+                    let n = |i: usize| arg(i).parse::<u32>().unwrap_or(1);
+                    let spec = editor_core::mcp::exec::ShotSpec { rect: Some((n(1), n(2), n(3), n(4))), zoom: arg(6).parse().ok(), grid: None, collision: None, zones: None, text: String::new() };
+                    let r = mapview::MapView::shot(&mut self.shell.ws, &spec).and_then(|img| img.encode().map_err(|e| e.to_string())).and_then(|png| std::fs::write(arg(5), png).map_err(|e| e.to_string()));
+                    println!("[mapshot] {}", r.map_or_else(|e| format!("failed: {e}"), |()| arg(5).to_string()));
+                }
+                // The view of the map being worked on. Places are tiles (fractions allowed; a whole
+                // number is the tile's middle): `mapclick X Y [ctrl|shift|right|double]`,
+                // `mapdrag X1 Y1 X2 Y2`, `maphover X Y` use the window's pointer for real;
+                // `mapview CX CY ZOOM`, `maptool NAME`, `mapopt grid|zones|collision|light|weather|above on|off`,
+                // `mapplace KIND ID|-`, `mapzone KIND`, `mapselect NAME…|-`, `mapact delete|duplicate|turn`.
+                "mapclick" | "maphover" | "mapdrag" | "mapview" | "maptool" | "mapopt" | "mapplace" | "mapzone" | "mapselect" | "mapact" => {
+                    let ts = self.shell.ws.ts();
+                    let num = |i: usize| arg(i).parse::<f32>().unwrap_or(0.0);
+                    if arg(0) == "mapact" {
+                        self.shell.map_act(arg(1));
+                        continue;
+                    }
+                    if arg(0) == "mapselect" {
+                        let what = cmd[1..].join(" ");
+                        let found = self.shell.ws.find_object(&what);
+                        if let Some((view, _)) = self.shell.map_view() {
+                            match found {
+                                Some(s) => view.select(s),
+                                None => view.sel.clear(),
+                            }
+                        }
+                        if found.is_none() && what != "-" {
+                            println!("[script] nothing on the map is called '{what}'");
+                        }
+                        continue;
+                    }
+                    let Some((view, _)) = self.shell.map_view() else {
+                        println!("[script] no map is open");
+                        continue;
+                    };
+                    match arg(0) {
+                        "mapview" => view.look_at(gfx::math::vec2((num(1) + 0.5) * ts, (num(2) + 0.5) * ts), if arg(3).is_empty() { 1.0 } else { num(3) }),
+                        "maptool" => match mapview::Tool::named(arg(1)) {
+                            Some(t) => view.tool = t,
+                            None => println!("[script] no tool '{}'", arg(1)),
+                        },
+                        "mapopt" => {
+                            let on = arg(2) != "off";
+                            match arg(1) {
+                                "grid" => view.opts.grid = on,
+                                "zones" => view.opts.zones = on,
+                                "collision" => view.opts.collision = on,
+                                "light" => {
+                                    view.opts.lighting = on;
+                                    if let Ok(h) = arg(3).parse() {
+                                        view.opts.hour = h;
+                                    }
+                                }
+                                "weather" => view.opts.weather = on,
+                                "above" => view.opts.topdown = on,
+                                other => println!("[script] no view option '{other}'"),
+                            }
+                        }
+                        "mapplace" => {
+                            let kind = rustpg2d_engine::refactor::RefKind::ALL.iter().copied().find(|k| k.name() == arg(1)).and_then(editor_core::mapedit::entity_kind);
+                            view.place = kind.map(|k| (k, arg(2).to_string()));
+                            view.tool = mapview::Tool::Place;
+                        }
+                        "mapzone" => {
+                            view.zone_kind = arg(1).to_string();
+                            view.tool = mapview::Tool::Zones;
+                        }
+                        _ => {
+                            let a = view.window_pos(ts, num(1), num(2));
+                            let how = if arg(0) == "mapclick" { arg(3) } else { "" };
+                            let modifiers = match how {
+                                "ctrl" => egui::Modifiers::COMMAND | egui::Modifiers::CTRL,
+                                "shift" => egui::Modifiers::SHIFT,
+                                _ => egui::Modifiers::NONE,
+                            };
+                            let button = if how == "right" { egui::PointerButton::Secondary } else { egui::PointerButton::Primary };
+                            let press = |pos, pressed| egui::Event::PointerButton { pos, button, pressed, modifiers };
+                            self.script.pointer = a;
+                            self.script.input.push_back(vec![egui::Event::ModifiersChanged(modifiers), egui::Event::PointerMoved(a)]);
+                            match arg(0) {
+                                "mapclick" => {
+                                    for _ in 0..if how == "double" { 2 } else { 1 } {
+                                        self.script.input.push_back(vec![press(a, true)]);
+                                        self.script.input.push_back(vec![press(a, false)]);
+                                    }
+                                    self.script.input.push_back(vec![egui::Event::ModifiersChanged(egui::Modifiers::NONE)]);
+                                }
+                                "mapdrag" => {
+                                    let b = view.window_pos(ts, num(3), num(4));
+                                    self.script.input.push_back(vec![press(a, true)]);
+                                    for k in 1..=4 {
+                                        self.script.input.push_back(vec![egui::Event::PointerMoved(a + (b - a) * (k as f32 / 4.0))]);
+                                    }
+                                    self.script.input.push_back(vec![press(b, false)]);
+                                    self.script.pointer = b;
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
                 }
                 "shot" => {
                     let path = arg(1).to_string();
@@ -185,7 +296,7 @@ impl eframe::App for Studio {
         // Agents work between frames, like script commands.
         self.shell.ws.mcp_drain();
         self.shell.ui(ui, frame.wgpu_render_state(), self.fps);
-        self.shell.ws.mcp_answer_shots(None);
+        self.shell.ws.mcp_answer_shots(Some(&mut |ws, spec| mapview::MapView::shot(ws, spec)));
         gfx::end_frame();
         // The game and the agents move on by themselves: a frame after every frame.
         ctx.request_repaint();

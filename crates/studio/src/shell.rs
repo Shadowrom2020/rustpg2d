@@ -230,6 +230,8 @@ pub struct Shell {
     /// The *New…* gallery while it is open.
     pub new_asset: Option<crate::gallery::NewAsset>,
     marks: Marks,
+    /// The open maps' views (camera, selection, tool), by map.
+    pub maps: std::collections::HashMap<String, crate::mapview::MapView>,
     /// Answers of commands, newest last (the script prints them too).
     pub log: Vec<String>,
 }
@@ -251,7 +253,7 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, marks: Marks::default(), log: Vec::new() }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, marks: Marks::default(), maps: Default::default(), log: Vec::new() }
     }
 
     /// Shows `tab`: brings it to the front when it is open, else opens it beside the documents.
@@ -299,10 +301,10 @@ impl Shell {
         match target {
             Target::Map(m) | Target::MapTriggers(m) | Target::Entity(m, _) | Target::Zone(m, _) => {
                 if let Target::Entity(_, uid) = target {
-                    self.ws.sel = editor_core::workspace::Selection::Entity(*uid);
+                    self.maps.entry(m.clone()).or_default().select(editor_core::workspace::Selection::Entity(*uid));
                 }
                 if let Target::Zone(_, uid) = target {
-                    self.ws.sel = editor_core::workspace::Selection::Zone(*uid);
+                    self.maps.entry(m.clone()).or_default().select(editor_core::workspace::Selection::Zone(*uid));
                 }
                 self.show_tab(Tab::Map(m.clone()));
             }
@@ -383,6 +385,26 @@ impl Shell {
     }
 
     /// `tabs=… focus=… history=… problems=… palette=…` for the script's `status`.
+    /// The view of the map being worked on, with the map's name.
+    pub fn map_view(&mut self) -> Option<(&mut crate::mapview::MapView, String)> {
+        let name = self.ws.doc.as_ref()?.map.name.clone();
+        Some((self.maps.entry(name.clone()).or_default(), name))
+    }
+
+    /// Something done with the selection of the map being worked on (`delete`, `duplicate`,
+    /// `turn`), as its keys and buttons do it.
+    pub fn map_act(&mut self, what: &str) {
+        let Some(name) = self.ws.doc.as_ref().map(|d| d.map.name.clone()) else { return };
+        let view = self.maps.entry(name.clone()).or_default();
+        let mut parts = crate::mapview::Parts { ws: &mut self.ws, rs: None, lists: &self.lists, thumbs: &mut self.thumbs, show_all: self.show_all, asks: Vec::new() };
+        view.act(&mut parts, &name, what);
+    }
+
+    /// The map view's line for `status` (empty without an open map).
+    pub fn map_status(&self) -> String {
+        self.ws.doc.as_ref().and_then(|d| self.maps.get(&d.map.name).map(|v| v.status(&self.ws, &d.map.name))).unwrap_or_default()
+    }
+
     pub fn status(&mut self) -> String {
         let tabs: Vec<String> = self.dock.iter_all_tabs().map(|(_, t)| t.name()).collect();
         let focus = self.dock.find_active_focused().map(|(_, t)| t.name()).unwrap_or_else(|| "-".into());
@@ -464,7 +486,7 @@ impl Shell {
 
         let mut asks = Vec::new();
         {
-            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, rs, asks: &mut asks };
+            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, rs, asks: &mut asks };
             DockArea::new(&mut self.dock).show_inside(ui, &mut viewer);
         }
         for ask in asks {
@@ -702,6 +724,7 @@ struct Viewer<'a> {
     show_all: &'a mut bool,
     thumbs: &'a mut crate::thumbs::Thumbs,
     marks: &'a Marks,
+    maps: &'a mut std::collections::HashMap<String, crate::mapview::MapView>,
     rs: Option<&'a eframe::egui_wgpu::RenderState>,
     asks: &'a mut Vec<Ask>,
 }
@@ -722,8 +745,8 @@ impl egui_dock::TabViewer for Viewer<'_> {
     }
 
     fn scroll_bars(&self, tab: &Tab) -> [bool; 2] {
-        // (The game fills its tab.)
-        if matches!(tab, Tab::Play) {
+        // (The game and a map fill their tabs.)
+        if matches!(tab, Tab::Play | Tab::Map(_)) {
             [false, false]
         } else {
             [false, true]
@@ -1570,17 +1593,15 @@ impl Viewer<'_> {
     }
 
     fn map(&mut self, ui: &mut egui::Ui, name: &str) {
-        let Some(doc) = self.ws.open_maps().into_iter().find(|d| d.map.name == name) else {
-            ui.weak(format!("Map \"{name}\" isn't open."));
-            return;
-        };
-        let m = &doc.map;
-        ui.heading(name);
-        ui.label(format!("{} x {} tiles, {} characters, props and items, {} decorations, {} zones", m.width, m.height, m.entities.len(), m.decor.len(), m.zones.len()));
-        ui.weak("The map view comes with part 6 of the Studio.");
-        ui.separator();
-        for e in m.entities.iter().filter(|e| !e.name.is_empty()).take(200) {
-            ui.label(format!("{} ({})", e.name, e.def));
+        let view = self.maps.entry(name.to_string()).or_default();
+        let mut parts = crate::mapview::Parts { ws: &mut *self.ws, rs: self.rs, lists: self.lists, thumbs: &mut *self.thumbs, show_all: *self.show_all, asks: Vec::new() };
+        view.show(ui, &mut parts, name);
+        for ask in parts.asks {
+            match ask {
+                crate::mapview::Ask::OpenDef(k, id) => self.asks.push(Ask::Open(Tab::Def(k, id))),
+                crate::mapview::Ask::OpenMap(m) => self.asks.push(Ask::Open(Tab::Map(m))),
+                crate::mapview::Ask::New(k) => self.asks.push(Ask::New(Some(k))),
+            }
         }
     }
 }

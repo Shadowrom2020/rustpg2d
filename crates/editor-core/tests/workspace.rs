@@ -285,3 +285,61 @@ fn settings_change_as_data_are_saved_and_undone() {
     assert_eq!(ws.project.config, before);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn things_are_placed_changed_and_removed_on_a_map_step_by_step() {
+    use rustpg2d_editor_core::workspace::Selection;
+    use rustpg2d_engine::entity::EntityKind;
+    let dir = example_copy("mapedit");
+    let mut ws = Workspace::new(dir.clone(), Gpu::No).unwrap();
+    ws.history_frame(None);
+    ws.open_map("village");
+    let ts = ws.ts();
+    let (entities, zones) = (ws.doc.as_ref().unwrap().map.entities.len(), ws.doc.as_ref().unwrap().map.zones.len());
+
+    // Placing: on the grid, named by what was placed.
+    let feet = ws.snap_feet(EntityKind::Character, "guard", gfx::math::vec2(40.3 * ts, 30.6 * ts), false);
+    let uid = ws.place_entity(EntityKind::Character, "guard", feet).unwrap();
+    ws.history_frame(None);
+    assert_eq!(ws.timeline.done.last().unwrap().label, "Place Town Guard");
+    assert!(ws.place_entity(EntityKind::Character, "nobody", feet).is_err());
+    assert!(ws.place_entity(EntityKind::Prop, "barrel", gfx::math::vec2(-40.0, 10.0)).is_err(), "not outside the map");
+
+    // The Inspector's round trip: a name; a change of what it is is refused.
+    let mut value = ws.entity_value(uid).unwrap();
+    value["name"] = "night_watch".into();
+    ws.set_entity_value(uid, value.clone()).unwrap();
+    ws.history_frame(None);
+    assert_eq!(ws.find_object("night_watch"), Some(Selection::Entity(uid)));
+    value["kind"] = "Prop".into();
+    assert!(ws.set_entity_value(uid, value).is_err());
+
+    // A zone, cut to the map; its name must stay its own.
+    let kind = rustpg2d_engine::map::ZoneKind::Spawn;
+    let zone = ws.add_zone(kind, (78, 58, 5, 5)).unwrap();
+    ws.history_frame(None);
+    let z = ws.doc.as_ref().unwrap().map.zones.iter().find(|z| z.uid == zone).unwrap().clone();
+    assert_eq!((z.x, z.y, z.w, z.h), (78, 58, 2, 2));
+    let mut value = ws.zone_value(zone).unwrap();
+    value["name"] = ws.doc.as_ref().unwrap().map.zones[0].name.clone().into();
+    assert!(ws.set_zone_value(zone, value).unwrap_err().contains("another zone"));
+
+    // Copies stand a tile further and get names of their own; deleting takes them all.
+    let copies = ws.duplicate_objects(&[Selection::Entity(uid), Selection::Zone(zone)]);
+    ws.history_frame(None);
+    assert_eq!(copies.len(), 2);
+    assert!(ws.find_object("night_watch_copy").is_some());
+    assert_eq!(ws.turn_entity(uid), Ok(()));
+    ws.history_frame(None);
+    assert_eq!(ws.delete_objects(&copies), 2);
+    ws.history_frame(None);
+    let labels: Vec<&str> = ws.timeline.done.iter().map(|c| c.label.as_str()).collect();
+    assert_eq!(labels, ["Place Town Guard", "Change night_watch", "Add a spawn zone", "Duplicate 2 things", "Turn night_watch", "Delete 2 things"]);
+
+    // Everything undone: the map is as it was, and clean.
+    while ws.undo().is_some() {}
+    let map = &ws.doc.as_ref().unwrap().map;
+    assert_eq!((map.entities.len(), map.zones.len()), (entities, zones));
+    assert!(!ws.is_dirty());
+    let _ = std::fs::remove_dir_all(&dir);
+}

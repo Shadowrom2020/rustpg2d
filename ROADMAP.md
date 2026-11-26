@@ -710,8 +710,8 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   - **the command registry** (`commands.rs`): `Workspace::run("edit.rename", …)` /
     `run_line("map.open house")`; the first thirteen commands (save, undo, redo, rename, open
     and close a map, search, usages, the project check, reload, the agent server).
-  Still open: more commands as the parts bring their features; pictures without a window (map
-  screenshots, thumbnails: with the map view of part 6); the editor script running command
+  Still open: more commands as the parts bring their features; pictures without a graphics
+  adapter (`--headless`: map screenshots are answered in the window since part 6); the editor script running command
   lines; imports (Tiled, Aseprite: part 11 decides); the cleanup of unused files; structures'
   capture and the clipboard.
 
@@ -1047,7 +1047,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     `setting /day_minutes 30` and `/rules/show_checks false` are two history steps, in
     `project.ron` after saving, undone twice; `/nonsense` is refused.
 
-- [ ] Part 6: The map workspace — `feature/studio`
+- [~] Part 6: The map workspace — `feature/studio`
 
   **Goal.** Building the world is direct: fewer tools that do more, everything on a map listed
   and reachable, and the game playing in the editor.
@@ -1086,6 +1086,54 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     - *Play in its own window* (the real runner) stays for the last check.
   - The top-down view stays as a view option unless the user removes it in part 11.
 
+  **Progress.** A map is a tab with its view, tools, Outliner and Inspector.
+  - **The view** (`studio/src/mapview.rs` over `scene.rs`): the map drawn by the engine's
+    renderer into a picture of its own, as the game shows it (painted ground, scenery,
+    everyone standing in depth order, buildings, shadows), with the darkness and lights of an
+    hour, the weather, the grid, zones and blocked tiles as options, and *From above*. The
+    wheel zooms around the pointer; the middle button, Space with the left one, or the arrow
+    keys move it; *Fit* (Home) shows the whole map. Each open map keeps its own camera,
+    selection and tool; maps side by side each draw their own picture.
+  - **Select** (V): click, Shift / Ctrl+click for several, a box dragged over empty ground;
+    drag to move (one thing snaps as it does when placed, several move by tiles), R turns,
+    Ctrl+D duplicates, Del deletes; a click on what is selected goes on to the thing behind
+    it; a double click opens the definition (a portal: its other map); the right button has
+    the same as a menu. A zone is picked by a click, so a drag inside a big one still draws
+    a box; the selected zone has corners to drag.
+  - **Place** (N): characters, objects and items in one searched list with pictures; the pick
+    follows the pointer as a ghost and is put down by clicks (Shift: off the grid).
+  - **Zones** (Z): every kind the engine has, listed from the field schema with its help; a
+    drag makes one, named after its kind.
+  - **Collision** (C): left blocks, Shift gives a tile back to the ground's own rule, the
+    right button opens it.
+  - **Outliner:** the map's characters, objects, items and zones, searched; a click selects
+    and brings into view.
+  - **Inspector:** the selected thing's form from the field schema, with the sections that
+    mean something for what it is (a prop has no schedule, a character no lock); what it
+    doesn't set itself is dimmed like a default; *Edit definition*, *Turn*, *Duplicate*,
+    *Delete*. Zones the same, with their place in tiles.
+  - **The core** (`editor-core/src/mapedit.rs`): placing, moving, turning, duplicating,
+    deleting, zones and the Inspector's data, each one step of the history with a name
+    (*Place Town Guard*, *Move elder*, *Add a spawn zone*).
+  - **Agents see maps again:** `screenshot_map` is answered from the same drawing, without
+    the map's tab being shown.
+  Still open: the Terrain tool; scenery, structures and scatter sets in Place, dragging from
+  the Project browser, *Make interactive*; Build; transitions drawn between maps; hide and
+  lock in the Outliner; layers; align; *Find usages*, *Play from here*, *Save as structure*
+  and *Replace with…* in the menu; the routes and schedules of characters on the map; map
+  settings; the World view; play inside the editor with its State panel; a region of tiles
+  copied and pasted.
+
+  **Decided while building.**
+  - **The world is drawn by the engine, the editor's marks by both.** What lies on the ground
+    (zones, the grid, blocked tiles, frames) is drawn in the same pass with the ground's
+    camera; names and handles are egui's, so they stay sharp at any zoom.
+  - **A map's view state lives with its tab**, not in the workspace: two tabs of two maps
+    each have a camera, a tool and a selection. The map pressed on becomes the one being
+    worked on (commands and agents act on it).
+  - **The tools' and the view's switches are different words** (*Zones* the tool, *Zone
+    areas* the switch): the UI test that clicks them by name found the two *Zones* buttons.
+
   **Engine.** `Game` embeddable (part 1). The canvas draws through the engine's renderer into a
   texture, as the old `canvas.rs` drew on the screen.
 
@@ -1093,6 +1141,17 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   `status` fields as today; the Play panel started from a tile, a flag set in the State panel
   changes a dialog; `egui_kittest` snapshot of the canvas with the Outliner. Frame times of the
   canvas on the largest map.
+  - Done so far: `things_are_placed_changed_and_removed_on_a_map_step_by_step` (the core:
+    placing on the grid, refusals, the Inspector's round trip, a zone cut to the map,
+    copies, six named steps undone to a clean map); `egui_kittest` on the tab without a
+    graphics adapter (`mapview::ui_tests`: the Outliner selects, the form shows a
+    character's sections and not a prop's, a typed name is a step, *Delete* and undo; the
+    tools' lists arm what is clicked). In the window on a copy of the example, by real
+    clicks at tiles (`mapclick`, `mapdrag`): a guard placed, dragged two tiles, turned,
+    duplicated, a spawn zone drawn, collision painted with both buttons, each undone by its
+    name; the village by night with its lamps, from above, the house fitted. The village
+    (80 x 60 tiles, 130 things, 475 pieces of scenery) draws in 0.4 to 1.9 ms a frame (CPU).
+    The agents' smoke client passes with `screenshot_map` answered (725 x 459 px).
 
 - [ ] Part 7: Events, conversations and scripts — `feature/studio`
 

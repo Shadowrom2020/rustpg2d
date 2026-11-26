@@ -46,9 +46,10 @@ being rewritten on a new foundation, in twelve parts. While it lasts:
   fields*, `setting /POINTER VALUE` changes one of the game's settings (tabs `settings:rules`,
   `settings:hero-party`…), the map view by tiles (a whole number is a tile's middle):
   `mapclick X Y [ctrl|shift|right|double]`, `mapdrag X1 Y1 X2 Y2`, `maphover X Y` (real pointer
-  input), `mapview CX CY ZOOM`, `maptool select|place|zones|collision`, `mapopt
-  grid|zones|collision|light|weather|above on|off [HOUR]`, `mapplace KIND ID`, `mapzone KIND`,
-  `mapselect NAME`, `mapact delete|duplicate|turn`, `mapshot X Y W H PATH [ZOOM]` (a picture of
+  input), `mapview CX CY ZOOM`, `maptool select|terrain|place|zones|collision`, `mapopt
+  grid|zones|collision|light|weather|above on|off [HOUR]`, `mapplace KIND ID` (character, prop, item, structure, scatter), `mapzone KIND`,
+  `mapground MATERIAL|erase [brush|line|rect|fill] [WIDTH] [square] [snap]`,
+  `mapselect NAME`, `mapact delete|duplicate|turn|interactive|scenery`, `mapshot X Y W H PATH [ZOOM]` (a picture of
   tiles as agents get it; `status` adds a `[mapview]` line), `new [KIND]` opens the *New…* gallery (`defs.make KIND [from:ID] NAME` makes one
   without it). Form behaviour is tested in `form.rs` (`ui_tests`: egui_kittest clicks and types
   through AccessKit; every control must have a name, so pass a row's label id on with

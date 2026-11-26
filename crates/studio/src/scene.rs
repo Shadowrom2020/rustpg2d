@@ -149,28 +149,6 @@ impl Scene<'_> {
         Rect::new(e.x - size.x / 2.0, e.y - size.y, size.x, size.y)
     }
 
-    /// The frame of `e` in the picture's pixels: standing at its feet (isometric), or lying
-    /// where it is (flat props, the view from above).
-    pub fn entity_screen_rect(&self, e: &EntityInstance) -> Rect {
-        let r = self.entity_rect(e);
-        let flat = e.kind == EntityKind::Prop && self.db.prop(&e.def).is_some_and(|d| d.flat);
-        match self.look.iso() {
-            Some(v) if !flat => {
-                let (u, f) = (v.upright_scale(), v.to_screen(vec2(e.x, e.y)));
-                Rect::new(f.x + (r.x - e.x) * u, f.y + (r.y - e.y) * u, r.w * u, r.h * u)
-            }
-            _ => {
-                let ps = [vec2(r.x, r.y), vec2(r.x + r.w, r.y), vec2(r.x, r.y + r.h), vec2(r.x + r.w, r.y + r.h)].map(|p| self.look.to_screen(p));
-                let (mut lo, mut hi) = (ps[0], ps[0]);
-                for p in ps {
-                    lo = lo.min(p);
-                    hi = hi.max(p);
-                }
-                Rect::new(lo.x, lo.y, hi.x - lo.x, hi.y - lo.y)
-            }
-        }
-    }
-
     /// What blocks the way of an entity (props, characters), around its feet.
     pub fn entity_hitbox(&self, e: &EntityInstance) -> Option<Rect> {
         let hb = match e.kind {
@@ -188,7 +166,11 @@ impl Scene<'_> {
         let p = self.look.to_world(at);
         let tile = ((p.x / ts).floor() as i32, (p.y / ts).floor() as i32);
         let feet = |e: &EntityInstance| ((e.x / ts).floor() as i32, ((e.y - 0.5) / ts).floor() as i32);
-        let mut hits: Vec<&EntityInstance> = map.entities.iter().filter(|e| self.entity_screen_rect(e).contains(at)).collect();
+        let hit = |e: &EntityInstance| {
+            let prop = (e.kind == EntityKind::Prop).then(|| self.db.prop(&e.def)).flatten();
+            self.covers(self.entity_rect(e), vec2(e.x, e.y), prop.is_some_and(|d| d.flat), prop.map(|d| d.hitbox_facing(e.facing)), at)
+        };
+        let mut hits: Vec<&EntityInstance> = map.entities.iter().filter(|e| hit(e)).collect();
         hits.sort_by(|a, b| (b.x + b.y).total_cmp(&(a.x + a.y)));
         for e in map.entities.iter().filter(|e| feet(e) == tile) {
             if !hits.iter().any(|x| x.uid == e.uid) {
@@ -196,6 +178,73 @@ impl Scene<'_> {
             }
         }
         hits.iter().map(|e| e.uid).collect()
+    }
+
+    /// The frame a piece of scenery is drawn in (world pixels around its feet, upright), and
+    /// whether it lies flat on the ground.
+    pub fn decor_rect(&self, map: &Map, d: &rustpg2d_engine::decor::Decor) -> (Rect, bool) {
+        let ts = self.ts();
+        let feet = vec2(d.x as f32, d.y as f32);
+        match map.decor_defs.get(d.def as usize).and_then(|id| self.db.prop(id)) {
+            Some(p) => (self.assets.prop_rect(p, d.state_index(), d.facing(), feet, ts, !self.look.topdown), p.flat || d.layer == rustpg2d_engine::decor::DecorLayer::Flat),
+            None => (Rect::new(feet.x - 8.0, feet.y - 16.0, 16.0, 16.0), false),
+        }
+    }
+
+    /// A frame around feet (as [`Self::entity_rect`] gives it) in the picture's pixels.
+    fn screen_rect(&self, r: Rect, feet: Vec2, flat: bool) -> Rect {
+        match self.look.iso() {
+            Some(v) if !flat => {
+                let (u, f) = (v.upright_scale(), v.to_screen(feet));
+                Rect::new(f.x + (r.x - feet.x) * u, f.y + (r.y - feet.y) * u, r.w * u, r.h * u)
+            }
+            _ => {
+                let ps = [vec2(r.x, r.y), vec2(r.x + r.w, r.y), vec2(r.x, r.y + r.h), vec2(r.x + r.w, r.y + r.h)].map(|p| self.look.to_screen(p));
+                let (mut lo, mut hi) = (ps[0], ps[0]);
+                for p in ps {
+                    lo = lo.min(p);
+                    hi = hi.max(p);
+                }
+                Rect::new(lo.x, lo.y, hi.x - lo.x, hi.y - lo.y)
+            }
+        }
+    }
+
+    /// Whether pixel `at` is on something standing at `feet` with picture frame `r`. Small
+    /// things are hit by their picture. Big ones (a house, a wall: `hitbox` of more than a
+    /// tile) are hit by their shape instead, the footprint raised to the picture's height, so
+    /// that the empty corners of a big picture's frame don't catch clicks meant for what
+    /// stands beside it.
+    fn covers(&self, r: Rect, feet: Vec2, flat: bool, hitbox: Option<[f32; 2]>, at: Vec2) -> bool {
+        let big = self.ts() * 1.25;
+        match (self.look.iso(), hitbox) {
+            (Some(v), Some([w, h])) if !flat && (w >= big || h >= big) => {
+                let print = Rect::new(feet.x - w / 2.0, feet.y - h, w, h);
+                let lift = r.h * v.upright_scale();
+                (0..=12).any(|k| print.contains(self.look.to_world(at + vec2(0.0, lift * k as f32 / 12.0))))
+            }
+            _ => self.screen_rect(r, feet, flat).contains(at),
+        }
+    }
+
+    /// The scenery of `map` whose picture covers pixel `at`, the one in front first.
+    pub fn scenery_at(&self, map: &Map, at: Vec2) -> Vec<rustpg2d_engine::decor::Decor> {
+        let p = self.look.to_world(at);
+        // (Pictures reach a few tiles from their feet at most.)
+        let reach = rustpg2d_engine::decor::REACH + 8.0 * self.ts();
+        let mut hits: Vec<&rustpg2d_engine::decor::Decor> = map
+            .decor
+            .iter()
+            .filter(|d| (d.x as f32 - p.x).abs() < reach && (d.y as f32 - p.y).abs() < reach)
+            .filter(|d| {
+                let (r, flat) = self.decor_rect(map, d);
+                let hitbox = map.decor_defs.get(d.def as usize).and_then(|id| self.db.prop(id)).map(|q| if q.turns() { q.hitbox_facing(d.facing()) } else { q.hitbox });
+                self.covers(r, vec2(d.x as f32, d.y as f32), flat, hitbox, at)
+            })
+            .collect();
+        // What stands in front first; what lies on the ground last.
+        hits.sort_by(|a, b| (a.layer == rustpg2d_engine::decor::DecorLayer::Flat).cmp(&(b.layer == rustpg2d_engine::decor::DecorLayer::Flat)).then((b.x + b.y).cmp(&(a.x + a.y))));
+        hits.into_iter().copied().collect()
     }
 
     fn draw_decor(&self, map: &Map, i: usize, tint: Color) {

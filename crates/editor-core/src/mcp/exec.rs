@@ -234,6 +234,7 @@ impl Workspace {
                 Selection::None => "nothing".to_string(),
                 Selection::Entity(uid) => d.map.entities.iter().find(|e| e.uid == uid).map_or(format!("entity {uid}"), |e| format!("entity {uid} ({} \"{}\")", e.def, e.name)),
                 Selection::Zone(uid) => d.map.zones.iter().find(|z| z.uid == uid).map_or(format!("zone {uid}"), |z| format!("zone {uid} \"{}\"", z.name)),
+                Selection::Scenery(dec) => format!("scenery \"{}\" at {},{} px", d.map.decor_defs.get(dec.def as usize).map_or("?", String::as_str), dec.x, dec.y),
                 Selection::Region((x, y, w, h)) => format!("tile region {x},{y} {w}x{h}"),
             };
             s += &format!("Selection: {sel}; undo {}, redo {}\n", if d.can_undo() { "possible" } else { "nothing" }, if d.can_redo() { "possible" } else { "nothing" });

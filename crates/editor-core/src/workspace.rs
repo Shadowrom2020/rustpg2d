@@ -24,6 +24,8 @@ pub enum Selection {
     None,
     Entity(u32),
     Zone(u32),
+    /// A piece of scenery (a decoration: it has no number, it is told by what it is).
+    Scenery(rustpg2d_engine::decor::Decor),
     /// A rectangle of tiles `(x, y, w, h)` (copy / cut / delete).
     Region((u32, u32, u32, u32)),
 }

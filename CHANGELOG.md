@@ -53,6 +53,13 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   lists everything on it, and the **Inspector** shows the selected thing as a form with
   only the fields that mean something for it. Every change is a named step of the one
   history. Agents' `screenshot_map` works again.
+- **Terrain, scenery, structures and scatter sets on the map** (part 6): *Terrain* paints
+  materials with a brush, a line, a rectangle or a fill. *Place* now takes everything from
+  one list: a prop that only stands there is put down as scenery, one that does something
+  as an object (no choosing between "Entities" and "Decorations" first); walls and fences
+  are dragged out as rows, scatter sets brushed on, structures put down whole. Scenery is
+  selected, moved, turned and deleted like anything else, and *Make interactive* turns a
+  piece into an object with a name and events (and back).
 - **The game's settings have pages of their own** (part 5): Game, Hero & party, Rules, World,
   Look & feel, Title & menus, Sound, Languages, Scripts & plugins, first in the Project
   browser, each a form like a definition's (the browser's filter finds a page by a setting's

@@ -88,7 +88,7 @@ impl Studio {
                 // `mapdrag X1 Y1 X2 Y2`, `maphover X Y` use the window's pointer for real;
                 // `mapview CX CY ZOOM`, `maptool NAME`, `mapopt grid|zones|collision|light|weather|above on|off`,
                 // `mapplace KIND ID|-`, `mapzone KIND`, `mapselect NAME…|-`, `mapact delete|duplicate|turn`.
-                "mapclick" | "maphover" | "mapdrag" | "mapview" | "maptool" | "mapopt" | "mapplace" | "mapzone" | "mapselect" | "mapact" => {
+                "mapclick" | "maphover" | "mapdrag" | "mapview" | "maptool" | "mapopt" | "mapplace" | "mapzone" | "mapground" | "mapselect" | "mapact" => {
                     let ts = self.shell.ws.ts();
                     let num = |i: usize| arg(i).parse::<f32>().unwrap_or(0.0);
                     if arg(0) == "mapact" {
@@ -137,9 +137,22 @@ impl Studio {
                             }
                         }
                         "mapplace" => {
-                            let kind = rustpg2d_engine::refactor::RefKind::ALL.iter().copied().find(|k| k.name() == arg(1)).and_then(editor_core::mapedit::entity_kind);
+                            let kind = rustpg2d_engine::refactor::RefKind::ALL.iter().copied().find(|k| k.name() == arg(1));
                             view.place = kind.map(|k| (k, arg(2).to_string()));
                             view.tool = mapview::Tool::Place;
+                        }
+                        // The Terrain tool: `mapground MATERIAL|erase [brush|line|rect|fill] [WIDTH_TILES] [square] [snap]`.
+                        "mapground" => {
+                            view.tool = mapview::Tool::Terrain;
+                            view.material = Some(if arg(1) == "erase" { String::new() } else { arg(1).to_string() });
+                            if let Some(m) = mapview::GroundMode::named(arg(2)) {
+                                view.ground_mode = m;
+                            }
+                            if let Ok(w) = arg(3).parse::<f32>() {
+                                view.brush.size = w * ts / 2.0;
+                            }
+                            view.brush.square = cmd.iter().any(|a| a == "square");
+                            view.brush.snap = cmd.iter().any(|a| a == "snap");
                         }
                         "mapzone" => {
                             view.zone_kind = arg(1).to_string();

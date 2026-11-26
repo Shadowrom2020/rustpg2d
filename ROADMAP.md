@@ -1100,8 +1100,23 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     it; a double click opens the definition (a portal: its other map); the right button has
     the same as a menu. A zone is picked by a click, so a drag inside a big one still draws
     a box; the selected zone has corners to drag.
-  - **Place** (N): characters, objects and items in one searched list with pictures; the pick
-    follows the pointer as a ghost and is put down by clicks (Shift: off the grid).
+  - **Terrain** (P): the materials with their pictures; brush (round or square), line,
+    rectangle and fill, *On tiles* or on the ground's cells; Shift erases, the right button
+    picks the material under the pointer, [ and ] size the brush. A stroke is one step named
+    by its material (*Paint Cobblestone*).
+  - **Place** (N): characters, props, items, structures and scatter sets in one searched list
+    with pictures; the pick follows the pointer as a ghost and is put down by clicks (Shift:
+    off the grid, R turns it first). **A prop that only stands there is placed as scenery; one
+    that does something** (events, states, a container, a lock, something to gather…) **as an
+    object**, and the list says which. Scenery with a grid of its own (walls, fences) is
+    dragged out as a row; a scatter set is brushed on; a structure shows its footprint.
+  - **Scenery is a thing like any other:** selected by a click (then dragged: a house isn't
+    moved by a drag meant for something else), boxed, moved, turned, duplicated, deleted; the
+    Inspector has its layer, mirroring and shown state, and ***Make interactive*** turns it
+    into an object on the same spot (***Make scenery*** back, while the object has nothing of
+    its own). Big things (a house, a wall) are hit by their shape, not by their picture's
+    frame. The Outliner lists scenery by what it is (*Young Oak x 311*: a click selects them
+    all); *Picks* says what the Select tool takes.
   - **Zones** (Z): every kind the engine has, listed from the field schema with its help; a
     drag makes one, named after its kind.
   - **Collision** (C): left blocks, Shift gives a tile back to the ground's own rule, the
@@ -1113,12 +1128,14 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     doesn't set itself is dimmed like a default; *Edit definition*, *Turn*, *Duplicate*,
     *Delete*. Zones the same, with their place in tiles.
   - **The core** (`editor-core/src/mapedit.rs`): placing, moving, turning, duplicating,
-    deleting, zones and the Inspector's data, each one step of the history with a name
-    (*Place Town Guard*, *Move elder*, *Add a spawn zone*).
+    deleting, zones, scenery, the ground, scatter strokes, structures and the Inspector's
+    data, each one step of the history with a name (*Place Town Guard*, *Move elder*, *Add a
+    spawn zone*, *Scatter Forest*). `snap_map` / `commit_map` make one step of whatever
+    changed between them, objects and scenery alike.
   - **Agents see maps again:** `screenshot_map` is answered from the same drawing, without
     the map's tab being shown.
-  Still open: the Terrain tool; scenery, structures and scatter sets in Place, dragging from
-  the Project browser, *Make interactive*; Build; transitions drawn between maps; hide and
+  Still open: dragging from the Project browser; a structure's ghost (its footprint is
+  shown); Build; transitions drawn between maps; hide and
   lock in the Outliner; layers; align; *Find usages*, *Play from here*, *Save as structure*
   and *Replace with…* in the menu; the routes and schedules of characters on the map; map
   settings; the World view; play inside the editor with its State panel; a region of tiles
@@ -1133,6 +1150,10 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     worked on (commands and agents act on it).
   - **The tools' and the view's switches are different words** (*Zones* the tool, *Zone
     areas* the switch): the UI test that clicks them by name found the two *Zones* buttons.
+  - **What a prop is decides how it is placed**, not which tool was picked first:
+    `Workspace::prop_acts`. The creator can still turn either into the other.
+  - **Scenery has no number**, so a selected piece is told by what it is (`Selection::Scenery`
+    holds the decoration); moving it changes the selection with it.
 
   **Engine.** `Game` embeddable (part 1). The canvas draws through the engine's renderer into a
   texture, as the old `canvas.rs` drew on the screen.
@@ -1152,6 +1173,15 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     name; the village by night with its lamps, from above, the house fitted. The village
     (80 x 60 tiles, 130 things, 475 pieces of scenery) draws in 0.4 to 1.9 ms a frame (CPU).
     The agents' smoke client passes with `screenshot_map` answered (725 x 459 px).
+  - `scenery_ground_scatter_and_structures_are_steps_of_a_map` (a rock as scenery, made
+    interactive and back, refused while it has a name; moved scenery told by its new place;
+    a rectangle of cobblestone on tiles; two scatter dabs as one step; a structure; all
+    undone to the map as it was). `mapview::ui_tests`: the Terrain list picks a material;
+    the Outliner's *Young Oak x 311* selects them all, *Make interactive* and *Make scenery*
+    are two named steps. In the window: a cobblestone stroke, a pond as a rectangle on
+    tiles, a field as a line, a fill; an oak, a row of fence, a forest brushed on, a small
+    cottage, a chest (placed as an object); a tree picked by a click and dragged three
+    tiles; twelve steps undone by their names.
 
 - [ ] Part 7: Events, conversations and scripts — `feature/studio`
 

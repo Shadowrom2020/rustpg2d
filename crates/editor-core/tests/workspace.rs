@@ -343,3 +343,76 @@ fn things_are_placed_changed_and_removed_on_a_map_step_by_step() {
     assert!(!ws.is_dirty());
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn scenery_ground_scatter_and_structures_are_steps_of_a_map() {
+    use rustpg2d_editor_core::mapedit::Brush;
+    use rustpg2d_editor_core::workspace::Selection;
+    use gfx::math::vec2;
+    let dir = example_copy("scenery");
+    let mut ws = Workspace::new(dir.clone(), Gpu::No).unwrap();
+    ws.history_frame(None);
+    ws.open_map("village");
+    let ts = ws.ts();
+    let count = |ws: &Workspace| (ws.doc.as_ref().unwrap().map.entities.len(), ws.doc.as_ref().unwrap().map.decor.len());
+    let (entities, decor) = count(&ws);
+
+    // A prop that does something is an object; one that only stands there is scenery.
+    assert!(ws.prop_acts("chest") && !ws.prop_acts("small_rock"));
+    let rock = ws.place_scenery("small_rock", vec2(22.5 * ts, 52.5 * ts), None, false, 0).unwrap();
+    ws.history_frame(None);
+    assert_eq!(count(&ws), (entities, decor + 1));
+    // Scenery becomes an object on the same spot and back; a named object can't.
+    let uid = ws.make_interactive(rock).unwrap();
+    ws.history_frame(None);
+    assert_eq!(count(&ws), (entities + 1, decor));
+    let e = ws.doc.as_ref().unwrap().map.entity(uid).unwrap().clone();
+    assert_eq!((e.def.as_str(), e.x as i32, e.y as i32), ("small_rock", rock.x, rock.y));
+    let mut named = ws.entity_value(uid).unwrap();
+    named["name"] = "marker".into();
+    ws.set_entity_value(uid, named.clone()).unwrap();
+    assert!(ws.make_scenery(uid).unwrap_err().contains("name"));
+    named["name"] = "".into();
+    ws.set_entity_value(uid, named).unwrap();
+    ws.history_frame(None);
+    let rock = ws.make_scenery(uid).unwrap();
+    ws.history_frame(None);
+    // Moved, scenery is told by where it is now.
+    let moved = ws.move_objects(&[Selection::Scenery(rock)], 2, 0);
+    ws.history_frame(None);
+    let [Selection::Scenery(now)] = moved.as_slice() else { panic!("{moved:?}") };
+    assert_eq!((now.x, now.y), (rock.x + 2 * ts as i32, rock.y));
+    assert!(ws.doc.as_ref().unwrap().map.decor.contains(now) && !ws.doc.as_ref().unwrap().map.decor.contains(&rock));
+
+    // The ground: a rectangle on tiles is 2 x 2 tiles of cells, one step named by its material.
+    let brush = Brush { size: 16.0, square: false, snap: true };
+    let value = ws.ground_value("cobblestone").unwrap();
+    let cells = ws.ground_rect(brush, vec2(20.1 * ts, 50.2 * ts), vec2(21.9 * ts, 51.8 * ts), value);
+    let per_tile = (rustpg2d_engine::ground::CELLS * rustpg2d_engine::ground::CELLS) as usize;
+    let painted = ws.ground_commit(cells, value);
+    ws.history_frame(None);
+    assert!(painted > 0 && painted <= 4 * per_tile, "{painted}");
+    assert_eq!(ws.ground_at(vec2(21.0 * ts, 51.0 * ts)).as_deref(), Some("cobblestone"));
+    assert_eq!(ws.timeline.done.last().unwrap().label, "Paint Cobblestone");
+    assert!(ws.ground_value("no_such_material").is_err());
+
+    // A scatter stroke of several dabs is one step; a structure is one step.
+    let snap = ws.snap_map().unwrap();
+    let n = ws.scatter("forest", vec2(10.0 * ts, 54.0 * ts), 96.0, 7) + ws.scatter("forest", vec2(12.0 * ts, 54.0 * ts), 96.0, 8);
+    assert!(n > 1);
+    assert!(ws.commit_map(*snap, "Scatter Forest"));
+    ws.history_frame(None);
+    assert_eq!(count(&ws).1, decor + 1 + n);
+    ws.place_structure("cottage_small", (30, 46)).unwrap();
+    ws.history_frame(None);
+    let labels: Vec<&str> = ws.timeline.done.iter().map(|c| c.label.as_str()).collect();
+    assert_eq!(labels.last().copied(), Some("Place Small cottage"));
+    assert_eq!(labels[labels.len() - 2], "Scatter Forest");
+
+    // Everything undone: as it was.
+    while ws.undo().is_some() {}
+    assert_eq!(count(&ws), (entities, decor));
+    assert_eq!(ws.ground_at(vec2(21.0 * ts, 51.0 * ts)).as_deref(), Some("grass"));
+    assert!(!ws.is_dirty());
+    let _ = std::fs::remove_dir_all(&dir);
+}

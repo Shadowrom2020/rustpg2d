@@ -8,13 +8,14 @@
 
 use eframe::egui;
 use eframe::egui_wgpu::RenderState;
-use editor_core::doc::{MapDoc, Objects};
-use editor_core::mapedit::kind_ref;
+use editor_core::doc::MapDoc;
+use editor_core::mapedit::{entity_kind, kind_ref, Brush, MapSnap};
 use editor_core::schema::{self, Shape};
 use editor_core::workspace::{Selection, ViewOpts};
 use editor_core::Workspace;
 use gfx::input::Input;
 use gfx::prelude::{vec2, Color, Rect, Vec2};
+use rustpg2d_engine::decor::{Decor, DecorLayer};
 use rustpg2d_engine::entity::EntityKind;
 use rustpg2d_engine::map::{CollisionOverride, Map, ZoneKind};
 use rustpg2d_engine::refactor::RefKind;
@@ -27,17 +28,19 @@ use crate::thumbs::Thumbs;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Tool {
     Select,
+    Terrain,
     Place,
     Zones,
     Collision,
 }
 
 impl Tool {
-    pub const ALL: [Tool; 4] = [Tool::Select, Tool::Place, Tool::Zones, Tool::Collision];
+    pub const ALL: [Tool; 5] = [Tool::Select, Tool::Terrain, Tool::Place, Tool::Zones, Tool::Collision];
 
     pub fn label(self) -> &'static str {
         match self {
             Tool::Select => "Select",
+            Tool::Terrain => "Terrain",
             Tool::Place => "Place",
             Tool::Zones => "Zones",
             Tool::Collision => "Collision",
@@ -47,6 +50,7 @@ impl Tool {
     fn key(self) -> egui::Key {
         match self {
             Tool::Select => egui::Key::V,
+            Tool::Terrain => egui::Key::P,
             Tool::Place => egui::Key::N,
             Tool::Zones => egui::Key::Z,
             Tool::Collision => egui::Key::C,
@@ -55,8 +59,9 @@ impl Tool {
 
     fn help(self) -> &'static str {
         match self {
-            Tool::Select => "Click a thing or a zone to select it, drag it to move it; drag on empty ground to select what is inside. Shift or Ctrl+click adds to the selection.",
-            Tool::Place => "Pick a character, an object or an item on the left, then click the map to put it down. Shift places it off the grid.",
+            Tool::Select => "Click something to select it, drag it to move it (scenery and zones: once they are selected); drag on empty ground to select what is inside. Shift or Ctrl+click adds to the selection.",
+            Tool::Terrain => "Paint the ground with the material picked on the left. Shift erases, the right button picks the material under the pointer, [ and ] size the brush.",
+            Tool::Place => "Pick what to put down on the left, then click the map: characters, objects, items, scenery, whole structures, scatter sets. Shift places off the grid, R turns it first.",
             Tool::Zones => "Drag a rectangle to make a zone of the kind picked on the left; drag a zone to move it, its corners to size it.",
             Tool::Collision => "Paint where nobody can walk: left button blocks tiles, Shift gives them back to the ground's own rule, right button opens them.",
         }
@@ -67,21 +72,72 @@ impl Tool {
     }
 }
 
+/// How the Terrain tool paints.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GroundMode {
+    Brush,
+    Line,
+    Rect,
+    Fill,
+}
+
+impl GroundMode {
+    const ALL: [GroundMode; 4] = [GroundMode::Brush, GroundMode::Line, GroundMode::Rect, GroundMode::Fill];
+
+    fn label(self) -> &'static str {
+        match self {
+            GroundMode::Brush => "Brush",
+            GroundMode::Line => "Line",
+            GroundMode::Rect => "Rectangle",
+            GroundMode::Fill => "Fill",
+        }
+    }
+
+    fn help(self) -> &'static str {
+        match self {
+            GroundMode::Brush => "Click or drag a brush: round, or square for straight edges",
+            GroundMode::Line => "Drag from one end to the other: a road or a stream as wide as the brush",
+            GroundMode::Rect => "Drag from one corner to the other: a filled rectangle (a floor, a carpet, a field)",
+            GroundMode::Fill => "Click: the connected area of the same material (or of no ground)",
+        }
+    }
+
+    pub fn named(name: &str) -> Option<GroundMode> {
+        GroundMode::ALL.into_iter().find(|m| m.label().eq_ignore_ascii_case(name) || (name.eq_ignore_ascii_case("rect") && *m == GroundMode::Rect))
+    }
+}
+
+/// What the Select tool picks.
+#[derive(Clone, Copy, Debug)]
+pub struct Picks {
+    pub things: bool,
+    pub scenery: bool,
+    pub zones: bool,
+}
+
 enum Drag {
     Pan,
-    /// The selection follows the pointer: where each thing was (entities: feet, zones: corner
-    /// tile), where the press was against the first one's feet.
-    Move { from: Vec2, grab: Vec2, origs: Vec<(Selection, Vec2)>, before: Box<Objects>, moved: bool },
+    /// The selection follows the pointer: each thing as it is now and where it was (entities
+    /// and scenery: feet, zones: corner tile), where the press was against the first one's feet.
+    Move { from: Vec2, grab: Vec2, origs: Vec<(Selection, Vec2)>, before: Box<MapSnap>, moved: bool },
     /// A box over what gets selected, from this pixel. `pick`: what a click without a drag
-    /// selects (a zone under the press: zones are picked by a click, so that a drag inside a
-    /// big one still draws a box).
+    /// selects (a zone or scenery under the press: they are picked by a click, so that a drag
+    /// inside a big one still draws a box).
     Box { from: Vec2, pick: Option<Selection> },
     /// A new zone from this tile (`at`: the pixel); `pick` as for the box.
     NewZone { from: (i32, i32), at: Vec2, pick: Option<Selection> },
     /// A zone's corner follows the pointer; `fixed` is the opposite corner (tile lines).
-    Resize { uid: u32, fixed: (i32, i32), before: Box<Objects> },
+    Resize { uid: u32, fixed: (i32, i32), before: Box<MapSnap> },
     /// Collision painted tile by tile.
     Paint { last: (i32, i32), value: u8 },
+    /// The ground's brush: where it was last, and the cells changed so far.
+    Ground { last: Vec2, value: u8, cells: Vec<(i32, i32, u8)> },
+    /// A line or a rectangle of ground from here, painted when the button goes up.
+    GroundShape { from: Vec2, value: u8 },
+    /// A row of scenery from here (props with a grid of their own: walls, fences).
+    Row { from: Vec2 },
+    /// A scatter set brushed on: where the last dab was.
+    Scatter { last: Vec2, before: Box<MapSnap> },
 }
 
 /// What a map tab asks of the window.
@@ -122,10 +178,26 @@ pub struct MapView {
     /// Where the view was shown last (window points): the script clicks by tile through it.
     rect: egui::Rect,
     ppp: f32,
-    /// The Place tool's pick and the list's filter and kind.
-    pub place: Option<(EntityKind, String)>,
+    /// The Place tool's pick (a character, prop, item, structure or scatter set) and the
+    /// list's filter and kind.
+    pub place: Option<(RefKind, String)>,
     place_filter: String,
-    place_kind: Option<EntityKind>,
+    place_kind: Option<RefKind>,
+    /// Quarter turns of the scenery about to be placed, its layer (`None`: by the prop), and
+    /// whether each is mirrored at random.
+    place_turn: u8,
+    place_layer: Option<DecorLayer>,
+    place_flip: bool,
+    /// The scatter brush's radius (world pixels), and what its dabs are told apart by.
+    pub scatter_size: f32,
+    seed: u64,
+    /// The Terrain tool: the material (`None`: none picked yet, "" = erase), how it paints,
+    /// the brush.
+    pub material: Option<String>,
+    pub ground_mode: GroundMode,
+    pub brush: Brush,
+    /// What the Select tool picks.
+    pub picks: Picks,
     /// The Zones tool's kind (a variant of `ZoneKind`).
     pub zone_kind: String,
     outliner_filter: String,
@@ -136,6 +208,8 @@ pub struct MapView {
     /// The things under the last press, when the front one was selected already: a click
     /// without a drag goes on to the next.
     cycle: Option<Vec<Selection>>,
+    /// Shift is held (the tools' previews show what it does).
+    shift: bool,
     /// Milliseconds the last frame's drawing took (CPU).
     pub draw_ms: f32,
 }
@@ -161,11 +235,21 @@ impl Default for MapView {
             place: None,
             place_filter: String::new(),
             place_kind: None,
+            place_turn: 0,
+            place_layer: None,
+            place_flip: false,
+            scatter_size: 48.0,
+            seed: 1,
+            material: None,
+            ground_mode: GroundMode::Brush,
+            brush: Brush { size: 16.0, square: false, snap: false },
+            picks: Picks { things: true, scenery: true, zones: true },
             zone_kind: "Trigger".into(),
             outliner_filter: String::new(),
             pending: None,
             reveal: None,
             cycle: None,
+            shift: false,
             draw_ms: 0.0,
         }
     }
@@ -188,6 +272,15 @@ fn line(a: (i32, i32), b: (i32, i32)) -> Vec<(i32, i32)> {
 /// The open map called `name` (the one being worked on, or one beside it).
 fn doc_of<'a>(ws: &'a Workspace, name: &str) -> Option<&'a MapDoc> {
     ws.doc.as_ref().filter(|d| d.map.name == name).or_else(|| ws.parked.get(name))
+}
+
+/// What a scenery layer is called.
+fn layer_label(l: DecorLayer) -> &'static str {
+    match l {
+        DecorLayer::Flat => "On the ground",
+        DecorLayer::Sorted => "Standing",
+        DecorLayer::Above => "Above everyone",
+    }
 }
 
 /// The name of the variant an enum's data is of (`"Spawn"`, `{"Portal": {…}}`).
@@ -221,11 +314,17 @@ impl MapView {
         let sel: Vec<String> = self.sel.iter().map(|s| match s {
             Selection::Entity(u) => format!("e{u}"),
             Selection::Zone(u) => format!("z{u}"),
+            Selection::Scenery(d) => format!("s{},{}", d.x, d.y),
             _ => "-".into(),
         }).collect();
         let (e, z, d) = doc_of(ws, name).map_or((0, 0, 0), |d| (d.map.entities.len(), d.map.zones.len(), d.map.decor.len()));
         let place = self.place.as_ref().map_or("-".to_string(), |(_, id)| id.clone());
-        format!("map={name} tool={} sel=[{}] entities={e} zones={z} decor={d} zoom={:.2} place={place} zonekind={} canvas_ms={:.1}", self.tool.label().to_lowercase(), sel.join(","), self.cam.map_or(0.0, |c| c.1), self.zone_kind, self.draw_ms)
+        let ground = format!("{}:{}:{}{}{}", match self.material.as_deref() {
+            None => "-",
+            Some("") => "erase",
+            Some(m) => m,
+        }, self.ground_mode.label().to_lowercase(), self.brush.size * 2.0 / ws.ts(), if self.brush.square { ":square" } else { "" }, if self.brush.snap { ":snap" } else { "" });
+        format!("map={name} tool={} sel=[{}] entities={e} zones={z} decor={d} zoom={:.2} place={place} zonekind={} ground={ground} canvas_ms={:.1}", self.tool.label().to_lowercase(), sel.join(","), self.cam.map_or(0.0, |c| c.1), self.zone_kind, self.draw_ms)
     }
 
     /// Selects a thing and brings it into view (a search hit, a problem's place).
@@ -269,6 +368,7 @@ impl MapView {
             self.sel.retain(|s| match s {
                 Selection::Entity(u) => doc.map.entity(*u).is_some(),
                 Selection::Zone(u) => doc.map.zones.iter().any(|z| z.uid == *u),
+                Selection::Scenery(d) => doc.map.decor.contains(d),
                 _ => false,
             });
         }
@@ -289,6 +389,16 @@ impl MapView {
                 if ui.selectable_label(self.tool == t, t.label()).on_hover_text(format!("{} ({})", t.help(), t.key().name())).clicked() {
                     self.tool = t;
                 }
+            }
+            if self.tool == Tool::Select {
+                ui.separator();
+                ui.menu_button("Picks", |ui| {
+                    ui.checkbox(&mut self.picks.things, "Characters, objects and items");
+                    ui.checkbox(&mut self.picks.scenery, "Scenery").on_hover_text("Trees, walls, buildings and everything else that only stands there");
+                    ui.checkbox(&mut self.picks.zones, "Zones").on_hover_text("Where zone areas are shown");
+                })
+                .response
+                .on_hover_text("What clicks and boxes select");
             }
             ui.separator();
             ui.weak("Show");
@@ -336,6 +446,7 @@ impl MapView {
         ui.separator();
         match self.tool {
             Tool::Select | Tool::Collision => {}
+            Tool::Terrain => self.terrain_panel(ui, p),
             Tool::Place => self.place_panel(ui, p),
             Tool::Zones => {
                 let Some(Shape::Choice(variants)) = schema::zone().at("/kind").map(|n| n.shape()) else { return };
@@ -353,54 +464,153 @@ impl MapView {
         }
     }
 
-    fn place_panel(&mut self, ui: &mut egui::Ui, p: &mut Parts) {
-        ui.add(egui::TextEdit::singleline(&mut self.place_filter).hint_text("Search").desired_width(f32::INFINITY)).widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, "Search what to place"));
+    fn terrain_panel(&mut self, ui: &mut egui::Ui, p: &mut Parts) {
+        let ts = p.ws.ts();
         ui.horizontal_wrapped(|ui| {
-            for (kind, label) in [(None, "All"), (Some(EntityKind::Character), "Characters"), (Some(EntityKind::Prop), "Objects"), (Some(EntityKind::Item), "Items")] {
-                if ui.selectable_label(self.place_kind == kind, label).clicked() {
-                    self.place_kind = kind;
+            for m in GroundMode::ALL {
+                if ui.selectable_label(self.ground_mode == m, m.label()).on_hover_text(m.help()).clicked() {
+                    self.ground_mode = m;
                 }
             }
         });
-        if let Some((_, id)) = self.place.clone() {
+        if matches!(self.ground_mode, GroundMode::Brush | GroundMode::Line) {
+            let mut tiles = self.brush.size * 2.0 / ts;
+            let r = ui.add(egui::Slider::new(&mut tiles, 0.25..=8.0).step_by(0.25).suffix(" tiles")).on_hover_text("The brush's width; [ and ] change it");
+            r.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Slider, true, "Brush width"));
+            if r.changed() {
+                self.brush.size = tiles * ts / 2.0;
+            }
+        }
+        ui.horizontal_wrapped(|ui| {
+            if self.ground_mode == GroundMode::Brush {
+                ui.selectable_value(&mut self.brush.square, false, "Round");
+                ui.selectable_value(&mut self.brush.square, true, "Square");
+            }
+            if self.ground_mode != GroundMode::Fill {
+                ui.checkbox(&mut self.brush.snap, "On tiles").on_hover_text("Squares, rectangles and line ends lie on whole tiles (else on the ground's cells, an eighth of a tile)");
+            }
+        });
+        ui.separator();
+        let mut pick = None;
+        egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+            if ui.add(egui::Button::selectable(self.material.as_deref() == Some(""), "Erase (no ground)").truncate()).on_hover_text("Takes the painted ground away (Shift does it with any material)").clicked() {
+                pick = Some(String::new());
+            }
+            let Some((_, list)) = p.lists.iter().find(|(k, _)| *k == RefKind::Material) else { return };
+            for (id, label) in list {
+                let r = ui
+                    .horizontal(|ui| {
+                        if let Some(rs) = p.rs {
+                            crate::thumbs::boxed(ui, 30.0, || p.thumbs.of(p.ws, rs, RefKind::Material, id));
+                        }
+                        ui.add(egui::Button::selectable(self.material.as_deref() == Some(id.as_str()), if label.is_empty() { id.as_str() } else { label.as_str() }).truncate()).on_hover_text(id)
+                    })
+                    .inner;
+                if r.clicked() {
+                    pick = Some(id.clone());
+                }
+                if r.double_clicked() {
+                    p.asks.push(Ask::OpenDef(RefKind::Material, id.clone()));
+                }
+            }
+        });
+        if let Some(pick) = pick {
+            self.material = Some(pick);
+        }
+    }
+
+    fn place_panel(&mut self, ui: &mut egui::Ui, p: &mut Parts) {
+        const KINDS: [(RefKind, &str); 5] = [(RefKind::Character, "Characters"), (RefKind::Prop, "Props"), (RefKind::Item, "Items"), (RefKind::Structure, "Structures"), (RefKind::Scatter, "Scatter sets")];
+        ui.add(egui::TextEdit::singleline(&mut self.place_filter).hint_text("Search").desired_width(f32::INFINITY)).widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, "Search what to place"));
+        ui.horizontal_wrapped(|ui| {
+            if ui.selectable_label(self.place_kind.is_none(), "All").clicked() {
+                self.place_kind = None;
+            }
+            for (kind, label) in KINDS {
+                if ui.selectable_label(self.place_kind == Some(kind), label).clicked() {
+                    self.place_kind = Some(kind);
+                }
+            }
+        });
+        if let Some((kind, id)) = self.place.clone() {
             ui.horizontal(|ui| {
                 ui.weak(format!("Placing {id}"));
                 if ui.small_button("Stop").on_hover_text("Esc, or right-click on the map").clicked() {
                     self.place = None;
                 }
             });
+            match kind {
+                RefKind::Prop if !p.ws.prop_acts(&id) => {
+                    let def = p.ws.project.db.prop(&id);
+                    ui.weak("Scenery: it stands there. Select it and Make interactive to give it a name and events.");
+                    ui.horizontal_wrapped(|ui| {
+                        ui.label("Layer").on_hover_text("On the ground under everyone, standing among everyone by its feet, or above everyone (treetops, roofs)");
+                        ui.selectable_value(&mut self.place_layer, None, "Its own");
+                        for l in DecorLayer::ALL {
+                            ui.selectable_value(&mut self.place_layer, Some(l), layer_label(l));
+                        }
+                    });
+                    ui.checkbox(&mut self.place_flip, "Mirror at random").on_hover_text("Each one placed is mirrored left to right half of the time");
+                    if def.is_some_and(|d| d.turns()) && ui.button(format!("Facing {} · Turn", rustpg2d_engine::decor::turn_facing(self.place_turn).label().to_lowercase())).on_hover_text("R").clicked() {
+                        self.place_turn = (self.place_turn + 1) % 4;
+                    }
+                    if def.is_some_and(|d| d.snap > 0) {
+                        ui.weak("Drag for a row of them.");
+                    }
+                }
+                RefKind::Prop => {
+                    ui.weak("An object: it does something (events, states, things in it), so it is placed with a name to give and events of its own.");
+                }
+                RefKind::Scatter => {
+                    let ts = p.ws.ts();
+                    let mut tiles = self.scatter_size * 2.0 / ts;
+                    let r = ui.add(egui::Slider::new(&mut tiles, 0.5..=16.0).step_by(0.5).suffix(" tiles")).on_hover_text("The brush's width; [ and ] change it");
+                    r.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Slider, true, "Brush width"));
+                    if r.changed() {
+                        self.scatter_size = tiles * ts / 2.0;
+                    }
+                }
+                _ => {}
+            }
         }
         ui.separator();
         let f = self.place_filter.trim().to_lowercase();
         let mut pick = None;
         egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
-            for kind in [EntityKind::Character, EntityKind::Prop, EntityKind::Item] {
+            for (kind, title) in KINDS {
                 if self.place_kind.is_some_and(|k| k != kind) {
                     continue;
                 }
-                let rk = kind_ref(kind);
-                let Some((_, list)) = p.lists.iter().find(|(k, _)| *k == rk) else { continue };
-                for (id, label) in list.iter().filter(|(id, label)| f.is_empty() || id.to_lowercase().contains(&f) || label.to_lowercase().contains(&f)) {
+                let Some((_, list)) = p.lists.iter().find(|(k, _)| *k == kind) else { continue };
+                let rows: Vec<&(String, String)> = list.iter().filter(|(id, label)| f.is_empty() || id.to_lowercase().contains(&f) || label.to_lowercase().contains(&f)).collect();
+                if rows.is_empty() {
+                    continue;
+                }
+                if self.place_kind.is_none() {
+                    ui.weak(title);
+                }
+                for (id, label) in rows {
                     let armed = self.place.as_ref().is_some_and(|(k, i)| *k == kind && i == id);
                     let r = ui
                         .horizontal(|ui| {
-                            if let Some(rs) = p.rs {
-                                crate::thumbs::boxed(ui, 30.0, || p.thumbs.of(p.ws, rs, rk, id));
+                            if let (Some(rs), true) = (p.rs, crate::thumbs::has_pictures(kind)) {
+                                crate::thumbs::boxed(ui, 30.0, || p.thumbs.of(p.ws, rs, kind, id));
                             }
-                            ui.add(egui::Button::selectable(armed, if label.is_empty() { id.as_str() } else { label.as_str() }).truncate()).on_hover_text(format!("{} · {id}", rk.label()))
+                            ui.add(egui::Button::selectable(armed, if label.is_empty() { id.as_str() } else { label.as_str() }).truncate()).on_hover_text(format!("{} · {id}", kind.label()))
                         })
                         .inner;
                     if r.clicked() {
                         pick = Some((kind, id.clone()));
                     }
                     if r.double_clicked() {
-                        p.asks.push(Ask::OpenDef(rk, id.clone()));
+                        p.asks.push(Ask::OpenDef(kind, id.clone()));
                     }
                 }
             }
         });
         if let Some(pick) = pick {
             self.place = Some(pick);
+            self.place_turn = 0;
         }
     }
 
@@ -415,6 +625,7 @@ impl MapView {
         });
         let f = self.outliner_filter.trim().to_lowercase();
         let mut click: Option<(Selection, bool)> = None;
+        let mut pick_scenery: Option<u16> = None;
         if let Some(doc) = doc_of(p.ws, name) {
             let ws = &*p.ws;
             egui::ScrollArea::vertical().id_salt("outliner").max_height(half).auto_shrink([false, false]).show(ui, |ui| {
@@ -431,7 +642,7 @@ impl MapView {
                     if rows.is_empty() {
                         continue;
                     }
-                    egui::CollapsingHeader::new(format!("{title} ({})", rows.len())).id_salt(title).default_open(kind == EntityKind::Character || !f.is_empty()).show(ui, |ui| {
+                    egui::CollapsingHeader::new(format!("{title} ({})", rows.len())).id_salt(title).default_open(kind == EntityKind::Character).open((!f.is_empty()).then_some(true)).show(ui, |ui| {
                         for (uid, label, def) in rows {
                             let s = Selection::Entity(uid);
                             let r = ui.add(egui::Button::selectable(self.sel.contains(&s), label).truncate()).on_hover_text(format!("{def} · number {uid}"));
@@ -441,9 +652,29 @@ impl MapView {
                         }
                     });
                 }
+                // Scenery by what it is (there is too much of it to list each piece).
+                let mut scenery: std::collections::BTreeMap<(String, u16), usize> = std::collections::BTreeMap::new();
+                for d in &doc.map.decor {
+                    if let Some(id) = doc.map.decor_defs.get(d.def as usize) {
+                        let label = ws.def_label(EntityKind::Prop, id);
+                        if f.is_empty() || label.to_lowercase().contains(&f) || id.to_lowercase().contains(&f) {
+                            *scenery.entry((label, d.def)).or_default() += 1;
+                        }
+                    }
+                }
+                if !scenery.is_empty() {
+                    egui::CollapsingHeader::new(format!("Scenery ({})", scenery.values().sum::<usize>())).id_salt("scenery").default_open(false).open((!f.is_empty()).then_some(true)).show(ui, |ui| {
+                        for ((label, slot), n) in &scenery {
+                            let chosen = self.sel.iter().any(|s| matches!(s, Selection::Scenery(d) if d.def == *slot));
+                            if ui.add(egui::Button::selectable(chosen, format!("{label} x {n}")).truncate()).on_hover_text("Selects every one of them on this map").clicked() {
+                                pick_scenery = Some(*slot);
+                            }
+                        }
+                    });
+                }
                 let zones: Vec<&rustpg2d_engine::map::Zone> = doc.map.zones.iter().filter(|z| f.is_empty() || z.name.to_lowercase().contains(&f)).collect();
                 if !zones.is_empty() {
-                    egui::CollapsingHeader::new(format!("Zones ({})", zones.len())).id_salt("zones").default_open(true).show(ui, |ui| {
+                    egui::CollapsingHeader::new(format!("Zones ({})", zones.len())).id_salt("zones").default_open(true).open((!f.is_empty()).then_some(true)).show(ui, |ui| {
                         for z in zones {
                             let s = Selection::Zone(z.uid);
                             let kind = schema::variant_label(&variant_name(&serde_json::to_value(&z.kind).unwrap_or_default()));
@@ -466,6 +697,9 @@ impl MapView {
                 self.select(s);
             }
         }
+        if let (Some(slot), Some(doc)) = (pick_scenery, doc_of(p.ws, name)) {
+            self.sel = doc.map.decor.iter().filter(|d| d.def == slot).map(|d| Selection::Scenery(*d)).collect();
+        }
         ui.separator();
         // (Both ways: a wide row scrolls instead of widening the panel.)
         egui::ScrollArea::both().id_salt("inspector").auto_shrink([false, false]).show(ui, |ui| {
@@ -485,6 +719,67 @@ impl MapView {
                 ui.weak(format!("{} x {} tiles · {} characters, objects and items · {} pieces of scenery · {} zones", m.width, m.height, m.entities.len(), m.decor.len(), m.zones.len()));
                 ui.add_space(6.0);
                 ui.weak("Select something on the map or in the list above to see and change it here.");
+            }
+            [Selection::Scenery(d)] => {
+                let d = *d;
+                let Some(prop) = doc.map.decor_defs.get(d.def as usize).cloned() else { return };
+                let def = p.ws.project.db.prop(&prop);
+                let (turns, states): (bool, Vec<String>) = def.map_or((false, Vec::new()), |q| (q.turns(), q.states.iter().map(|s| s.name.clone()).collect()));
+                ui.horizontal(|ui| {
+                    if let Some(rs) = p.rs {
+                        crate::thumbs::boxed(ui, 44.0, || p.thumbs.of(p.ws, rs, RefKind::Prop, &prop));
+                    }
+                    ui.vertical(|ui| {
+                        ui.label(egui::RichText::new(p.ws.def_label(EntityKind::Prop, &prop)).heading());
+                        ui.weak(format!("Scenery at tile {}, {}", (d.x as f32 / ts).floor(), ((d.y as f32 - 0.5) / ts).floor()));
+                    });
+                });
+                let mut act = None;
+                ui.horizontal_wrapped(|ui| {
+                    if ui.button("Edit definition").on_hover_text(format!("Opens {prop}: what every one of them is")).clicked() {
+                        p.asks.push(Ask::OpenDef(RefKind::Prop, prop.clone()));
+                    }
+                    if turns && ui.button("Turn").on_hover_text("A quarter further (R)").clicked() {
+                        act = Some("turn");
+                    }
+                    if ui.button("Duplicate").on_hover_text("Ctrl+D").clicked() {
+                        act = Some("duplicate");
+                    }
+                    if ui.button("Delete").on_hover_text("Del").clicked() {
+                        act = Some("delete");
+                    }
+                });
+                ui.add_space(4.0);
+                ui.weak("Scenery only stands there: no name, no events.");
+                if ui.button("Make interactive").on_hover_text("Turns it into an object of the map: with a name to give, events, states, things in it. The same prop on the same spot.").clicked() {
+                    act = Some("interactive");
+                }
+                if let Some(act) = act {
+                    self.act(p, name, act);
+                    return;
+                }
+                ui.separator();
+                let mut new = d;
+                ui.horizontal_wrapped(|ui| {
+                    ui.label("Layer").on_hover_text("On the ground under everyone, standing among everyone by its feet, or above everyone (treetops, roofs)");
+                    for l in DecorLayer::ALL {
+                        ui.selectable_value(&mut new.layer, l, layer_label(l));
+                    }
+                });
+                ui.checkbox(&mut new.flip, "Mirrored").on_hover_text("Left to right");
+                if states.len() > 1 {
+                    let mut k = d.state_index().min(states.len() - 1);
+                    egui::ComboBox::from_label("Shown in state").selected_text(states[k].as_str()).show_index(ui, &mut k, states.len(), |i| states[i].clone());
+                    let turn = d.turn();
+                    new.state = k as u8;
+                    new.set_turn(turn);
+                }
+                if new != d {
+                    p.ws.open_map(name);
+                    if p.ws.set_scenery(d, new) {
+                        self.sel = vec![Selection::Scenery(new)];
+                    }
+                }
             }
             [one] => {
                 let one = *one;
@@ -523,6 +818,14 @@ impl MapView {
                         }
                         if ui.button("Turn").on_hover_text("A quarter further (R)").clicked() {
                             act = Some("turn");
+                        }
+                        if let (RefKind::Prop, Selection::Entity(uid)) = (*rk, one) {
+                            let why = p.ws.keeps_from_scenery(uid);
+                            let r = ui.add_enabled(why.is_none(), egui::Button::new("Make scenery"));
+                            let r = r.on_hover_text("Turns it into scenery: it only stands there, without a name or events").on_disabled_hover_text(format!("It can't be scenery: {}", why.unwrap_or_default()));
+                            if r.clicked() {
+                                act = Some("scenery");
+                            }
                         }
                     }
                     if ui.button("Duplicate").on_hover_text("Ctrl+D").clicked() {
@@ -616,11 +919,30 @@ impl MapView {
                 }
             }
             "turn" => {
-                for s in self.sel.clone() {
-                    if let Selection::Entity(uid) = s {
-                        if let Err(e) = p.ws.turn_entity(uid) {
-                            p.ws.set_status(e);
-                        }
+                for k in 0..self.sel.len() {
+                    let r = match self.sel[k] {
+                        Selection::Entity(uid) => p.ws.turn_entity(uid),
+                        Selection::Scenery(d) => p.ws.turn_scenery(d).map(|new| self.sel[k] = Selection::Scenery(new)),
+                        _ => Ok(()),
+                    };
+                    if let Err(e) = r {
+                        p.ws.set_status(e);
+                    }
+                }
+            }
+            "interactive" => {
+                if let [Selection::Scenery(d)] = self.sel.as_slice() {
+                    match p.ws.make_interactive(*d) {
+                        Ok(uid) => self.sel = vec![Selection::Entity(uid)],
+                        Err(e) => p.ws.set_status(e),
+                    }
+                }
+            }
+            "scenery" => {
+                if let [Selection::Entity(uid)] = self.sel.as_slice() {
+                    match p.ws.make_scenery(*uid) {
+                        Ok(d) => self.sel = vec![Selection::Scenery(d)],
+                        Err(e) => p.ws.set_status(e),
                     }
                 }
             }
@@ -684,18 +1006,29 @@ impl MapView {
         Scene { db: &ws.project.db, assets: &ws.assets, look: self.look() }
     }
 
-    /// The things and zones under pixel `at`: entities in front first, then (where zones are
-    /// shown) the zones around it, the smallest first.
+    /// What is under pixel `at` of what the Select tool picks: characters, objects and items in
+    /// front first, then scenery, then (where zone areas are shown) the zones around it, the
+    /// smallest first.
     fn things_at(&self, ws: &Workspace, map: &Map, at: Vec2) -> Vec<Selection> {
         let scene = self.scene(ws);
-        let mut out: Vec<Selection> = scene.entities_at(map, at).into_iter().map(Selection::Entity).collect();
-        if self.opts.zones {
-            let p = scene.look.to_world(at);
-            let mut zones: Vec<_> = map.zones.iter().filter(|z| z.pixel_rect(scene.ts()).contains(p)).collect();
-            zones.sort_by_key(|z| z.w * z.h);
-            out.extend(zones.iter().map(|z| Selection::Zone(z.uid)));
+        let mut out: Vec<Selection> = Vec::new();
+        if self.picks.things {
+            out.extend(scene.entities_at(map, at).into_iter().map(Selection::Entity));
+        }
+        if self.picks.scenery {
+            out.extend(scene.scenery_at(map, at).into_iter().map(Selection::Scenery));
+        }
+        if self.opts.zones && self.picks.zones {
+            out.extend(self.zones_at(ws, map, at));
         }
         out
+    }
+
+    fn zones_at(&self, ws: &Workspace, map: &Map, at: Vec2) -> Vec<Selection> {
+        let p = self.look().to_world(at);
+        let mut zones: Vec<_> = map.zones.iter().filter(|z| z.pixel_rect(ws.ts()).contains(p)).collect();
+        zones.sort_by_key(|z| z.w * z.h);
+        zones.iter().map(|z| Selection::Zone(z.uid)).collect()
     }
 
     /// The corners of the selected zone as handles: (pixel, the opposite corner in tile lines).
@@ -755,25 +1088,22 @@ impl MapView {
         let tile = tile_of(world);
         let add = mods.shift || mods.command;
 
+        self.shift = mods.shift;
         if pressed && over {
             self.cycle = None;
             let Some(doc) = p.ws.doc.as_ref() else { return };
             // A corner of the selected zone.
             if let Some((uid, _, fixed)) = self.handles(p.ws, &doc.map).into_iter().find(|(_, h, _)| h.distance(at) <= 7.0 * ppp) {
-                self.drag = p.ws.begin_drag().map(|before| Drag::Resize { uid, fixed, before });
+                self.drag = p.ws.snap_map().map(|before| Drag::Resize { uid, fixed, before });
                 return;
             }
-            let stack = self.things_at(p.ws, &doc.map, at);
             match self.tool {
-                Tool::Select | Tool::Zones | Tool::Place => {
-                    let stack: Vec<Selection> = match self.tool {
-                        Tool::Zones => stack.into_iter().filter(|s| matches!(s, Selection::Zone(_))).collect(),
-                        Tool::Place => stack.into_iter().filter(|s| matches!(s, Selection::Entity(_))).collect(),
-                        _ => stack,
-                    };
-                    // A zone that isn't selected is picked by a click; a drag from inside it
-                    // draws (a box, a new zone) as on empty ground.
-                    let lone_zone = stack.first().copied().filter(|s| matches!(s, Selection::Zone(_)) && !self.sel.contains(s));
+                Tool::Select | Tool::Zones => {
+                    let stack = if self.tool == Tool::Zones { self.zones_at(p.ws, &doc.map, at) } else { self.things_at(p.ws, &doc.map, at) };
+                    // A zone or a piece of scenery that isn't selected is picked by a click; a
+                    // drag from it draws (a box, a new zone) as on empty ground, so that a house
+                    // or a big zone isn't moved by a drag meant for something else.
+                    let lone_zone = stack.first().copied().filter(|s| matches!(s, Selection::Zone(_) | Selection::Scenery(_)) && !self.sel.contains(s));
                     match stack.first().copied().filter(|_| lone_zone.is_none() || add) {
                         Some(first) if add => match self.sel.iter().position(|x| *x == first) {
                             Some(k) => drop(self.sel.remove(k)),
@@ -789,47 +1119,36 @@ impl MapView {
                                 self.cycle = Some(stack.clone());
                             }
                             let lead = hit.unwrap_or(first);
-                            let origs: Vec<(Selection, Vec2)> = self
+                            let mut origs: Vec<(Selection, Vec2)> = self
                                 .sel
                                 .iter()
                                 .filter_map(|s| match s {
                                     Selection::Entity(u) => doc.map.entity(*u).map(|e| (*s, vec2(e.x, e.y))),
                                     Selection::Zone(u) => doc.map.zones.iter().find(|z| z.uid == *u).map(|z| (*s, vec2(z.x as f32, z.y as f32))),
+                                    Selection::Scenery(d) => Some((*s, vec2(d.x as f32, d.y as f32))),
                                     _ => None,
                                 })
                                 .collect();
                             let grab = match lead {
                                 Selection::Entity(u) => doc.map.entity(u).map_or(Vec2::ZERO, |e| world - vec2(e.x, e.y)),
+                                Selection::Scenery(d) => world - vec2(d.x as f32, d.y as f32),
                                 _ => Vec2::ZERO,
                             };
                             // (The lead goes first: a single thing snaps to the grid by itself.)
-                            let mut origs = origs;
                             origs.sort_by_key(|(s, _)| *s != lead);
-                            self.drag = p.ws.begin_drag().map(|before| Drag::Move { from: world, grab, origs, before, moved: false });
+                            self.drag = p.ws.snap_map().map(|before| Drag::Move { from: world, grab, origs, before, moved: false });
                         }
-                        None => match self.tool {
-                            Tool::Select => {
-                                if !add {
-                                    self.sel.clear();
-                                }
-                                self.drag = Some(Drag::Box { from: at, pick: lone_zone });
-                            }
-                            Tool::Zones => self.drag = Some(Drag::NewZone { from: tile, at, pick: lone_zone }),
-                            _ => {
+                        None if self.tool == Tool::Zones => self.drag = Some(Drag::NewZone { from: tile, at, pick: lone_zone }),
+                        None => {
+                            if !add {
                                 self.sel.clear();
-                                if let Some((kind, def)) = self.place.clone() {
-                                    let feet = p.ws.snap_feet(kind, &def, world, mods.shift);
-                                    match p.ws.place_entity(kind, &def, feet) {
-                                        Ok(uid) => self.sel = vec![Selection::Entity(uid)],
-                                        Err(e) => p.ws.set_status(e),
-                                    }
-                                } else {
-                                    p.ws.set_status("Pick what to place in the list on the left first");
-                                }
                             }
-                        },
+                            self.drag = Some(Drag::Box { from: at, pick: lone_zone });
+                        }
                     }
                 }
+                Tool::Place => self.place_press(p, world, tile),
+                Tool::Terrain => self.terrain_press(p, world),
                 Tool::Collision => {
                     let value = if mods.shift { CollisionOverride::Auto } else { CollisionOverride::Solid } as u8;
                     if let Some(doc) = &mut p.ws.doc {
@@ -848,30 +1167,45 @@ impl MapView {
             }
             self.drag = Some(Drag::Paint { last: tile, value: CollisionOverride::Walkable as u8 });
         }
-        // Right-click with the Place tool stops placing.
+        // Right-click with the Place tool stops placing; with the Terrain tool it picks the
+        // material under the pointer.
         if self.tool == Tool::Place && rpressed && over {
             self.place = None;
+        }
+        if self.tool == Tool::Terrain && rpressed && over {
+            match p.ws.ground_at(world) {
+                Some(m) => {
+                    p.ws.set_status(format!("Material: {m}"));
+                    self.material = Some(m);
+                }
+                None => p.ws.set_status("No painted ground here"),
+            }
         }
 
         let held = down || (rdown && matches!(self.drag, Some(Drag::Paint { .. })));
         match self.drag.take() {
-            Some(Drag::Move { from, grab, origs, before, mut moved }) if held => {
+            Some(Drag::Move { from, grab, mut origs, before, mut moved }) if held => {
                 moved |= (look.to_screen(world) - look.to_screen(from)).length() >= 4.0 * ppp;
                 if moved {
                     let d = (tile_of(world).0 - tile_of(from).0, tile_of(world).1 - tile_of(from).1);
-                    let single = origs.len() == 1;
-                    let snapped = match origs.first() {
-                        Some((Selection::Entity(u), _)) if single => p.ws.doc.as_ref().and_then(|doc| doc.map.entity(*u)).map(|e| p.ws.snap_feet(e.kind, &e.def, world - grab, mods.shift)),
+                    // One thing alone snaps as it does when it is placed.
+                    let snapped = match origs.as_slice() {
+                        [(Selection::Entity(u), _)] => p.ws.doc.as_ref().and_then(|doc| doc.map.entity(*u)).map(|e| p.ws.snap_feet(e.kind, &e.def, world - grab, mods.shift)),
+                        [(Selection::Scenery(dec), _)] => {
+                            let prop = p.ws.doc.as_ref().and_then(|doc| doc.map.decor_defs.get(dec.def as usize).cloned()).unwrap_or_default();
+                            Some(if mods.shift { (world - grab).round() } else { p.ws.scenery_spot(&prop, world - grab + vec2(0.0, -0.5)) })
+                        }
                         _ => None,
                     };
                     if let Some(doc) = &mut p.ws.doc {
                         let (mw, mh) = (doc.map.width as i32, doc.map.height as i32);
-                        for (s, orig) in &origs {
+                        for (s, orig) in origs.iter_mut() {
+                            let to = snapped.unwrap_or(*orig + vec2(d.0 as f32, d.1 as f32) * ts);
+                            let to = vec2(to.x.clamp(0.0, mw as f32 * ts), to.y.clamp(0.0, mh as f32 * ts));
                             match s {
                                 Selection::Entity(u) => {
                                     if let Some(e) = doc.map.entities.iter_mut().find(|e| e.uid == *u) {
-                                        let to = snapped.unwrap_or(*orig + vec2(d.0 as f32, d.1 as f32) * ts);
-                                        (e.x, e.y) = (to.x.clamp(0.0, mw as f32 * ts), to.y.clamp(0.0, mh as f32 * ts));
+                                        (e.x, e.y) = (to.x, to.y);
                                     }
                                 }
                                 Selection::Zone(u) => {
@@ -880,10 +1214,20 @@ impl MapView {
                                         z.y = (orig.y as i32 + d.1).clamp(0, (mh - z.h as i32).max(0)) as u32;
                                     }
                                 }
+                                Selection::Scenery(cur) => {
+                                    // (Scenery is told by what it is: the selection follows it.)
+                                    let new = Decor { x: to.x as i32, y: to.y as i32, ..*cur };
+                                    if let Some(x) = doc.map.decor.iter_mut().find(|x| **x == *cur) {
+                                        *x = new;
+                                        *cur = new;
+                                    }
+                                }
                                 _ => {}
                             }
                         }
+                        doc.overview.decor_stale = true;
                     }
+                    self.sel = origs.iter().map(|o| o.0).collect();
                 }
                 self.drag = Some(Drag::Move { from, grab, origs, before, moved });
             }
@@ -893,7 +1237,7 @@ impl MapView {
                         [(one, _)] => format!("Move {}", p.ws.describe_object(*one)),
                         many => format!("Move {} things", many.len()),
                     };
-                    p.ws.end_drag(*before, &label);
+                    p.ws.commit_map(*before, &label);
                 } else if let Some(stack) = self.cycle.take() {
                     // A click on what was selected already: the next thing under the pointer.
                     let k = stack.iter().position(|s| self.sel.contains(s)).unwrap_or(0);
@@ -915,7 +1259,7 @@ impl MapView {
             }
             Some(Drag::Resize { uid, before, .. }) => {
                 let label = format!("Size zone {}", p.ws.describe_object(Selection::Zone(uid)));
-                p.ws.end_drag(*before, &label);
+                p.ws.commit_map(*before, &label);
             }
             Some(Drag::Box { from, pick }) if held => self.drag = Some(Drag::Box { from, pick }),
             Some(Drag::Box { from, pick }) => {
@@ -926,8 +1270,14 @@ impl MapView {
                 } else {
                     let r = Rect::new(from.x.min(at.x), from.y.min(at.y), (from.x - at.x).abs(), (from.y - at.y).abs());
                     if let Some(doc) = p.ws.doc.as_ref() {
-                        let mut found: Vec<Selection> = doc.map.entities.iter().filter(|e| r.contains(look.to_screen(vec2(e.x, e.y)))).map(|e| Selection::Entity(e.uid)).collect();
-                        if self.opts.zones {
+                        let mut found: Vec<Selection> = Vec::new();
+                        if self.picks.things {
+                            found.extend(doc.map.entities.iter().filter(|e| r.contains(look.to_screen(vec2(e.x, e.y)))).map(|e| Selection::Entity(e.uid)));
+                        }
+                        if self.picks.scenery {
+                            found.extend(doc.map.decor.iter().filter(|d| r.contains(look.to_screen(vec2(d.x as f32, d.y as f32)))).map(|d| Selection::Scenery(*d)));
+                        }
+                        if self.opts.zones && self.picks.zones {
                             found.extend(doc.map.zones.iter().filter(|z| r.contains(look.to_screen(z.pixel_rect(ts).center()))).map(|z| Selection::Zone(z.uid)));
                         }
                         for s in found {
@@ -962,6 +1312,52 @@ impl MapView {
                 }
                 p.ws.begin("Paint collision");
             }
+            Some(Drag::Ground { last, value, mut cells }) if held => {
+                if world.distance(last) >= 1.0 {
+                    cells.extend(p.ws.ground_stroke(self.brush, last, world, value));
+                    self.drag = Some(Drag::Ground { last: world, value, cells });
+                } else {
+                    self.drag = Some(Drag::Ground { last, value, cells });
+                }
+            }
+            Some(Drag::Ground { value, cells, .. }) => {
+                p.ws.ground_commit(cells, value);
+            }
+            Some(Drag::GroundShape { from, value }) if held => self.drag = Some(Drag::GroundShape { from, value }),
+            Some(Drag::GroundShape { from, value }) => {
+                let cells = if self.ground_mode == GroundMode::Rect { p.ws.ground_rect(self.brush, from, world, value) } else { p.ws.ground_line(self.brush, from, world, value) };
+                let n = p.ws.ground_commit(cells, value);
+                p.ws.set_status(format!("Painted {n} cells"));
+            }
+            Some(Drag::Row { from }) if held => self.drag = Some(Drag::Row { from }),
+            Some(Drag::Row { from }) => {
+                if let Some((RefKind::Prop, prop)) = self.place.clone() {
+                    let r = if p.ws.scenery_spot(&prop, from) == p.ws.scenery_spot(&prop, world) {
+                        p.ws.place_scenery(&prop, from, self.place_layer, false, self.place_turn).map(|d| self.sel = vec![Selection::Scenery(d)])
+                    } else {
+                        p.ws.place_row(&prop, from, world, self.place_layer).map(|n| p.ws.set_status(format!("Placed a row of {n}")))
+                    };
+                    if let Err(e) = r {
+                        p.ws.set_status(e);
+                    }
+                }
+            }
+            Some(Drag::Scatter { last, before }) if held => {
+                let mut last = last;
+                if let (Some((RefKind::Scatter, set)), true) = (self.place.clone(), world.distance(last) >= self.scatter_size * 0.5) {
+                    self.seed = self.seed.wrapping_add(0x9E37_79B9_7F4A_7C15);
+                    p.ws.scatter(&set, world, self.scatter_size, self.seed);
+                    if let Some(doc) = &mut p.ws.doc {
+                        doc.overview.decor_stale = true;
+                    }
+                    last = world;
+                }
+                self.drag = Some(Drag::Scatter { last, before });
+            }
+            Some(Drag::Scatter { before, .. }) => {
+                let name = self.place.as_ref().and_then(|(_, id)| p.ws.project.db.scatter_set(id)).map_or_else(String::new, |s| if s.name.is_empty() { s.id.clone() } else { s.name.clone() });
+                p.ws.commit_map(*before, &format!("Scatter {name}"));
+            }
             Some(Drag::Pan) | None => {}
         }
         let _ = released;
@@ -988,6 +1384,74 @@ impl MapView {
         }
     }
 
+    /// The Place tool's press: what is picked is put down.
+    fn place_press(&mut self, p: &mut Parts, world: Vec2, tile: (i32, i32)) {
+        self.sel.clear();
+        let Some((kind, id)) = self.place.clone() else {
+            p.ws.set_status("Pick what to place in the list on the left first");
+            return;
+        };
+        let r = match kind {
+            RefKind::Structure => p.ws.place_structure(&id, tile).map(|made| self.sel = made.into_iter().map(Selection::Entity).collect()),
+            RefKind::Scatter => {
+                let Some(before) = p.ws.snap_map() else { return };
+                self.seed = self.seed.wrapping_add(0x9E37_79B9_7F4A_7C15);
+                p.ws.scatter(&id, world, self.scatter_size, self.seed);
+                self.drag = Some(Drag::Scatter { last: world, before });
+                Ok(())
+            }
+            RefKind::Prop if !p.ws.prop_acts(&id) => {
+                if p.ws.project.db.prop(&id).is_some_and(|d| d.snap > 0) {
+                    // (On its own grid: a drag makes a row, put down when the button goes up.)
+                    self.drag = Some(Drag::Row { from: world });
+                    Ok(())
+                } else {
+                    self.seed = self.seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+                    let flip = self.place_flip && (self.seed >> 33) & 1 == 1;
+                    let at = if self.shift { world.round() } else { p.ws.scenery_spot(&id, world) };
+                    p.ws.place_scenery(&id, at, self.place_layer, flip, self.place_turn).map(|d| self.sel = vec![Selection::Scenery(d)])
+                }
+            }
+            _ => match entity_kind(kind) {
+                Some(ek) => {
+                    let feet = p.ws.snap_feet(ek, &id, world, self.shift);
+                    p.ws.place_entity(ek, &id, feet).map(|uid| self.sel = vec![Selection::Entity(uid)])
+                }
+                None => Err(format!("a {} isn't placed on a map", kind.name())),
+            },
+        };
+        if let Err(e) = r {
+            p.ws.set_status(e);
+        }
+    }
+
+    /// The Terrain tool's press.
+    fn terrain_press(&mut self, p: &mut Parts, world: Vec2) {
+        let Some(material) = self.material.clone() else {
+            p.ws.set_status("Pick a material in the list on the left first");
+            return;
+        };
+        let value = match p.ws.ground_value(if self.shift { "" } else { &material }) {
+            Ok(v) => v,
+            Err(e) => {
+                p.ws.set_status(e);
+                return;
+            }
+        };
+        match self.ground_mode {
+            GroundMode::Brush => {
+                let cells = p.ws.ground_dab(self.brush, world, value);
+                self.drag = Some(Drag::Ground { last: world, value, cells });
+            }
+            GroundMode::Line | GroundMode::Rect => self.drag = Some(Drag::GroundShape { from: world, value }),
+            GroundMode::Fill => {
+                let cells = p.ws.ground_fill(world, value);
+                let n = p.ws.ground_commit(cells, value);
+                p.ws.set_status(format!("Filled {n} cells"));
+            }
+        }
+    }
+
     /// The Zones tool's kind as a zone starts with it.
     fn zone_of_kind(&self, ws: &Workspace) -> Result<ZoneKind, String> {
         let Some(Shape::Choice(variants)) = schema::zone().at("/kind").map(|n| n.shape()) else { return Err("zones have no kinds".into()) };
@@ -1007,16 +1471,29 @@ impl MapView {
             let key = |k: egui::Key| plain && i.key_pressed(k);
             let tool = Tool::ALL.into_iter().find(|t| key(t.key()));
             let pan = vec2(i.key_down(egui::Key::ArrowRight) as i32 as f32 - i.key_down(egui::Key::ArrowLeft) as i32 as f32, i.key_down(egui::Key::ArrowDown) as i32 as f32 - i.key_down(egui::Key::ArrowUp) as i32 as f32);
-            (tool, key(egui::Key::G), key(egui::Key::R), key(egui::Key::Delete) || key(egui::Key::Backspace), i.modifiers.command && i.key_pressed(egui::Key::D), key(egui::Key::Escape), key(egui::Key::Home), pan, i.stable_dt)
+            let size = key(egui::Key::CloseBracket) as i32 - key(egui::Key::OpenBracket) as i32;
+            (tool, key(egui::Key::G), key(egui::Key::R), key(egui::Key::Delete) || key(egui::Key::Backspace), i.modifiers.command && i.key_pressed(egui::Key::D), key(egui::Key::Escape), key(egui::Key::Home), pan, i.stable_dt, size)
         });
-        let (tool, grid, turn, delete, duplicate, escape, home, pan, dt) = k;
+        let (tool, grid, turn, delete, duplicate, escape, home, pan, dt, size) = k;
+        if size != 0 {
+            // [ and ]: the brush's size.
+            let ts = p.ws.ts();
+            match self.tool {
+                Tool::Terrain => self.brush.size = (self.brush.size + size as f32 * ts / 8.0).clamp(ts / 8.0, ts * 4.0),
+                Tool::Place => self.scatter_size = (self.scatter_size + size as f32 * ts / 4.0).clamp(ts / 4.0, ts * 8.0),
+                _ => {}
+            }
+        }
         if let Some(t) = tool {
             self.tool = t;
         }
         if grid {
             self.opts.grid = !self.opts.grid;
         }
-        if turn {
+        if turn && self.tool == Tool::Place && self.place.is_some() {
+            // (What is about to be placed turns, not what was placed last.)
+            self.place_turn = (self.place_turn + 1) % 4;
+        } else if turn {
             self.act(p, name, "turn");
         }
         if delete && !self.sel.is_empty() {
@@ -1063,8 +1540,10 @@ impl MapView {
         let mut act = None;
         let def = match (self.sel.as_slice(), doc_of(p.ws, name)) {
             ([Selection::Entity(u)], Some(doc)) => doc.map.entity(*u).map(|e| (kind_ref(e.kind), e.def.clone())),
+            ([Selection::Scenery(d)], Some(doc)) => doc.map.decor_defs.get(d.def as usize).map(|id| (RefKind::Prop, id.clone())),
             _ => None,
         };
+        let scenery = matches!(self.sel.as_slice(), [Selection::Scenery(_)]);
         let any = !self.sel.is_empty();
         resp.context_menu(|ui| {
             if !any {
@@ -1078,6 +1557,10 @@ impl MapView {
                 }
                 if ui.button("Turn").clicked() {
                     act = Some("turn");
+                    ui.close();
+                }
+                if scenery && ui.button("Make interactive").clicked() {
+                    act = Some("interactive");
                     ui.close();
                 }
             }
@@ -1189,7 +1672,7 @@ impl MapView {
                 render::fish::draw_shadows(z.pixel_rect(ts), z.uid, time as f32, ts);
             }
         }
-        scene.draw_objects(map, view, overview, WHITE, false);
+        scene.draw_objects(map, view, overview, WHITE, matches!(self.tool, Tool::Terrain | Tool::Place));
         if self.opts.parallax {
             render::parallax::draw(scene.assets, &map.parallax, true, view, time as f32);
         }
@@ -1275,6 +1758,15 @@ impl MapView {
 
         // The selection: each thing's frame, and what blocks the way under a single one.
         for s in &self.sel {
+            if let Selection::Scenery(d) = s {
+                let (r, flat) = scene.decor_rect(map, d);
+                let frame = || draw_rectangle_lines(r.x - px, r.y - px, r.w + 2.0 * px, r.h + 2.0 * px, 2.0 * px, YELLOW);
+                if flat {
+                    frame();
+                } else {
+                    scene.standing(vec2(d.x as f32, d.y as f32), frame);
+                }
+            }
             let Selection::Entity(uid) = s else { continue };
             let Some(e) = map.entity(*uid) else { continue };
             if self.sel.len() == 1 {
@@ -1297,14 +1789,81 @@ impl MapView {
                     draw_rectangle(rx as f32 * ts, ry as f32 * ts, rw as f32 * ts, rh as f32 * ts, Color::new(0.35, 0.75, 1.0, 0.18));
                     draw_rectangle_lines(rx as f32 * ts, ry as f32 * ts, rw as f32 * ts, rh as f32 * ts, 2.0 * px, SKYBLUE);
                 }
-                (None, Tool::Place) => {
-                    if let Some((kind, def)) = &self.place {
-                        let at = look.to_screen(w);
-                        if scene.entities_at(map, at).is_empty() {
-                            let feet = ws.snap_feet(*kind, def, w, is_key_down(KeyCode::LeftShift));
-                            scene.standing(feet, || scene.draw_def(*kind, def, feet, Color::new(1.0, 1.0, 1.0, 0.55)));
-                            draw_circle_lines(feet.x, feet.y, 3.0 * px, 1.5 * px, YELLOW);
+                (_, Tool::Place) => {
+                    let ghost = Color::new(1.0, 1.0, 1.0, 0.55);
+                    match &self.place {
+                        Some((RefKind::Structure, id)) => {
+                            if let Some(def) = scene.db.structure(id) {
+                                let (ox, oy) = (tile.0 - (def.w as i32 - 1) / 2, tile.1 - (def.h as i32 - 1) / 2);
+                                draw_rectangle(ox as f32 * ts, oy as f32 * ts, def.w as f32 * ts, def.h as f32 * ts, Color::new(0.3, 1.0, 0.5, 0.18));
+                                draw_rectangle_lines(ox as f32 * ts, oy as f32 * ts, def.w as f32 * ts, def.h as f32 * ts, 2.0 * px, GREEN);
+                            }
                         }
+                        Some((RefKind::Scatter, _)) => draw_circle_lines(w.x, w.y, self.scatter_size, 1.5 * px, Color::new(0.4, 1.0, 0.5, 1.0)),
+                        Some((RefKind::Prop, id)) if !ws.prop_acts(id) => {
+                            if let Some(def) = scene.db.prop(id) {
+                                let at = if self.shift { w.round() } else { ws.scenery_spot(id, w) };
+                                if let Some(Drag::Row { from }) = &self.drag {
+                                    // The row runs along the longer way, as it will be put down.
+                                    let a = ws.scenery_spot(id, *from);
+                                    let b = if (at.x - a.x).abs() >= (at.y - a.y).abs() { vec2(at.x, a.y) } else { vec2(a.x, at.y) };
+                                    draw_line(a.x, a.y, b.x, b.y, 3.0 * px, YELLOW);
+                                }
+                                let facing = rustpg2d_engine::decor::turn_facing(if def.turns() { self.place_turn } else { 0 });
+                                let draw = || scene.assets.draw_prop(scene.db, def, 0, facing, 0, at, false, ghost, time, !look.topdown);
+                                if def.flat {
+                                    draw();
+                                } else {
+                                    scene.standing(at, draw);
+                                }
+                                draw_circle_lines(at.x, at.y, 3.0 * px, 1.5 * px, YELLOW);
+                            }
+                        }
+                        Some((kind, def)) => {
+                            if let Some(ek) = entity_kind(*kind) {
+                                let feet = ws.snap_feet(ek, def, w, self.shift);
+                                scene.standing(feet, || scene.draw_def(ek, def, feet, ghost));
+                                draw_circle_lines(feet.x, feet.y, 3.0 * px, 1.5 * px, YELLOW);
+                            }
+                        }
+                        None => draw_rectangle_lines(fx, fy, ts, ts, px, Color::new(1.0, 1.0, 1.0, 0.25)),
+                    }
+                }
+                (_, Tool::Terrain) => {
+                    let erase = self.shift || self.material.as_deref() == Some("");
+                    let col = if erase { RED } else { Color::new(0.4, 1.0, 0.5, 1.0) };
+                    let fill = Color::new(col.r, col.g, col.b, 0.25);
+                    let (r, brush) = (self.brush.size, self.brush);
+                    let square = |a: Vec2, b: Vec2| {
+                        let (lo, hi) = (a.min(b), a.max(b));
+                        draw_rectangle(lo.x, lo.y, hi.x - lo.x, hi.y - lo.y, fill);
+                        draw_rectangle_lines(lo.x, lo.y, hi.x - lo.x, hi.y - lo.y, 1.5 * px, col);
+                    };
+                    match (&self.drag, self.ground_mode) {
+                        (Some(Drag::GroundShape { from, .. }), GroundMode::Rect) => square(brush.corner(*from), brush.corner(w)),
+                        (Some(Drag::GroundShape { from, .. }), _) => {
+                            let (a, b) = (brush.line_end(*from), brush.line_end(w));
+                            draw_line(a.x, a.y, b.x, b.y, (r * 2.0).max(px), Color::new(col.r, col.g, col.b, 0.35));
+                            draw_circle_lines(a.x, a.y, r, 1.5 * px, col);
+                            draw_circle_lines(b.x, b.y, r, 1.5 * px, col);
+                        }
+                        (_, GroundMode::Rect) => {
+                            let c = brush.corner(w);
+                            draw_circle(c.x, c.y, 3.0 * px, col);
+                        }
+                        (_, GroundMode::Fill) => {
+                            let c = rustpg2d_engine::ground::CELL as f32;
+                            draw_rectangle_lines((w.x / c).floor() * c, (w.y / c).floor() * c, c, c, 2.0 * px, col);
+                        }
+                        (_, GroundMode::Line) => {
+                            let a = brush.line_end(w);
+                            draw_circle_lines(a.x, a.y, r, 1.5 * px, col);
+                        }
+                        _ if brush.square => {
+                            let (a, b) = brush.square_at(w);
+                            square(a, b);
+                        }
+                        _ => draw_circle_lines(w.x, w.y, r, 1.5 * px, col),
                     }
                 }
                 (None, Tool::Select) => {
@@ -1315,6 +1874,15 @@ impl MapView {
                             if let Some(e) = map.entity(*uid) {
                                 let r = scene.entity_rect(e);
                                 scene.standing(vec2(e.x, e.y), || draw_rectangle_lines(r.x, r.y, r.w, r.h, 1.5 * px, Color::new(1.0, 1.0, 1.0, 0.8)));
+                            }
+                        }
+                        Some(Selection::Scenery(d)) if !self.sel.contains(&Selection::Scenery(*d)) => {
+                            let (r, flat) = scene.decor_rect(map, d);
+                            let frame = || draw_rectangle_lines(r.x, r.y, r.w, r.h, 1.5 * px, Color::new(1.0, 1.0, 1.0, 0.8));
+                            if flat {
+                                frame();
+                            } else {
+                                scene.standing(vec2(d.x as f32, d.y as f32), frame);
                             }
                         }
                         Some(Selection::Zone(uid)) if !self.sel.contains(&Selection::Zone(*uid)) => {
@@ -1493,11 +2061,56 @@ mod ui_tests {
         // Place: the list is searched, and a click arms what the map's clicks put down.
         h.get_by_role_and_label(egui::accesskit::Role::Button, "Place").click();
         h.run();
-        h.get_by_role_and_label(egui::accesskit::Role::TextInput, "Search what to place").type_text("town guard");
+        let search = h.get_by_role_and_label(egui::accesskit::Role::TextInput, "Search what to place");
+        search.focus();
+        search.type_text("town guard");
         h.run();
+        assert!(h.query_all_by_label("Villager").next().is_none(), "the list is searched");
         h.get_by_role_and_label(egui::accesskit::Role::Button, "Town Guard").click();
         h.run();
-        assert_eq!(h.state().view.place, Some((EntityKind::Character, "guard".to_string())));
+        assert_eq!(h.state().view.place, Some((RefKind::Character, "guard".to_string())));
+        // Terrain: the materials, and a pick.
+        h.get_by_role_and_label(egui::accesskit::Role::Button, "Terrain").click();
+        h.run();
+        assert!(h.query_all_by_label("Erase (no ground)").next().is_some());
+        h.get_by_role_and_label(egui::accesskit::Role::Button, "Cobblestone").click();
+        h.run();
+        assert_eq!(h.state().view.material.as_deref(), Some("cobblestone"));
+        let dir = h.state().dir.clone();
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn scenery_is_listed_by_what_it_is_and_made_interactive() {
+        let mut h = village("scenery");
+        h.run();
+        // The Outliner's Scenery group (found by the search) selects every piece of a prop.
+        let search = h.get_by_role_and_label(egui::accesskit::Role::TextInput, "Search this map");
+        search.focus();
+        search.type_text("young oak");
+        h.run();
+        let oaks = h.state().ws.doc.as_ref().unwrap().map.decor.iter().filter(|d| h.state().ws.doc.as_ref().unwrap().map.decor_defs[d.def as usize] == "oak_tree").count();
+        assert!(oaks > 1);
+        h.get_by_label(&format!("Young Oak x {oaks}")).click();
+        h.run();
+        assert_eq!(h.state().view.sel.len(), oaks);
+        assert!(h.query_all_by_label(&format!("{oaks} things selected")).next().is_some());
+        // One piece: its own small form, and the way to an object of the map and back.
+        let one = h.state().view.sel[0];
+        h.state_mut().view.sel = vec![one];
+        h.run();
+        let (entities, decor) = (h.state().ws.doc.as_ref().unwrap().map.entities.len(), h.state().ws.doc.as_ref().unwrap().map.decor.len());
+        h.get_by_label("Make interactive").click();
+        h.run();
+        let map = &h.state().ws.doc.as_ref().unwrap().map;
+        assert_eq!((map.entities.len(), map.decor.len()), (entities + 1, decor - 1));
+        assert!(matches!(h.state().view.sel.as_slice(), [Selection::Entity(_)]));
+        assert!(h.query_all_by_label("Placed here").next().is_some(), "an object has the full form");
+        h.get_by_label("Make scenery").click();
+        h.run();
+        let map = &h.state().ws.doc.as_ref().unwrap().map;
+        assert_eq!((map.entities.len(), map.decor.len()), (entities, decor));
+        assert_eq!(h.state().ws.timeline.done.iter().map(|c| c.label.as_str()).collect::<Vec<_>>(), ["Make Young Oak interactive", "Make Young Oak scenery"]);
         let dir = h.state().dir.clone();
         let _ = std::fs::remove_dir_all(dir);
     }

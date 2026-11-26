@@ -19,6 +19,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - `RUSTPG2D_ALLOW_SOFTWARE=1` lets the game start on a software renderer (tests, CI); without it
   a machine without a graphics driver gets a message.
 
+### Editor
+- **The new editor's first window** (`rustpg2d-studio`, part 3 of *The Studio*): egui 0.37 on the
+  engine's own renderer, with the running game in a panel. Not an editor yet.
+
 ### Maintenance
 - The 0.35 editor is no longer built on this branch (it needs macroquad); it stays in the tree
   until the new editor replaces it.

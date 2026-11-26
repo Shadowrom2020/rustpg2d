@@ -688,7 +688,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   leaves the files byte for byte as they were; `mcp_smoke` against the headless server; the test
   that `13-ai-agents.md` names every agent tool passes with the 0.35 catalogue.
 
-- [ ] Part 3: The shell — `feature/studio`
+- [~] Part 3: The shell — `feature/studio`
 
   **Goal.** The window creators work in: one workspace where everything is a tab, with the ways to
   get anywhere and do anything.
@@ -719,7 +719,19 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   - **Settings** (the editor's own): appearance, shortcuts, saving, the agent server, the Meshy
     account, pack sources.
 
-  **Engine.** None. New: `crates/editor` (the eframe application over `editor-core`), the dock,
+  **Progress.** Started ahead of part 2, to prove part 1's purpose: `crates/studio` (binary
+  `rustpg2d-studio` until it replaces the 0.35 editor) is an eframe window (egui 0.37) that
+  hands its wgpu device to `gfx` and shows the running game in a panel (`play.rs`: a
+  `gfx::Screen` of the panel's size registered as an egui texture, the panel's keys and pointer
+  as the game's `Input`) at 60 frames a second. `RUSTPG2D_STUDIO_SCRIPT` (`wait`, `status`,
+  `shot` of the whole window, `key`, `pause`, `resume`, `quit`). Nothing else of the shell yet.
+
+  **Decided while building.**
+  - The new editor grows in `crates/studio` (the old one keeps `crates/editor`, with the
+    starter library's files, until the switch-over), over `editor-core` when that exists.
+  - Its window is X11 where there is an X server, like the game's (`RUSTPG2D_WAYLAND=1`).
+
+  **Engine.** None. New: `crates/studio` (the eframe application over `editor-core`), the dock,
   the theme, `ui.rs`' icon helpers carried over.
 
   **Verify.** `egui_kittest`: open the example, open three documents, split, tear one off, restart

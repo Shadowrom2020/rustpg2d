@@ -1,0 +1,16 @@
+[package]
+name = "rustpg2d-studio"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "The new R(ust)PG2D editor (ROADMAP.md, 0.36.0 — The Studio), growing part by part. It takes the name rustpg2d-editor when it replaces the 0.35 editor."
+
+[dependencies]
+rustpg2d-engine.workspace = true
+gfx.workspace = true
+anyhow.workspace = true
+# The shell: egui on wgpu, the same device the engine draws with (`gfx::init`).
+eframe = { version = "0.37", default-features = false, features = ["wgpu", "x11", "wayland", "default_fonts"] }
+# Only to ask eframe's event loop for an X11 window (the same winit eframe uses).
+winit = "0.30"

@@ -17,6 +17,10 @@ being rewritten on a new foundation, in twelve parts. While it lasts:
   through `library_send`) describes 0.35 and comes back with the new editor; until then example
   content is edited with a 0.35 editor in a `master` worktree and merged in. `scripts/ci/smoke.sh`
   skips the editor's checks without the binary.
+- **The new editor is `crates/studio`** (binary `rustpg2d-studio`): so far a window with the
+  running game in a panel. `RUSTPG2D_STUDIO_SCRIPT="wait 3; status; shot /path/a.png; quit"
+  target/debug/rustpg2d-studio <project> [--map M --spawn S]` drives it (`shot` = the whole
+  window).
 - **The engine draws through `crates/gfx`** (wgpu, winit, kira), which keeps macroquad's drawing
   names: `use gfx::prelude::*` where `macroquad::prelude` was. Shaders are WGSL
   (`gfx::material`). The game is drawn into a picture (`gfx::Screen`); `gfx::with_screen` draws

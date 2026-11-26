@@ -91,7 +91,7 @@ pub async fn adapter(instance: &wgpu::Instance, surface: Option<&wgpu::Surface<'
         Err(e) if software_allowed() => {
             instance.request_adapter(&wgpu::RequestAdapterOptions { power_preference: wgpu::PowerPreference::None, force_fallback_adapter: true, compatible_surface: surface, apply_limit_buckets: false }).await.map_err(|e2| Error::Gpu(format!("{e}; {e2}")))
         }
-        Err(e) => Err(Error::Gpu(e.to_string())),
+        Err(e) => Err(Error::Gpu(format!("no graphics driver to draw with was found (Vulkan, Metal or DirectX 12 is needed). Details: {e}"))),
     }
 }
 

@@ -21,6 +21,8 @@ mkdir -p "$WORK/proj" "$WORK/home" "$WORK/settings" "$WORK/cfg" "$WORK/lib"
 export RUSTPG2D_MUTE=1 RUSTPG2D_SETTINGS_DIR=$WORK/settings RUSTPG2D_EDITOR_CONFIG=$WORK/cfg RUSTPG2D_LIBRARY=$WORK/lib HOME=$WORK/home
 if [ -z "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] && command -v xvfb-run >/dev/null; then
   X=(xvfb-run -a -s "-screen 0 1280x720x24")
+  # No graphics card under Xvfb: the software renderer (lavapipe) is fine for a test.
+  export RUSTPG2D_ALLOW_SOFTWARE=1
 else
   X=()
 fi
@@ -82,6 +84,18 @@ if grep -q 'current_map: "forest"' "$WORK/proj/saves/autosave.ron" 2>/dev/null; 
 line=$(game "seed 5; wait 2; waitturn 30; turn fast; turn end; waitturn 30; turn attack giant-rat; wait 1; status; quit" --no-title --map forest --pos 304,656)
 # (Two attack rolls: the rat's on its turn, then the player's.)
 expect "a turn-based fight" "$line" "rolls=attack:" ",attack:"
+
+# The editor's checks need an editor: while the new one is being built (ROADMAP.md, 0.36.0) there
+# is none on this branch.
+if [ ! -x "$BIN/rustpg2d-editor" ]; then
+  echo "SKIP the editor's checks: no $BIN/rustpg2d-editor"
+  if [ "$failed" -gt 0 ]; then
+    echo "$failed check(s) failed (logs in $WORK)"
+    exit 1
+  fi
+  echo "all smoke checks passed"
+  exit 0
+fi
 
 # The editor converts the project folder into a project file beside it and works on its copy.
 line=$(RUSTPG2D_EDITOR_SCRIPT="wait 2; open village; status; quit" timeout 120 "${X[@]}" "$BIN/rustpg2d-editor" "$WORK/proj" 2>&1 | tee -a "$WORK/editor.log" | grep '^\[status\]' | tail -1)

@@ -124,6 +124,8 @@ fn window_conf() -> gfx::conf::Conf {
         window_width: 1280,
         window_height: 720,
         default_filter_mode: FilterMode::Linear,
+        // `RUSTPG2D_VSYNC=0`: frames as fast as they come (measuring).
+        vsync: std::env::var("RUSTPG2D_VSYNC").map_or(true, |v| v != "0"),
         ..Default::default()
     }
 }

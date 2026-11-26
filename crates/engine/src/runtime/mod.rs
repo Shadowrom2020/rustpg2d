@@ -425,18 +425,23 @@ impl Perf {
         self.log_secs += real;
     }
 
-    /// `fps=N frame_ms=avg/worst update_ms=N draw_ms=N astar=searches/nodes` since the last
-    /// report, which starts the next window.
+    /// `fps=N frame_ms=avg/worst update_ms=N draw_ms=N gpu=calls/passes:ms astar=searches/nodes`
+    /// since the last report, which starts the next window (`gpu=`: the last frame's draw calls
+    /// and render passes, and the milliseconds sending them took).
     fn report(&mut self) -> String {
         let n = self.frames.max(1) as f32;
         let (calls, nodes) = crate::path::take_stats();
+        let gpu = gfx::window::frame_stats();
         let s = format!(
-            "fps={:.0} frame_ms={:.1}/{:.1} update_ms={:.1} draw_ms={:.1} astar={calls}/{nodes}",
+            "fps={:.0} frame_ms={:.1}/{:.1} update_ms={:.1} draw_ms={:.1} gpu={}/{}:{:.1} astar={calls}/{nodes}",
             n / self.secs.max(1e-6),
             self.secs * 1000.0 / n,
             self.worst * 1000.0,
             self.update * 1000.0 / n,
-            self.draw * 1000.0 / n
+            self.draw * 1000.0 / n,
+            gpu.draw_calls,
+            gpu.passes,
+            gpu.flush_ms
         );
         *self = Perf { log: self.log, ..Perf::default() };
         s

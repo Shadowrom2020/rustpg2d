@@ -166,6 +166,8 @@ pub struct Stats {
     pub draw_calls: usize,
     pub passes: usize,
     pub vertices: usize,
+    /// Milliseconds the last flush took on the CPU (building passes, handing them to the GPU).
+    pub flush_ms: f32,
 }
 
 impl Batch {
@@ -442,6 +444,8 @@ impl Batch {
         if self.cmds.is_empty() {
             return;
         }
+        #[cfg(not(target_arch = "wasm32"))]
+        let started = std::time::Instant::now();
         let cmds = std::mem::take(&mut self.cmds);
         let draws = cmds.iter().filter(|c| matches!(c, Cmd::Draw(_))).count();
 
@@ -577,7 +581,11 @@ impl Batch {
         }
         gpu.queue.submit([encoder.finish()]);
         self.buffers = Some(b);
-        self.stats = Stats { draw_calls: draws, passes, vertices: self.vertices.len() };
+        #[cfg(not(target_arch = "wasm32"))]
+        let flush_ms = started.elapsed().as_secs_f32() * 1000.0;
+        #[cfg(target_arch = "wasm32")]
+        let flush_ms = 0.0;
+        self.stats = Stats { draw_calls: draws, passes, vertices: self.vertices.len(), flush_ms };
         self.vertices.clear();
         self.indices.clear();
         // Pipelines of materials that are gone.

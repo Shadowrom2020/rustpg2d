@@ -579,6 +579,12 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   - **Material shaders** get their declarations (uniform block, textures, vertex input) written
     in front by `load_material` from the declared uniforms, so a shader and its uniform layout
     can't disagree.
+  - **X11 windows on Linux where there is an X server** (also under Wayland, through XWayland),
+    as macroquad's were; `RUSTPG2D_WAYLAND=1` asks for a Wayland window. Measured on GNOME
+    Wayland with the NVIDIA driver: a Wayland window waiting for the display misses frames (55 to
+    59 a second with 40 ms hitches), and a covered one gets none at all, so a scripted run with
+    the window behind others would stand still. Frames are drawn when the events are through;
+    presenting waits for the display.
   - **The old editor** is out of the workspace (`exclude` in `Cargo.toml`) and stays in the tree
     to read until its parts are rebuilt.
 
@@ -596,7 +602,15 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     are identical; world scenes differ in 0.0-0.5 % of pixels, single pixels along rotated
     edges. No dialog or shop picture in the set yet.*
   - `status` frame times on the forest map, old against new (`RUSTPG2D_PERF=1`).
+    *Done 2026-11-26 (debug builds, RTX 4060): both hold 60 frames a second with the worst
+    frame near 20 ms. The CPU's share of a forest frame went from 4.7 ms (drawing, with a flush
+    per camera change) to 0.8 ms drawing + 1.5 ms sending 1,377 draw calls in 6 passes; without
+    vsync (`RUSTPG2D_VSYNC=0`) the forest runs at about 600 frames a second, the house at 4,000.
+    `status` prints `gpu=CALLS/PASSES:MS`.*
   - `scripts/ci/smoke.sh` (the game half) passes; sound heard: music loop, a fade, footsteps.
+    *The game half passes (2026-11-26); the editor's checks are skipped while there is no
+    editor. Sound: the game opens its stream at the system's sound server and `status` shows the
+    village music as a whole loop; nobody has listened yet.*
   - Linux (AppImage on Debian 12, glibc ≤ 2.34), Windows under Wine (try this first: Wine's
     graphics were fragile on this machine), the test Mac, the browser (headless Brave, saves kept
     across runs).

@@ -167,7 +167,7 @@ mod native {
     /// there is no graphics adapter to draw with (a software renderer doesn't count, see
     /// [`gpu::software_allowed`]).
     pub fn run(conf: Conf, main: impl Future<Output = ()> + 'static) -> Result<(), Error> {
-        let event_loop = EventLoop::new().map_err(|e| Error::Gpu(e.to_string()))?;
+        let event_loop = event_loop()?;
         event_loop.set_control_flow(ControlFlow::Poll);
         let mut app = App { conf, main: Some(Box::pin(main)), shown: None, error: None };
         event_loop.run_app(&mut app).map_err(|e| Error::Gpu(e.to_string()))?;
@@ -177,6 +177,26 @@ mod native {
             Some(e) => Err(e),
             None => Ok(()),
         }
+    }
+
+    /// The event loop. On Linux a window of X11 where there is one (also under Wayland, through
+    /// XWayland), as macroquad's were: a Wayland compositor stops handing out frames to a window
+    /// that is covered, and a game waiting for the display then stands still (scripted runs with
+    /// the window behind others never finish). `RUSTPG2D_WAYLAND=1` asks for a Wayland window;
+    /// without an X server it is one anyway.
+    fn event_loop() -> Result<EventLoop<()>, Error> {
+        #[allow(unused_mut)]
+        let mut builder = EventLoop::builder();
+        #[cfg(all(unix, not(target_os = "macos"), not(target_os = "android"), not(target_os = "ios")))]
+        {
+            use winit::platform::x11::EventLoopBuilderExtX11;
+            let x11 = std::env::var_os("DISPLAY").is_some_and(|d| !d.is_empty());
+            let wayland = std::env::var_os("RUSTPG2D_WAYLAND").is_some_and(|v| v == "1");
+            if x11 && !wayland {
+                builder.with_x11();
+            }
+        }
+        builder.build().map_err(|e| Error::Gpu(e.to_string()))
     }
 
     impl App {
@@ -199,6 +219,11 @@ mod native {
             let (device, queue) = pollster::block_on(adapter.request_device(&gpu::device_descriptor(&adapter))).map_err(|e| Error::Gpu(e.to_string()))?;
             let size = window.inner_size();
             let caps = surface.get_capabilities(&adapter);
+            // `RUSTPG2D_GFX_INFO=1`: what the game draws with (bug reports).
+            if std::env::var_os("RUSTPG2D_GFX_INFO").is_some() {
+                let i = adapter.get_info();
+                eprintln!("[gfx] {} ({:?}, {:?}, driver {} {}); present modes {:?}; formats {:?}", i.name, i.backend, i.device_type, i.driver, i.driver_info, caps.present_modes, caps.formats);
+            }
             let format = caps.formats.iter().copied().find(|f| !f.is_srgb()).or(caps.formats.first().copied()).ok_or_else(|| Error::Gpu("the window can't be drawn to".into()))?;
             let view_format = format.remove_srgb_suffix();
             let config = wgpu::SurfaceConfiguration {
@@ -364,15 +389,15 @@ mod native {
                     };
                     input.touch(t.id, phase, t.location.x as f32, t.location.y as f32);
                 }
-                WindowEvent::RedrawRequested => self.frame(event_loop),
                 _ => {}
             }
         }
 
-        fn about_to_wait(&mut self, _: &ActiveEventLoop) {
-            if let Some(s) = &self.shown {
-                s.window.request_redraw();
-            }
+        /// A frame whenever the events are through: presenting waits for the display (vsync), so
+        /// this paces itself. (Asking for redraws instead is throttled a second time by Wayland's
+        /// frame callbacks, and every few frames one is missed.)
+        fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+            self.frame(event_loop);
         }
     }
 

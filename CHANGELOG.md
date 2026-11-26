@@ -40,6 +40,8 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **Sorted without sorting** (part 4): the browser lists items under the SRD's categories, props
   under what they do (containers, doors, lights, furniture to use, walls and buildings…),
   characters under their creature type, spells under their level; a kind's tab filters by one.
+  Where a flag, a variable, a script function or a faction is typed, the form lists the ones
+  already in use.
 
 - **The agent server runs without a window:** `rustpg2d-studio --headless PROJECT --mcp PORT`
   opens a project and serves every agent tool (map screenshots excepted) where there is no

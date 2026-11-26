@@ -882,14 +882,18 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     scenery), characters by creature type, spells by level, models (playable, figures, pieces,
     rig templates), structures by their category, sheets by kind. The browser lists a kind
     under them; a kind's tab filters by one.
+  - **Names in use** (`schema::names`, table `NAMES`): where a flag, a variable, a script
+    function, a faction, a prop's state, a target, a crafting station or an emotion is typed,
+    a button beside the field lists the ones the project uses (`Workspace::refs`); a new one
+    is typed.
   - The browser's fixed groups with a *+ New* per kind (part 3's shell); while something is
     typed into its filter, what fits is shown open and the rest is out of the way.
   - Script: `field KIND ID /POINTER VALUE` changes a field as the form does; `click X Y`,
     `hover X Y`, `wheel DY`, `type TEXT`, `press KEY` are real input in the window (eframe's
     input hook), `size W H`, `allfields on|off`.
   Still open: the hand-made editors (triggers as an event sheet in part 7; stat blocks,
-  buildings, class levels), other pickers than definitions (flags, variables, script functions,
-  factions, a sheet's frame as a picture), units and ranges on numbers, the mark on fields
+  buildings, class levels), a state picked among the states of the prop in question, tool
+  kinds and piece styles, units and ranges on numbers, the mark on fields
   changed from their default, problems at the field, live previews (a prop with its states, an
   item in a hand, a moving character), pictures of structures, the table view, filters (tag,
   *has problems*, *unused*) and bulk actions, folders and tags (`editor/meta.ron`), the
@@ -941,7 +945,9 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     frame marked; the model picker's list with figures. `tests/headless.rs` checks `Cell::drawn`
     on the hero's pose. Categories: the browser's Props and Items under their categories, the
     Props tab with *Containers* clicked (5 of 187); test
-    `definitions_are_put_into_categories_by_what_they_are`.
+    `definitions_are_put_into_categories_by_what_they_are`. Names in use: the Goblin Archer's
+    *Faction* lists the project's eight, one clicked is a history entry; test
+    `made_up_names_are_known_where_they_are_typed`.
 
 - [ ] Part 5: Game settings and rules — `feature/studio`
 

@@ -44,6 +44,8 @@ pub struct Cx<'a> {
     /// Also the fields for advanced use.
     pub show_all: bool,
     pub pictures: Option<&'a mut dyn Pictures>,
+    /// The names the project uses (flags, variables, script functions…), offered where one is typed.
+    pub refs: Option<&'a editor_core::refs::Refs>,
     pub asks: Vec<Ask>,
 }
 
@@ -59,6 +61,25 @@ impl Cx<'_> {
             }
             _ => self.lists.iter().find(|(k, _)| *k == kind).map(|(_, l)| l.clone()).unwrap_or_default(),
         }
+    }
+
+    /// The names in use of a kind a text field takes.
+    fn names(&self, names: schema::Names) -> Vec<String> {
+        use schema::Names;
+        let Some(r) = self.refs else { return Vec::new() };
+        let mut list = match names {
+            Names::Function => r.functions.clone(),
+            Names::Flag => r.all_flags.clone(),
+            Names::Variable => r.vars.clone(),
+            Names::Faction => r.factions.clone(),
+            Names::State => r.states.clone(),
+            Names::Target => r.targets.iter().chain(&r.entity_names).cloned().collect(),
+            Names::Station => r.stations.clone(),
+            Names::Emotion => r.emotions.clone(),
+        };
+        let mut seen = std::collections::HashSet::new();
+        list.retain(|n| !n.is_empty() && seen.insert(n.clone()));
+        list
     }
 
     /// The kind and name of `id` among `kinds`.
@@ -226,6 +247,39 @@ fn picker(ui: &mut egui::Ui, cx: &mut Cx, kinds: &[RefKind], s: &mut String, by:
     changed
 }
 
+/// A name the project makes up (a flag, a script function): typed, or taken from the ones in
+/// use, which the button beside the field lists (those that contain what is typed first).
+fn named(ui: &mut egui::Ui, known: &[String], s: &mut String, by: egui::Id) -> bool {
+    let mut changed = ui.add(egui::TextEdit::singleline(s).desired_width(230.0)).labelled_by(by).changed();
+    if known.is_empty() {
+        return changed;
+    }
+    let typed = s.trim().to_lowercase();
+    let pick = ui
+        .menu_button(format!("{} in use", known.len()), |ui| {
+            let mut pick = None;
+            egui::ScrollArea::vertical().max_height(320.0).show(ui, |ui| {
+                let (first, rest): (Vec<&String>, Vec<&String>) = known.iter().partition(|n| !typed.is_empty() && n.to_lowercase().contains(&typed));
+                for name in first.into_iter().chain(rest).take(300) {
+                    if ui.selectable_label(name == s, name.as_str()).clicked() {
+                        pick = Some(name.clone());
+                    }
+                }
+            });
+            if pick.is_some() {
+                ui.close();
+            }
+            pick
+        })
+        .inner
+        .flatten();
+    if let Some(name) = pick {
+        *s = name;
+        changed = true;
+    }
+    changed
+}
+
 /// The choice among an enum's variants. Returns the one picked now.
 fn variant_combo(ui: &mut egui::Ui, variants: &[Variant], now: Option<usize>, by: egui::Id) -> Option<usize> {
     let text = now.map_or_else(|| "?".to_string(), |k| schema::variant_label(variants[k].name));
@@ -320,8 +374,11 @@ fn inline(ui: &mut egui::Ui, cx: &mut Cx, node: Node, site: &str, v: &mut Value,
                 *v = Value::String(String::new());
             }
             let Value::String(s) = v else { return false };
+            let key = site.rsplit('.').next().unwrap_or("");
             if !kinds.is_empty() {
                 picker(ui, cx, kinds, s, by)
+            } else if let Some(names) = schema::names(site, key) {
+                named(ui, &cx.names(names), s, by)
             } else if s.contains('\n') || s.len() > 60 {
                 ui.add(egui::TextEdit::multiline(s).desired_rows(2).desired_width(460.0)).labelled_by(by).changed()
             } else {
@@ -953,7 +1010,7 @@ mod ui_tests {
         let state = State { kind, value, show_all: false, lists, asks: Vec::new() };
         Harness::builder().with_size(egui::vec2(900.0, 4000.0)).build_ui_state(
             |ui, state: &mut State| {
-                let mut cx = Cx { lists: &state.lists, maps: &[], show_all: state.show_all, pictures: None, asks: Vec::new() };
+                let mut cx = Cx { lists: &state.lists, maps: &[], show_all: state.show_all, pictures: None, refs: None, asks: Vec::new() };
                 definition_ui(ui, &mut cx, schema::of_kind(state.kind).unwrap(), &mut state.value);
                 for ask in cx.asks {
                     state.asks.push(match ask {

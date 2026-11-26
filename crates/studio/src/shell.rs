@@ -797,7 +797,7 @@ impl Viewer<'_> {
         let mut value = self.forms.get(&key).map_or_else(|| saved.clone(), |(v, _)| v.clone());
         let mut pics = self.rs.map(|rs| crate::thumbs::Pics { thumbs: &mut *self.thumbs, ws: &*self.ws, rs });
         let pictures = pics.as_mut().map(|p| p as &mut dyn crate::form::Pictures);
-        let mut cx = crate::form::Cx { lists: self.lists, maps: &self.ws.maps, show_all: *self.show_all, pictures, asks: Vec::new() };
+        let mut cx = crate::form::Cx { lists: self.lists, maps: &self.ws.maps, show_all: *self.show_all, pictures, refs: Some(&self.ws.refs), asks: Vec::new() };
         let changed = match editor_core::schema::of_kind(kind) {
             Some(node) => crate::form::definition_ui(ui, &mut cx, node, &mut value),
             None => crate::form::value_ui(ui, kind.label(), &mut value),

@@ -693,6 +693,57 @@ const REFERENCES: &[(&str, &[RefKind])] = {
 #[cfg(test)]
 const BY_CONTEXT: &[&str] = &["Value.Text"];
 
+/// Names a project makes up as it goes, which a text field takes one of: the form offers the
+/// ones in use, and a new one is typed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Names {
+    /// A script function.
+    Function,
+    Flag,
+    Variable,
+    Faction,
+    /// A prop's state.
+    State,
+    /// Who an action is about: `self`, `player`, a named object of the map.
+    Target,
+    /// A crafting station.
+    Station,
+    Emotion,
+}
+
+/// The kind of name the text field at `site` holds (see [`Names`]); `None`: free text, or a
+/// definition's id ([`reference`], which goes first).
+pub fn names(site: &str, key: &str) -> Option<Names> {
+    if !reference(site).is_empty() {
+        return None;
+    }
+    NAMES.iter().find(|(s, _)| *s == site).or_else(|| NAMES.iter().find(|(s, _)| s.strip_prefix("*.") == Some(key))).map(|(_, n)| *n)
+}
+
+/// (`*.key` = that key anywhere.)
+const NAMES: &[(&str, Names)] = &[
+    ("*.function", Names::Function),
+    ("*.flag", Names::Flag),
+    ("Action.SetFlag.name", Names::Flag),
+    ("Cond.Flag.name", Names::Flag),
+    ("*.var", Names::Variable),
+    ("Action.SetVar.name", Names::Variable),
+    ("Cond.Var.name", Names::Variable),
+    ("Cond.TextVar.name", Names::Variable),
+    ("*.faction", Names::Faction),
+    ("Relation.a", Names::Faction),
+    ("Relation.b", Names::Faction),
+    ("*.state", Names::State),
+    ("PropDef.default_state", Names::State),
+    ("ContainerSpec.open_state", Names::State),
+    ("Gather.then_state", Names::State),
+    ("RecipeDef.station_state", Names::State),
+    ("*.target", Names::Target),
+    ("Action.ChangeShape.who", Names::Target),
+    ("*.station", Names::Station),
+    ("Action.Emote.emotion", Names::Emotion),
+];
+
 /// Calls `f(site, pointer, text)` for every text in `value`, walking it with its schema: the
 /// site is the nearest field's ([`Field::site`]; `#key` after it for a map's key), the pointer
 /// the JSON pointer of the text.
@@ -794,6 +845,25 @@ mod tests {
         // A blank weapon is one the engine reads.
         let blank = weapon.blank();
         serde_json::from_value::<rustpg2d_engine::defs::Weapon>(blank.clone()).unwrap_or_else(|e| panic!("{e}: {blank}"));
+    }
+
+    #[test]
+    fn made_up_names_are_known_where_they_are_typed() {
+        assert_eq!(names("Action.RunScript.function", "function"), Some(Names::Function));
+        assert_eq!(names("Action.Cutscene.function", "function"), None, "a cut-scene's id: a picker of definitions");
+        assert_eq!(names("Cond.Flag.name", "name"), Some(Names::Flag));
+        assert_eq!(names("ItemDef.name", "name"), None);
+        assert_eq!(names("CharacterDef.faction", "faction"), Some(Names::Faction));
+        // Every exact site of the table is a text field of some schema.
+        let mut sites = std::collections::BTreeSet::new();
+        for sample in made_up() {
+            texts(sample.node(), sample.value(), &mut |site, _, _| {
+                sites.insert(site.to_string());
+            });
+        }
+        for (site, _) in NAMES.iter().filter(|(s, _)| !s.starts_with("*.")) {
+            assert!(sites.contains(*site), "{site} isn't a text field (any more)");
+        }
     }
 
     #[test]

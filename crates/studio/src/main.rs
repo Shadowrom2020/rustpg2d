@@ -6,7 +6,7 @@
 //! agent server works on the project (`editor-core`'s workspace). `RUSTPG2D_STUDIO_SCRIPT="wait 3; status; shot /path/a.png; quit"` drives it for tests
 //! (`wait SECS`, `status`, `shot PATH` = the whole window, `tab NAME`, `palette TEXT` / `goto
 //! TEXT` / `pick N`, `field KIND ID /POINTER VALUE` = a form's field, `key NAME` = a key for the
-//! game, `pause` / `resume`, `quit`; the window's own input: `click X Y`, `hover X Y`, `wheel DY`,
+//! game, `pause` / `resume`, `quit`; the window's own input: `click X Y [ctrl]`, `hover X Y`, `wheel DY`,
 //! `type TEXT`, `press KEY` (egui's key names: Enter, Escape, Tab, ArrowDown…), `size W H`,
 //! `allfields on|off`; any other line
 //! is a command of the editor, e.g. `map.open village` or `edit.undo`).
@@ -123,11 +123,14 @@ impl Studio {
                 "click" | "hover" => {
                     let pos = egui::pos2(arg(1).parse().unwrap_or(0.0), arg(2).parse().unwrap_or(0.0));
                     self.script.pointer = pos;
-                    self.script.input.push_back(vec![egui::Event::PointerMoved(pos)]);
+                    // (`click X Y ctrl`: with Ctrl held.)
+                    let modifiers = if arg(0) == "click" && arg(3) == "ctrl" { egui::Modifiers::COMMAND | egui::Modifiers::CTRL } else { egui::Modifiers::NONE };
+                    self.script.input.push_back(vec![egui::Event::ModifiersChanged(modifiers), egui::Event::PointerMoved(pos)]);
                     if arg(0) == "click" {
-                        let button = |pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: egui::Modifiers::NONE };
+                        let button = |pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers };
                         self.script.input.push_back(vec![button(true)]);
                         self.script.input.push_back(vec![button(false)]);
+                        self.script.input.push_back(vec![egui::Event::ModifiersChanged(egui::Modifiers::NONE)]);
                     }
                 }
                 "wheel" => {

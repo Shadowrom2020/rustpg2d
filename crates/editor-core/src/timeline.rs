@@ -63,6 +63,13 @@ impl Workspace {
         self.timeline.label = Some(label.to_string());
     }
 
+    /// [`Workspace::begin`], unless the changes have a name already (a command's).
+    pub(crate) fn begin_unnamed(&mut self, label: &str) {
+        if self.timeline.label.is_none() {
+            self.begin(label);
+        }
+    }
+
     /// Notes new steps: of the definitions when `defs_step`, and of every open map whose undo
     /// history grew since the last look.
     pub(crate) fn timeline_frame(&mut self, defs_step: bool) {

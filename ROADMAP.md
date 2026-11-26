@@ -883,6 +883,17 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     scenery), characters by creature type, spells by level, models (playable, figures, pieces,
     rig templates), structures by their category, sheets by kind. The browser lists a kind
     under them; a kind's tab filters by one.
+  - **The creator's own order** (`editor-core/meta.rs`, `editor/meta.ron` in the project; the
+    game never reads it, exports leave it out): a folder (`Village/People`), tags, notes and a
+    favourite mark per definition or map. In an asset's header (*Favourite*, the folder, the
+    tags with *+ Tag*, *Notes*); in the browser (*Favourites* first, a kind's folders before
+    its categories, the filter also finds tags and folders); in a kind's tab (tags to filter
+    by, folder and tags in the list). Commands `meta.tag`, `meta.untag`, `meta.folder`,
+    `meta.favorite`, `meta.notes`. Written at once, no unsaved state; every change is a step of
+    the one history; a rename takes what was noted along, a copy starts with folder and tags.
+  - **Several at once:** in a kind's tab Ctrl+click chooses cards (a box per row in the list);
+    the chosen are tagged, untagged, moved to a folder, made favourites or deleted together
+    (one history step for the notes; a deletion is refused per asset while it is used).
   - **Names in use** (`schema::names`, table `NAMES`): where a flag, a variable, a script
     function, a faction, a prop's state, a target, a crafting station or an emotion is typed,
     a button beside the field lists the ones the project uses (`Workspace::refs`); a new one
@@ -896,8 +907,8 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   buildings, class levels), a state picked among the states of the prop in question, tool
   kinds and piece styles, units and ranges on numbers, problems at the field, live previews (a
   prop with its states, an item in a hand, a moving character), pictures of structures, the
-  table view, filters (tag, *has problems*, *unused*) and bulk actions, folders and tags
-  (`editor/meta.ron`), the *New…* gallery, *From library…* in pickers (part 9), the schema as
+  table view, the filters *has problems* and *unused*, folders as a tree with drag and drop,
+  where an asset came from (a pack: part 9), the *New…* gallery, *From library…* in pickers (part 9), the schema as
   the agents' field descriptions and the manual's reference tables.
 
   **Decided while building.**
@@ -921,7 +932,11 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     blends colours already multiplied by their alpha, the engine keeps them apart, so a sheet
     shown in the UI gets a multiplied copy the first time (else soft edges get bright fringes).
   - *Categories are derived first, tags come on top.* A project that was never sorted by hand
-    is sorted already; `editor/meta.ron` (folders, tags) refines it when it is built.
+    is sorted already; the creator's folders and tags refine it.
+  - *Notes aren't "unsaved changes".* `editor/meta.ron` is written when it changes, like the
+    editor's own settings: tagging thirty props mustn't ask to save the project. Undo still
+    covers it (a step keeps what was noted before). What was noted about something deleted is
+    kept until the file is next written, so undoing the deletion finds it again.
   - *Help is the doc comment for now.* It was written for developers; where it reads badly for
     creators it gets a line in the tables (or a better comment).
 
@@ -948,6 +963,11 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     `definitions_are_put_into_categories_by_what_they_are`. Names in use: the Goblin Archer's
     *Faction* lists the project's eight, one clicked is a history entry; test
     `made_up_names_are_known_where_they_are_typed`.
+  - The creator's order: `tests/workspace.rs` (`tags_and_folders_are_written_follow_renames_and_undo`:
+    commands, the file, a copy, a rename, five undos, a redo) and `meta.rs`'s tests. In the
+    window: the Potion's header with its folder, tag and notes; *Favourites* in the browser;
+    three items chosen with Ctrl+click, *Tag…*, "quest" typed, Enter: one step *Tag 3 items*,
+    three entries in `editor/meta.ron`, undone and redone.
 
 - [ ] Part 5: Game settings and rules — `feature/studio`
 

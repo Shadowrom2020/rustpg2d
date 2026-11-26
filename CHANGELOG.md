@@ -43,6 +43,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   characters under their creature type, spells under their level; a kind's tab filters by one.
   Where a flag, a variable, a script function or a faction is typed, the form lists the ones
   already in use.
+- **Your own order** (part 4): every definition and map can have a folder, tags, notes and a
+  favourite mark (`editor/meta.ron` in the project; the game doesn't read it). Favourites are
+  first in the browser, a kind's folders come before its categories, the filter finds tags, and
+  in a kind's tab several assets are chosen (Ctrl+click) and tagged, moved or deleted together.
 
 - **The agent server runs without a window:** `rustpg2d-studio --headless PROJECT --mcp PORT`
   opens a project and serves every agent tool (map screenshots excepted) where there is no

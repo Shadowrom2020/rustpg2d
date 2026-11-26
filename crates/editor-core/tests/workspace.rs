@@ -183,3 +183,46 @@ fn commands_run_by_name_and_name_their_changes() {
     assert!(ws.run_line("file.save_all").is_ok() && !ws.is_dirty());
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn tags_and_folders_are_written_follow_renames_and_undo() {
+    use rustpg2d_editor_core::meta::{Meta, FILE};
+    let dir = example_copy("meta");
+    let mut ws = Workspace::new(dir.clone(), Gpu::No).unwrap();
+    ws.history_frame(None);
+    assert!(ws.meta.assets.is_empty() && !dir.join(FILE).exists());
+
+    // Commands, as the palette, a script or the window issue them.
+    ws.run_line("meta.tag item potion Act 1").unwrap();
+    ws.run_line("meta.tag item potion act 1").unwrap();
+    ws.run_line("meta.folder item potion  Shop / Potions ").unwrap();
+    ws.run_line("meta.favorite map village").unwrap();
+    assert!(ws.run_line("meta.tag item no_such_item x").is_err());
+    let potion = ws.meta.of(RefKind::Item, "potion").unwrap().clone();
+    assert_eq!((potion.tags.as_slice(), potion.folder.as_str()), (["Act 1".to_string()].as_slice(), "Shop/Potions"));
+    assert_eq!(Meta::load(&dir), ws.meta, "written at once");
+    assert!(!ws.is_dirty(), "notes aren't unsaved changes");
+
+    // A copy starts with the folder and tags; a rename takes them along.
+    ws.run_line("defs.duplicate item potion big_potion").unwrap();
+    assert_eq!(ws.meta.of(RefKind::Item, "big_potion").unwrap().tags, ["Act 1"]);
+    ws.run_line("edit.rename item big_potion grand_potion").unwrap();
+    assert!(ws.meta.of(RefKind::Item, "big_potion").is_none());
+    assert_eq!(ws.meta.of(RefKind::Item, "grand_potion").unwrap().folder, "Shop/Potions");
+
+    // Every step undoes: the rename, the copy (with what was noted for it), the favourite…
+    ws.run_line("edit.undo").unwrap();
+    assert!(ws.meta.of(RefKind::Item, "big_potion").is_some() && ws.meta.of(RefKind::Item, "grand_potion").is_none());
+    ws.run_line("edit.undo").unwrap();
+    assert!(!ws.project.db.has(RefKind::Item, "big_potion") && ws.meta.of(RefKind::Item, "big_potion").is_none());
+    ws.run_line("edit.undo").unwrap();
+    assert!(ws.meta.of(RefKind::Map, "village").is_none());
+    ws.run_line("edit.undo").unwrap();
+    assert_eq!(ws.meta.of(RefKind::Item, "potion").unwrap().folder, "");
+    ws.run_line("edit.undo").unwrap();
+    assert!(ws.meta.assets.is_empty());
+    ws.run_line("edit.redo").unwrap();
+    assert_eq!(ws.meta.of(RefKind::Item, "potion").unwrap().tags, ["Act 1"]);
+    assert_eq!(Meta::load(&dir), ws.meta);
+    let _ = std::fs::remove_dir_all(&dir);
+}

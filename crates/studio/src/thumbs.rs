@@ -215,7 +215,7 @@ pub fn has_pictures(kind: RefKind) -> bool {
 }
 
 /// A card to click: a picture with a name under it.
-pub fn card(ui: &mut egui::Ui, name: &str, id: &str, thumb: impl FnOnce() -> Option<Thumb>) -> egui::Response {
+pub fn card(ui: &mut egui::Ui, name: &str, id: &str, selected: bool, thumb: impl FnOnce() -> Option<Thumb>) -> egui::Response {
     let size = egui::vec2(104.0, 112.0);
     let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click());
     response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, name));
@@ -223,8 +223,17 @@ pub fn card(ui: &mut egui::Ui, name: &str, id: &str, thumb: impl FnOnce() -> Opt
         return response;
     }
     let visuals = ui.style().interact(&response);
-    let fill = if response.hovered() { visuals.bg_fill } else { ui.visuals().faint_bg_color };
+    let fill = if selected {
+        ui.visuals().selection.bg_fill.gamma_multiply(0.45)
+    } else if response.hovered() {
+        visuals.bg_fill
+    } else {
+        ui.visuals().faint_bg_color
+    };
     ui.painter().rect_filled(rect, 4.0, fill);
+    if selected {
+        ui.painter().rect_stroke(rect, 4.0, ui.visuals().selection.stroke, egui::StrokeKind::Inside);
+    }
     let picture = egui::Rect::from_min_size(rect.min + egui::vec2(12.0, 6.0), egui::vec2(80.0, 80.0));
     if let Some(t) = thumb() {
         t.paint(ui, picture);

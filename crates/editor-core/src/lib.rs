@@ -12,6 +12,7 @@ pub mod history;
 pub mod library;
 pub mod mapops;
 pub mod mcp;
+pub mod meta;
 pub mod models;
 pub mod problems;
 pub mod project_file;

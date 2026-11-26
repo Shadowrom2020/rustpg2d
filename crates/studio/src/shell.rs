@@ -45,7 +45,7 @@ impl Tab {
                 }
             }
             Tab::History => "History".into(),
-            Tab::Kind(k) => format!("{}s", k.label()),
+            Tab::Kind(k) => plural(k.label()),
             Tab::Def(k, id) => format!("{}: {id}", k.label()),
             Tab::Map(m) => {
                 let dirty = ws.open_maps().iter().any(|d| d.map.name == *m && d.is_dirty());
@@ -96,6 +96,55 @@ fn categories_of(cats: Option<&std::collections::HashMap<String, (u32, String)>>
     }
     found.sort();
     found
+}
+
+/// "Items", "Classes": several of a kind.
+pub fn plural(label: &str) -> String {
+    if label.ends_with('s') {
+        format!("{label}es")
+    } else {
+        format!("{label}s")
+    }
+}
+
+/// A button that opens a small list to take a name from, or type a new one into (a tag, a
+/// folder). `none`: an entry that takes the name away (gives ""). Returns what was chosen.
+fn name_menu(ui: &mut egui::Ui, button: &str, hint: &str, known: &[String], none: Option<&str>) -> Option<String> {
+    ui.menu_button(button, |ui| {
+        let id = ui.scope_id().with("name");
+        let mut text: String = ui.data_mut(|d| d.get_temp(id).unwrap_or_default());
+        let r = ui.add(egui::TextEdit::singleline(&mut text).hint_text(hint).desired_width(190.0));
+        // (Enter gives the field's focus up: looked at before the field takes it again.)
+        let entered = r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+        if !entered && ui.memory(|m| m.focused().is_none()) {
+            r.request_focus();
+        }
+        let mut pick = None;
+        if entered && !text.trim().is_empty() {
+            pick = Some(text.trim().to_string());
+        }
+        if let Some(none) = none {
+            if ui.button(none).clicked() {
+                pick = Some(String::new());
+            }
+        }
+        let typed = text.trim().to_lowercase();
+        egui::ScrollArea::vertical().max_height(260.0).show(ui, |ui| {
+            for name in known.iter().filter(|k| typed.is_empty() || k.to_lowercase().contains(&typed)) {
+                if ui.button(name.as_str()).clicked() {
+                    pick = Some(name.clone());
+                }
+            }
+        });
+        if pick.is_some() {
+            text.clear();
+            ui.close();
+        }
+        ui.data_mut(|d| d.insert_temp(id, text));
+        pick
+    })
+    .inner
+    .flatten()
 }
 
 /// The palette over the window: commands (Ctrl+Shift+P) or *Go to anything* (Ctrl+P).
@@ -578,7 +627,11 @@ impl Viewer<'_> {
         }
         ui.add(egui::TextEdit::singleline(self.filter).hint_text("Filter").desired_width(f32::INFINITY));
         let f = self.filter.trim().to_lowercase();
-        let fits = |id: &str, name: &str| f.is_empty() || id.to_lowercase().contains(&f) || name.to_lowercase().contains(&f);
+        // (What is typed is looked for in ids and names, and in the creator's tags and folders.)
+        let meta = self.ws.meta.clone();
+        let fits = |kind: RefKind, id: &str, name: &str| {
+            f.is_empty() || id.to_lowercase().contains(&f) || name.to_lowercase().contains(&f) || meta.of(kind, id).is_some_and(|m| m.folder.to_lowercase().contains(&f) || m.tags.iter().any(|t| t.to_lowercase().contains(&f)))
+        };
         egui::CollapsingHeader::new("Game").default_open(true).show(ui, |ui| {
             if ui.selectable_label(false, "Overview").clicked() {
                 self.asks.push(Ask::Open(Tab::Overview));
@@ -586,14 +639,39 @@ impl Viewer<'_> {
         });
         // While something is typed, what fits is shown open and the rest is out of the way.
         let filtering = !f.is_empty();
+        let name_of = |kind: RefKind, id: &str| -> Option<String> {
+            if kind == RefKind::Map {
+                self.ws.maps.iter().find(|m| *m == id).cloned()
+            } else {
+                self.lists.iter().find(|(k, _)| *k == kind).and_then(|(_, l)| l.iter().find(|(i, _)| i == id)).map(|(_, name)| name.clone())
+            }
+        };
+        let favourites: Vec<(RefKind, String, String)> = meta
+            .assets
+            .iter()
+            .filter(|(_, m)| m.favorite)
+            .filter_map(|(key, _)| {
+                let (kind, id) = key.split_once(':')?;
+                let kind = RefKind::parse(kind)?;
+                Some((kind, id.to_string(), name_of(kind, id)?))
+            })
+            .filter(|(kind, id, name)| fits(*kind, id, name))
+            .collect();
+        if !favourites.is_empty() {
+            egui::CollapsingHeader::new(format!("Favourites ({})", favourites.len())).default_open(true).show(ui, |ui| {
+                for (kind, id, name) in &favourites {
+                    self.browser_row(ui, *kind, id, name);
+                }
+            });
+        }
         for (group, kinds) in GROUPS {
             let found: Vec<(RefKind, Vec<(String, String)>)> = kinds
                 .iter()
                 .map(|kind| {
                     let rows = if *kind == RefKind::Map {
-                        self.ws.maps.iter().filter(|m| fits(m, m)).map(|m| (m.clone(), m.clone())).collect()
+                        self.ws.maps.iter().filter(|m| fits(*kind, m, m)).map(|m| (m.clone(), m.clone())).collect()
                     } else {
-                        self.lists.iter().find(|(k, _)| k == kind).map(|(_, l)| l.iter().filter(|(id, name)| fits(id, name)).cloned().collect()).unwrap_or_default()
+                        self.lists.iter().find(|(k, _)| k == kind).map(|(_, l)| l.iter().filter(|(id, name)| fits(*kind, id, name)).cloned().collect()).unwrap_or_default()
                     };
                     (*kind, rows)
                 })
@@ -604,7 +682,7 @@ impl Viewer<'_> {
             }
             egui::CollapsingHeader::new(*group).default_open(*group == "World").open(filtering.then_some(true)).show(ui, |ui| {
                 for (kind, rows) in &found {
-                    egui::CollapsingHeader::new(format!("{}s ({})", kind.label(), rows.len())).id_salt(("kind", kind.name())).open(filtering.then_some(rows.len() <= 40)).show(ui, |ui| {
+                    egui::CollapsingHeader::new(format!("{} ({})", plural(kind.label()), rows.len())).id_salt(("kind", kind.name())).open(filtering.then_some(rows.len() <= 40)).show(ui, |ui| {
                         if *kind != RefKind::Map {
                             ui.horizontal(|ui| {
                                 if ui.small_button(format!("+ New {}", kind.label().to_lowercase())).clicked() {
@@ -615,7 +693,27 @@ impl Viewer<'_> {
                                 }
                             });
                         }
-                        // Nothing typed: by what they are, where the kind has categories.
+                        // Nothing typed: the creator's folders first, then the rest by what they
+                        // are, where the kind has categories.
+                        let folder_of = |id: &str| meta.of(*kind, id).map(|m| m.folder.as_str()).filter(|f| !f.is_empty());
+                        let mut folders: Vec<&str> = if filtering { Vec::new() } else { rows.iter().filter_map(|(id, _)| folder_of(id)).collect() };
+                        folders.sort_by_key(|f| f.to_lowercase());
+                        folders.dedup();
+                        for folder in &folders {
+                            let inside: Vec<&(String, String)> = rows.iter().filter(|(id, _)| folder_of(id) == Some(*folder)).collect();
+                            egui::CollapsingHeader::new(format!("{folder} ({})", inside.len())).id_salt(("folder", kind.name(), *folder)).default_open(true).show(ui, |ui| {
+                                for (id, name) in inside {
+                                    self.browser_row(ui, *kind, id, name);
+                                }
+                            });
+                        }
+                        let rest: Vec<(String, String)>;
+                        let rows = if folders.is_empty() {
+                            rows
+                        } else {
+                            rest = rows.iter().filter(|(id, _)| folder_of(id).is_none()).cloned().collect();
+                            &rest
+                        };
                         let cats = self.cats.get(kind);
                         let groups = if filtering { Vec::new() } else { categories_of(cats, rows) };
                         if groups.len() > 1 {
@@ -694,7 +792,7 @@ impl Viewer<'_> {
         ui.label(format!("{} maps", self.ws.maps.len()));
         for (kind, list) in self.lists {
             if !list.is_empty() {
-                ui.label(format!("{} {}s", list.len(), kind.label().to_lowercase()));
+                ui.label(format!("{} {}", list.len(), plural(kind.label()).to_lowercase()));
             }
         }
     }
@@ -777,8 +875,10 @@ impl Viewer<'_> {
                     ui.weak(format!("{} · {id}", kind.label()));
                 });
                 self.definition_buttons(ui, kind, id);
+                self.meta_row(ui, kind, id);
             });
         });
+        self.notes(ui, kind, id);
         if self.ws.usages.of.as_ref().is_some_and(|(k, i)| *k == kind && i == id) {
             egui::CollapsingHeader::new("Used by").default_open(true).show(ui, |ui| {
                 for u in &self.ws.usages.list {
@@ -835,6 +935,50 @@ impl Viewer<'_> {
         }
     }
 
+    /// The creator's own order for an asset: favourite, folder, tags.
+    fn meta_row(&mut self, ui: &mut egui::Ui, kind: RefKind, id: &str) {
+        let m = self.ws.meta.of(kind, id).cloned().unwrap_or_default();
+        ui.horizontal_wrapped(|ui| {
+            let mut favourite = m.favorite;
+            if ui.toggle_value(&mut favourite, "Favourite").on_hover_text("Favourites are listed first in the Project browser").changed() {
+                self.ws.meta_edit(kind, id, |m| m.favorite = favourite);
+            }
+            ui.separator();
+            ui.weak("Folder");
+            let folder = if m.folder.is_empty() { "none".to_string() } else { m.folder.clone() };
+            if let Some(new) = name_menu(ui, &folder, "A folder: Village/People", &self.ws.meta.folders(), Some("No folder")).filter(|f| *f != m.folder) {
+                self.ws.meta_edit(kind, id, |m| m.folder = new);
+            }
+            ui.separator();
+            ui.weak("Tags");
+            for tag in &m.tags {
+                if ui.small_button(format!("{tag}  x")).on_hover_text("Take this tag away").clicked() {
+                    self.ws.meta_edit(kind, id, |m| m.tags.retain(|t| t != tag));
+                }
+            }
+            let others: Vec<String> = self.ws.meta.tags().into_iter().filter(|t| !m.tags.iter().any(|x| x.eq_ignore_ascii_case(t))).collect();
+            if let Some(tag) = name_menu(ui, "+ Tag", "A tag of your own", &others, None) {
+                self.ws.meta_edit(kind, id, |m| m.tags.push(tag));
+            }
+        });
+    }
+
+    /// The creator's notes on an asset (kept when the field is left).
+    fn notes(&mut self, ui: &mut egui::Ui, kind: RefKind, id: &str) {
+        let noted = self.ws.meta.of(kind, id).map(|m| m.notes.clone()).unwrap_or_default();
+        egui::CollapsingHeader::new(if noted.is_empty() { "Notes".to_string() } else { format!("Notes: {}", noted.lines().next().unwrap_or("").chars().take(60).collect::<String>()) }).id_salt("notes").show(ui, |ui| {
+            let bid = ui.scope_id().with("text");
+            let mut text: String = ui.data_mut(|d| d.get_temp(bid)).unwrap_or_else(|| noted.clone());
+            let r = ui.add(egui::TextEdit::multiline(&mut text).hint_text("Notes for yourself: what it is for, what is still to do. The game doesn't see them.").desired_rows(3).desired_width(520.0));
+            if r.lost_focus() {
+                self.ws.meta_edit(kind, id, |m| m.notes = text.trim_end().to_string());
+                ui.data_mut(|d| d.remove::<String>(bid));
+            } else if r.has_focus() {
+                ui.data_mut(|d| d.insert_temp(bid, text));
+            }
+        });
+    }
+
     /// What can be done with a definition as a whole.
     fn definition_buttons(&mut self, ui: &mut egui::Ui, kind: RefKind, id: &str) {
         ui.horizontal(|ui| {
@@ -867,7 +1011,7 @@ impl Viewer<'_> {
         let pictures = crate::thumbs::has_pictures(kind) && self.rs.is_some();
         let mut as_list: bool = ui.data_mut(|d| d.get_persisted(lid).unwrap_or(!pictures));
         ui.horizontal(|ui| {
-            ui.heading(format!("{}s", kind.label()));
+            ui.heading(plural(kind.label()));
             ui.add(egui::TextEdit::singleline(&mut filter).hint_text("Filter").desired_width(220.0));
             if pictures {
                 ui.selectable_value(&mut as_list, false, "Pictures");
@@ -894,15 +1038,94 @@ impl Viewer<'_> {
                 }
             });
         }
+        // The creator's tags among them: one at a time, or none.
+        let meta = self.ws.meta.clone();
+        let mut tags: Vec<(String, usize)> = Vec::new();
+        for tag in meta.tags() {
+            let n = all.iter().filter(|(id, _)| meta.has_tag(kind, id, &tag)).count();
+            if n > 0 {
+                tags.push((tag, n));
+            }
+        }
+        let tid = ui.scope_id().with("tag");
+        let mut tag: String = ui.data_mut(|d| d.get_temp(tid).unwrap_or_default());
+        if !tags.iter().any(|(t, _)| *t == tag) {
+            tag.clear();
+        }
+        if !tags.is_empty() {
+            ui.horizontal_wrapped(|ui| {
+                ui.weak("Tags");
+                for (t, n) in &tags {
+                    if ui.selectable_label(tag == *t, format!("{t} ({n})")).clicked() {
+                        tag = if tag == *t { String::new() } else { t.clone() };
+                    }
+                }
+            });
+        }
         let f = filter.trim().to_lowercase();
         let in_category = |id: &str| category.is_empty() || cats.and_then(|c| c.get(id)).is_some_and(|(_, l)| *l == category);
-        let rows: Vec<&(String, String)> = all.iter().filter(|(id, name)| in_category(id) && (f.is_empty() || id.to_lowercase().contains(&f) || name.to_lowercase().contains(&f))).collect();
+        let tagged = |id: &str| tag.is_empty() || meta.has_tag(kind, id, &tag);
+        let rows: Vec<&(String, String)> = all.iter().filter(|(id, name)| in_category(id) && tagged(id) && (f.is_empty() || id.to_lowercase().contains(&f) || name.to_lowercase().contains(&f))).collect();
+        // Several chosen at once (Ctrl+click a card, a row's box): tagged, moved, deleted together.
+        let sid = ui.scope_id().with("chosen");
+        let mut chosen: std::collections::BTreeSet<String> = ui.data_mut(|d| d.get_temp(sid).unwrap_or_default());
+        chosen.retain(|id| all.iter().any(|(i, _)| i == id));
+        if !chosen.is_empty() {
+            ui.horizontal_wrapped(|ui| {
+                ui.strong(format!("{} chosen", chosen.len()));
+                let what = format!("{} {}", chosen.len(), plural(kind.label()).to_lowercase());
+                if let Some(t) = name_menu(ui, "Tag…", "A tag of your own", &meta.tags(), None) {
+                    self.ws.begin(&format!("Tag {what}"));
+                    for id in &chosen {
+                        self.ws.meta_edit(kind, id, |m| m.tags.push(t.clone()));
+                    }
+                }
+                if let Some(t) = name_menu(ui, "Untag…", "", &tags.iter().map(|(t, _)| t.clone()).collect::<Vec<_>>(), None) {
+                    self.ws.begin(&format!("Untag {what}"));
+                    for id in &chosen {
+                        self.ws.meta_edit(kind, id, |m| m.tags.retain(|x| !x.eq_ignore_ascii_case(&t)));
+                    }
+                }
+                if let Some(folder) = name_menu(ui, "Move to folder…", "A folder: Village/People", &meta.folders(), Some("No folder")) {
+                    self.ws.begin(&format!("Move {what}"));
+                    for id in &chosen {
+                        self.ws.meta_edit(kind, id, |m| m.folder = folder.clone());
+                    }
+                }
+                if ui.button("Favourite").clicked() {
+                    self.ws.begin(&format!("Favourite {what}"));
+                    for id in &chosen {
+                        self.ws.meta_edit(kind, id, |m| m.favorite = true);
+                    }
+                }
+                if ui.button("Delete").on_hover_text("Each is refused while something still uses it").clicked() {
+                    for id in &chosen {
+                        self.asks.push(Ask::Run(format!("defs.delete {} {id}", kind.name())));
+                    }
+                    chosen.clear();
+                }
+                if ui.button("Choose all shown").clicked() {
+                    chosen.extend(rows.iter().map(|(id, _)| id.clone()));
+                }
+                if ui.button("Choose none").clicked() {
+                    chosen.clear();
+                }
+            });
+        }
         ui.weak(if rows.len() == all.len() { format!("{}", all.len()) } else { format!("{} of {}", rows.len(), all.len()) });
         ui.separator();
         let mut open = None;
         if as_list || !pictures {
             for (id, name) in &rows {
                 ui.horizontal(|ui| {
+                    let mut on = chosen.contains(id);
+                    if ui.checkbox(&mut on, "").on_hover_text("Choose it, to tag, move or delete several at once").changed() {
+                        if on {
+                            chosen.insert(id.clone());
+                        } else {
+                            chosen.remove(id);
+                        }
+                    }
                     if let (true, Some(rs)) = (pictures, self.rs) {
                         crate::thumbs::boxed(ui, 22.0, || self.thumbs.of(self.ws, rs, kind, id));
                     }
@@ -912,13 +1135,27 @@ impl Viewer<'_> {
                     if name != id {
                         ui.weak(id.as_str());
                     }
+                    if let Some(m) = meta.of(kind, id) {
+                        if !m.folder.is_empty() {
+                            ui.weak(format!("in {}", m.folder));
+                        }
+                        for t in &m.tags {
+                            ui.weak(format!("#{t}"));
+                        }
+                    }
                 });
             }
         } else if let Some(rs) = self.rs {
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing = egui::vec2(6.0, 6.0);
                 for (id, name) in &rows {
-                    if crate::thumbs::card(ui, name, id, || self.thumbs.of(self.ws, rs, kind, id)).clicked() {
+                    let r = crate::thumbs::card(ui, name, id, chosen.contains(id), || self.thumbs.of(self.ws, rs, kind, id));
+                    // Ctrl+click chooses (several at once); a plain click opens.
+                    if r.clicked() && ui.input(|i| i.modifiers.command) {
+                        if !chosen.remove(id) {
+                            chosen.insert(id.clone());
+                        }
+                    } else if r.clicked() {
                         open = Some(id.clone());
                     }
                 }
@@ -930,6 +1167,8 @@ impl Viewer<'_> {
         ui.data_mut(|d| {
             d.insert_temp(fid, filter);
             d.insert_temp(cid, category);
+            d.insert_temp(tid, tag);
+            d.insert_temp(sid, chosen);
             d.insert_persisted(lid, as_list);
         });
     }

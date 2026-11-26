@@ -870,6 +870,7 @@ impl Workspace {
         on_defs_opt!(db, kind, upsert(value, false)).ok_or_else(|| format!("{} has no definitions", kind.name()))??;
         self.project.db.reindex();
         self.def_changed(kind, new_id, true);
+        self.meta_copied(kind, id, new_id);
         Ok(())
     }
 

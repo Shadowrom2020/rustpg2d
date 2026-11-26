@@ -36,6 +36,19 @@ fn arg<'a>(args: &'a [String], k: usize, what: &str) -> Result<&'a str, String> 
     args.get(k).map(String::as_str).filter(|a| !a.is_empty()).ok_or_else(|| format!("which {what}?"))
 }
 
+/// The definition or map the first two words name.
+fn asset(ws: &Workspace, a: &[String]) -> Result<(RefKind, String), String> {
+    need_project(ws)?;
+    let kind = kind_named(arg(a, 0, "kind")?)?;
+    let id = arg(a, 1, "id")?;
+    let there = if kind == RefKind::Map { ws.maps.iter().any(|m| m == id) } else { ws.project.db.has(kind, id) };
+    if there {
+        Ok((kind, id.to_string()))
+    } else {
+        Err(format!("there is no {} \"{id}\"", kind.name()))
+    }
+}
+
 fn need_project(ws: &Workspace) -> Result<(), String> {
     if ws.project_open {
         Ok(())
@@ -150,6 +163,81 @@ pub const COMMANDS: &[Command] = &[
             let id = arg(a, 1, "id")?;
             ws.delete_def(kind, id, a.get(2).is_some_and(|f| f == "force"))?;
             Ok(format!("Deleted {} \"{id}\"", kind.name()))
+        },
+    },
+    Command {
+        id: "meta.tag",
+        title: "Tag",
+        keys: "",
+        params: &["kind", "id", "tag"],
+        help: "Gives a definition or map a tag of your own (a tag it has already: nothing changes).",
+        changes: true,
+        run: |ws, a| {
+            let (kind, id) = asset(ws, a)?;
+            let tag = crate::meta::tidy_tag(&a[2.min(a.len())..].join(" "));
+            if tag.is_empty() {
+                return Err("which tag?".into());
+            }
+            ws.meta_edit(kind, &id, |m| m.tags.push(tag.clone()));
+            Ok(format!("{} \"{id}\" has the tag \"{tag}\"", kind.name()))
+        },
+    },
+    Command {
+        id: "meta.untag",
+        title: "Remove tag",
+        keys: "",
+        params: &["kind", "id", "tag"],
+        help: "Takes a tag from a definition or map.",
+        changes: true,
+        run: |ws, a| {
+            let (kind, id) = asset(ws, a)?;
+            let tag = crate::meta::tidy_tag(&a[2.min(a.len())..].join(" "));
+            if !ws.meta_edit(kind, &id, |m| m.tags.retain(|t| !t.eq_ignore_ascii_case(&tag))) {
+                return Err(format!("{} \"{id}\" has no tag \"{tag}\"", kind.name()));
+            }
+            Ok(format!("{} \"{id}\" lost the tag \"{tag}\"", kind.name()))
+        },
+    },
+    Command {
+        id: "meta.folder",
+        title: "Move to folder",
+        keys: "",
+        params: &["kind", "id", "folder"],
+        help: "Puts a definition or map into a folder of your own (Village/People); no folder: out of its folder.",
+        changes: true,
+        run: |ws, a| {
+            let (kind, id) = asset(ws, a)?;
+            let folder = crate::meta::tidy_folder(&a[2.min(a.len())..].join(" "));
+            ws.meta_edit(kind, &id, |m| m.folder = folder.clone());
+            Ok(if folder.is_empty() { format!("{} \"{id}\" is in no folder", kind.name()) } else { format!("{} \"{id}\" is in {folder}", kind.name()) })
+        },
+    },
+    Command {
+        id: "meta.favorite",
+        title: "Favourite",
+        keys: "",
+        params: &["kind", "id", "on|off"],
+        help: "Marks a definition or map as a favourite (the browser lists them first), or not (off).",
+        changes: true,
+        run: |ws, a| {
+            let (kind, id) = asset(ws, a)?;
+            let on = a.get(2).is_none_or(|w| w != "off");
+            ws.meta_edit(kind, &id, |m| m.favorite = on);
+            Ok(format!("{} \"{id}\" is {} favourite", kind.name(), if on { "a" } else { "no" }))
+        },
+    },
+    Command {
+        id: "meta.notes",
+        title: "Notes",
+        keys: "",
+        params: &["kind", "id", "text"],
+        help: "Your notes on a definition or map (no text: none).",
+        changes: true,
+        run: |ws, a| {
+            let (kind, id) = asset(ws, a)?;
+            let notes = a[2.min(a.len())..].join(" ");
+            ws.meta_edit(kind, &id, |m| m.notes = notes.clone());
+            Ok(format!("Notes of {} \"{id}\": {}", kind.name(), if notes.is_empty() { "none" } else { &notes }))
         },
     },
     Command {

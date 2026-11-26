@@ -99,6 +99,11 @@ fn summary(v: &Value) -> String {
         }
     };
     match v {
+        // A trigger: when it runs and how much it does.
+        Value::Object(m) if m.contains_key("on") && m.contains_key("actions") => {
+            let n = m["actions"].as_array().map_or(0, Vec::len);
+            format!("When: {} · {n} action{}", summary(&m["on"]), if n == 1 { "" } else { "s" })
+        }
         Value::Object(m) => {
             let named = ["name", "id", "title", "label", "item", "def", "text", "spell", "sound", "function"].iter().find_map(|k| m.get(*k).and_then(|x| x.as_str()).filter(|s| !s.is_empty()));
             match named {
@@ -225,7 +230,7 @@ fn picker(ui: &mut egui::Ui, cx: &mut Cx, kinds: &[RefKind], s: &mut String, by:
             let all = cx.ids(*kind);
             let hits: Vec<&(String, String)> = all.iter().filter(|(id, name)| f.is_empty() || id.to_lowercase().contains(&f) || name.to_lowercase().contains(&f)).collect();
             if kinds.len() > 1 {
-                ui.weak(format!("{}s", kind.label()));
+                ui.weak(crate::shell::plural(kind.label()));
             }
             let pictures = crate::thumbs::has_pictures(*kind) && cx.pictures.is_some();
             for (id, name) in hits.iter().take(MAX_PICKS) {
@@ -1018,6 +1023,8 @@ mod tests {
         assert_eq!(summary(&serde_json::json!({"Dialog": {"speaker": "", "text": "Hello"}})), "Dialog: Hello");
         assert_eq!(summary(&serde_json::json!({"SetUiVisible": {"visible": true}})), "Set ui visible");
         assert_eq!(summary(&Value::Null), "none");
+        assert_eq!(summary(&serde_json::json!({"on": {"UseItem": {"item": "potion"}}, "conditions": [], "actions": [1, 2], "once": false})), "When: Use item: potion · 2 actions");
+        assert_eq!(summary(&serde_json::json!({"on": "Interact", "conditions": [], "actions": [1], "once": false})), "When: Interact · 1 action");
     }
 
     #[test]

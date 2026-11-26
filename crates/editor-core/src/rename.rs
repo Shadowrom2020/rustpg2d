@@ -176,6 +176,7 @@ impl Workspace {
         if !errors.is_empty() {
             msg = format!("{msg}; errors: {}", errors.join("; "));
         }
+        self.meta_renamed(kind, old, new);
         self.db_hist.record(Extra::Rename { kind, old: old.to_string(), new: new.to_string() });
         Ok(msg)
     }

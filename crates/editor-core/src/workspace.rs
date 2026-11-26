@@ -96,6 +96,8 @@ pub struct Workspace {
     pub defs_saved: Box<(rustpg2d_engine::defs::Database, ProjectConfig)>,
     /// Undo / redo of definition and project-setting changes.
     pub db_hist: DbHistory,
+    /// The creator's own order: folders, tags, notes, favourites (`editor/meta.ron`).
+    pub meta: crate::meta::Meta,
     /// What a load left out (unreadable definition entries or map objects), until dismissed.
     pub notices: Vec<String>,
     /// What loading the definitions left out, for the problems list.
@@ -156,7 +158,8 @@ impl Workspace {
         let assets = if gpu == Gpu::Yes && project_open { Assets::load(&project) } else { no_assets() };
         let maps = if project_open { project.list_maps() } else { Vec::new() };
         let defs_saved = Box::new((project.db.clone(), project.config.clone()));
-        Workspace { project, project_open, project_file: None, maps, doc: None, parked: BTreeMap::new(), assets, gpu, defs_dirty: false, defs_saved, db_hist: DbHistory::default(), notices: Vec::new(), defs_warnings: Vec::new(), status: (String::new(), 0.0), sel: Selection::None, cam: Cam { center: gfx::math::Vec2::ZERO, zoom: 1.0 }, view: ViewOpts::default(), db: ScriptBuffer::default(), looking_at: String::new(), asking: None, library_mode: false, refs: Default::default(), map_refs: Default::default(), problems: crate::problems::Problems::new(), search: Default::default(), usages: Default::default(), art: Default::default(), art_settings: { let s = files::load_settings(); crate::art::ArtSettings { model: s.meshy_model, budget: s.meshy_budget, ask: s.meshy_ask } }, lib: Default::default(), timeline: Default::default(), mcp: Default::default(), watch: Default::default(), search_stale: true, scripts_rev: 0, stale: true }
+        let meta = if project_open { crate::meta::Meta::load(&project.root) } else { Default::default() };
+        Workspace { project, project_open, project_file: None, maps, doc: None, parked: BTreeMap::new(), assets, gpu, defs_dirty: false, defs_saved, db_hist: DbHistory::default(), meta, notices: Vec::new(), defs_warnings: Vec::new(), status: (String::new(), 0.0), sel: Selection::None, cam: Cam { center: gfx::math::Vec2::ZERO, zoom: 1.0 }, view: ViewOpts::default(), db: ScriptBuffer::default(), looking_at: String::new(), asking: None, library_mode: false, refs: Default::default(), map_refs: Default::default(), problems: crate::problems::Problems::new(), search: Default::default(), usages: Default::default(), art: Default::default(), art_settings: { let s = files::load_settings(); crate::art::ArtSettings { model: s.meshy_model, budget: s.meshy_budget, ask: s.meshy_ask } }, lib: Default::default(), timeline: Default::default(), mcp: Default::default(), watch: Default::default(), search_stale: true, scripts_rev: 0, stale: true }
     }
 
     /// A workspace on the project folder `root` (`file`: the project file it is the working copy

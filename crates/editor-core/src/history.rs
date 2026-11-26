@@ -158,6 +158,9 @@ pub enum Extra {
     /// A prop state renamed, placed props on the maps following: the definitions are restored
     /// and the maps renamed back.
     StateRename { prop: String, old: String, new: String },
+    /// Tags, folders, notes or favourites changed (`meta.rs`): what was noted on the step's
+    /// other side (definitions that changed with it, a copy's, are restored too).
+    Meta(Box<crate::meta::Meta>),
 }
 
 struct Step {
@@ -212,7 +215,9 @@ impl DbHistory {
 
     /// A rename just happened (called by the rename code; ignored while undo / redo replay one).
     pub fn record(&mut self, extra: Extra) {
-        if !self.replaying {
+        // (Several notes before the next look are one step: it keeps how things were first.)
+        let more_notes = matches!((&self.pending, &extra), (Some(Extra::Meta(_)), Extra::Meta(_)));
+        if !self.replaying && !more_notes {
             self.pending = Some(extra);
         }
     }
@@ -235,10 +240,14 @@ impl DbHistory {
         }
         let extra = self.pending.take();
         // Typing on in the same field: the step that field's first change made covers it.
-        let same_field = extra.is_none()
-            && focus.is_some()
-            && self.typing.is_some_and(|(id, t)| Some(id) == focus && now - t < MERGE_SECS)
-            && self.undo.last().is_some_and(|s| s.extra.is_none());
+        let typing_on = focus.is_some() && self.typing.is_some_and(|(id, t)| Some(id) == focus && now - t < MERGE_SECS);
+        let same_field = typing_on
+            && match (&extra, self.undo.last().map(|s| &s.extra)) {
+                (None, Some(None)) => true,
+                // More typing into an asset's notes: the step keeps them as they were before.
+                (Some(Extra::Meta(_)), Some(Some(Extra::Meta(_)))) => !changed,
+                _ => false,
+            };
         let before = self.last.take().expect("checked above");
         if same_field {
             if let Some(step) = self.undo.last_mut() {
@@ -322,7 +331,15 @@ impl Workspace {
     fn db_replay(&mut self, step: &mut Step, undo: bool) -> String {
         self.db_hist.replaying = true;
         let assets_before = asset_defs(&self.project.db);
+        if let Some(Extra::Meta(other)) = &mut step.extra {
+            std::mem::swap(&mut self.meta, other);
+        }
         let label = match &step.extra {
+            Some(Extra::Meta(_)) => {
+                self.restore_defs(&mut step.part);
+                self.save_meta();
+                "a change to tags, folders or notes".to_string()
+            }
             Some(Extra::Rename { kind, old, new }) => {
                 let (from, to) = if undo { (new, old) } else { (old, new) };
                 if let Err(e) = self.try_rename_id(*kind, from, to) {

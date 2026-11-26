@@ -63,6 +63,8 @@ pub mod refactor;
 pub mod release;
 pub mod render;
 pub mod runtime;
+#[cfg(feature = "schema")]
+pub mod schema;
 pub mod script;
 pub mod script_api;
 pub mod script_refs;

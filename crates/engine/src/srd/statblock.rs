@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use super::Abilities;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct StatBlock {
     /// The template it came from (`guard`; "" = filled in by hand).
@@ -94,6 +95,7 @@ pub struct StatBlock {
 /// An action with a saving throw (the SRD's breath weapons, a wing beat, a gaze): its area (or one
 /// creature in `range_ft`), the save, the damage and a condition on a failure, how it recharges.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct StatAction {
     pub name: String,
@@ -140,6 +142,7 @@ impl Default for StatAction {
 
 /// A legendary action: one of its attacks or of its save actions, and its cost.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct StatLegendary {
     pub name: String,
@@ -156,6 +159,7 @@ pub struct StatLegendary {
 /// Regeneration: hit points at the start of its turn, unless it took one of `stopped_by` since
 /// (a troll's acid and fire).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct Regeneration {
     pub hp: i32,
@@ -168,6 +172,7 @@ pub struct Regeneration {
 
 /// A stat block's spellcasting: its save DC and spell attack bonus, its spell slots and spells.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct StatSpellcasting {
     /// Its spellcaster level (a cantrip's damage grows with it).
@@ -191,6 +196,7 @@ impl Default for StatSpellcasting {
 /// One of a stat block's spells: from its slots (a cantrip at will), or innate (at will, or a
 /// number of times a day).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct StatSpell {
     pub spell: String,
@@ -206,6 +212,7 @@ pub struct StatSpell {
 
 /// A creature's size (the SRD's six).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Size {
     Tiny,
     Small,
@@ -253,6 +260,7 @@ impl Size {
 
 /// Speeds besides walking (feet; 0 = none).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct Speeds {
     #[serde(skip_serializing_if = "is_zero_u32")]
@@ -273,6 +281,7 @@ impl Speeds {
 
 /// What a stat block feature is.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum FeatureKind {
     #[default]
     Trait,
@@ -294,6 +303,7 @@ impl FeatureKind {
 
 /// A trait or a special action in the SRD's words ("Pack Tactics: The wolf has advantage…").
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct StatFeature {
     pub kind: FeatureKind,
@@ -307,6 +317,7 @@ fn is_zero_u32(n: &u32) -> bool {
 
 /// An attack of a stat block: "Scimitar: +5 to hit, reach 5 ft., 1d6+3 slashing".
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct StatAttack {
     pub name: String,
@@ -341,6 +352,7 @@ pub struct StatAttack {
 
 /// Damage dice of a type: one part of an attack's damage.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct DamagePart {
     pub dice: String,
@@ -353,6 +365,7 @@ pub struct DamagePart {
 /// "taking 9 (2d8) poison damage on a failed save, or half as much on a successful one"; "the
 /// target is grappled (escape DC 13)").
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct HitRider {
     /// The save that keeps it off (`None` = it happens on every hit).

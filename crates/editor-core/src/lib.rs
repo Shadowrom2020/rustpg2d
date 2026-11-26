@@ -18,6 +18,7 @@ pub mod project_file;
 pub mod refs;
 pub mod rename;
 pub mod repo_mode;
+pub mod schema;
 pub mod search;
 pub mod starter;
 pub mod testsetup;

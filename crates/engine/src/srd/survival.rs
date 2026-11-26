@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 /// How carrying is limited (`RulesSettings::encumbrance`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Encumbrance {
     /// The SRD's rule: STR × 15 lb; more (up to twice) only at 5 ft, more than that not at all.
     #[default]
@@ -83,6 +84,7 @@ pub fn capacity(strength: i32) -> f32 {
 
 /// Food, water and the march of the current day (`WorldState::survival`, saved).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct Survival {
     /// Days of food eaten today.

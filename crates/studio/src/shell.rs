@@ -114,6 +114,8 @@ pub struct Shell {
     /// Forms holding something that isn't a valid definition yet: what was typed and why it
     /// can't be taken (the definition itself stays as it was until it can).
     forms: std::collections::HashMap<(RefKind, String), (serde_json::Value, String)>,
+    /// Forms also show the fields for advanced use.
+    pub show_all: bool,
     /// Answers of commands, newest last (the script prints them too).
     pub log: Vec<String>,
 }
@@ -135,7 +137,7 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), browser_filter: String::new(), forms: Default::default(), log: Vec::new() }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), browser_filter: String::new(), forms: Default::default(), show_all: false, log: Vec::new() }
     }
 
     /// Shows `tab`: brings it to the front when it is open, else opens it beside the documents.
@@ -286,7 +288,7 @@ impl Shell {
 
         let mut asks = Vec::new();
         {
-            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, filter: &mut self.browser_filter, forms: &mut self.forms, rs, asks: &mut asks };
+            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, rs, asks: &mut asks };
             DockArea::new(&mut self.dock).show_inside(ui, &mut viewer);
         }
         for ask in asks {
@@ -492,6 +494,7 @@ struct Viewer<'a> {
     lists: &'a [(RefKind, Vec<(String, String)>)],
     filter: &'a mut String,
     forms: &'a mut std::collections::HashMap<(RefKind, String), (serde_json::Value, String)>,
+    show_all: &'a mut bool,
     rs: Option<&'a eframe::egui_wgpu::RenderState>,
     asks: &'a mut Vec<Ask>,
 }
@@ -708,6 +711,9 @@ impl Viewer<'_> {
             if self.ws.usages.of.as_ref().is_some_and(|(k, i)| *k == kind && i == id) {
                 ui.label(format!("{} usage(s)", self.ws.usages.list.len()));
             }
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.checkbox(self.show_all, "Show all fields").on_hover_text("Also the fields that are rarely needed: values from before the SRD rules, data other tools edit");
+            });
         });
         if self.ws.usages.of.as_ref().is_some_and(|(k, i)| *k == kind && i == id) {
             egui::CollapsingHeader::new("Used by").default_open(true).show(ui, |ui| {
@@ -725,10 +731,16 @@ impl Viewer<'_> {
         ui.separator();
         // The form shows what was typed last, also while that isn't a valid definition yet.
         let mut value = self.forms.get(&key).map_or_else(|| saved.clone(), |(v, _)| v.clone());
-        let mut changed = false;
-        if let serde_json::Value::Object(map) = &mut value {
-            for (field, v) in map.iter_mut().filter(|(f, _)| f.as_str() != "id") {
-                ui.push_id(field.as_str(), |ui| changed |= crate::form::value_ui(ui, &crate::form::label_of(field), v, 1));
+        let mut cx = crate::form::Cx { lists: self.lists, maps: &self.ws.maps, show_all: *self.show_all, asks: Vec::new() };
+        let changed = match editor_core::schema::of_kind(kind) {
+            Some(node) => crate::form::definition_ui(ui, &mut cx, node, &mut value),
+            None => crate::form::value_ui(ui, kind.label(), &mut value),
+        };
+        for ask in cx.asks {
+            match ask {
+                crate::form::Ask::Open(RefKind::Map, map) => self.asks.push(Ask::Open(Tab::Map(map))),
+                crate::form::Ask::Open(k, i) => self.asks.push(Ask::Open(Tab::Def(k, i))),
+                crate::form::Ask::New(k) => self.asks.push(Ask::Palette(format!("defs.new {} ", k.name()))),
             }
         }
         if changed {

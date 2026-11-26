@@ -8,6 +8,7 @@ use crate::entity::Facing;
 
 /// One step of a route.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum RouteStep {
     /// Walks `tiles` tiles in a direction.
     Move { dir: Facing, tiles: u32 },

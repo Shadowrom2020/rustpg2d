@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 /// What the camera looks at.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum CameraAim {
     /// The player (as usual).
     #[default]

@@ -8,6 +8,7 @@ use crate::inventory::ItemStack;
 use crate::state::WorldState;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct RecipeDef {
     pub id: String,
     /// Item made.
@@ -45,6 +46,7 @@ pub struct RecipeDef {
 
 /// A crafting check of `dc` or more makes `result` instead (`RecipeDef::quality`).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(from = "QualityStepRepr")]
 pub struct QualityStep {
     pub dc: u32,
@@ -54,6 +56,7 @@ pub struct QualityStep {
 /// A quality step as files have it: `dc` since 0.28, a skill `level` before (converted to a DC
 /// with [`crate::srd::old_level_dc`]).
 #[derive(Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 struct QualityStepRepr {
     #[serde(default)]
     dc: u32,

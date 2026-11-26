@@ -28,14 +28,28 @@ being rewritten on a new foundation, in twelve parts. While it lasts:
   branch again through agents.
 - **The new editor is `crates/studio`** (binary `rustpg2d-studio`): the shell (`shell.rs`: dock,
   Project browser, command palette, Go to anything, Problems, History, Overview) and the game in
-  a tab (`play.rs`). Definitions have a plain form made from their data (`form.rs`; the script's
-  `field KIND ID /POINTER VALUE` fills it in); maps show as facts until part 6.
+  a tab (`play.rs`). Definitions have forms made from the field schema (`form.rs` over
+  `editor-core/src/schema.rs`); maps show as facts until part 6.
   `RUSTPG2D_STUDIO_SCRIPT="wait 2; status; tab def:item:potion; goto elder; pick 0; palette
   rename; map.open house; edit.undo; tab play; shot /path/a.png; quit" target/debug/rustpg2d-studio
   <project> [--map M --spawn S]` drives it: `shot` = the whole window, a line that is no script
   word is a command of the editor (`crates/editor-core/src/commands.rs`); set the scratch
   `RUSTPG2D_EDITOR_CONFIG` / `RUSTPG2D_LIBRARY` / `RUSTPG2D_SETTINGS_DIR`, `RUSTPG2D_REPO=0` and
-  `RUSTPG2D_FOLDER_PROJECTS=1` for test runs.
+  `RUSTPG2D_FOLDER_PROJECTS=1` for test runs. The script can use the window for real: `click X Y`,
+  `hover X Y`, `wheel DY` (at the pointer), `type TEXT`, `press Enter|Escape|Tab|…`, `size W H`;
+  `field KIND ID /POINTER VALUE` changes a field without the UI, `allfields on|off` = *Show all
+  fields*. Form behaviour is tested in `form.rs` (`ui_tests`: egui_kittest clicks and types
+  through AccessKit; every control must have a name, so pass a row's label id on with
+  `labelled_by`).
+- **The field schema** (`crates/editor-core/src/schema.rs`): shapes come from the engine's types
+  (feature `schema` of the engine: every serde type also derives `schemars::JsonSchema` through
+  `#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]`; give a new serde type that
+  line too, a type with a hand-written serde impl gets its schema in `engine/src/schema.rs`).
+  Doc comments on fields and variants are the forms' help texts: write them so a creator can
+  read them. The editor's tables are in `schema.rs`: `LABELS`, `SECTIONS` (a new field of a
+  definition needs its section: test `every_field_has_its_section`), `REFERENCES` (a new field
+  holding an id: test `references_agree_with_renames` prints the line to add; it must also be
+  followed in `refactor.rs`, or go to `NOT_FOLLOWED`).
 - **The engine draws through `crates/gfx`** (wgpu, winit, kira), which keeps macroquad's drawing
   names: `use gfx::prelude::*` where `macroquad::prelude` was. Shaders are WGSL
   (`gfx::material`). The game is drawn into a picture (`gfx::Screen`); `gfx::with_screen` draws
@@ -117,12 +131,14 @@ crates/gfx/src/         the platform layer (0.36): lib.rs (the context, begin / 
                         code), input.rs (Input: fed by the window or an embedder), window.rs (winit: desktop and
                         the web's canvas), audio.rs (kira), web.rs (the browser's services), time.rs, gpu.rs
 crates/editor-core/src/ the editor without its UI (0.36): workspace.rs (Workspace: project, open maps, selection, view,
-                        status), doc.rs (MapDoc + undo), history.rs (definitions' undo: history_frame), rename.rs,
+                        status), doc.rs (MapDoc + undo), history.rs (definitions' undo: history_frame), schema.rs (the
+                        field schema: shapes from the engine's types + labels, sections, id fields), rename.rs,
                         refs.rs, search.rs, problems.rs, mapops.rs, models.rs, library.rs, starter.rs, art/ (Meshy
                         jobs), project_file.rs, files.rs (settings, recent), repo_mode.rs, mcp/ (the agent server:
                         tools.rs = the catalogue, exec*.rs, play.rs, watcher.rs, server.rs)
 crates/studio/src/      the new editor (0.36): main.rs (the eframe window; `--headless PROJECT --mcp PORT` = the agent
-                        server without a window), play.rs (the game in a panel); examples/mcp_smoke.rs
+                        server without a window), shell.rs (dock, browser, palettes, tabs), form.rs (forms from the
+                        field schema), play.rs (the game in a panel); examples/mcp_smoke.rs
 crates/engine/src/      library: everything shared by game and editor
   defs.rs               Database: sheets, items, props (+states, container, lock, anim),
                         characters (+shop), sounds, quests, structures; serde formats of defs/*.ron

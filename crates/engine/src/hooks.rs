@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 
 /// One registered hook: the engine calls `function` at `hook`.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct HookDef {
     pub hook: String,
     pub function: String,

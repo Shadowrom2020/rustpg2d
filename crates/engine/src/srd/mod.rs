@@ -47,6 +47,7 @@ pub fn old_level_dc(level: u32) -> u32 {
 /// Settings of the rules (`project.ron` `rules`): what a new game's hero starts with until the
 /// character creator sets it.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct RulesSettings {
     /// Ability scores of a new hero, STR to CHA.

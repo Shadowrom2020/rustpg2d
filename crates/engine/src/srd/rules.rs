@@ -16,6 +16,7 @@ pub const ATTRIBUTION_FILE: &str = "SRD-5.1-ATTRIBUTION.txt";
 
 /// A named thing with its SRD text.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct Entry {
     pub id: String,
@@ -24,6 +25,7 @@ pub struct Entry {
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct Language {
     pub id: String,
@@ -35,6 +37,7 @@ pub struct Language {
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct Alignment {
     pub id: String,
@@ -45,6 +48,7 @@ pub struct Alignment {
 
 /// Everything `rules.ron` holds.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct RulesText {
     pub conditions: Vec<Entry>,

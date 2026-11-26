@@ -9,6 +9,7 @@ use crate::inventory::ItemStack;
 
 /// A light source: a soft circle of light around a tile, prop, character or carried item.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct LightSpec {
     /// Radius in tiles.
     #[serde(default = "default_light_radius")]
@@ -80,6 +81,7 @@ impl ItemDef {
 
 /// A sound effect or music track (WAV or OGG).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct SoundDef {
     pub id: String,
     /// Path relative to the project root.
@@ -99,6 +101,7 @@ fn full_volume() -> f32 {
 
 /// A sprite sheet: an image cut into equally sized frames.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct SheetDef {
     pub id: String,
     pub image: String,
@@ -120,6 +123,7 @@ pub struct SheetDef {
 
 /// A named animation of a sprite sheet: frames `first..=last` at `fps`.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct SheetTag {
     pub name: String,
     pub first: u32,
@@ -156,6 +160,7 @@ impl SheetDef {
 /// darkest to lightest or in any order) are replaced by the chosen colour, each as much darker or
 /// lighter as it was than the feature's middle shade.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ColorFeature {
     /// "skin", "hair", "clothing"...: characters and the creator name the feature.
     pub name: String,
@@ -180,6 +185,7 @@ impl ColorFeature {
 
 /// Role of a sprite sheet.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum SheetKind {
     /// Anything else: props, items, effects. (Sheets of the characters of earlier versions,
     /// layered parts and the 0.17 figures, load as plain sprites: characters are 3D models.)
@@ -208,6 +214,7 @@ impl SheetKind {
 /// and the colours chosen for the colour features (feature name -> colour; a feature not listed
 /// keeps the art's colours).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct Appearance {
     #[serde(skip_serializing_if = "String::is_empty")]
@@ -246,6 +253,7 @@ impl Appearance {
 /// handle runs and which side is its front (the model's own units and axes), how it is held and
 /// how long it is in the world.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ItemModel {
     pub file: String,
     /// The hold point.
@@ -270,6 +278,7 @@ pub struct ItemModel {
 
 /// How a held item model sits in the hand.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum HoldStyle {
     /// In the fist, its handle along the grip axis and its front where the knuckles point
     /// (swords, axes, tools, bows; two-handed: along the line through both fists).
@@ -323,6 +332,7 @@ impl ItemModel {
 /// of the same rig, the clip each animation plays, its standing height and its colour features
 /// (shades of its texture).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ModelDef {
     pub id: String,
     #[serde(default)]
@@ -369,6 +379,7 @@ pub struct ModelDef {
 /// What makes a model a piece ([`ModelDef::part`]): its bones are the body's (matched by name),
 /// so it moves with every clip the body plays.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ModelPart {
     /// Where it goes ("outfit", "hair", "beard", "headwear", "cloak", "ears", "tail"…): a figure
     /// has one piece per slot.
@@ -406,6 +417,7 @@ pub const NO_PART: &str = "-";
 /// A rig template fitted to an unrigged model ([`crate::model::Model::fit_rig`]): the template's
 /// skeleton is stretched over the model's bounds, then single joints are moved.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct RigFit {
     /// The rigged model (an id) whose skeleton and clips it takes.
     pub template: String,
@@ -420,6 +432,7 @@ pub struct RigFit {
 
 /// A joint of a fitted rig template moved by hand.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct JointNudge {
     /// The joint's name in the template.
     pub joint: String,
@@ -437,6 +450,7 @@ fn model_height() -> f32 {
 
 /// The clip an animation of a model plays.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ClipMap {
     /// "walk", "idle", "attack", "hurt" or an extra ("sit", "sleep", "fish", "hammer", "farm"…).
     pub anim: String,
@@ -497,6 +511,7 @@ impl ModelDef {
 /// A sprite: a block of `w × h` frames (cells) of a sheet, starting at `frame`
 /// (its top-left cell). Multi-cell sprites make props bigger than one frame.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct SpriteRef {
     pub sheet: String,
     pub frame: u32,
@@ -538,6 +553,7 @@ impl SpriteRef {
 
 /// Makes an item (or a character) a weapon.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Weapon {
     /// Real-time damage of 0.28 and older; turn-based combat rolls `dice` (empty = dice from this:
     /// 1 = 1d4, 2 = 1d6, 3 = 1d8, 4 = 1d10, 5+ = 1d12).
@@ -594,6 +610,7 @@ pub struct Weapon {
 
 /// A weapon's SRD category.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum WeaponCategory {
     Simple,
     Martial,
@@ -601,6 +618,7 @@ pub enum WeaponCategory {
 
 /// The SRD's weapon properties. New variants are appended.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum WeaponProperty {
     /// Shoots its ammunition (`Ranged::ammo`).
     Ammunition,
@@ -735,6 +753,7 @@ impl Weapon {
 
 /// Equipment slots of the character sheet.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum EquipSlot {
     Head,
     Body,
@@ -835,6 +854,7 @@ impl EquipSlot {
 
 /// Clothing, helmets, body armor and left-hand items (shields, lanterns, torches).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Armor {
     /// `Clothing`, `Head`, `Body`, `Offhand` or `Back` (backpacks).
     pub slot: EquipSlot,
@@ -867,6 +887,7 @@ pub struct Armor {
 
 /// An armor's SRD category.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum ArmorCategory {
     /// No armor class: clothes, helmets, backpacks, lights.
     Clothing,
@@ -920,6 +941,7 @@ impl Armor {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Ranged {
     /// Projectile sprite, drawn pointing right and rotated to the flight direction.
     pub projectile: SpriteRef,
@@ -949,6 +971,7 @@ fn default_range() -> f32 {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ItemDef {
     pub id: String,
     pub name: String,
@@ -1052,6 +1075,7 @@ pub struct ItemDef {
 /// Animation names of an item (`ItemDef::anims`); "" = by its kind ([`ItemAnims::estimate`]),
 /// and a model without the named clip plays its plain one (`attack`, `idle`, `walk`).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct ItemAnims {
     #[serde(skip_serializing_if = "String::is_empty")]
@@ -1233,6 +1257,7 @@ impl ItemDef {
 /// What grows from a seed (`ItemDef::crop`): its stages one after another, the last one is the
 /// ripe crop, harvested with E for `harvest` (the plot is then empty again).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Crop {
     #[serde(default)]
     pub stages: Vec<CropStage>,
@@ -1243,6 +1268,7 @@ pub struct Crop {
 /// One look of a growing crop and how many in-game hours it lasts (the last, ripe stage's
 /// hours don't count).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct CropStage {
     pub sprite: SpriteRef,
     #[serde(default)]
@@ -1278,6 +1304,7 @@ impl Crop {
 
 /// Whom a healing item is used on (`ItemDef::use_on`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum UseTarget {
     /// Always the player (as before).
     #[default]
@@ -1310,6 +1337,7 @@ fn default_max_stack() -> u32 {
 
 /// What happens to a prop when its lock is opened.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum OnUnlock {
     /// Stays as it is (containers then simply open).
     Nothing,
@@ -1324,6 +1352,7 @@ pub enum OnUnlock {
 
 /// A lock that needs a key item, or can be picked.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(from = "LockSpecRepr")]
 pub struct LockSpec {
     /// Item id of the key.
@@ -1355,6 +1384,7 @@ pub struct LockSpec {
 /// A lock as files have it: `pick_dc` since 0.28; until then `pick_difficulty`, a lockpicking
 /// skill level, converted with [`crate::srd::old_level_dc`].
 #[derive(Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 struct LockSpecRepr {
     key: String,
     #[serde(default = "yes")]
@@ -1416,6 +1446,7 @@ impl Default for LockSpec {
 
 /// A lootable container (chest, barrel, ...): its size, starting contents and lock.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ContainerSpec {
     /// Number of slots.
     pub size: u32,
@@ -1443,6 +1474,7 @@ impl Default for ContainerSpec {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct PropDef {
     pub id: String,
     pub name: String,
@@ -1568,6 +1600,7 @@ pub struct PropDef {
 /// A building's shape ([`PropDef::building`]): its footprint is the prop's hitbox (width east to
 /// west, depth north to south), measures in world pixels, pictures tiled over walls and roof.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct BuildingShape {
     /// The walls' height up to the eaves.
     #[serde(default = "wall_height")]
@@ -1616,6 +1649,7 @@ pub struct BuildingShape {
 
 /// Another building prop a building is joined to ([`BuildingShape::joins`]).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Join {
     pub prop: String,
     /// Where its footprint's north-west corner is, from this one's (world pixels, both unturned).
@@ -1651,6 +1685,7 @@ fn roof_overhang() -> f32 {
 
 /// The kind of a building's roof.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum RoofKind {
     /// Two slopes meeting at the ridge, the walls rising to it at both ends.
     #[default]
@@ -1665,6 +1700,7 @@ pub enum RoofKind {
 
 /// Which way a roof's ridge runs.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Ridge {
     /// Along the building's longer side.
     #[default]
@@ -1675,6 +1711,7 @@ pub enum Ridge {
 
 /// A side of a building.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum WallSide {
     #[default]
     South,
@@ -1685,6 +1722,7 @@ pub enum WallSide {
 
 /// A door or window in a building's wall ([`BuildingShape::openings`]).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Opening {
     pub side: WallSide,
     /// Where its middle is along the wall: world pixels from the wall's west end (south and north
@@ -1705,6 +1743,7 @@ fn opening_size() -> [f32; 2] {
 
 /// A chimney on a building's roof ([`BuildingShape::chimneys`]).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Chimney {
     /// Its middle: world pixels from the footprint's west and north edges.
     pub at: [f32; 2],
@@ -1727,6 +1766,7 @@ fn chimney_rise() -> f32 {
 
 /// Frames of a sprite sheet shown one after the other (`PropDef::anim`).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct FrameAnim {
     pub frames: Vec<u32>,
     pub fps: f32,
@@ -1794,6 +1834,7 @@ impl PropDef {
 /// (equipped or carried; "" = bare hands) roll `loot`, then the prop switches to `then_state`
 /// (it can't be gathered in that state).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Gather {
     #[serde(default)]
     pub tool: String,
@@ -1812,6 +1853,7 @@ fn three() -> u32 {
 /// A prop state that turns into another one after `hours` in-game hours (`PropDef::regrow`),
 /// also while the player is on another map.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Regrow {
     pub from: String,
     #[serde(default)]
@@ -1821,6 +1863,7 @@ pub struct Regrow {
 
 /// How a character uses a piece of furniture.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Pose {
     /// Chairs, benches: a short rest.
     #[default]
@@ -1845,6 +1888,7 @@ impl Pose {
 /// The spot of a piece of furniture: where the user's feet go (relative to the prop's feet,
 /// pixels) and how they are posed.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct UseSpot {
     #[serde(default)]
     pub pose: Pose,
@@ -1880,6 +1924,7 @@ impl Default for UseSpot {
 
 /// A named look of a prop: its sprite and whether it blocks movement.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct PropState {
     pub name: String,
     pub sprite: SpriteRef,
@@ -2032,6 +2077,7 @@ impl PropDef {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Behavior {
     Static,
     /// Walks randomly within `radius` tiles of its start position.
@@ -2076,6 +2122,7 @@ impl Behavior {
 /// show in figures with hand marks, `hands.rs`),
 /// behavior and combat values.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct CharacterDef {
     pub id: String,
     pub name: String,
@@ -2222,6 +2269,7 @@ impl CharacterDef {
 
 /// One line of a loot table: `item` drops with `chance` percent, `min..=max` of them.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct LootEntry {
     pub item: String,
     /// Drop chance in percent (0-100).
@@ -2260,6 +2308,7 @@ pub fn roll_loot(table: &[LootEntry], mut rand01: impl FnMut() -> f32, mut range
 
 /// One line of a merchant's stock.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ShopEntry {
     pub item: String,
     /// How many the merchant has (ignored when `unlimited`).
@@ -2288,6 +2337,7 @@ fn one() -> u32 {
 
 /// A merchant: what they sell, for what, and what they pay for the player's items.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ShopSpec {
     /// Trade window title ("" = the character's name).
     #[serde(default)]
@@ -2415,6 +2465,7 @@ pub struct Database {
 /// entities that the editor places on a map in one click (a house, a wall segment, a room…).
 /// Placing it writes ordinary tiles and entities, so the game never needs it.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct StructureDef {
     pub id: String,
     pub name: String,

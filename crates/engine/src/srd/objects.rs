@@ -8,6 +8,7 @@ use super::DamageType;
 
 /// What an object is made of: its armor class.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Material {
     /// Cloth, paper, rope: AC 11.
     Cloth,
@@ -57,6 +58,7 @@ impl Material {
 
 /// How big an object is: its hit points.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum ObjectSize {
     /// A bottle, a lock.
     Tiny,
@@ -98,6 +100,7 @@ impl ObjectSize {
 
 /// What breaking an object does.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Broken {
     /// It is gone (a crate, a barricade).
     #[default]
@@ -108,6 +111,7 @@ pub enum Broken {
 
 /// A prop's statistics as an object (`PropDef::object`).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct ObjectStats {
     pub material: Material,

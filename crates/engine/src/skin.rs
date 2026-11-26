@@ -56,6 +56,7 @@ impl<'de> Deserialize<'de> for SkinColor {
 /// A picture that stretches to any size: a frame of a sprite sheet cut into nine parts. The
 /// corners keep their size, the edges and the middle stretch (or repeat) between them.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct NineSlice {
     /// Sprite sheet id.
     pub sheet: String,
@@ -91,6 +92,7 @@ fn is_zero(v: &u32) -> bool {
 
 /// The colours of texts in windows and menus. Empty = built-in.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct TextColors {
     /// Most text (built-in: white).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -117,6 +119,7 @@ pub struct TextColors {
 
 /// The look of a HUD bar (hit points, mana, experience). Empty = built-in.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct BarStyle {
     /// The filled part.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -137,6 +140,7 @@ impl BarStyle {
 
 /// A UI skin (`defs/skins.ron`). Its default is the empty skin (= the built-in look).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct SkinDef {
     pub id: String,
     /// Name shown in the editor.

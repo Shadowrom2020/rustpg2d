@@ -12,6 +12,7 @@ use crate::defs::SpriteRef;
 /// Project settings for magic (`project.ron` `skills`; its old `enabled` and `start_points` of
 /// the skill tree are ignored, and so are `max_mana` and `mana_regen` since spells use slots).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct SkillSettings {
     /// Magic: spells learned from items, cast with mana.
@@ -36,6 +37,7 @@ impl SkillSettings {
 
 /// What a spell does when cast.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum SpellEffect {
     /// Restores HP.
     Heal { amount: i32 },
@@ -102,6 +104,7 @@ impl SpellEffect {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct SpellDef {
     pub id: String,
     pub name: String,
@@ -170,6 +173,7 @@ pub struct SpellDef {
 
 /// How long casting takes.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum SpellCast {
     #[default]
     Action,
@@ -193,6 +197,7 @@ impl SpellCast {
 
 /// How far a spell reaches.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum SpellRange {
     /// The caster (an area starts at it: cones, lines, spheres around it).
     Caster,
@@ -231,6 +236,7 @@ impl SpellRange {
 
 /// An area's shape.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Shape {
     /// Around the point (radius).
     Sphere,
@@ -247,6 +253,7 @@ pub enum Shape {
 /// A spell's area: its shape and size in feet (a sphere's radius, a cube's side, a cone's or
 /// line's length).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Area {
     pub shape: Shape,
     pub feet: u32,
@@ -314,6 +321,7 @@ impl Area {
 
 /// What a spell does: its parts act in order on each target. New variants are appended.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum SpellPart {
     /// A spell attack roll (spellcasting modifier + proficiency) against each target; the parts
     /// after it act on a hit (a critical hit doubles the dice).
@@ -411,6 +419,7 @@ pub enum SpellPart {
 
 /// A costly material component (Revivify's diamonds): `count` of item `item`.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct Costly {
     pub item: String,
@@ -421,6 +430,7 @@ pub struct Costly {
 /// spell's other parts (its save, damage, condition) act again on a creature that starts its turn
 /// in the area or enters it (once a turn; with `per_tile` on every tile it moves in it).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct Lasting {
     /// Heavily obscured: who is inside can't be seen (Fog Cloud, Cloudkill).
@@ -485,6 +495,7 @@ fn yes() -> bool {
 
 /// A spell's look.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct SpellVisual {
     /// Flies from the caster to the target (a sheet: all its frames animate).

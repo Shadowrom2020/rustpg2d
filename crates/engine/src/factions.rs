@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 
 /// How two factions treat each other.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Attitude {
     Hostile,
     #[default]
@@ -49,6 +50,7 @@ pub const FRIENDLY_AT: i32 = 20;
 pub const OWN_STANDING: i32 = 100;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Faction {
     pub id: String,
     pub name: String,
@@ -65,6 +67,7 @@ pub fn attacks_player(marked: bool, standing: Option<i32>) -> bool {
 
 /// The attitude of two factions to each other (the table is symmetric).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Relation {
     pub a: String,
     pub b: String,
@@ -73,6 +76,7 @@ pub struct Relation {
 
 /// The project's factions and their attitudes.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Factions {
     #[serde(default)]
     pub list: Vec<Faction>,

@@ -845,22 +845,58 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   - **New…** (Ctrl+N): pick the kind, then where it starts from (blank, a copy, the library, a
     file, Meshy), with a preview.
 
-  **Progress.** The ground the schema stands on: every definition of every kind can be edited.
+  **Progress.** Every definition of every kind is edited in a form made from the field schema.
+  - **The schema** (`editor-core/schema.rs`) has two sources. The *shape* comes from the engine's
+    own types: with the feature `schema` every type that is written to a file derives a JSON
+    Schema (`engine/schema.rs`; `cargo run -p rustpg2d-engine --features schema --example schema
+    -- item` prints one), which gives a definition's fields in their order, what each holds, an
+    enum's variants, the value a file may leave out, and the field's doc comment as its help.
+    What only an editor knows is in three small tables there: `LABELS` (where the field's name
+    doesn't say it), `SECTIONS` (the sections of each kind's form, `~` = for advanced use) and
+    `REFERENCES` (the fields that hold an id, with the kinds they may name).
+  - **The form** (`studio/form.rs`): sections that fold; a label and help (on hover) for every
+    field; a choice for an enum, with the variant's fields under it and what fits kept when the
+    kind changes; a picker for an id (what it names, missing ones in red, a search, *none*,
+    *+ New…*, *Open*); a row for fixed-size values; nothing-or-something as *+ Add* / *Remove*;
+    lists with add (of an enum: from the searchable list of its variants), remove, move; named
+    entries; colours. Fields a file leaves out are shown with their default, so a form shows
+    everything a definition can have; *Show all fields* adds the advanced ones. Every control is
+    named by its label (AccessKit).
   - `editor-core`: `def_value` / `set_def_value` (a definition as data and back, refused with
     the reason when it isn't one), `new_def`, `duplicate_def`, `delete_def` (refused while
-    something uses it), the commands `defs.new` (Ctrl+N), `defs.duplicate`, `defs.delete`.
-  - `studio/form.rs`: a form made from a definition's data: each field gets a control by what
-    it holds (text, number, switch, list with add / remove / move, groups folded), in the
-    definition's own order; a header with Rename, Duplicate, Delete, Find usages and *Used by*
-    as links. What is typed but isn't valid yet stays in the form with the reason; the
-    definition changes when it is. Every change is a history entry.
+    something uses it), the commands `defs.new` (Ctrl+N), `defs.duplicate`, `defs.delete`. What
+    is typed but isn't valid yet stays in the form with the reason. Every change is a history
+    entry. A header with Rename, Duplicate, Delete, Find usages and *Used by* as links.
   - The browser's fixed groups with a *+ New* per kind (part 3's shell).
-  - Script: `field KIND ID /POINTER VALUE` changes a field as the form does.
-  Still open, which is most of the part: the field schema itself (labels, help, sections,
-  basic / advanced, choices instead of typed variant names, pickers for ids, fixed-size lists
-  such as a grip's three numbers without *Add*), the hand-made editors (triggers, stat blocks,
-  buildings, class levels), live previews, thumbnails and the grid / table views, filters and
-  bulk actions, folders and tags (`editor/meta.ron`), the *New…* gallery.
+  - Script: `field KIND ID /POINTER VALUE` changes a field as the form does; `click X Y`,
+    `hover X Y`, `wheel DY`, `type TEXT`, `press KEY` are real input in the window (eframe's
+    input hook), `size W H`, `allfields on|off`.
+  Still open: the hand-made editors (triggers as an event sheet in part 7; stat blocks,
+  buildings, class levels), other pickers than definitions (flags, variables, script functions,
+  factions, a sheet's frame as a picture), units and ranges on numbers, the mark on fields
+  changed from their default, problems at the field, live previews, thumbnails and the grid /
+  table views, filters and bulk actions, folders and tags (`editor/meta.ron`), the *New…*
+  gallery, *From library…* in pickers (part 9), the schema as the agents' field descriptions and
+  the manual's reference tables.
+
+  **Decided while building.**
+  - *The shape is derived, not written.* A hand-written table per kind would repeat ~300 types
+    and go stale with every engine change. `schemars` reads the same serde attributes the files
+    are written with, so the form can't disagree with the format; without the feature the engine is
+    as before (the game never calls it).
+  - *The reference table is checked against the engine's renames.* The test
+    `references_agree_with_renames` makes up values with everything in them (every field, every
+    variant, every text an id), renames each kind through them with `refactor::rename_in_db` /
+    `rename_in_map`, and fails unless `REFERENCES` lists exactly the texts that changed, with
+    the lines it should have. A new id field in the engine can't be forgotten in the form.
+  - *Found on the way:* fifteen fields name a definition but aren't followed by renames (a
+    quest in *Quest* actions and conditions, an achievement, spells in *Learn spell* and class
+    features, a subrace's race, a route's sound, the camp item, a schedule's map…): the table
+    `NOT_FOLLOWED`. They get pickers; renaming those ids still leaves them behind, as in 0.35.
+    The schema walk (`schema::texts`) can replace the hand-written rename and usage passes;
+    that belongs to part 11's clean-up, with a test of its own.
+  - *Help is the doc comment for now.* It was written for developers; where it reads badly for
+    creators it gets a line in the tables (or a better comment).
 
   **Engine.** The schema tables (in `editor-core`, beside the definitions' use) and
   `editor/meta.ron` (folders, tags, notes, origin per asset). Definition formats unchanged.
@@ -868,6 +904,14 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   **Verify.** The schema coverage test. `egui_kittest`: for every kind, change a field, save,
   reload (the old `ui_tests.rs` cases carried over); a picker's *+ New…*; bulk tagging. Screenshots
   of the browser, a grid, a table and three asset documents.
+  - Done so far: `every_field_has_its_section` (all 24 kinds), `references_agree_with_renames`;
+    `form.rs`'s UI tests through AccessKit (sections and advanced fields, a choice picked from
+    its list, an id picked by searching and opened; egui_kittest also fails any control without
+    a name).
+  - A scripted run in the window on a copy of the example, with real clicks: the Iron Sword's
+    *Used on* opened and *Ally* clicked, *Teaches* opened, "fire" typed, *Fire Bolt* clicked: two
+    history entries, saved, `items.ron` has `use_on: Ally` and `teaches: "fire-bolt"`, two undos
+    take them back. Hovering *Stack size* shows its help; the wheel scrolls the form.
 
 - [ ] Part 5: Game settings and rules — `feature/studio`
 

@@ -9,6 +9,7 @@ use crate::defs::Database;
 use crate::map::{io as map_io, Map};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ProjectConfig {
     pub name: String,
     /// Always [`TILE_SIZE`]. Projects saved with another size are converted by
@@ -142,6 +143,7 @@ fn default_language() -> String {
 
 /// What happens to a companion knocked down to 0 HP (`ProjectConfig::companion_down`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum DownRule {
     /// It lies where it fell until healed (a potion, a spell, `heal_npc`).
     #[default]
@@ -180,6 +182,7 @@ pub fn default_start_hour() -> f32 {
 /// The character creator: the player chooses a name, sex and look before a new game, then (with
 /// the SRD rules) ability scores, the race's choices and a background.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct CharacterCreation {
     pub enabled: bool,
     /// The player character's sex: chosen by the player, or fixed by the game.
@@ -228,6 +231,7 @@ impl CharacterCreation {
 
 /// Whether the player may choose the player character's sex.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum SexChoice {
     /// The player chooses in the character creator (male if the creator is off).
     #[default]
@@ -324,6 +328,7 @@ fn default_inventory_size() -> u32 {
 
 /// Sound ids for built-in game events (empty = silent).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct GameSfx {
     pub pickup: String,

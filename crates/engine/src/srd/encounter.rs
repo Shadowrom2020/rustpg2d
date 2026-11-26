@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 /// How an encounter zone's group is made.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Difficulty {
     /// The listed monsters, as many as listed.
     #[default]
@@ -54,6 +55,7 @@ impl Difficulty {
 
 /// One line of an encounter: a character and how many (with a difficulty: at most how many).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct EncounterEntry {
     pub character: String,
     #[serde(default = "one")]

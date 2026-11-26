@@ -25,3 +25,5 @@ winit = "0.30"
 rmcp = { version = "3", features = ["client", "transport-streamable-http-client-reqwest"] }
 tokio = { version = "1", features = ["rt", "macros"] }
 serde_json = "1"
+# The forms' tests click and type through egui's AccessKit tree, without a window.
+egui_kittest = "0.37"

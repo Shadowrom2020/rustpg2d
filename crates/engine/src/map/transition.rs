@@ -8,6 +8,7 @@ use crate::events::Trigger;
 // (A trap's spec is the big one; a map has few zones.)
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum ZoneKind {
     /// Named arrival point (`Zone::name` is the spawn name).
     Spawn,
@@ -54,6 +55,7 @@ pub enum ZoneKind {
 
 /// When defeated spawner characters come back.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Respawn {
     /// Defeated ones stay dead for good (saved).
     Never,
@@ -117,6 +119,7 @@ pub fn beside_tile(map_w: u32, map_h: u32, (x, y, w, h): (u32, u32, u32, u32)) -
 
 /// Rectangular area in tile coordinates.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Zone {
     pub uid: u32,
     pub name: String,
@@ -159,6 +162,7 @@ impl Zone {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Edge {
     North,
     South,
@@ -187,6 +191,7 @@ impl Edge {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct EdgeLink {
     pub target_map: String,
     /// Added (in tiles) to the coordinate along the edge when crossing.
@@ -208,6 +213,7 @@ impl EdgeLink {
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct EdgeLinks {
     pub north: Option<EdgeLink>,
     pub south: Option<EdgeLink>,

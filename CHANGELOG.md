@@ -23,9 +23,15 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **The new editor's window** (`rustpg2d-studio`, part 3 of *The Studio*), egui 0.37 on the
   engine's own renderer: tabs that can be arranged, a Project browser with fixed groups, a
   command palette (Ctrl+Shift+P), *Go to anything* (Ctrl+P), one undo history over maps and
-  definitions, the project check, and the game running in a tab. Every definition has a
-  plain form made from its data (new, duplicate, delete, rename, usages); maps can be looked
-  at, not edited yet.
+  definitions, the project check, and the game running in a tab. Maps can be looked at, not
+  edited yet.
+- **Forms that know their fields** (part 4): every definition's form has sections, a label and
+  help for each field, a choice for every enum, a searchable picker for every id (with *+ New…*
+  and *Open*), lists with add / remove / move, and shows the fields a file leaves out with
+  their defaults; *Show all fields* adds the rarely needed ones. New, duplicate, delete, rename
+  and usages are in the form's header. The forms are made from the engine's own types
+  (`cargo run -p rustpg2d-engine --features schema --example schema -- item` prints a kind's
+  JSON Schema), so a new engine field appears in its form without editor work.
 
 - **The agent server runs without a window:** `rustpg2d-studio --headless PROJECT --mcp PORT`
   opens a project and serves every agent tool (map screenshots excepted) where there is no

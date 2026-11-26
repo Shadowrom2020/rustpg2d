@@ -14,6 +14,7 @@ use crate::srd::conditions::Condition;
 use crate::srd::Ability;
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct ClassDef {
     pub id: String,
@@ -62,6 +63,7 @@ pub struct ClassDef {
 
 /// A class's spellcasting.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Spellcasting {
     /// The spellcasting ability (`int` for a wizard, `wis` for a cleric, `cha` for a bard).
     pub ability: Ability,
@@ -76,6 +78,7 @@ pub struct Spellcasting {
 
 /// How a class has its spells.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum CasterKind {
     /// Learns `spells_known` spells at its level-ups (bard, ranger, sorcerer).
     Known,
@@ -89,6 +92,7 @@ pub enum CasterKind {
 
 /// What a level of a class brings.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct ClassLevel {
     /// Feature ids gained at this level.
@@ -100,6 +104,7 @@ pub struct ClassLevel {
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct SubclassDef {
     pub id: String,
@@ -112,6 +117,7 @@ pub struct SubclassDef {
 
 /// A class feature: the SRD's words, and what of it acts.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct ClassFeature {
     pub id: String,
@@ -126,6 +132,7 @@ pub struct ClassFeature {
 
 /// A choice a feature asks for when it is gained.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum FeatureChoice {
     /// Double the proficiency bonus of `count` skills (or thieves' tools) the character is
     /// proficient in.
@@ -140,6 +147,7 @@ pub enum FeatureChoice {
 
 /// What a feature does. New variants are appended (the files store their names).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum FeatureEffect {
     /// Armor class without armor: `base` + the modifiers of `abilities` (+ a shield when
     /// `shield`). The best formula counts.
@@ -326,6 +334,7 @@ pub enum FeatureEffect {
 
 /// What a flat bonus (`FeatureEffect::Bonus`) adds to.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum BonusTo {
     #[default]
     Ac,
@@ -356,6 +365,7 @@ impl BonusTo {
 
 /// When a class resource's uses come back.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Recharge {
     #[default]
     LongRest,
@@ -364,6 +374,7 @@ pub enum Recharge {
 
 /// What a class action costs of the turn.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum ActCost {
     #[default]
     Action,
@@ -386,6 +397,7 @@ impl ActCost {
 
 /// What a class action does. New variants are appended.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum ActEffect {
     /// Heals the user: `dice` + `per_level` × the class level (Second Wind, Wholeness of Body).
     Heal {
@@ -518,6 +530,7 @@ pub struct ClassAct {
 
 /// The SRD's fighting styles.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum FightingStyle {
     /// +2 to ranged attack rolls.
     Archery,
@@ -535,6 +548,7 @@ pub enum FightingStyle {
 
 /// The hero's (or a party member's) class.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct HeroClass {
     pub class: String,

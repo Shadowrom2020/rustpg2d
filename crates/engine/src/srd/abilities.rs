@@ -4,6 +4,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Ability {
     Str,
     Dex,
@@ -61,6 +62,7 @@ pub fn signed(n: i64) -> String {
 
 /// The six scores, STR to CHA (10 each by default).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(transparent)]
 pub struct Abilities(pub [i32; 6]);
 
@@ -269,6 +271,7 @@ pub fn proficiency_name(id: &str) -> String {
 
 /// How the character creator sets the base ability scores.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum AbilityMethod {
     /// 15, 14, 13, 12, 10, 8, swapped between the abilities.
     Standard,

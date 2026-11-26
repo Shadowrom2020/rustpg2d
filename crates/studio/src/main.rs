@@ -6,7 +6,9 @@
 //! agent server works on the project (`editor-core`'s workspace). `RUSTPG2D_STUDIO_SCRIPT="wait 3; status; shot /path/a.png; quit"` drives it for tests
 //! (`wait SECS`, `status`, `shot PATH` = the whole window, `tab NAME`, `palette TEXT` / `goto
 //! TEXT` / `pick N`, `field KIND ID /POINTER VALUE` = a form's field, `key NAME` = a key for the
-//! game, `pause` / `resume`, `quit`; any other line
+//! game, `pause` / `resume`, `quit`; the window's own input: `click X Y`, `hover X Y`, `wheel DY`,
+//! `type TEXT`, `press KEY` (egui's key names: Enter, Escape, Tab, ArrowDown…), `size W H`,
+//! `allfields on|off`; any other line
 //! is a command of the editor, e.g. `map.open village` or `edit.undo`).
 
 mod form;
@@ -21,12 +23,15 @@ use eframe::egui;
 struct Script {
     cmds: VecDeque<Vec<String>>,
     wait: f32,
+    /// Input the script makes, a batch a frame (a click is a press, then a release).
+    input: VecDeque<Vec<egui::Event>>,
+    pointer: egui::Pos2,
 }
 
 impl Script {
     fn from_env() -> Script {
         let text = std::env::var("RUSTPG2D_STUDIO_SCRIPT").unwrap_or_default();
-        Script { cmds: text.split(';').map(|c| c.split_whitespace().map(str::to_string).collect::<Vec<_>>()).filter(|c| !c.is_empty()).collect(), wait: 0.0 }
+        Script { cmds: text.split(';').map(|c| c.split_whitespace().map(str::to_string).collect::<Vec<_>>()).filter(|c| !c.is_empty()).collect(), wait: 0.0, input: VecDeque::new(), pointer: egui::Pos2::ZERO }
     }
 }
 
@@ -50,7 +55,8 @@ impl Studio {
 
     fn run_script(&mut self, ctx: &egui::Context, dt: f32) {
         self.script.wait -= dt;
-        while self.script.wait <= 0.0 {
+        // (Input the script made is taken in first: a batch a frame.)
+        while self.script.wait <= 0.0 && self.script.input.is_empty() {
             let Some(cmd) = self.script.cmds.pop_front() else { return };
             let arg = |i: usize| cmd.get(i).map(String::as_str).unwrap_or("");
             match arg(0) {
@@ -112,6 +118,33 @@ impl Studio {
                         p.paused = arg(0) == "pause";
                     }
                 }
+                // The window's own input, as a mouse and a keyboard would make it.
+                "click" | "hover" => {
+                    let pos = egui::pos2(arg(1).parse().unwrap_or(0.0), arg(2).parse().unwrap_or(0.0));
+                    self.script.pointer = pos;
+                    self.script.input.push_back(vec![egui::Event::PointerMoved(pos)]);
+                    if arg(0) == "click" {
+                        let button = |pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: egui::Modifiers::NONE };
+                        self.script.input.push_back(vec![button(true)]);
+                        self.script.input.push_back(vec![button(false)]);
+                    }
+                }
+                "wheel" => {
+                    let delta = egui::vec2(0.0, arg(1).parse().unwrap_or(0.0));
+                    self.script.input.push_back(vec![egui::Event::PointerMoved(self.script.pointer)]);
+                    self.script.input.push_back(vec![egui::Event::MouseWheel { unit: egui::MouseWheelUnit::Point, delta, phase: egui::TouchPhase::Move, source: egui::MouseWheelSource::Unknown, modifiers: egui::Modifiers::NONE }]);
+                }
+                "type" => self.script.input.push_back(vec![egui::Event::Text(cmd[1..].join(" "))]),
+                "press" => match egui::Key::from_name(arg(1)) {
+                    Some(key) => {
+                        let event = |pressed| egui::Event::Key { key, physical_key: None, pressed, repeat: false, modifiers: egui::Modifiers::NONE };
+                        self.script.input.push_back(vec![event(true)]);
+                        self.script.input.push_back(vec![event(false)]);
+                    }
+                    None => println!("[script] no key '{}'", arg(1)),
+                },
+                "size" => ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(arg(1).parse().unwrap_or(1500.0), arg(2).parse().unwrap_or(800.0)))),
+                "allfields" => self.shell.show_all = arg(1) != "off",
                 "quit" => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
                 // Anything else is a command of the editor (`map.open village`, `edit.undo`…).
                 _ => {
@@ -146,6 +179,13 @@ impl eframe::App for Studio {
         gfx::end_frame();
         // The game and the agents move on by themselves: a frame after every frame.
         ctx.request_repaint();
+    }
+
+    /// The script's clicks and keys join what the window got.
+    fn raw_input_hook(&mut self, _ctx: &egui::Context, raw: &mut egui::RawInput) {
+        if let Some(batch) = self.script.input.pop_front() {
+            raw.events.extend(batch);
+        }
     }
 }
 

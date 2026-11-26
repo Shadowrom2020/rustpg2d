@@ -5,6 +5,10 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[features]
+# JSON Schemas of the definition types (the editor's forms are made from them).
+schema = ["dep:schemars", "dep:serde_json"]
+
 [dependencies]
 gfx.workspace = true
 serde.workspace = true
@@ -21,6 +25,9 @@ lewton = "0.9"
 gltf = { version = "1", default-features = false, features = ["utils", "names"] }
 # Which characters a project font has glyphs for (fonts.rs).
 ttf-parser = { version = "0.25", default-features = false, features = ["no-std-float"] }
+# The shapes of definitions for the editor's forms (schema.rs), only with the feature `schema`.
+schemars = { version = "1", optional = true, features = ["preserve_order"] }
+serde_json = { version = "1", optional = true, features = ["preserve_order"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 rhai.workspace = true
@@ -32,6 +39,10 @@ gilrs = "0.11"
 # its random hash seeds (getrandom) and clock (web-time), which need wasm-bindgen.
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 rhai = { version = "1.27", default-features = false, features = ["std", "no_time"] }
+
+[[example]]
+name = "schema"
+required-features = ["schema"]
 
 [dev-dependencies]
 # The script API table's return types are checked against Rhai's own signatures (tests only).

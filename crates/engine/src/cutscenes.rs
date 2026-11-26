@@ -15,6 +15,7 @@ use crate::events::Action;
 
 /// A cut-scene asset.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct CutsceneDef {
     pub id: String,
     /// Name shown in the editor.
@@ -30,6 +31,7 @@ pub struct CutsceneDef {
 
 /// One row of the timeline.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct CutsceneTrack {
     #[serde(default)]
     pub kind: TrackKind,
@@ -42,6 +44,7 @@ pub struct CutsceneTrack {
 
 /// What a track holds (the editor offers the matching actions).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum TrackKind {
     #[default]
     Actor,
@@ -90,6 +93,7 @@ impl TrackKind {
 
 /// An action at a time of the cut-scene.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Cue {
     /// Seconds from the start (a cue that waits holds the scene: the ones after it come later).
     #[serde(default)]

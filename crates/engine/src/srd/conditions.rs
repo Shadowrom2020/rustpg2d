@@ -15,6 +15,7 @@ pub const ROUND: f32 = 6.0;
 /// The SRD's conditions. `Any` stands for "every condition" in *Has condition* / *Remove
 /// condition*, and for an effect of 0.27 that has no condition (haste, strength…).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Condition {
     Blinded,
     Charmed,
@@ -183,6 +184,7 @@ impl Condition {
 
 /// A saving throw that keeps a condition off: the ability (`con`) against a DC.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct SaveDc {
     pub ability: String,
     pub dc: i32,
@@ -190,6 +192,7 @@ pub struct SaveDc {
 
 /// Damage (a type) or healing (no type) every round while it lasts: dice like `1d4` or `2`.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Ongoing {
     pub dice: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -205,6 +208,7 @@ impl Ongoing {
 
 /// What a weapon, a touch, an action or a script applies.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(from = "SpecRepr")]
 pub struct ConditionSpec {
     /// `None` = only the ongoing damage or healing.
@@ -278,6 +282,7 @@ impl ConditionSpec {
 
 /// 0.27's effect kinds, for reading old data (`None` = new data).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 enum OldKind {
     #[default]
     None,
@@ -328,6 +333,7 @@ pub fn from_effect(name: &str, strength: f32, seconds: f32) -> Option<ConditionS
 }
 
 #[derive(Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 struct SpecRepr {
     condition: Option<Condition>,
@@ -358,6 +364,7 @@ impl From<SpecRepr> for ConditionSpec {
 
 /// A condition that is running.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(from = "ActiveRepr")]
 pub struct ActiveCondition {
     pub condition: Option<Condition>,
@@ -392,6 +399,7 @@ fn is_zero_i32(n: &i32) -> bool {
 
 /// A spell's boon or bane while it lasts (an [`ActiveCondition`] without a condition).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Buff {
     /// A die added to attack rolls (Bless 1d4), or taken off them (`minus`: Bane).
     AttackDie { dice: String, #[serde(default)] minus: bool },
@@ -489,6 +497,7 @@ pub enum Buff {
 /// The SRD's special senses (a stat block's `senses` text names them; spells and items give the
 /// hero one).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Sense {
     /// Sees in darkness as in dim light, dim light as bright.
     Darkvision,
@@ -616,6 +625,7 @@ fn is_zero_f32(n: &f32) -> bool {
 }
 
 #[derive(Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 struct ActiveRepr {
     condition: Option<Condition>,

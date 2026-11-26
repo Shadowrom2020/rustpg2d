@@ -9,6 +9,7 @@ use super::{Ability, Condition, ConditionSpec, DamageType};
 
 /// What finds a trap: looking (a tripwire, a pit's cover) or studying (a pressure plate, a lock).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Detect {
     #[default]
     Perception,
@@ -26,6 +27,7 @@ impl Detect {
 
 /// A saving throw against a trap.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct TrapSave {
     pub ability: Ability,
     pub dc: i32,
@@ -36,6 +38,7 @@ pub struct TrapSave {
 
 /// When a sprung trap is armed again.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Reset {
     /// Sprung for good.
     #[default]
@@ -46,6 +49,7 @@ pub enum Reset {
 
 /// A trap (a zone's or a prop's).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct TrapSpec {
     /// Which of the SRD's sample traps it started from ("" = made by hand; for the editor).
@@ -177,6 +181,7 @@ impl TrapSpec {
 
 /// A trap's state in a save game (`WorldState::traps`, by `map/uid`).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct TrapState {
     /// The hero noticed it.

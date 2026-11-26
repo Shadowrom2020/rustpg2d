@@ -12,6 +12,7 @@ use crate::defs::SpriteRef;
 use crate::events::Condition;
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct AchievementDef {
     pub id: String,
     pub name: String,
@@ -36,6 +37,7 @@ impl AchievementDef {
 
 /// The player's unlocked achievements: id → when (seconds since the epoch).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct Progress {
     pub unlocked: BTreeMap<String, u64>,

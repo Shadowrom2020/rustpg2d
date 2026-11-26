@@ -9,6 +9,7 @@ use crate::srd::{Ability, Condition, DamageType};
 
 /// How a disease runs its course after each long rest.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Course {
     /// It stays until cured (magic, a remedy, a healer).
     #[default]
@@ -37,6 +38,7 @@ impl Course {
 /// A fit when the sick creature is hurt (Cackle Fever's mad laughter): a save at the disease's
 /// current DC, else damage and a condition.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct WhenHurt {
     #[serde(skip_serializing_if = "String::is_empty")]
@@ -57,6 +59,7 @@ impl Default for WhenHurt {
 
 /// A disease.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct DiseaseDef {
     pub id: String,
@@ -152,6 +155,7 @@ pub const SIGHT_BLIND: i32 = 5;
 
 /// A disease the hero has (`WorldState::diseases`).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct ActiveDisease {
     pub id: String,

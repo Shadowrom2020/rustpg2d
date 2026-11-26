@@ -215,6 +215,7 @@ impl Spec {
 
 /// One line of the roll log (saved with the game, the last [`LOG_LEN`]).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct RollRecord {
     /// "Persuasion", "2d6+STR".
     pub label: String,

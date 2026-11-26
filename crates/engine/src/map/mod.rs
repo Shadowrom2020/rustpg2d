@@ -17,6 +17,7 @@ pub const CHUNK_SIZE: u32 = 32;
 
 /// Per-tile collision override painted in the editor.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[repr(u8)]
 pub enum CollisionOverride {
     /// Use the tileset's solidity flags.
@@ -66,6 +67,7 @@ pub struct Map {
 /// An image layer of a map that moves at its own speed: behind the tiles (seen under empty
 /// tiles and beyond the map's edge: a sky, an abyss) or over everything (cloud shadows, mist).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct ParallaxLayer {
     /// Sprite sheet id: its whole image is drawn.
@@ -115,6 +117,7 @@ impl ParallaxLayer {
 
 /// How dark a map is when nothing lights it.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum LightMode {
     /// No darkness at all (the default; lights are not drawn).
     #[default]
@@ -126,6 +129,7 @@ pub enum LightMode {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct MapLighting {
     pub mode: LightMode,
     /// 0..1: how dark it gets without lights (outdoor: at midnight).
@@ -139,6 +143,7 @@ fn default_darkness() -> f32 {
 
 /// What falls from the sky on a map.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum WeatherKind {
     #[default]
     None,
@@ -173,6 +178,7 @@ impl WeatherKind {
 
 /// A map's weather: kind and strength (0..1).
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Weather {
     pub kind: WeatherKind,
     #[serde(default = "default_intensity")]

@@ -7,7 +7,7 @@ license.workspace = true
 description = "Everything the R(ust)PG2D editor knows and does, without a UI: the workspace (project, open maps, library), changes with one undo history, search, problems. The window, the editor script and the agent server work through it."
 
 [dependencies]
-rustpg2d-engine.workspace = true
+rustpg2d-engine = { workspace = true, features = ["schema"] }
 gfx.workspace = true
 anyhow.workspace = true
 ron.workspace = true

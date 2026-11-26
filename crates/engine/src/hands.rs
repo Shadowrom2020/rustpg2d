@@ -14,6 +14,7 @@ use crate::state::Equipment;
 
 /// Which hand holds an item.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Hand {
     /// The weapon hand (the default for weapons and tools).
     #[default]
@@ -53,6 +54,7 @@ impl Grip {
 
 /// How something looks in a hand: its picture and marks on it.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct HeldSprite {
     /// Its picture ("" sheet = the item's icon, the prop's sprite).
     #[serde(default, skip_serializing_if = "SpriteRef::is_empty")]

@@ -33,6 +33,7 @@ pub const EXTENSION: &str = "r2dplugin";
 
 /// What a parameter holds; the editor shows the matching field.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum ParamKind {
     #[default]
     Number,
@@ -84,6 +85,7 @@ impl ParamKind {
 
 /// A parameter's value: a number, on / off or a text (ids, colours).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum ParamValue {
     Flag(bool),
@@ -114,6 +116,7 @@ impl ParamValue {
 
 /// A parameter a plugin offers (filled in the editor's *Plugins* window).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ParamDef {
     /// What `plugin_param(plugin, name)` asks for.
     pub name: String,
@@ -158,6 +161,7 @@ impl ParamDef {
 
 /// `plugin.ron`: what a plugin is and brings.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct PluginDef {
     pub name: String,
     /// `1.2.0`: a newer version replaces an older one when added again.
@@ -189,6 +193,7 @@ pub struct PluginDef {
 
 /// A plugin of a project: its folder's id, whether it is on, the parameters' values.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct PluginRef {
     pub id: String,
     #[serde(default = "yes")]

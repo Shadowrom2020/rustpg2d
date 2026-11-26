@@ -90,14 +90,15 @@ expect "a turn-based fight" "$line" "rolls=attack:" ",attack:"
 # structure, sends assets to the scratch library, play-tests; needs the game next to it).
 if [ -x "$BIN/rustpg2d-studio" ] && [ -x "$BIN/examples/mcp_smoke" ]; then
   cp -r "$WORK/proj" "$WORK/agent-proj"
-  RUSTPG2D_FOLDER_PROJECTS=1 RUSTPG2D_REPO=0 "$BIN/rustpg2d-studio" --headless "$WORK/agent-proj" --mcp "$PORT" --seconds 300 > "$WORK/studio-mcp.log" 2>&1 &
+  # (Under the display the games get: the editor itself opens no window, but its play-tests do.)
+  RUSTPG2D_FOLDER_PROJECTS=1 RUSTPG2D_REPO=0 "${X[@]}" "$BIN/rustpg2d-studio" --headless "$WORK/agent-proj" --mcp "$PORT" --seconds 300 > "$WORK/studio-mcp.log" 2>&1 &
   studio=$!
   for _ in $(seq 1 120); do
     curl -s -o /dev/null "http://127.0.0.1:$PORT/mcp" && break
     sleep 0.5
   done
-  if timeout 280 "${X[@]}" "$BIN/examples/mcp_smoke" "$PORT" headless > "$WORK/mcp_smoke.log" 2>&1; then echo "PASS agent server smoke client (no window)"; else echo "FAIL agent server smoke client (no window):"; cat "$WORK/mcp_smoke.log"; failed=$((failed + 1)); fi
-  kill "$studio" 2>/dev/null; wait "$studio" 2>/dev/null
+  if timeout 280 "$BIN/examples/mcp_smoke" "$PORT" headless > "$WORK/mcp_smoke.log" 2>&1; then echo "PASS agent server smoke client (no window)"; else echo "FAIL agent server smoke client (no window):"; cat "$WORK/mcp_smoke.log"; failed=$((failed + 1)); fi
+  kill "$studio" 2>/dev/null; pkill -f "rustpg2d-studio --headless $WORK/agent-proj" 2>/dev/null; wait "$studio" 2>/dev/null
 else
   echo "SKIP the agent server: no $BIN/rustpg2d-studio or $BIN/examples/mcp_smoke"
 fi

@@ -47,7 +47,7 @@ being rewritten on a new foundation, in twelve parts. While it lasts:
   `settings:hero-party`…), the map view by tiles (a whole number is a tile's middle):
   `mapclick X Y [ctrl|shift|right|double]`, `mapdrag X1 Y1 X2 Y2`, `maphover X Y` (real pointer
   input), `mapview CX CY ZOOM`, `maptool select|terrain|place|zones|collision`, `mapopt
-  grid|zones|collision|light|weather|above on|off [HOUR]`, `mapplace KIND ID` (character, prop, item, structure, scatter), `mapzone KIND`,
+  grid|zones|collision|light|weather|above|ground|scenery|things on|off [HOUR]`, `mapplace KIND ID` (character, prop, item, structure, scatter), `mapzone KIND`,
   `mapground MATERIAL|erase [brush|line|rect|fill] [WIDTH] [square] [snap]`,
   `mapselect NAME`, `mapact delete|duplicate|turn|interactive|scenery`, `mapshot X Y W H PATH [ZOOM]` (a picture of
   tiles as agents get it; `status` adds a `[mapview]` line), the Play tab: `play

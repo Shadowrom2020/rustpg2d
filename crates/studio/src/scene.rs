@@ -258,13 +258,14 @@ impl Scene<'_> {
     /// Draws `map`'s decorations and entities as the game does (flat ones on the ground, the rest
     /// upright in depth order, blocks as boxes, models and buildings), tinted by `tint`. `faint`:
     /// what hangs over everyone is drawn see-through (while painting under it).
-    pub fn draw_objects(&self, map: &Map, view: Rect, overview: bool, tint: Color, faint: bool) {
+    /// `layers`: whether (characters, objects and items; scenery) are drawn at all.
+    pub fn draw_objects(&self, map: &Map, view: Rect, overview: bool, tint: Color, faint: bool, layers: (bool, bool)) {
         let ts = self.ts();
         use rustpg2d_engine::decor::DecorLayer;
         let reach = rustpg2d_engine::decor::REACH;
         let near_view = |x: f32, y: f32| x > view.x - reach && x < view.x + view.w + reach && y > view.y - reach && y < view.y + view.h + reach;
         let decor_in = |layer: DecorLayer| {
-            let mut v: Vec<usize> = map.decor.iter().enumerate().filter(|(_, d)| d.layer == layer && near_view(d.x as f32, d.y as f32)).map(|(i, _)| i).collect();
+            let mut v: Vec<usize> = map.decor.iter().enumerate().filter(|(_, d)| layers.1 && d.layer == layer && near_view(d.x as f32, d.y as f32)).map(|(i, _)| i).collect();
             v.sort_by_key(|&i| map.decor[i].y);
             v
         };
@@ -279,7 +280,7 @@ impl Scene<'_> {
         let db = self.db;
         let iso = self.look.iso();
         let near = if iso.is_some() { Rect::new(view.x - 6.0 * ts, view.y - 6.0 * ts, view.w + 8.0 * ts, view.h + 8.0 * ts) } else { Rect::new(view.x - 64.0, view.y - 64.0, view.w + 128.0, view.h + 128.0) };
-        let ents: Vec<&EntityInstance> = map.entities.iter().filter(|e| near.contains(vec2(e.x, e.y))).collect();
+        let ents: Vec<&EntityInstance> = map.entities.iter().filter(|e| layers.0 && near.contains(vec2(e.x, e.y))).collect();
         let flat = |e: &EntityInstance| e.kind == EntityKind::Prop && db.prop(&e.def).is_some_and(|d| d.flat);
         let big = ts * 1.25;
         let footprint = |feet: Vec2, hitbox: Option<[f32; 2]>| match hitbox {

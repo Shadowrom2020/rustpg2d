@@ -204,6 +204,9 @@ pub struct MapView {
     pub brush: Brush,
     /// What the Select tool picks.
     pub picks: Picks,
+    /// The layers shown: the painted ground, scenery, characters objects and items (what is
+    /// hidden can't be picked either).
+    pub layers: [bool; 3],
     /// The Zones tool's kind (a variant of `ZoneKind`).
     pub zone_kind: String,
     outliner_filter: String,
@@ -255,6 +258,7 @@ impl Default for MapView {
             ground_mode: GroundMode::Brush,
             brush: Brush { size: 16.0, square: false, snap: false },
             picks: Picks { things: true, scenery: true, zones: true },
+            layers: [true; 3],
             zone_kind: "Trigger".into(),
             outliner_filter: String::new(),
             pending: None,
@@ -420,6 +424,13 @@ impl MapView {
                 .on_hover_text("What clicks and boxes select");
             }
             ui.separator();
+            ui.menu_button("Layers", |ui| {
+                ui.checkbox(&mut self.layers[0], "The painted ground");
+                ui.checkbox(&mut self.layers[1], "Scenery");
+                ui.checkbox(&mut self.layers[2], "Characters, objects and items");
+            })
+            .response
+            .on_hover_text("What of the map is drawn; what is hidden can't be picked either");
             ui.weak("Show");
             ui.toggle_value(&mut self.opts.grid, "Grid").on_hover_text("The tiles' lines (G)");
             ui.toggle_value(&mut self.opts.zones, "Zone areas").on_hover_text("Zones and their names");
@@ -1091,10 +1102,10 @@ impl MapView {
     fn things_at(&self, ws: &Workspace, map: &Map, at: Vec2) -> Vec<Selection> {
         let scene = self.scene(ws);
         let mut out: Vec<Selection> = Vec::new();
-        if self.picks.things {
+        if self.picks.things && self.layers[2] {
             out.extend(scene.entities_at(map, at).into_iter().map(Selection::Entity));
         }
-        if self.picks.scenery {
+        if self.picks.scenery && self.layers[1] {
             out.extend(scene.scenery_at(map, at).into_iter().map(Selection::Scenery));
         }
         if self.opts.zones && self.picks.zones {
@@ -1370,10 +1381,10 @@ impl MapView {
                     let r = Rect::new(from.x.min(at.x), from.y.min(at.y), (from.x - at.x).abs(), (from.y - at.y).abs());
                     if let Some(doc) = p.ws.doc.as_ref() {
                         let mut found: Vec<Selection> = Vec::new();
-                        if self.picks.things {
+                        if self.picks.things && self.layers[2] {
                             found.extend(doc.map.entities.iter().filter(|e| r.contains(look.to_screen(vec2(e.x, e.y)))).map(|e| Selection::Entity(e.uid)));
                         }
-                        if self.picks.scenery {
+                        if self.picks.scenery && self.layers[1] {
                             found.extend(doc.map.decor.iter().filter(|d| r.contains(look.to_screen(vec2(d.x as f32, d.y as f32)))).map(|d| Selection::Scenery(*d)));
                         }
                         if self.opts.zones && self.picks.zones {
@@ -1810,13 +1821,13 @@ impl MapView {
             doc.overview.draw(&doc.map, ts);
         }
         let map = &doc.map;
-        if !overview {
+        if !overview && self.layers[0] {
             self.ground.draw(map, scene.db, scene.assets, view, WHITE);
             for z in map.zones.iter().filter(|z| matches!(z.kind, ZoneKind::FishingSpot { .. })) {
                 render::fish::draw_shadows(z.pixel_rect(ts), z.uid, time as f32, ts);
             }
         }
-        scene.draw_objects(map, view, overview, WHITE, matches!(self.tool, Tool::Terrain | Tool::Place));
+        scene.draw_objects(map, view, overview, WHITE, matches!(self.tool, Tool::Terrain | Tool::Place), (self.layers[2], self.layers[1]));
         if self.opts.parallax {
             render::parallax::draw(scene.assets, &map.parallax, true, view, time as f32);
         }

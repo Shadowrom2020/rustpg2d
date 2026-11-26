@@ -1136,6 +1136,8 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     changed between them, objects and scenery alike.
   - **Agents see maps again:** `screenshot_map` is answered from the same drawing, without
     the map's tab being shown.
+  - **Layers:** the painted ground, scenery, and characters, objects and items are each
+    switched off and on (*Layers*); what is hidden can't be picked either.
   - **Save as structure:** several things selected (a house with its fence, boxed) are
     saved with the ground under them as a structure by the name typed (`tiles_of`,
     `save_as_structure`); the menu's *Find usages* shows where a thing's definition is
@@ -1171,13 +1173,14 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     the clock, the party); *Play from here with the test setup* loads a game in progress
     with it on the tile, so the map's *Map enter* events (an intro) don't run. Kept per
     project in the editor's settings.
-  Still open: a structure's ghost (its footprint is shown); Build; transitions drawn between maps; hide and
-  lock in the Outliner; layers; align; *Replace with…* in the menu; routes and schedules
-  changed on the map (they are shown; their stops are fields of the Inspector); a region of
-  tiles copied and pasted; in the World view: linking by dragging from card to card, the cards'
-  places kept. Of playing: the test
-  setup's own form (it is made by playing), the console and script errors as panels (part
-  7), a click in the game leading to the thing's place on its map (it opens its definition).
+  Still open: the **Build** tool (walls, rooms, houses, roofs, doors and windows: 1,400
+  lines in 0.35); a structure's ghost (its footprint is shown); hiding and locking single
+  things in the Outliner; align; *Replace with…* in the menu; routes and schedules changed
+  on the map (they are shown; their stops are fields of the Inspector); a region of tiles
+  copied and pasted; in the World view: linking by dragging from card to card, the cards'
+  places kept. Of playing: the test setup's own form (it is made by playing), the console
+  and script errors as panels (part 7), a click in the game leading to the thing's place on
+  its map (it opens its definition).
 
   **Decided while building.**
   - **The world is drawn by the engine, the editor's marks by both.** What lies on the ground

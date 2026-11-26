@@ -139,6 +139,9 @@ impl Studio {
                                 }
                                 "weather" => view.opts.weather = on,
                                 "above" => view.opts.topdown = on,
+                                "ground" => view.layers[0] = on,
+                                "scenery" => view.layers[1] = on,
+                                "things" => view.layers[2] = on,
                                 other => println!("[script] no view option '{other}'"),
                             }
                         }

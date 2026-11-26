@@ -2483,7 +2483,7 @@
     (
         id: "fence_section_side_picture",
         image: "sprites/prop_pictures/fence_section_side.png",
-        frame_w: 106,
+        frame_w: 70,
         frame_h: 85,
         scale: 2,
     ),

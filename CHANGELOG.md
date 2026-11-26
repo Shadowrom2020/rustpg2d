@@ -183,13 +183,18 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   rock walls are a rocky 3D tile with an uneven top (`rock_cliff_3d`) instead of flat blocks; picture
   shadows start under the middle of what is painted, so props no longer seem to float (Mira's
   fireplace, the mill's sacks, the mine's rocks).
+- **Fences fixed**: the graveyard's north-south fences were drawn half a tile beside where they stand,
+  so they covered the moonpetals of Pip's quest and blocked the tiles inside; the village's
+  graveyard and pen, and the *Fence, vertical*, garden, pen and graveyard structures, now use the
+  east-west section turned a quarter on the tile edges, as the Build tool lays them, and their
+  corners meet on one post. The graveyard is a tile wider and longer, so both moonpetals can be
+  reached; *Fence section (north to south)* stands across its tile's middle again.
 - **Village look**: the red roofs repainted as even shingles (no stripes), the tavern's walls as a
   calm half-timbering over a larger area (`painted_large`), the plastered houses' doors and windows
   cut out of their plaster (`painted_openings`: no patches on the walls), the timber laid out on an
-  exact grid (whole braces, no seams); fences meet at their corners: every section carries a post on
-  both ends, shared with the next one, and the north-south piece stands on its tile's left edge, so
-  corner posts are no longer needed (the village's graveyard and pen lost theirs; the *Fence,
-  vertical*, garden, pen and graveyard structures use the north-south piece); the square's signpost moved out from behind the fish stall (Meshy: 16 credits).
+  exact grid (whole braces, no seams); every fence section carries a post on both ends, shared with
+  the next one, so corner posts are no longer needed (the village's graveyard and pen lost theirs);
+  the square's signpost moved out from behind the fish stall (Meshy: 16 credits).
 - **Counters** (`PropDef.counter`, *Counter (a market stall)* in the prop form): using one talks to
   whoever keeps it (a merchant with a shop beside, in front of or behind it, or anyone standing in
   it), from its front; its own triggers run only when nobody keeps it. The library's four stalls are

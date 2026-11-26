@@ -164,11 +164,13 @@ tiles behind them with *Black void* (flat, solid). The example's interiors are b
 **Torches** hang on any wall: place *Wall Torch* as a decoration on the floor tile in front of the
 wall, close to it (it hangs at wall height with its back to the wall); **R** turns it to face east
 for a west wall. It gives light, doesn't block the floor, and its *out* state is burnt out.
-**Fences** work the same: *Fence section* runs east to west on a tile's bottom edge, *Fence
-section (north to south)* on the left edge of the tile it is placed in (it snaps to the tile's
-middle like the others), so a run of either meets the other's end. Every section carries a post at
-both ends, shared with its neighbour: runs end on a post and corners need nothing more. The library's
-*Fence, vertical*, *Fenced flower garden*, *Animal pen* and *Graveyard* structures are built this way.
+**Fences** work the same: *Fence section* runs east to west on a tile's bottom edge, and north to
+south it is the same section turned a quarter (**R**, or what the **Build** tool's *Walls* lay along
+a north-south edge). Every section carries a post at both ends, shared with its neighbour: runs end
+on a post and corners need nothing more. A fence blocks the tile on its north or west side, so leave
+a row and a column free inside an enclosure along its south and east fences. The library's *Fence,
+vertical*, *Fenced flower garden*, *Animal pen* and *Graveyard* structures are built this way;
+*Fence section (north to south)* is the older piece standing across a tile's middle.
 
 AI agents place them with `place_objects`, `scatter` and `erase_objects` ([chapter 13](13-ai-agents.md)).
 

@@ -636,6 +636,10 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     compression, macroquad's was smaller). Windows compiles (clippy for
     `x86_64-pc-windows-gnu`); not run yet.*
   - Tests render without a window: one golden picture each for ground, a figure, text.
+    *Done 2026-11-26 as one picture: `crates/engine/tests/headless.rs` loads the example's
+    house, plays 90 frames without a window and compares the screen with
+    `tests/golden/house.png` (ground, figures, text, the UI's skin). Skipped without a graphics
+    adapter unless `RUSTPG2D_GPU_TESTS=1`; CI runs it on Vulkan's software renderer.*
 
 - [ ] Part 2: The editor core — `feature/studio`
 

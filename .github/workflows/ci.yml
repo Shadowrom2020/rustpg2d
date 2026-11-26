@@ -85,13 +85,18 @@ jobs:
         with:
           shared-key: ci
       - if: steps.tested.outputs.skip != 'true'
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends libasound2-dev libudev-dev
+        # (mesa-vulkan-drivers: Vulkan's software renderer, for the tests that draw.)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends libasound2-dev libudev-dev mesa-vulkan-drivers libvulkan1
       # No separate `cargo build`: clippy checks every target (all features, so xtask's dist
       # too) and `cargo test` compiles every crate, binaries included.
       - if: steps.tested.outputs.skip != 'true'
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+      # The tests that draw (off screen) must run here, on the software renderer.
       - if: steps.tested.outputs.skip != 'true'
         run: cargo test --workspace --locked --config 'profile.dev.package."*".opt-level=0'
+        env:
+          RUSTPG2D_GPU_TESTS: 1
+          RUSTPG2D_ALLOW_SOFTWARE: 1
       # The game also builds for the web (wasm32; no browser needed to check it compiles).
       - if: steps.tested.outputs.skip != 'true'
         run: rustup target add wasm32-unknown-unknown

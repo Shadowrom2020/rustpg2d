@@ -1166,6 +1166,26 @@ impl MapView {
         let (Some(at), Some(world)) = (at, world) else { return };
         let tile = tile_of(world);
         let add = mods.shift || mods.command;
+        // A definition dragged out of the Project browser is put down where it is let go.
+        if let Some(dropped) = resp.dnd_release_payload::<(RefKind, String)>() {
+            p.ws.open_map(name);
+            let (kind, id) = (dropped.0, dropped.1.as_str());
+            let r = match kind {
+                RefKind::Structure => p.ws.place_structure(id, tile).map(|made| self.sel = made.into_iter().map(Selection::Entity).collect()),
+                RefKind::Prop if !p.ws.prop_acts(id) => p.ws.place_scenery(id, world, None, false, 0).map(|d| self.sel = vec![Selection::Scenery(d)]),
+                _ => match entity_kind(kind) {
+                    Some(ek) => {
+                        let feet = p.ws.snap_feet(ek, id, world, mods.shift);
+                        p.ws.place_entity(ek, id, feet).map(|uid| self.sel = vec![Selection::Entity(uid)])
+                    }
+                    None => Err(format!("a {} isn't placed on a map", kind.name())),
+                },
+            };
+            if let Err(e) = r {
+                p.ws.set_status(e);
+            }
+            return;
+        }
 
         self.shift = mods.shift;
         if pressed && over {

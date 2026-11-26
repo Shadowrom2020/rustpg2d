@@ -7,7 +7,7 @@
 //! (`wait SECS`, `status`, `shot PATH` = the whole window, `tab NAME`, `palette TEXT` / `goto
 //! TEXT` / `pick N`, `field KIND ID /POINTER VALUE` = a form's field, `setting /POINTER VALUE` = one
 //! of the game's settings, `key NAME` = a key for the
-//! game, `pause` / `resume`, `quit`; the window's own input: `click X Y [ctrl]`, `hover X Y`, `wheel DY`,
+//! game, `pause` / `resume`, `quit`; the window's own input: `click X Y [ctrl]`, `hover X Y`, `drag X1 Y1 X2 Y2`, `wheel DY`,
 //! `type TEXT`, `press KEY` (egui's key names: Enter, Escape, Tab, ArrowDown…), `size W H`,
 //! `allfields on|off`, `new [KIND]` = the New… gallery; the map view by tiles: `mapclick`, `mapdrag`,
 //! `maphover`, `mapview`, `maptool`, `mapopt`, `mapplace`, `mapzone`, `mapselect`, `mapact`, `mapshot`; any other line
@@ -299,6 +299,19 @@ impl Studio {
                         self.script.input.push_back(vec![button(false)]);
                         self.script.input.push_back(vec![egui::Event::ModifiersChanged(egui::Modifiers::NONE)]);
                     }
+                }
+                // A drag across the window: `drag X1 Y1 X2 Y2` (pressed at the first place, let go at the second).
+                "drag" => {
+                    let n = |i: usize| arg(i).parse::<f32>().unwrap_or(0.0);
+                    let (a, b) = (egui::pos2(n(1), n(2)), egui::pos2(n(3), n(4)));
+                    let button = |pos, pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: egui::Modifiers::NONE };
+                    self.script.input.push_back(vec![egui::Event::PointerMoved(a)]);
+                    self.script.input.push_back(vec![button(a, true)]);
+                    for k in 1..=6 {
+                        self.script.input.push_back(vec![egui::Event::PointerMoved(a + (b - a) * (k as f32 / 6.0))]);
+                    }
+                    self.script.input.push_back(vec![button(b, false)]);
+                    self.script.pointer = b;
                 }
                 "wheel" => {
                     let delta = egui::vec2(0.0, arg(1).parse().unwrap_or(0.0));

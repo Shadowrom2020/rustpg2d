@@ -1060,7 +1060,16 @@ impl Viewer<'_> {
                 if let (true, Some(rs)) = (crate::thumbs::has_pictures(kind), self.rs) {
                     crate::thumbs::boxed(ui, 18.0, || self.thumbs.of(self.ws, rs, kind, id));
                 }
-                let clicked = ui.selectable_label(false, label).clicked();
+                let r = ui.selectable_label(false, label);
+                // What can stand on a map is dragged out of the list onto one.
+                let r = if matches!(kind, RefKind::Character | RefKind::Prop | RefKind::Item | RefKind::Structure) {
+                    let r = r.interact(egui::Sense::click_and_drag());
+                    r.dnd_set_drag_payload((kind, id.to_string()));
+                    r.on_hover_text("Click to open it; drag it onto a map to put it down there")
+                } else {
+                    r
+                };
+                let clicked = r.clicked();
                 if let Some((error, text)) = self.marks.problems_of(kind, id).first() {
                     let color = if *error { ui.visuals().error_fg_color } else { ui.visuals().warn_fg_color };
                     ui.colored_label(color, "!").on_hover_text(text);

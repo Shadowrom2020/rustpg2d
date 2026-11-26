@@ -1110,6 +1110,8 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     that does something** (events, states, a container, a lock, something to gather…) **as an
     object**, and the list says which. Scenery with a grid of its own (walls, fences) is
     dragged out as a row; a scatter set is brushed on; a structure shows its footprint.
+    A character, prop, item or structure can also be dragged out of the Project browser
+    onto a map.
   - **Scenery is a thing like any other:** selected by a click (then dragged: a house isn't
     moved by a drag meant for something else), boxed, moved, turned, duplicated, deleted; the
     Inspector has its layer, mirroring and shown state, and ***Make interactive*** turns it
@@ -1169,8 +1171,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     the clock, the party); *Play from here with the test setup* loads a game in progress
     with it on the tile, so the map's *Map enter* events (an intro) don't run. Kept per
     project in the editor's settings.
-  Still open: dragging from the Project browser; a structure's ghost (its footprint is
-  shown); Build; transitions drawn between maps; hide and
+  Still open: a structure's ghost (its footprint is shown); Build; transitions drawn between maps; hide and
   lock in the Outliner; layers; align; *Replace with…* in the menu; routes and schedules
   changed on the map (they are shown; their stops are fields of the Inspector); a region of
   tiles copied and pasted; in the World view: linking by dragging from card to card, the cards'
@@ -1247,7 +1248,8 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     drawn in the house and one in the village link themselves; the World view shows 19 maps
     and 38 ways; the village's settings in the Inspector; the elder's day (07:00 by the
     well, 13:00 on the bench) drawn on the square. `mapview::ui_tests`: 311 oaks selected
-    and saved as *Oak grove*, undone by its name.
+    and saved as *Oak grove*, undone by its name. A Town Guard dragged from the Project
+    browser's row onto the village stands where it was let go.
 
 - [ ] Part 7: Events, conversations and scripts — `feature/studio`
 

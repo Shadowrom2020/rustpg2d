@@ -41,7 +41,7 @@ being rewritten on a new foundation, in twelve parts. While it lasts:
   word is a command of the editor (`crates/editor-core/src/commands.rs`); set the scratch
   `RUSTPG2D_EDITOR_CONFIG` / `RUSTPG2D_LIBRARY` / `RUSTPG2D_SETTINGS_DIR`, `RUSTPG2D_REPO=0` and
   `RUSTPG2D_FOLDER_PROJECTS=1` for test runs. The script can use the window for real: `click X Y`,
-  `click X Y ctrl`, `hover X Y`, `wheel DY` (at the pointer), `type TEXT`, `press Enter|Escape|Tab|…`, `size W H`;
+  `click X Y ctrl`, `hover X Y`, `drag X1 Y1 X2 Y2`, `wheel DY` (at the pointer), `type TEXT`, `press Enter|Escape|Tab|…`, `size W H`;
   `field KIND ID /POINTER VALUE` changes a field without the UI, `allfields on|off` = *Show all
   fields*, `setting /POINTER VALUE` changes one of the game's settings (tabs `settings:rules`,
   `settings:hero-party`…), the map view by tiles (a whole number is a tile's middle):

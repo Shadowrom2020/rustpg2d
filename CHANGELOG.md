@@ -67,7 +67,8 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   card with the ways between them as arrows, and marks a way that leads nowhere and a map
   nothing leads to. A Transition zone drawn on one map and the next one drawn on another
   become each other's other side. With nothing selected, a map's Inspector is the map's
-  own settings (light, weather, music, edges, events).
+  own settings (light, weather, music, edges, events). Several things selected can be saved
+  as a structure; a selected character's patrol route and daily schedule are drawn.
 - **Terrain, scenery, structures and scatter sets on the map** (part 6): *Terrain* paints
   materials with a brush, a line, a rectangle or a fill. *Place* now takes everything from
   one list: a prop that only stands there is put down as scenery, one that does something

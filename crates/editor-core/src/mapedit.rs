@@ -309,6 +309,70 @@ impl Workspace {
         n
     }
 
+    /// The tiles the things of `what` stand on, as one rectangle `(x, y, w, h)`: what *Save as
+    /// structure* takes. Big things count with their footprint.
+    pub fn tiles_of(&self, what: &[Selection]) -> Option<(u32, u32, u32, u32)> {
+        let map = &self.doc.as_ref()?.map;
+        let ts = self.ts();
+        let mut area: Option<(f32, f32, f32, f32)> = None;
+        let mut add = |x0: f32, y0: f32, x1: f32, y1: f32| {
+            area = Some(match area {
+                Some((a, b, c, d)) => (a.min(x0), b.min(y0), c.max(x1), d.max(y1)),
+                None => (x0, y0, x1, y1),
+            });
+        };
+        for s in what {
+            match *s {
+                Selection::Entity(uid) => {
+                    let Some(e) = map.entity(uid) else { continue };
+                    let [w, h] = match e.kind {
+                        EntityKind::Prop => self.project.db.prop(&e.def).map_or([1.0, 1.0], |p| p.hitbox_facing(e.facing)),
+                        _ => [1.0, 1.0],
+                    };
+                    add(e.x - w / 2.0, e.y - h, e.x + w / 2.0, e.y);
+                }
+                Selection::Scenery(d) => {
+                    let [w, h] = map.decor_defs.get(d.def as usize).and_then(|id| self.project.db.prop(id)).map_or([1.0, 1.0], |p| if p.turns() { p.hitbox_facing(d.facing()) } else { p.hitbox });
+                    add(d.x as f32 - w / 2.0, d.y as f32 - h, d.x as f32 + w / 2.0, d.y as f32);
+                }
+                Selection::Zone(uid) => {
+                    if let Some(z) = map.zones.iter().find(|z| z.uid == uid) {
+                        add(z.x as f32 * ts, z.y as f32 * ts, (z.x + z.w) as f32 * ts, (z.y + z.h) as f32 * ts);
+                    }
+                }
+                Selection::Region(_) | Selection::None => {}
+            }
+        }
+        let (x0, y0, x1, y1) = area?;
+        let (tx0, ty0) = ((x0 / ts).floor().max(0.0) as u32, (y0 / ts).floor().max(0.0) as u32);
+        let (tx1, ty1) = (((x1 - 0.5) / ts).floor().max(0.0) as u32, ((y1 - 0.5) / ts).floor().max(0.0) as u32);
+        let (tx1, ty1) = (tx1.min(map.width.saturating_sub(1)), ty1.min(map.height.saturating_sub(1)));
+        (tx1 >= tx0 && ty1 >= ty0).then_some((tx0, ty0, tx1 - tx0 + 1, ty1 - ty0 + 1))
+    }
+
+    /// Makes a structure called `name` of the tiles `rect` of the map being worked on: what
+    /// stands there, and the painted ground when `ground` (off for things that sit on any
+    /// ground). Returns its id (made from the name).
+    pub fn save_as_structure(&mut self, rect: (u32, u32, u32, u32), name: &str, ground: bool) -> Result<String, String> {
+        let name = name.trim();
+        if name.is_empty() {
+            return Err("the structure needs a name".into());
+        }
+        let base = crate::defs::id_from_name(name);
+        let id = rustpg2d_engine::refactor::unique_id(&base, |c| self.project.db.structure(c).is_some());
+        let Some(doc) = &self.doc else { return Err("no map is open".into()) };
+        if rect.2 == 0 || rect.3 == 0 || rect.0 + rect.2 > doc.map.width || rect.1 + rect.3 > doc.map.height {
+            return Err("that is outside the map".into());
+        }
+        let d = rustpg2d_engine::defs::StructureDef::capture(&doc.map, &id, name, rect, ground);
+        self.begin(&format!("Save {name} as a structure"));
+        self.project.db.structures.push(d);
+        self.project.db.reindex();
+        self.defs_dirty = true;
+        self.stale = true;
+        Ok(id)
+    }
+
     /// Places structure `id` with its middle on `tile`. Returns the numbers of what it added.
     pub fn place_structure(&mut self, id: &str, tile: (i32, i32)) -> Result<Vec<u32>, String> {
         let Some(def) = self.project.db.structure(id).cloned() else { return Err(format!("there is no structure \"{id}\"")) };

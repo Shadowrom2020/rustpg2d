@@ -1134,6 +1134,13 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     changed between them, objects and scenery alike.
   - **Agents see maps again:** `screenshot_map` is answered from the same drawing, without
     the map's tab being shown.
+  - **Save as structure:** several things selected (a house with its fence, boxed) are
+    saved with the ground under them as a structure by the name typed (`tiles_of`,
+    `save_as_structure`); the menu's *Find usages* shows where a thing's definition is
+    placed and named.
+  - **A character's day on the map:** the selected character's patrol route (numbered
+    waypoints, arrows the way it walks) and daily schedule (dashed, each stop with its
+    hour) are drawn.
   - **Map settings:** with nothing selected the Inspector is the map's own form (light and
     weather, music, what lies beyond its edges, its events), from the field schema
     (`MapSettings`, new in the engine: what a map is besides its ground and what stands on
@@ -1164,9 +1171,9 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     project in the editor's settings.
   Still open: dragging from the Project browser; a structure's ghost (its footprint is
   shown); Build; transitions drawn between maps; hide and
-  lock in the Outliner; layers; align; *Find usages*, *Save as structure* and *Replace
-  with…* in the menu; the routes and schedules of characters on the map; a region of tiles
-  copied and pasted; in the World view: linking by dragging from card to card, the cards'
+  lock in the Outliner; layers; align; *Replace with…* in the menu; routes and schedules
+  changed on the map (they are shown; their stops are fields of the Inspector); a region of
+  tiles copied and pasted; in the World view: linking by dragging from card to card, the cards'
   places kept. Of playing: the test
   setup's own form (it is made by playing), the console and script errors as panels (part
   7), a click in the game leading to the thing's place on its map (it opens its definition).
@@ -1238,7 +1245,9 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     worked on stays). `references_agree_with_renames` covers the map's settings (music,
     fight music, an edge's map, a parallax layer's sheet). In the window: a transition
     drawn in the house and one in the village link themselves; the World view shows 19 maps
-    and 38 ways; the village's settings in the Inspector.
+    and 38 ways; the village's settings in the Inspector; the elder's day (07:00 by the
+    well, 13:00 on the bench) drawn on the square. `mapview::ui_tests`: 311 oaks selected
+    and saved as *Oak grove*, undone by its name.
 
 - [ ] Part 7: Events, conversations and scripts — `feature/studio`
 

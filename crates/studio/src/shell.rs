@@ -1791,6 +1791,10 @@ impl Viewer<'_> {
                 crate::mapview::Ask::OpenMap(m) => self.asks.push(Ask::Open(Tab::Map(m))),
                 crate::mapview::Ask::New(k) => self.asks.push(Ask::New(Some(k))),
                 crate::mapview::Ask::PlayHere(tile, setup) => self.asks.push(Ask::Play(PlayFrom::Tile(name.to_string(), tile, setup))),
+                crate::mapview::Ask::Usages(k, id) => {
+                    self.asks.push(Ask::Run(format!("find.usages {} {id}", k.name())));
+                    self.asks.push(Ask::Open(Tab::Def(k, id)));
+                }
             }
         }
     }

@@ -147,6 +147,8 @@ pub enum Ask {
     New(RefKind),
     /// Play the game with the hero on this tile of this map; true: with the test setup.
     PlayHere((i32, i32), bool),
+    /// Show where a definition is used.
+    Usages(RefKind, String),
 }
 
 /// What the window lends a map tab for a frame.
@@ -209,6 +211,9 @@ pub struct MapView {
     pending: Option<(Selection, serde_json::Value, String)>,
     /// A thing to bring into view with the next frame.
     reveal: Option<Selection>,
+    /// *Save as structure*: the name typed, and whether the ground comes along.
+    structure_name: String,
+    structure_ground: bool,
     /// The tile the right button was last pressed on (the menu's *Play from here*).
     menu_tile: (i32, i32),
     /// The things under the last press, when the front one was selected already: a click
@@ -254,6 +259,8 @@ impl Default for MapView {
             outliner_filter: String::new(),
             pending: None,
             reveal: None,
+            structure_name: String::new(),
+            structure_ground: true,
             menu_tile: (0, 0),
             cycle: None,
             shift: false,
@@ -939,6 +946,27 @@ impl MapView {
                 });
                 if let Some(act) = act {
                     self.act(p, name, act);
+                    return;
+                }
+                // What is selected, with the ground under it, as a structure to place again.
+                ui.add_space(6.0);
+                ui.label(egui::RichText::new("Save as structure").strong());
+                let rect = p.ws.doc.as_ref().filter(|d| d.map.name == name).and_then(|_| p.ws.tiles_of(many));
+                let Some(rect) = rect else { return };
+                ui.weak(format!("{} x {} tiles with everything standing on them: placed again as one piece (Place, Structures).", rect.2, rect.3));
+                ui.horizontal(|ui| {
+                    ui.add(egui::TextEdit::singleline(&mut self.structure_name).hint_text("its name").desired_width(150.0)).widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, "The structure's name"));
+                    ui.checkbox(&mut self.structure_ground, "With the ground").on_hover_text("Off for things that sit on any ground (a market stall, a camp)");
+                });
+                if ui.add_enabled(!self.structure_name.trim().is_empty(), egui::Button::new("Save as structure")).clicked() {
+                    match p.ws.save_as_structure(rect, &self.structure_name, self.structure_ground) {
+                        Ok(id) => {
+                            p.ws.set_status(format!("Saved as the structure {id}"));
+                            self.structure_name.clear();
+                            p.asks.push(Ask::OpenDef(RefKind::Structure, id));
+                        }
+                        Err(e) => p.ws.set_status(e),
+                    }
                 }
             }
         }
@@ -1647,6 +1675,10 @@ impl MapView {
                     p.asks.push(Ask::OpenDef(*rk, id.clone()));
                     ui.close();
                 }
+                if ui.button("Find usages").on_hover_text("Where this definition is placed and named, on every map").clicked() {
+                    p.asks.push(Ask::Usages(*rk, id.clone()));
+                    ui.close();
+                }
                 if ui.button("Turn").clicked() {
                     act = Some("turn");
                     ui.close();
@@ -1871,6 +1903,49 @@ impl MapView {
             scene.standing(vec2(e.x, e.y), || draw_rectangle_lines(r.x - px, r.y - px, r.w + 2.0 * px, r.h + 2.0 * px, 2.0 * px, YELLOW));
         }
 
+        // The selected character's patrol route (joined waypoints, an arrow the way it walks)
+        // and daily schedule (dashed, in the order of the hours); the labels are egui's.
+        if let [Selection::Entity(uid)] = self.sel.as_slice() {
+            if let Some(e) = map.entity(*uid) {
+                let mid = |x: i32, y: i32| vec2((x as f32 + 0.5) * ts, (y as f32 + 0.5) * ts);
+                if let Some(r) = &e.patrol {
+                    let col = Color::new(0.3, 0.95, 1.0, 0.85);
+                    let n = r.points.len();
+                    let closes = r.mode == rustpg2d_engine::entity::PatrolMode::Loop && n > 2;
+                    for k in 0..n.saturating_sub(1) + usize::from(closes) {
+                        let (a, b) = (mid(r.points[k].0, r.points[k].1), mid(r.points[(k + 1) % n].0, r.points[(k + 1) % n].1));
+                        draw_line(a.x, a.y, b.x, b.y, 2.0 * px, col);
+                        let (m, d) = (a.lerp(b, 0.5), (b - a).normalize_or_zero() * 6.0 * px);
+                        let nrm = vec2(-d.y, d.x);
+                        draw_triangle(m + d, m - d + nrm, m - d - nrm, col);
+                    }
+                    for p in &r.points {
+                        let q = mid(p.0, p.1);
+                        draw_circle(q.x, q.y, 5.0 * px, Color::new(0.05, 0.2, 0.3, 0.9));
+                        draw_circle_lines(q.x, q.y, 5.0 * px, 1.5 * px, col);
+                    }
+                }
+                let mut stops: Vec<&rustpg2d_engine::entity::ScheduleStop> = e.schedule.iter().filter(|s| s.map.is_empty() || s.map == map.name).collect();
+                stops.sort_by(|a, b| a.hour.total_cmp(&b.hour));
+                let col = Color::new(1.0, 0.72, 0.25, 0.85);
+                let n = stops.len();
+                for k in 0..if n > 2 { n } else { n.saturating_sub(1) } {
+                    let (a, b) = (mid(stops[k].x, stops[k].y), mid(stops[(k + 1) % n].x, stops[(k + 1) % n].y));
+                    let (len, dir) = (a.distance(b), (b - a).normalize_or_zero());
+                    let mut d = 0.0;
+                    while d < len {
+                        let (p0, p1) = (a + dir * d, a + dir * (d + 7.0 * px).min(len));
+                        draw_line(p0.x, p0.y, p1.x, p1.y, 2.0 * px, col);
+                        d += 12.0 * px;
+                    }
+                }
+                for s in &stops {
+                    let q = mid(s.x, s.y);
+                    draw_circle(q.x, q.y, 4.0 * px, col);
+                }
+            }
+        }
+
         // What the tool is about to do.
         if let Some(w) = self.hover {
             let tile = ((w.x / ts).floor() as i32, (w.y / ts).floor() as i32);
@@ -2024,6 +2099,18 @@ impl MapView {
                 tag(self.to_points(look.to_screen(vec2(e.x, e.y))) + egui::vec2(0.0, 9.0), &e.name, egui::Color32::from_rgb(255, 255, 160), egui::Color32::from_black_alpha(110));
             }
         }
+        if let [Selection::Entity(uid)] = self.sel.as_slice() {
+            if let Some(e) = doc.map.entity(*uid) {
+                let mid = |x: i32, y: i32| vec2((x as f32 + 0.5) * ts, (y as f32 + 0.5) * ts);
+                for (k, pt) in e.patrol.iter().flat_map(|r| r.points.iter().enumerate()) {
+                    tag(self.to_points(look.to_screen(mid(pt.0, pt.1))) - egui::vec2(0.0, 12.0), &(k + 1).to_string(), egui::Color32::from_rgb(120, 240, 255), back);
+                }
+                for s in e.schedule.iter().filter(|s| s.map.is_empty() || s.map == doc.map.name) {
+                    let text = if s.inside { format!("{} in", s.time_text()) } else { s.time_text() };
+                    tag(self.to_points(look.to_screen(mid(s.x, s.y))) - egui::vec2(0.0, 12.0), &text, egui::Color32::from_rgb(255, 200, 110), back);
+                }
+            }
+        }
         for (_, h, _) in self.handles(p.ws, &doc.map) {
             let c = self.to_points(h);
             painter.rect_filled(egui::Rect::from_center_size(c, egui::vec2(9.0, 9.0)), 2.0, egui::Color32::YELLOW);
@@ -2097,6 +2184,7 @@ mod ui_tests {
                         Ask::OpenMap(m) => format!("map {m}"),
                         Ask::New(k) => format!("new {}", k.name()),
                         Ask::PlayHere(t, setup) => format!("play {},{}{}", t.0, t.1, if setup { " setup" } else { "" }),
+                        Ask::Usages(k, id) => format!("usages {} {id}", k.name()),
                     });
                 }
             },
@@ -2189,6 +2277,18 @@ mod ui_tests {
         h.run();
         assert_eq!(h.state().view.sel.len(), oaks);
         assert!(h.query_all_by_label(&format!("{oaks} things selected")).next().is_some());
+        // What is selected, with the ground under it, becomes a structure named by what is typed.
+        let field = h.get_by_role_and_label(egui::accesskit::Role::TextInput, "The structure's name");
+        field.focus();
+        field.type_text("Oak grove");
+        h.run();
+        h.get_by_role_and_label(egui::accesskit::Role::Button, "Save as structure").click();
+        h.run();
+        let grove = h.state().ws.project.db.structure("oak_grove").expect("the structure is made").clone();
+        assert!(grove.decor.len() >= oaks && grove.w > 1 && grove.h > 1, "{} decorations on {}x{}", grove.decor.len(), grove.w, grove.h);
+        assert_eq!(h.state().asks, ["open structure oak_grove"]);
+        assert!(h.state_mut().ws.undo().is_some_and(|m| m.contains("Save Oak grove as a structure")));
+        assert!(h.state().ws.project.db.structure("oak_grove").is_none());
         // One piece: its own small form, and the way to an object of the map and back.
         let one = h.state().view.sel[0];
         h.state_mut().view.sel = vec![one];
@@ -2205,6 +2305,7 @@ mod ui_tests {
         let map = &h.state().ws.doc.as_ref().unwrap().map;
         assert_eq!((map.entities.len(), map.decor.len()), (entities, decor));
         assert_eq!(h.state().ws.timeline.done.iter().map(|c| c.label.as_str()).collect::<Vec<_>>(), ["Make Young Oak interactive", "Make Young Oak scenery"]);
+        h.state_mut().asks.clear();
         let dir = h.state().dir.clone();
         let _ = std::fs::remove_dir_all(dir);
     }

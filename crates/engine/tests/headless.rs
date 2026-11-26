@@ -33,7 +33,7 @@ fn example_copy(to: &Path) {
 /// Share of pixels (in percent) of which a channel differs by more than `tolerance`.
 fn differing(a: &[u8], b: &[u8], tolerance: u8) -> f32 {
     let n = a.len() / 4;
-    let off = a.chunks_exact(4).zip(b.chunks_exact(4)).filter(|(p, q)| p.iter().zip(q.iter()).any(|(x, y)| x.abs_diff(*y) > tolerance)).count();
+    let off = a.as_chunks::<4>().0.iter().zip(b.as_chunks::<4>().0).filter(|(p, q)| p.iter().zip(q.iter()).any(|(x, y)| x.abs_diff(*y) > tolerance)).count();
     off as f32 * 100.0 / n.max(1) as f32
 }
 

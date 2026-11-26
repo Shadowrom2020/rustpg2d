@@ -426,7 +426,7 @@ the western RPGs (Baldur's Gate, Planescape: Torment).
   textures repainted, railing and prison bars as kit-built 3D pieces, rock cliffs as a rocky 3D tile,
   picture shadows starting under the painted thing (props seemed to float).
 
-- [ ] Painted figures — `feature/painted-figures`
+- [x] Painted figures — `feature/painted-figures`
 
   **Goal.** Characters that match the painted, lit world while keeping what the kit gives:
   one shared skeleton and clips, swappable hair, beards, outfits and worn armour, the creator's
@@ -457,6 +457,12 @@ the western RPGs (Baldur's Gate, Planescape: Torment).
   shadow under figures. *Decided while building:* smoothing the voxel sculpts instead of lofting new
   shapes in `kitlib.py`, so every build, piece and creature stays as it is designed. Next: the
   painted textures (Meshy retexture with the original UVs: needs the kit to write UVs, and credits).
+  Part 2, the painted textures, was tried and dropped (2026-11-26, the user's decision; 20 credits,
+  balance 2,634): the human head and the commoner's clothes got UVs (Blender smart project) and a
+  Meshy retexture with the original UVs (10 credits each). At the game's size (about 70 px) the gain
+  was small: Meshy's painting added folds, a collar and a belt but moved the colours (the blue tunic
+  went dark teal, the face darker), and the kit's own colours with only Meshy's light and shade
+  looked almost like the plain figures. The item ends with part 1.
 
   **Verify.** Kit tests (manifest, vertex limits); `model_sheet` contact sheets of every build
   and piece; autoplay: the creator with hair and outfit choices, equipped armour shown, a fight;

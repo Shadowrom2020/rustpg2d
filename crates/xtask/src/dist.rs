@@ -12,8 +12,8 @@
 //! exports games for Linux, Windows, macOS and browsers.
 //!
 //! Options: `--out DIR` (default `dist/`), `--bin-dir DIR` (the Linux release binaries, default
-//! `target/release`), `--web-wasm FILE` (the game for browsers, default
-//! `target/wasm32-unknown-unknown/release/rustpg2d-game.wasm`), `--windows-dir DIR`
+//! `target/release`), `--web-wasm FILE` (the game for browsers with its loader `.js` beside it, as
+//! `cargo xtask-web` writes them; default `target/web/rustpg2d-game.wasm`), `--windows-dir DIR`
 //! (`rustpg2d-editor.exe` and `rustpg2d-game.exe`, cross-compiled with MinGW-w64; default
 //! `target/x86_64-pc-windows-gnu/release`), `--macos-dir DIR` (universal `rustpg2d-editor` and
 //! `rustpg2d-game`, built on a Mac and joined with `lipo`; default `target/macos`).
@@ -54,15 +54,18 @@ pub fn dist(args: &[String]) -> Result<()> {
         }
     }
     // The web game.
-    let wasm = opt("--web-wasm").unwrap_or_else(|| root.join("target/wasm32-unknown-unknown/release/rustpg2d-game.wasm"));
+    let wasm = opt("--web-wasm").unwrap_or_else(|| root.join("target/web/rustpg2d-game.wasm"));
     let wasm = if wasm.is_file() {
         if !std::fs::read(&wasm)?.starts_with(b"\0asm") {
             bail!("{} is not a WebAssembly file", wasm.display());
         }
+        if !wasm.with_extension("js").is_file() {
+            bail!("{} has no loader beside it ({}): cargo xtask-web writes both", wasm.display(), wasm.with_extension("js").display());
+        }
         println!("{}: the web game", wasm.display());
         Some(wasm)
     } else if flag("--require-web") {
-        bail!("the web game is missing: cargo build --release --target wasm32-unknown-unknown -p rustpg2d-game");
+        bail!("the web game is missing: cargo build --release --target wasm32-unknown-unknown -p rustpg2d-game && cargo xtask-web");
     } else {
         println!("no web game ({}): the packaged editors won't export web games", wasm.display());
         None
@@ -133,6 +136,7 @@ pub fn dist(args: &[String]) -> Result<()> {
     // Next to the editor, where File > Export game looks for them.
     if let Some(w) = &wasm {
         spec.files.push(Entry { dest: "lib/rustpg2d/rustpg2d-game.wasm".into(), src: Source::Path(w.clone()), exec: false });
+        spec.files.push(Entry { dest: "lib/rustpg2d/rustpg2d-game.js".into(), src: Source::Path(w.with_extension("js")), exec: false });
     }
     if windows {
         spec.files.push(Entry { dest: "lib/rustpg2d/rustpg2d-game.exe".into(), src: Source::Path(win_game.clone()), exec: false });
@@ -177,6 +181,7 @@ pub fn dist(args: &[String]) -> Result<()> {
         }
         if let Some(w) = &wasm {
             files.push(("rustpg2d-game.wasm".into(), std::fs::read(w)?, 0o644));
+            files.push(("rustpg2d-game.js".into(), std::fs::read(w.with_extension("js"))?, 0o644));
         }
         for (rel, path) in &examples {
             files.push((format!("example_project/{rel}"), std::fs::read(path)?, 0o644));
@@ -219,6 +224,7 @@ pub fn dist(args: &[String]) -> Result<()> {
         }
         if let Some(w) = &wasm {
             put(&res.join("rustpg2d-game.wasm"), &std::fs::read(w)?, false)?;
+            put(&res.join("rustpg2d-game.js"), &std::fs::read(w.with_extension("js"))?, false)?;
         }
         put(&res.join("LICENSE"), &std::fs::read(&license)?, false)?;
         for (rel, path) in &examples {

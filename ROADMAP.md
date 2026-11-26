@@ -557,9 +557,9 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   the game on it (imports and the seven shaders; nothing else of the 101 files changed); the
   comparison set (`scripts/studio/shots.sh`, `compare.py`, `RUSTPG2D_FIXED_STEP`); the web game
   (wasm-bindgen, WebGL 2, `cargo xtask-web`, the browser's services in `gfx::web`). Still open:
-  a Windows and a macOS run, the software-adapter message seen on a machine without a driver,
-  golden pictures in the tests, the release workflows (`builds.yml`, `xtask dist`) for the web
-  pair.
+  a macOS run and a real Windows machine, the software-adapter message seen on a machine
+  without a driver, somebody listening to the sound. (`builds.yml` and `xtask dist` know the
+  web pair; they are run again when there is an editor to package.)
 
   **Decided while building.**
   - **Draw calls wait for the frame's end.** macroquad sent them to the GPU at every camera
@@ -633,8 +633,11 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     desktop, `status` and `shot` come out in the console, a changed option is still there in a
     second run with the same profile. Not checked: sound in a browser, a real graphics card
     (SwiftShader ran at 8 to 30 frames a second), the download size (the runner is 17 MB before
-    compression, macroquad's was smaller). Windows compiles (clippy for
-    `x86_64-pc-windows-gnu`); not run yet.*
+    compression, macroquad's was smaller).
+    Windows: done 2026-11-26 under Wine (MinGW build from a container): the game draws through
+    Vulkan on the real graphics card, without the software-OpenGL workaround Wine needed
+    before; its picture of the house matches Linux's. Not checked: a real Windows machine
+    (DirectX 12), macOS (the test Mac wasn't reachable).*
   - Tests render without a window: one golden picture each for ground, a figure, text.
     *Done 2026-11-26 as one picture: `crates/engine/tests/headless.rs` loads the example's
     house, plays 90 frames without a window and compares the screen with

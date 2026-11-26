@@ -17,7 +17,7 @@ runs:
       uses: actions/download-artifact@v8
       with:
         name: rustpg2d-web-build
-        path: target/wasm32-unknown-unknown/release
+        path: target/web
     - name: Windows build
       uses: actions/download-artifact@v8
       with:

@@ -85,10 +85,14 @@ jobs:
         with:
           shared-key: web-build
       - run: cargo build --release --locked --target wasm32-unknown-unknown -p rustpg2d-game
+      # wasm-bindgen's second step: the module and its loader, as web exports copy them.
+      - run: cargo run --release --locked -p xtask --features web -- web
       - uses: actions/upload-artifact@v7
         with:
           name: rustpg2d-web-build
-          path: target/wasm32-unknown-unknown/release/rustpg2d-game.wasm
+          path: |
+            target/web/rustpg2d-game.wasm
+            target/web/rustpg2d-game.js
           retention-days: 7
 
   windows:

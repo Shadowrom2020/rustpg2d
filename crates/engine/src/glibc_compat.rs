@@ -39,3 +39,30 @@ pub extern "C" fn hypotf(x: f32, y: f32) -> f32 {
 pub extern "C" fn hypot(x: f64, y: f64) -> f64 {
     libm::hypot(x, y)
 }
+
+// glibc 2.43 re-versioned these too; the platform layer's libraries (wgpu's shader compiler, the
+// sound mixer) call them.
+#[no_mangle]
+pub extern "C" fn acoshf(x: f32) -> f32 {
+    libm::acoshf(x)
+}
+
+#[no_mangle]
+pub extern "C" fn asinf(x: f32) -> f32 {
+    libm::asinf(x)
+}
+
+#[no_mangle]
+pub extern "C" fn coshf(x: f32) -> f32 {
+    libm::coshf(x)
+}
+
+#[no_mangle]
+pub extern "C" fn log10f(x: f32) -> f32 {
+    libm::log10f(x)
+}
+
+#[no_mangle]
+pub extern "C" fn sinhf(x: f32) -> f32 {
+    libm::sinhf(x)
+}

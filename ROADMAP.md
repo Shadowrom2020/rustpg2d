@@ -557,8 +557,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   the game on it (imports and the seven shaders; nothing else of the 101 files changed); the
   comparison set (`scripts/studio/shots.sh`, `compare.py`, `RUSTPG2D_FIXED_STEP`); the web game
   (wasm-bindgen, WebGL 2, `cargo xtask-web`, the browser's services in `gfx::web`). Still open:
-  a macOS run and a real Windows machine, the software-adapter message seen on a machine
-  without a driver, somebody listening to the sound. (`builds.yml` and `xtask dist` know the
+  a macOS run and a real Windows machine, somebody listening to the sound. (`builds.yml` and `xtask dist` know the
   web pair; they are run again when there is an editor to package.)
 
   **Decided while building.**
@@ -634,6 +633,11 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     second run with the same profile. Not checked: sound in a browser, a real graphics card
     (SwiftShader ran at 8 to 30 frames a second), the download size (the runner is 17 MB before
     compression, macroquad's was smaller).
+    Linux: done 2026-11-26 in a Debian 12 container without a graphics card (release build):
+    the game needs glibc 2.34 as before (five more math functions in `glibc_compat.rs`), refuses
+    to start on the software renderer with a plain message, and runs on it with
+    `RUSTPG2D_ALLOW_SOFTWARE=1`. Not checked: the packaged AppImage (there is no editor to
+    package yet).
     Windows: done 2026-11-26 under Wine (MinGW build from a container): the game draws through
     Vulkan on the real graphics card, without the software-OpenGL workaround Wine needed
     before; its picture of the house matches Linux's. Not checked: a real Windows machine

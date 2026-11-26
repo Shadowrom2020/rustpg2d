@@ -1343,7 +1343,7 @@ impl Viewer<'_> {
     /// it. A change in a chosen row is made in every chosen row. Returns the id to open.
     fn kind_table(&mut self, ui: &mut egui::Ui, kind: RefKind, ids: &[String], chosen: &mut std::collections::BTreeSet<String>) -> Option<String> {
         use editor_core::schema::{self, Shape};
-        let Some(node) = schema::of_kind(kind) else { return None };
+        let node = schema::of_kind(kind)?;
         let Shape::Struct(fields) = node.shape() else { return None };
         let cells: Vec<&schema::Field> = fields.iter().filter(|f| f.key != "id" && crate::form::fits_cell(f)).collect();
         // The columns: as chosen before, else the first section's fields.

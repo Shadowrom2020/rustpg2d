@@ -26,10 +26,15 @@ being rewritten on a new foundation, in twelve parts. While it lasts:
   without `RUSTPG2D_REPO=0` it is in repository mode: `--headless example_project` edits the real
   example and `library_send` the real starter library, so example content can be edited on this
   branch again through agents.
-- **The new editor is `crates/studio`** (binary `rustpg2d-studio`): so far a window with the
-  running game in a panel. `RUSTPG2D_STUDIO_SCRIPT="wait 3; status; shot /path/a.png; quit"
-  target/debug/rustpg2d-studio <project> [--map M --spawn S]` drives it (`shot` = the whole
-  window).
+- **The new editor is `crates/studio`** (binary `rustpg2d-studio`): the shell (`shell.rs`: dock,
+  Project browser, command palette, Go to anything, Problems, History, Overview) and the game in
+  a tab (`play.rs`). Definitions show as text and maps as facts until parts 4 and 6.
+  `RUSTPG2D_STUDIO_SCRIPT="wait 2; status; tab def:item:potion; goto elder; pick 0; palette
+  rename; map.open house; edit.undo; tab play; shot /path/a.png; quit" target/debug/rustpg2d-studio
+  <project> [--map M --spawn S]` drives it: `shot` = the whole window, a line that is no script
+  word is a command of the editor (`crates/editor-core/src/commands.rs`); set the scratch
+  `RUSTPG2D_EDITOR_CONFIG` / `RUSTPG2D_LIBRARY` / `RUSTPG2D_SETTINGS_DIR`, `RUSTPG2D_REPO=0` and
+  `RUSTPG2D_FOLDER_PROJECTS=1` for test runs.
 - **The engine draws through `crates/gfx`** (wgpu, winit, kira), which keeps macroquad's drawing
   names: `use gfx::prelude::*` where `macroquad::prelude` was. Shaders are WGSL
   (`gfx::material`). The game is drawn into a picture (`gfx::Screen`); `gfx::with_screen` draws

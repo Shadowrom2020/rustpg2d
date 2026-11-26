@@ -28,6 +28,25 @@ pub fn character_sprite(d: &rustpg2d_engine::defs::CharacterDef) -> SpriteRef {
     SpriteRef::new(&format!("{CHAR_PREFIX}{}", d.id), 0)
 }
 
+/// Id and name of every definition of `kind`, in the order of its file (the name is the id for
+/// kinds without names).
+pub fn list(db: &Database, kind: rustpg2d_engine::refactor::RefKind) -> Vec<(String, String)> {
+    use rustpg2d_engine::defs::Def;
+    rustpg2d_engine::with_def_kind!(kind, |T| T::list(db)
+        .iter()
+        .map(|d| {
+            let name = serde_json::to_value(d).ok().and_then(|v| v.get("name").and_then(|n| n.as_str()).map(str::to_string)).filter(|n| !n.is_empty());
+            (d.id().to_string(), name.unwrap_or_else(|| d.id().to_string()))
+        })
+        .collect(), else => Vec::new())
+}
+
+/// A definition as the text of its file entry (RON).
+pub fn ron_of(db: &Database, kind: rustpg2d_engine::refactor::RefKind, id: &str) -> Option<String> {
+    use rustpg2d_engine::defs::Def;
+    rustpg2d_engine::with_def_kind!(kind, |T| T::list(db).iter().find(|d| d.id() == id).and_then(|d| rustpg2d_engine::project::ron_text(d).ok()), else => None)
+}
+
 impl Workspace {
     /// Sprite of an entity definition (props / items; characters a `@char:` marker that
     /// `widgets::paint_sprite` paints from their figure).

@@ -20,8 +20,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   a machine without a graphics driver gets a message.
 
 ### Editor
-- **The new editor's first window** (`rustpg2d-studio`, part 3 of *The Studio*): egui 0.37 on the
-  engine's own renderer, with the running game in a panel. Not an editor yet.
+- **The new editor's window** (`rustpg2d-studio`, part 3 of *The Studio*), egui 0.37 on the
+  engine's own renderer: tabs that can be arranged, a Project browser with fixed groups, a
+  command palette (Ctrl+Shift+P), *Go to anything* (Ctrl+P), one undo history over maps and
+  definitions, the project check, and the game running in a tab. Definitions and maps can be
+  looked at, not edited yet.
 
 - **The agent server runs without a window:** `rustpg2d-studio --headless PROJECT --mcp PORT`
   opens a project and serves every agent tool (map screenshots excepted) where there is no

@@ -766,12 +766,26 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   - **Settings** (the editor's own): appearance, shortcuts, saving, the agent server, the Meshy
     account, pack sources.
 
-  **Progress.** Started ahead of part 2, to prove part 1's purpose: `crates/studio` (binary
-  `rustpg2d-studio` until it replaces the 0.35 editor) is an eframe window (egui 0.37) that
-  hands its wgpu device to `gfx` and shows the running game in a panel (`play.rs`: a
-  `gfx::Screen` of the panel's size registered as an egui texture, the panel's keys and pointer
-  as the game's `Input`) at 60 frames a second. `RUSTPG2D_STUDIO_SCRIPT` (`wait`, `status`,
-  `shot` of the whole window, `key`, `pause`, `resume`, `quit`). Nothing else of the shell yet.
+  **Progress.** `crates/studio` (binary `rustpg2d-studio` until it replaces the 0.35 editor), an
+  eframe window (egui 0.37) on the engine's wgpu device, over `editor-core`'s workspace:
+  - `shell.rs`: panels and documents as tabs that can be arranged (egui_dock): the Project
+    browser on the left (the fixed groups with their kinds and counts, a filter), documents in
+    the middle, Problems and History below; a menu bar made from the command list; the status
+    bar (status line, saved or not, problem counts, frames a second);
+  - the command palette (Ctrl+Shift+P; a command that takes words gets them typed after its id)
+    and *Go to anything* (Ctrl+P, the core's search); Ctrl+S, Ctrl+Z, Ctrl+Y;
+  - documents so far: the Overview with the checklist to a playable game, a definition (its
+    usages as links, and its file entry as text until part 4's forms), a map (its facts until
+    part 6's view), and **Play** (`play.rs`: the game in a tab, a `gfx::Screen` of the tab's
+    size shown as an egui texture, the tab's keys and pointer as the game's input, 60 frames a
+    second);
+  - the agent server runs in the window too (calls between frames);
+  - `RUSTPG2D_STUDIO_SCRIPT`: `wait`, `status` (`tabs=`, `focus=`, `history=`, `problems=`,
+    `palette=`), `shot` of the whole window, `tab NAME`, `palette TEXT` / `goto TEXT` / `pick N`,
+    `key`, `pause`, `resume`, `quit`, and any command line of the editor (`map.open village`).
+  Still open: the home screen, layouts saved and presets, tearing tabs off into windows, back /
+  forward, favourites, the shortcut sheet with rebinding, dropping files in, the theme (light,
+  UI scale, icons), toasts, the editor's settings, `egui_kittest` tests.
 
   **Decided while building.**
   - The new editor grows in `crates/studio` (the old one keeps `crates/editor`, with the

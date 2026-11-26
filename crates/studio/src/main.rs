@@ -1,13 +1,15 @@
-//! The new editor, at its very beginning: an eframe window that shares its wgpu device with the
-//! engine and shows the running game in a panel (ROADMAP.md, *0.36.0 — The Studio*).
+//! The new editor (ROADMAP.md, *0.36.0 — The Studio*): an eframe window on the engine's own wgpu
+//! device, over `editor-core`'s workspace. `shell.rs` is the window, `play.rs` the game in a tab.
 //!
 //! `rustpg2d-studio [PROJECT_DIR] [--map NAME --spawn NAME]`; without a project the repository's
 //! example. `rustpg2d-studio --headless PROJECT [--mcp PORT] [--seconds N]` opens no window: the
 //! agent server works on the project (`editor-core`'s workspace). `RUSTPG2D_STUDIO_SCRIPT="wait 3; status; shot /path/a.png; quit"` drives it for tests
-//! (commands: `wait SECS`, `status`, `shot PATH` = the whole window, `key NAME` = a key for the
-//! game, `pause` / `resume`, `quit`).
+//! (`wait SECS`, `status`, `shot PATH` = the whole window, `tab NAME`, `palette TEXT` / `goto
+//! TEXT` / `pick N`, `key NAME` = a key for the game, `pause` / `resume`, `quit`; any other line
+//! is a command of the editor, e.g. `map.open village` or `edit.undo`).
 
 mod play;
+mod shell;
 
 use std::collections::VecDeque;
 use std::path::PathBuf;
@@ -27,10 +29,7 @@ impl Script {
 }
 
 struct Studio {
-    project_dir: PathBuf,
-    start: rustpg2d_engine::runtime::StartOptions,
-    play: Option<play::PlayView>,
-    error: Option<String>,
+    shell: shell::Shell,
     script: Script,
     frames: u32,
     fps_time: f64,
@@ -42,7 +41,9 @@ impl Studio {
         // The engine draws with eframe's device: what it draws is a texture egui can show.
         let rs = cc.wgpu_render_state.as_ref().expect("eframe was started with the wgpu renderer");
         gfx::init(rs.device.clone(), rs.queue.clone(), 16, 16, &gfx::conf::Conf::default());
-        Studio { project_dir, start, play: None, error: None, script: Script::from_env(), frames: 0, fps_time: 0.0, fps: 0.0 }
+        let mut shell = shell::Shell::open(project_dir, start);
+        shell.ws.looking_at = "the overview".into();
+        Studio { shell, script: Script::from_env(), frames: 0, fps_time: 0.0, fps: 0.0 }
     }
 
     fn run_script(&mut self, ctx: &egui::Context, dt: f32) {
@@ -53,8 +54,8 @@ impl Studio {
             match arg(0) {
                 "wait" => self.script.wait = arg(1).parse().unwrap_or(1.0),
                 "status" => {
-                    let game = self.play.as_ref().map(|p| p.status()).unwrap_or_else(|| "play=none".into());
-                    println!("[status] fps={:.0} {}", self.fps, &game[..game.len().min(600)]);
+                    let game = self.shell.play.as_ref().map(|p| p.status()).unwrap_or_else(|| "play=none".into());
+                    println!("[status] fps={:.0} {} | {}", self.fps, self.shell.status(), &game[..game.len().min(300)]);
                 }
                 "shot" => {
                     let path = arg(1).to_string();
@@ -69,23 +70,46 @@ impl Studio {
                     // (The picture is taken with the next frame.)
                     self.script.wait = 0.2;
                 }
+                // A tab by its name (`overview`, `play`, `problems`, `history`, `def:item:potion`, `map:village`).
+                "tab" => match self.shell.tab_named(arg(1)) {
+                    Some(t) => self.shell.show_tab(t),
+                    None => println!("[script] no tab '{}'", arg(1)),
+                },
+                // The palettes: `palette TEXT…` (commands) and `goto TEXT…`; `pick N` = Enter on entry N.
+                "palette" | "goto" => {
+                    let kind = if arg(0) == "palette" { shell::PaletteKind::Commands } else { shell::PaletteKind::Search };
+                    self.shell.open_palette(kind, &cmd[1..].join(" "));
+                    for (k, (label, detail, _)) in self.shell.palette_entries().iter().enumerate().take(8) {
+                        println!("[palette] {k} {label} | {detail}");
+                    }
+                }
+                "pick" => {
+                    if self.shell.palette_pick(arg(1).parse().unwrap_or(0)) {
+                        self.shell.palette.open = None;
+                    }
+                    if let Some(a) = &self.shell.palette.answer {
+                        println!("[palette] answer: {a:?}");
+                    }
+                }
                 "key" => {
-                    if let (Some(p), Some(k)) = (self.play.as_mut(), play::key_named(arg(1))) {
+                    if let (Some(p), Some(k)) = (self.shell.play.as_mut(), play::key_named(arg(1))) {
                         p.tap(k);
                     }
                 }
-                "pause" => {
-                    if let Some(p) = self.play.as_mut() {
-                        p.paused = true;
-                    }
-                }
-                "resume" => {
-                    if let Some(p) = self.play.as_mut() {
-                        p.paused = false;
+                "pause" | "resume" => {
+                    if let Some(p) = self.shell.play.as_mut() {
+                        p.paused = arg(0) == "pause";
                     }
                 }
                 "quit" => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
-                other => println!("[script] unknown command '{other}'"),
+                // Anything else is a command of the editor (`map.open village`, `edit.undo`…).
+                _ => {
+                    let line = cmd.join(" ");
+                    match self.shell.run(&line) {
+                        Ok(m) => println!("[cmd] {line}: {}", m.replace('\n', " | ")),
+                        Err(e) => println!("[cmd] {line}: failed: {e}"),
+                    }
+                }
             }
         }
     }
@@ -103,41 +127,13 @@ impl eframe::App for Studio {
             self.frames = 0;
             self.fps_time = 0.0;
         }
-        if self.play.is_none() && self.error.is_none() {
-            match play::PlayView::open(&self.project_dir, self.start.clone()) {
-                Ok(p) => self.play = Some(p),
-                Err(e) => self.error = Some(format!("{e:#}")),
-            }
-        }
         self.run_script(&ctx, dt);
-
-        egui::Panel::left("project").default_size(240.0).show(ui, |ui| {
-            ui.heading("R(ust)PG2D Studio");
-            ui.label(format!("{:.0} frames a second", self.fps));
-            ui.separator();
-            ui.label(self.project_dir.display().to_string());
-            if let Some(p) = self.play.as_mut() {
-                let label = if p.paused { "Resume" } else { "Pause" };
-                if ui.button(label).clicked() {
-                    p.paused = !p.paused;
-                }
-                let stats = gfx::window::frame_stats();
-                ui.label(format!("{} draw calls, {} passes", stats.draw_calls, stats.passes));
-                ui.separator();
-                ui.label("Click the game to play it: the keys go to it while the pointer is over it.");
-            }
-            if let Some(e) = &self.error {
-                ui.colored_label(egui::Color32::LIGHT_RED, e);
-            }
-        });
-        egui::CentralPanel::default().frame(egui::Frame::NONE).show(ui, |ui| {
-            if let (Some(p), Some(rs)) = (self.play.as_mut(), frame.wgpu_render_state()) {
-                p.show(ui, rs);
-            }
-        });
-
+        // Agents work between frames, like script commands.
+        self.shell.ws.mcp_drain();
+        self.shell.ui(ui, frame.wgpu_render_state(), self.fps);
+        self.shell.ws.mcp_answer_shots(None);
         gfx::end_frame();
-        // The game moves on by itself: a frame after every frame.
+        // The game and the agents move on by themselves: a frame after every frame.
         ctx.request_repaint();
     }
 }

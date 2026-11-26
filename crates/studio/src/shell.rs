@@ -1,0 +1,696 @@
+//! The window: a menu bar made from the command list, panels and documents as tabs that can be
+//! arranged (egui_dock), the status bar, the command palette and *Go to anything*.
+
+use std::path::PathBuf;
+
+use eframe::egui;
+use editor_core::commands::COMMANDS;
+use editor_core::search::Target;
+use editor_core::{Gpu, Workspace};
+use egui_dock::{DockArea, DockState, NodeIndex};
+use rustpg2d_engine::refactor::RefKind;
+
+use crate::play::PlayView;
+
+/// What a tab shows.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Tab {
+    /// The Project browser.
+    Browser,
+    Overview,
+    /// The game, running.
+    Play,
+    Problems,
+    History,
+    /// A definition.
+    Def(RefKind, String),
+    /// A map.
+    Map(String),
+}
+
+impl Tab {
+    fn title(&self, ws: &Workspace) -> String {
+        match self {
+            Tab::Browser => "Project".into(),
+            Tab::Overview => "Overview".into(),
+            Tab::Play => "Play".into(),
+            Tab::Problems => {
+                let (e, w) = ws.problems.counts();
+                if e + w > 0 {
+                    format!("Problems ({})", e + w)
+                } else {
+                    "Problems".into()
+                }
+            }
+            Tab::History => "History".into(),
+            Tab::Def(k, id) => format!("{}: {id}", k.label()),
+            Tab::Map(m) => {
+                let dirty = ws.open_maps().iter().any(|d| d.map.name == *m && d.is_dirty());
+                format!("Map: {m}{}", if dirty { " *" } else { "" })
+            }
+        }
+    }
+
+    /// `overview`, `def:item:potion`, `map:village`: how scripts and `status` name a tab.
+    pub fn name(&self) -> String {
+        match self {
+            Tab::Browser => "project".into(),
+            Tab::Overview => "overview".into(),
+            Tab::Play => "play".into(),
+            Tab::Problems => "problems".into(),
+            Tab::History => "history".into(),
+            Tab::Def(k, id) => format!("def:{}:{id}", k.name()),
+            Tab::Map(m) => format!("map:{m}"),
+        }
+    }
+}
+
+/// The groups of the Project browser: the same place for the same kind of thing, always.
+pub const GROUPS: &[(&str, &[RefKind])] = &[
+    ("World", &[RefKind::Map, RefKind::Structure, RefKind::Material, RefKind::Scatter]),
+    ("Objects", &[RefKind::Prop]),
+    ("Characters", &[RefKind::Character, RefKind::Race, RefKind::Class, RefKind::Background]),
+    ("Items", &[RefKind::Item, RefKind::Recipe]),
+    ("Rules", &[RefKind::Spell, RefKind::Disease]),
+    ("Story", &[RefKind::Quest, RefKind::Cutscene, RefKind::CommonEvent, RefKind::Achievement, RefKind::VisualScript]),
+    ("Art & sound", &[RefKind::Model, RefKind::Sheet, RefKind::Animation, RefKind::Sound, RefKind::Font, RefKind::Skin]),
+];
+
+/// The palette over the window: commands (Ctrl+Shift+P) or *Go to anything* (Ctrl+P).
+#[derive(Default)]
+pub struct Palette {
+    pub open: Option<PaletteKind>,
+    pub text: String,
+    sel: usize,
+    focus: bool,
+    /// The answer of the command run last from the palette, shown until it closes.
+    pub answer: Option<Result<String, String>>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PaletteKind {
+    Commands,
+    Search,
+}
+
+/// What a tab's UI asked for (done after the tabs are drawn).
+enum Ask {
+    Open(Tab),
+    Run(String),
+}
+
+pub struct Shell {
+    pub ws: Workspace,
+    pub dock: DockState<Tab>,
+    pub play: Option<PlayView>,
+    pub play_error: Option<String>,
+    pub start: rustpg2d_engine::runtime::StartOptions,
+    pub palette: Palette,
+    /// The browser's lists: (kind, id, name), made again when the project changed.
+    lists: Vec<(RefKind, Vec<(String, String)>)>,
+    browser_filter: String,
+    /// Answers of commands, newest last (the script prints them too).
+    pub log: Vec<String>,
+}
+
+impl Shell {
+    pub fn open(project: PathBuf, start: rustpg2d_engine::runtime::StartOptions) -> Shell {
+        let mut ws = match Workspace::open_path(project.clone(), Gpu::Yes) {
+            Ok(ws) => ws,
+            Err(e) => {
+                let mut ws = Workspace::empty();
+                ws.set_status(format!("{}: {e:#}", project.display()));
+                ws
+            }
+        };
+        ws.refresh_refs();
+        ws.history_frame(None);
+        // Documents in the middle, the browser left, problems and history below.
+        let mut dock = DockState::new(vec![Tab::Overview]);
+        let surface = dock.main_surface_mut();
+        let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
+        surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), browser_filter: String::new(), log: Vec::new() }
+    }
+
+    /// Shows `tab`: brings it to the front when it is open, else opens it beside the documents.
+    pub fn show_tab(&mut self, tab: Tab) {
+        if let Tab::Map(m) = &tab {
+            self.ws.open_map(m);
+        }
+        if let Some(path) = self.dock.find_tab(&tab) {
+            let _ = self.dock.set_active_tab(path);
+            return;
+        }
+        // Next to another document when there is one, else in the first leaf.
+        let doc = self.dock.find_tab_from(|t| matches!(t, Tab::Overview | Tab::Def(..) | Tab::Map(_) | Tab::Play));
+        match doc {
+            Some(path) => {
+                self.dock.set_focused_node_and_surface(path.node_path());
+                self.dock.push_to_focused_leaf(tab);
+            }
+            None => self.dock.push_to_first_leaf(tab),
+        }
+    }
+
+    /// The tab by its script name (`overview`, `play`, `def:item:potion`, `map:village`).
+    pub fn tab_named(&self, name: &str) -> Option<Tab> {
+        let mut parts = name.splitn(3, ':');
+        Some(match (parts.next()?, parts.next(), parts.next()) {
+            ("project", None, _) => Tab::Browser,
+            ("overview", None, _) => Tab::Overview,
+            ("play", None, _) => Tab::Play,
+            ("problems", None, _) => Tab::Problems,
+            ("history", None, _) => Tab::History,
+            ("map", Some(m), None) if self.ws.maps.iter().any(|x| x == m) => Tab::Map(m.to_string()),
+            ("def", Some(kind), Some(id)) => {
+                let k = RefKind::ALL.iter().copied().find(|k| k.name() == kind)?;
+                self.ws.project.db.has(k, id).then(|| Tab::Def(k, id.to_string()))?
+            }
+            _ => return None,
+        })
+    }
+
+    /// Where a search hit or a usage leads.
+    pub fn go_to(&mut self, target: &Target) {
+        match target {
+            Target::Map(m) | Target::MapTriggers(m) | Target::Entity(m, _) | Target::Zone(m, _) => {
+                if let Target::Entity(_, uid) = target {
+                    self.ws.sel = editor_core::workspace::Selection::Entity(*uid);
+                }
+                if let Target::Zone(_, uid) = target {
+                    self.ws.sel = editor_core::workspace::Selection::Zone(*uid);
+                }
+                self.show_tab(Tab::Map(m.clone()));
+            }
+            Target::Def(k, id) => self.show_tab(Tab::Def(*k, id.clone())),
+            Target::Script(..) | Target::Project => self.show_tab(Tab::Overview),
+        }
+    }
+
+    /// Runs a command line and keeps its answer.
+    pub fn run(&mut self, line: &str) -> Result<String, String> {
+        let r = self.ws.run_line(line);
+        self.log.push(match &r {
+            Ok(m) => format!("{line}: {}", m.lines().next().unwrap_or_default()),
+            Err(e) => format!("{line}: failed: {e}"),
+        });
+        // A command may have opened a map: its tab follows.
+        if line.starts_with("map.open ") && r.is_ok() {
+            if let Some(m) = self.ws.doc.as_ref().map(|d| d.map.name.clone()) {
+                self.show_tab(Tab::Map(m));
+            }
+        }
+        r
+    }
+
+    /// `tabs=… focus=… history=… problems=… palette=…` for the script's `status`.
+    pub fn status(&mut self) -> String {
+        let tabs: Vec<String> = self.dock.iter_all_tabs().map(|(_, t)| t.name()).collect();
+        let focus = self.dock.find_active_focused().map(|(_, t)| t.name()).unwrap_or_else(|| "-".into());
+        format!(
+            "project={} tabs=[{}] focus={focus} map={} history={} problems={} dirty={} palette={}",
+            if self.ws.project_open { self.ws.project.config.name.replace(' ', "_") } else { "-".into() },
+            tabs.join(","),
+            self.ws.doc.as_ref().map_or("-".into(), |d| d.map.name.clone()),
+            self.ws.timeline.status(),
+            self.ws.problems.status(),
+            self.ws.is_dirty(),
+            match self.palette.open {
+                Some(PaletteKind::Commands) => format!("commands:{}", self.palette.text),
+                Some(PaletteKind::Search) => format!("search:{}", self.palette.text),
+                None => "closed".into(),
+            }
+        )
+    }
+
+    fn lists(&mut self) {
+        if !self.ws.stale && !self.lists.is_empty() {
+            return;
+        }
+        self.lists = GROUPS.iter().flat_map(|(_, kinds)| kinds.iter()).filter(|k| **k != RefKind::Map).map(|k| (*k, editor_core::defs::list(&self.ws.project.db, *k))).collect();
+        self.ws.stale = false;
+    }
+
+    /// One frame of the window.
+    pub fn ui(&mut self, ui: &mut egui::Ui, rs: Option<&eframe::egui_wgpu::RenderState>, fps: f32) {
+        let ctx = ui.ctx().clone();
+        self.ws.history_frame(ctx.memory(|m| m.focused()).map(|id| id.value()));
+        self.lists();
+        self.shortcuts(&ctx);
+
+        egui::Panel::top("menu").show(ui, |ui| {
+            egui::MenuBar::new().ui(ui, |ui| self.menus(ui));
+        });
+        egui::Panel::bottom("status").show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.label(&self.ws.status.0);
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.label(format!("{fps:.0} fps"));
+                    ui.separator();
+                    let (e, w) = self.ws.problems.counts();
+                    ui.label(format!("{e} errors, {w} warnings"));
+                    ui.separator();
+                    ui.label(if self.ws.is_dirty() { "unsaved changes" } else { "saved" });
+                });
+            });
+        });
+
+        let mut asks = Vec::new();
+        {
+            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, filter: &mut self.browser_filter, rs, asks: &mut asks };
+            DockArea::new(&mut self.dock).show_inside(ui, &mut viewer);
+        }
+        for ask in asks {
+            match ask {
+                Ask::Open(tab) => self.show_tab(tab),
+                Ask::Run(line) => {
+                    let _ = self.run(&line);
+                }
+            }
+        }
+        self.palette_ui(&ctx);
+    }
+
+    fn shortcuts(&mut self, ctx: &egui::Context) {
+        let (commands, search, save, undo, redo, escape) = ctx.input(|i| {
+            let c = i.modifiers.command;
+            (c && i.modifiers.shift && i.key_pressed(egui::Key::P), c && !i.modifiers.shift && i.key_pressed(egui::Key::P), c && i.key_pressed(egui::Key::S), c && !i.modifiers.shift && i.key_pressed(egui::Key::Z), c && (i.key_pressed(egui::Key::Y) || (i.modifiers.shift && i.key_pressed(egui::Key::Z))), i.key_pressed(egui::Key::Escape))
+        });
+        if commands {
+            self.open_palette(PaletteKind::Commands, "");
+        } else if search {
+            self.open_palette(PaletteKind::Search, "");
+        }
+        if escape && self.palette.open.is_some() {
+            self.palette.open = None;
+        }
+        // (A text field with the keyboard keeps Ctrl+Z for its own typing.)
+        if save {
+            let _ = self.run("file.save_all");
+        }
+        if !ctx.text_edit_focused() {
+            if undo {
+                let _ = self.run("edit.undo");
+            } else if redo {
+                let _ = self.run("edit.redo");
+            }
+        }
+    }
+
+    pub fn open_palette(&mut self, kind: PaletteKind, text: &str) {
+        self.palette = Palette { open: Some(kind), text: text.to_string(), sel: 0, focus: true, answer: None };
+    }
+
+    /// The menu bar: a menu per group of the command list.
+    fn menus(&mut self, ui: &mut egui::Ui) {
+        let mut groups: Vec<&str> = Vec::new();
+        for c in COMMANDS {
+            let g = c.id.split('.').next().unwrap_or_default();
+            if !groups.contains(&g) {
+                groups.push(g);
+            }
+        }
+        let mut run = None;
+        for g in groups {
+            let title = format!("{}{}", g[..1].to_uppercase(), &g[1..]);
+            ui.menu_button(title, |ui| {
+                for c in COMMANDS.iter().filter(|c| c.id.starts_with(g) && c.id[g.len()..].starts_with('.')) {
+                    let label = if c.keys.is_empty() { c.title.to_string() } else { format!("{}   {}", c.title, c.keys) };
+                    let label = if c.params.is_empty() { label } else { format!("{label}…") };
+                    if ui.button(label).on_hover_text(c.help).clicked() {
+                        run = Some(c);
+                        ui.close();
+                    }
+                }
+            });
+        }
+        if let Some(c) = run {
+            if c.id == "find.search" {
+                self.open_palette(PaletteKind::Search, "");
+            } else if c.params.is_empty() {
+                let _ = self.run(c.id);
+            } else {
+                // It needs words: the palette, with the command typed.
+                self.open_palette(PaletteKind::Commands, &format!("{} ", c.id));
+            }
+        }
+        ui.separator();
+        if ui.button("Play").on_hover_text("Runs the game here, in a tab").clicked() {
+            self.show_tab(Tab::Play);
+        }
+    }
+
+    /// The entries the palette shows for its text: (label, detail, what Enter does).
+    pub fn palette_entries(&mut self) -> Vec<(String, String, PaletteHit)> {
+        let text = self.palette.text.clone();
+        match self.palette.open {
+            Some(PaletteKind::Commands) => {
+                let word = text.split_whitespace().next().unwrap_or_default().to_lowercase();
+                let typed_args = text.contains(' ');
+                COMMANDS
+                    .iter()
+                    .filter(|c| if typed_args { c.id == word } else { word.is_empty() || c.id.contains(&word) || c.title.to_lowercase().contains(&word) })
+                    .map(|c| {
+                        let params = if c.params.is_empty() { String::new() } else { format!(" <{}>", c.params.join("> <")) };
+                        (format!("{}{params}", c.title), format!("{}  {}", c.id, c.help), PaletteHit::Command(c.id, !c.params.is_empty()))
+                    })
+                    .collect()
+            }
+            Some(PaletteKind::Search) => self.ws.search(&text).into_iter().map(|h| (h.label.clone(), format!("{} · {}", h.what.name(), h.detail), PaletteHit::Go(h.target))).collect(),
+            None => Vec::new(),
+        }
+    }
+
+    /// Enter on the palette's entry `k`. True when the palette is done.
+    pub fn palette_pick(&mut self, k: usize) -> bool {
+        let entries = self.palette_entries();
+        let Some((_, _, hit)) = entries.into_iter().nth(k) else { return false };
+        match hit {
+            PaletteHit::Go(target) => {
+                self.go_to(&target);
+                true
+            }
+            PaletteHit::Command(id, needs_words) => {
+                let typed = self.palette.text.trim().to_string();
+                let has_words = typed.split_whitespace().count() > 1 && typed.starts_with(id);
+                if needs_words && !has_words {
+                    // The command's id goes into the field for its words to follow.
+                    self.palette.text = format!("{id} ");
+                    self.palette.focus = true;
+                    return false;
+                }
+                let line = if has_words { typed } else { id.to_string() };
+                let r = self.run(&line);
+                let done = r.is_ok() && r.as_ref().is_ok_and(|m| !m.contains('\n'));
+                self.palette.answer = Some(r);
+                done
+            }
+        }
+    }
+
+    fn palette_ui(&mut self, ctx: &egui::Context) {
+        let Some(kind) = self.palette.open else { return };
+        let entries = self.palette_entries();
+        let (down, up, enter) = ctx.input(|i| (i.key_pressed(egui::Key::ArrowDown), i.key_pressed(egui::Key::ArrowUp), i.key_pressed(egui::Key::Enter)));
+        if down {
+            self.palette.sel = (self.palette.sel + 1).min(entries.len().saturating_sub(1));
+        }
+        if up {
+            self.palette.sel = self.palette.sel.saturating_sub(1);
+        }
+        self.palette.sel = self.palette.sel.min(entries.len().saturating_sub(1));
+        let mut pick = enter.then_some(self.palette.sel);
+        egui::Area::new(egui::Id::unique("palette")).anchor(egui::Align2::CENTER_TOP, [0.0, 70.0]).order(egui::Order::Foreground).show(ctx, |ui| {
+            egui::Frame::popup(ui.style()).show(ui, |ui| {
+                ui.set_width(620.0);
+                let hint = match kind {
+                    PaletteKind::Commands => "Do anything: type a command",
+                    PaletteKind::Search => "Go to anything: maps, definitions, functions, characters, zones, dialog lines",
+                };
+                let r = ui.add(egui::TextEdit::singleline(&mut self.palette.text).hint_text(hint).desired_width(f32::INFINITY));
+                if std::mem::take(&mut self.palette.focus) {
+                    r.request_focus();
+                }
+                if r.changed() {
+                    self.palette.sel = 0;
+                    self.palette.answer = None;
+                }
+                ui.separator();
+                egui::ScrollArea::vertical().max_height(380.0).show(ui, |ui| {
+                    for (k, (label, detail, _)) in entries.iter().enumerate().take(60) {
+                        let text = egui::RichText::new(label).strong();
+                        let row = ui.selectable_label(k == self.palette.sel, text).on_hover_text(detail);
+                        ui.weak(detail);
+                        if row.clicked() {
+                            pick = Some(k);
+                        }
+                    }
+                    if entries.is_empty() && !self.palette.text.trim().is_empty() {
+                        ui.weak("Nothing found");
+                    }
+                });
+                if let Some(a) = &self.palette.answer {
+                    ui.separator();
+                    match a {
+                        Ok(m) => ui.label(m),
+                        Err(e) => ui.colored_label(egui::Color32::LIGHT_RED, e),
+                    };
+                }
+            });
+        });
+        if let Some(k) = pick {
+            if self.palette_pick(k) {
+                self.palette.open = None;
+            }
+        }
+    }
+}
+
+/// What Enter does on a palette entry.
+pub enum PaletteHit {
+    /// A command, and whether it takes words.
+    Command(&'static str, bool),
+    Go(Target),
+}
+
+/// Draws the tabs.
+struct Viewer<'a> {
+    ws: &'a mut Workspace,
+    play: &'a mut Option<PlayView>,
+    play_error: &'a mut Option<String>,
+    start: &'a rustpg2d_engine::runtime::StartOptions,
+    lists: &'a [(RefKind, Vec<(String, String)>)],
+    filter: &'a mut String,
+    rs: Option<&'a eframe::egui_wgpu::RenderState>,
+    asks: &'a mut Vec<Ask>,
+}
+
+impl egui_dock::TabViewer for Viewer<'_> {
+    type Tab = Tab;
+
+    fn id(&mut self, tab: &mut Tab) -> egui::Id {
+        egui::Id::unique(("tab", tab.name()))
+    }
+
+    fn title(&mut self, tab: &mut Tab) -> egui::WidgetText {
+        tab.title(self.ws).into()
+    }
+
+    fn is_closeable(&self, tab: &Tab) -> bool {
+        !matches!(tab, Tab::Browser)
+    }
+
+    fn scroll_bars(&self, tab: &Tab) -> [bool; 2] {
+        // (The game fills its tab.)
+        if matches!(tab, Tab::Play) {
+            [false, false]
+        } else {
+            [false, true]
+        }
+    }
+
+    fn ui(&mut self, ui: &mut egui::Ui, tab: &mut Tab) {
+        match tab {
+            Tab::Browser => self.browser(ui),
+            Tab::Overview => self.overview(ui),
+            Tab::Play => self.play_tab(ui),
+            Tab::Problems => self.problems(ui),
+            Tab::History => self.history(ui),
+            Tab::Def(k, id) => self.definition(ui, *k, id),
+            Tab::Map(m) => self.map(ui, m),
+        }
+    }
+}
+
+impl Viewer<'_> {
+    fn browser(&mut self, ui: &mut egui::Ui) {
+        if !self.ws.project_open {
+            ui.weak("No project is open.");
+            return;
+        }
+        ui.add(egui::TextEdit::singleline(self.filter).hint_text("Filter").desired_width(f32::INFINITY));
+        let f = self.filter.trim().to_lowercase();
+        let fits = |id: &str, name: &str| f.is_empty() || id.to_lowercase().contains(&f) || name.to_lowercase().contains(&f);
+        egui::CollapsingHeader::new("Game").default_open(true).show(ui, |ui| {
+            if ui.selectable_label(false, "Overview").clicked() {
+                self.asks.push(Ask::Open(Tab::Overview));
+            }
+        });
+        for (group, kinds) in GROUPS {
+            egui::CollapsingHeader::new(*group).default_open(*group == "World" || !f.is_empty()).show(ui, |ui| {
+                for kind in kinds.iter() {
+                    let rows: Vec<(String, String)> = if *kind == RefKind::Map {
+                        self.ws.maps.iter().filter(|m| fits(m, m)).map(|m| (m.clone(), m.clone())).collect()
+                    } else {
+                        self.lists.iter().find(|(k, _)| k == kind).map(|(_, l)| l.iter().filter(|(id, name)| fits(id, name)).cloned().collect()).unwrap_or_default()
+                    };
+                    if rows.is_empty() && !f.is_empty() {
+                        continue;
+                    }
+                    egui::CollapsingHeader::new(format!("{}s ({})", kind.label(), rows.len())).id_salt(("kind", kind.name())).default_open(!f.is_empty() && rows.len() <= 12).show(ui, |ui| {
+                        for (id, name) in &rows {
+                            let label = if name == id { id.clone() } else { format!("{name}  ({id})") };
+                            if ui.selectable_label(false, label).clicked() {
+                                self.asks.push(Ask::Open(if *kind == RefKind::Map { Tab::Map(id.clone()) } else { Tab::Def(*kind, id.clone()) }));
+                            }
+                        }
+                    });
+                }
+            });
+        }
+    }
+
+    fn overview(&mut self, ui: &mut egui::Ui) {
+        if !self.ws.project_open {
+            ui.heading("R(ust)PG2D Studio");
+            ui.label(&self.ws.status.0);
+            return;
+        }
+        let cfg = &self.ws.project.config;
+        ui.heading(&cfg.name);
+        ui.weak(self.ws.project_location().display().to_string());
+        ui.add_space(8.0);
+        ui.strong("To a playable game");
+        let db = &self.ws.project.db;
+        let (errors, _) = self.ws.problems.counts();
+        let steps: [(&str, bool); 5] = [
+            ("A map to start on", self.ws.maps.contains(&cfg.start_map)),
+            ("A hero", !cfg.player.is_empty() && db.character(&cfg.player).is_some()),
+            ("Somebody to talk to", db.characters.len() > 1),
+            ("A quest", !db.quests.is_empty()),
+            ("No errors in the project check", self.ws.problems.status() != "-" && errors == 0),
+        ];
+        for (text, done) in steps {
+            ui.horizontal(|ui| {
+                ui.label(if done { "[x]" } else { "[ ]" });
+                ui.label(text);
+            });
+        }
+        ui.add_space(8.0);
+        ui.horizontal(|ui| {
+            if ui.button("Play").clicked() {
+                self.asks.push(Ask::Open(Tab::Play));
+            }
+            if ui.button("Check the project").clicked() {
+                self.asks.push(Ask::Run("check.problems".into()));
+                self.asks.push(Ask::Open(Tab::Problems));
+            }
+        });
+        ui.add_space(8.0);
+        ui.strong("In this project");
+        ui.label(format!("{} maps", self.ws.maps.len()));
+        for (kind, list) in self.lists {
+            if !list.is_empty() {
+                ui.label(format!("{} {}s", list.len(), kind.label().to_lowercase()));
+            }
+        }
+    }
+
+    fn play_tab(&mut self, ui: &mut egui::Ui) {
+        if self.play.is_none() && self.play_error.is_none() && self.ws.project_open {
+            match PlayView::open(&self.ws.project.root, self.start.clone()) {
+                Ok(p) => *self.play = Some(p),
+                Err(e) => *self.play_error = Some(format!("{e:#}")),
+            }
+        }
+        match (self.play.as_mut(), self.rs) {
+            (Some(p), Some(rs)) => p.show(ui, rs),
+            _ => {
+                ui.colored_label(egui::Color32::LIGHT_RED, self.play_error.clone().unwrap_or_else(|| "The game can't run here.".into()));
+            }
+        }
+    }
+
+    fn problems(&mut self, ui: &mut egui::Ui) {
+        ui.horizontal(|ui| {
+            if ui.button("Check the project").clicked() {
+                self.asks.push(Ask::Run("check.problems".into()));
+            }
+            let (e, w) = self.ws.problems.counts();
+            ui.label(if self.ws.problems.status() == "-" { "Not checked yet".to_string() } else { format!("{e} error(s), {w} warning(s)") });
+        });
+        ui.separator();
+        for p in &self.ws.problems.list {
+            ui.horizontal_wrapped(|ui| {
+                let color = if p.severity == editor_core::problems::Severity::Error { egui::Color32::from_rgb(235, 110, 100) } else { egui::Color32::from_rgb(230, 190, 90) };
+                ui.colored_label(color, p.severity.name());
+                if ui.link(&p.place).on_hover_text("Go there").clicked() {
+                    match &p.target {
+                        Target::Def(k, id) => self.asks.push(Ask::Open(Tab::Def(*k, id.clone()))),
+                        Target::Map(m) | Target::MapTriggers(m) | Target::Entity(m, _) | Target::Zone(m, _) => self.asks.push(Ask::Open(Tab::Map(m.clone()))),
+                        _ => self.asks.push(Ask::Open(Tab::Overview)),
+                    }
+                }
+                ui.label(&p.text);
+            });
+        }
+    }
+
+    fn history(&mut self, ui: &mut egui::Ui) {
+        ui.horizontal(|ui| {
+            if ui.add_enabled(self.ws.can_undo(), egui::Button::new("Undo")).clicked() {
+                self.asks.push(Ask::Run("edit.undo".into()));
+            }
+            if ui.add_enabled(self.ws.can_redo(), egui::Button::new("Redo")).clicked() {
+                self.asks.push(Ask::Run("edit.redo".into()));
+            }
+        });
+        ui.separator();
+        for c in self.ws.timeline.undone.iter() {
+            ui.weak(format!("(undone) {} · {}", c.label, c.at.describe()));
+        }
+        for c in self.ws.timeline.done.iter().rev() {
+            ui.label(format!("{} · {}", c.label, c.at.describe()));
+        }
+        if self.ws.timeline.done.is_empty() && self.ws.timeline.undone.is_empty() {
+            ui.weak("Nothing was changed yet. Every change shows here, newest first, and can be undone.");
+        }
+    }
+
+    fn definition(&mut self, ui: &mut egui::Ui, kind: RefKind, id: &str) {
+        let Some(text) = editor_core::defs::ron_of(&self.ws.project.db, kind, id) else {
+            ui.weak(format!("{} \"{id}\" is gone (renamed or deleted).", kind.label()));
+            return;
+        };
+        ui.heading(id);
+        ui.weak(kind.label());
+        ui.horizontal(|ui| {
+            if ui.button("Find usages").clicked() {
+                self.asks.push(Ask::Run(format!("find.usages {} {id}", kind.name())));
+            }
+            if self.ws.usages.of.as_ref().is_some_and(|(k, i)| *k == kind && i == id) {
+                ui.label(format!("{} usage(s)", self.ws.usages.list.len()));
+            }
+        });
+        if self.ws.usages.of.as_ref().is_some_and(|(k, i)| *k == kind && i == id) {
+            for u in &self.ws.usages.list {
+                if ui.link(format!("{}: {}", u.target.describe(), u.label)).clicked() {
+                    match &u.target {
+                        Target::Def(k, i) => self.asks.push(Ask::Open(Tab::Def(*k, i.clone()))),
+                        Target::Map(m) | Target::MapTriggers(m) | Target::Entity(m, _) | Target::Zone(m, _) => self.asks.push(Ask::Open(Tab::Map(m.clone()))),
+                        _ => {}
+                    }
+                }
+            }
+        }
+        ui.separator();
+        ui.weak("Its form comes with part 4 of the Studio; this is the definition as its file holds it.");
+        ui.add(egui::Label::new(egui::RichText::new(text).monospace()).selectable(true));
+    }
+
+    fn map(&mut self, ui: &mut egui::Ui, name: &str) {
+        let Some(doc) = self.ws.open_maps().into_iter().find(|d| d.map.name == name) else {
+            ui.weak(format!("Map \"{name}\" isn't open."));
+            return;
+        };
+        let m = &doc.map;
+        ui.heading(name);
+        ui.label(format!("{} x {} tiles, {} characters, props and items, {} decorations, {} zones", m.width, m.height, m.entities.len(), m.decor.len(), m.zones.len()));
+        ui.weak("The map view comes with part 6 of the Studio.");
+        ui.separator();
+        for e in m.entities.iter().filter(|e| !e.name.is_empty()).take(200) {
+            ui.label(format!("{} ({})", e.name, e.def));
+        }
+    }
+}

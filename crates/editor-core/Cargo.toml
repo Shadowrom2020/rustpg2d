@@ -1,0 +1,14 @@
+[package]
+name = "rustpg2d-editor-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Everything the R(ust)PG2D editor knows and does, without a UI: the workspace (project, open maps, library), changes with one undo history, search, problems. The window, the editor script and the agent server work through it."
+
+[dependencies]
+rustpg2d-engine.workspace = true
+gfx.workspace = true
+anyhow.workspace = true
+ron.workspace = true
+serde.workspace = true

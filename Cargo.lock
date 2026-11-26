@@ -2913,6 +2913,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "rustpg2d-editor-core"
+version = "0.35.0-alpha.1"
+dependencies = [
+ "anyhow",
+ "ron",
+ "rustpg2d-engine",
+ "rustpg2d-gfx",
+ "serde",
+]
+
+[[package]]
 name = "rustpg2d-engine"
 version = "0.35.0-alpha.1"
 dependencies = [

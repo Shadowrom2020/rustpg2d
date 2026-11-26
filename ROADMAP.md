@@ -654,7 +654,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     `tests/golden/house.png` (ground, figures, text, the UI's skin). Skipped without a graphics
     adapter unless `RUSTPG2D_GPU_TESTS=1`; CI runs it on Vulkan's software renderer.*
 
-- [ ] Part 2: The editor core — `feature/studio`
+- [~] Part 2: The editor core — `feature/studio`
 
   **Goal.** Everything the editor knows and does, without any UI: one place that the windows, the
   editor script and the agent server all work through.
@@ -685,6 +685,26 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   - **Editor data in the project:** `editor/` in the project file holds what only the editor
     needs (folders, tags, notes, favourites, layouts, where an asset came from). Exports leave it
     out.
+
+  **Progress.** `crates/editor-core`: the workspace (`workspace.rs`: a project folder or file,
+  several open maps each with its history, saving, the status line; with or without a graphics
+  adapter), map documents (`doc.rs`), the definitions' undo (`history.rs`, the old
+  `db_undo.rs`: whoever changed something calls `history_frame`), renames through
+  definitions, maps and scripts (`rename.rs`), the project file, the editor's settings and
+  recent list, repository mode. Tests on a scratch copy of the example, without a window: a
+  change undone and saved leaves every file byte for byte, two maps stay open with their
+  changes, a rename reaches maps and scripts and undoes. Still open: one history over maps and
+  definitions with named commands and the registry, search / usages / problems / unused, the
+  agent server (and headless), thumbnails and map pictures, imports, art jobs.
+
+  **Decided while building.**
+  - **Changes are observed, not funnelled:** forms and tools change the definitions directly
+    and the history turns the difference into a step (as 0.35's did), so a widget needn't
+    know about commands. Named commands wrap that for the palette, scripts and agents.
+  - **Projects older than 0.35 are refused** with a message naming 0.35 already here (the
+    converters themselves leave in part 11).
+  - **The UI-free files of the 0.35 editor are copied over and adapted,** not rewritten: their
+    tests come along.
 
   **Engine.** None beyond part 1. The crate takes over the logic of the old `app.rs`, `doc.rs`,
   `db_undo.rs`, `maps.rs`, `multisel.rs`, `clipboard.rs`, `structures.rs`, `search.rs`,

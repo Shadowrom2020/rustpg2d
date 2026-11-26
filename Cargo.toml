@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/gfx", "crates/engine", "crates/game", "crates/studio", "crates/packaging", "crates/xtask"]
+members = ["crates/gfx", "crates/engine", "crates/game", "crates/editor-core", "crates/studio", "crates/packaging", "crates/xtask"]
 # The 0.35 editor (macroquad + egui 0.31): kept to read while the new one is built (ROADMAP.md,
 # 0.36.0), no longer compiled.
 exclude = ["crates/editor"]
@@ -15,6 +15,7 @@ rust-version = "1.99"
 [workspace.dependencies]
 rustpg2d-engine = { path = "crates/engine" }
 gfx = { package = "rustpg2d-gfx", path = "crates/gfx" }
+editor-core = { package = "rustpg2d-editor-core", path = "crates/editor-core" }
 rustpg2d-packaging = { path = "crates/packaging" }
 serde = { version = "1", features = ["derive"] }
 ron = "0.12"

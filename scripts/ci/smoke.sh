@@ -5,8 +5,8 @@
 # quick-saving, a map change with its autosave, the editor opening a map, and the agent server's
 # smoke client (crates/editor/examples/mcp_smoke.rs).
 #
-# Needs target/debug/rustpg2d-game, rustpg2d-editor and examples/mcp_smoke:
-#   cargo build -p rustpg2d-game -p rustpg2d-editor && cargo build -p rustpg2d-editor --example mcp_smoke
+# Needs target/debug/rustpg2d-game, rustpg2d-studio and examples/mcp_smoke:
+#   cargo build -p rustpg2d-game -p rustpg2d-studio && cargo build -p rustpg2d-studio --example mcp_smoke
 #   scripts/ci/smoke.sh            # BIN=<dir> for other binaries, WORK=<dir> to keep the logs
 # Without a display (CI) every run goes through xvfb-run.
 set -uo pipefail
@@ -85,8 +85,24 @@ line=$(game "seed 5; wait 2; waitturn 30; turn fast; turn end; waitturn 30; turn
 # (Two attack rolls: the rat's on its turn, then the player's.)
 expect "a turn-based fight" "$line" "rolls=attack:" ",attack:"
 
-# The editor's checks need an editor: while the new one is being built (ROADMAP.md, 0.36.0) there
-# is none on this branch.
+# The new editor without a window (ROADMAP.md, 0.36.0): its agent server on the scratch project,
+# driven by the smoke client (lists the tools, edits the project, writes art, captures a
+# structure, sends assets to the scratch library, play-tests; needs the game next to it).
+if [ -x "$BIN/rustpg2d-studio" ] && [ -x "$BIN/examples/mcp_smoke" ]; then
+  cp -r "$WORK/proj" "$WORK/agent-proj"
+  RUSTPG2D_FOLDER_PROJECTS=1 RUSTPG2D_REPO=0 "$BIN/rustpg2d-studio" --headless "$WORK/agent-proj" --mcp "$PORT" --seconds 300 > "$WORK/studio-mcp.log" 2>&1 &
+  studio=$!
+  for _ in $(seq 1 120); do
+    curl -s -o /dev/null "http://127.0.0.1:$PORT/mcp" && break
+    sleep 0.5
+  done
+  if timeout 280 "${X[@]}" "$BIN/examples/mcp_smoke" "$PORT" headless > "$WORK/mcp_smoke.log" 2>&1; then echo "PASS agent server smoke client (no window)"; else echo "FAIL agent server smoke client (no window):"; cat "$WORK/mcp_smoke.log"; failed=$((failed + 1)); fi
+  kill "$studio" 2>/dev/null; wait "$studio" 2>/dev/null
+else
+  echo "SKIP the agent server: no $BIN/rustpg2d-studio or $BIN/examples/mcp_smoke"
+fi
+
+# The 0.35 editor's checks need that editor: it is not built on this branch.
 if [ ! -x "$BIN/rustpg2d-editor" ]; then
   echo "SKIP the editor's checks: no $BIN/rustpg2d-editor"
   if [ "$failed" -gt 0 ]; then

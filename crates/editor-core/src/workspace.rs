@@ -17,6 +17,56 @@ use crate::files;
 use crate::history::DbHistory;
 use crate::project_file::ProjectFile;
 
+/// What is selected on the map being worked on.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum Selection {
+    #[default]
+    None,
+    Entity(u32),
+    Zone(u32),
+    /// A rectangle of tiles `(x, y, w, h)` (copy / cut / delete).
+    Region((u32, u32, u32, u32)),
+}
+
+/// What a map view shows besides the map.
+#[derive(Clone, Copy, Debug)]
+pub struct ViewOpts {
+    pub grid: bool,
+    pub collision: bool,
+    pub zones: bool,
+    pub minimap: bool,
+    /// The map's darkness and lights at `hour` (outdoor maps).
+    pub lighting: bool,
+    pub hour: f32,
+    pub weather: bool,
+    pub parallax: bool,
+    /// From straight above instead of isometric.
+    pub topdown: bool,
+}
+
+impl Default for ViewOpts {
+    fn default() -> ViewOpts {
+        ViewOpts { grid: false, collision: false, zones: true, minimap: true, lighting: false, hour: 12.0, weather: false, parallax: true, topdown: false }
+    }
+}
+
+/// Where a map view looks: the world point in its middle and screen pixels per world pixel.
+#[derive(Clone, Copy, Debug)]
+pub struct Cam {
+    pub center: gfx::math::Vec2,
+    pub zoom: f32,
+}
+
+/// A script as an editor shows it: the file and its text with the edits not written yet. Agents
+/// and renames that rewrite the file keep it in step.
+#[derive(Default)]
+pub struct ScriptBuffer {
+    pub script_file: Option<PathBuf>,
+    pub script_text: String,
+    pub script_saved: String,
+    pub script_dirty: bool,
+}
+
 /// May textures be loaded (is `gfx` set up on this thread)?
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Gpu {
@@ -52,6 +102,34 @@ pub struct Workspace {
     pub defs_warnings: Vec<String>,
     /// The last message for the person, and when (seconds of [`crate::now`]).
     pub status: (String, f64),
+    /// The selection, camera and view options of the map being worked on.
+    pub sel: Selection,
+    pub cam: Cam,
+    pub view: ViewOpts,
+    /// The script open in an editor (named `db` as the 0.35 editor's Database state was, so the
+    /// code that came over reads the same).
+    pub db: ScriptBuffer,
+    /// What the person is looking at and whether a question is open, as the window tells it
+    /// (for agents asking about the editor's state).
+    pub looking_at: String,
+    pub asking: Option<String>,
+    /// This workspace is the asset library itself.
+    pub library_mode: bool,
+    pub refs: crate::refs::Refs,
+    pub map_refs: std::collections::HashMap<String, crate::refs::MapRefs>,
+    pub problems: crate::problems::Problems,
+    pub search: crate::search::Search,
+    pub usages: crate::search::Usages,
+    /// Generate art (Meshy): the jobs and the account's settings.
+    pub art: crate::art::ArtState,
+    pub art_settings: crate::art::ArtSettings,
+    /// The asset library.
+    pub lib: crate::library::LibState,
+    /// The agent server and what it saw change on disk.
+    pub mcp: crate::mcp::McpState,
+    pub watch: crate::mcp::watcher::Watch,
+    /// The search index is older than the project.
+    pub search_stale: bool,
     /// Counts the times script files were rewritten on disk by a rename: a script editor showing
     /// one reloads it when this moved.
     pub scripts_rev: u64,
@@ -76,7 +154,7 @@ impl Workspace {
         let assets = if gpu == Gpu::Yes && project_open { Assets::load(&project) } else { no_assets() };
         let maps = if project_open { project.list_maps() } else { Vec::new() };
         let defs_saved = Box::new((project.db.clone(), project.config.clone()));
-        Workspace { project, project_open, project_file: None, maps, doc: None, parked: BTreeMap::new(), assets, gpu, defs_dirty: false, defs_saved, db_hist: DbHistory::default(), notices: Vec::new(), defs_warnings: Vec::new(), status: (String::new(), 0.0), scripts_rev: 0, stale: true }
+        Workspace { project, project_open, project_file: None, maps, doc: None, parked: BTreeMap::new(), assets, gpu, defs_dirty: false, defs_saved, db_hist: DbHistory::default(), notices: Vec::new(), defs_warnings: Vec::new(), status: (String::new(), 0.0), sel: Selection::None, cam: Cam { center: gfx::math::Vec2::ZERO, zoom: 1.0 }, view: ViewOpts::default(), db: ScriptBuffer::default(), looking_at: String::new(), asking: None, library_mode: false, refs: Default::default(), map_refs: Default::default(), problems: crate::problems::Problems::new(), search: Default::default(), usages: Default::default(), art: Default::default(), art_settings: { let s = files::load_settings(); crate::art::ArtSettings { model: s.meshy_model, budget: s.meshy_budget, ask: s.meshy_ask } }, lib: Default::default(), mcp: Default::default(), watch: Default::default(), search_stale: true, scripts_rev: 0, stale: true }
     }
 
     /// A workspace on the project folder `root` (`file`: the project file it is the working copy
@@ -368,10 +446,5 @@ impl Workspace {
         }
         let n = self.assets.errors.len();
         self.set_status(if n == 0 { "Assets reloaded".to_string() } else { format!("Assets reloaded with {n} error(s)") });
-    }
-
-    /// Lists and pickers that depend on the definitions are out of date.
-    pub fn refresh_refs(&mut self) {
-        self.stale = true;
     }
 }

@@ -3,11 +3,22 @@
 //! the editor script and the agent server work through it.
 
 pub mod doc;
+pub mod art;
+pub mod defs;
 pub mod files;
+pub mod frame_ops;
 pub mod history;
+pub mod library;
+pub mod mapops;
+pub mod mcp;
+pub mod models;
+pub mod problems;
 pub mod project_file;
+pub mod refs;
 pub mod rename;
 pub mod repo_mode;
+pub mod search;
+pub mod starter;
 pub mod testsetup;
 pub mod workspace;
 

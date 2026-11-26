@@ -17,6 +17,12 @@ being rewritten on a new foundation, in twelve parts. While it lasts:
   through `library_send`) describes 0.35 and comes back with the new editor; until then example
   content is edited with a 0.35 editor in a `master` worktree and merged in. `scripts/ci/smoke.sh`
   skips the editor's checks without the binary.
+- **The editor's logic is `crates/editor-core`** (no UI, no window needed): copied from the 0.35
+  editor's UI-free files, with their tests. Its agent server runs without a window:
+  `target/debug/rustpg2d-studio --headless <project> --mcp PORT [--seconds N]` (set
+  `RUSTPG2D_FOLDER_PROJECTS=1 RUSTPG2D_REPO=0` and the scratch `RUSTPG2D_EDITOR_CONFIG` /
+  `RUSTPG2D_LIBRARY` for tests), driven by `target/debug/examples/mcp_smoke PORT headless` or any
+  MCP client. Map screenshots need a window (not there yet).
 - **The new editor is `crates/studio`** (binary `rustpg2d-studio`): so far a window with the
   running game in a panel. `RUSTPG2D_STUDIO_SCRIPT="wait 3; status; shot /path/a.png; quit"
   target/debug/rustpg2d-studio <project> [--map M --spawn S]` drives it (`shot` = the whole
@@ -101,6 +107,13 @@ crates/gfx/src/         the platform layer (0.36): lib.rs (the context, begin / 
                         (WGSL materials, declarations generated), camera.rs, shapes.rs, text.rs (+ atlas; macroquad's
                         code), input.rs (Input: fed by the window or an embedder), window.rs (winit: desktop and
                         the web's canvas), audio.rs (kira), web.rs (the browser's services), time.rs, gpu.rs
+crates/editor-core/src/ the editor without its UI (0.36): workspace.rs (Workspace: project, open maps, selection, view,
+                        status), doc.rs (MapDoc + undo), history.rs (definitions' undo: history_frame), rename.rs,
+                        refs.rs, search.rs, problems.rs, mapops.rs, models.rs, library.rs, starter.rs, art/ (Meshy
+                        jobs), project_file.rs, files.rs (settings, recent), repo_mode.rs, mcp/ (the agent server:
+                        tools.rs = the catalogue, exec*.rs, play.rs, watcher.rs, server.rs)
+crates/studio/src/      the new editor (0.36): main.rs (the eframe window; `--headless PROJECT --mcp PORT` = the agent
+                        server without a window), play.rs (the game in a panel); examples/mcp_smoke.rs
 crates/engine/src/      library: everything shared by game and editor
   defs.rs               Database: sheets, items, props (+states, container, lock, anim),
                         characters (+shop), sounds, quests, structures; serde formats of defs/*.ron

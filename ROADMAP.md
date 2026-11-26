@@ -686,16 +686,28 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     needs (folders, tags, notes, favourites, layouts, where an asset came from). Exports leave it
     out.
 
-  **Progress.** `crates/editor-core`: the workspace (`workspace.rs`: a project folder or file,
-  several open maps each with its history, saving, the status line; with or without a graphics
-  adapter), map documents (`doc.rs`), the definitions' undo (`history.rs`, the old
-  `db_undo.rs`: whoever changed something calls `history_frame`), renames through
-  definitions, maps and scripts (`rename.rs`), the project file, the editor's settings and
-  recent list, repository mode. Tests on a scratch copy of the example, without a window: a
-  change undone and saved leaves every file byte for byte, two maps stay open with their
-  changes, a rename reaches maps and scripts and undoes. Still open: one history over maps and
-  definitions with named commands and the registry, search / usages / problems / unused, the
-  agent server (and headless), thumbnails and map pictures, imports, art jobs.
+  **Progress.** `crates/editor-core`, from the UI-free files of the 0.35 editor:
+  - the workspace (`workspace.rs`: a project folder or file, several open maps each with its
+    history, saving, the status line, the selection and view of the map worked on; with or
+    without a graphics adapter), map documents (`doc.rs`), the definitions' undo (`history.rs`),
+    renames (`rename.rs`), the project file, the editor's settings and recent list, repository
+    mode, the starter library (`starter.rs`);
+  - reference lists (`refs.rs`), search and usages (`search.rs`), the problems list
+    (`problems.rs`), map operations tools and agents share (`mapops.rs`), 3D models
+    (`models.rs`), the asset library's transfers (`library.rs`), Generate art's jobs (`art/`);
+  - **the agent server** (`mcp/`, all 71 tools): it runs without a window, `rustpg2d-studio
+    --headless PROJECT --mcp PORT`. The smoke client passes against it (reads, painting with
+    undo, saving, pictures of sheets, writing art, definitions, placing, capturing a structure,
+    sending to the library, a play-test); only `screenshot_map` answers that it needs a window.
+    `scripts/ci/smoke.sh` and CI run it.
+  Tests on a scratch copy of the example, without a window: a change undone and saved leaves
+  every file byte for byte, two maps stay open with their changes, a rename reaches maps and
+  scripts and undoes; the 0.35 tests of the copied files (40 in all, among them "the manual
+  names every agent tool").
+  Still open: one history over maps and definitions with named commands and the registry;
+  pictures without a window (map screenshots, thumbnails: with the map view of part 6); the
+  editor script on the core; imports (Tiled, Aseprite: part 11 decides); the cleanup of unused
+  files; structures' capture window logic and the clipboard.
 
   **Decided while building.**
   - **Changes are observed, not funnelled:** forms and tools change the definitions directly
@@ -704,7 +716,10 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   - **Projects older than 0.35 are refused** with a message naming 0.35 already here (the
     converters themselves leave in part 11).
   - **The UI-free files of the 0.35 editor are copied over and adapted,** not rewritten: their
-    tests come along.
+    tests come along. What they kept of the window is plain state on the workspace that the
+    window fills in (`looking_at`, `asking`, the open script's text).
+  - **Screenshots are answered by whoever draws** (`mcp_answer_shots` with a callback); the old
+    way (frame the canvas, grab the window two frames later) is gone.
 
   **Engine.** None beyond part 1. The crate takes over the logic of the old `app.rs`, `doc.rs`,
   `db_undo.rs`, `maps.rs`, `multisel.rs`, `clipboard.rs`, `structures.rs`, `search.rs`,

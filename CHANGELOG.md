@@ -23,6 +23,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **The new editor's first window** (`rustpg2d-studio`, part 3 of *The Studio*): egui 0.37 on the
   engine's own renderer, with the running game in a panel. Not an editor yet.
 
+- **The agent server runs without a window:** `rustpg2d-studio --headless PROJECT --mcp PORT`
+  opens a project and serves every agent tool (map screenshots excepted) where there is no
+  display. The editor's logic moved into a crate of its own, `crates/editor-core` (part 2).
+
 ### Maintenance
 - The 0.35 editor is no longer built on this branch (it needs macroquad); it stays in the tree
   until the new editor replaces it.

@@ -8,9 +8,16 @@ description = "The new R(ust)PG2D editor (ROADMAP.md, 0.36.0 — The Studio), gr
 
 [dependencies]
 rustpg2d-engine.workspace = true
+editor-core.workspace = true
 gfx.workspace = true
 anyhow.workspace = true
 # The shell: egui on wgpu, the same device the engine draws with (`gfx::init`).
 eframe = { version = "0.37", default-features = false, features = ["wgpu", "x11", "wayland", "default_fonts"] }
 # Only to ask eframe's event loop for an X11 window (the same winit eframe uses).
 winit = "0.30"
+
+[dev-dependencies]
+# examples/mcp_smoke.rs: an MCP client driving the agent server.
+rmcp = { version = "3", features = ["client", "transport-streamable-http-client-reqwest"] }
+tokio = { version = "1", features = ["rt", "macros"] }
+serde_json = "1"

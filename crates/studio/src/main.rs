@@ -2,7 +2,8 @@
 //! engine and shows the running game in a panel (ROADMAP.md, *0.36.0 — The Studio*).
 //!
 //! `rustpg2d-studio [PROJECT_DIR] [--map NAME --spawn NAME]`; without a project the repository's
-//! example. `RUSTPG2D_STUDIO_SCRIPT="wait 3; status; shot /path/a.png; quit"` drives it for tests
+//! example. `rustpg2d-studio --headless PROJECT [--mcp PORT] [--seconds N]` opens no window: the
+//! agent server works on the project (`editor-core`'s workspace). `RUSTPG2D_STUDIO_SCRIPT="wait 3; status; shot /path/a.png; quit"` drives it for tests
 //! (commands: `wait SECS`, `status`, `shot PATH` = the whole window, `key NAME` = a key for the
 //! game, `pause` / `resume`, `quit`).
 
@@ -141,8 +142,60 @@ impl eframe::App for Studio {
     }
 }
 
-fn main() -> eframe::Result {
+/// `--headless PROJECT [--mcp PORT]`: the editor without a window. The project is opened and the
+/// agent server answers until the process is stopped (or for `--seconds N`): agents and scripts
+/// work on a project where there is no display. No textures are loaded and nothing is drawn, so
+/// screenshots and thumbnails aren't available; play-tests start the game as usual.
+fn headless(project: PathBuf, port: u16, seconds: Option<f64>) -> std::process::ExitCode {
+    use editor_core::{Gpu, Workspace};
+    let mut ws = match Workspace::open_path(project.clone(), Gpu::No) {
+        Ok(ws) => ws,
+        Err(e) => {
+            eprintln!("[studio] {}: {e:#}", project.display());
+            return std::process::ExitCode::FAILURE;
+        }
+    };
+    ws.looking_at = "nothing (no window)".into();
+    ws.refresh_refs();
+    if let Err(e) = ws.mcp.start(port) {
+        eprintln!("[studio] the agent server: {e}");
+        return std::process::ExitCode::FAILURE;
+    }
+    let started = std::time::Instant::now();
+    let mut last_tick = 0.0;
+    while seconds.is_none_or(|s| started.elapsed().as_secs_f64() < s) {
+        ws.mcp_drain();
+        ws.mcp_answer_shots(None);
+        let now = started.elapsed().as_secs_f64();
+        if now - last_tick > 1.0 {
+            last_tick = now;
+            ws.watch_project();
+            ws.project_file_tick();
+        }
+        std::thread::sleep(std::time::Duration::from_millis(4));
+    }
+    ws.mcp.stop();
+    ws.finish_project_file();
+    std::process::ExitCode::SUCCESS
+}
+
+fn main() -> std::process::ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    let opt = |name: &str| args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).cloned();
+    if let Some(project) = opt("--headless") {
+        let port = opt("--mcp").and_then(|p| p.parse().ok()).unwrap_or(editor_core::DEFAULT_PORT);
+        return headless(PathBuf::from(project), port, opt("--seconds").and_then(|s| s.parse().ok()));
+    }
+    match window(&args) {
+        Ok(()) => std::process::ExitCode::SUCCESS,
+        Err(e) => {
+            eprintln!("[studio] {e}");
+            std::process::ExitCode::FAILURE
+        }
+    }
+}
+
+fn window(args: &[String]) -> eframe::Result {
     let opt = |name: &str| args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).cloned();
     let project_dir = args.first().filter(|a| !a.starts_with("--")).map(PathBuf::from).unwrap_or_else(|| PathBuf::from("example_project"));
     let start = rustpg2d_engine::runtime::StartOptions { map: opt("--map"), spawn: opt("--spawn"), title: opt("--map").is_none(), dev: true, ..Default::default() };

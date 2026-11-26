@@ -12,3 +12,13 @@ gfx.workspace = true
 anyhow.workspace = true
 ron.workspace = true
 serde.workspace = true
+rhai.workspace = true
+# The agent server (mcp/): the Model Context Protocol over Streamable HTTP on 127.0.0.1, served by
+# a tokio thread; tool parameters and project data as JSON.
+rmcp = { version = "3", features = ["transport-streamable-http-server"] }
+tokio = { version = "1", features = ["rt", "net", "sync", "time", "macros", "process", "io-util"] }
+axum = { version = "0.8", default-features = false, features = ["http1", "tokio"] }
+serde_json = "1"
+schemars = "1"
+# The starter library's download and Generate art (Meshy) over HTTPS (rustls: no system TLS library).
+ureq = { version = "3", default-features = false, features = ["rustls", "json"] }

@@ -1,0 +1,107 @@
+//! Smoke test of the editor's AI agent server: an MCP client over Streamable HTTP that lists the
+//! tools, reads and edits the example project, writes art, captures a structure, sends assets to
+//! the library and takes screenshots. Start the editor on a copy of `example_project` (and a
+//! scratch library: `library_send` writes to it) with its server on, then run this:
+//!
+//! ```sh
+//! RUSTPG2D_LIBRARY=<scratch>/lib RUSTPG2D_EDITOR_SCRIPT="mcp on 7743; wait 300; quit" target/debug/rustpg2d-editor <copy of example_project> &
+//! cargo run -p rustpg2d-editor --example mcp_smoke -- 7743
+//! ```
+//!
+//! Prints one PASS / FAIL line per check and exits with 1 when something failed.
+
+use rmcp::model::*;
+use rmcp::transport::StreamableHttpClientTransport;
+use rmcp::ServiceExt;
+use serde_json::json;
+
+fn text(r: &CallToolResult) -> String {
+    r.content.iter().filter_map(|c| c.as_text()).map(|t| t.text.clone()).collect::<Vec<_>>().join("\n")
+}
+
+fn images(r: &CallToolResult) -> usize {
+    r.content.iter().filter(|c| matches!(c, ContentBlock::Image(_))).count()
+}
+
+#[tokio::main(flavor = "current_thread")]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let port = std::env::args().nth(1).unwrap_or_else(|| "7743".into());
+    // `mcp_smoke PORT headless`: the server belongs to an editor without a window.
+    let headless = std::env::args().nth(2).is_some_and(|a| a == "headless");
+    let transport = StreamableHttpClientTransport::from_uri(format!("http://127.0.0.1:{port}/mcp"));
+    let client = ().serve(transport).await?;
+    let mut failed = 0;
+    let mut check = |name: &str, ok: bool, detail: String| {
+        println!("{} {name}: {}", if ok { "PASS" } else { "FAIL" }, detail.lines().next().unwrap_or("").chars().take(140).collect::<String>());
+        if !ok {
+            failed += 1;
+        }
+    };
+    let call = |name: &'static str, args: serde_json::Value| {
+        let mut p = CallToolRequestParams::new(name);
+        if let Some(o) = args.as_object() {
+            p = p.with_arguments(o.clone());
+        }
+        client.call_tool(p)
+    };
+
+    let tools = client.list_all_tools().await?;
+    check("tools/list", tools.len() >= 50, format!("{} tools", tools.len()));
+    let r = call("project_info", json!({})).await?;
+    check("project_info", text(&r).starts_with("Project ") && !r.is_error.unwrap_or(false), text(&r));
+    let r = call("get_map", json!({"map": "village", "x": 0, "y": 0, "w": 20, "h": 10})).await?;
+    check("get_map", text(&r).contains("ground (") && text(&r).contains("decorations here:"), text(&r));
+    let r = call("paint_ground", json!({"map": "village", "material": "cobblestone", "circles": [[1.5, 1.5, 0.6]]})).await?;
+    check("paint_ground", text(&r).starts_with("Painted "), text(&r));
+    let r = call("get_map", json!({"map": "village", "x": 0, "y": 0, "w": 4, "h": 3, "collision": false, "objects": false})).await?;
+    check("get_map after paint_ground", text(&r).contains("=cobblestone"), text(&r));
+    let r = call("undo", json!({})).await?;
+    check("undo", text(&r).starts_with("Undid 1"), text(&r));
+    let r = call("save", json!({})).await?;
+    check("save", text(&r).starts_with("Saved: map"), text(&r));
+    let r = call("view_image", json!({"kind": "sheet", "id": "terrain_tiles"})).await?;
+    check("view_image", images(&r) == 1, text(&r));
+    let r = call("screenshot_map", json!({"map": "village", "x": 10, "y": 8, "w": 20, "h": 12})).await?;
+    if headless {
+        // (An editor without a window can't take pictures of maps yet: it says so.)
+        check("screenshot_map says it needs a window", r.is_error.unwrap_or(false) && text(&r).contains("window"), text(&r));
+    } else {
+        check("screenshot_map", images(&r) == 1, text(&r));
+    }
+    let r = call("get_map", json!({"map": "nowhere"})).await?;
+    check("unknown map is a tool error", r.is_error.unwrap_or(false) && text(&r).contains("Known:"), text(&r));
+    let res = client.read_resource(ReadResourceRequestParams::new("rustpg2d://docs/scripting")).await?;
+    let doc = res.contents.iter().filter_map(|c| if let ResourceContents::TextResourceContents { text, .. } = c { Some(text.len()) } else { None }).sum::<usize>();
+    check("resource docs/scripting", doc > 1000, format!("{doc} chars"));
+    let mut gp = GetPromptRequestParams::new("design_quest");
+    gp.arguments = json!({"theme": "a lost cat"}).as_object().cloned();
+    let prompt = client.get_prompt(gp).await?;
+    check("prompt design_quest", prompt.messages.len() == 1, format!("{} messages", prompt.messages.len()));
+    let mut px = rustpg2d_engine::imageio::Rgba::new(64, 32);
+    px.px.chunks_mut(4).for_each(|c| c.copy_from_slice(&[200, 40, 40, 255]));
+    let png = rustpg2d_engine::hash::base64(&px.encode()?);
+    let r = call("write_asset", json!({"path": "sprites/smoke.png", "base64": png})).await?;
+    check("write_asset", text(&r).starts_with("Wrote sprites/smoke.png (64x32 px image)"), text(&r));
+    let r = call("write_asset", json!({"path": "../smoke.png", "base64": png})).await?;
+    check("write_asset outside the art folders is refused", r.is_error.unwrap_or(false), text(&r));
+    let r = call("upsert_def", json!({"kind": "sheets", "def": {"id": "smoke", "image": "sprites/smoke.png", "frame_w": 32, "frame_h": 32}})).await?;
+    check("upsert_def sheet for the new art", !r.is_error.unwrap_or(false), text(&r));
+    // A prop two tiles wide stands on a tile edge, like the editor places it.
+    let r = call("place_entity", json!({"map": "village", "kind": "prop", "def": "bench", "x": 12, "y": 52})).await?;
+    check("place_entity of a 2-wide prop", text(&r).contains("edge between tiles 12 and 13") && text(&r).contains("\"tile_x\": 13"), text(&r));
+    let r = call("capture_structure", json!({"map": "village", "x": 32, "y": 19, "w": 5, "h": 5, "id": "smoke_square", "category": "Smoke"})).await?;
+    check("capture_structure", text(&r).starts_with("New structure \"smoke_square\" (5x5 tiles"), text(&r));
+    let r = call("library_send", json!({"assets": [{"kind": "sheet", "id": "smoke"}, {"kind": "structure", "id": "smoke_square"}], "replace": true, "drop_script_triggers": true})).await?;
+    check("library_send", text(&r).starts_with("Library (") && text(&r).contains("smoke"), text(&r));
+    let r = call("library_info", json!({"kind": "sheet", "id": "smoke"})).await?;
+    check("library_info of the sent sheet", text(&r).contains("sprites/smoke.png"), text(&r));
+    let r = call("play_test", json!({"map": "village", "script": "wait 1; status; shot a", "timeout_secs": 30})).await?;
+    check("play_test", text(&r).contains("[autoplay]") && images(&r) == 1, text(&r));
+    client.cancel().await?;
+    if failed > 0 {
+        println!("{failed} check(s) failed");
+        std::process::exit(1);
+    }
+    println!("all checks passed");
+    Ok(())
+}

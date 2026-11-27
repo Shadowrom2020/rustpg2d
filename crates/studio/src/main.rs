@@ -17,6 +17,7 @@ mod form;
 mod gallery;
 mod librarypage;
 mod buildtool;
+mod charshop;
 mod mapview;
 mod namespage;
 mod nodesview;
@@ -94,6 +95,10 @@ impl Studio {
                     if !script.is_empty() {
                         println!("[script] {script}");
                     }
+                    let figure = self.shell.char_word(&[]);
+                    if !figure.is_empty() {
+                        println!("[char] {figure}");
+                    }
                     let prop = self.shell.prop_word(&[]);
                     if !prop.is_empty() {
                         println!("[prop] {prop}");
@@ -132,6 +137,9 @@ impl Studio {
                 // A cut-scene's timeline (its tab in front): `timeline time SECS`, `timeline cue TRACK CUE`,
                 // `timeline add TRACK ACTION…`, `timeline play`; alone it prints where everyone is.
                 "timeline" => println!("[timeline] {}", self.shell.timeline_word(&cmd[1..])),
+                // A character's workshop (its tab in front): `char model ID`, `char part SLOT ID|-|own`,
+                // `char color FEATURE RRGGBB|-`, `char random`, `char face front|left|back|right|turn`, `char anim walk|idle|attack|hurt`.
+                "char" => println!("[char] {}", self.shell.char_word(&cmd[1..])),
                 // A prop's workshop (its tab in front): `prop state NAME`, `prop turn`, `prop dark on|off`; prints
                 // where its handles are in the window (for `drag`).
                 "prop" => println!("[prop] {}", self.shell.prop_word(&cmd[1..])),

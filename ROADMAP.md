@@ -1628,12 +1628,22 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     copy of the first. *Turn* shows a prop that turns a quarter further, *In the dark* shows
     it at night, lit by its own light, from far enough away to see the whole reach. Drags
     go in steps of four pixels (a quarter of a tile for the light), Shift pixel by pixel.
+  - **The character workshop, the look** (`studio/src/charshop.rs` over
+    `editor-core/src/looks.rs`; at the top of a character's tab): the figure large as the
+    game draws it, with what it wears and holds, turning or seen from one side, walking,
+    standing, striking, hurt. Beside it the look as things to pick: the model from cards of
+    the project's figures (searched; another model's colours and pieces replace the old
+    one's), each slot the model can wear a piece in with the pieces that fit (*the model's
+    own*, *None*, a piece), and each colour feature of the model and its pieces as swatches
+    of the colours it offers, *As drawn*, any other colour, and *Random colours*.
   Still open: the anchor of the picture and the light's place (the engine has neither as a
   field: the picture stands on the hitbox's southern edge, the light sits at two thirds of
   the picture's height), a figure sitting or lying at the use spot instead of the ring, a
   building's ridge, overhang and openings dragged on the picture; starting from a model, a
-  picture, measurements, Meshy; the presets; structures; the character workshop; templates
-  in *New…*; import helpers; the pixel editor; Generate art.
+  picture, measurements, Meshy; the presets; structures; of the character workshop: rules,
+  day, talk, shop and loot as parts of one document (they are sections of the form below),
+  equipment picked as cards, the presets, *Start from…* another character; templates in
+  *New…*; import helpers; the pixel editor; Generate art.
 
   **Decided while building.**
   - **The workshop is the top of the prop's tab, not a tab of its own**: the picture and the
@@ -1645,6 +1655,9 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   - **The camera holds still while something is dragged** and fits again when it is let go:
     a view that zooms out as the hitbox or the light grows moves the picture under the
     pointer (the first version did: a light dragged from 3 tiles ran away to 16).
+  - **The figure is as large as it stands tall, on its feet**: a pose's frame is roomy and
+    grows with what is held, so the preview scales by the height of the figure standing
+    still and puts its feet on one spot; a spear or a swung arm reaches as far as the box.
   - **A corner drags the width on both sides**: the hitbox stays centred on where the prop
     stands, as the engine has it; the southern corners change the width only.
 
@@ -1659,7 +1672,15 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     with its outline and shadow, the chair with its use spot, the campfire lit in the dark
     with its light and reach; the chest's corner dragged (28 to 64 pixels wide, 16 deep as
     before) and undone, the chair's spot dragged and the chair turned, the campfire's reach
-    dragged from 3 to 5 tiles and undone.
+    dragged from 3 to 5 tiles and undone; the cottage as a building with its roof, turned.
+  - The character's look: `looks::tests` (a figure's slots by name with the pieces that fit
+    it, a piece bringing its colour features once each; another model dropping the old
+    one's colours and pieces; random colours being offered ones); `charshop::ui_tests` (the
+    guard: no headwear from the slot's list, his clothing in an offered colour and as drawn
+    again, seen from the left striking, another model from the searched cards; all undone).
+    In the window: the guard with his spear, five slots and two colour features; without
+    headwear (his helmet stays: he wears one as equipment, which takes the slot) and in
+    green, striking seen from the left; the cards of the project's figures.
 
 - [~] Part 9: Library and sharing — `feature/studio`
 

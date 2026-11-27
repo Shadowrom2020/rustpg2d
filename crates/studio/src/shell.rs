@@ -310,6 +310,8 @@ pub struct Shell {
     pub nodes: std::collections::HashMap<String, crate::nodesview::NodesView>,
     /// The workshops of the props open in tabs, by id.
     pub stages: std::collections::HashMap<String, crate::propshop::PropStage>,
+    /// The workshops of the characters open in tabs, by id.
+    pub figures: std::collections::HashMap<String, crate::charshop::CharStage>,
     /// Where a cut-scene has everyone at its playhead (its map, the moment, the frame it was
     /// looked at in): the map's tab shows it while the timeline is in view.
     pub scrub: Option<(String, editor_core::cutscene::Preview, u64)>,
@@ -341,7 +343,7 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), timelines: Default::default(), nodes: Default::default(), stages: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new() }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new() }
     }
 
     /// Whether anything waits to be saved: definitions, maps, scripts.
@@ -528,6 +530,17 @@ impl Shell {
         let stage = self.stages.entry(id.clone()).or_default();
         stage.word(&self.ws, &id, args);
         stage.status(&self.ws, &id)
+    }
+
+    /// The workshop of the character's tab in front: the words of `CharStage::word`; returns
+    /// its `status` line ("" when no character's tab is in front).
+    pub fn char_word(&mut self, args: &[String]) -> String {
+        let Some(Tab::Def(RefKind::Character, id)) = self.dock.find_active_focused().map(|(_, t)| t.clone()) else { return String::new() };
+        let stage = self.figures.entry(id.clone()).or_default();
+        match stage.word(&mut self.ws, &id, args) {
+            Ok(()) => stage.status(&self.ws, &id),
+            Err(e) => format!("{id}: {e}"),
+        }
     }
 
     /// `script=…` of the script tab in front ("" when none is).
@@ -882,7 +895,7 @@ impl Shell {
 
         let mut asks = Vec::new();
         {
-            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, library: &mut self.library, home: &mut self.home, timelines: &mut self.timelines, nodes: &mut self.nodes, stages: &mut self.stages, scrub: &mut self.scrub, try_next: &mut self.try_next, rs, asks: &mut asks };
+            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, library: &mut self.library, home: &mut self.home, timelines: &mut self.timelines, nodes: &mut self.nodes, stages: &mut self.stages, figures: &mut self.figures, scrub: &mut self.scrub, try_next: &mut self.try_next, rs, asks: &mut asks };
             DockArea::new(&mut self.dock).show_inside(ui, &mut viewer);
         }
         for ask in asks {
@@ -1185,6 +1198,7 @@ struct Viewer<'a> {
     timelines: &'a mut std::collections::HashMap<String, crate::timeline::Timeline>,
     nodes: &'a mut std::collections::HashMap<String, crate::nodesview::NodesView>,
     stages: &'a mut std::collections::HashMap<String, crate::propshop::PropStage>,
+    figures: &'a mut std::collections::HashMap<String, crate::charshop::CharStage>,
     scrub: &'a mut Option<(String, editor_core::cutscene::Preview, u64)>,
     try_next: &'a mut Option<(rustpg2d_engine::events::TriggerOn, rustpg2d_engine::runtime::EventOwner, String)>,
     rs: Option<&'a eframe::egui_wgpu::RenderState>,
@@ -1692,6 +1706,10 @@ impl Viewer<'_> {
         }
         if kind == RefKind::Prop {
             self.stages.entry(id.to_string()).or_default().show(ui, self.ws, self.rs, self.thumbs, id);
+            ui.separator();
+        }
+        if kind == RefKind::Character {
+            self.figures.entry(id.to_string()).or_default().show(ui, self.ws, self.rs, self.thumbs, id);
             ui.separator();
         }
         // The form shows what was typed last, also while that isn't a valid definition yet.

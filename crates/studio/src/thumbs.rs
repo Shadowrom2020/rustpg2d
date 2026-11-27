@@ -33,6 +33,16 @@ impl Thumb {
     }
 }
 
+/// A rendered pose for a large preview.
+#[derive(Clone, Copy)]
+pub struct Pose {
+    pub thumb: Thumb,
+    /// Where the figure stands, in the pose's pixels.
+    pub feet: egui::Pos2,
+    /// From its feet to the top of what is drawn.
+    pub height: f32,
+}
+
 /// A sheet's frames for a frame picker: how many, and in how many columns.
 #[derive(Clone, Copy)]
 pub struct SheetFrames {
@@ -137,6 +147,18 @@ impl Thumbs {
         let d = cell.drawn;
         let min = egui::pos2(uv.x + d.x / pw, uv.y + d.y / ph);
         Some(Thumb { texture: self.id(rs, &texture, true), uv: egui::Rect::from_min_size(min, egui::vec2(d.w / pw, d.h / ph)), size: egui::vec2(d.w, d.h) })
+    }
+
+    /// A pose of a look with what it wears and holds, for a large preview: all of the rendered
+    /// pose, where its feet are in it and how tall the figure is drawn (pixels of the pose):
+    /// held items and swung limbs reach beyond the figure, the feet keep their place.
+    pub fn pose(&mut self, ws: &Workspace, rs: &RenderState, req: &PoseReq) -> Option<Pose> {
+        let models = &ws.assets.models;
+        let cell = models.pose(&ws.project.db, &ws.assets.sheets, req)?;
+        let (texture, uv, _) = models.cell_texture(&cell)?;
+        let (pw, ph) = (texture.width(), texture.height());
+        let thumb = Thumb { texture: self.id(rs, &texture, true), uv: egui::Rect::from_min_size(egui::pos2(uv.x, uv.y), egui::vec2(uv.w, uv.h)), size: egui::vec2(uv.w * pw, uv.h * ph) };
+        Some(Pose { thumb, feet: egui::pos2(cell.feet.x, cell.feet.y), height: (cell.feet.y - cell.drawn.y).max(1.0) })
     }
 
     /// A ground material: the first frame of its texture.

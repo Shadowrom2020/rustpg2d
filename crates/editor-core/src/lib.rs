@@ -11,6 +11,7 @@ pub mod files;
 pub mod frame_ops;
 pub mod history;
 pub mod library;
+pub mod looks;
 pub mod build;
 pub mod events;
 pub mod export;

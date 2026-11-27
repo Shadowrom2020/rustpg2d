@@ -227,6 +227,8 @@ enum Ask {
     Play(PlayFrom),
     /// The game in its own window, started as the Play tab's was.
     PlayWindow,
+    /// The first tab above the second, both in view.
+    Above(Tab, Tab),
     /// *Try it*: the game on this map with the hero on the tile and the event raised.
     Try(String, (i32, i32), Box<(rustpg2d_engine::events::TriggerOn, rustpg2d_engine::runtime::EventOwner, String)>),
 }
@@ -239,6 +241,8 @@ pub enum PlayFrom {
     /// A map and the tile the hero stands on; true: with the project's test setup (a saved
     /// game loaded there: the map's *Map enter* events don't run).
     Tile(String, (i32, i32), bool),
+    /// A cut-scene on its map, from this second of it.
+    Cutscene(String, f32),
     Again,
 }
 
@@ -278,6 +282,11 @@ pub struct Shell {
     pub names: crate::namespage::NamesPage,
     /// The Publishing page.
     pub publish: crate::publish::PublishPage,
+    /// The timelines of the cut-scenes open in tabs, by id.
+    pub timelines: std::collections::HashMap<String, crate::timeline::Timeline>,
+    /// Where a cut-scene has everyone at its playhead (its map, the moment, the frame it was
+    /// looked at in): the map's tab shows it while the timeline is in view.
+    pub scrub: Option<(String, editor_core::cutscene::Preview, u64)>,
     /// The event the next game in the Play tab raises once it runs (*Try it*).
     pub try_next: Option<(rustpg2d_engine::events::TriggerOn, rustpg2d_engine::runtime::EventOwner, String)>,
     /// Answers of commands, newest last (the script prints them too).
@@ -301,7 +310,7 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), try_next: None, log: Vec::new() }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), timelines: Default::default(), scrub: None, try_next: None, log: Vec::new() }
     }
 
     /// Shows `tab`: brings it to the front when it is open, else opens it beside the documents.
@@ -321,6 +330,41 @@ impl Shell {
                 self.dock.push_to_focused_leaf(tab);
             }
             None => self.dock.push_to_first_leaf(tab),
+        }
+    }
+
+    /// Shows `tab` above `beside` (both in view: a map over the timeline that scrubs it). A
+    /// tab that is in view elsewhere already is only brought forward.
+    pub fn show_above(&mut self, tab: Tab, beside: &Tab) {
+        if let Tab::Map(m) = &tab {
+            self.ws.open_map(m);
+            // A cut-scene's map looks at where its moment is: the camera's frame, else its
+            // first actor.
+            if let (Tab::Def(RefKind::Cutscene, id), ts) = (beside, self.ws.ts()) {
+                let time = self.timelines.get(id).map_or(0.0, |t| t.time);
+                if let Some(p) = self.ws.cutscene_preview(id, time) {
+                    if let Some(at) = p.camera.map(|c| c.0).or_else(|| p.actors.first().map(|a| a.1)) {
+                        let view = self.maps.entry(m.clone()).or_default();
+                        view.look_at(gfx::math::vec2((at.x + 0.5) * ts, (at.y + 0.5) * ts), 0.8);
+                    }
+                }
+            }
+        }
+        let (there, anchor) = (self.dock.find_tab(&tab), self.dock.find_tab(beside));
+        match (there, anchor) {
+            (Some(t), Some(a)) if (t.surface, t.node) != (a.surface, a.node) => {
+                let _ = self.dock.set_active_tab(t);
+            }
+            (there, Some(a)) if a.surface.is_main() => {
+                if let Some(t) = there {
+                    self.dock.remove_tab(t);
+                }
+                // (Found again: taking a tab out may have moved the leaf.)
+                if let Some(a) = self.dock.find_tab(beside) {
+                    self.dock.main_surface_mut().split_above(a.node, 0.55, vec![tab]);
+                }
+            }
+            _ => self.show_tab(tab),
         }
     }
 
@@ -344,6 +388,52 @@ impl Shell {
     /// Whether anything waits to be saved: definitions, maps, scripts.
     pub fn unsaved(&self) -> bool {
         self.ws.is_dirty() || self.scripts.values().any(|t| t.dirty())
+    }
+
+    /// The timeline of the cut-scene tab in front: `time SECS`, `cue TRACK CUE` (picks one),
+    /// `add TRACK ACTION…` (a cue at the playhead, the action by its name), `play`. Returns
+    /// its `status` line ("" when no cut-scene's tab is in front).
+    pub fn timeline_word(&mut self, args: &[String]) -> String {
+        let Some(Tab::Def(RefKind::Cutscene, id)) = self.dock.find_active_focused().map(|(_, t)| t.clone()) else { return String::new() };
+        let Some(pos) = self.ws.project.db.cutscenes.iter().position(|d| d.id == id) else { return String::new() };
+        let tl = self.timelines.entry(id.clone()).or_default();
+        let arg = |k: usize| args.get(k).map(String::as_str).unwrap_or("");
+        match arg(0) {
+            "time" => tl.time = arg(1).parse().unwrap_or(0.0),
+            "cue" => tl.sel = Some((arg(1).parse().unwrap_or(0), arg(2).parse().unwrap_or(0))),
+            "add" => {
+                let mut def = self.ws.project.db.cutscenes[pos].clone();
+                if tl.add_cue(&mut def, arg(1).parse().unwrap_or(0), &args[2.min(args.len())..].join(" ")) {
+                    self.ws.begin(&format!("Change the cut-scene {id}"));
+                    self.ws.project.db.cutscenes[pos] = def;
+                } else {
+                    let offers: Vec<&str> = def.tracks.get(arg(1).parse().unwrap_or(0)).map_or(Vec::new(), |t| editor_core::cutscene::offered(t.kind, &t.target).iter().map(|a| a.label()).collect());
+                    return format!("{id}: that track offers no such action (it offers: {})", offers.join(", "));
+                }
+            }
+            "map" => {
+                if let Some(map) = self.ws.cutscene_map(&id) {
+                    self.show_above(Tab::Map(map), &Tab::Def(RefKind::Cutscene, id.clone()));
+                    // (The cut-scene's tab keeps the keyboard and the script's words.)
+                    if let Some(path) = self.dock.find_tab(&Tab::Def(RefKind::Cutscene, id.clone())) {
+                        let _ = self.dock.set_active_tab(path);
+                        self.dock.set_focused_node_and_surface(path.node_path());
+                    }
+                }
+                return format!("{id}: its map above");
+            }
+            "play" => {
+                let at = tl.time;
+                self.play_from(PlayFrom::Cutscene(id.clone(), at));
+                return format!("{id} playing from {at:.1} s");
+            }
+            _ => {}
+        }
+        let tl = &self.timelines[&id];
+        let preview = self.ws.cutscene_preview(&id, tl.time);
+        let actors: Vec<String> = preview.as_ref().map_or(Vec::new(), |p| p.actors.iter().map(|(n, v, w)| format!("{n}@{:.1},{:.1}{}", v.x, v.y, if *w { "~" } else { "" })).collect());
+        let cam = preview.and_then(|p| p.camera).map_or("-".into(), |(c, z)| format!("{:.1},{:.1}x{z:.1}", c.x, c.y));
+        format!("{id}{} [{}] cam={cam}", tl.status(&self.ws.project.db.cutscenes[pos]), actors.join(" "))
     }
 
     /// `script=…` of the script tab in front ("" when none is).
@@ -494,6 +584,7 @@ impl Shell {
             PlayFrom::Again => self.start.clone(),
             PlayFrom::Title => rustpg2d_engine::runtime::StartOptions { title: true, ..base },
             PlayFrom::Start => base,
+            PlayFrom::Cutscene(id, at) => rustpg2d_engine::runtime::StartOptions { map: self.ws.cutscene_map(&id), cutscene: Some(id), cutscene_at: at, ..base },
             PlayFrom::Tile(map, (x, y), setup) => {
                 let mut start = rustpg2d_engine::runtime::StartOptions { map: Some(map.clone()), pos: Some(gfx::math::vec2((x as f32 + 0.5) * ts, (y as f32 + 0.5) * ts)), ..base };
                 if setup {
@@ -517,6 +608,7 @@ impl Shell {
         self.play_error = None;
         self.show_tab(Tab::Play);
         let where_ = match (&self.start.map, self.start.title) {
+            (Some(m), _) if self.start.cutscene.is_some() => format!("the cut-scene {} on {m} from {:.1} s", self.start.cutscene.as_deref().unwrap_or_default(), self.start.cutscene_at),
             (Some(m), _) if self.start.load.is_some() => format!("on {m} with the test setup ({})", self.ws.test_setup().summary()),
             (Some(m), _) => format!("on {m}"),
             (None, true) => "from the title screen".into(),
@@ -584,7 +676,7 @@ impl Shell {
     pub fn map_act(&mut self, what: &str) {
         let Some(name) = self.ws.doc.as_ref().map(|d| d.map.name.clone()) else { return };
         let view = self.maps.entry(name.clone()).or_default();
-        let mut parts = crate::mapview::Parts { ws: &mut self.ws, rs: None, lists: &self.lists, thumbs: &mut self.thumbs, show_all: self.show_all, link: &mut self.link, clip: &mut self.clip, asks: Vec::new() };
+        let mut parts = crate::mapview::Parts { ws: &mut self.ws, rs: None, lists: &self.lists, thumbs: &mut self.thumbs, show_all: self.show_all, link: &mut self.link, clip: &mut self.clip, scrub: None, asks: Vec::new() };
         view.act(&mut parts, &name, what);
         // (What the script's word asks of the window: an event to try.)
         for ask in parts.asks {
@@ -693,7 +785,7 @@ impl Shell {
 
         let mut asks = Vec::new();
         {
-            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, try_next: &mut self.try_next, rs, asks: &mut asks };
+            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, timelines: &mut self.timelines, scrub: &mut self.scrub, try_next: &mut self.try_next, rs, asks: &mut asks };
             DockArea::new(&mut self.dock).show_inside(ui, &mut viewer);
         }
         for ask in asks {
@@ -707,6 +799,7 @@ impl Shell {
                 Ask::FindUnused => self.find_unused(),
                 Ask::Play(from) => self.play_from(from),
                 Ask::PlayWindow => self.play_window(),
+                Ask::Above(tab, beside) => self.show_above(tab, &beside),
                 Ask::Try(map, tile, what) => {
                     // (With the test setup: a game in progress, so the map's intro doesn't play first.)
                     self.try_next = Some(*what);
@@ -971,6 +1064,8 @@ struct Viewer<'a> {
     scripts: &'a mut std::collections::HashMap<String, crate::scriptedit::ScriptTab>,
     names: &'a mut crate::namespage::NamesPage,
     publish: &'a mut crate::publish::PublishPage,
+    timelines: &'a mut std::collections::HashMap<String, crate::timeline::Timeline>,
+    scrub: &'a mut Option<(String, editor_core::cutscene::Preview, u64)>,
     try_next: &'a mut Option<(rustpg2d_engine::events::TriggerOn, rustpg2d_engine::runtime::EventOwner, String)>,
     rs: Option<&'a eframe::egui_wgpu::RenderState>,
     asks: &'a mut Vec<Ask>,
@@ -1424,6 +1519,10 @@ impl Viewer<'_> {
             });
         }
         ui.separator();
+        if kind == RefKind::Cutscene {
+            self.timeline(ui, id);
+            ui.separator();
+        }
         // The form shows what was typed last, also while that isn't a valid definition yet.
         let mut value = self.forms.get(&key).map_or_else(|| saved.clone(), |(v, _)| v.clone());
         let mut pics = self.rs.map(|rs| crate::thumbs::Pics { thumbs: &mut *self.thumbs, ws: &*self.ws, rs });
@@ -1975,6 +2074,37 @@ impl Viewer<'_> {
         }
     }
 
+    /// A cut-scene's timeline, above its form.
+    fn timeline(&mut self, ui: &mut egui::Ui, id: &str) {
+        let Some(pos) = self.ws.project.db.cutscenes.iter().position(|d| d.id == id) else { return };
+        // (Changed on a copy: the form's helpers read the project while the timeline is shown.)
+        let mut def = self.ws.project.db.cutscenes[pos].clone();
+        let tl = self.timelines.entry(id.to_string()).or_default();
+        let mut pics = self.rs.map(|rs| crate::thumbs::Pics { thumbs: &mut *self.thumbs, ws: &*self.ws, rs });
+        let pictures = pics.as_mut().map(|p| p as &mut dyn crate::form::Pictures);
+        let mut cx = crate::form::Cx { lists: self.lists, maps: &self.ws.maps, show_all: *self.show_all, compact: false, pictures, refs: Some(&self.ws.refs), asks: Vec::new() };
+        let (changed, ask) = tl.show(ui, &mut cx, &mut def, &self.ws.refs.targets);
+        let time = tl.time;
+        if changed {
+            self.ws.begin(&format!("Change the cut-scene {}", if def.name.is_empty() { id } else { &def.name }));
+            self.ws.project.db.cutscenes[pos] = def;
+            self.ws.stale = true;
+        }
+        // Where everyone is at the playhead, for the map's tab.
+        if let (Some(map), Some(preview)) = (self.ws.cutscene_map(id), self.ws.cutscene_preview(id, time)) {
+            *self.scrub = Some((map, preview, ui.ctx().cumulative_frame_nr()));
+        }
+        match ask {
+            Some(crate::timeline::Ask::Play(at)) => self.asks.push(Ask::Play(PlayFrom::Cutscene(id.to_string(), at))),
+            Some(crate::timeline::Ask::ShowMap) => {
+                if let Some(map) = self.ws.cutscene_map(id) {
+                    self.asks.push(Ask::Above(Tab::Map(map), Tab::Def(RefKind::Cutscene, id.to_string())));
+                }
+            }
+            None => {}
+        }
+    }
+
     /// A script's tab.
     fn script(&mut self, ui: &mut egui::Ui, file: &str) {
         let Some(path) = self.ws.script_names().into_iter().find(|(n, _)| n == file).map(|(_, p)| p).or_else(|| self.scripts.get(file).map(|t| t.path.clone())) else {
@@ -1998,7 +2128,10 @@ impl Viewer<'_> {
 
     fn map(&mut self, ui: &mut egui::Ui, name: &str) {
         let view = self.maps.entry(name.to_string()).or_default();
-        let mut parts = crate::mapview::Parts { ws: &mut *self.ws, rs: self.rs, lists: self.lists, thumbs: &mut *self.thumbs, show_all: *self.show_all, link: &mut *self.link, clip: &mut *self.clip, asks: Vec::new() };
+        // (A cut-scene's moment, while its timeline was in view this frame or the last.)
+        let frame = ui.ctx().cumulative_frame_nr();
+        let scrub = self.scrub.as_ref().filter(|(map, _, seen)| map == name && frame.saturating_sub(*seen) <= 2).map(|(_, p, _)| p);
+        let mut parts = crate::mapview::Parts { ws: &mut *self.ws, rs: self.rs, lists: self.lists, thumbs: &mut *self.thumbs, show_all: *self.show_all, link: &mut *self.link, clip: &mut *self.clip, scrub, asks: Vec::new() };
         view.show(ui, &mut parts, name);
         for ask in parts.asks {
             match ask {

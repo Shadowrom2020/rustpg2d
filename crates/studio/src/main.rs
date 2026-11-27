@@ -25,6 +25,7 @@ mod scriptedit;
 mod sheet;
 mod shell;
 mod thumbs;
+mod timeline;
 mod worldview;
 
 use std::collections::VecDeque;
@@ -94,6 +95,9 @@ impl Studio {
                     println!("[said] {}", self.shell.ws.status.0);
                     println!("[world] {} link={}", self.shell.world_status(), self.shell.link.as_ref().map_or("-".to_string(), |(m, z)| format!("{m}:{z}")));
                 }
+                // A cut-scene's timeline (its tab in front): `timeline time SECS`, `timeline cue TRACK CUE`,
+                // `timeline add TRACK ACTION…`, `timeline play`; alone it prints where everyone is.
+                "timeline" => println!("[timeline] {}", self.shell.timeline_word(&cmd[1..])),
                 // The Publishing page: `publish name|out VALUE`, `publish linux|windows|macos|web|zip|pack|appimage|flatpak on|off`,
                 // `publish check` prints the pre-flight, `publish go` exports.
                 "publish" => match arg(1) {

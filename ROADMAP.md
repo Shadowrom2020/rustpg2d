@@ -1416,6 +1416,15 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     starts in the Play tab with the hero beside the thing (in the zone) and the event raised
     a moment later, with the test setup's flags and things, so what the event does is seen
     at once; when its conditions don't hold in that game, the bar says that nothing ran.
+  - **The cut-scene timeline** (`studio/src/timeline.rs` over `editor-core/src/cutscene.rs`;
+    at the top of a cut-scene's tab): a row per track with its cues as boxes on a time axis
+    (waiting ones blue, the others green, close ones stacked in lanes); a click or a drag on
+    the axis moves the playhead; a cue is picked with a click, moved in time by dragging and
+    changed under the rows (when, whether it waits, its action's fields); a track's name
+    adds cues at the playhead from what that kind of track offers. *Show its map* puts the
+    map's tab above the timeline, looking at the moment: each actor where it is then (a
+    ring with its name, thin while walking) and the camera's frame. *Play from here* plays
+    the cut-scene in the Play tab from the playhead.
   - **Flags and variables** (`studio/src/namespage.rs` over `editor-core/src/names.rs`;
     *Story › Flags and variables*, tab `names`): every flag, variable and text variable with
     how often it is set and read; one that is only ever set or only ever read is marked
@@ -1429,8 +1438,8 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   box drawing the line being written (fonts, skin, message codes), answers side by side; of
   flags and variables: `{name}` placeholders in texts aren't counted as reading one; of scripts: a
   function run in the Play tab, *Find in scripts*; the
-  documents (Events graph, visual scripts, cut-scene timeline, animation editor, quest
-  designer).
+  documents still to come: the Events graph and visual scripts on one node canvas, the
+  animation editor, the quest designer.
 
   **Decided while building.**
   - **The sheet reads the values as the files hold them** (JSON, as the forms do), so it is
@@ -1444,6 +1453,12 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     a question and what follows them are written where every other action is, in every
     place events are edited. It stays the actions it was: a branch is an *If* that asks for
     one answer, and an *If* that asks for more is a row like any other.
+  - **A cut-scene's timeline is part of its tab, and its map is a tab beside it**, not a
+    window over the map view as in 0.35: the map's tab shows a cut-scene's moment for as
+    long as the timeline is in view, so the two are arranged like any other two tabs.
+  - **The camera's frame is drawn as the screen's**: in the game's view a rectangle on the
+    ground is a diamond on the screen, so the frame is the game's window around the
+    camera's middle at the size this view shows the world.
   - **A field is a flag or a variable because the field schema says so** (`schema::NAMES`,
     the table the forms' suggestions use), in scripts because the script API's argument
     kinds say so: the page, the survey and the rename are one walk over the values as the
@@ -1482,6 +1497,14 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     the window: the campfire's four events read as sentences, one opened with its *If* and
     three *Do* rows, an action opened in place, the palette searched for "stat"; the guard's
     events in the Inspector and the list of events to add.
+  - The timeline: `cutscene::tests` (0.35's: cues close together stack in lanes; the preview
+    walks actors and pans the camera); `timeline::ui_tests` (a cue picked by its box, its
+    *Waits* changed, a track added for the guard, a cue for him from the track's menu at
+    the playhead, deleted, *Play from here* asked for at 2.5 s). In the window on the
+    example's intro (5 tracks, 17 cues): at 7.6 s the hero at 3.5, 30 and the guard at 7, 30
+    walking, the camera at 0, 30, shown on the village above the timeline; a *Face* cue
+    added and undone by its name; played from 7.6 s, the Play tab shows the two meeting and
+    the hero's line.
   - *Try it*: `an_event_of_a_placed_thing_is_tried_from_beside_it` (the Inspector's button
     asks for the game on a free tile beside the guard with his event). In the window: the
     guard's event tried from the map; the Play tab opens with the hero west of him and his

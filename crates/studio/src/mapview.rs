@@ -181,6 +181,9 @@ pub struct Parts<'a> {
     pub link: &'a mut Option<(String, String)>,
     /// What was copied on a map (any of them), to be pasted.
     pub clip: &'a mut Option<Clip>,
+    /// A cut-scene's moment on this map (its timeline is in view): where its actors are, what
+    /// the camera frames.
+    pub scrub: Option<&'a editor_core::cutscene::Preview>,
     pub asks: Vec<Ask>,
 }
 
@@ -237,6 +240,8 @@ pub struct MapView {
     replace_filter: String,
     /// The character whose patrol route the map's clicks add waypoints to.
     pub route_edit: Option<u32>,
+    /// A cut-scene's moment to draw (given by the window each frame its timeline is in view).
+    scrub: Option<editor_core::cutscene::Preview>,
     /// The Inspector's form holding something that can't be taken yet, and why.
     pending: Option<(Selection, serde_json::Value, String)>,
     /// A thing to bring into view with the next frame.
@@ -291,6 +296,7 @@ impl Default for MapView {
             outliner_filter: String::new(),
             replace_filter: String::new(),
             route_edit: None,
+            scrub: None,
             pending: None,
             reveal: None,
             structure_name: String::new(),
@@ -437,6 +443,7 @@ impl MapView {
             p.ws.open_map(name);
             self.build_marked(p);
         }
+        self.scrub = p.scrub.map(|s| editor_core::cutscene::Preview { actors: s.actors.clone(), camera: s.camera });
         self.canvas(ui, p, name);
         if p.ws.doc.as_ref().is_some_and(|d| d.map.name == name) {
             p.ws.sel = self.sel.first().copied().unwrap_or_default();
@@ -2406,6 +2413,17 @@ impl MapView {
             }
         }
 
+        // A cut-scene's moment: each actor where it is then (a walker's ring thin). (The
+        // camera's frame is the screen's, drawn with the names.)
+        if let Some(scrub) = &self.scrub {
+            let col = Color::new(1.0, 0.55, 0.85, 1.0);
+            for (_, t, walking) in &scrub.actors {
+                let c = vec2((t.x + 0.5) * ts, (t.y + 0.5) * ts);
+                draw_circle(c.x, c.y, 14.0 * px.max(1.0 / 3.0), Color::new(0.3, 0.05, 0.25, 0.55));
+                draw_circle_lines(c.x, c.y, 14.0 * px.max(1.0 / 3.0), if *walking { 2.0 } else { 3.5 } * px, col);
+            }
+        }
+
         // The tiles marked for a roof, with their outline.
         if self.tool == Tool::Build && self.build.mode == BuildMode::Roof {
             let (cells, col) = (&self.build.cells, Color::new(1.0, 0.85, 0.2, 0.9));
@@ -2620,6 +2638,21 @@ impl MapView {
                 }
             }
         }
+        if let Some(scrub) = &self.scrub {
+            for (who, t, _) in &scrub.actors {
+                tag(self.to_points(look.to_screen(vec2((t.x + 0.5) * ts, (t.y + 0.5) * ts))) - egui::vec2(0.0, 16.0), who, egui::Color32::from_rgb(255, 150, 220), back);
+            }
+            // What the camera frames: the game's window (1280 x 720 at scale 1) around its
+            // middle, as big here as this view shows the world.
+            if let Some((c, zoom)) = scrub.camera {
+                let game = p.ws.project.config.scale.max(0.5) * zoom.max(0.1);
+                let size = egui::vec2(1280.0, 720.0) * (look.zoom / game) / self.ppp;
+                let mid = self.to_points(look.to_screen(vec2((c.x + 0.5) * ts, (c.y + 0.5) * ts)));
+                let frame = egui::Rect::from_center_size(mid, size);
+                painter.rect_stroke(frame, 0.0, egui::Stroke::new(2.0, egui::Color32::from_rgb(100, 215, 255)), egui::StrokeKind::Inside);
+                tag(frame.center_top() + egui::vec2(0.0, 10.0), "the camera", egui::Color32::from_rgb(100, 215, 255), back);
+            }
+        }
         for (_, h, _) in self.handles(p.ws, &doc.map) {
             let c = self.to_points(h);
             painter.rect_filled(egui::Rect::from_center_size(c, egui::vec2(9.0, 9.0)), 2.0, egui::Color32::YELLOW);
@@ -2686,7 +2719,7 @@ mod ui_tests {
         Harness::builder().with_size(egui::vec2(1300.0, 1400.0)).build_ui_state(
             |ui, s: &mut State| {
                 s.ws.history_frame(None);
-                let mut parts = Parts { ws: &mut s.ws, rs: None, lists: &s.lists, thumbs: &mut s.thumbs, show_all: false, link: &mut s.link, clip: &mut s.clip, asks: Vec::new() };
+                let mut parts = Parts { ws: &mut s.ws, rs: None, lists: &s.lists, thumbs: &mut s.thumbs, show_all: false, link: &mut s.link, clip: &mut s.clip, scrub: None, asks: Vec::new() };
                 s.view.show(ui, &mut parts, "village");
                 for ask in parts.asks {
                     s.asks.push(match ask {
@@ -2846,7 +2879,7 @@ mod ui_tests {
         let entities = h.state().ws.doc.as_ref().unwrap().map.entities.len();
         {
             let s = h.state_mut();
-            let mut parts = Parts { ws: &mut s.ws, rs: None, lists: &s.lists, thumbs: &mut s.thumbs, show_all: false, link: &mut s.link, clip: &mut s.clip, asks: Vec::new() };
+            let mut parts = Parts { ws: &mut s.ws, rs: None, lists: &s.lists, thumbs: &mut s.thumbs, show_all: false, link: &mut s.link, clip: &mut s.clip, scrub: None, asks: Vec::new() };
             s.view.act(&mut parts, "village", "copy");
             s.view.act(&mut parts, "village", "paste");
         }

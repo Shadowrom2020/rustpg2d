@@ -95,6 +95,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   *Give 2 x Healing Potion*), opened in place to change it, dragged to another place, copied
   to another event, character or map from its menu. New actions come from a searched list in
   the manual's groups, new events from the events that owner can get.
+- **The cut-scene timeline** (part 7): a cut-scene's tab starts with its timeline: tracks, cues
+  as boxes in time, a playhead to drag. *Show its map* puts the map above it, showing where
+  everyone is at that moment and what the camera frames; *Play from here* plays it from the
+  playhead.
 - **Publishing** (part 5): the *Game* group's *Publishing* page exports the game to play without
   the editor, for Linux, Windows, macOS and the web, with a zip, an AppImage and a Flatpak on
   request. Before it goes out the page says what stands in the way and what is worth knowing,

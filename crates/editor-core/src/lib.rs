@@ -5,6 +5,7 @@
 pub mod doc;
 pub mod art;
 pub mod commands;
+pub mod cutscene;
 pub mod defs;
 pub mod files;
 pub mod frame_ops;

@@ -110,6 +110,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   as the game draws it. Drag the corners of its hitbox, the spot it is used from and how far
   its light reaches on the picture instead of typing numbers; pick a state from the strip to
   see it, turn it, and look at it in the dark by its own light.
+- **New… from the asset library** (part 8): a new prop, character, item… can start as one of
+  the asset library, under your own name: it comes with its pictures, sounds, models and the
+  script functions its events call. The library's chest, lamp or merchant is the template.
 - **Structures have pictures** (part 8): every structure shows as it stands on a map, in the
   *Structures* list, the Place tool and its own tab.
 - **The character's look** (part 8): a character's tab starts with the figure itself, large,

@@ -930,12 +930,13 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     input hook), `size W H`, `allfields on|off`.
   Still open: the hand-made editors (triggers as an event sheet in part 7; stat blocks,
   buildings, class levels), a state picked among the states of the prop in question, tool
-  kinds and piece styles, units and ranges on numbers, problems at the field, live previews (a
-  prop with its states, an item in a hand, a moving character), pictures of structures,
+  kinds and piece styles, units and ranges on numbers, problems at the field, live previews (an
+  item in a hand; a prop with its states and a moving character are part 8's workshops, as
+  are the pictures of structures),
   problems at the very field, *unused* for items, props and characters (nothing
   places or names them), folders as a tree with drag and drop,
-  where an asset came from (a pack: part 9), *New…* from the library, a file or Meshy (parts 8
-  and 9), *From library…* in pickers (part 9), the schema as
+  where an asset came from (a pack: part 9), *New…* from a file or Meshy (part 8; from the
+  library is there), *From library…* in pickers (part 9), the schema as
   the agents' field descriptions and the manual's reference tables.
 
   **Decided while building.**
@@ -1636,6 +1637,14 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     one's), each slot the model can wear a piece in with the pieces that fit (*the model's
     own*, *None*, a piece), and each colour feature of the model and its pieces as swatches
     of the colours it offers, *As drawn*, any other colour, and *Random colours*.
+  - **A new thing can start as an asset of the library** (*New…*, the third way beside
+    *blank* and *a copy*; `Workspace::make_from_library`, command `defs.make KIND library:ID
+    NAME`): the library's assets of that kind are listed, searched; the one picked comes
+    into the project with what it needs (pictures, sounds, models, the script functions its
+    events call) under the name typed, with its own id, as one step. Without a name it is
+    added as it is. So the library's chest, door, lamp, bed, crop or merchant is the
+    template a new one is made from, and a template of one's own is an asset sent to the
+    library.
   - **Structures have pictures** (`thumbs.rs`): a structure is placed on a map of its own
     and drawn as a map is (its ground, what lies and stands on it), once and again when it
     changed, two a frame: its card in *Structures*, in the Place tool's palette and at the
@@ -1647,8 +1656,9 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   picture, measurements, Meshy; the presets; a structure opened as a document on the map
   canvas; of the character workshop: rules,
   day, talk, shop and loot as parts of one document (they are sections of the form below),
-  equipment picked as cards, the presets, *Start from…* another character; templates in
-  *New…*; import helpers; the pixel editor; Generate art.
+  equipment picked as cards, *Start from…* another character; presets that are more than
+  one asset (a *Merchant* with a shop and a schedule to fill in), pictures of the library's
+  assets in *New…*; import helpers; the pixel editor; Generate art.
 
   **Decided while building.**
   - **The workshop is the top of the prop's tab, not a tab of its own**: the picture and the
@@ -1663,6 +1673,14 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   - **The figure is as large as it stands tall, on its feet**: a pose's frame is roomy and
     grows with what is held, so the preview scales by the height of the figure standing
     still and puts its feet on one spot; a spear or a swung arm reaches as far as the box.
+  - **Presets are the library's assets, not a list of their own**: *New… › as one of the
+    asset library* makes a prop that is a container, a door with a lock, a light or a seat
+    by starting from one that is, with its events, sounds and script functions. What was
+    planned as presets per kind (*Container*, *Door*, *Villager*, *Potion*…) is then content
+    of the starter library, which anyone can add to, instead of code in the editor.
+  - **The library's own asset doesn't stay beside the new one**: only what was asked for
+    is in the project afterwards (the new one and what it needs); one the project had
+    already is left as it is, and the new one is a copy of the project's.
   - **A corner drags the width on both sides**: the hitbox stays centred on where the prop
     stands, as the engine has it; the southern corners change the width only.
 
@@ -1681,6 +1699,14 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   - Structures: in the window the example's 37 structures as cards with their pictures
     (cottages with their roofs, walls and fences, furnished rooms on their floors, the
     fishing dock on its water, the lookout tower).
+  - New from the library: `a_new_one_starts_as_a_library_asset_under_its_own_name` (the
+    library's owlbear as *Grumpy*: its own id, the model it is drawn with in the project,
+    no owlbear beside it, one step, undone to exactly what was; without a name added as it
+    is; a copy of the chest the project has; what isn't there refused);
+    `the_new_gallery_offers_the_library_and_asks_for_one_of_it` (the third way with how
+    many there are, what the project has marked, searched, picked, named, asked for). In
+    the window: *New character* offering 378 of the library; `defs.make character
+    library:owlbear Grumpy` opening Grumpy's tab with the owlbear's figure, and its undo.
   - The character's look: `looks::tests` (a figure's slots by name with the pieces that fit
     it, a piece bringing its colour features once each; another model dropping the old
     one's colours and pieces; random colours being offered ones); `charshop::ui_tests` (the

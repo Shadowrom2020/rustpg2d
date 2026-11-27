@@ -1,5 +1,6 @@
-//! *New…* (Ctrl+N): what to make, its name, and what it starts as: blank, or a copy of
-//! something there is. (From the library, a file or Meshy: parts 8 and 9 add them here.)
+//! *New…* (Ctrl+N): what to make, its name, and what it starts as: blank, a copy of something
+//! there is, or an asset of the library (which comes with what it needs: the library's assets
+//! are the templates). (From a file or Meshy: part 8 adds them here.)
 
 use eframe::egui;
 use rustpg2d_engine::refactor::RefKind;
@@ -13,8 +14,12 @@ pub struct NewAsset {
     pub name: String,
     /// It starts as a copy (of `from`, once one is picked).
     pub copy: bool,
+    /// It starts as an asset of the library (`from`, once one is picked).
+    pub library: bool,
     pub from: Option<String>,
     filter: String,
+    /// What the library has of the kind chosen (read when the kind is picked).
+    in_library: Option<(RefKind, Vec<(String, String)>)>,
     /// Why the last *Create* didn't work.
     pub error: Option<String>,
     focused: bool,
@@ -29,12 +34,14 @@ impl NewAsset {
 /// What the gallery asks for.
 pub enum Outcome {
     Create { kind: RefKind, name: String, from: Option<String> },
+    /// A new one from the library's `from` (no name: the asset as it is).
+    FromLibrary { kind: RefKind, name: String, from: String },
     Cancel,
 }
 
 /// The gallery's window. `groups`: the kinds as the Project browser groups them; `lists`: id
 /// and name of every definition, by kind (what a copy can be taken of).
-pub fn show(ctx: &egui::Context, state: &mut NewAsset, groups: &[(&str, &[RefKind])], lists: &[(RefKind, Vec<(String, String)>)], mut pictures: Option<&mut dyn Pictures>) -> Option<Outcome> {
+pub fn show(ctx: &egui::Context, state: &mut NewAsset, groups: &[(&str, &[RefKind])], lists: &[(RefKind, Vec<(String, String)>)], library: &dyn Fn(RefKind) -> Vec<(String, String)>, mut pictures: Option<&mut dyn Pictures>) -> Option<Outcome> {
     let mut outcome = None;
     if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
         return Some(Outcome::Cancel);
@@ -93,9 +100,36 @@ pub fn show(ctx: &egui::Context, state: &mut NewAsset, groups: &[(&str, &[RefKin
                 }
                 ui.add_space(6.0);
                 ui.label("It starts");
-                ui.radio_value(&mut state.copy, false, "blank");
+                if !state.in_library.as_ref().is_some_and(|(k, _)| *k == kind) {
+                    state.in_library = Some((kind, if rustpg2d_engine::library::KINDS.contains(&kind) { library(kind) } else { Vec::new() }));
+                }
+                let offered: Vec<(String, String)> = state.in_library.as_ref().map(|(_, l)| l.clone()).unwrap_or_default();
+                let mut start = if state.library { 2 } else if state.copy { 1 } else { 0 };
+                let was = start;
+                ui.radio_value(&mut start, 0, "blank");
                 let all: &[(String, String)] = lists.iter().find(|(k, _)| *k == kind).map_or(&[], |(_, l)| l.as_slice());
-                ui.add_enabled_ui(!all.is_empty(), |ui| ui.radio_value(&mut state.copy, true, format!("as a copy of another {}", kind.label().to_lowercase())));
+                ui.add_enabled_ui(!all.is_empty(), |ui| ui.radio_value(&mut start, 1, format!("as a copy of another {}", kind.label().to_lowercase())));
+                ui.add_enabled_ui(!offered.is_empty(), |ui| ui.radio_value(&mut start, 2, format!("as one of the asset library ({})", offered.len())).on_hover_text("It comes with what it needs: its pictures, sounds and models, the script functions its events call. Without a name it is added as it is.").on_disabled_hover_text("The asset library has none of this kind"));
+                if start != was {
+                    (state.copy, state.library, state.from) = (start == 1, start == 2, None);
+                    state.filter.clear();
+                }
+                if state.library {
+                    ui.add(egui::TextEdit::singleline(&mut state.filter).hint_text("Search the library").desired_width(300.0)).widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, "Search the library"));
+                    let f = state.filter.trim().to_lowercase();
+                    egui::ScrollArea::vertical().id_salt("library").max_height(210.0).show(ui, |ui| {
+                        ui.set_min_width(400.0);
+                        for (id, name) in offered.iter().filter(|(id, name)| f.is_empty() || id.to_lowercase().contains(&f) || name.to_lowercase().contains(&f)).take(200) {
+                            let mut label = if name == id || name.is_empty() { id.clone() } else { format!("{name}  ({id})") };
+                            if all.iter().any(|(i, _)| i == id) {
+                                label += "  · in the project";
+                            }
+                            if ui.selectable_label(state.from.as_deref() == Some(id.as_str()), label).clicked() {
+                                state.from = Some(id.clone());
+                            }
+                        }
+                    });
+                }
                 if state.copy {
                     ui.horizontal_top(|ui| {
                         ui.vertical(|ui| {
@@ -128,17 +162,28 @@ pub fn show(ctx: &egui::Context, state: &mut NewAsset, groups: &[(&str, &[RefKin
                 if let Some(e) = &state.error {
                     ui.colored_label(ui.visuals().error_fg_color, e);
                 }
-                let ready = !state.name.trim().is_empty() && (!state.copy || state.from.is_some());
+                let named = !state.name.trim().is_empty();
+                let ready = if state.library { state.from.is_some() } else { named && (!state.copy || state.from.is_some()) };
                 ui.horizontal(|ui| {
                     let create = ui.add_enabled(ready, egui::Button::new("Create")).clicked();
                     if (create || entered) && ready {
-                        outcome = Some(Outcome::Create { kind, name: state.name.trim().to_string(), from: state.from.clone().filter(|_| state.copy) });
+                        outcome = Some(match (&state.from, state.library) {
+                            (Some(from), true) => Outcome::FromLibrary { kind, name: state.name.trim().to_string(), from: from.clone() },
+                            _ => Outcome::Create { kind, name: state.name.trim().to_string(), from: state.from.clone().filter(|_| state.copy) },
+                        });
                     }
                     if ui.button("Cancel").clicked() {
                         outcome = Some(Outcome::Cancel);
                     }
                     if state.copy && state.from.is_none() {
                         ui.weak("Pick what to copy.");
+                    }
+                    if state.library {
+                        ui.weak(match (&state.from, named) {
+                            (None, _) => "Pick one of the library.",
+                            (Some(_), false) => "No name: it is added as it is.",
+                            (Some(_), true) => "It is added under your name.",
+                        });
                     }
                 });
             });

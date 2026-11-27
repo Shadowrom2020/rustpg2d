@@ -177,6 +177,85 @@ mod ui_tests {
     }
 
     #[test]
+    fn a_new_one_starts_as_a_library_asset_under_its_own_name() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let dir = std::env::temp_dir().join(format!("rustpg2d-new-from-library-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        copy(&root.join("example_project"), &dir);
+        let mut ws = Workspace::new(dir.clone(), editor_core::Gpu::No).unwrap();
+        ws.history_frame(None);
+        ws.lib.lib = Some(rustpg2d_engine::project::Project::load(&root.join("crates/editor/assets/starter_library")).unwrap());
+        assert!(!ws.project.db.has(RefKind::Character, "owlbear") && ws.project.db.has(RefKind::Prop, "chest"));
+        let before = ws.project.db.clone();
+        // The library's owlbear as "Grumpy": the new character has that name and its own id, the
+        // model it is drawn with came along, and the library's own owlbear did not stay.
+        let id = ws.make_from_library(RefKind::Character, "owlbear", "Grumpy").unwrap();
+        ws.history_frame(None);
+        assert_eq!(id, "grumpy");
+        let c = ws.project.db.character("grumpy").unwrap().clone();
+        assert_eq!(c.name, "Grumpy");
+        assert!(ws.project.db.has(RefKind::Model, &c.appearance.model) && !before.has(RefKind::Model, &c.appearance.model));
+        assert!(!ws.project.db.has(RefKind::Character, "owlbear"));
+        assert_eq!(ws.timeline.done.last().unwrap().label, "New character from the library: Grumpy");
+        // One step: undone, the project is as it was.
+        ws.undo().unwrap();
+        assert!(ws.project.db == before, "undone, nothing of it is left");
+        // Without a name the asset is added as it is.
+        assert_eq!(ws.make_from_library(RefKind::Character, "owlbear", "").unwrap(), "owlbear");
+        ws.history_frame(None);
+        assert!(ws.project.db.has(RefKind::Character, "owlbear"));
+        // One the project has already: the new one is a copy, the project's stays; without a
+        // name there is nothing to make.
+        let id = ws.make_from_library(RefKind::Prop, "chest", "Old chest").unwrap();
+        ws.history_frame(None);
+        assert_eq!(id, "old_chest");
+        assert!(ws.project.db.has(RefKind::Prop, "chest") && ws.project.db.prop("old_chest").is_some_and(|p| p.name == "Old chest"));
+        assert!(ws.make_from_library(RefKind::Prop, "chest", "").is_err());
+        assert!(ws.make_from_library(RefKind::Prop, "no_such_thing", "X").is_err());
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn the_new_gallery_offers_the_library_and_asks_for_one_of_it() {
+        use crate::gallery::{self, NewAsset, Outcome};
+        struct G {
+            state: NewAsset,
+            asked: Vec<(RefKind, String, String)>,
+        }
+        let lists = vec![(RefKind::Prop, vec![("chest".to_string(), "Chest".to_string())])];
+        let mut h = Harness::builder().with_size(egui::vec2(1000.0, 700.0)).build_ui_state(
+            move |ui, g: &mut G| {
+                let library = |kind: RefKind| if kind == RefKind::Prop { vec![("chest".to_string(), "Chest".to_string()), ("anvil".to_string(), "Anvil".to_string())] } else { Vec::new() };
+                if let Some(Outcome::FromLibrary { kind, name, from }) = gallery::show(ui.ctx(), &mut g.state, &[("Objects", &[RefKind::Prop])], &lists, &library, None) {
+                    g.asked.push((kind, name, from));
+                }
+            },
+            G { state: NewAsset::of(Some(RefKind::Prop)), asked: Vec::new() },
+        );
+        h.run();
+        h.get_by_label("as one of the asset library (2)").click();
+        h.run();
+        // What the project has already says so; nothing is asked for before one is picked.
+        assert!(h.query_all_by_label("Chest  (chest)  · in the project").next().is_some());
+        let search = h.get_by_role_and_label(egui::accesskit::Role::TextInput, "Search the library");
+        search.focus();
+        search.type_text("anv");
+        h.run();
+        assert!(h.query_all_by_label_contains("Chest").next().is_none());
+        h.get_by_label("Anvil  (anvil)").click();
+        h.run();
+        // Without a name it is added as it is; with one, under that name.
+        h.get_by_label("No name: it is added as it is.");
+        let name = h.get_by_role_and_label(egui::accesskit::Role::TextInput, "Name");
+        name.focus();
+        name.type_text("Old anvil");
+        h.run();
+        h.get_by_label("Create").click();
+        h.run();
+        assert_eq!(h.state().asked, [(RefKind::Prop, "Old anvil".to_string(), "anvil".to_string())]);
+    }
+
+    #[test]
     fn a_library_asset_is_found_ticked_and_added_with_what_it_needs() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         let dir = std::env::temp_dir().join(format!("rustpg2d-library-{}", std::process::id()));

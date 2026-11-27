@@ -978,20 +978,36 @@ impl Shell {
     /// The *New…* gallery: makes what it asks for and opens it.
     fn gallery_ui(&mut self, ctx: &egui::Context, rs: Option<&eframe::egui_wgpu::RenderState>) {
         let Some(state) = self.new_asset.as_mut() else { return };
+        // (What the library has of a kind is listed when that kind is picked.)
+        self.ws.lib.ensure_loaded();
         let mut pics = rs.map(|rs| crate::thumbs::Pics { thumbs: &mut self.thumbs, ws: &self.ws, rs });
         let pictures = pics.as_mut().map(|p| p as &mut dyn crate::form::Pictures);
-        match crate::gallery::show(ctx, state, GROUPS, &self.lists, pictures) {
-            Some(crate::gallery::Outcome::Create { kind, name, from }) => match self.ws.make_def(kind, &name, from.as_deref()) {
+        let lib = &self.ws.lib;
+        let library = |kind: RefKind| lib.lib.as_ref().map_or(Vec::new(), |l| editor_core::defs::list(&l.db, kind));
+        let outcome = crate::gallery::show(ctx, state, GROUPS, &self.lists, &library, pictures);
+        let made = match outcome {
+            Some(crate::gallery::Outcome::FromLibrary { kind, name, from }) => Some((kind, self.ws.make_from_library(kind, &from, &name))),
+            Some(crate::gallery::Outcome::Create { kind, name, from }) => Some((kind, self.ws.make_def(kind, &name, from.as_deref()))),
+            Some(crate::gallery::Outcome::Cancel) => {
+                self.new_asset = None;
+                None
+            }
+            None => None,
+        };
+        if let Some((kind, made)) = made {
+            match made {
                 Ok(id) => {
                     self.new_asset = None;
                     self.log.push(format!("Made {} \"{id}\"", kind.name()));
                     self.lists.clear();
                     self.show_tab(Tab::Def(kind, id));
                 }
-                Err(e) => state.error = Some(e),
-            },
-            Some(crate::gallery::Outcome::Cancel) => self.new_asset = None,
-            None => {}
+                Err(e) => {
+                    if let Some(state) = self.new_asset.as_mut() {
+                        state.error = Some(e);
+                    }
+                }
+            }
         }
     }
 

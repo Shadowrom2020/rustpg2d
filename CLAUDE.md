@@ -56,8 +56,8 @@ being rewritten on a new foundation, in twelve parts. While it lasts:
   title|start|here|again|window|MAP X Y [setup]`, `key NAME`, `pause` / `resume`, `playstep`,
   `playspeed N`, `playflag NAME on|off`, `playvar NAME VALUE`, `playstate on|off`, `playinspect
   on|off`, `playkeep [-]` (the running game's state as the test setup; `status` adds the game's
-  own line in full as `[game]`), `new [KIND]` opens the *New…* gallery (`defs.make KIND [from:ID] NAME` makes one
-  without it). Form behaviour is tested in `form.rs` (`ui_tests`: egui_kittest clicks and types
+  own line in full as `[game]`), `new [KIND]` opens the *New…* gallery (`defs.make KIND [from:ID|library:ID] NAME` makes one
+  without it; `library:ID` = starting as that asset of the library, with what it needs). Form behaviour is tested in `form.rs` (`ui_tests`: egui_kittest clicks and types
   through AccessKit; every control must have a name, so pass a row's label id on with
   `labelled_by`).
 - **The field schema** (`crates/editor-core/src/schema.rs`): shapes come from the engine's types

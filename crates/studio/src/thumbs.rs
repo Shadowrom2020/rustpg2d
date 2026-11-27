@@ -41,6 +41,8 @@ pub struct Pose {
     pub feet: egui::Pos2,
     /// From its feet to the top of what is drawn.
     pub height: f32,
+    /// How wide what is drawn is.
+    pub width: f32,
 }
 
 /// A sheet's frames for a frame picker: how many, and in how many columns.
@@ -167,7 +169,7 @@ impl Thumbs {
         let (texture, uv, _) = models.cell_texture(&cell)?;
         let (pw, ph) = (texture.width(), texture.height());
         let thumb = Thumb { texture: self.id(rs, &texture, true), uv: egui::Rect::from_min_size(egui::pos2(uv.x, uv.y), egui::vec2(uv.w, uv.h)), size: egui::vec2(uv.w * pw, uv.h * ph) };
-        Some(Pose { thumb, feet: egui::pos2(cell.feet.x, cell.feet.y), height: (cell.feet.y - cell.drawn.y).max(1.0) })
+        Some(Pose { thumb, feet: egui::pos2(cell.feet.x, cell.feet.y), height: (cell.feet.y - cell.drawn.y).max(1.0), width: cell.drawn.w.max(1.0) })
     }
 
     /// A ground material: the first frame of its texture.

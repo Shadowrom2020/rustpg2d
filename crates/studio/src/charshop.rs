@@ -192,11 +192,14 @@ impl CharStage {
                 let req = PoseReq { look: &look, gear: &gear, anim, time, once, facing, turn: 0, bust: false };
                 // As large as the figure standing still is tall (so the size holds from pose to
                 // pose), on its feet; what reaches further (a spear, a swung arm) as far as the box does.
-                let still = PoseReq { look: &look, gear: &gear, anim: "idle", time: 0.0, once: true, facing: Facing::Down, turn: 0, bust: false };
-                let tall = thumbs.pose(ws, rs, &still).map(|p| p.height);
-                match (thumbs.pose(ws, rs, &req), tall) {
-                    (Some(pose), Some(tall)) => {
-                        let k = ((rect.height() - 36.0) / tall).min(6.0);
+                // (A wolf or an owlbear is longer than tall: its side has to fit too.)
+                let bare = Gear::default();
+                let still = |facing| PoseReq { look: &look, gear: &bare, anim: "idle", time: 0.0, once: true, facing, turn: 0, bust: false };
+                let (front, side) = (thumbs.pose(ws, rs, &still(Facing::Down)), thumbs.pose(ws, rs, &still(Facing::Left)));
+                let size = front.zip(side).map(|(f, s)| (f.height.max(s.height), f.width.max(s.width)));
+                match (thumbs.pose(ws, rs, &req), size) {
+                    (Some(pose), Some((tall, wide))) => {
+                        let k = ((rect.height() - 36.0) / tall).min((rect.width() - 24.0) / wide).min(6.0);
                         let stands = egui::pos2(rect.center().x, rect.max.y - 16.0);
                         let whole = egui::Rect::from_min_size(stands - pose.feet.to_vec2() * k, pose.thumb.size * k);
                         ui.painter_at(rect).image(pose.thumb.texture, whole, pose.thumb.uv, Color32::WHITE);

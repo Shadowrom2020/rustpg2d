@@ -47,6 +47,41 @@ impl Workspace {
         Ok(format!("Added to the project: {}. Save the definitions to keep them.", report.summary()))
     }
 
+    /// A new definition that starts as an asset of the library: the asset comes into the project
+    /// with what it needs (pictures, sounds, models, the script functions its events call) and
+    /// the new one is it under the name given: its id is made from the name. With no name the
+    /// asset is added as it is. A library asset the project has already stays, and the new one
+    /// is a copy of the project's. One step of the history. Returns the new one's id.
+    pub fn make_from_library(&mut self, kind: rustpg2d_engine::refactor::RefKind, lib_id: &str, name: &str) -> Result<String, String> {
+        let name = name.trim();
+        self.lib.ensure_loaded();
+        if !self.lib.lib.as_ref().is_some_and(|l| l.db.has(kind, lib_id)) {
+            return Err(match &self.lib.error {
+                Some(e) => format!("the asset library can't be read: {e}"),
+                None => format!("the asset library has no {} \"{lib_id}\"", kind.label().to_lowercase()),
+            });
+        }
+        let had = self.project.db.has(kind, lib_id);
+        if had && name.is_empty() {
+            return Err(format!("the project has \"{lib_id}\" already: give the new one a name to make a copy of it"));
+        }
+        self.library_to_project(&[(kind, lib_id.to_string())]).map_err(|e| format!("{e:#}"))?;
+        let id = if name.is_empty() {
+            lib_id.to_string()
+        } else {
+            let id = self.make_def(kind, name, Some(lib_id))?;
+            if !had {
+                // (Only the new one was asked for: what it was made from goes again, what it needs stays.)
+                self.delete_def(kind, lib_id, true)?;
+            }
+            id
+        };
+        self.begin(&format!("New {} from the library: {}", kind.label().to_lowercase(), if name.is_empty() { lib_id } else { name }));
+        self.refresh_refs();
+        self.stale = true;
+        Ok(id)
+    }
+
     /// Sends project assets (with their dependencies and the script functions they need) to the
     /// asset library without asking: the AI agent server's `library_send`. `replace` overwrites
     /// the library's version of assets it already has (updating a library from the project its

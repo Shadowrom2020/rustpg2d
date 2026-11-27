@@ -48,6 +48,9 @@ pub struct PixelDoc {
     pub frame: (u32, u32),
     /// The frame painted in.
     pub cur: u32,
+    /// A texture laid side by side with itself (a ground material's): what is drawn across
+    /// an edge of the frame comes back in on the other side, so its seams can be painted away.
+    pub seamless: bool,
     undo: Vec<Rgba>,
     redo: Vec<Rgba>,
     /// The picture as its file has it.
@@ -68,7 +71,7 @@ impl PixelDoc {
 
     pub fn of(rel: &str, img: Rgba, frame: (u32, u32)) -> PixelDoc {
         let frame = (frame.0.clamp(1, img.w.max(1)), frame.1.clamp(1, img.h.max(1)));
-        PixelDoc { rel: rel.to_string(), saved: img.clone(), img, frame, cur: 0, undo: Vec::new(), redo: Vec::new(), version: 0, clip: None }
+        PixelDoc { rel: rel.to_string(), saved: img.clone(), img, frame, cur: 0, seamless: false, undo: Vec::new(), redo: Vec::new(), version: 0, clip: None }
     }
 
     /// Writes the picture to its file.
@@ -107,17 +110,27 @@ impl PixelDoc {
         p.0 >= 0 && p.1 >= 0 && p.0 < self.frame.0 as i32 && p.1 < self.frame.1 as i32
     }
 
+    /// The pixel of the frame that `p` stands for: itself inside the frame; outside it the
+    /// one it comes back in at when the picture is seamless, else none.
+    pub fn wrapped(&self, p: (i32, i32)) -> Option<(i32, i32)> {
+        if self.inside(p) {
+            Some(p)
+        } else if self.seamless {
+            Some((p.0.rem_euclid(self.frame.0 as i32), p.1.rem_euclid(self.frame.1 as i32)))
+        } else {
+            None
+        }
+    }
+
     /// The colour of pixel `p` of the frame painted in (see-through outside it).
     pub fn get(&self, p: (i32, i32)) -> [u8; 4] {
-        if !self.inside(p) {
-            return CLEAR;
-        }
+        let Some(p) = self.wrapped(p) else { return CLEAR };
         let (ox, oy) = self.origin();
         self.img.get(ox + p.0, oy + p.1)
     }
 
     fn plot(&mut self, p: (i32, i32), c: [u8; 4]) {
-        if self.inside(p) {
+        if let Some(p) = self.wrapped(p) {
             let (ox, oy) = self.origin();
             self.img.set(ox + p.0, oy + p.1, c);
         }
@@ -215,13 +228,16 @@ impl PixelDoc {
     }
 
     fn fill(&mut self, at: (i32, i32), c: [u8; 4]) {
+        let Some(at) = self.wrapped(at) else { return };
         let target = self.get(at);
-        if !self.inside(at) || target == c {
+        if target == c {
             return;
         }
+        // (Across the edges of a seamless picture: neighbours come back in on the other side.)
         let mut stack = vec![at];
         while let Some(p) = stack.pop() {
-            if !self.inside(p) || self.get(p) != target {
+            let Some(p) = self.wrapped(p) else { continue };
+            if self.get(p) != target {
                 continue;
             }
             self.plot(p, c);
@@ -269,13 +285,17 @@ impl PixelDoc {
         self.changed();
     }
 
-    /// Moves what is painted in the frame by `d` pixels (what leaves it is gone).
+    /// Moves what is painted in the frame by `d` pixels (what leaves it is gone; in a seamless
+    /// picture it comes back in on the other side: the seam moves into view).
     pub fn nudge(&mut self, d: (i32, i32)) {
         let src = self.frame_pixels();
         self.snapshot();
         for y in 0..self.frame.1 as i32 {
             for x in 0..self.frame.0 as i32 {
-                let (sx, sy) = (x - d.0, y - d.1);
+                let (mut sx, mut sy) = (x - d.0, y - d.1);
+                if self.seamless {
+                    (sx, sy) = (sx.rem_euclid(src.w as i32), sy.rem_euclid(src.h as i32));
+                }
                 let c = if sx >= 0 && sy >= 0 && sx < src.w as i32 && sy < src.h as i32 { src.get(sx, sy) } else { CLEAR };
                 self.plot((x, y), c);
             }
@@ -433,4 +453,34 @@ mod tests {
         assert_eq!(PxTool::named("pick"), Some(PxTool::Picker));
         let _ = std::fs::remove_dir_all(dir);
     }
+    #[test]
+    fn a_seamless_texture_is_painted_across_its_edges() {
+        // A material's texture of two frames of 8 x 8 side by side, the second painted in.
+        let mut d = PixelDoc::of("materials/test.png", Rgba::new(16, 8), (8, 8));
+        d.seamless = true;
+        d.cur = 1;
+        // A stroke out over the right edge comes back in on the left, in the same frame.
+        d.snapshot();
+        d.drag(PxTool::Pencil, (6, 2), (9, 2), RED);
+        d.changed();
+        assert_eq!([d.get((6, 2)), d.get((7, 2)), d.get((0, 2)), d.get((1, 2)), d.get((2, 2))], [RED, RED, RED, RED, CLEAR]);
+        assert_eq!((d.get((8, 2)), d.get((-2, 2)), d.get((6, 10))), (RED, RED, RED), "asked for beside the frame, it answers as its copy there");
+        assert!((0..8).all(|x| d.img.get(x, 2) == CLEAR), "the first frame is untouched");
+        // A line down the frame and one across it: on a picture that ends at its edges they
+        // would cut it into four areas; here the four are one (each goes on through the edge
+        // opposite), and a fill started in one corner reaches all of them.
+        d.shape(PxTool::Line, (4, 0), (4, 7), BLUE);
+        d.shape(PxTool::Line, (0, 5), (7, 5), BLUE);
+        d.shape(PxTool::Fill, (5, 7), (5, 7), RED);
+        assert!((0..8).all(|y| (0..8).all(|x| d.get((x, y)) == if x == 4 || y == 5 { BLUE } else { RED })));
+        // Moved half a frame, what leaves on one side comes in on the other: the seam is in the middle.
+        let before = d.frame_pixels();
+        d.nudge((4, 0));
+        assert!((0..8).all(|y| (0..8).all(|x| d.get((x, y)) == before.get((x + 4) % 8, y))));
+        // A picture that isn't seamless keeps cutting off at the frame.
+        let mut plain = doc();
+        plain.dot(PxTool::Pencil, (9, 2), RED);
+        assert!(plain.img.px.iter().all(|b| *b == 0));
+    }
+
 }

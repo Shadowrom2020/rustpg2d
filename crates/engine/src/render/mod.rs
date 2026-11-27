@@ -181,8 +181,7 @@ impl Assets {
         for e in &errors {
             eprintln!("[assets] {e}");
         }
-        static GENERATION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
-        let generation = GENERATION.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let generation = next_generation();
         let models = model::Models::load(&project.db, &|rel| crate::sys::read(&project.path(rel)));
         models.set_atlas_mb(project.config.model_atlas_mb);
         errors.extend(models.errors.iter().cloned());
@@ -194,6 +193,26 @@ impl Assets {
     pub fn load_sheet(&mut self, project: &Project, def: &crate::defs::SheetDef) {
         let mut errors = Vec::new();
         self.sheets.insert(def.id.clone(), sheet_tex(project, def, &mut errors));
+        for e in &errors {
+            eprintln!("[assets] {e}");
+        }
+        self.errors.extend(errors);
+    }
+
+    /// Reads one ground material's texture again (a picture the editor just wrote), leaving
+    /// everything else as it is; whoever draws the ground builds its atlas anew.
+    pub fn load_material(&mut self, project: &Project, def: &crate::ground::MaterialDef) {
+        let mut errors = Vec::new();
+        if def.texture.is_empty() {
+            self.materials.remove(&def.id);
+        } else {
+            let image = load_image(project, &def.texture, &mut errors);
+            let (fw, fh) = def.frame_size(image.width as u32, image.height as u32);
+            self.material_colors.insert(def.id.clone(), average_color(&image, Rect::new(0.0, 0.0, fw.max(1) as f32, fh.max(1) as f32)));
+            self.material_frames.insert(def.id.clone(), def.frames.max(1) as u32);
+            self.materials.insert(def.id.clone(), image);
+        }
+        self.generation = next_generation();
         for e in &errors {
             eprintln!("[assets] {e}");
         }
@@ -447,6 +466,12 @@ impl Assets {
         );
         true
     }
+}
+
+/// A number no loaded set of art had yet ([`Assets::generation`]).
+fn next_generation() -> u64 {
+    static GENERATION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+    GENERATION.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
 }
 
 /// Draws `src` of a sheet's texture at its world size, bottom-center at `feet` (pixel-snapped).

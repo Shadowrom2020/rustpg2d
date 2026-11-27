@@ -38,6 +38,9 @@ fn parse_hex(s: &str) -> Option<[u8; 4]> {
 type Stroke3 = (usize, (i32, i32), (i32, i32));
 
 pub struct PixelEdit {
+    /// The picture is a ground material's texture (else a sprite sheet's): painted across
+    /// its edges, shown with copies of itself around it.
+    pub material: bool,
     /// The canvas is shown.
     pub open: bool,
     pub doc: Option<PixelDoc>,
@@ -52,11 +55,13 @@ pub struct PixelEdit {
     used: Option<(u64, Vec<[u8; 4]>)>,
     /// Where the canvas is in the window, and how many points a pixel is (for scripts).
     place: Option<(egui::Rect, f32)>,
+    /// How many points a pixel is shown as; `None`: as many as fit.
+    pub zoom: Option<f32>,
 }
 
 impl Default for PixelEdit {
     fn default() -> PixelEdit {
-        PixelEdit { open: false, doc: None, error: None, tool: PxTool::Pencil, colors: [[0, 0, 0, 255], [255, 255, 255, 255]], stroke: None, tex: None, used: None, place: None }
+        PixelEdit { material: false, open: false, doc: None, error: None, tool: PxTool::Pencil, colors: [[0, 0, 0, 255], [255, 255, 255, 255]], stroke: None, tex: None, used: None, place: None, zoom: None }
     }
 }
 
@@ -72,20 +77,39 @@ pub fn has_pointer(ctx: &egui::Context) -> bool {
 }
 
 impl PixelEdit {
+    /// The pixel editor of a ground material's texture.
+    pub fn of_material() -> PixelEdit {
+        PixelEdit { material: true, ..Default::default() }
+    }
+
     pub fn dirty(&self) -> bool {
         self.doc.as_ref().is_some_and(|d| d.is_dirty())
     }
 
-    /// Reads the sheet's picture (again when the sheet names another).
+    /// Reads the sheet's picture or the material's texture (again when it names another).
     fn load(&mut self, ws: &Workspace, id: &str) {
-        let Some(def) = ws.project.db.sheets.iter().find(|s| s.id == id) else { return };
-        let frame = (def.frame_w, def.frame_h);
-        match &mut self.doc {
-            Some(d) if d.rel == def.image => d.set_frame(frame),
-            _ => match PixelDoc::open(&ws.project.root, &def.image, frame) {
+        // The file, and how it is cut: a sheet by its frame's size, a material's texture into
+        // its animation's frames side by side.
+        let (rel, frame, frames) = if self.material {
+            let Some(def) = ws.project.db.material(id) else { return };
+            if def.texture.is_empty() {
+                (self.doc, self.error) = (None, Some("This material has no texture yet: name one under Texture below.".into()));
+                return;
+            }
+            (def.texture.clone(), (u32::MAX, u32::MAX), def.frames.max(1) as u32)
+        } else {
+            let Some(def) = ws.project.db.sheets.iter().find(|s| s.id == id) else { return };
+            (def.image.clone(), (def.frame_w, def.frame_h), 0)
+        };
+        if !self.doc.as_ref().is_some_and(|d| d.rel == rel) {
+            match PixelDoc::open(&ws.project.root, &rel, frame) {
                 Ok(d) => (self.doc, self.error, self.tex, self.used) = (Some(d), None, None, None),
                 Err(e) => (self.doc, self.error) = (None, Some(e)),
-            },
+            }
+        }
+        if let Some(d) = &mut self.doc {
+            d.seamless = self.material;
+            d.set_frame(if self.material { (d.img.w / frames, d.img.h) } else { frame });
         }
     }
 
@@ -97,7 +121,11 @@ impl PixelEdit {
         }
         doc.save(&ws.project.root)?;
         if ws.gpu != editor_core::Gpu::No {
-            if let Some(def) = ws.project.db.sheets.iter().find(|s| s.id == id).cloned() {
+            if self.material {
+                if let Some(def) = ws.project.db.material(id).cloned() {
+                    ws.assets.load_material(&ws.project, &def);
+                }
+            } else if let Some(def) = ws.project.db.sheets.iter().find(|s| s.id == id).cloned() {
                 ws.assets.load_sheet(&ws.project, &def);
             }
         }
@@ -113,7 +141,7 @@ impl PixelEdit {
         format!("{id} frame={} {}x{} tool={} colors={}/{} {} used={}{place}", d.cur, d.frame.0, d.frame.1, self.tool.label().to_lowercase().replace(' ', "_"), hex(self.colors[0]), hex(self.colors[1]), if d.is_dirty() { "changed" } else { "saved" }, d.colors(64).len())
     }
 
-    /// The script's words: `open`, `close`, `frame K`, `tool NAME`, `color RRGGBB[AA] [2]`,
+    /// The script's words: `open`, `close`, `frame K`, `tool NAME`, `color RRGGBB[AA] [2]`, `zoom N|fit`,
     /// `dot X Y [2]`, `line|rect X1 Y1 X2 Y2 [2]`, `fill X Y [2]`, `undo`, `redo`, `copy`,
     /// `paste`, `flip`, `clear`, `nudge DX DY`, `replace FROM TO [all]`, `save`.
     pub fn word(&mut self, ws: &mut Workspace, id: &str, args: &[String]) -> Result<(), String> {
@@ -137,6 +165,10 @@ impl PixelEdit {
             }
             "color" => {
                 self.colors[(arg(2) == "2") as usize] = parse_hex(arg(1)).ok_or("color RRGGBB[AA] [2]")?;
+                return Ok(());
+            }
+            "zoom" => {
+                self.zoom = arg(1).parse::<f32>().ok().map(|k| k.clamp(1.0, 32.0));
                 return Ok(());
             }
             _ => {}
@@ -172,17 +204,29 @@ impl PixelEdit {
         Ok(())
     }
 
-    /// The section under a sheet's picture. `frame`: the frame picked above.
+    /// The section under a sheet's picture (`frame`: the frame picked above), or at the top
+    /// of a ground material's tab.
     pub fn show(&mut self, ui: &mut egui::Ui, ws: &mut Workspace, id: &str, frame: Option<u32>) {
         ui.horizontal(|ui| {
-            if ui.toggle_value(&mut self.open, "Paint").on_hover_text("Paint the frame picked above, pixel by pixel").clicked() && self.open {
+            let about = if self.material { "Paint the texture pixel by pixel, across its edges: what leaves on one side comes in on the other" } else { "Paint the frame picked above, pixel by pixel" };
+            if ui.toggle_value(&mut self.open, "Paint").on_hover_text(about).clicked() && self.open {
                 self.load(ws, id);
             }
             if !self.open {
                 if self.dirty() {
                     ui.colored_label(ui.visuals().warn_fg_color, "the picture has changes that aren't saved");
                 } else {
-                    ui.weak("The frame picked above, pixel by pixel.");
+                    ui.weak(if self.material { "The texture, pixel by pixel, with its neighbours around it: seams are painted away." } else { "The frame picked above, pixel by pixel." });
+                }
+            }
+            // A material's animation: which of its frames is painted.
+            if let Some(doc) = self.doc.as_mut().filter(|d| self.open && self.material && d.count() > 1) {
+                ui.separator();
+                ui.label("Frame");
+                for f in 0..doc.count() {
+                    if ui.selectable_label(doc.cur == f, (f + 1).to_string()).on_hover_text("This frame of its animation").clicked() {
+                        doc.cur = f;
+                    }
                 }
             }
         });
@@ -276,7 +320,23 @@ impl PixelEdit {
                 }
             });
         }
-        self.canvas(ui);
+        // How large it is shown: as fits, or closer (the picture scrolls then).
+        ui.horizontal(|ui| {
+            let k = self.place.map_or(1.0, |p| p.1);
+            if ui.small_button("-").on_hover_text("Further away").clicked() {
+                self.zoom = Some((k - 1.0).max(1.0));
+            }
+            ui.label(format!("{:.0}00 %", k));
+            if ui.small_button("+").on_hover_text("Closer").clicked() {
+                self.zoom = Some((k + 1.0).min(32.0));
+            }
+            if ui.add_enabled(self.zoom.is_some(), egui::Button::new("Fit").small()).on_hover_text("As large as fits").clicked() {
+                self.zoom = None;
+            }
+        });
+        let zoom = self.zoom;
+        let room = vec2(ui.available_width().clamp(200.0, 900.0), 560.0);
+        egui::ScrollArea::both().id_salt(("pixel canvas", id)).max_height(room.y + 16.0).max_width(room.x).auto_shrink([true, true]).show(ui, |ui| self.canvas(ui, room, zoom));
         if save {
             if let Err(e) = self.save(ws, id) {
                 ws.set_status(e);
@@ -284,22 +344,32 @@ impl PixelEdit {
         }
     }
 
-    fn canvas(&mut self, ui: &mut egui::Ui) {
+    fn canvas(&mut self, ui: &mut egui::Ui, room: egui::Vec2, zoom: Option<f32>) {
         let Some(doc) = self.doc.as_mut() else { return };
         let (fw, fh) = (doc.frame.0 as f32, doc.frame.1 as f32);
         // A whole number of points a pixel, as large as fits.
-        let k = (420.0 / fw).min(420.0 / fh).floor().clamp(1.0, 32.0);
-        let (rect, resp) = ui.allocate_exact_size(vec2(fw, fh) * k, Sense::click_and_drag());
+        // (A seamless texture is shown with part of itself again on every side: half of a small
+        // one, a quarter of a large one, which needs the room for itself.)
+        let around = match (doc.seamless, fw.max(fh) > 64.0) {
+            (false, _) => 0.0,
+            (true, false) => 0.5,
+            (true, true) => 0.25,
+        };
+        let fit = (room.x / (fw * (1.0 + 2.0 * around))).min(room.y / (fh * (1.0 + 2.0 * around))).floor().clamp(1.0, 32.0);
+        let k = zoom.unwrap_or(fit).clamp(1.0, 32.0);
+        let (outer, resp) = ui.allocate_exact_size(vec2(fw, fh) * k * (1.0 + 2.0 * around), Sense::click_and_drag());
         resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Image, true, "The frame to paint"));
+        // The frame itself, in the middle of what is shown.
+        let rect = egui::Rect::from_min_size(outer.min + vec2((fw * around).floor(), (fh * around).floor()) * k, vec2(fw, fh) * k);
         self.place = Some((rect, k));
-        let painter = ui.painter_at(rect);
+        let painter = ui.painter_at(outer);
         // See-through shows as a chequered ground.
-        painter.rect_filled(rect, 0.0, Color32::from_rgb(70, 72, 80));
+        painter.rect_filled(outer, 0.0, Color32::from_rgb(70, 72, 80));
         let step = (k * 4.0).max(8.0);
-        let (nx, ny) = ((rect.width() / step).ceil() as i32, (rect.height() / step).ceil() as i32);
+        let (nx, ny) = ((outer.width() / step).ceil() as i32, (outer.height() / step).ceil() as i32);
         for y in 0..ny {
             for x in (y % 2..nx).step_by(2) {
-                painter.rect_filled(egui::Rect::from_min_size(rect.min + vec2(x as f32 * step, y as f32 * step), vec2(step, step)).intersect(rect), 0.0, Color32::from_rgb(92, 94, 104));
+                painter.rect_filled(egui::Rect::from_min_size(outer.min + vec2(x as f32 * step, y as f32 * step), vec2(step, step)).intersect(outer), 0.0, Color32::from_rgb(92, 94, 104));
             }
         }
         // The frame's picture.
@@ -315,7 +385,17 @@ impl PixelEdit {
             }
         }
         if let Some((t, ..)) = &self.tex {
-            painter.image(t.id(), rect, egui::Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
+            let whole = egui::Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0));
+            if doc.seamless {
+                // Its copies around it, a little darker: where they meet it are its seams.
+                for (dx, dy) in (-1..=1).flat_map(|dy| (-1..=1).map(move |dx| (dx, dy))).filter(|d| *d != (0, 0)) {
+                    painter.image(t.id(), rect.translate(vec2(dx as f32 * rect.width(), dy as f32 * rect.height())), whole, Color32::from_gray(150));
+                }
+            }
+            painter.image(t.id(), rect, whole, Color32::WHITE);
+        }
+        if doc.seamless {
+            painter.rect_stroke(rect, 0.0, Stroke::new(1.0_f32, Color32::from_rgba_unmultiplied(255, 255, 255, 110)), egui::StrokeKind::Outside);
         }
         if k >= 8.0 {
             let line = Stroke::new(1.0_f32, Color32::from_rgba_unmultiplied(0, 0, 0, 40));
@@ -388,12 +468,13 @@ impl PixelEdit {
         // A line or rectangle being dragged, shown before it is drawn.
         if let Some((button, from, now)) = self.stroke.filter(|_| matches!(self.tool, PxTool::Line | PxTool::Rect)) {
             let points = if self.tool == PxTool::Line { line_points(from, now) } else { rect_points(from, now) };
-            for p in points.into_iter().filter(|p| doc.inside(*p)) {
+            for p in points.into_iter().filter_map(|p| doc.wrapped(p)) {
                 painter.rect_filled(cell(p), 0.0, c32(self.colors[button]));
             }
         }
-        if let Some(p) = at.filter(|p| over && doc.inside(*p)) {
-            painter.rect_stroke(cell(p), 0.0, Stroke::new(1.0_f32, Color32::WHITE), egui::StrokeKind::Outside);
+        // (Over a copy beside a seamless texture: the pixel it stands for, marked where the pointer is.)
+        if let Some((shown, p)) = at.filter(|_| over).and_then(|shown| doc.wrapped(shown).map(|p| (shown, p))) {
+            painter.rect_stroke(cell(shown), 0.0, Stroke::new(1.0_f32, Color32::WHITE), egui::StrokeKind::Outside);
             let c = doc.get(p);
             ui.weak(format!("Frame {} · pixel {}, {} · {}", doc.cur, p.0, p.1, if c[3] == 0 { "see-through".to_string() } else { format!("#{}", hex(c)) }));
         } else {
@@ -493,4 +574,49 @@ mod ui_tests {
         assert!(file.get(2, 5) == red && file.get(9, 5) == red && file.get(16 + 7, 7) == [0; 4]);
         let _ = std::fs::remove_dir_all(dir);
     }
+    #[test]
+    fn a_materials_texture_is_painted_across_its_seam() {
+        // A ground material whose texture is two frames of 16 x 16 side by side.
+        let dir = std::env::temp_dir().join(format!("rustpg2d-pixeledit-seam-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        editor_core::files::create_project(&dir).unwrap();
+        std::fs::create_dir_all(dir.join("materials")).unwrap();
+        std::fs::write(dir.join("materials/moss.png"), Rgba::new(32, 16).encode().unwrap()).unwrap();
+        let mut ws = Workspace::new(dir.clone(), editor_core::Gpu::No).unwrap();
+        ws.project.db.materials.push(rustpg2d_engine::ground::MaterialDef { id: "moss".into(), name: "Moss".into(), texture: "materials/moss.png".into(), frames: 2, ..Default::default() });
+        ws.project.db.reindex();
+        ws.history_frame(None);
+        let mut h = Harness::builder().with_size(egui::vec2(900.0, 800.0)).build_ui_state(|ui, s: &mut State| s.edit.show(ui, &mut s.ws, "moss", None), State { ws, edit: PixelEdit::of_material(), frame: None });
+        h.run();
+        h.get_by_label("Paint").click();
+        h.run();
+        h.run();
+        // Its animation's frames are picked here; the second is painted.
+        h.get_by_label("2").click();
+        h.run();
+        let d = h.state().edit.doc.as_ref().unwrap();
+        assert_eq!((d.seamless, d.frame, d.count(), d.cur), (true, (16, 16), 2, 1));
+        // A stroke from inside the frame out over its right edge, onto the copy shown beside
+        // it: it comes back in on the left of the same frame.
+        let (a, b) = (at(&h, (13, 4)), at(&h, (18, 4)));
+        h.drag_at(a);
+        h.run();
+        h.hover_at(b);
+        h.run();
+        h.drop_at(b);
+        h.run();
+        h.run();
+        let ink = [0, 0, 0, 255];
+        let d = h.state().edit.doc.as_ref().unwrap();
+        assert!((13..16).all(|x| d.get((x, 4)) == ink) && (0..3).all(|x| d.get((x, 4)) == ink) && d.get((3, 4)) == [0; 4] && d.get((12, 4)) == [0; 4]);
+        assert!((0..16).all(|x| d.img.get(x, 4) == [0; 4]), "the first frame of the animation is untouched");
+        // Saved with its button: the file holds it.
+        h.get_by_label("Save picture").click();
+        h.run();
+        let file = Rgba::decode(&std::fs::read(dir.join("materials/moss.png")).unwrap()).unwrap();
+        assert!(file.get(16, 4) == ink && file.get(31, 4) == ink && file.get(15, 4) == [0; 4]);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
 }

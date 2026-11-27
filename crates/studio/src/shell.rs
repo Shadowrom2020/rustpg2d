@@ -264,6 +264,14 @@ pub struct LibLook {
     thumbs: crate::thumbs::Thumbs,
 }
 
+/// Pixel editors are kept by sheet id; a ground material's under this before its id (no id
+/// has a colon).
+const MATERIAL_KEY: &str = "material:";
+
+fn material_key(id: &str) -> String {
+    format!("{MATERIAL_KEY}{id}")
+}
+
 /// What is typed on the home screen.
 #[derive(Default)]
 pub struct Home {
@@ -510,8 +518,10 @@ impl Shell {
         }
         // Pictures painted in their sheets' tabs are files of their own too.
         let painted: Vec<String> = self.pixels.iter().filter(|(_, p)| p.dirty()).map(|(id, _)| id.clone()).collect();
-        for id in painted {
-            match self.pixels.get_mut(&id).map(|p| p.save(&mut self.ws, &id)) {
+        for key in painted {
+            // (A material's editor is kept under a key of its own: its id is what follows.)
+            let id = key.strip_prefix(MATERIAL_KEY).unwrap_or(&key).to_string();
+            match self.pixels.get_mut(&key).map(|p| p.save(&mut self.ws, &id)) {
                 Some(Err(e)) => self.ws.set_status(e),
                 Some(Ok(())) => saved += 1,
                 None => {}
@@ -598,13 +608,17 @@ impl Shell {
         }
     }
 
-    /// The pixel editor of the sprite sheet's tab in front: the words of `PixelEdit::word`;
-    /// returns its `status` line ("" when no sheet's tab is in front).
+    /// The pixel editor of the sprite sheet's or ground material's tab in front: the words of
+    /// `PixelEdit::word`; returns its `status` line ("" when neither's tab is in front).
     pub fn pixels_word(&mut self, args: &[String]) -> String {
-        let Some(Tab::Def(RefKind::Sheet, id)) = self.dock.find_active_focused().map(|(_, t)| t.clone()) else { return String::new() };
-        let edit = self.pixels.entry(id.clone()).or_default();
-        // (The frame it paints in is the one picked in the sheet's picture.)
-        if let (Some("frame"), Some(k)) = (args.first().map(String::as_str), args.get(1).and_then(|k| k.parse().ok())) {
+        let (id, material) = match self.dock.find_active_focused().map(|(_, t)| t.clone()) {
+            Some(Tab::Def(RefKind::Sheet, id)) => (id, false),
+            Some(Tab::Def(RefKind::Material, id)) => (id, true),
+            _ => return String::new(),
+        };
+        let edit = if material { self.pixels.entry(material_key(&id)).or_insert_with(crate::pixeledit::PixelEdit::of_material) } else { self.pixels.entry(id.clone()).or_default() };
+        // (The frame a sheet is painted in is the one picked in its picture.)
+        if let (false, Some("frame"), Some(k)) = (material, args.first().map(String::as_str), args.get(1).and_then(|k| k.parse().ok())) {
             self.sheets.entry(id.clone()).or_default().frame = Some(k);
         }
         match edit.word(&mut self.ws, &id, args) {
@@ -1899,6 +1913,10 @@ impl Viewer<'_> {
         }
         if kind == RefKind::Model {
             self.model_stages.entry(id.to_string()).or_default().show(ui, self.ws, self.rs, self.thumbs, id);
+            ui.separator();
+        }
+        if kind == RefKind::Material {
+            self.pixels.entry(material_key(id)).or_insert_with(crate::pixeledit::PixelEdit::of_material).show(ui, self.ws, id, None);
             ui.separator();
         }
         if kind == RefKind::Sound {

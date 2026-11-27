@@ -1702,6 +1702,13 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     emptied and moved a pixel at a time. The picture has its own undo (the buttons, or
     Ctrl+Z with the pointer over it), as a script's text has; *Save picture*, or saving
     everything, writes the file, and the sheet shows the new picture everywhere at once.
+    A ground material's tab has the same editor for its texture, **across its seams**: the
+    texture is shown with part of itself again on every side (a little darker), a stroke
+    that leaves on one side comes in on the other, a fill goes on through the edges, and
+    *Left / Up / Down / Right* move the seam into the middle; an animated material's frames
+    are picked there. Saved, the ground of every open map shows it at once
+    (`Assets::load_material`). The picture is shown as large as fits, or closer with *+*
+    (it scrolls then).
   - **The model workshop** (`studio/src/modelshop.rs` over `editor-core/src/modelcheck.rs`;
     at the top of a 3D model's tab): the model as the game draws it, turning or from one
     side, playing whichever of its animations is clicked (a piece is shown on a figure it
@@ -1745,9 +1752,9 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   day, talk, shop and loot as parts of one document (they are sections of the form below),
   *Start from…* another character; presets that are more than
   one asset (a *Merchant* with a shop and a schedule to fill in), pictures in the rows of the
-  library's list in *New…* and on the Library tab (the one picked has one); of the pixel editor a ground
-  material's texture painted across its seams (0.35's seamless view), an area selected and
-  moved, a frame added to a sheet, zooming; Generate art.
+  library's list in *New…* and on the Library tab (the one picked has one); of the pixel editor an area selected and
+  moved, a frame added to a sheet, the wheel zooming at the pointer, a material's texture
+  seen on a patch of ground while it is painted; Generate art.
 
   **Decided while building.**
   - **The workshop is the top of the prop's tab, not a tab of its own**: the picture and the
@@ -1784,6 +1791,11 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     1, 1 on its map (`structdoc::MARGIN`, `own_tiles`), and everything standing on the map
     is the structure's, at places counted from its own corner. What lies further out than
     that tile is kept as it is, unseen.
+  - **A seamless texture answers for its copies**: a pixel asked for beside the frame is the
+    one it comes back in at (`PixelDoc::wrapped`), so strokes, fills, the preview of a line
+    and the pointer's mark work on the copies shown around it without knowing of them. A
+    small texture is shown with half of itself around, one over 64 pixels with a quarter:
+    it needs the room for itself.
   - **A picture's undo is its own**, like a script's text: the definitions' history keeps
     definitions, not files, and a picture isn't in the project until it is saved. Ctrl+Z is
     the picture's while the pointer is over it (`pixeledit::has_pointer`), the project's
@@ -1877,6 +1889,14 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     filled; undo, redo, *Save picture*: the file holds it). In the window: the apple of the
     example's item icons painted with the script's pointer (a stroke dragged, the ground
     filled), saved with everything, the file changed and the sheet's picture with it.
+  - A material's texture across its seams: `a_seamless_texture_is_painted_across_its_edges`
+    (a stroke out over the right edge comes back in on the left of the same frame, the
+    animation's other frame untouched; a line down and one across leave one area, which a
+    fill reaches all of; moved half a frame, what leaves comes in), `a_materials_texture_is_
+    painted_across_its_seam` (the second frame picked, a stroke dragged onto the copy beside
+    it, *Save picture*: the file holds both ends). In the window: a red stroke over the right
+    edge of the example's grass (128 x 128), continuous across the seam in the copies;
+    saved with everything, the village's ground shows it at once, in every repeat.
   - The light's place and the picture's foot: engine tests (`a_light_sits_where_its_spec_
     says_else_by_the_rule`, `defaults_match_the_file_format`: unset they are not written and
     old files read), `a_lights_place_and_a_pictures_foot_are_dragged_and_put_back` (the

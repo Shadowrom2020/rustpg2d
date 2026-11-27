@@ -128,7 +128,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **The pixel editor** (part 8): *Paint* in a sprite sheet's tab paints the frame picked,
   pixel by pixel: pencil, eraser, fill, line, rectangle, colour picker, two colours on the two
   mouse buttons, the picture's own colours as swatches; a frame is copied, mirrored and moved;
-  the picture has its own undo and is saved with everything.
+  the picture has its own undo and is saved with everything. A ground material's tab paints
+  its texture the same way, across its seams: it is shown with its copies around it, and what
+  is drawn over one edge comes in at the other.
 - **The model workshop** (part 8): a 3D model's tab starts with the model playing its
   animations and with what it still needs: an animation without a clip, a model without a
   skeleton, too many colours. Each animation's clip is picked from the clips in its files,

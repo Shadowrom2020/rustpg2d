@@ -303,6 +303,7 @@ impl Scene<'_> {
                     (Some(d), Some(hb)) if d.block > 0.0 => iso::Footprint::at_feet(feet, hb[0], hb[1]),
                     _ => footprint(feet, hitbox),
                 };
+                let print = print.raised(prop.map_or(0.0, |d| d.raised_by()));
                 items.push((Drawn::Ent(e), feet, print));
             }
         } else {
@@ -321,6 +322,7 @@ impl Scene<'_> {
                         (Some(p), Some(hb)) if p.block > 0.0 => iso::Footprint::at_feet(feet, hb[0], hb[1]),
                         _ => footprint(feet, hitbox),
                     };
+                    let print = print.raised(prop.map_or(0.0, |p| p.raised_by()));
                     items.push((Drawn::Decor(i), feet, print));
                 }
             }

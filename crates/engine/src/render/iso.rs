@@ -234,12 +234,21 @@ pub fn border_fade(w: f32, h: f32, band: f32, color: Color) {
 pub struct Footprint {
     pub rect: Rect,
     pub depth: f32,
+    /// How high above the ground its underside is (world pixels): 0 for what stands on the
+    /// ground, a roof alone as high as the walls it rests on. What is raised is drawn after
+    /// what stands under it.
+    pub base: f32,
 }
 
 impl Footprint {
     /// A footprint `w` × `h` whose front edge's middle is `feet` (the anchor of props).
     pub fn at_feet(feet: Vec2, w: f32, h: f32) -> Self {
-        Self { rect: Rect::new(feet.x - w / 2.0, feet.y - h, w, h), depth: depth(feet) }
+        Self { rect: Rect::new(feet.x - w / 2.0, feet.y - h, w, h), depth: depth(feet), base: 0.0 }
+    }
+
+    /// The same, its underside `base` world pixels above the ground (a roof without walls).
+    pub fn raised(self, base: f32) -> Self {
+        Self { base: base.max(0.0), ..self }
     }
 
     /// The horizontal screen span (projected x) of the footprint.
@@ -263,6 +272,10 @@ fn before(a: &Footprint, b: &Footprint) -> Option<bool> {
         Some(true)
     } else if rb.right() <= ra.x || rb.bottom() <= ra.y {
         Some(false)
+    } else if (a.base > 0.0) != (b.base > 0.0) {
+        // One of them is overhead (a roof alone over walls, over who stands inside): it covers
+        // what stands under it, wherever in its footprint that is.
+        Some(b.base > 0.0)
     } else {
         // Overlapping footprints (a character on a rug, in a doorway): by their feet.
         Some(a.depth <= b.depth)
@@ -405,7 +418,7 @@ mod tests {
     }
 
     fn point(x: f32, y: f32) -> Footprint {
-        Footprint { rect: Rect::new(x, y, 0.0, 0.0), depth: depth(vec2(x, y)) }
+        Footprint { rect: Rect::new(x, y, 0.0, 0.0), depth: depth(vec2(x, y)), base: 0.0 }
     }
 
     fn pos(order: &[usize], i: usize) -> usize {
@@ -430,6 +443,30 @@ mod tests {
         let front = point(420.0, 530.0);
         let o = order(&[house, front], 8.0);
         assert!(pos(&o, 0) < pos(&o, 1));
+    }
+
+    #[test]
+    fn a_roof_alone_is_drawn_after_what_stands_under_it() {
+        // A roof over a room of 5 x 5 tiles, as high as its walls; wall pieces in its southern
+        // and eastern rows, and someone inside near the south-east corner: all of them have
+        // their feet nearer than the roof's (the middle of its front edge), yet it covers them.
+        let roof = Footprint::at_feet(vec2(480.0, 480.0), 160.0, 160.0).raised(48.0);
+        let south_east_wall = Footprint::at_feet(vec2(544.0, 480.0), 32.0, 32.0);
+        let east_wall = Footprint::at_feet(vec2(544.0, 400.0), 32.0, 32.0);
+        let inside = point(540.0, 470.0);
+        assert!(south_east_wall.depth > roof.depth && inside.depth > roof.depth);
+        for under in [south_east_wall, east_wall, inside] {
+            let o = order(&[roof, under], 8.0);
+            assert!(pos(&o, 1) < pos(&o, 0), "{under:?}");
+        }
+        // What stands in front of it, outside its footprint, is drawn after it as before.
+        let front = Footprint::at_feet(vec2(480.0, 520.0), 32.0, 32.0);
+        let o = order(&[roof, front], 8.0);
+        assert!(pos(&o, 0) < pos(&o, 1));
+        // Two roofs that overlap go by their feet, as two things on the ground do.
+        let other = Footprint::at_feet(vec2(520.0, 500.0), 160.0, 160.0).raised(48.0);
+        let o = order(&[other, roof], 8.0);
+        assert!(pos(&o, 1) < pos(&o, 0));
     }
 
     #[test]

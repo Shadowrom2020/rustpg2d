@@ -24,6 +24,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   `ScriptHost::compile_check` (a script checked before it is saved); `Game::raise` (an event
   raised for a thing as if it had just happened: the editor's *Try it*).
 
+- **A roof alone covers what stands under it:** wall pieces in the southern and eastern rows of
+  a roofed room were drawn over the roof's eaves, and someone standing in that corner over the
+  roof. A building without walls is now drawn after everything under it (it is still cut away
+  around the hero).
+
 ### Editor
 - **The new editor's window** (`rustpg2d-studio`, part 3 of *The Studio*), egui 0.37 on the
   engine's own renderer: tabs that can be arranged, a Project browser with fixed groups, a

@@ -3419,6 +3419,7 @@ impl Game {
                 (Some(d), Some(hb)) if d.block > 0.0 => block_print(feet, hb),
                 _ => footprint(feet, hitbox),
             };
+            let print = print.raised(prop.map_or(0.0, |d| d.raised_by()));
             items.push((Drawn::Entity(i), p, print));
         }
         if !self.photo.hide_player || !self.photo_on() {
@@ -3448,6 +3449,8 @@ impl Game {
                 (Some(p), Some(hb)) if p.block > 0.0 => block_print(feet, hb),
                 _ => footprint(feet, hitbox),
             };
+            // (A roof alone covers what stands under it.)
+            let print = print.raised(prop.map_or(0.0, |p| p.raised_by()));
             items.push((Drawn::Decor(i as usize), feet, print));
         }
         flats.sort_by(|a, b| a.0.total_cmp(&b.0));

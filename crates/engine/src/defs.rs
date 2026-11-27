@@ -1992,6 +1992,13 @@ impl PropDef {
     }
 
     /// The hitbox of a copy facing `f`: width and depth swapped when it is turned a quarter.
+    /// How high above the ground the prop's underside is (world pixels): a roof alone (a
+    /// building without walls) rests on walls of its *height*; everything else stands on
+    /// the ground (0). What is raised is drawn after what stands under it.
+    pub fn raised_by(&self) -> f32 {
+        self.building.as_ref().filter(|b| !b.walls).map_or(0.0, |b| b.height.max(0.0))
+    }
+
     pub fn hitbox_facing(&self, f: crate::entity::Facing) -> [f32; 2] {
         use crate::entity::Facing;
         match f {

@@ -1281,16 +1281,18 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     (the room's own *With a roof* doesn't need the walls closed).
   - **What was built is saved as a structure with the Select tool** (a box around it, *Save
     as structure*): the Build tool's own *Built here* area of 0.35 is gone.
-  - Known, as in 0.35 and in the game: wall pieces in the southern and eastern rows under a
-    roof are drawn over its eaves (things with overlapping footprints are ordered by their
-    feet). A roof alone would have to be drawn after what stands under it: an engine change
-    to propose.
+  - **A roof alone is drawn after what stands under it** (agreed 2026-11-27): in 0.35 and in
+    the game, wall pieces in the southern and eastern rows under a roof were drawn over its
+    eaves, and someone in that corner of the room over the roof, because things with
+    overlapping footprints went by their feet. `iso::Footprint` has a `base` now (how high
+    its underside is: a building without walls rests at its *height*), and what is raised
+    comes after what stands under it. With the hero inside, the roof is cut away as before.
 
   **Engine.** `Game` embeddable (part 1). The canvas draws through the engine's renderer into a
   texture, as the old `canvas.rs` drew on the screen. Added for the Play tab: `Game::step`
   (devices and one update, what `frame` does before drawing) and `Game::thing_under_pointer`.
   For the Build tool: `Assets::load_sheet` (one picture read again, a built house's, instead
-  of every asset).
+  of every asset); `iso::Footprint::raised` and `PropDef::raised_by` (the draw order of roofs).
 
   **Verify.** Editor script: each tool on a scratch copy (paint, place, turn, link two maps),
   `status` fields as today; the Play panel started from a tile, a flag set in the State panel
@@ -1345,6 +1347,11 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     guard's route, the right button takes the last away, one is dragged, Esc ends; the
     chest's Inspector offers its states; a card of the World view dragged lies there after
     a restart. Not done by real keys: Ctrl+C / Ctrl+V (the script calls what they call).
+  - The roof's order: `a_roof_alone_is_drawn_after_what_stands_under_it` (wall pieces in
+    its southern and eastern rows and someone inside near that corner are covered; what
+    stands in front of it is still in front). In the window: a room of timber walls with
+    its roof, no wall top over the eaves; played with the hero inside, the roof and the
+    front walls are cut away around him.
   - The Build tool: `walls_rooms_houses_and_roofs_are_built_as_one_step_each` (a thin wall
     round a corner, a piece taken away, a room of thick walls with a floor on a free site,
     its inside found once the doorway is walled up, a window piece and a door put in and

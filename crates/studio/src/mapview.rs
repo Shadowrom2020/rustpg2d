@@ -1256,13 +1256,16 @@ impl MapView {
             "row" | "column" => self.sel = p.ws.align_objects(&self.sel, what == "row"),
             // (`try K`: event K of the selected thing, from 1; with nothing selected the map's own.)
             what if what.starts_with("try") => {
-                let k = what.trim_start_matches("try").trim().parse::<usize>().unwrap_or(1).max(1) - 1;
+                let word = what.trim_start_matches("try").trim();
+                let k = word.parse::<usize>().unwrap_or(1).max(1) - 1;
                 let whose = self.sel.first().copied().unwrap_or(Selection::None);
-                let on = p.ws.doc.as_ref().and_then(|d| match whose {
+                // (An event by its name, `try Interact`: also what its definition does then.)
+                let named: Option<rustpg2d_engine::events::TriggerOn> = serde_json::from_value(serde_json::Value::String(word.to_string())).ok();
+                let on = named.or_else(|| p.ws.doc.as_ref().and_then(|d| match whose {
                     Selection::Entity(uid) => d.map.entity(uid).and_then(|e| e.triggers.get(k)).map(|t| t.on.clone()),
                     Selection::Zone(uid) => d.map.zones.iter().find(|z| z.uid == uid).and_then(|z| z.triggers.get(k)).map(|t| t.on.clone()),
                     _ => d.map.triggers.get(k).map(|t| t.on.clone()),
-                });
+                }));
                 match on {
                     Some(on) => self.try_event(p, whose, on),
                     None => p.ws.set_status(format!("It has no event {}", k + 1)),

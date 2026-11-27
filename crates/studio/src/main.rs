@@ -16,6 +16,7 @@
 mod form;
 mod gallery;
 mod librarypage;
+mod artpage;
 mod artshop;
 mod buildtool;
 mod charshop;
@@ -168,6 +169,9 @@ impl Studio {
                 // A character's workshop (its tab in front): `char model ID`, `char part SLOT ID|-|own`,
                 // `char color FEATURE RRGGBB|-`, `char random`, `char face front|left|back|right|turn`, `char anim walk|idle|attack|hurt`.
                 "char" => println!("[char] {}", self.shell.char_word(&cmd[1..])),
+                // Generate art: `art kind KIND`, `art id ID`, `art describe TEXT…`, `art for CHARACTER`, `art attack NAME`,
+                // `art extras A,B`, `art draw` (the cost confirmed), `art redo JOB PICTURE`, `art add JOB [ID]`.
+                "art" => println!("[art] {}", self.shell.art_word(&cmd[1..])),
                 // The pixel editor of the sprite sheet's tab in front: `pixels open|close|frame K|tool NAME|color RRGGBB [2]|dot X Y [2]|
                 // line|rect X1 Y1 X2 Y2 [2]|fill X Y [2]|undo|redo|copy|paste|flip|clear|nudge DX DY|replace FROM TO [all]|save`.
                 "pixels" => println!("[pixels] {}", self.shell.pixels_word(&cmd[1..])),

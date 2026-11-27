@@ -40,6 +40,8 @@ pub enum Tab {
     Publish,
     /// The asset library: what it holds, added to the project.
     Library,
+    /// Generate art: what Meshy is asked for, the jobs, their results.
+    Art,
 }
 
 impl Tab {
@@ -52,6 +54,7 @@ impl Tab {
             Tab::Names => "Flags and variables".into(),
             Tab::Publish => "Publishing".into(),
             Tab::Library => "Library".into(),
+            Tab::Art => "Generate art".into(),
             Tab::Play => "Play".into(),
             Tab::Problems => {
                 let (e, w) = ws.problems.counts();
@@ -82,6 +85,7 @@ impl Tab {
             Tab::Names => "names".into(),
             Tab::Publish => "publish".into(),
             Tab::Library => "library".into(),
+            Tab::Art => "art".into(),
             Tab::Play => "play".into(),
             Tab::Problems => "problems".into(),
             Tab::History => "history".into(),
@@ -224,6 +228,8 @@ enum Ask {
     Palette(String),
     /// The *New…* gallery, with this kind picked.
     New(Option<RefKind>),
+    /// Generate art for this thing of the project.
+    Art(RefKind, String),
     /// Look for what nothing uses.
     FindUnused,
     /// Start the game in the Play tab: from the title screen, on the start map, on a map at a
@@ -323,6 +329,7 @@ pub struct Shell {
     pub publish: crate::publish::PublishPage,
     /// The Library tab.
     pub library: crate::librarypage::LibraryPage,
+    pub art: crate::artpage::ArtPage,
     /// The home screen's fields.
     pub home: Home,
     /// The timelines of the cut-scenes open in tabs, by id.
@@ -372,7 +379,7 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, lib_look: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), model_stages: Default::default(), pixels: Default::default(), sounds: Default::default(), sheets: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new() }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, lib_look: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), art: Default::default(), timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), model_stages: Default::default(), pixels: Default::default(), sounds: Default::default(), sheets: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new() }
     }
 
     /// Whether anything waits to be saved: definitions, maps, scripts.
@@ -457,7 +464,7 @@ impl Shell {
             return;
         }
         // Next to another document when there is one, else in the first leaf.
-        let doc = self.dock.find_tab_from(|t| matches!(t, Tab::Overview | Tab::World | Tab::Settings(_) | Tab::Kind(_) | Tab::Def(..) | Tab::Map(_) | Tab::Script(_) | Tab::Names | Tab::Publish | Tab::Library | Tab::Play));
+        let doc = self.dock.find_tab_from(|t| matches!(t, Tab::Overview | Tab::World | Tab::Settings(_) | Tab::Kind(_) | Tab::Def(..) | Tab::Map(_) | Tab::Script(_) | Tab::Names | Tab::Publish | Tab::Library | Tab::Art | Tab::Play));
         match doc {
             Some(path) => {
                 self.dock.set_focused_node_and_surface(path.node_path());
@@ -608,6 +615,14 @@ impl Shell {
         }
     }
 
+    /// The Generate art page: the words of `ArtPage::word`; returns its `status` lines.
+    pub fn art_word(&mut self, args: &[String]) -> String {
+        match self.art.word(&mut self.ws, args) {
+            Ok(()) => self.art.status(&self.ws),
+            Err(e) => format!("failed: {e}"),
+        }
+    }
+
     /// The pixel editor of the sprite sheet's or ground material's tab in front: the words of
     /// `PixelEdit::word`; returns its `status` line ("" when neither's tab is in front).
     pub fn pixels_word(&mut self, args: &[String]) -> String {
@@ -686,6 +701,7 @@ impl Shell {
             ("names", None, _) => Tab::Names,
             ("publish", None, _) => Tab::Publish,
             ("library", None, _) => Tab::Library,
+            ("art", None, _) => Tab::Art,
             ("play", None, _) => Tab::Play,
             ("problems", None, _) => Tab::Problems,
             ("history", None, _) => Tab::History,
@@ -1011,6 +1027,7 @@ impl Shell {
             self.maps.remove(&editor_core::structdoc::doc_name(&id));
         }
         crate::pick::frame();
+        self.ws.art_tick();
         // (A drag that asked for it last frame counts as typing on in one field: one step.)
         let held = ctx.data_mut(|d| d.remove_temp::<u64>(held_step_id()));
         self.ws.history_frame(held.or(ctx.memory(|m| m.focused()).map(|id| id.value())));
@@ -1048,7 +1065,7 @@ impl Shell {
 
         let mut asks = Vec::new();
         {
-            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, library: &mut self.library, home: &mut self.home, timelines: &mut self.timelines, nodes: &mut self.nodes, stages: &mut self.stages, figures: &mut self.figures, model_stages: &mut self.model_stages, pixels: &mut self.pixels, sounds: &mut self.sounds, sheets: &mut self.sheets, scrub: &mut self.scrub, try_next: &mut self.try_next, rs, asks: &mut asks };
+            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, library: &mut self.library, art: &mut self.art, home: &mut self.home, timelines: &mut self.timelines, nodes: &mut self.nodes, stages: &mut self.stages, figures: &mut self.figures, model_stages: &mut self.model_stages, pixels: &mut self.pixels, sounds: &mut self.sounds, sheets: &mut self.sheets, scrub: &mut self.scrub, try_next: &mut self.try_next, rs, asks: &mut asks };
             DockArea::new(&mut self.dock).show_inside(ui, &mut viewer);
         }
         for ask in asks {
@@ -1059,6 +1076,10 @@ impl Shell {
                 }
                 Ask::Palette(text) => self.open_palette(PaletteKind::Commands, &text),
                 Ask::New(kind) => self.new_asset = Some(crate::gallery::NewAsset::of(kind)),
+                Ask::Art(kind, id) => {
+                    self.art.set_for(kind, &id, &self.ws);
+                    self.show_tab(Tab::Art);
+                }
                 Ask::FindUnused => self.find_unused(),
                 Ask::Play(from) => self.play_from(from),
                 Ask::PlayWindow => self.play_window(),
@@ -1388,6 +1409,7 @@ struct Viewer<'a> {
     names: &'a mut crate::namespage::NamesPage,
     publish: &'a mut crate::publish::PublishPage,
     library: &'a mut crate::librarypage::LibraryPage,
+    art: &'a mut crate::artpage::ArtPage,
     home: &'a mut Home,
     timelines: &'a mut std::collections::HashMap<String, crate::timeline::Timeline>,
     nodes: &'a mut std::collections::HashMap<String, crate::nodesview::NodesView>,
@@ -1454,6 +1476,11 @@ impl egui_dock::TabViewer for Viewer<'_> {
                     self.asks.push(Ask::Open(Tab::Def(kind, id)));
                 }
             }
+            Tab::Art => {
+                if let Some((kind, id)) = self.art.show(ui, self.ws) {
+                    self.asks.push(Ask::Open(Tab::Def(kind, id)));
+                }
+            }
             Tab::Publish => {
                 // (The game is exported from its files: what is in the script tabs is written first.)
                 if self.scripts.values().any(|t| t.dirty()) {
@@ -1498,6 +1525,9 @@ impl Viewer<'_> {
             }
             if (f.is_empty() || "library".contains(&f)) && ui.selectable_label(false, "Asset library").on_hover_text("Ready-made characters, props, items, sounds and more: tick what you want and add it to the project").clicked() {
                 self.asks.push(Ask::Open(Tab::Library));
+            }
+            if (f.is_empty() || "generate art meshy".contains(&f)) && ui.selectable_label(false, "Generate art").on_hover_text("Icons, portraits, pictures and 3D models drawn by Meshy with your own account").clicked() {
+                self.asks.push(Ask::Open(Tab::Art));
             }
             if (f.is_empty() || "publishing export".contains(&f)) && ui.selectable_label(false, "Publishing").on_hover_text("The game exported to play without the editor: for Linux, Windows, macOS and the web").clicked() {
                 self.asks.push(Ask::Open(Tab::Publish));
@@ -2068,6 +2098,18 @@ impl Viewer<'_> {
             }
             if ui.button("Find usages").clicked() {
                 self.asks.push(Ask::Run(format!("find.usages {} {id}", kind.name())));
+            }
+            let art = match kind {
+                RefKind::Prop => Some("A 3D model of this prop, made by Meshy from its picture and a description"),
+                RefKind::Item => Some("A 3D model of this item for characters' hands, made by Meshy from its icon"),
+                RefKind::Character => Some("A dialog portrait of this character, drawn by Meshy"),
+                RefKind::Model if self.ws.project.db.model(id).is_some_and(|m| m.part.is_none() && m.rig.is_none()) => Some("More animations for this model from Meshy's library"),
+                _ => None,
+            };
+            if let Some(tip) = art {
+                if ui.button("Generate art…").on_hover_text(format!("{tip}. Opens Generate art with it filled in: nothing is spent before you say so there.")).clicked() {
+                    self.asks.push(Ask::Art(kind, id.to_string()));
+                }
             }
             if self.ws.usages.of.as_ref().is_some_and(|(k, i)| *k == kind && i == id) {
                 ui.label(format!("{} usage(s)", self.ws.usages.list.len()));

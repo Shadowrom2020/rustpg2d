@@ -1693,6 +1693,19 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     `.wav`) becomes a sound. The file is copied into the project; the new thing's tab
     opens, a prop's with its workshop. *Browse…* picks the file in the system's file dialog
     (`studio/src/pick.rs`) instead; a new thing without a name yet is named after it.
+  - **Generate art** (`studio/src/artpage.rs` over `editor-core/src/art/`; the page *Generate
+    art* of the Game group, tab `art`): what Meshy is asked for with the creator's own
+    account: an item's icon, a portrait, a painted picture, a 3D character, a creature, an
+    item's or a prop's 3D model, more clips for a model. What a kind is made for is picked
+    (the item, the prop, the model, the character a portrait is of), not typed; the kind's
+    options (attack, a woman, extra animations) follow it. The button says what the job
+    costs and asks a second time (*Ask a second time before spending*); what stands in the
+    way is said before it is tried (no key, the session's budget, what the request lacks).
+    The account (key, balance, the model that draws, the budget) folds away once a key is
+    there. Jobs are listed with their steps' progress, the result's picture, *Again* for a
+    step with its cost, and *Add to project*, which writes the files, makes the definitions
+    and opens what it became. *Generate art…* in a prop's, item's, character's or rigged
+    model's tab opens the page with that thing filled in.
   - **The pixel editor** (`studio/src/pixeledit.rs` over `editor-core/src/pixels.rs`; *Paint*
     under a sprite sheet's picture): the frame picked in the picture, large, on a chequered
     ground, painted pixel by pixel: pencil, eraser, fill, line, rectangle, colour picker (keys
@@ -1754,7 +1767,9 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   one asset (a *Merchant* with a shop and a schedule to fill in), pictures in the rows of the
   library's list in *New…* and on the Library tab (the one picked has one); of the pixel editor an area selected and
   moved, a frame added to a sheet, the wheel zooming at the pointer, a material's texture
-  seen on a patch of ground while it is painted; Generate art.
+  seen on a patch of ground while it is painted; of Generate art: *from Meshy* as a way to
+  start in *New…*, a figure sheet picked to model from, a job's 3D result turned in a
+  preview before it is added.
 
   **Decided while building.**
   - **The workshop is the top of the prop's tab, not a tab of its own**: the picture and the
@@ -1796,6 +1811,12 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     and the pointer's mark work on the copies shown around it without knowing of them. A
     small texture is shown with half of itself around, one over 64 pixels with a quarter:
     it needs the room for itself.
+  - **Generate art is a page, not a window over the others**: jobs take minutes, and the
+    page with its list stays where it is while a prop or a map is worked on; a workshop's
+    *Generate art…* leads there and *Add to project* leads back to the thing.
+  - **What a job made is written at once** (its files and the definitions, as in 0.35): it
+    cost credits, and a crash before the next save shouldn't lose it. It is a step of the
+    history all the same.
   - **A picture's undo is its own**, like a script's text: the definitions' history keeps
     definitions, not files, and a picture isn't in the project until it is saved. Ctrl+Z is
     the picture's while the pointer is over it (`pixeledit::has_pointer`), the project's
@@ -1897,6 +1918,15 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     it, *Save picture*: the file holds both ends). In the window: a red stroke over the right
     edge of the example's grass (128 x 128), continuous across the seam in the copies;
     saved with everything, the village's ground shows it at once, in every repeat.
+  - Generate art, **without Meshy** (`RUSTPG2D_MESHY_FAKE`; no credits were spent and no
+    real request was sent): `a_workshop_fills_the_form_and_a_finished_job_is_added_to_the_
+    project` (opened for a prop: its kind and the prop, *Draw it: 33 credits*; for a
+    character: a portrait of it; a finished icon job listed with its result, *Add to
+    project*: the sheet and the item are there, as a step, and the item's tab is asked for;
+    the test never clicks *Draw it*). In the window with the fake folder: an icon drawn,
+    shown and added as an item; *Generate art…* clicked in the Tavern Sign's tab, the page
+    with the prop and its cost, drawn (a picture and a model), added: the prop shows the
+    model. **Not seen: a real job** (the key field, the balance, Meshy's own progress).
   - The light's place and the picture's foot: engine tests (`a_light_sits_where_its_spec_
     says_else_by_the_rule`, `defaults_match_the_file_format`: unset they are not written and
     old files read), `a_lights_place_and_a_pictures_foot_are_dragged_and_put_back` (the

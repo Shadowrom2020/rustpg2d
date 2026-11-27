@@ -367,6 +367,12 @@ impl Studio {
                         p.tap(k);
                     }
                 }
+                // `keyhold NAME SECS`: a key held down for the game (walking: a tap is one frame).
+                "keyhold" => {
+                    if let (Some(p), Some(k)) = (self.shell.play.as_mut(), play::key_named(arg(1))) {
+                        p.hold(k, arg(2).parse().unwrap_or(0.3));
+                    }
+                }
                 "pause" | "resume" => {
                     if let Some(p) = self.shell.play.as_mut() {
                         p.paused = arg(0) == "pause";
@@ -375,12 +381,13 @@ impl Studio {
                 // The Play tab: `play title|start|here|again|window|MAP X Y [setup]`, `playstep` (one step
                 // while paused), `playspeed N`, `playflag NAME on|off`, `playvar NAME VALUE`,
                 // `playstate on|off` (the State panel), `playinspect on|off`.
+                // (A word with a tile after it is a map, also when the map is called `start`.)
                 "play" => match arg(1) {
-                    "title" => self.shell.play_from(shell::PlayFrom::Title),
-                    "start" => self.shell.play_from(shell::PlayFrom::Start),
-                    "again" => self.shell.play_from(shell::PlayFrom::Again),
+                    "title" if arg(2).is_empty() => self.shell.play_from(shell::PlayFrom::Title),
+                    "start" if arg(2).is_empty() => self.shell.play_from(shell::PlayFrom::Start),
+                    "again" if arg(2).is_empty() => self.shell.play_from(shell::PlayFrom::Again),
                     "here" | "" => self.shell.play_here(),
-                    "window" => self.shell.play_window(),
+                    "window" if arg(2).is_empty() => self.shell.play_window(),
                     map => self.shell.play_from(shell::PlayFrom::Tile(map.to_string(), (arg(2).parse().unwrap_or(0), arg(3).parse().unwrap_or(0)), arg(4) == "setup")),
                 },
                 // The running game's state becomes the test setup (`playkeep`; `playkeep -` forgets it).

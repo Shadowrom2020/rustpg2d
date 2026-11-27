@@ -200,6 +200,12 @@ mod ui_tests {
         // One step: undone, the project is as it was.
         ws.undo().unwrap();
         assert!(ws.project.db == before, "undone, nothing of it is left");
+        // Called what the library files it under, it is that one (no "owlbear_2" beside nothing).
+        assert_eq!(ws.make_from_library(RefKind::Character, "owlbear", "Owlbear").unwrap(), "owlbear");
+        ws.history_frame(None);
+        assert!(ws.project.db.character("owlbear").is_some() && !ws.project.db.has(RefKind::Character, "owlbear_2"));
+        ws.undo().unwrap();
+        assert!(ws.project.db == before);
         // Without a name the asset is added as it is.
         assert_eq!(ws.make_from_library(RefKind::Character, "owlbear", "").unwrap(), "owlbear");
         ws.history_frame(None);

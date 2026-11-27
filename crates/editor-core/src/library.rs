@@ -68,6 +68,15 @@ impl Workspace {
         self.library_to_project(&[(kind, lib_id.to_string())]).map_err(|e| format!("{e:#}"))?;
         let id = if name.is_empty() {
             lib_id.to_string()
+        } else if !had && crate::defs::id_from_name(name) == lib_id {
+            // (Called what the library's own is filed under: that one, under the name typed.)
+            if let Some(mut value) = self.def_value(kind, lib_id) {
+                if let Some(field) = ["name", "title"].into_iter().find(|f| value.get(*f).is_some_and(|v| v.is_string())) {
+                    value[field] = serde_json::Value::String(name.to_string());
+                    self.set_def_value(kind, lib_id, value)?;
+                }
+            }
+            lib_id.to_string()
         } else {
             let id = self.make_def(kind, name, Some(lib_id))?;
             if !had {

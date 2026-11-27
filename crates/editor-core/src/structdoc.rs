@@ -317,6 +317,43 @@ mod tests {
     }
 
     #[test]
+    fn a_house_of_the_build_tool_is_saved_as_a_structure_and_placed_on_another_map() {
+        use crate::workspace::Selection;
+        let (mut ws, dir) = scratch("house");
+        let ts = ws.ts();
+        // A house of 5 x 4 tiles built on an empty map, in the project's first house look.
+        ws.load_doc(Map::new("yard", 20, 16));
+        ws.history_frame(None);
+        ws.build_house(gfx::prelude::Rect::new(4.0 * ts, 5.0 * ts, 5.0 * ts, 4.0 * ts), "", 1).unwrap();
+        ws.history_frame(None);
+        let house = *ws.doc.as_ref().unwrap().map.decor.last().expect("the house stands there");
+        let prop = ws.doc.as_ref().unwrap().map.decor_defs[house.def as usize].clone();
+        assert!(ws.project.db.prop(&prop).is_some_and(|p| p.building.is_some() && p.hitbox == [5.0 * ts, 4.0 * ts]));
+        // Selected, it is saved as a structure: its tiles, the house on them.
+        let rect = ws.tiles_of(&[Selection::Scenery(house)]).expect("it stands on tiles");
+        assert_eq!((rect.2, rect.3), (5, 4));
+        let id = ws.save_as_structure(rect, "Farmhouse", false).unwrap();
+        ws.history_frame(None);
+        let def = ws.project.db.structure(&id).unwrap().clone();
+        assert_eq!((def.w, def.h, def.decor.len()), (5, 4, 1));
+        assert_eq!(def.decor_defs[def.decor[0].def as usize], prop);
+        // Placed on another map, the same house stands there.
+        ws.load_doc(Map::new("field", 30, 30));
+        ws.history_frame(None);
+        ws.place_structure(&id, (15, 15)).unwrap();
+        ws.history_frame(None);
+        let field = &ws.doc.as_ref().unwrap().map;
+        assert_eq!(field.decor.len(), 1);
+        assert_eq!(field.decor_defs[field.decor[0].def as usize], prop);
+        // And it opens as a map of its own, the house on it.
+        let name = ws.open_structure(&id).unwrap();
+        ws.history_frame(None);
+        assert_eq!(doc(&ws, &name).map.decor.len(), 1);
+        assert_eq!(ws.project.db.structure(&id), Some(&def), "opened, it is as it was saved");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
     fn a_structure_is_resized_renamed_and_deleted_with_its_map_following() {
         let (mut ws, dir) = scratch("follow");
         let def = ws.project.db.structures.iter().find(|s| s.w >= 3 && s.h >= 3 && !s.entities.is_empty()).expect("a structure with something on it").clone();

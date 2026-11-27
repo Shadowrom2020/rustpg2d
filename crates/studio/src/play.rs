@@ -48,6 +48,8 @@ pub struct PlayView {
     add: [String; 3],
     /// Keys the script tapped: down for this frame, up in the next.
     tapped: Vec<KeyCode>,
+    /// Keys the script holds down, with the seconds each is still held.
+    held: Vec<(KeyCode, f32)>,
 }
 
 impl PlayView {
@@ -57,7 +59,7 @@ impl PlayView {
         let mut input = Input::new();
         // The game is made with its screen current: it sizes things by it.
         let game = gfx::with_screen(&mut screen, &mut input, || Game::new(project, start))?;
-        Ok(PlayView { game, screen, input, texture: None, paused: false, speed: 1.0, step_once: false, raise: None, raised: None, inspect: false, show_state: false, state_filter: String::new(), add: Default::default(), tapped: Vec::new() })
+        Ok(PlayView { game, screen, input, texture: None, paused: false, speed: 1.0, step_once: false, raise: None, raised: None, inspect: false, show_state: false, state_filter: String::new(), add: Default::default(), tapped: Vec::new(), held: Vec::new() })
     }
 
     pub fn status(&self) -> String {
@@ -68,6 +70,12 @@ impl PlayView {
     pub fn tap(&mut self, key: KeyCode) {
         self.input.key_down(key, false);
         self.tapped.push(key);
+    }
+
+    /// A key held down for the game for `secs` (the script: walking takes longer than a tap).
+    pub fn hold(&mut self, key: KeyCode, secs: f32) {
+        self.input.key_down(key, false);
+        self.held.push((key, secs));
     }
 
     /// Raises an event for a thing of the map once the game has settled (*Try it*).
@@ -358,6 +366,14 @@ impl PlayView {
         for k in self.tapped.drain(..) {
             self.input.key_up(k);
         }
+        let passed = ui.input(|i| i.stable_dt).min(0.1);
+        for h in &mut self.held {
+            h.1 -= passed;
+            if h.1 <= 0.0 {
+                self.input.key_up(h.0);
+            }
+        }
+        self.held.retain(|h| h.1 > 0.0);
 
         // egui shows the screen's texture; a new size is a new texture.
         let view = self.screen.texture().view();

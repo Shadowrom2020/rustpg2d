@@ -1717,6 +1717,8 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     0.35 editor did for generated models): the model's file is in the project then, and a
     definition that names a file which isn't saved would be worse. It is still a step that
     can be undone.
+  - **Named like the library files it, a new thing from the library is that asset**: *Hero*
+    from the library's `hero` is `hero`, not a `hero_2` beside nothing.
   - **Presets are the library's assets, not a list of their own**: *New… › as one of the
     asset library* makes a prop that is a container, a door with a lock, a light or a seat
     by starting from one that is, with its events, sounds and script functions. What was
@@ -1740,6 +1742,20 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     with its light and reach; the chest's corner dragged (28 to 64 pixels wide, 16 deep as
     before) and undone, the chair's spot dragged and the chair turned, the campfire's reach
     dragged from 3 to 5 tiles and undone; the cottage as a building with its roof, turned.
+  - The three paths above, end to end:
+    - *A prop from a `.glb` to a placed, opened chest*: in the window `Sea_chest.glb`
+      dropped, Enter, a container with two potions given to it (by the script's `field`
+      word: in the form it is *+ Add* at *Container* and the items picked), placed on the
+      village, played from the test setup beside it: E opens the *Sea chest* with its potions.
+    - *A house saved as a structure and placed on another map*:
+      `a_house_of_the_build_tool_is_saved_as_a_structure_and_placed_on_another_map` (a 5 x 4
+      house built on an empty map, selected, saved as *Farmhouse*, placed on another map:
+      the same building stands there; opened as a map of its own it is as saved).
+    - *A merchant from the library trades in the Play panel*: in the window a new, empty
+      project; *Hero* and *Trader Joan* (the library's outfitter) made from the library, the
+      hero named on *Hero & party*, the trader placed on the map, played: walking into her
+      and E opens the *Outfitter* shop with its stock and prices (her items and their
+      pictures came along).
   - From a file: `fromfile::tests` (files told apart by their names; a picture four tiles
     wide: a prop on a sheet at scale 2 with the copied file, one step, undone to what was;
     a tree standing on its trunk's width; the same picture as a sheet alone; a `.glb`: a

@@ -9,7 +9,9 @@ use eframe::egui::{self, Color32, Sense, Stroke};
 use eframe::egui_wgpu::RenderState;
 use editor_core::looks;
 use editor_core::Workspace;
-use rustpg2d_engine::defs::{Appearance, ColorFeature, NO_PART};
+use rustpg2d_engine::defs::{Appearance, ColorFeature, EquipSlot, NO_PART};
+use rustpg2d_engine::refactor::RefKind;
+use rustpg2d_engine::state::Equipment;
 use rustpg2d_engine::entity::Facing;
 use rustpg2d_engine::render::character::{Anim, LAYOUT_FRAMES};
 use rustpg2d_engine::render::model::{anim_req, Gear, PoseReq};
@@ -18,6 +20,10 @@ use rustpg2d_engine::render::model::{anim_req, Gear, PoseReq};
 const PREVIEW: egui::Vec2 = egui::vec2(220.0, 250.0);
 const ANIMS: [(&str, &str); 4] = [("Walk", "The walk cycle"), ("Idle", "Standing still"), ("Attack", "Wind-up, swing, follow-through, recover"), ("Hurt", "Just hit")];
 const SIDES: [(Facing, &str); 4] = [(Facing::Down, "Front"), (Facing::Left, "Left"), (Facing::Up, "Back"), (Facing::Right, "Right")];
+
+/// The slots whose items show on the figure, and the others (worn magic items, a tool, ammunition).
+const SHOWN: [EquipSlot; 6] = [EquipSlot::Weapon, EquipSlot::Offhand, EquipSlot::Head, EquipSlot::Body, EquipSlot::Clothing, EquipSlot::Back];
+const MORE: [EquipSlot; 9] = [EquipSlot::Tool, EquipSlot::Ammo, EquipSlot::Neck, EquipSlot::Cloak, EquipSlot::Belt, EquipSlot::Feet, EquipSlot::Hands, EquipSlot::Ring, EquipSlot::Ring2];
 
 pub struct CharStage {
     pub facing: Facing,
@@ -28,11 +34,16 @@ pub struct CharStage {
     /// The model cards are shown (else the current model's name with *Change…*).
     pub choosing: bool,
     search: String,
+    /// The slot whose items are offered under the slots.
+    pub slot: Option<EquipSlot>,
+    item_search: String,
+    /// The slots of worn magic items, tool and ammunition are shown too.
+    pub more: bool,
 }
 
 impl Default for CharStage {
     fn default() -> CharStage {
-        CharStage { facing: Facing::Down, turning: true, anim: 1, choosing: false, search: String::new() }
+        CharStage { facing: Facing::Down, turning: true, anim: 1, choosing: false, search: String::new(), slot: None, item_search: String::new(), more: false }
     }
 }
 
@@ -101,17 +112,28 @@ impl CharStage {
         let parts: Vec<String> = a.parts.iter().map(|(s, p)| format!("{s}:{p}")).collect();
         let colors: Vec<String> = a.colors.iter().map(|(f, c)| format!("{f}:{:02x}{:02x}{:02x}", c[0], c[1], c[2])).collect();
         let side = if self.turning { "turning".to_string() } else { format!("{:?}", self.facing) };
-        format!("{id} model={} facing={side} anim={} parts=[{}] colors=[{}] slots={} features={}", if a.model.is_empty() { "-" } else { &a.model }, ANIMS[self.anim.min(3) as usize].0.to_lowercase(), parts.join(" "), colors.join(" "), looks::piece_slots(&ws.project.db, &a.model).len(), looks::look_features(&ws.project.db, a).len())
+        let wears: Vec<String> = EquipSlot::ALL.iter().filter_map(|slot| c.equipment.item(*slot).map(|i| format!("{}:{i}", slot.label().to_lowercase().replace(' ', "_")))).collect();
+        format!("{id} model={} facing={side} anim={} parts=[{}] colors=[{}] wears=[{}] slots={} features={}", if a.model.is_empty() { "-" } else { &a.model }, ANIMS[self.anim.min(3) as usize].0.to_lowercase(), parts.join(" "), colors.join(" "), wears.join(" "), looks::piece_slots(&ws.project.db, &a.model).len(), looks::look_features(&ws.project.db, a).len())
     }
 
     /// The script's words: `model ID`, `part SLOT ID|-|own`, `color FEATURE RRGGBB|-`, `random`,
-    /// `face front|left|back|right|turn`, `anim walk|idle|attack|hurt`. Returns why not, if not.
+    /// `wear SLOT ITEM|-`, `face front|left|back|right|turn`, `anim walk|idle|attack|hurt`.
+    /// Returns why not, if not.
     pub fn word(&mut self, ws: &mut Workspace, id: &str, args: &[String]) -> Result<(), String> {
         let arg = |k: usize| args.get(k).map(String::as_str).unwrap_or("");
         let Some(pos) = ws.project.db.characters.iter().position(|c| c.id == id) else { return Err(format!("there is no character {id}")) };
         let mut a = ws.project.db.characters[pos].appearance.clone();
+        let mut eq = ws.project.db.characters[pos].equipment.clone();
         match arg(0) {
             "" => return Ok(()),
+            "wear" => {
+                let slot = EquipSlot::parse(arg(1)).ok_or_else(|| format!("{} is no slot (weapon, offhand, head, body, clothing, back…)", arg(1)))?;
+                match arg(2) {
+                    "-" => looks::wear(&mut eq, slot, None),
+                    item if looks::items_for(&ws.project.db, slot).iter().any(|(i, _)| i == item) => looks::wear(&mut eq, slot, Some(item)),
+                    item => return Err(format!("{item} doesn't go there (these do: {})", looks::items_for(&ws.project.db, slot).iter().map(|x| x.0.as_str()).collect::<Vec<_>>().join(", "))),
+                }
+            }
             "face" => {
                 match SIDES.iter().find(|(_, l)| l.eq_ignore_ascii_case(arg(1))) {
                     Some((f, _)) => (self.facing, self.turning) = (*f, false),
@@ -148,19 +170,22 @@ impl CharStage {
                 }
             }
             "random" => looks::random_colors(&mut a, &ws.project.db, (editor_core::now() * 1000.0) as u64),
-            other => return Err(format!("char {other}: model, part, color, random, face, anim")),
+            other => return Err(format!("char {other}: model, part, color, random, wear, face, anim")),
         }
-        CharStage::put(ws, pos, a);
+        CharStage::put(ws, pos, a, eq);
         Ok(())
     }
 
-    fn put(ws: &mut Workspace, pos: usize, a: Appearance) -> bool {
-        if ws.project.db.characters[pos].appearance == a {
+    fn put(ws: &mut Workspace, pos: usize, a: Appearance, eq: Equipment) -> bool {
+        let c = &ws.project.db.characters[pos];
+        let (look, gear) = (c.appearance != a, c.equipment != eq);
+        if !look && !gear {
             return false;
         }
-        let c = &ws.project.db.characters[pos];
-        ws.begin(&format!("Change the look of {}", if c.name.is_empty() { &c.id } else { &c.name }));
-        ws.project.db.characters[pos].appearance = a;
+        let name = if c.name.is_empty() { c.id.clone() } else { c.name.clone() };
+        ws.begin(&if look { format!("Change the look of {name}") } else { format!("Change what {name} wears") });
+        let c = &mut ws.project.db.characters[pos];
+        (c.appearance, c.equipment) = (a, eq);
         ws.stale = true;
         true
     }
@@ -169,12 +194,16 @@ impl CharStage {
     pub fn show(&mut self, ui: &mut egui::Ui, ws: &mut Workspace, rs: Option<&RenderState>, thumbs: &mut crate::thumbs::Thumbs, id: &str) -> bool {
         let Some(pos) = ws.project.db.characters.iter().position(|c| c.id == id) else { return false };
         let mut a = ws.project.db.characters[pos].appearance.clone();
+        let mut eq = ws.project.db.characters[pos].equipment.clone();
         ui.horizontal_top(|ui| {
             self.preview(ui, ws, rs, thumbs, pos);
             ui.add_space(8.0);
-            ui.vertical(|ui| self.look(ui, ws, rs, thumbs, &mut a));
+            ui.vertical(|ui| {
+                self.look(ui, ws, rs, thumbs, &mut a);
+                self.gear(ui, ws, rs, thumbs, &mut eq);
+            });
         });
-        CharStage::put(ws, pos, a)
+        CharStage::put(ws, pos, a, eq)
     }
 
     /// The figure, and how it is looked at.
@@ -225,6 +254,81 @@ impl CharStage {
                 for (k, (label, tip)) in ANIMS.iter().enumerate() {
                     if ui.selectable_label(self.anim == k as u8, *label).on_hover_text(*tip).clicked() {
                         self.anim = k as u8;
+                    }
+                }
+            });
+        });
+    }
+
+    /// What it wears and holds: a box per slot with the item's picture; the one clicked offers
+    /// the items that go there.
+    fn gear(&mut self, ui: &mut egui::Ui, ws: &Workspace, rs: Option<&RenderState>, thumbs: &mut crate::thumbs::Thumbs, eq: &mut Equipment) {
+        let db = &ws.project.db;
+        ui.add_space(4.0);
+        ui.horizontal_wrapped(|ui| {
+            ui.strong("Wears and holds");
+            ui.weak("Counts in play (damage, armor, what it drops). A weapon and what is in the left hand show in the hands, a backpack on the back; armor, headgear and clothing show when the item names a style this model has a piece of.");
+        });
+        ui.horizontal_wrapped(|ui| {
+            let slots: Vec<EquipSlot> = SHOWN.iter().copied().chain(MORE.iter().copied().filter(|s| self.more || eq.item(*s).is_some())).collect();
+            for slot in slots {
+                let item = eq.item(slot).map(str::to_string);
+                let name = item.as_deref().map(|i| db.item(i).map_or(i.to_string(), |d| if d.name.is_empty() { i.to_string() } else { d.name.clone() }));
+                let (rect, resp) = ui.allocate_exact_size(egui::vec2(72.0, 70.0), Sense::click());
+                resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, format!("{}: {}", slot.label(), name.as_deref().unwrap_or("nothing"))));
+                let open = self.slot == Some(slot);
+                let fill = if open { ui.visuals().selection.bg_fill.gamma_multiply(0.45) } else if resp.hovered() { ui.visuals().widgets.hovered.bg_fill } else { ui.visuals().faint_bg_color };
+                ui.painter().rect_filled(rect, 4.0, fill);
+                let picture = egui::Rect::from_min_size(egui::pos2(rect.center().x - 20.0, rect.min.y + 4.0), egui::vec2(40.0, 40.0));
+                match (&item, rs) {
+                    (Some(i), Some(rs)) => {
+                        if let Some(t) = thumbs.of(ws, rs, RefKind::Item, i) {
+                            t.paint(ui, picture);
+                        }
+                    }
+                    (None, _) => {
+                        ui.painter().rect_stroke(picture.shrink(6.0), 3.0, Stroke::new(1.0_f32, Color32::from_gray(80)), egui::StrokeKind::Inside);
+                    }
+                    _ => {}
+                }
+                ui.painter().text(egui::pos2(rect.center().x, rect.max.y - 4.0), egui::Align2::CENTER_BOTTOM, slot.label(), egui::FontId::proportional(11.0), Color32::from_gray(if item.is_some() { 220 } else { 140 }));
+                if resp.on_hover_text(match &name {
+                    Some(n) => format!("{}: {n}. Click to change it.", slot.label()),
+                    None => format!("{}: nothing. Click to choose.", slot.label()),
+                })
+                .clicked()
+                {
+                    self.slot = if open { None } else { Some(slot) };
+                    self.item_search.clear();
+                }
+            }
+            if ui.selectable_label(self.more, "More slots").on_hover_text("A tool, ammunition and what is worn besides: neck, cloak, belt, feet, hands, rings. They count in play and aren't drawn on the figure.").clicked() {
+                self.more = !self.more;
+            }
+        });
+        // The items that go into the slot picked.
+        let Some(slot) = self.slot else { return };
+        let items = looks::items_for(db, slot);
+        let current = eq.item(slot).map(str::to_string);
+        ui.horizontal(|ui| {
+            ui.label(format!("{}:", slot.label()));
+            ui.add(egui::TextEdit::singleline(&mut self.item_search).hint_text("Search the items").desired_width(200.0)).widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, "Search the items"));
+            if ui.add_enabled(current.is_some(), egui::Button::new("Nothing")).on_hover_text("Takes it off").clicked() {
+                looks::wear(eq, slot, None);
+                self.slot = None;
+            }
+        });
+        if items.is_empty() {
+            ui.weak("This project has no item that goes there: the asset library has weapons, armor and clothing to add (New… › Item › as one of the asset library).");
+        }
+        let f = self.item_search.trim().to_lowercase();
+        egui::ScrollArea::vertical().id_salt("items for the slot").max_height(240.0).show(ui, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                for (id, name) in items.iter().filter(|(id, name)| f.is_empty() || id.to_lowercase().contains(&f) || name.to_lowercase().contains(&f)) {
+                    let r = crate::thumbs::card(ui, name, id, current.as_deref() == Some(id.as_str()), None, || rs.and_then(|rs| thumbs.of(ws, rs, RefKind::Item, id)));
+                    if r.clicked() {
+                        looks::wear(eq, slot, Some(id));
+                        self.slot = None;
                     }
                 }
             });
@@ -379,6 +483,37 @@ mod ui_tests {
         h.get_by_label("Attack").click();
         h.run();
         assert!(h.state().stage.facing == Facing::Left && !h.state().stage.turning && h.state().stage.anim == 2);
+        // What he holds: the slot says so; clicked, it offers the weapons, searched; one picked
+        // is in his hand, as a step called what it is.
+        let had = h.state().ws.project.db.character("guard").unwrap().equipment.item(EquipSlot::Weapon).map(str::to_string).expect("the guard holds a weapon");
+        let other_weapon = looks::items_for(&h.state().ws.project.db, EquipSlot::Weapon).into_iter().find(|(id, _)| *id != had).expect("another weapon");
+        let held = h.state().ws.project.db.item(&had).unwrap().name.clone();
+        h.get_by_label(&format!("Weapon: {held}")).click();
+        h.run();
+        assert_eq!(h.state().stage.slot, Some(EquipSlot::Weapon));
+        let search = h.get_by_role_and_label(egui::accesskit::Role::TextInput, "Search the items");
+        search.focus();
+        search.type_text(&other_weapon.0);
+        h.run();
+        h.get_by_role_and_label(egui::accesskit::Role::Button, other_weapon.1.as_str()).click();
+        h.run();
+        h.run();
+        let s = h.state();
+        assert_eq!(s.ws.project.db.character("guard").unwrap().equipment.item(EquipSlot::Weapon), Some(other_weapon.0.as_str()));
+        assert_eq!(s.ws.timeline.done.last().unwrap().label, "Change what Town Guard wears");
+        assert!(s.stage.slot.is_none());
+        // Nothing in the hand; and undone twice he holds what he held.
+        h.get_by_label(&format!("Weapon: {}", other_weapon.1)).click();
+        h.run();
+        h.get_by_label("Nothing").click();
+        h.run();
+        h.run();
+        assert!(h.state().ws.project.db.character("guard").unwrap().equipment.item(EquipSlot::Weapon).is_none());
+        h.get_by_label("Weapon: nothing");
+        h.state_mut().ws.undo().unwrap();
+        h.state_mut().ws.undo().unwrap();
+        h.run();
+        assert_eq!(h.state().ws.project.db.character("guard").unwrap().equipment.item(EquipSlot::Weapon), Some(had.as_str()));
         // Another model from the cards: what was chosen for the old one goes.
         assert!(h.query_all_by_label(other.1.as_str()).next().is_none(), "the cards are shown on request");
         h.get_by_label("Change…").click();

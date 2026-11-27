@@ -1649,7 +1649,11 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     the project's figures (searched; another model's colours and pieces replace the old
     one's), each slot the model can wear a piece in with the pieces that fit (*the model's
     own*, *None*, a piece), and each colour feature of the model and its pieces as swatches
-    of the colours it offers, *As drawn*, any other colour, and *Random colours*.
+    of the colours it offers, *As drawn*, any other colour, and *Random colours*. Under
+    them what it wears and holds: a box per slot with the item's picture (weapon, left hand,
+    head, body, clothing, backpack; *More slots* for a tool, ammunition and what is worn
+    besides); a click offers the items that go there as cards, searched, and *Nothing*; the
+    figure wears and holds it at once.
   - **A new thing can start as an asset of the library** (*New…*, the third way beside
     *blank* and *a copy*; `Workspace::make_from_library`, command `defs.make KIND library:ID
     NAME`): the library's assets of that kind are listed, searched; the one picked comes
@@ -1701,7 +1705,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   drawn there are not part of it (the Zones tool is still offered), a house of the Build
   tool saved as one from the tool itself; of the character workshop: rules,
   day, talk, shop and loot as parts of one document (they are sections of the form below),
-  equipment picked as cards, *Start from…* another character; presets that are more than
+  *Start from…* another character; presets that are more than
   one asset (a *Merchant* with a shop and a schedule to fill in), pictures of the library's
   assets in *New…*; import helpers; the pixel editor; Generate art.
 
@@ -1819,7 +1823,9 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     it, a piece bringing its colour features once each; another model dropping the old
     one's colours and pieces; random colours being offered ones); `charshop::ui_tests` (the
     guard: no headwear from the slot's list, his clothing in an offered colour and as drawn
-    again, seen from the left striking, another model from the searched cards; all undone).
+    again, seen from the left striking; his weapon's slot offering the weapons, another one
+    picked as a step *Change what Town Guard wears*, taken off, undone; another model from
+    the searched cards; all undone); `slots_offer_the_items_that_fit_them`.
     In the window: the guard with his spear, five slots and two colour features; without
     headwear (his helmet stays: he wears one as equipment, which takes the slot) and in
     green, striking seen from the left; the cards of the project's figures.

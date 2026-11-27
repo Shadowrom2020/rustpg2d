@@ -131,7 +131,8 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **The character's look** (part 8): a character's tab starts with the figure itself, large,
   turning, walking or striking, with what it wears and holds. Beside it you pick its model from
   cards, the pieces it wears (hair, beard, outfit, headwear, cloak) and the colour of each of
-  its features from swatches.
+  its features from swatches; what it wears and holds is a row of slots with the items'
+  pictures, each offering the items that go there.
 - **Visual scripts on a canvas** (part 7): a visual script's tab shows its nodes: drag from pin
   to pin to link them, right-click or Space for the searched palette of nodes, type values
   into a node, group nodes into a function of their own. Beside the canvas: what the selected

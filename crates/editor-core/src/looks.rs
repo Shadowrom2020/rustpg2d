@@ -108,6 +108,20 @@ pub fn random_colors(a: &mut Appearance, db: &Database, seed: u64) {
     }
 }
 
+/// The items that can be worn or held in `slot`: (id, name), by name. A second ring is a ring.
+pub fn items_for(db: &Database, slot: rustpg2d_engine::defs::EquipSlot) -> Vec<(String, String)> {
+    use rustpg2d_engine::defs::EquipSlot;
+    let fits = if slot == EquipSlot::Ring2 { EquipSlot::Ring } else { slot };
+    let mut v: Vec<(String, String)> = db.items.iter().filter(|d| d.equip_slot() == Some(fits)).map(|d| (d.id.clone(), if d.name.is_empty() { d.id.clone() } else { d.name.clone() })).collect();
+    v.sort_by_key(|a| a.1.to_lowercase());
+    v
+}
+
+/// Puts an item into a slot of what a character wears and holds (`None`: nothing there).
+pub fn wear(eq: &mut rustpg2d_engine::state::Equipment, slot: rustpg2d_engine::defs::EquipSlot, item: Option<&str>) {
+    *eq.slot_mut(slot) = item.map(|i| rustpg2d_engine::inventory::ItemStack::new(i, 1));
+}
+
 /// The models a character can be shown as: figures, not the pieces figures wear nor the rig
 /// templates; (id, name).
 pub fn figures(db: &Database) -> Vec<(String, String)> {
@@ -162,6 +176,22 @@ mod tests {
         let figs = figures(&db);
         assert!(figs.iter().any(|(id, _)| *id == c.appearance.model));
         assert!(figs.iter().all(|(id, _)| db.model(id).is_some_and(|m| m.part.is_none())));
+    }
+
+    #[test]
+    fn slots_offer_the_items_that_fit_them() {
+        use rustpg2d_engine::defs::EquipSlot;
+        let db = example();
+        let weapons = items_for(&db, EquipSlot::Weapon);
+        assert!(weapons.len() > 3 && weapons.iter().all(|(id, _)| db.item(id).is_some_and(|d| d.weapon.is_some())));
+        assert!(weapons.windows(2).all(|w| w[0].1.to_lowercase() <= w[1].1.to_lowercase()), "by name");
+        assert!(items_for(&db, EquipSlot::Head).iter().all(|(id, _)| db.item(id).unwrap().equip_slot() == Some(EquipSlot::Head)));
+        assert_eq!(items_for(&db, EquipSlot::Ring2), items_for(&db, EquipSlot::Ring));
+        let mut eq = rustpg2d_engine::state::Equipment::default();
+        wear(&mut eq, EquipSlot::Weapon, Some(&weapons[0].0));
+        assert_eq!(eq.item(EquipSlot::Weapon), Some(weapons[0].0.as_str()));
+        wear(&mut eq, EquipSlot::Weapon, None);
+        assert!(eq.is_empty());
     }
 
     #[test]

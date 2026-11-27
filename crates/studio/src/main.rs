@@ -15,6 +15,7 @@
 
 mod form;
 mod gallery;
+mod librarypage;
 mod buildtool;
 mod mapview;
 mod namespage;
@@ -95,6 +96,18 @@ impl Studio {
                     println!("[said] {}", self.shell.ws.status.0);
                     println!("[world] {} link={}", self.shell.world_status(), self.shell.link.as_ref().map_or("-".to_string(), |(m, z)| format!("{m}:{z}")));
                 }
+                // The Library tab: `library tick KIND ID`, `library add` (what is ticked, into the project).
+                "library" => match arg(1) {
+                    "tick" => match rustpg2d_engine::refactor::RefKind::parse(arg(2)) {
+                        Some(kind) if self.shell.library.tick(&mut self.shell.ws, kind, arg(3)) => {}
+                        _ => println!("[script] the library has no {} {}", arg(2), arg(3)),
+                    },
+                    "add" => {
+                        self.shell.library.add(&mut self.shell.ws);
+                        println!("[library] {}", self.shell.library.status(&self.shell.ws));
+                    }
+                    _ => println!("[library] {}", self.shell.library.status(&self.shell.ws)),
+                },
                 // A cut-scene's timeline (its tab in front): `timeline time SECS`, `timeline cue TRACK CUE`,
                 // `timeline add TRACK ACTION…`, `timeline play`; alone it prints where everyone is.
                 "timeline" => println!("[timeline] {}", self.shell.timeline_word(&cmd[1..])),

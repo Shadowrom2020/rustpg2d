@@ -95,6 +95,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   *Give 2 x Healing Potion*), opened in place to change it, dragged to another place, copied
   to another event, character or map from its menu. New actions come from a searched list in
   the manual's groups, new events from the events that owner can get.
+- **The asset library in a tab** (part 9, a first step): *Game › Asset library* lists what the
+  library holds by kind, searched; tick what you want and *Add to the project* brings it in
+  with what it needs. A definition's tab has *Send to library*.
 - **The cut-scene timeline** (part 7): a cut-scene's tab starts with its timeline: tracks, cues
   as boxes in time, a playhead to drag. *Show its map* puts the map above it, showing where
   everyone is at that moment and what the camera frames; *Play from here* plays it from the

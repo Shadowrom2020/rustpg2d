@@ -38,6 +38,8 @@ pub enum Tab {
     Names,
     /// The game exported to play without the editor.
     Publish,
+    /// The asset library: what it holds, added to the project.
+    Library,
 }
 
 impl Tab {
@@ -49,6 +51,7 @@ impl Tab {
             Tab::Script(file) => file.clone(),
             Tab::Names => "Flags and variables".into(),
             Tab::Publish => "Publishing".into(),
+            Tab::Library => "Library".into(),
             Tab::Play => "Play".into(),
             Tab::Problems => {
                 let (e, w) = ws.problems.counts();
@@ -78,6 +81,7 @@ impl Tab {
             Tab::Script(file) => format!("script:{file}"),
             Tab::Names => "names".into(),
             Tab::Publish => "publish".into(),
+            Tab::Library => "library".into(),
             Tab::Play => "play".into(),
             Tab::Problems => "problems".into(),
             Tab::History => "history".into(),
@@ -282,6 +286,8 @@ pub struct Shell {
     pub names: crate::namespage::NamesPage,
     /// The Publishing page.
     pub publish: crate::publish::PublishPage,
+    /// The Library tab.
+    pub library: crate::librarypage::LibraryPage,
     /// The timelines of the cut-scenes open in tabs, by id.
     pub timelines: std::collections::HashMap<String, crate::timeline::Timeline>,
     /// Where a cut-scene has everyone at its playhead (its map, the moment, the frame it was
@@ -310,7 +316,7 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), timelines: Default::default(), scrub: None, try_next: None, log: Vec::new() }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), timelines: Default::default(), scrub: None, try_next: None, log: Vec::new() }
     }
 
     /// Shows `tab`: brings it to the front when it is open, else opens it beside the documents.
@@ -323,7 +329,7 @@ impl Shell {
             return;
         }
         // Next to another document when there is one, else in the first leaf.
-        let doc = self.dock.find_tab_from(|t| matches!(t, Tab::Overview | Tab::World | Tab::Settings(_) | Tab::Kind(_) | Tab::Def(..) | Tab::Map(_) | Tab::Script(_) | Tab::Names | Tab::Publish | Tab::Play));
+        let doc = self.dock.find_tab_from(|t| matches!(t, Tab::Overview | Tab::World | Tab::Settings(_) | Tab::Kind(_) | Tab::Def(..) | Tab::Map(_) | Tab::Script(_) | Tab::Names | Tab::Publish | Tab::Library | Tab::Play));
         match doc {
             Some(path) => {
                 self.dock.set_focused_node_and_surface(path.node_path());
@@ -453,6 +459,7 @@ impl Shell {
             ("world", None, _) => Tab::World,
             ("names", None, _) => Tab::Names,
             ("publish", None, _) => Tab::Publish,
+            ("library", None, _) => Tab::Library,
             ("play", None, _) => Tab::Play,
             ("problems", None, _) => Tab::Problems,
             ("history", None, _) => Tab::History,
@@ -785,7 +792,7 @@ impl Shell {
 
         let mut asks = Vec::new();
         {
-            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, timelines: &mut self.timelines, scrub: &mut self.scrub, try_next: &mut self.try_next, rs, asks: &mut asks };
+            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, library: &mut self.library, timelines: &mut self.timelines, scrub: &mut self.scrub, try_next: &mut self.try_next, rs, asks: &mut asks };
             DockArea::new(&mut self.dock).show_inside(ui, &mut viewer);
         }
         for ask in asks {
@@ -1064,6 +1071,7 @@ struct Viewer<'a> {
     scripts: &'a mut std::collections::HashMap<String, crate::scriptedit::ScriptTab>,
     names: &'a mut crate::namespage::NamesPage,
     publish: &'a mut crate::publish::PublishPage,
+    library: &'a mut crate::librarypage::LibraryPage,
     timelines: &'a mut std::collections::HashMap<String, crate::timeline::Timeline>,
     scrub: &'a mut Option<(String, editor_core::cutscene::Preview, u64)>,
     try_next: &'a mut Option<(rustpg2d_engine::events::TriggerOn, rustpg2d_engine::runtime::EventOwner, String)>,
@@ -1115,6 +1123,11 @@ impl egui_dock::TabViewer for Viewer<'_> {
             Tab::Def(k, id) => self.definition(ui, *k, id),
             Tab::Map(m) => self.map(ui, m),
             Tab::Script(f) => self.script(ui, f),
+            Tab::Library => {
+                if let Some((kind, id)) = self.library.show(ui, self.ws) {
+                    self.asks.push(Ask::Open(Tab::Def(kind, id)));
+                }
+            }
             Tab::Publish => {
                 // (The game is exported from its files: what is in the script tabs is written first.)
                 if self.scripts.values().any(|t| t.dirty()) {
@@ -1156,6 +1169,9 @@ impl Viewer<'_> {
                 if fits && ui.selectable_label(false, *page).on_hover_text(*about).clicked() {
                     self.asks.push(Ask::Open(Tab::Settings(page)));
                 }
+            }
+            if (f.is_empty() || "library".contains(&f)) && ui.selectable_label(false, "Asset library").on_hover_text("Ready-made characters, props, items, sounds and more: tick what you want and add it to the project").clicked() {
+                self.asks.push(Ask::Open(Tab::Library));
             }
             if (f.is_empty() || "publishing export".contains(&f)) && ui.selectable_label(false, "Publishing").on_hover_text("The game exported to play without the editor: for Linux, Windows, macOS and the web").clicked() {
                 self.asks.push(Ask::Open(Tab::Publish));
@@ -1650,6 +1666,12 @@ impl Viewer<'_> {
             }
             if ui.button("Delete").on_hover_text("Refused while something still uses it").clicked() {
                 self.asks.push(Ask::Run(format!("defs.delete {} {id}", kind.name())));
+            }
+            if rustpg2d_engine::library::KINDS.contains(&kind) && ui.button("Send to library").on_hover_text("Puts it into the asset library with what it needs (pictures, sounds, models, the script functions its events call), for your other projects. One that is there already is added under a new id.").clicked() {
+                match self.ws.project_to_library(&[(kind, id.to_string())], false, false) {
+                    Ok(m) => self.ws.set_status(m),
+                    Err(e) => self.ws.set_status(format!("Not sent: {e:#}")),
+                }
             }
             if ui.button("Find usages").clicked() {
                 self.asks.push(Ask::Run(format!("find.usages {} {id}", kind.name())));

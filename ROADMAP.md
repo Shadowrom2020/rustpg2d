@@ -1569,7 +1569,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   without typing a number; a house saved as a structure and placed on another map; a merchant
   from the preset trades in the Play panel. Screenshots of each workshop.
 
-- [ ] Part 9: Library and sharing — `feature/studio`
+- [~] Part 9: Library and sharing — `feature/studio`
 
   **Goal.** What a creator makes can be given to others, and what others made can be found,
   installed and kept up to date, from inside the editor.
@@ -1609,10 +1609,24 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   `starter_update.rs`; the origin of assets in `editor/meta.ron`; `xtask` writes the starter pack
   and the official index; HTTPS with `ureq` as `art/meshy.rs` and the starter download do.
 
+  **Progress.** A first step, over the library as it is (no new format yet): the **Library
+  tab** (`studio/src/librarypage.rs`; the *Game* group's *Asset library*, tab `library`)
+  lists what the library holds by kind with how many of each, searched, with what the
+  project has already marked (a click opens the project's one); what is ticked is added to
+  the project with what it needs, as one step (`Workspace::library_to_project`). A
+  definition's tab has *Send to library* (`project_to_library`). Still open: everything
+  this part is about: the one pack format, packs with their manifests and updates, sources,
+  *Share…*, licences; and of the tab: pictures of the library's assets, tags and filters,
+  dragging onto a map, the starter library's installing and updating from the window.
+
   **Verify.** A source served from the scratchpad (`python3 -m http.server`): browse, install,
   a version 2 offered and applied, a changed asset kept, a wrong SHA-256 refused. A shared pack
   installed into a fresh library and used in a new project. The starter pack installed through
   the same path. A 0.35 `.r2dpack` and `.r2dplugin` installed.
+  - Done so far: `librarypage::ui_tests` (the owlbear searched among 2,683 assets, ticked
+    among the characters, added with its model as one step, marked as in the project and
+    opened from there, undone). In the window: the same on a scratch library, the owlbear's
+    tab with its picture afterwards.
 
 - [ ] Part 10: Help and guidance — `feature/studio`
 

@@ -106,6 +106,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **The asset library in a tab** (part 9, a first step): *Game › Asset library* lists what the
   library holds by kind, searched; tick what you want and *Add to the project* brings it in
   with what it needs. A definition's tab has *Send to library*.
+- **Visual scripts on a canvas** (part 7): a visual script's tab shows its nodes: drag from pin
+  to pin to link them, right-click or Space for the searched palette of nodes, type values
+  into a node, group nodes into a function of their own. Beside the canvas: what the selected
+  node does, what is wrong, and the Rhai the game runs. Moving a node (or a cue on the
+  timeline) is one step to undo.
 - **The cut-scene timeline** (part 7): a cut-scene's tab starts with its timeline: tracks, cues
   as boxes in time, a playhead to drag. *Show its map* puts the map above it, showing where
   everyone is at that moment and what the camera frames; *Play from here* plays it from the

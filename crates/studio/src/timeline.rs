@@ -205,6 +205,8 @@ impl Timeline {
                             if (cue.at - at).abs() > 1e-4 {
                                 cue.at = at;
                                 changed = true;
+                                // (The whole drag is one step of the history.)
+                                crate::shell::hold_step(ui.ctx(), ("drag a cue", &d.id, t, c));
                             }
                         }
                     }

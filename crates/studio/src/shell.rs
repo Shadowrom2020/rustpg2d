@@ -306,6 +306,8 @@ pub struct Shell {
     pub home: Home,
     /// The timelines of the cut-scenes open in tabs, by id.
     pub timelines: std::collections::HashMap<String, crate::timeline::Timeline>,
+    /// The canvases of the visual scripts open in tabs, by id.
+    pub nodes: std::collections::HashMap<String, crate::nodesview::NodesView>,
     /// Where a cut-scene has everyone at its playhead (its map, the moment, the frame it was
     /// looked at in): the map's tab shows it while the timeline is in view.
     pub scrub: Option<(String, editor_core::cutscene::Preview, u64)>,
@@ -337,7 +339,7 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), timelines: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new() }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), timelines: Default::default(), nodes: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new() }
     }
 
     /// Whether anything waits to be saved: definitions, maps, scripts.
@@ -503,6 +505,18 @@ impl Shell {
         let actors: Vec<String> = preview.as_ref().map_or(Vec::new(), |p| p.actors.iter().map(|(n, v, w)| format!("{n}@{:.1},{:.1}{}", v.x, v.y, if *w { "~" } else { "" })).collect());
         let cam = preview.and_then(|p| p.camera).map_or("-".into(), |(c, z)| format!("{:.1},{:.1}x{z:.1}", c.x, c.y));
         format!("{id}{} [{}] cam={cam}", tl.status(&self.ws.project.db.cutscenes[pos]), actors.join(" "))
+    }
+
+    /// The canvas of the visual script's tab in front: the words of `NodesView::word`; alone,
+    /// its `status` line ("" when no visual script's tab is in front).
+    pub fn nodes_word(&mut self, args: &[String]) -> String {
+        let Some(Tab::Def(RefKind::VisualScript, id)) = self.dock.find_active_focused().map(|(_, t)| t.clone()) else { return String::new() };
+        let view = self.nodes.entry(id.clone()).or_default();
+        if args.is_empty() {
+            view.status(&self.ws, &id)
+        } else {
+            view.word(&mut self.ws, &id, args)
+        }
     }
 
     /// `script=…` of the script tab in front ("" when none is).
@@ -820,7 +834,9 @@ impl Shell {
     /// One frame of the window.
     pub fn ui(&mut self, ui: &mut egui::Ui, rs: Option<&eframe::egui_wgpu::RenderState>, fps: f32) {
         let ctx = ui.ctx().clone();
-        self.ws.history_frame(ctx.memory(|m| m.focused()).map(|id| id.value()));
+        // (A drag that asked for it last frame counts as typing on in one field: one step.)
+        let held = ctx.data_mut(|d| d.remove_temp::<u64>(held_step_id()));
+        self.ws.history_frame(held.or(ctx.memory(|m| m.focused()).map(|id| id.value())));
         self.lists();
         self.shortcuts(&ctx);
         if let Some(rs) = rs {
@@ -855,7 +871,7 @@ impl Shell {
 
         let mut asks = Vec::new();
         {
-            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, library: &mut self.library, home: &mut self.home, timelines: &mut self.timelines, scrub: &mut self.scrub, try_next: &mut self.try_next, rs, asks: &mut asks };
+            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, library: &mut self.library, home: &mut self.home, timelines: &mut self.timelines, nodes: &mut self.nodes, scrub: &mut self.scrub, try_next: &mut self.try_next, rs, asks: &mut asks };
             DockArea::new(&mut self.dock).show_inside(ui, &mut viewer);
         }
         for ask in asks {
@@ -1156,6 +1172,7 @@ struct Viewer<'a> {
     library: &'a mut crate::librarypage::LibraryPage,
     home: &'a mut Home,
     timelines: &'a mut std::collections::HashMap<String, crate::timeline::Timeline>,
+    nodes: &'a mut std::collections::HashMap<String, crate::nodesview::NodesView>,
     scrub: &'a mut Option<(String, editor_core::cutscene::Preview, u64)>,
     try_next: &'a mut Option<(rustpg2d_engine::events::TriggerOn, rustpg2d_engine::runtime::EventOwner, String)>,
     rs: Option<&'a eframe::egui_wgpu::RenderState>,
@@ -1182,7 +1199,7 @@ impl egui_dock::TabViewer for Viewer<'_> {
 
     fn scroll_bars(&self, tab: &Tab) -> [bool; 2] {
         // (The game and a map fill their tabs.)
-        if matches!(tab, Tab::Play | Tab::Map(_) | Tab::Script(_)) {
+        if matches!(tab, Tab::Play | Tab::Map(_) | Tab::Script(_) | Tab::Def(RefKind::VisualScript, _)) {
             [false, false]
         } else {
             [false, true]
@@ -1203,6 +1220,7 @@ impl egui_dock::TabViewer for Viewer<'_> {
             Tab::History => self.history(ui),
             Tab::Settings(page) => self.settings(ui, page),
             Tab::Kind(k) => self.kind(ui, *k),
+            Tab::Def(RefKind::VisualScript, id) => self.visual_script(ui, id),
             Tab::Def(k, id) => self.definition(ui, *k, id),
             Tab::Map(m) => self.map(ui, m),
             Tab::Script(f) => self.script(ui, f),
@@ -1778,7 +1796,9 @@ impl Viewer<'_> {
 
     /// What can be done with a definition as a whole.
     fn definition_buttons(&mut self, ui: &mut egui::Ui, kind: RefKind, id: &str) {
-        ui.horizontal(|ui| {
+        // (Beside a canvas the form is narrow: the buttons wrap.)
+        let wide = ui.available_width() > 620.0;
+        ui.horizontal_wrapped(|ui| {
             if ui.button("Rename…").on_hover_text("Changes the id, and every place that names it").clicked() {
                 self.asks.push(Ask::Palette(format!("edit.rename {} {id} ", kind.name())));
             }
@@ -1800,9 +1820,14 @@ impl Viewer<'_> {
             if self.ws.usages.of.as_ref().is_some_and(|(k, i)| *k == kind && i == id) {
                 ui.label(format!("{} usage(s)", self.ws.usages.list.len()));
             }
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.checkbox(self.show_all, "Show all fields").on_hover_text("Also the fields that are rarely needed: values from before the SRD rules, data other tools edit");
-            });
+            let hint = "Also the fields that are rarely needed: values from before the SRD rules, data other tools edit";
+            if wide {
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.checkbox(self.show_all, "Show all fields").on_hover_text(hint);
+                });
+            } else {
+                ui.checkbox(self.show_all, "Show all fields").on_hover_text(hint);
+            }
         });
     }
 
@@ -2310,6 +2335,21 @@ impl Viewer<'_> {
         }
     }
 
+    /// A visual script's tab: what it is called and takes on the left, its nodes on the canvas.
+    fn visual_script(&mut self, ui: &mut egui::Ui, id: &str) {
+        egui::Panel::left(egui::Id::unique(("visual script form", id))).default_size(330.0).resizable(true).show(ui, |ui| {
+            egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| self.definition(ui, RefKind::VisualScript, id));
+        });
+        if !self.ws.project.db.has(RefKind::VisualScript, id) {
+            self.nodes.remove(id);
+            return;
+        }
+        match self.nodes.entry(id.to_string()).or_default().show(ui, self.ws, id) {
+            Some(crate::nodesview::Ask::Open(other)) => self.asks.push(Ask::Open(Tab::Def(RefKind::VisualScript, other))),
+            None => {}
+        }
+    }
+
     /// A script's tab.
     fn script(&mut self, ui: &mut egui::Ui, file: &str) {
         let Some(path) = self.ws.script_names().into_iter().find(|(n, _)| n == file).map(|(_, p)| p).or_else(|| self.scripts.get(file).map(|t| t.path.clone())) else {
@@ -2361,4 +2401,15 @@ impl Viewer<'_> {
             }
         }
     }
+}
+
+pub(crate) fn held_step_id() -> egui::Id {
+    egui::Id::unique("a step of the history held over frames")
+}
+
+/// A drag that changes definitions frame after frame is one step of the history: call this in
+/// every frame it changed something, with what is dragged as the key (as typing on in one
+/// field is one step).
+pub fn hold_step(ctx: &egui::Context, key: impl std::hash::Hash + std::fmt::Debug) {
+    ctx.data_mut(|d| d.insert_temp(held_step_id(), egui::Id::unique(key).value()));
 }

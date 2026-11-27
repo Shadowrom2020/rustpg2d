@@ -19,6 +19,7 @@ mod librarypage;
 mod buildtool;
 mod mapview;
 mod namespage;
+mod nodesview;
 mod play;
 mod publish;
 mod scene;
@@ -92,6 +93,10 @@ impl Studio {
                     if !script.is_empty() {
                         println!("[script] {script}");
                     }
+                    let nodes = self.shell.nodes_word(&[]);
+                    if !nodes.is_empty() {
+                        println!("[nodes] {nodes}");
+                    }
                     // (What the editor last told the person.)
                     println!("[said] {}", self.shell.ws.status.0);
                     println!("[world] {} link={}", self.shell.world_status(), self.shell.link.as_ref().map_or("-".to_string(), |(m, z)| format!("{m}:{z}")));
@@ -122,6 +127,9 @@ impl Studio {
                 // A cut-scene's timeline (its tab in front): `timeline time SECS`, `timeline cue TRACK CUE`,
                 // `timeline add TRACK ACTION…`, `timeline play`; alone it prints where everyone is.
                 "timeline" => println!("[timeline] {}", self.shell.timeline_word(&cmd[1..])),
+                // A visual script's canvas (its tab in front): `nodes add KIND X Y`, `nodes link FROM OUT TO IN`,
+                // `nodes value NODE INPUT VALUE`, `nodes select N…`, `nodes delete|group|copy|paste [X Y]|code`.
+                "nodes" => println!("[nodes] {}", self.shell.nodes_word(&cmd[1..])),
                 // The Publishing page: `publish name|out VALUE`, `publish linux|windows|macos|web|zip|pack|appimage|flatpak on|off`,
                 // `publish check` prints the pre-flight, `publish go` exports.
                 "publish" => match arg(1) {

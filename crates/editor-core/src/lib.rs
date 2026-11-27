@@ -32,6 +32,7 @@ pub mod search;
 pub mod starter;
 pub mod testsetup;
 pub mod timeline;
+pub mod visualedit;
 pub mod workspace;
 pub mod world;
 

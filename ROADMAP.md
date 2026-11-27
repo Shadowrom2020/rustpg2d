@@ -1451,13 +1451,27 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     opened lists every place it stands (a definition, a placed thing, a zone, a map's own
     events, a script's line), each a link there, and *Rename everywhere* follows it through
     definitions, maps and scripts as one step, undone by renaming back.
+  - **Visual scripts on a canvas** (`studio/src/nodesview.rs` over
+    `editor-core/src/visualedit.rs`; a visual script's tab): its name, parameters and result
+    as a form on the left, its nodes in the middle, and on the right what the selected node
+    does, what is wrong (a click shows the node) and the Rhai the game runs. The background
+    dragged moves the view, Ctrl+wheel zooms; a node is moved by its title (every selected
+    one with it), linked by dragging from a pin to another, and a link let go in empty space
+    opens the palette with the nodes that take it. Right-click or Space opens the palette at
+    the pointer: searched, in the manual's sections (flow, values, maths, the project's
+    visual scripts and script functions, the script API). An input without a link is typed
+    into the node (a number, a tick, a text; an id from what the project has); Delete takes
+    the selected nodes away, Ctrl+C / Ctrl+V / Ctrl+D copy them with the links between
+    them, *Group into a function* (Ctrl+G) makes them a visual script of their own, called
+    in their place; a node that calls a visual script opens it with a double click.
   Still open: rows dragged from one list into another and several rows selected at once
   (copy and paste does it one by one); *Try it* for a definition's events (they have no
   place to be tried from: a placed one of them is); of conversations: the game's own dialog
   box drawing the line being written (fonts, skin, message codes), answers side by side; of
   flags and variables: `{name}` placeholders in texts aren't counted as reading one; of scripts: a
-  function run in the Play tab, *Find in scripts*; the
-  documents still to come: the Events graph and visual scripts on one node canvas, the
+  function run in the Play tab, *Find in scripts*; of visual scripts: a box drawn around
+  nodes to select them, *Fit all*; the
+  documents still to come: the map's Events graph (on the visual scripts' canvas), the
   animation editor, the quest designer.
 
   **Decided while building.**
@@ -1472,6 +1486,15 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     a question and what follows them are written where every other action is, in every
     place events are edited. It stays the actions it was: a branch is an *If* that asks for
     one answer, and an *If* that asks for more is a row like any other.
+  - **A visual script is a tab like any definition**, not a mode with its own list as in
+    0.35: the Project browser's *Story › Visual scripts* lists them, *New…* makes one, and
+    its form (name, parameters, what it gives back) stands beside its canvas.
+  - **A drag is one step of the history** (`shell::hold_step`): a node moved over many
+    frames, or a cue on the timeline, is undone with one Ctrl+Z, the way typing on in one
+    field is one step.
+  - **The canvas's thinking is in the core** (what the palette offers and for which link,
+    linking with its type checks, adding, copying, grouping): tested without a window, and
+    what the script's words and the canvas both call.
   - **A cut-scene's timeline is part of its tab, and its map is a tab beside it**, not a
     window over the map view as in 0.35: the map's tab shows a cut-scene's moment for as
     long as the timeline is in view, so the two are arranged like any other two tabs.
@@ -1555,6 +1578,16 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     and kept). In the window: the example's `main.rhai` (50 functions), `give_item("po`
     typed after a line: six items offered by id and name, the signature with *item* marked,
     then *count*; Enter takes the first; Ctrl+S writes the file.
+  - Visual scripts: `visualedit::tests` (the palette in the manual's sections, links that
+    replace what an input had and refuse wrong types, nodes added, linked, copied and found
+    for a dragged link); `nodesview::ui_tests` (a node added from the searched palette at
+    the pointer, linked by a drag from pin to pin, its item typed in, the Rhai saying so;
+    moved by its title as one step; Delete taking it and its link but never Start; undone).
+    In the window on the example's *Brother Ansel's blessing* (16 nodes, 15 links): read on
+    the canvas with its Rhai beside it; a node moved (one step), `give_item` added from the
+    palette and linked from Start by a drag, a link let go in empty space offering only what
+    takes it, Delete and undo; three nodes grouped into a function of their own (the Rhai
+    calls it), saved: `scripts/visual_scripts.rhai` holds both and the game starts with them.
 
 - [ ] Part 8: Workshops — `feature/studio`
 

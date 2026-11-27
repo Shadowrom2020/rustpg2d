@@ -315,6 +315,9 @@ pub struct Shell {
     pub stages: std::collections::HashMap<String, crate::propshop::PropStage>,
     /// The workshops of the characters open in tabs, by id.
     pub figures: std::collections::HashMap<String, crate::charshop::CharStage>,
+    /// The sounds and sprite sheets open in tabs, by id: listened to, cut into frames.
+    pub sounds: std::collections::HashMap<String, crate::artshop::SoundStage>,
+    pub sheets: std::collections::HashMap<String, crate::artshop::SheetStage>,
     /// Where a cut-scene has everyone at its playhead (its map, the moment, the frame it was
     /// looked at in): the map's tab shows it while the timeline is in view.
     pub scrub: Option<(String, editor_core::cutscene::Preview, u64)>,
@@ -346,7 +349,7 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new() }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), sounds: Default::default(), sheets: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new() }
     }
 
     /// Whether anything waits to be saved: definitions, maps, scripts.
@@ -569,6 +572,36 @@ impl Shell {
             Ok(()) => stage.status(&self.ws, &id),
             Err(e) => format!("{id}: {e}"),
         }
+    }
+
+    /// The sound's tab in front: `play`, `loop`, `stop`; returns its `status` line ("" when no
+    /// sound's tab is in front).
+    pub fn sound_word(&mut self, args: &[String], now: f64) -> String {
+        let Some(Tab::Def(RefKind::Sound, id)) = self.dock.find_active_focused().map(|(_, t)| t.clone()) else { return String::new() };
+        let stage = self.sounds.entry(id.clone()).or_default();
+        match args.first().map(String::as_str) {
+            Some("play") => stage.play(&self.ws, &id, false, now),
+            Some("loop") => stage.play(&self.ws, &id, true, now),
+            Some("stop") => stage.stop(),
+            _ => {}
+        }
+        stage.status(&self.ws, &id)
+    }
+
+    /// The sprite sheet's tab in front: `cut ACROSS DOWN`, `frame K`; returns its `status`
+    /// line ("" when no sheet's tab is in front).
+    pub fn sheet_word(&mut self, args: &[String]) -> String {
+        let Some(Tab::Def(RefKind::Sheet, id)) = self.dock.find_active_focused().map(|(_, t)| t.clone()) else { return String::new() };
+        let stage = self.sheets.entry(id.clone()).or_default();
+        let num = |k: usize| args.get(k).and_then(|a| a.parse::<u32>().ok());
+        match args.first().map(String::as_str) {
+            Some("cut") => {
+                stage.cut(&mut self.ws, &id, num(1).unwrap_or(1), num(2).unwrap_or(1));
+            }
+            Some("frame") => stage.frame = num(1),
+            _ => {}
+        }
+        stage.status(&self.ws, &id)
     }
 
     /// `script=…` of the script tab in front ("" when none is).
@@ -900,6 +933,13 @@ impl Shell {
                 }
             }
         }
+        // A sound stops when its tab is closed.
+        let closed: Vec<String> = self.sounds.keys().filter(|id| self.dock.find_tab(&Tab::Def(RefKind::Sound, (*id).clone())).is_none()).cloned().collect();
+        for id in closed {
+            if let Some(mut s) = self.sounds.remove(&id) {
+                s.stop();
+            }
+        }
         // A structure is open as a map for as long as its tab is.
         let gone: Vec<String> = self.ws.struct_docs.keys().filter(|id| self.dock.find_tab(&Tab::Def(RefKind::Structure, (*id).clone())).is_none()).cloned().collect();
         for id in gone {
@@ -943,7 +983,7 @@ impl Shell {
 
         let mut asks = Vec::new();
         {
-            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, library: &mut self.library, home: &mut self.home, timelines: &mut self.timelines, nodes: &mut self.nodes, stages: &mut self.stages, figures: &mut self.figures, scrub: &mut self.scrub, try_next: &mut self.try_next, rs, asks: &mut asks };
+            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, library: &mut self.library, home: &mut self.home, timelines: &mut self.timelines, nodes: &mut self.nodes, stages: &mut self.stages, figures: &mut self.figures, sounds: &mut self.sounds, sheets: &mut self.sheets, scrub: &mut self.scrub, try_next: &mut self.try_next, rs, asks: &mut asks };
             DockArea::new(&mut self.dock).show_inside(ui, &mut viewer);
         }
         for ask in asks {
@@ -1264,6 +1304,8 @@ struct Viewer<'a> {
     nodes: &'a mut std::collections::HashMap<String, crate::nodesview::NodesView>,
     stages: &'a mut std::collections::HashMap<String, crate::propshop::PropStage>,
     figures: &'a mut std::collections::HashMap<String, crate::charshop::CharStage>,
+    sounds: &'a mut std::collections::HashMap<String, crate::artshop::SoundStage>,
+    sheets: &'a mut std::collections::HashMap<String, crate::artshop::SheetStage>,
     scrub: &'a mut Option<(String, editor_core::cutscene::Preview, u64)>,
     try_next: &'a mut Option<(rustpg2d_engine::events::TriggerOn, rustpg2d_engine::runtime::EventOwner, String)>,
     rs: Option<&'a eframe::egui_wgpu::RenderState>,
@@ -1776,6 +1818,14 @@ impl Viewer<'_> {
         }
         if kind == RefKind::Character {
             self.figures.entry(id.to_string()).or_default().show(ui, self.ws, self.rs, self.thumbs, id);
+            ui.separator();
+        }
+        if kind == RefKind::Sound {
+            self.sounds.entry(id.to_string()).or_default().show(ui, self.ws, id);
+            ui.separator();
+        }
+        if kind == RefKind::Sheet {
+            self.sheets.entry(id.to_string()).or_default().show(ui, self.ws, self.rs, self.thumbs, id);
             ui.separator();
         }
         // The form shows what was typed last, also while that isn't a valid definition yet.

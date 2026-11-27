@@ -16,6 +16,7 @@
 mod form;
 mod gallery;
 mod librarypage;
+mod artshop;
 mod buildtool;
 mod charshop;
 mod mapview;
@@ -95,6 +96,14 @@ impl Studio {
                     if !script.is_empty() {
                         println!("[script] {script}");
                     }
+                    let sound = self.shell.sound_word(&[], ctx.input(|i| i.time));
+                    if !sound.is_empty() {
+                        println!("[sound] {sound}");
+                    }
+                    let sheet = self.shell.sheet_word(&[]);
+                    if !sheet.is_empty() {
+                        println!("[sheet] {sheet}");
+                    }
                     let figure = self.shell.char_word(&[]);
                     if !figure.is_empty() {
                         println!("[char] {figure}");
@@ -148,6 +157,9 @@ impl Studio {
                         None => println!("[script] {} is no 3D model, picture or sound", path.display()),
                     }
                 }
+                // A sound's tab in front: `sound play|loop|stop`; a sprite sheet's: `sheet cut ACROSS DOWN`, `sheet frame K`.
+                "sound" => println!("[sound] {}", self.shell.sound_word(&cmd[1..], ctx.input(|i| i.time))),
+                "sheet" => println!("[sheet] {}", self.shell.sheet_word(&cmd[1..])),
                 // A character's workshop (its tab in front): `char model ID`, `char part SLOT ID|-|own`,
                 // `char color FEATURE RRGGBB|-`, `char random`, `char face front|left|back|right|turn`, `char anim walk|idle|attack|hurt`.
                 "char" => println!("[char] {}", self.shell.char_word(&cmd[1..])),

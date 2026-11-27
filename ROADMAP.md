@@ -1627,7 +1627,9 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   - **Pictures:** the pixel editor as a document (icons, seamless material textures).
   - **Generate art:** a panel with the jobs, opened from each workshop's *Generate…*.
 
-  **Engine.** None. The presets are library content (*Content route*).
+  **Engine.** None planned; the presets are library content (*Content route*). Added for the
+  editor: `audio::load_one(path)` (one sound file decoded with its length, to be listened to
+  without loading every sound of the project).
 
   **Progress.**
   - **The prop workshop** (`studio/src/propshop.rs`; at the top of a prop's tab, above its
@@ -1656,6 +1658,14 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     added as it is. So the library's chest, door, lamp, bed, crop or merchant is the
     template a new one is made from, and a template of one's own is an asset sent to the
     library.
+  - **A sound is heard and a sheet is cut where they are defined** (`studio/src/artshop.rs`):
+    a sound's tab starts with *Play*, *Loop* (to listen for the seam) and *Stop*, its length
+    and file, a bar while it plays, and what is wrong with a file that can't be played. A
+    sprite sheet's tab starts with its picture under the grid its frames are cut by, their
+    numbers on them: *across* and *down* cut it again (the frame's size follows; pixels
+    that belong to no frame are said), a click picks a frame, its animations are listed and
+    the one picked plays beside the picture; *+ Animation from this frame* adds one to the
+    end of its row.
   - **A new thing starts from a file** (`editor-core/src/fromfile.rs`; *New…*, the fourth
     way; command `defs.make KIND file:PATH NAME`): a file dropped on the editor's window
     opens *New…* with it, named after the file. A 3D model (`.glb`) becomes a prop that
@@ -1685,7 +1695,8 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   building's ridge, overhang and openings dragged on the picture, how large a prop's model
   is shown as a handle; starting from measurements and Meshy, a file picked in a dialog (it
   is dropped or its place typed), a character's model and an item's from a file, pictures
-  other than PNG; of structures: what one holds outside its own tiles (the
+  other than PNG; of the import helpers a model's check (size, rig, clips, what is missing
+  and its fix), a sound's volume and loop points set by ear; of structures: what one holds outside its own tiles (the
   example's garden has a fence a pixel off its edge) is kept but not shown on its map, zones
   drawn there are not part of it (the Zones tool is still offered), a house of the Build
   tool saved as one from the tool itself; of the character workshop: rules,
@@ -1767,6 +1778,12 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
       hero named on *Hero & party*, the trader placed on the map, played: walking into her
       and E opens the *Outfitter* shop with its stock and prices (her items and their
       pictures came along).
+  - Sounds and sheets: `a_sheet_is_cut_into_frames_and_gets_an_animation` (a picture of
+    96 x 64 as one frame cut 3 x 2: frames of 32 x 32, one step; the fourth frame clicked,
+    an animation from it to its row's end; a cut that leaves a pixel over says so). In the
+    window: the emotions sheet with its 3 x 14 grid, a frame picked, its 14 animations
+    listed; the items sheet cut 4 x 4 and undone; the creak's tab: 0.30 s, played, looped
+    and stopped by the script's words (sound was switched off for the run: not heard).
   - From a file: `fromfile::tests` (files told apart by their names; a picture four tiles
     wide: a prop on a sheet at scale 2 with the copied file, one step, undone to what was;
     a tree standing on its trunk's width; the same picture as a sheet alone; a `.glb`: a

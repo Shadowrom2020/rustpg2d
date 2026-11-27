@@ -1690,6 +1690,15 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     `.wav`) becomes a sound. The file is copied into the project; the new thing's tab
     opens, a prop's with its workshop. *Browse…* picks the file in the system's file dialog
     (`studio/src/pick.rs`) instead; a new thing without a name yet is named after it.
+  - **The pixel editor** (`studio/src/pixeledit.rs` over `editor-core/src/pixels.rs`; *Paint*
+    under a sprite sheet's picture): the frame picked in the picture, large, on a chequered
+    ground, painted pixel by pixel: pencil, eraser, fill, line, rectangle, colour picker (keys
+    B E G L R I), the first colour on the left button and the second on the right, swapped
+    with X; the picture's own colours as swatches, then a few to start from. What is drawn
+    stays inside the frame. The frame as a whole is copied, pasted into another, mirrored,
+    emptied and moved a pixel at a time. The picture has its own undo (the buttons, or
+    Ctrl+Z with the pointer over it), as a script's text has; *Save picture*, or saving
+    everything, writes the file, and the sheet shows the new picture everywhere at once.
   - **The model workshop** (`studio/src/modelshop.rs` over `editor-core/src/modelcheck.rs`;
     at the top of a 3D model's tab): the model as the game draws it, turning or from one
     side, playing whichever of its animations is clicked (a piece is shown on a figure it
@@ -1735,8 +1744,9 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   day, talk, shop and loot as parts of one document (they are sections of the form below),
   *Start from…* another character; presets that are more than
   one asset (a *Merchant* with a shop and a schedule to fill in), pictures in the rows of the
-  library's list in *New…* and on the Library tab (the one picked has one); import helpers;
-  the pixel editor; Generate art.
+  library's list in *New…* and on the Library tab (the one picked has one); of the pixel editor a ground
+  material's texture painted across its seams (0.35's seamless view), an area selected and
+  moved, a frame added to a sheet, zooming; Generate art.
 
   **Decided while building.**
   - **The workshop is the top of the prop's tab, not a tab of its own**: the picture and the
@@ -1773,6 +1783,13 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     1, 1 on its map (`structdoc::MARGIN`, `own_tiles`), and everything standing on the map
     is the structure's, at places counted from its own corner. What lies further out than
     that tile is kept as it is, unseen.
+  - **A picture's undo is its own**, like a script's text: the definitions' history keeps
+    definitions, not files, and a picture isn't in the project until it is saved. Ctrl+Z is
+    the picture's while the pointer is over it (`pixeledit::has_pointer`), the project's
+    elsewhere; *unsaved changes* counts painted pictures, and saving everything writes them.
+  - **One frame at a time, and nothing leaves it**: a sheet is frames side by side, and a
+    stroke that ran into the next frame would paint a second icon by accident. The frame is
+    the one picked in the sheet's picture above, so there is one place a frame is picked.
   - **A model's check is the engine's, its fixes are the editor's**: what a model needs is
     asked of the loaded model (`Models::check`, the agents' `model_check`), so the workshop
     and an agent read the same lines; the workshop adds the ways out. A model changed there
@@ -1841,6 +1858,14 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     portal shows it on this machine is unseen. The library's owlbear and anvil shown in
     *New…* when picked; a wolf's side inside the character preview; a prop from a `.glb`
     not saved until the project is, undone and redone (`fromfile` test).
+  - The pixel editor: `pixels` tests (a stroke that runs out of the frame sets only its
+    pixels, the frame beside it untouched; rectangle, fill, eraser; undone step by step back
+    to the file's picture; a frame copied, pasted, mirrored, moved, recoloured, saved and
+    read again), `a_frame_is_painted_with_the_pointer_and_saved` (*Paint*, a colour of the
+    palette, a pencil stroke dragged along a row: one step; the second frame picked and
+    filled; undo, redo, *Save picture*: the file holds it). In the window: the apple of the
+    example's item icons painted with the script's pointer (a stroke dragged, the ground
+    filled), saved with everything, the file changed and the sheet's picture with it.
   - The model workshop: `modelcheck` tests (the hero lacks nothing; walking without a clip
     is said and guessed back from the clips' names; a clip picked by hand, an animation of
     its own added and removed; a creature without its rig template lacks all four animations

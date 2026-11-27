@@ -24,6 +24,7 @@ mod modelshop;
 mod namespage;
 mod nodesview;
 mod pick;
+mod pixeledit;
 mod play;
 mod propshop;
 mod publish;
@@ -167,6 +168,9 @@ impl Studio {
                 // A character's workshop (its tab in front): `char model ID`, `char part SLOT ID|-|own`,
                 // `char color FEATURE RRGGBB|-`, `char random`, `char face front|left|back|right|turn`, `char anim walk|idle|attack|hurt`.
                 "char" => println!("[char] {}", self.shell.char_word(&cmd[1..])),
+                // The pixel editor of the sprite sheet's tab in front: `pixels open|close|frame K|tool NAME|color RRGGBB [2]|dot X Y [2]|
+                // line|rect X1 Y1 X2 Y2 [2]|fill X Y [2]|undo|redo|copy|paste|flip|clear|nudge DX DY|replace FROM TO [all]|save`.
+                "pixels" => println!("[pixels] {}", self.shell.pixels_word(&cmd[1..])),
                 // A 3D model's workshop (its tab in front): `model play ANIM CLIP|-`, `model fps ANIM N`, `model guess`,
                 // `model rig TEMPLATE|- [TURN]`, `model face …`, `model anim NAME`, `model check`.
                 "model" => println!("[model] {}", self.shell.model_word(&cmd[1..])),

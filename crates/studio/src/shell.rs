@@ -326,6 +326,8 @@ pub struct Shell {
     /// The workshops of the characters open in tabs, by id.
     pub figures: std::collections::HashMap<String, crate::charshop::CharStage>,
     pub model_stages: std::collections::HashMap<String, crate::modelshop::ModelStage>,
+    /// The pixel editors of sprite sheets, by sheet (a picture changed there waits to be saved).
+    pub pixels: std::collections::HashMap<String, crate::pixeledit::PixelEdit>,
     /// The sounds and sprite sheets open in tabs, by id: listened to, cut into frames.
     pub sounds: std::collections::HashMap<String, crate::artshop::SoundStage>,
     pub sheets: std::collections::HashMap<String, crate::artshop::SheetStage>,
@@ -362,12 +364,12 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, lib_look: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), model_stages: Default::default(), sounds: Default::default(), sheets: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new() }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, lib_look: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), model_stages: Default::default(), pixels: Default::default(), sounds: Default::default(), sheets: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new() }
     }
 
     /// Whether anything waits to be saved: definitions, maps, scripts.
     pub fn unsaved(&self) -> bool {
-        self.ws.is_dirty() || self.scripts.values().any(|t| t.dirty())
+        self.ws.is_dirty() || self.scripts.values().any(|t| t.dirty()) || self.pixels.values().any(|p| p.dirty())
     }
 
     /// Opens another project in this window (a project file, or a folder). Refused while
@@ -492,8 +494,8 @@ impl Shell {
         }
     }
 
-    /// Writes the scripts changed in their tabs (with everything else that is saved; the game
-    /// reads the files).
+    /// Writes the scripts changed in their tabs and the pictures painted in their sheets' (with
+    /// everything else that is saved; the game reads the files). Returns how many files.
     pub fn save_scripts(&mut self) -> usize {
         let mut saved = 0;
         for tab in self.scripts.values_mut().filter(|t| t.dirty()) {
@@ -505,6 +507,15 @@ impl Shell {
         if saved > 0 {
             self.ws.refresh_refs();
             self.ws.stale = true;
+        }
+        // Pictures painted in their sheets' tabs are files of their own too.
+        let painted: Vec<String> = self.pixels.iter().filter(|(_, p)| p.dirty()).map(|(id, _)| id.clone()).collect();
+        for id in painted {
+            match self.pixels.get_mut(&id).map(|p| p.save(&mut self.ws, &id)) {
+                Some(Err(e)) => self.ws.set_status(e),
+                Some(Ok(())) => saved += 1,
+                None => {}
+            }
         }
         saved
     }
@@ -583,6 +594,21 @@ impl Shell {
         let stage = self.figures.entry(id.clone()).or_default();
         match stage.word(&mut self.ws, &id, args) {
             Ok(()) => stage.status(&self.ws, &id),
+            Err(e) => format!("{id}: {e}"),
+        }
+    }
+
+    /// The pixel editor of the sprite sheet's tab in front: the words of `PixelEdit::word`;
+    /// returns its `status` line ("" when no sheet's tab is in front).
+    pub fn pixels_word(&mut self, args: &[String]) -> String {
+        let Some(Tab::Def(RefKind::Sheet, id)) = self.dock.find_active_focused().map(|(_, t)| t.clone()) else { return String::new() };
+        let edit = self.pixels.entry(id.clone()).or_default();
+        // (The frame it paints in is the one picked in the sheet's picture.)
+        if let (Some("frame"), Some(k)) = (args.first().map(String::as_str), args.get(1).and_then(|k| k.parse().ok())) {
+            self.sheets.entry(id.clone()).or_default().frame = Some(k);
+        }
+        match edit.word(&mut self.ws, &id, args) {
+            Ok(()) => edit.status(&id),
             Err(e) => format!("{id}: {e}"),
         }
     }
@@ -687,9 +713,9 @@ impl Shell {
     pub fn run(&mut self, line: &str) -> Result<String, String> {
         let scripts = if line.trim() == "file.save_all" { self.save_scripts() } else { 0 };
         let r = self.ws.run_line(line);
-        // (Scripts are saved with everything; said when they were all there was to save.)
+        // (Scripts and painted pictures are saved with everything; said when they were all there was to save.)
         let r = match r {
-            Ok(m) if scripts > 0 && m.starts_with("Nothing") => Ok(format!("Saved {scripts} script{}", if scripts == 1 { "" } else { "s" })),
+            Ok(m) if scripts > 0 && m.starts_with("Nothing") => Ok(format!("Saved {scripts} file{} (scripts, pictures)", if scripts == 1 { "" } else { "s" })),
             other => other,
         };
         self.log.push(match &r {
@@ -1008,7 +1034,7 @@ impl Shell {
 
         let mut asks = Vec::new();
         {
-            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, library: &mut self.library, home: &mut self.home, timelines: &mut self.timelines, nodes: &mut self.nodes, stages: &mut self.stages, figures: &mut self.figures, model_stages: &mut self.model_stages, sounds: &mut self.sounds, sheets: &mut self.sheets, scrub: &mut self.scrub, try_next: &mut self.try_next, rs, asks: &mut asks };
+            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, library: &mut self.library, home: &mut self.home, timelines: &mut self.timelines, nodes: &mut self.nodes, stages: &mut self.stages, figures: &mut self.figures, model_stages: &mut self.model_stages, pixels: &mut self.pixels, sounds: &mut self.sounds, sheets: &mut self.sheets, scrub: &mut self.scrub, try_next: &mut self.try_next, rs, asks: &mut asks };
             DockArea::new(&mut self.dock).show_inside(ui, &mut viewer);
         }
         for ask in asks {
@@ -1079,7 +1105,8 @@ impl Shell {
         if save {
             let _ = self.run("file.save_all");
         }
-        if !ctx.text_edit_focused() {
+        // (And the pointer over a picture being painted: there they are the picture's.)
+        if !ctx.text_edit_focused() && !crate::pixeledit::has_pointer(ctx) {
             if undo {
                 let _ = self.run("edit.undo");
             } else if redo {
@@ -1353,6 +1380,7 @@ struct Viewer<'a> {
     stages: &'a mut std::collections::HashMap<String, crate::propshop::PropStage>,
     figures: &'a mut std::collections::HashMap<String, crate::charshop::CharStage>,
     model_stages: &'a mut std::collections::HashMap<String, crate::modelshop::ModelStage>,
+    pixels: &'a mut std::collections::HashMap<String, crate::pixeledit::PixelEdit>,
     sounds: &'a mut std::collections::HashMap<String, crate::artshop::SoundStage>,
     sheets: &'a mut std::collections::HashMap<String, crate::artshop::SheetStage>,
     scrub: &'a mut Option<(String, editor_core::cutscene::Preview, u64)>,
@@ -1878,7 +1906,10 @@ impl Viewer<'_> {
             ui.separator();
         }
         if kind == RefKind::Sheet {
-            self.sheets.entry(id.to_string()).or_default().show(ui, self.ws, self.rs, self.thumbs, id);
+            let stage = self.sheets.entry(id.to_string()).or_default();
+            stage.show(ui, self.ws, self.rs, self.thumbs, id);
+            let frame = stage.frame;
+            self.pixels.entry(id.to_string()).or_default().show(ui, self.ws, id, frame);
             ui.separator();
         }
         // The form shows what was typed last, also while that isn't a valid definition yet.

@@ -81,7 +81,7 @@ impl Workspace {
         let mut noted = false;
         for (kind, id) in &report.added {
             let lib_id = report.renamed.iter().find(|(k, _, new)| k == kind && new == id).map_or(id, |(_, old, _)| old);
-            let Some(p) = installed.iter().find(|p| p.assets.iter().any(|(k, i)| k == kind.name() && i == lib_id)) else { continue };
+            let Some(p) = crate::packs::owner_of(&installed, &self.lib.lib.as_ref().expect("checked above").db, &lib_root, &(*kind, lib_id.clone())) else { continue };
             let m = &p.manifest;
             self.meta.assets.entry(crate::meta::Meta::key(*kind, id)).or_default().origin = Some(crate::meta::Origin { pack: m.id.clone(), version: m.version.clone() });
             self.meta.packs.insert(m.id.clone(), crate::meta::PackCredit { title: m.title.clone(), author: m.author.clone(), licence: m.licence.clone(), attribution: m.attribution.clone() });

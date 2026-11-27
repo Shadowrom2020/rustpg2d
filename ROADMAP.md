@@ -2116,10 +2116,24 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     others. Nothing is copied or replaced when the library has everything as it is.
     (The release still ships the `.r2dlib` file, read as this pack; the library still takes
     the starter's new ids by itself when it is opened: both end with part 11 / 12.)
-  Still open: several assets shared at once from a kind's list, a plugin shared from the
-  window, the same per-asset update for a project's assets (they know their pack and
-  version), the release shipping the starter as a pack with an official index (the preset
-  source), the library no longer taking the starter's assets by itself, the old writers (`.r2dlib`, `.r2dplugin`)
+  - **A project's assets follow their pack** (`Workspace::project_updates`,
+    `update_project_from`): *Packs and sources* starts with *In this project* when the
+    library has another version of a pack than the project's assets came as: which are
+    updated (the project has them as the pack shipped them), which were changed in the
+    project too (kept unless ticked), what they need that the project lacks. *Update the
+    project's* is one step of the history; pictures, sounds and models that are overwritten
+    are put into the project's `editor/backup/<time>/` first (an undo brings definitions
+    back, not files). Assets the project has exactly as the library does are just noted as
+    that version. Nothing is ever deleted from a project. When two packs brought the same
+    id into the library, an asset is the work of the one that shipped it as it is there
+    (of several, the one installed last).
+  - **More of the window**: a kind's list shares everything chosen as one pack (*Share…*
+    beside *Tag…*, *Delete*); the *Share…* window offers the project's plugins to tick (who
+    installs the pack is told that it runs); a pack's preview pictures are shown where it
+    is looked at and on the installed packs' cards.
+  Still open: the release shipping the starter as a pack with an official index (the preset
+  source), the library no longer taking the starter's assets by itself, a large pack read
+  beside the editor (looking at the starter holds the window for some seconds), the old writers (`.r2dlib`, `.r2dplugin`)
   folded away, packs as cards with their preview pictures; and
   of the tab: pictures of the library's assets, tags and filters, dragging onto a map, the
   starter library's installing and updating from the window.
@@ -2168,6 +2182,16 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     all there as they are; installed, listed with its four plugins); ***Download it*** on
     another library: the 61 MB file of 0.35.0-alpha.1 fetched from the GitHub release,
     checked, shown (2,675 new, the chest there *changed by you and by the pack*), installed.
+  - A project's assets: in the update test another project takes the chest while the
+    library has 1.0, the library goes on to 1.1: the project is told (*1.0 -> 1.1, updates
+    chest*), nothing is touched before; updated, its chest is the pack's and noted as 1.1,
+    as one step; undone, it is the chest of 1.0 again. With the real editor: a new project
+    with the library's chest, the library updated to 1.1, *In this project* on the Library
+    tab, updated: the project's chest is *Sea chest*. (Found there: a library that also had
+    the starter as a pack noted the chest as the starter's, which ships the very same
+    chest: now the pack that came in last is taken.) Sharing: the window with *Calendar*
+    ticked writes a pack with the plugin, which says that it runs when looked at; pictures
+    on the pack looked at and on its card.
   - Origins and credits: in the `packs` core test the chest added to another project from
     the library is noted as *market-things 1.0*, its copy too; the credit line is missing
     from the credits, added once, and the project still knows after saving and reading

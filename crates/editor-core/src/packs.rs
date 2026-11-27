@@ -65,6 +65,33 @@ pub struct Preview {
     /// the creator changed since (replaced only when chosen), what the pack no longer has
     /// (deleted only when chosen).
     pub update: Option<StarterUpdate>,
+    /// Its preview pictures (PNG).
+    pub pictures: Vec<Vec<u8>>,
+}
+
+/// For a project's update from a pack: the pack as installed, the versions the project's
+/// assets came as, those assets as the library has them, and the pack's history.
+type UpdateParts = (Installed, Vec<String>, Bundle, StarterHistory);
+
+/// Assets of the project that came from a pack of which the library has another version now.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ProjectUpdate {
+    pub pack: String,
+    pub title: String,
+    /// The versions the project's assets came as, and the one the library has.
+    pub from: Vec<String>,
+    pub to: String,
+    /// What taking the library's version does: what it updates (the project has those as the
+    /// pack shipped them), what was changed in the project too (kept unless chosen), what the
+    /// updated ones need that the project doesn't have yet. (Nothing is ever deleted.)
+    pub plan: StarterUpdate,
+}
+
+impl ProjectUpdate {
+    pub fn line(&self) -> String {
+        let names = |v: &[AssetRef]| v.iter().map(|a| a.1.as_str()).collect::<Vec<_>>().join(" ");
+        format!("{} ({}) {} -> {}: updates {} [{}] changed in the project {} [{}] adds {}", self.title, self.pack, self.from.join("/"), self.to, self.plan.updated.len(), names(&self.plan.updated), self.plan.edited.len(), names(&self.plan.edited), self.plan.added.len())
+    }
 }
 
 impl Preview {
@@ -118,6 +145,19 @@ fn history_for(root: &Path, pack: &Pack) -> StarterHistory {
         h.merge(&own);
     }
     h
+}
+
+/// The pack a library asset is the work of, when several packs brought one under that id:
+/// the one that shipped the asset as the library has it now (of several that did, the one
+/// installed last), else the one installed last.
+pub(crate) fn owner_of<'a>(installed: &'a [Installed], lib: &rustpg2d_engine::defs::Database, root: &Path, asset: &AssetRef) -> Option<&'a Installed> {
+    let claim: Vec<&Installed> = installed.iter().filter(|p| p.assets.iter().any(|(k, i)| k == asset.0.name() && *i == asset.1)).collect();
+    match claim.as_slice() {
+        [] => None,
+        [one] => Some(one),
+        // (Two that shipped the very same thing: the one that came in last.)
+        many => many.iter().rev().find(|p| read_history(root, &p.manifest.id).untouched(lib, root, asset)).or(many.last()).copied(),
+    }
 }
 
 /// The packs installed in the library at `root`.
@@ -235,7 +275,7 @@ impl Workspace {
             }
             None => None,
         };
-        Ok(Preview { holds: packs::holds(&pack), code: pack.code(), new, same, differing, missing, installed: was, update, manifest: pack.manifest })
+        Ok(Preview { holds: packs::holds(&pack), code: pack.code(), new, same, differing, missing, installed: was, update, pictures: pack.previews.iter().map(|(_, b)| b.clone()).collect(), manifest: pack.manifest })
     }
 
     /// Installs a pack into the asset library: its assets with their files and script
@@ -362,9 +402,116 @@ impl Workspace {
         let plugins = if pack.plugins.is_empty() { String::new() } else { format!(" (plugins: {})", pack.plugins.iter().map(|p| p.id.as_str()).collect::<Vec<_>>().join(", ")) };
         Ok(match was {
             Some(v) if v == manifest.version => format!("Installed {} {} again{plugins}", manifest.title, manifest.version),
+            Some(v) if packs::compare_versions(&manifest.version, &v) == std::cmp::Ordering::Less => format!("Went back with {} from {v} to {}{plugins}", manifest.title, manifest.version),
             Some(v) => format!("Updated {} from {v} to {}{plugins}", manifest.title, manifest.version),
             None => format!("Installed {} {}{plugins}", manifest.title, manifest.version),
         })
+    }
+
+    /// What the library has of pack `pack` for the project's assets that came from it as
+    /// another version: those assets as the library has them now, and the pack's history.
+    fn project_update_parts(&mut self, pack: &str) -> Result<Option<UpdateParts>, String> {
+        let root = self.library_root()?;
+        let Some(installed) = read_record(&root).into_iter().find(|p| p.manifest.id == pack) else { return Ok(None) };
+        let lib = self.lib.lib.as_ref().ok_or("the asset library isn't available")?;
+        let mut from = Vec::new();
+        let mut wanted = Vec::new();
+        for (key, m) in &self.meta.assets {
+            let Some(o) = m.origin.as_ref().filter(|o| o.pack == pack && o.version != installed.manifest.version) else { continue };
+            let Some((kind, id)) = key.split_once(':').and_then(|(k, id)| Some((RefKind::parse(k)?, id))) else { continue };
+            // (Under the id it has in the pack: a copy under another id is the project's own.)
+            if self.project.db.has(kind, id) && lib.db.has(kind, id) && installed.assets.iter().any(|(k, i)| k == kind.name() && i == id) {
+                wanted.push((kind, id.to_string()));
+                if !from.contains(&o.version) {
+                    from.push(o.version.clone());
+                }
+            }
+        }
+        if wanted.is_empty() {
+            return Ok(None);
+        }
+        let mut bundle = Bundle::collect_with_needed_scripts(&lib.db, &lib.root, rustpg2d_engine::project::TILE_SIZE, &installed.manifest.title, &wanted).map_err(|e| format!("{e:#}"))?;
+        bundle.rescale(rustpg2d_engine::project::TILE_SIZE).map_err(|e| format!("{e:#}"))?;
+        from.sort_by(|a, b| packs::compare_versions(a, b));
+        Ok(Some((installed, from, bundle, read_history(&root, pack))))
+    }
+
+    /// The packs whose assets in the project are another version than the library has.
+    /// Assets the project has exactly as the library does are noted as that version on the way.
+    pub fn project_updates(&mut self) -> Vec<ProjectUpdate> {
+        let packs: Vec<String> = self.packs_used().into_iter().map(|p| p.0).collect();
+        let mut out = Vec::new();
+        let mut settled = false;
+        for pack in packs {
+            let Ok(Some((installed, from, bundle, history))) = self.project_update_parts(&pack) else { continue };
+            let mut plan = starter_update::plan(&self.project, &bundle, &history);
+            plan.retired.clear();
+            if plan.updated.is_empty() && plan.edited.is_empty() {
+                // (What the project has of it is as the library has it: only the note is old.)
+                for (kind, id) in library::all_assets(&bundle.db) {
+                    if let Some(o) = self.meta.assets.get_mut(&crate::meta::Meta::key(kind, &id)).and_then(|m| m.origin.as_mut()).filter(|o| o.pack == pack) {
+                        o.version = installed.manifest.version.clone();
+                        settled = true;
+                    }
+                }
+                continue;
+            }
+            out.push(ProjectUpdate { pack, title: installed.manifest.title.clone(), from, to: installed.manifest.version.clone(), plan });
+        }
+        if settled {
+            self.save_meta();
+        }
+        out
+    }
+
+    /// Takes the library's version of a pack's assets into the project: those the project
+    /// has as the pack shipped them, and of those changed in the project the ones in
+    /// `take_edited`; what they need and the project lacks comes along. One step of the
+    /// history. Pictures, sounds and models that are overwritten are kept under
+    /// `editor/backup/<time>/` first. Returns what was done.
+    pub fn update_project_from(&mut self, pack: &str, take_edited: &[AssetRef]) -> Result<String, String> {
+        let Some((installed, _, bundle, history)) = self.project_update_parts(pack)? else { return Err(format!("the project has nothing older of the pack \"{pack}\"")) };
+        let mut plan = starter_update::plan(&self.project, &bundle, &history);
+        plan.retired.clear();
+        // What will be overwritten is put aside (an undo brings the definitions back, not the files).
+        let root = self.project.root.clone();
+        let (y, mo, d, h, mi, sec) = starter_update::utc_now();
+        let aside = root.join("editor").join("backup").join(format!("{y:04}{mo:02}{d:02}-{h:02}{mi:02}{sec:02}"));
+        let mut kept_files = 0;
+        for a in plan.updated.iter().chain(take_edited.iter().filter(|a| plan.edited.contains(a))) {
+            for rel in starter_update::own_files(&bundle.db, a) {
+                let (have, new) = (std::fs::read(root.join(&rel)).ok(), bundle.files.get(&rel));
+                if let (Some(have), Some(new)) = (have, new) {
+                    if have != *new {
+                        let to = aside.join(&rel);
+                        std::fs::create_dir_all(to.parent().unwrap_or(&aside)).map_err(|e| e.to_string())?;
+                        std::fs::write(&to, have).map_err(|e| format!("keeping {rel}: {e}"))?;
+                        kept_files += 1;
+                    }
+                }
+            }
+        }
+        let report = starter_update::apply_in_place(&mut self.project, &bundle, &plan, &history, take_edited, &[]).map_err(|e| format!("{e:#}"))?;
+        self.project.db.reindex();
+        // Everything of the pack that was looked at is this version's now (what was kept, by choice).
+        for (kind, id) in library::all_assets(&bundle.db) {
+            let entry = self.meta.assets.entry(crate::meta::Meta::key(kind, &id)).or_default();
+            if entry.origin.as_ref().is_none_or(|o| o.pack == pack) {
+                entry.origin = Some(crate::meta::Origin { pack: pack.to_string(), version: installed.manifest.version.clone() });
+            }
+        }
+        let m = &installed.manifest;
+        self.meta.packs.insert(m.id.clone(), crate::meta::PackCredit { title: m.title.clone(), author: m.author.clone(), licence: m.licence.clone(), attribution: m.attribution.clone() });
+        self.save_meta();
+        self.defs_dirty = true;
+        self.begin(&format!("Update the project's assets of {} to {}", m.title, m.version));
+        self.after_scripts_merged();
+        self.reload_assets();
+        self.refresh_refs();
+        self.stale = true;
+        let said = format!("{} {}: {}{}", m.title, m.version, report.summary(), if kept_files > 0 { format!(". The {kept_files} file(s) that were overwritten are in {}", aside.display()) } else { String::new() });
+        self.set_status(said.clone());
+        Ok(said)
     }
 
     /// Takes a pack off the list of installed ones (what it brought stays in the library: a
@@ -623,6 +770,46 @@ mod tests {
         assert_eq!(lib.db.prop("chest").unwrap().name, "My chest");
         assert!(lib.db.prop("sign").is_some() && lib.db.prop("barrel").is_some(), "the sign came, the barrel stays until it is asked to go");
         assert!(dir.read_dir().unwrap().flatten().any(|e| e.file_name().to_string_lossy().starts_with("library.bak-")), "the library was copied first");
+        // A project that took the chest when the library had 1.0 is told that the library has
+        // 1.1 now; nothing in it is touched before it says so.
+        ws.lib.lib.as_mut().unwrap().db.props.iter_mut().find(|p| p.id == "chest").unwrap().name = "My chest".into();
+        let game = dir.join("other");
+        std::fs::create_dir_all(&game).unwrap();
+        crate::files::create_project(&game).unwrap();
+        let mut other = Workspace::new(game.clone(), crate::Gpu::No).unwrap();
+        other.history_frame(None);
+        // (As it was when the project took it: the library's chest of 1.0.)
+        {
+            let lib = ws.lib.lib.as_mut().unwrap();
+            lib.db.props.iter_mut().find(|p| p.id == "chest").unwrap().name = "Chest".into();
+            let mut record = read_record(&lib.root);
+            record[0].manifest.version = "1.0".into();
+            write_record(&lib.root, &record).unwrap();
+        }
+        other.lib.lib = ws.lib.lib.take();
+        other.library_to_project(&[prop("chest")]).unwrap();
+        other.history_frame(None);
+        assert!(other.project_updates().is_empty(), "the project has the library's version");
+        // The library goes on to 1.1 (the pack's chest): the project's chest is older, and untouched.
+        other.update_pack(&v2, &[prop("chest")], &[], "").unwrap();
+        let ups = other.project_updates();
+        assert_eq!(ups.len(), 1, "{ups:?}");
+        assert_eq!((ups[0].pack.as_str(), ups[0].from.as_slice(), ups[0].to.as_str(), ups[0].plan.updated.as_slice()), ("chests", &["1.0".to_string()][..], "1.1", &[prop("chest")][..]));
+        assert_eq!(other.project.db.prop("chest").unwrap().name, "Chest");
+        let said = other.update_project_from("chests", &[]).unwrap();
+        other.history_frame(None);
+        assert!(said.starts_with("Chests 1.1: ") && said.contains("1 replaced"), "{said}");
+        assert_eq!(other.project.db.prop("chest").unwrap().name, "Sea chest");
+        assert_eq!(other.meta.of(RefKind::Prop, "chest").and_then(|m| m.origin.as_ref()).map(|o| o.version.as_str()), Some("1.1"));
+        assert!(other.project_updates().is_empty() && other.timeline.done.last().is_some_and(|c| c.label.contains("Update the project's assets of Chests to 1.1")));
+        // It is a step: undone, the project has its chest of 1.0 again.
+        other.undo().unwrap();
+        other.history_frame(None);
+        assert_eq!(other.project.db.prop("chest").unwrap().name, "Chest");
+        ws.lib.lib = other.lib.lib.take();
+        // (Back to where the library was: its own chest, the pack at 1.1 with the creator's version kept.)
+        ws.lib.lib.as_mut().unwrap().db.props.iter_mut().find(|p| p.id == "chest").unwrap().name = "My chest".into();
+        ws.lib.lib.as_mut().unwrap().save_defs().unwrap();
         // The pack's version of the chest is taken after all, and the barrel deleted.
         let said = ws.update_pack(&v2, &[prop("chest")], &[prop("barrel")], "").unwrap();
         assert!(said.starts_with("Installed Chests 1.1 again"), "{said}");

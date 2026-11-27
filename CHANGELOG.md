@@ -130,6 +130,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   A newer version of an installed pack is applied asset by asset: what you didn't change is
   updated, what you changed stays unless you tick it, what the pack dropped stays unless you
   tick it; the library is copied first.
+  A project is told when the library has a newer version of a pack its assets came from, and
+  takes it as one undoable step. Several things chosen in a list, and plugins, are shared as
+  one pack.
   The starter library can be installed as a pack too (taken from the editor or downloaded),
   and is then listed and updated like the others.
   A project remembers which pack each asset came from; the Publishing page lists the packs in

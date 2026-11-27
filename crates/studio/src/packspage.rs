@@ -67,6 +67,42 @@ pub struct PacksPage {
     getting: Option<(String, Fetch<Vec<u8>>)>,
     /// What the last install, read or download said.
     pub said: Option<Result<String, String>>,
+    /// Packs' preview pictures as egui shows them: by pack id and version ("" = the pack looked at).
+    pictures: HashMap<String, Vec<egui::TextureHandle>>,
+    /// The project's assets that are older than the library's version of their pack (looked
+    /// for when the page is first shown and after something was installed).
+    pub project: Option<Vec<editor_core::packs::ProjectUpdate>>,
+    /// Of those changed in the project too: the ones the library's version is taken of.
+    pub project_take: Vec<AssetRef>,
+}
+
+/// PNGs as pictures egui can show (what can't be read is left out; none larger than 512 pixels a side).
+fn textures(ctx: &egui::Context, key: &str, pngs: impl Iterator<Item = Vec<u8>>) -> Vec<egui::TextureHandle> {
+    pngs.enumerate()
+        .filter_map(|(k, png)| {
+            let mut im = rustpg2d_engine::imageio::Rgba::decode(&png).ok()?;
+            let longest = im.w.max(im.h);
+            if longest > 512 {
+                im = im.resized(im.w * 512 / longest, im.h * 512 / longest);
+            }
+            let image = egui::ColorImage::from_rgba_unmultiplied([im.w as usize, im.h as usize], &im.px);
+            // (Pixel art stays crisp; a larger picture is shown smaller: smoothed.)
+            let options = if longest <= 96 { egui::TextureOptions::NEAREST } else { egui::TextureOptions::LINEAR };
+            Some(ctx.load_texture(format!("pack picture {key} {k}"), image, options))
+        })
+        .collect()
+}
+
+/// A pack's pictures in a row, each in a box of `side` points.
+fn picture_row(ui: &mut egui::Ui, pictures: &[egui::TextureHandle], side: f32, title: &str) {
+    for (k, t) in pictures.iter().enumerate() {
+        let (rect, resp) = ui.allocate_exact_size(egui::vec2(side, side), egui::Sense::hover());
+        resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Image, true, format!("Picture {} of {title}", k + 1)));
+        ui.painter().rect_filled(rect, 4.0, egui::Color32::from_rgb(38, 40, 46));
+        let size = t.size_vec2();
+        let scale = ((side - 6.0) / size.x).min((side - 6.0) / size.y);
+        ui.painter().image(t.id(), egui::Rect::from_center_size(rect.center(), size * scale), egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)), egui::Color32::WHITE);
+    }
 }
 
 fn size_text(bytes: u64) -> String {
@@ -104,6 +140,7 @@ impl PacksPage {
             Ok(preview) => {
                 let same = SameId::Keep;
                 (self.pending, self.said) = (Some(Pending { bytes, preview, source: source.to_string(), same, take: Vec::new(), delete: Vec::new() }), None);
+                self.pictures.remove("");
             }
             Err(e) => self.said = Some(Err(e)),
         }
@@ -125,6 +162,7 @@ impl PacksPage {
     /// Installs the pack that waits.
     pub fn install(&mut self, ws: &mut Workspace) {
         let Some(p) = self.pending.take() else { return };
+        self.project = None;
         // (An update goes asset by asset, with what was ticked; a copy beside is the old way.)
         self.said = Some(if p.preview.update.is_some() && p.same != SameId::Copy { ws.update_pack(&p.bytes, &p.take, &p.delete, &p.source) } else { ws.install_pack(&p.bytes, p.same, &p.source) });
     }
@@ -143,7 +181,8 @@ impl PacksPage {
     /// The script's words: `file PATH` (a pack file looked at), `same keep|replace|copy`,
     /// `take KIND ID` / `delete KIND ID` (an update: the pack's version of what was changed
     /// here; what the pack no longer has), `install`, `cancel`, `add ADDRESS` (a source),
-    /// `remove ADDRESS`.
+    /// `remove ADDRESS`, `project` (the project's assets older than the library's packs) /
+    /// `project PACK [kind:id…]` (takes the library's version, also of those named).
     pub fn word(&mut self, ws: &mut Workspace, args: &[String]) -> Result<(), String> {
         let arg = |i: usize| args.get(i).map(String::as_str).unwrap_or("");
         match arg(0) {
@@ -165,6 +204,23 @@ impl PacksPage {
                 list.push((kind, arg(2).to_string()));
             }
             "install" => self.install(ws),
+            "project" => {
+                // `project` lists what is older in the project; `project PACK [kind:id…]` updates it.
+                match arg(1) {
+                    "" => {
+                        let list = ws.project_updates();
+                        for u in &list {
+                            println!("[packs] {}", u.line());
+                        }
+                        self.project = Some(list);
+                    }
+                    pack => {
+                        let take: Vec<AssetRef> = args[2..].iter().filter_map(|w| w.split_once(':').and_then(|(k, id)| Some((rustpg2d_engine::refactor::RefKind::parse(k)?, id.to_string())))).collect();
+                        self.said = Some(ws.update_project_from(pack, &take));
+                        self.project = None;
+                    }
+                }
+            }
             "cancel" => self.pending = None,
             "add" => {
                 let address = arg(1).to_string();
@@ -205,6 +261,7 @@ impl PacksPage {
             None => {}
         }
         self.pending_ui(ui, ws);
+        self.project_ui(ui, ws);
         // A pack file from the disk.
         ui.horizontal(|ui| {
             ui.strong("Install a pack");
@@ -241,8 +298,14 @@ impl PacksPage {
         }
         let mut forget = None;
         for p in &installed {
+            let key = format!("{} {}", p.manifest.id, p.manifest.version);
+            if !self.pictures.contains_key(&key) {
+                let files = ws.pack_previews(&p.manifest.id);
+                self.pictures.insert(key.clone(), textures(ui.ctx(), &key, files.iter().filter_map(|f| std::fs::read(f).ok())));
+            }
             ui.group(|ui| {
                 ui.horizontal(|ui| {
+                    picture_row(ui, &self.pictures[&key], 44.0, &p.manifest.title);
                     ui.label(egui::RichText::new(&p.manifest.title).strong());
                     ui.weak(byline(&p.manifest));
                 });
@@ -264,16 +327,71 @@ impl PacksPage {
         self.sources_ui(ui, &installed);
     }
 
+    /// The project's assets that came from a pack as an older version than the library has now.
+    fn project_ui(&mut self, ui: &mut egui::Ui, ws: &mut Workspace) {
+        if !ws.project_open {
+            return;
+        }
+        let list = self.project.get_or_insert_with(|| ws.project_updates()).clone();
+        if list.is_empty() {
+            return;
+        }
+        let names = |v: &[AssetRef]| {
+            let shown: Vec<String> = v.iter().take(8).map(|(k, id)| format!("{} {id}", k.label().to_lowercase())).collect();
+            format!("{}{}", shown.join(", "), if v.len() > 8 { format!(" and {} more", v.len() - 8) } else { String::new() })
+        };
+        let mut update = None;
+        egui::Frame::group(ui.style()).show(ui, |ui| {
+            ui.label(egui::RichText::new("In this project").strong());
+            ui.weak("Assets the project took from a pack, of which the library has a newer version now.");
+            for u in &list {
+                ui.add_space(4.0);
+                ui.label(format!("{}: the project's came as version {}, the library has {}.", u.title, u.from.join(" and "), u.to));
+                if !u.plan.updated.is_empty() {
+                    ui.label(format!("    Updated ({}), which the project didn't change: {}", u.plan.updated.len(), names(&u.plan.updated)));
+                }
+                if !u.plan.edited.is_empty() {
+                    ui.colored_label(ui.visuals().warn_fg_color, format!("    Changed in the project and by the pack ({}): the project's stay unless you tick them.", u.plan.edited.len()));
+                    for a in &u.plan.edited {
+                        let mut on = self.project_take.contains(a);
+                        if ui.checkbox(&mut on, format!("Take the library's {} {}", a.0.label().to_lowercase(), a.1)).changed() {
+                            self.project_take.retain(|x| x != a);
+                            if on {
+                                self.project_take.push(a.clone());
+                            }
+                        }
+                    }
+                }
+                if !u.plan.added.is_empty() {
+                    ui.weak(format!("    They need {} the project doesn't have yet: {}", u.plan.added.len(), names(&u.plan.added)));
+                }
+                if ui.button(format!("Update the project's from {}", u.title)).on_hover_text("One step of the history. Pictures, sounds and models that are overwritten are kept in the project's editor/backup folder first.").clicked() {
+                    update = Some(u.pack.clone());
+                }
+            }
+        });
+        ui.add_space(6.0);
+        if let Some(pack) = update {
+            let take = std::mem::take(&mut self.project_take);
+            self.said = Some(ws.update_project_from(&pack, &take));
+            self.project = None;
+        }
+    }
+
     /// The pack that was looked at: what it is and what installing it does.
     fn pending_ui(&mut self, ui: &mut egui::Ui, ws: &mut Workspace) {
         let Some(p) = self.pending.as_mut() else { return };
         let (mut install, mut cancel) = (false, false);
         let m = &p.preview.manifest;
+        let pictures = self.pictures.entry(String::new()).or_insert_with(|| textures(ui.ctx(), "looked at", p.preview.pictures.iter().cloned())).clone();
         egui::Frame::group(ui.style()).stroke(egui::Stroke::new(1.0_f32, ui.visuals().selection.bg_fill)).show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.label(egui::RichText::new(&m.title).heading());
                 ui.weak(byline(m));
             });
+            if !pictures.is_empty() {
+                ui.horizontal(|ui| picture_row(ui, &pictures, 72.0, &m.title));
+            }
             let starter = m.id == rustpg2d_engine::packs::STARTER_ID;
             if m.legacy && !starter {
                 ui.weak("A file of R(ust)PG2D 0.35: it has no pack manifest of its own.");
@@ -487,7 +605,10 @@ pub struct ShareWindow {
     pub assets: Vec<AssetRef>,
     pub plugins: Vec<String>,
     pub out: String,
-    /// What the selection brings with what it needs (worked out when the window opens).
+    /// The project's plugins, to tick (id and name).
+    offered: Vec<(String, String)>,
+    /// What the selection brings with what it needs (worked out when the window opens, and
+    /// again when a plugin is ticked).
     holds: Result<Vec<String>, String>,
     pub error: Option<String>,
     /// The file that was written.
@@ -505,7 +626,8 @@ impl ShareWindow {
         let manifest = PackManifest { author: s.share_author, licence: if s.share_licence.is_empty() { "CC BY 4.0".into() } else { s.share_licence }, attribution: s.share_attribution, ..PackManifest::new(&title) };
         let out = if s.share_folder.is_empty() { rustpg2d_engine::paths::home().map(|h| h.join("rustpg2d").join("shared").display().to_string()).unwrap_or_default() } else { s.share_folder };
         let holds = ws.make_pack(&manifest, &assets, &[], Vec::new()).map(|p| rustpg2d_engine::packs::holds(&p));
-        ShareWindow { manifest, id_typed: false, assets, plugins: Vec::new(), out, holds, error: None, done: None }
+        let offered = rustpg2d_engine::plugins::installed(&ws.project.root).into_iter().map(|id| (rustpg2d_engine::plugins::read_def(&ws.project.root, &id).map(|d| d.name).ok().filter(|n| !n.is_empty()).unwrap_or_else(|| id.clone()), id)).map(|(name, id)| (id, name)).collect();
+        ShareWindow { manifest, id_typed: false, assets, plugins: Vec::new(), offered, out, holds, error: None, done: None }
     }
 
     /// Writes the pack. Remembers who shares and where.
@@ -537,6 +659,26 @@ impl ShareWindow {
                 Ok(h) => ui.weak(format!("With what they need, the pack holds {}.", h.join(", "))),
                 Err(e) => ui.colored_label(ui.visuals().error_fg_color, e.as_str()),
             };
+            // The project's plugins can go along.
+            if !self.offered.is_empty() {
+                let mut changed = false;
+                ui.horizontal_wrapped(|ui| {
+                    ui.label("Plugins too:");
+                    for (id, name) in &self.offered {
+                        let mut on = self.plugins.contains(id);
+                        if ui.checkbox(&mut on, name.as_str()).on_hover_text(format!("The plugin {id} with its scripts and settings: who installs the pack is told that it runs")).changed() {
+                            self.plugins.retain(|p| p != id);
+                            if on {
+                                self.plugins.push(id.clone());
+                            }
+                            changed = true;
+                        }
+                    }
+                });
+                if changed {
+                    self.holds = ws.make_pack(&self.manifest, &self.assets, &self.plugins, Vec::new()).map(|p| rustpg2d_engine::packs::holds(&p));
+                }
+            }
             ui.add_space(6.0);
             let m = &mut self.manifest;
             egui::Grid::new("share form").num_columns(2).spacing([10.0, 6.0]).show(ui, |ui| {

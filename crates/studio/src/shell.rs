@@ -2297,6 +2297,9 @@ impl Viewer<'_> {
                         self.ws.meta_edit(kind, id, |m| m.favorite = true);
                     }
                 }
+                if rustpg2d_engine::library::KINDS.contains(&kind) && ui.button("Share…").on_hover_text("Writes those chosen as one pack file, each with what it needs").clicked() {
+                    self.asks.push(Ask::Share(chosen.iter().map(|id| (kind, id.clone())).collect()));
+                }
                 if ui.button("Delete").on_hover_text("Each is refused while something still uses it").clicked() {
                     for id in &chosen {
                         self.asks.push(Ask::Run(format!("defs.delete {} {id}", kind.name())));

@@ -272,7 +272,9 @@ impl UpdateReport {
         if !self.scripts_kept.is_empty() {
             s += &format!(", kept your script functions {}", self.scripts_kept.join(", "));
         }
-        s += &format!(". Backup: {}", self.backup.display());
+        if !self.backup.as_os_str().is_empty() {
+            s += &format!(". Backup: {}", self.backup.display());
+        }
         s
     }
 }
@@ -349,8 +351,19 @@ fn subset(starter: &Bundle, wanted: &BTreeSet<AssetRef>) -> Bundle {
 /// assets, replaces the updated ones and those of `take_edited`, deletes `delete` (refusing
 /// those other assets still need), and saves the definitions.
 pub fn apply(lib: &mut Project, starter: &Bundle, plan: &StarterUpdate, history: &StarterHistory, take_edited: &[AssetRef], delete: &[AssetRef]) -> Result<UpdateReport> {
-    let mut report = UpdateReport { backup: backup_path(&lib.root), ..Default::default() };
-    copy_dir(&lib.root, &report.backup).context("backing up the library")?;
+    let backup = backup_path(&lib.root);
+    copy_dir(&lib.root, &backup).context("backing up the library")?;
+    let mut report = apply_in_place(lib, starter, plan, history, take_edited, delete)?;
+    lib.save_defs()?;
+    report.backup = backup;
+    Ok(report)
+}
+
+/// [`apply`] without the copy of the folder and without saving the definitions (the caller
+/// keeps what is overwritten some other way and saves when it does: [`UpdateReport::backup`]
+/// stays empty). Files are written right away.
+pub fn apply_in_place(lib: &mut Project, starter: &Bundle, plan: &StarterUpdate, history: &StarterHistory, take_edited: &[AssetRef], delete: &[AssetRef]) -> Result<UpdateReport> {
+    let mut report = UpdateReport::default();
     let take: BTreeSet<AssetRef> = take_edited.iter().filter(|a| plan.edited.contains(a)).cloned().collect();
     report.kept = plan.edited.iter().filter(|a| !take.contains(*a)).cloned().collect();
     let wanted: BTreeSet<AssetRef> = plan.added.iter().chain(&plan.updated).chain(&take).cloned().collect();
@@ -383,7 +396,6 @@ pub fn apply(lib: &mut Project, starter: &Bundle, plan: &StarterUpdate, history:
             }
         }
     }
-    lib.save_defs()?;
     Ok(report)
 }
 

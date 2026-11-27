@@ -26,6 +26,10 @@ enum Handle {
     Corner(bool, bool),
     Spot,
     Reach,
+    /// The middle of the light (where it sits on the ground).
+    LightAt,
+    /// The foot of the picture (where it stands, in the picture's own pixels).
+    Picture,
 }
 
 impl Handle {
@@ -37,6 +41,8 @@ impl Handle {
             Handle::Corner(false, false) => "The hitbox's south-west corner",
             Handle::Spot => "The spot it is used from",
             Handle::Reach => "How far the light reaches",
+            Handle::LightAt => "Where the light sits",
+            Handle::Picture => "Where the picture stands",
         }
     }
 }
@@ -102,7 +108,13 @@ impl PropStage {
     fn light_at(&self, ws: &Workspace, def: &PropDef) -> Vec2 {
         let ts = ws.ts();
         let lift = ws.assets.sprite_size(def.state_look(self.state).0, ts).y * 0.65;
-        feet(ts) - vec2(0.0, lift)
+        feet(ts) + Vec2::from(PropStage::light_of(def, self.state).map_or([0.0, -lift], |l| l.offset_or(lift)))
+    }
+
+    /// Whether the state shown is drawn as a picture (a 3D model, a building and a block
+    /// stand on the hitbox by themselves).
+    fn pictured(&self, def: &PropDef) -> bool {
+        def.model_at(self.state).is_empty() && def.building.is_none() && def.block == 0.0
     }
 
     /// The camera: the prop in the middle, as large as the picture allows (in the dark: far
@@ -134,22 +146,39 @@ impl PropStage {
             Handle::Corner(east, north) => Some(vec2(at.x + if east { w / 2.0 } else { -w / 2.0 }, at.y - if north { d } else { 0.0 })),
             Handle::Spot => def.use_spot.as_ref().map(|s| at + Vec2::from(s.offset)),
             Handle::Reach => PropStage::light_of(def, self.state).map(|l| self.light_at(ws, def) + vec2(l.radius * ws.ts(), 0.0)),
+            Handle::LightAt => PropStage::light_of(def, self.state).map(|_| self.light_at(ws, def)),
+            // (Not a point of the ground: see `handle_window`.)
+            Handle::Picture => Some(at),
         }
     }
 
-    fn handles(def: &PropDef, state: usize) -> Vec<Handle> {
+    /// Where a handle is in the window. The picture's foot is moved in the picture's own
+    /// pixels (right and down, as it is drawn standing), the others lie on the ground.
+    fn handle_window(&self, ws: &Workspace, def: &PropDef, h: Handle) -> Option<Pos2> {
+        let p = self.window_pos(self.handle_at(ws, def, h)?)?;
+        match h {
+            Handle::Picture => Some(p + egui::vec2(def.picture_offset[0], def.picture_offset[1]) * self.look?.zoom / self.ppp),
+            _ => Some(p),
+        }
+    }
+
+    fn handles(&self, def: &PropDef) -> Vec<Handle> {
         let mut v = vec![Handle::Corner(false, true), Handle::Corner(true, true), Handle::Corner(true, false), Handle::Corner(false, false)];
         if def.use_spot.is_some() {
             v.push(Handle::Spot);
         }
-        if PropStage::light_of(def, state).is_some() {
-            v.push(Handle::Reach);
+        if PropStage::light_of(def, self.state).is_some() {
+            v.extend([Handle::Reach, Handle::LightAt]);
+        }
+        if self.pictured(def) {
+            v.push(Handle::Picture);
         }
         v
     }
 
-    /// A handle dragged to the ground point `p`. `fine`: whole pixels instead of steps of four.
-    fn drag_to(&self, ws: &Workspace, def: &mut PropDef, h: Handle, p: Vec2, fine: bool) {
+    /// A handle dragged to the ground point `p` (the picture's foot: by `moved` pixels of the
+    /// picture from the prop's place). `fine`: whole pixels instead of steps of four.
+    fn drag_to(&self, ws: &Workspace, def: &mut PropDef, h: Handle, p: Vec2, moved: Vec2, fine: bool) {
         let ts = ws.ts();
         let at = feet(ts);
         let step = if fine { 1.0 } else { 4.0 };
@@ -174,6 +203,14 @@ impl PropStage {
                     l.radius = snapped(p.distance(from) / ts, if fine { 0.05 } else { 0.25 }).clamp(0.25, 30.0);
                 }
             }
+            Handle::LightAt => {
+                if let Some(l) = PropStage::light_mut(def, self.state) {
+                    let o = p - at;
+                    l.offset = Some([snapped(o.x, step), snapped(o.y, step)]);
+                }
+            }
+            // (A picture is moved by its own pixels: one at a time is the coarse step too.)
+            Handle::Picture => def.picture_offset = [snapped(moved.x, if fine { 0.5 } else { 1.0 }).clamp(-8.0 * ts, 8.0 * ts), snapped(moved.y, if fine { 0.5 } else { 1.0 }).clamp(-8.0 * ts, 8.0 * ts)],
         }
     }
 
@@ -193,30 +230,63 @@ impl PropStage {
         }
         if let Some(l) = PropStage::light_of(def, self.state) {
             out += &format!(" light={}", l.radius);
+            if let Some([x, y]) = l.offset {
+                out += &format!(" lightat={x},{y}");
+            }
         }
-        for h in PropStage::handles(def, self.state) {
+        if def.picture_offset != [0.0, 0.0] {
+            out += &format!(" picture={},{}", def.picture_offset[0], def.picture_offset[1]);
+        }
+        for h in self.handles(def) {
             let name = match h {
                 Handle::Corner(e, n) => format!("{}{}", if n { "n" } else { "s" }, if e { "e" } else { "w" }),
                 Handle::Spot => "spot".into(),
                 Handle::Reach => "reach".into(),
+                Handle::LightAt => "lightat".into(),
+                Handle::Picture => "picture".into(),
             };
-            if let Some(p) = self.handle_at(ws, def, h).and_then(|w| self.window_pos(w)) {
+            if let Some(p) = self.handle_window(ws, def, h) {
                 out += &format!(" {name}@{:.0},{:.0}", p.x, p.y);
             }
         }
         out
     }
 
-    /// The script's words: `state NAME`, `turn`, `dark on|off`.
-    pub fn word(&mut self, ws: &Workspace, id: &str, args: &[String]) {
+    /// The script's words: `state NAME`, `turn`, `dark on|off`, `usual light|picture` (the
+    /// light, the picture back where the engine puts it).
+    pub fn word(&mut self, ws: &mut Workspace, id: &str, args: &[String]) {
         let Some(def) = ws.project.db.prop(id) else { return };
         let arg = |k: usize| args.get(k).map(String::as_str).unwrap_or("");
         match arg(0) {
             "state" => self.state = def.state_index(arg(1)).unwrap_or(0),
             "turn" => self.facing = quarter(self.facing),
             "dark" => self.dark = arg(1) != "off",
+            "usual" => {
+                let mut def = def.clone();
+                match arg(1) {
+                    "light" => {
+                        if let Some(l) = PropStage::light_mut(&mut def, self.state) {
+                            l.offset = None;
+                        }
+                    }
+                    _ => def.picture_offset = [0.0, 0.0],
+                }
+                PropStage::put(ws, id, def);
+            }
             _ => {}
         }
+    }
+
+    /// The prop changed in the workshop: a step of the history.
+    fn put(ws: &mut Workspace, id: &str, def: PropDef) -> bool {
+        let Some(pos) = ws.project.db.props.iter().position(|p| p.id == id) else { return false };
+        if ws.project.db.props[pos] == def {
+            return false;
+        }
+        ws.begin(&format!("Change the prop {}", if def.name.is_empty() { id } else { &def.name }));
+        ws.project.db.props[pos] = def;
+        ws.stale = true;
+        true
     }
 
     /// The workshop. True when it changed the prop.
@@ -269,6 +339,23 @@ impl PropStage {
             (false, true) => "Drag the corners of the hitbox, and the point on the circle to how far the light reaches. (Shift: pixel by pixel.)",
             (true, true) => "Drag the corners of the hitbox, the ring to where someone using it is, and the point on the circle to how far the light reaches. (Shift: pixel by pixel.)",
         });
+        // What was moved from where the engine puts it goes back with a click. (The row is
+        // there before anything is moved: appearing during a drag, it would push the picture
+        // down under the pointer.)
+        let has_light = PropStage::light_of(&def, self.state).is_some();
+        let light_moved = PropStage::light_of(&def, self.state).is_some_and(|l| l.offset.is_some());
+        if has_light || self.pictured(&def) {
+            ui.horizontal(|ui| {
+                if self.pictured(&def) && ui.add_enabled(def.picture_offset != [0.0, 0.0], egui::Button::new("Picture back to its usual place").small()).on_hover_text(format!("It is moved {} pixels right and {} down from standing with the middle of its lower edge on the prop's place", def.picture_offset[0], def.picture_offset[1])).on_disabled_hover_text("Drag the cross at the picture's foot to move the picture on its hitbox").clicked() {
+                    def.picture_offset = [0.0, 0.0];
+                }
+                if has_light && ui.add_enabled(light_moved, egui::Button::new("Light back to its usual place").small()).on_hover_text("North of the prop by two thirds of its picture's height").on_disabled_hover_text("Drag the dot in the ring to where the light sits").clicked() {
+                    if let Some(l) = PropStage::light_mut(&mut def, self.state) {
+                        l.offset = None;
+                    }
+                }
+            });
+        }
         // The picture.
         let (rect, _) = ui.allocate_exact_size(egui::vec2(ui.available_width().min(900.0), 300.0), Sense::hover());
         let ppp = ui.ctx().pixels_per_point();
@@ -317,17 +404,32 @@ impl PropStage {
         // The handles.
         let fine = ui.input(|i| i.modifiers.shift);
         let mut dragging = false;
-        for h in PropStage::handles(&def, self.state) {
-            let Some(world) = self.handle_at(ws, &def, h) else { continue };
-            let c = on_window(world);
+        for h in self.handles(&def) {
+            let Some(c) = self.handle_window(ws, &def, h) else { continue };
             let r = ui.interact(egui::Rect::from_center_size(c, egui::vec2(14.0, 14.0)), egui::Id::unique(("prop workshop", id, h.label())), Sense::drag());
             r.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, h.label()));
             let color = match h {
                 Handle::Corner(..) => hitbox,
                 Handle::Spot => Color32::from_rgb(120, 190, 255),
-                Handle::Reach => Color32::from_rgb(255, 220, 150),
+                Handle::Reach | Handle::LightAt => Color32::from_rgb(255, 220, 150),
+                Handle::Picture => Color32::from_rgb(210, 160, 255),
             };
-            painter.rect_filled(egui::Rect::from_center_size(c, egui::vec2(8.0, 8.0)), 2.0, if r.hovered() || r.dragged() { Color32::WHITE } else { color });
+            let color = if r.hovered() || r.dragged() { Color32::WHITE } else { color };
+            match h {
+                // (A dot in a ring for the light's middle, a cross for the picture's foot: they
+                // may lie on a corner of the hitbox and must be told from it.)
+                Handle::LightAt => {
+                    painter.circle_filled(c, 3.0, color);
+                    painter.circle_stroke(c, 6.0, Stroke::new(1.5_f32, color));
+                }
+                Handle::Picture => {
+                    painter.line_segment([c - egui::vec2(6.0, 0.0), c + egui::vec2(6.0, 0.0)], Stroke::new(2.0_f32, color));
+                    painter.line_segment([c - egui::vec2(0.0, 6.0), c + egui::vec2(0.0, 6.0)], Stroke::new(2.0_f32, color));
+                }
+                _ => {
+                    painter.rect_filled(egui::Rect::from_center_size(c, egui::vec2(8.0, 8.0)), 2.0, color);
+                }
+            }
             if r.drag_started() {
                 self.drags += 1;
             }
@@ -335,7 +437,8 @@ impl PropStage {
                 dragging = true;
                 if let Some(p) = r.interact_pointer_pos() {
                     let s = (p - rect.min) * ppp;
-                    self.drag_to(ws, &mut def, h, look.to_world(vec2(s.x, s.y)), fine);
+                    let moved = (p - on_window(at)) * ppp / look.zoom;
+                    self.drag_to(ws, &mut def, h, look.to_world(vec2(s.x, s.y)), vec2(moved.x, moved.y), fine);
                 }
             }
             let r = r.on_hover_cursor(egui::CursorIcon::Grab);
@@ -343,6 +446,8 @@ impl PropStage {
                 Handle::Corner(..) => format!("{}: the hitbox is {} x {} pixels ({:.2} x {:.2} tiles)", h.label(), def.hitbox[0], def.hitbox[1], def.hitbox[0] / ts, def.hitbox[1] / ts),
                 Handle::Spot => h.label().to_string(),
                 Handle::Reach => format!("{}: {} tiles", h.label(), PropStage::light_of(&def, self.state).map_or(0.0, |l| l.radius)),
+                Handle::LightAt => format!("{}: drag it to where the lamp's flame, the fire or the window is, on the ground", h.label()),
+                Handle::Picture => format!("{}: drag the picture until it stands right on its hitbox ({} right, {} down)", h.label(), def.picture_offset[0], def.picture_offset[1]),
             });
         }
         painter.text(rect.left_bottom() + egui::vec2(8.0, -6.0), egui::Align2::LEFT_BOTTOM, format!("Hitbox {} x {} px", def.hitbox[0], def.hitbox[1]), egui::FontId::proportional(12.0), Color32::from_gray(170));
@@ -546,4 +651,51 @@ mod ui_tests {
         let dir = h.state().dir.clone();
         let _ = std::fs::remove_dir_all(dir);
     }
+    #[test]
+    fn a_lights_place_and_a_pictures_foot_are_dragged_and_put_back() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let dir = std::env::temp_dir().join(format!("rustpg2d-propshop-place-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        copy(&root.join("example_project"), &dir);
+        let mut ws = Workspace::new(dir.clone(), editor_core::Gpu::No).unwrap();
+        ws.history_frame(None);
+        let lamp = ws.project.db.prop("street_lamp").expect("the example has a street lamp").clone();
+        assert!(lamp.light.as_ref().is_some_and(|l| l.offset.is_none()) && lamp.picture_offset == [0.0, 0.0] && lamp.model.is_empty());
+        let mut h = Harness::builder().with_size(egui::vec2(1000.0, 600.0)).build_ui_state(
+            |ui, s: &mut State| {
+                let held = ui.ctx().data_mut(|d| d.remove_temp::<u64>(crate::shell::held_step_id()));
+                s.ws.history_frame(held.or(ui.ctx().memory(|m| m.focused()).map(|id| id.value())));
+                s.stage.show(ui, &mut s.ws, None, &mut s.thumbs, "street_lamp");
+            },
+            State { ws, stage: PropStage::default(), thumbs: Default::default(), dir },
+        );
+        h.run();
+        // The picture's foot dragged right and up by a stretch of the screen: the picture is
+        // moved by that many of its own pixels, whole ones, as one step.
+        let zoom = h.state().stage.look.unwrap().zoom;
+        drag(&mut h, "Where the picture stands", egui::vec2(10.0 * zoom, -6.0 * zoom));
+        let now = h.state().ws.project.db.prop("street_lamp").unwrap().picture_offset;
+        assert!((now[0] - 10.0).abs() <= 1.0 && (now[1] + 6.0).abs() <= 1.0 && now[0].fract() == 0.0, "{now:?}");
+        assert_eq!(h.state().ws.timeline.done.len(), 1);
+        // The light's middle dragged on the ground: it has a place of its own now, in steps of
+        // four pixels, and the point its reach is dragged by went with it.
+        let reach = h.state().stage.handle_window(&h.state().ws, h.state().ws.project.db.prop("street_lamp").unwrap(), Handle::Reach).unwrap();
+        drag(&mut h, "Where the light sits", egui::vec2(-40.0, -20.0));
+        let s = h.state();
+        let def = s.ws.project.db.prop("street_lamp").unwrap();
+        let at = def.light.as_ref().unwrap().offset.expect("the light has its own place");
+        assert!(at[0] % 4.0 == 0.0 && at[1] % 4.0 == 0.0, "{at:?}");
+        assert_ne!(s.stage.handle_window(&s.ws, def, Handle::Reach).unwrap(), reach);
+        assert_eq!(s.ws.timeline.done.len(), 2);
+        // Each goes back to where the engine puts it with a click.
+        h.get_by_label("Light back to its usual place").click();
+        h.run();
+        h.get_by_label("Picture back to its usual place").click();
+        h.run();
+        let def = h.state().ws.project.db.prop("street_lamp").unwrap();
+        assert_eq!(def, &lamp, "as it was");
+        let dir = h.state().dir.clone();
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
 }

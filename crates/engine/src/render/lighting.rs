@@ -68,6 +68,12 @@ impl Light {
     pub fn new(pos: Vec2, spec: &LightSpec) -> Self {
         Light { pos, spec: spec.clone(), seed: (pos.x * 0.37 + pos.y * 0.71).fract() * 100.0 }
     }
+
+    /// The light of something standing at `feet`: where its spec puts it, else `lift` pixels
+    /// to the north (the rule for that kind of thing).
+    pub fn of(feet: Vec2, lift: f32, spec: &LightSpec) -> Self {
+        Light::new(feet + Vec2::from(spec.offset_or(lift)), spec)
+    }
 }
 
 /// Draws darkness and lights; keeps its render target and textures between frames.
@@ -192,4 +198,19 @@ mod tests {
         assert_eq!(ambient(dark, 12.0).map(|c| (c.r, c.g, c.b)), Some((0.0, 0.0, 0.0)));
         assert!(ambient(MapLighting::default(), 0.0).is_none());
     }
+    #[test]
+    fn a_light_sits_where_its_spec_says_else_by_the_rule() {
+        let feet = vec2(100.0, 200.0);
+        // Without a place of its own: north of what carries it by the lift given.
+        let plain = LightSpec::torch(3.0);
+        assert_eq!(Light::of(feet, 40.0, &plain).pos, vec2(100.0, 160.0));
+        // With one: pixels east and south of it.
+        let moved = LightSpec { offset: Some([-12.0, 8.0]), ..plain.clone() };
+        assert_eq!(Light::of(feet, 40.0, &moved).pos, vec2(88.0, 208.0));
+        // The file format: nothing is written for a light without one, and files of before read.
+        assert!(!ron::to_string(&plain).unwrap().contains("offset"));
+        assert_eq!(ron::from_str::<LightSpec>("(radius: 3.0)").unwrap().offset, None);
+        assert_eq!(ron::from_str::<LightSpec>(&ron::to_string(&moved).unwrap()).unwrap(), moved);
+    }
+
 }

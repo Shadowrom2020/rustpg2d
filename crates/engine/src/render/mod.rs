@@ -291,6 +291,7 @@ impl Assets {
             return true;
         }
         let sp = p.picture_facing(state, facing, time);
+        let feet = Vec2::from(p.picture_feet(feet.into(), flip));
         if frame == 0 {
             self.draw_sprite_flipped(&sp, feet, tint, flip)
         } else {
@@ -335,7 +336,7 @@ impl Assets {
         // of its width, so the shadow starts there, under it (else it lies in front, the thing
         // seeming to float above it).
         let (w, h) = (size.x, size.y);
-        let feet = feet - vec2(0.0, (w * 0.25).min(h * 0.35));
+        let feet = Vec2::from(p.picture_feet(feet.into(), flip)) - vec2(0.0, (w * 0.25).min(h * 0.35));
         let top = feet + vec2(model::SHADOW_SHEAR.x * h, model::SHADOW_SHEAR.y * h);
         let c = Color::new(0.0, 0.0, 0.0, alpha * PICTURE_SHADOW);
         let v = |pos: Vec2, u: f32, vv: f32| Vertex::new(pos.x, pos.y, 0.0, u, vv, c);
@@ -376,6 +377,7 @@ impl Assets {
             return Rect::new(c.x - half, c.y - above, 2.0 * half, above + below);
         }
         let size = self.sprite_size(&p.picture_facing(state, facing, 0.0), ts);
+        let feet = Vec2::from(p.picture_feet(feet.into(), false));
         Rect::new(feet.x - size.x / 2.0, feet.y - size.y, size.x, size.y)
     }
 

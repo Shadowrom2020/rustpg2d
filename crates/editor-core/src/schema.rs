@@ -439,6 +439,8 @@ const LABELS: &[(&str, &str)] = &[
     ("PropDef.climb_dc", "Climbing difficulty (DC)"),
     ("PropDef.anim", "Animation"),
     ("PropDef.model", "3D model"),
+    ("PropDef.picture_offset", "Picture moved by"),
+    ("LightSpec.offset", "Its place (east, south)"),
     ("CharacterDef.max_hp", "Hit points (old)"),
     ("CharacterDef.stats", "Stat block"),
     ("CharacterDef.gear_locked", "Gear can't be changed"),
@@ -538,7 +540,7 @@ const SECTIONS: &[(&str, Sections)] = &[
         "PropDef",
         &[
             ("Basics", "id name sprite model anim"),
-            ("Shape", "hitbox solid low flat block counter turns shadow ~snap ~pieces"),
+            ("Shape", "hitbox solid low flat block counter turns shadow picture_offset ~snap ~pieces"),
             ("States and events", "default_state states triggers"),
             ("Behaviour", "container lock door light use_spot carry"),
             ("Terrain", "difficult obscures climb climb_dc"),

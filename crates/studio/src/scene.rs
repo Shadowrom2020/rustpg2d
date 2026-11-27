@@ -430,7 +430,7 @@ impl Scene<'_> {
             let Some(p) = map.decor_defs.get(d.def as usize).and_then(|id| db.prop(id)) else { continue };
             if let Some(l) = p.state_light(d.state_index()) {
                 let lift = self.assets.sprite_size(p.state_look(d.state_index()).0, ts).y * 0.65;
-                out.push(Light::new(vec2(d.x as f32, d.y as f32 - lift), l));
+                out.push(Light::of(vec2(d.x as f32, d.y as f32), lift, l));
             }
         }
         for e in map.entities.iter().filter(|e| e.active) {
@@ -445,7 +445,7 @@ impl Scene<'_> {
                 EntityKind::Item => (e.light.clone().or_else(|| db.item(&e.def).and_then(|d| d.light.clone())), ts * 0.35),
             };
             if let Some(l) = spec {
-                out.push(Light::new(vec2(e.x, e.y - lift), &l));
+                out.push(Light::of(vec2(e.x, e.y), lift, &l));
             }
         }
         out

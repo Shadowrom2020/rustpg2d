@@ -583,7 +583,7 @@ impl Shell {
     pub fn prop_word(&mut self, args: &[String]) -> String {
         let Some(Tab::Def(RefKind::Prop, id)) = self.dock.find_active_focused().map(|(_, t)| t.clone()) else { return String::new() };
         let stage = self.stages.entry(id.clone()).or_default();
-        stage.word(&self.ws, &id, args);
+        stage.word(&mut self.ws, &id, args);
         stage.status(&self.ws, &id)
     }
 

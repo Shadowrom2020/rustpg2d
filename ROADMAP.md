@@ -1650,6 +1650,9 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     copy of the first. *Turn* shows a prop that turns a quarter further, *In the dark* shows
     it at night, lit by its own light, from far enough away to see the whole reach. Drags
     go in steps of four pixels (a quarter of a tile for the light), Shift pixel by pixel.
+    The light's middle (a dot in a ring) is dragged to where it sits on the ground, and the
+    foot of a prop drawn as a picture (a cross) to where the picture stands on its hitbox,
+    a pixel of the picture at a time; *Light / Picture back to its usual place* undo that.
   - **The character workshop, the look** (`studio/src/charshop.rs` over
     `editor-core/src/looks.rs`; at the top of a character's tab): the figure large as the
     game draws it, with what it wears and holds, turning or seen from one side, walking,
@@ -1732,9 +1735,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     and drawn as a map is (its ground, what lies and stands on it), once and again when it
     changed, two a frame: its card in *Structures*, in the Place tool's palette and at the
     top of its tab. (Saving a selection of a map as a structure and placing one are part 6.)
-  Still open: the anchor of the picture and the light's place (the engine has neither as a
-  field: the picture stands on the hitbox's southern edge, the light sits at two thirds of
-  the picture's height), a figure sitting or lying at the use spot instead of the ring, a
+  Still open: a figure sitting or lying at the use spot instead of the ring, a
   building's ridge, overhang and openings dragged on the picture, how large a prop's model
   is shown as a handle; starting from measurements and Meshy, an item's model from a file, pictures
   other than PNG; of a model's workshop the joints of a fitted skeleton moved by hand, clips
@@ -1818,6 +1819,16 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   - **The library's own asset doesn't stay beside the new one**: only what was asked for
     is in the project afterwards (the new one and what it needs); one the project had
     already is left as it is, and the new one is a copy of the project's.
+  - **Two fields the engine gained for the workshop** (agreed 2026-11-27): `LightSpec.offset`
+    (where a light sits on the ground, pixels east and south of what carries it; not set =
+    the rule it had: north of a prop by two thirds of its picture's height) and
+    `PropDef.picture_offset` (pixels right and down that a prop's picture is moved from
+    standing with its lower edge's middle on the prop's place; its shadow and its clicked
+    area move with it). Both are optional, not written when unset, and files of before
+    load as they were. Neither turns with a prop turned a quarter, as its use spot doesn't.
+    In the isometric view the old rule puts a lamp's light beside the lamp (north on the
+    ground is up and to the right on the screen): with its own place the glow lies around
+    the lamp's head.
   - **A corner drags the width on both sides**: the hitbox stays centred on where the prop
     stands, as the engine has it; the southern corners change the width only.
 
@@ -1866,6 +1877,14 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     filled; undo, redo, *Save picture*: the file holds it). In the window: the apple of the
     example's item icons painted with the script's pointer (a stroke dragged, the ground
     filled), saved with everything, the file changed and the sheet's picture with it.
+  - The light's place and the picture's foot: engine tests (`a_light_sits_where_its_spec_
+    says_else_by_the_rule`, `defaults_match_the_file_format`: unset they are not written and
+    old files read), `a_lights_place_and_a_pictures_foot_are_dragged_and_put_back` (the
+    street lamp's picture moved by ten pixels of its own for a drag of ten at the zoom shown,
+    its light's middle dragged in steps of four with its reach point following, each a
+    step; both put back with their buttons: the lamp as it was). In the window: the lamp in
+    the dark with its light dragged from beside it onto its head, its picture dragged off
+    its hitbox and undone.
   - The model workshop: `modelcheck` tests (the hero lacks nothing; walking without a clip
     is said and guessed back from the clips' names; a clip picked by hand, an animation of
     its own added and removed; a creature without its rig template lacks all four animations

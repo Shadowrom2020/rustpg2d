@@ -287,7 +287,10 @@ Select nothing (Esc) and the inspector shows the map's settings.
 
 Light comes from props (per state, so a lamp can be lit or off; as decorations too), characters, items (a lantern in the hand, a torch on the ground), any placed entity, and
 the player's equipped light. Each light has a radius in tiles, a colour, a strength and optionally a
-flicker. **View › Lighting preview** (the bulb in the ribbon, with a time slider for outdoor maps)
+flicker. A light lies on the ground around a point: by default north of a prop by two thirds of its
+picture's height, a little north of a character's feet; *Its place (east, south)* (since 0.36) puts
+it elsewhere, in pixels from the place of what carries it (a lantern on a post's arm, the hearth
+at the back of a range). **View › Lighting preview** (the bulb in the ribbon, with a time slider for outdoor maps)
 shows darkness and lights in the editor.
 
 ![The lighting preview at 21:30](../images/editor-lighting.webp)

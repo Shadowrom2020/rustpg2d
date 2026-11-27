@@ -22,6 +22,12 @@ pub struct LightSpec {
     /// Flickers like a flame (torches, campfires).
     #[serde(default)]
     pub flicker: bool,
+    /// Where the light sits on the ground, from the place of what carries it: pixels to the
+    /// east and to the south (a lantern on a post's arm, a hearth at the back of a kitchen
+    /// range). Not set: where the engine puts it (a prop's light north of where it stands by
+    /// two thirds of its picture's height, a character's a little north of its feet).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub offset: Option<[f32; 2]>,
 }
 
 fn default_light_radius() -> f32 {
@@ -36,13 +42,18 @@ fn default_intensity() -> f32 {
 
 impl Default for LightSpec {
     fn default() -> Self {
-        LightSpec { radius: default_light_radius(), color: default_light_color(), intensity: default_intensity(), flicker: false }
+        LightSpec { radius: default_light_radius(), color: default_light_color(), intensity: default_intensity(), flicker: false, offset: None }
     }
 }
 
 impl LightSpec {
     pub fn new(radius: f32, color: [u8; 3], flicker: bool) -> Self {
-        LightSpec { radius, color, intensity: 1.0, flicker }
+        LightSpec { radius, color, intensity: 1.0, flicker, offset: None }
+    }
+    /// The offset from the place of what carries it: its own, else `lift` pixels to the north
+    /// (the engine's rule for that kind of thing).
+    pub fn offset_or(&self, lift: f32) -> [f32; 2] {
+        self.offset.unwrap_or([0.0, -lift])
     }
     /// A flickering warm torch light.
     pub fn torch(radius: f32) -> Self {
@@ -1590,6 +1601,13 @@ pub struct PropDef {
     /// off for glows and light-only props.
     #[serde(default = "yes", skip_serializing_if = "is_true")]
     pub shadow: bool,
+    /// Where its picture stands: pixels to the right and down from the prop's place (the
+    /// middle of its hitbox's front edge). 0, 0 puts the middle of the picture's lower edge
+    /// there; a picture whose foot is elsewhere (a leaning tree, room painted under a base,
+    /// a sign hanging beside its post) is moved until it stands right. Pictures only: a 3D
+    /// model stands on the middle of the hitbox.
+    #[serde(default, skip_serializing_if = "is_origin")]
+    pub picture_offset: [f32; 2],
     /// A counter (a market stall): using it talks to whoever keeps it (stands in, behind or in
     /// front of it), from its front; its own triggers run only when nobody does ("No one is
     /// here."). Props that do nothing themselves act like this anyway.
@@ -1819,6 +1837,7 @@ impl Default for PropDef {
             building: None,
             shadow: true,
             counter: false,
+            picture_offset: [0.0, 0.0],
         }
     }
 }
@@ -2023,6 +2042,13 @@ impl PropDef {
         }
     }
 
+    /// Where the picture stands for a prop at `feet` ([`PropDef::picture_offset`]; mirrored
+    /// with the picture when `flip`).
+    pub fn picture_feet(&self, feet: [f32; 2], flip: bool) -> [f32; 2] {
+        let [x, y] = self.picture_offset;
+        [feet[0] + if flip { -x } else { x }, feet[1] + y]
+    }
+
     pub fn state_look(&self, index: usize) -> (&SpriteRef, bool) {
         match index.checked_sub(1).and_then(|i| self.states.get(i)) {
             Some(s) => (&s.sprite, s.solid),
@@ -2221,6 +2247,10 @@ pub struct CharacterDef {
     /// The level it joins at (with a class; 0 = 1).
     #[serde(default, skip_serializing_if = "is_zero_u32")]
     pub level: u32,
+}
+
+fn is_origin(v: &[f32; 2]) -> bool {
+    *v == [0.0, 0.0]
 }
 
 fn is_zero_f32(v: &f32) -> bool {
@@ -3272,6 +3302,13 @@ mod tests {
         let p: PropDef = ron::from_str(r#"(id: "p", name: "P", sprite: (sheet: "s", frame: 2))"#).unwrap();
         assert_eq!(p, PropDef { id: "p".into(), name: "P".into(), sprite: SpriteRef::new("s", 2), ..Default::default() });
         assert!(!p.solid && p.hitbox == [24.0, 16.0] && p.default_state == "default");
+        // A picture stands on the prop's place unless it is moved (mirrored with the picture),
+        // and only a moved one is written.
+        assert_eq!(p.picture_feet([100.0, 50.0], true), [100.0, 50.0]);
+        assert!(!ron::to_string(&p).unwrap().contains("picture_offset"));
+        let moved = PropDef { picture_offset: [3.0, -2.0], ..p.clone() };
+        assert_eq!((moved.picture_feet([100.0, 50.0], false), moved.picture_feet([100.0, 50.0], true)), ([103.0, 48.0], [97.0, 48.0]));
+        assert_eq!(ron::from_str::<PropDef>(&ron::to_string(&moved).unwrap()).unwrap(), moved);
         let c: CharacterDef = ron::from_str(r#"(id: "c", name: "C")"#).unwrap();
         assert_eq!(c, CharacterDef { id: "c".into(), name: "C".into(), ..Default::default() });
         assert!(c.speed == 120.0 && c.behavior == Behavior::Static && c.hitbox == [24.0, 16.0]);

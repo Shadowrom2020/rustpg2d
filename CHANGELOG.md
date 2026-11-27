@@ -120,6 +120,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **Drop a file to make something of it** (part 8): a 3D model (`.glb`) or a picture (`.png`)
   dropped on the editor becomes a prop that shows it, a sound file a sound: *New…* opens with
   the file and a name from it, Enter makes it. *New…* also takes a file's place typed in.
+- **A light's place and a picture's foot** (part 8; two new optional fields of the engine): in
+  the prop workshop the light's middle is dragged to where it sits on the ground (a lamp's
+  glow around its head instead of beside it), and a prop's picture is dragged until it stands
+  right on its hitbox. Lights have *Its place (east, south)*, props *Picture moved by*; unset,
+  everything is drawn as before.
 - **The pixel editor** (part 8): *Paint* in a sprite sheet's tab paints the frame picked,
   pixel by pixel: pencil, eraser, fill, line, rectangle, colour picker, two colours on the two
   mouse buttons, the picture's own colours as swatches; a frame is copied, mirrored and moved;

@@ -1247,7 +1247,7 @@ impl Game {
             if let Some(p) = self.project.db.prop(&map.decor_defs[d.def as usize]) {
                 if let Some(l) = p.state_light(d.state_index()) {
                     let lift = self.assets.sprite_size(p.state_look(d.state_index()).0, ts).y * 0.65;
-                    tile_lights.push(render::lighting::Light::new(vec2(d.x as f32, d.y as f32 - lift), l));
+                    tile_lights.push(render::lighting::Light::of(vec2(d.x as f32, d.y as f32), lift, l));
                 }
             }
         }

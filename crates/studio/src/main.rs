@@ -19,6 +19,7 @@ mod buildtool;
 mod mapview;
 mod namespage;
 mod play;
+mod publish;
 mod scene;
 mod scriptedit;
 mod sheet;
@@ -84,6 +85,7 @@ impl Studio {
                         println!("[mapview] {map}");
                     }
                     println!("[names] {}", self.shell.names.status());
+                    println!("[publish] {}", self.shell.publish.status());
                     let script = self.shell.script_status();
                     if !script.is_empty() {
                         println!("[script] {script}");
@@ -92,6 +94,30 @@ impl Studio {
                     println!("[said] {}", self.shell.ws.status.0);
                     println!("[world] {} link={}", self.shell.world_status(), self.shell.link.as_ref().map_or("-".to_string(), |(m, z)| format!("{m}:{z}")));
                 }
+                // The Publishing page: `publish name|out VALUE`, `publish linux|windows|macos|web|zip|pack|appimage|flatpak on|off`,
+                // `publish check` prints the pre-flight, `publish go` exports.
+                "publish" => match arg(1) {
+                    "go" => {
+                        self.shell.save_scripts();
+                        self.shell.publish.export(&mut self.shell.ws);
+                        match &self.shell.publish.result {
+                            Some(Ok(m)) => m.lines().for_each(|l| println!("[publish] {l}")),
+                            Some(Err(e)) => println!("[publish] failed: {e}"),
+                            None => {}
+                        }
+                    }
+                    "check" => {
+                        let pre = self.shell.publish.preflight(&self.shell.ws).clone();
+                        pre.stops.iter().for_each(|s| println!("[publish] stop: {s}"));
+                        pre.notes.iter().for_each(|s| println!("[publish] note: {s}"));
+                        pre.writes.iter().for_each(|s| println!("[publish] writes: {s}"));
+                    }
+                    what => {
+                        if let Err(e) = self.shell.publish.set(&self.shell.ws, what, &cmd[2..].join(" ")) {
+                            println!("[script] {e}");
+                        }
+                    }
+                },
                 // The Flags and variables page: `names open KIND NAME` opens a name's row,
                 // `names rename KIND OLD NEW` renames it everywhere (KIND: flag, variable, text).
                 "names" => {

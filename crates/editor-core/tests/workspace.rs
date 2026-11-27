@@ -794,3 +794,46 @@ fn flags_and_variables_are_surveyed_and_renamed_everywhere() {
     assert_eq!(script(&dir), before);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn the_preflight_says_what_stands_in_the_way_of_an_export() {
+    use rustpg2d_editor_core::export::{game_binary, ExportOpts};
+    use rustpg2d_engine::release::Platform;
+    let dir = example_copy("export");
+    let mut ws = Workspace::new(dir.clone(), Gpu::No).unwrap();
+    ws.history_frame(None);
+    let out = dir.join("out");
+    let out_s = out.display().to_string();
+    let host = Platform::host();
+    let mut opts = ws.default_export_opts();
+    assert!(opts.zip && opts.pack && opts.platforms() == [host]);
+    assert!(opts.app_id.starts_with("org.rustpg2d."), "{}", opts.app_id);
+    assert!(ws.default_export_dir().ends_with("releases"));
+
+    // Nothing ticked, no name: said, and nothing would be written.
+    let none = ExportOpts { linux: false, windows: false, macos: false, ..opts.clone() };
+    let p = ws.export_preflight("", &out_s, &none);
+    assert!(p.stops.iter().any(|s| s.contains("needs a name")) && p.stops.iter().any(|s| s.contains("at least one platform")), "{:?}", p.stops);
+    assert!(p.writes.is_empty());
+    // The project wasn't checked yet: a note, not a stop.
+    assert!(p.notes.iter().any(|n| n.contains("wasn't checked yet")), "{:?}", p.notes);
+
+    // This computer's platform: where the game and its saves go; the runner is there or it is
+    // said how to get it (a test's own program has none beside it).
+    let p = ws.export_preflight("Emberbrook", &out_s, &opts);
+    assert_eq!(p.writes.len(), 1);
+    assert!(p.writes[0].contains("emberbrook") && p.writes[0].contains("saves go to"), "{:?}", p.writes);
+    match game_binary(host) {
+        Some(_) => assert!(p.stops.is_empty(), "{:?}", p.stops),
+        None => {
+            assert!(p.stops.iter().any(|s| s.contains("was not found next to the editor")), "{:?}", p.stops);
+            assert!(ws.export_game("Emberbrook", &out_s, &opts).unwrap_err().contains("was not found"));
+            assert!(!out.exists(), "nothing is written when the export can't be made");
+        }
+    }
+    // A Flatpak with a bad app id is stopped before anything is built.
+    opts.flatpak = true;
+    opts.app_id = "not an id".into();
+    assert!(ws.export_preflight("Emberbrook", &out_s, &opts).stops.iter().any(|s| s.starts_with("The Flatpak app id")));
+    let _ = std::fs::remove_dir_all(&dir);
+}

@@ -36,6 +36,8 @@ pub enum Tab {
     Script(String),
     /// Every flag and variable with where it is set and read.
     Names,
+    /// The game exported to play without the editor.
+    Publish,
 }
 
 impl Tab {
@@ -46,6 +48,7 @@ impl Tab {
             Tab::World => "World".into(),
             Tab::Script(file) => file.clone(),
             Tab::Names => "Flags and variables".into(),
+            Tab::Publish => "Publishing".into(),
             Tab::Play => "Play".into(),
             Tab::Problems => {
                 let (e, w) = ws.problems.counts();
@@ -74,6 +77,7 @@ impl Tab {
             Tab::World => "world".into(),
             Tab::Script(file) => format!("script:{file}"),
             Tab::Names => "names".into(),
+            Tab::Publish => "publish".into(),
             Tab::Play => "play".into(),
             Tab::Problems => "problems".into(),
             Tab::History => "history".into(),
@@ -272,6 +276,8 @@ pub struct Shell {
     pub scripts: std::collections::HashMap<String, crate::scriptedit::ScriptTab>,
     /// The Flags and variables page.
     pub names: crate::namespage::NamesPage,
+    /// The Publishing page.
+    pub publish: crate::publish::PublishPage,
     /// The event the next game in the Play tab raises once it runs (*Try it*).
     pub try_next: Option<(rustpg2d_engine::events::TriggerOn, rustpg2d_engine::runtime::EventOwner, String)>,
     /// Answers of commands, newest last (the script prints them too).
@@ -295,7 +301,7 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), try_next: None, log: Vec::new() }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), try_next: None, log: Vec::new() }
     }
 
     /// Shows `tab`: brings it to the front when it is open, else opens it beside the documents.
@@ -308,7 +314,7 @@ impl Shell {
             return;
         }
         // Next to another document when there is one, else in the first leaf.
-        let doc = self.dock.find_tab_from(|t| matches!(t, Tab::Overview | Tab::World | Tab::Settings(_) | Tab::Kind(_) | Tab::Def(..) | Tab::Map(_) | Tab::Script(_) | Tab::Names | Tab::Play));
+        let doc = self.dock.find_tab_from(|t| matches!(t, Tab::Overview | Tab::World | Tab::Settings(_) | Tab::Kind(_) | Tab::Def(..) | Tab::Map(_) | Tab::Script(_) | Tab::Names | Tab::Publish | Tab::Play));
         match doc {
             Some(path) => {
                 self.dock.set_focused_node_and_surface(path.node_path());
@@ -356,6 +362,7 @@ impl Shell {
             ("overview", None, _) => Tab::Overview,
             ("world", None, _) => Tab::World,
             ("names", None, _) => Tab::Names,
+            ("publish", None, _) => Tab::Publish,
             ("play", None, _) => Tab::Play,
             ("problems", None, _) => Tab::Problems,
             ("history", None, _) => Tab::History,
@@ -686,7 +693,7 @@ impl Shell {
 
         let mut asks = Vec::new();
         {
-            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, try_next: &mut self.try_next, rs, asks: &mut asks };
+            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, try_next: &mut self.try_next, rs, asks: &mut asks };
             DockArea::new(&mut self.dock).show_inside(ui, &mut viewer);
         }
         for ask in asks {
@@ -963,6 +970,7 @@ struct Viewer<'a> {
     clip: &'a mut Option<editor_core::mapedit::Clip>,
     scripts: &'a mut std::collections::HashMap<String, crate::scriptedit::ScriptTab>,
     names: &'a mut crate::namespage::NamesPage,
+    publish: &'a mut crate::publish::PublishPage,
     try_next: &'a mut Option<(rustpg2d_engine::events::TriggerOn, rustpg2d_engine::runtime::EventOwner, String)>,
     rs: Option<&'a eframe::egui_wgpu::RenderState>,
     asks: &'a mut Vec<Ask>,
@@ -1012,6 +1020,13 @@ impl egui_dock::TabViewer for Viewer<'_> {
             Tab::Def(k, id) => self.definition(ui, *k, id),
             Tab::Map(m) => self.map(ui, m),
             Tab::Script(f) => self.script(ui, f),
+            Tab::Publish => {
+                // (The game is exported from its files: what is in the script tabs is written first.)
+                if self.scripts.values().any(|t| t.dirty()) {
+                    ui.colored_label(ui.visuals().warn_fg_color, "Scripts have changes that aren't saved yet: Ctrl+S, or they aren't in the export.");
+                }
+                self.publish.show(ui, self.ws);
+            }
             Tab::Names => {
                 // (Scripts saved from their tabs change what the page shows.)
                 let saved = self.scripts.values().filter(|t| !t.dirty()).count().to_string();
@@ -1046,6 +1061,9 @@ impl Viewer<'_> {
                 if fits && ui.selectable_label(false, *page).on_hover_text(*about).clicked() {
                     self.asks.push(Ask::Open(Tab::Settings(page)));
                 }
+            }
+            if (f.is_empty() || "publishing export".contains(&f)) && ui.selectable_label(false, "Publishing").on_hover_text("The game exported to play without the editor: for Linux, Windows, macOS and the web").clicked() {
+                self.asks.push(Ask::Open(Tab::Publish));
             }
         });
         // While something is typed, what fits is shown open and the rest is out of the way.

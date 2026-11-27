@@ -52,7 +52,7 @@ being rewritten on a new foundation, in twelve parts. While it lasts:
   `mapbuild walls [WALL] | room [WALL|-] [FLOOR|-] [all] [roof] | house [LOOK|-] [STOREYS] | roof [LOOK|-] [gable|hip|shed|flat] [paint|fill] | doors door|window|gap [PROP] | make | clear`
   (the Build tool's choices; then `mapdrag` / `mapclick [right]` build: walls follow the pointer, so drag them along one axis),
   `mapselect NAME`, `mapact delete|duplicate|turn|interactive|scenery|copy|cut|paste|row|column|route|try K` (`try K`: event K of the selected thing played at once; prints `[try] …`) (`route`: the map's clicks add waypoints to the selected character's patrol), `mapshot X Y W H PATH [ZOOM]` (a picture of
-  tiles as agents get it; `status` adds a `[mapview]` line and `[said]`, the editor's last message), a script's tab `script:main.rhai` (`click` into the text, `type`, `press`; `status` adds `[script] file:saved|changed:problemsN:functionsN[:suggestions …]`), the Flags and variables page `names` (`names open flag|variable|text NAME`, `names rename KIND OLD NEW`; `status` adds `[names]`), the Play tab: `play
+  tiles as agents get it; `status` adds a `[mapview]` line and `[said]`, the editor's last message), a script's tab `script:main.rhai` (`click` into the text, `type`, `press`; `status` adds `[script] file:saved|changed:problemsN:functionsN[:suggestions …]`), the Flags and variables page `names` (`names open flag|variable|text NAME`, `names rename KIND OLD NEW`; `status` adds `[names]`), the Publishing page `publish` (`publish name|out VALUE`, `publish linux|windows|macos|web|zip|pack|appimage|flatpak on|off`, `publish check` = the pre-flight, `publish go` exports; test on a scratch `out`), the Play tab: `play
   title|start|here|again|window|MAP X Y [setup]`, `key NAME`, `pause` / `resume`, `playstep`,
   `playspeed N`, `playflag NAME on|off`, `playvar NAME VALUE`, `playstate on|off`, `playinspect
   on|off`, `playkeep [-]` (the running game's state as the test setup; `status` adds the game's
@@ -156,7 +156,7 @@ crates/editor-core/src/ the editor without its UI (0.36): workspace.rs (Workspac
                         status), doc.rs (MapDoc + undo), history.rs (definitions' undo: history_frame), meta.rs (the
                         creator's folders, tags, notes, favourites: editor/meta.ron, `Workspace::meta_edit`), schema.rs (the
                         field schema: shapes from the engine's types + labels, sections, id fields), rename.rs,
-                        refs.rs, search.rs, problems.rs, mapops.rs, mapedit.rs (what changes the open map, a step each), events.rs (triggers, conditions and actions in words; the actions' groups), scripts.rs (a script editor's logic: context, suggestions, typing, painting, issues), names.rs (flags, variables, text variables: where each is set and read, rename everywhere), build.rs (the Build tool: walls, rooms, houses, roofs, openings; sync_buildings),
+                        refs.rs, search.rs, problems.rs, mapops.rs, mapedit.rs (what changes the open map, a step each), events.rs (triggers, conditions and actions in words; the actions' groups), scripts.rs (a script editor's logic: context, suggestions, typing, painting, issues), names.rs (flags, variables, text variables: where each is set and read, rename everywhere), export.rs + package.rs (the game's export with its pre-flight; AppImage / Flatpak), build.rs (the Build tool: walls, rooms, houses, roofs, openings; sync_buildings),
                         testsetup.rs (what a test-play starts with: kept per project, written as a save),
                         world.rs (the maps and the ways between them: survey_world, link_transitions), models.rs, library.rs, starter.rs, art/ (Meshy
                         jobs), project_file.rs, files.rs (settings, recent), repo_mode.rs, mcp/ (the agent server:
@@ -164,7 +164,7 @@ crates/editor-core/src/ the editor without its UI (0.36): workspace.rs (Workspac
 crates/studio/src/      the new editor (0.36): main.rs (the eframe window; `--headless PROJECT --mcp PORT` = the agent
                         server without a window), shell.rs (dock, browser, palettes, tabs), form.rs (forms from the
                         field schema), thumbs.rs (pictures of assets from the engine's textures), gallery.rs (New…),
-                        sheet.rs (the event sheet: every list of triggers / conditions / actions in a form as When / If / Do rows), scriptedit.rs (a script's tab), namespage.rs (Flags and variables),
+                        sheet.rs (the event sheet: every list of triggers / conditions / actions in a form as When / If / Do rows), scriptedit.rs (a script's tab), namespage.rs (Flags and variables), publish.rs (Publishing),
                         mapview.rs (a map's tab: view, tools, Outliner, Inspector; buildtool.rs = the Build tool's panel) over scene.rs (a map drawn as the game does),
                         worldview.rs (every map and the ways between them),
                         play.rs (the game in a panel: its bar, the State panel); examples/mcp_smoke.rs

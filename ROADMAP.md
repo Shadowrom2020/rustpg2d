@@ -1031,11 +1031,21 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   - `Workspace::config_value` / `set_config_value` (refused with the reason when it isn't
     valid settings); a change is a step of the history (*Change the game's settings*). Script:
     `setting /POINTER VALUE`.
+  - **Publishing** (`studio/src/publish.rs` over `editor-core/src/export.rs` and
+    `package.rs`; the *Game* group's last entry, tab `publish`): the game's name, the folder
+    it goes into (`releases` beside the project), Linux / Windows / macOS / Web, a zip of
+    each, one `data.pack` or loose files, on Linux an AppImage and a Flatpak bundle (app id,
+    runtime), the icon. Under it the pre-flight: what stands in the way (a runner that is
+    missing or was built from another engine than the editor, a project without maps, a bad
+    app id) in red, what is worth knowing (the project not checked yet, a debug runner, a
+    glibc too new for older distributions) in yellow, and what will be written where with
+    the folder the saves go to. *Export* is there once nothing stands in the way.
   Still open: what a plain form doesn't give. The factions as a table of standings, the title
   screen's live preview, the translation table, the hooks with their script functions and the
-  plugins' parameters by their kinds, the game's icon, **Publishing** (the export as a page
-  with its check), the spawn point picked among the start map's, and *Find a setting* across
-  forms and pages.
+  plugins' parameters by their kinds, the game's icon picked from a picture (it is a path on
+  the Publishing page), the spawn point picked among the start map's, and *Find a setting*
+  across forms and pages. Of Publishing: a folder picker (the folder is typed), the export
+  on a thread with its progress (the window waits while the game is written).
 
   **Engine.** None: `ProjectConfig` keeps its shape; the pages group its fields.
 
@@ -1046,6 +1056,16 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     second workspace, one undo). In the window: the Rules and World pages looked at;
     `setting /day_minutes 30` and `/rules/show_checks false` are two history steps, in
     `project.ron` after saving, undone twice; `/nonsense` is refused.
+  - Publishing: `the_preflight_says_what_stands_in_the_way_of_an_export` (nothing ticked and
+    no name are stops and nothing would be written; this computer's platform with where the
+    game and its saves go; a missing runner said, and nothing written; a bad Flatpak app
+    id), the packaging glue's three tests, `publish::ui_tests` (the page filled in from the
+    project, a second platform ticked, the app id following the name, no name stopping it).
+    In the window: a release runner older than the editor refused with the reason (now a
+    stop of the pre-flight); with a current one the example exported for Linux as
+    *Emberbrook* (707 files, 99 MB: the program, `data.pack`, the licenses, a zip), and the
+    exported game started on the village. Not run here: Windows, macOS, web, AppImage and
+    Flatpak from the new page (the engine's and the packaging crate's code is 0.35's).
 
 - [~] Part 6: The map workspace — `feature/studio`
 
@@ -1473,8 +1493,9 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     typed, the third the first speaker's again, a question with two answers, *+ then…*
     making the branch behind it with a variable made up, a line written into the branch).
     In the window: a conversation of two lines, a question with two answers and what each
-    leads to, read as written. Not shown: such a conversation played in the game from the
-    editor (it is the actions 0.35 ran).
+    leads to, read as written; put on the square's signpost and tried from the map, it
+    plays in the game: the line, the question, and after the first answer "Take this
+    potion." with the speaker's portrait.
   - Flags and variables: `names::tests` (names in a script by what each call does with
     them; a flag renamed where it is a flag, a text of the same letters left alone);
     `flags_and_variables_are_surveyed_and_renamed_everywhere` (the example: 55 names

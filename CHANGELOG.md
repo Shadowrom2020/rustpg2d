@@ -95,6 +95,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   *Give 2 x Healing Potion*), opened in place to change it, dragged to another place, copied
   to another event, character or map from its menu. New actions come from a searched list in
   the manual's groups, new events from the events that owner can get.
+- **Publishing** (part 5): the *Game* group's *Publishing* page exports the game to play without
+  the editor, for Linux, Windows, macOS and the web, with a zip, an AppImage and a Flatpak on
+  request. Before it goes out the page says what stands in the way and what is worth knowing,
+  and where everything will be written.
 - **Try it** (part 7): an event of a placed character, prop, zone or map has a *Try it* button:
   the game starts beside the thing with the event raised, so you see at once what it does.
 - **Conversations** (part 7): in the event sheet a line of talk is written where it stands, who

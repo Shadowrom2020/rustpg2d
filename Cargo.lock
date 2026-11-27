@@ -3740,6 +3740,7 @@ dependencies = [
  "ron",
  "rustpg2d-engine",
  "rustpg2d-gfx",
+ "rustpg2d-packaging",
  "schemars",
  "serde",
  "serde_json",

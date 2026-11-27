@@ -8,6 +8,8 @@ description = "Everything the R(ust)PG2D editor knows and does, without a UI: th
 
 [dependencies]
 rustpg2d-engine = { workspace = true, features = ["schema"] }
+# AppImage and Flatpak bundles of an exported game (package.rs).
+rustpg2d-packaging.workspace = true
 gfx.workspace = true
 anyhow.workspace = true
 ron.workspace = true

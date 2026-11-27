@@ -734,3 +734,63 @@ fn a_maps_card_place_is_noted_with_the_creators_order() {
     assert!(Workspace::new(dir.clone(), Gpu::No).unwrap().meta.of(RefKind::Map, "village").is_none());
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn flags_and_variables_are_surveyed_and_renamed_everywhere() {
+    use rustpg2d_editor_core::names::{How, NameKind};
+    let dir = example_copy("names");
+    let mut ws = Workspace::new(dir.clone(), Gpu::No).unwrap();
+    ws.refresh_refs();
+    ws.history_frame(None);
+    let started = std::time::Instant::now();
+    let all = ws.survey_names();
+    println!("surveyed {} names in {:?}", all.len(), started.elapsed());
+    let get = |all: &[rustpg2d_editor_core::names::Named], kind: NameKind, name: &str| all.iter().find(|n| n.kind == kind && n.name == name).cloned();
+    // The example's shrine: its flag is set and read, in scripts and beyond them.
+    let shrine = get(&all, NameKind::Flag, "shrine_lit").expect("the example has the flag shrine_lit");
+    assert!(shrine.count(How::Set) > 0 && shrine.count(How::Read) > 0, "{shrine:?}");
+    assert!(shrine.warning().is_none());
+    assert!(shrine.uses.iter().any(|u| u.place.starts_with("main.rhai:")), "{:?}", shrine.uses);
+    let talks = get(&all, NameKind::Variable, "mira_talks").expect("the example has the variable mira_talks");
+    assert!(talks.count(How::Set) > 0 && talks.count(How::Read) > 0);
+    // Every flag the pickers offer is in the survey.
+    for f in &ws.refs.all_flags {
+        assert!(get(&all, NameKind::Flag, f).is_some(), "the flag {f} of the triggers isn't surveyed");
+    }
+    let script = |dir: &Path| std::fs::read_to_string(dir.join("scripts/main.rhai")).unwrap();
+    let before = script(&dir);
+    let uses = shrine.uses.len();
+
+    // Renamed: every place follows, the old name is nowhere, one step.
+    assert!(ws.rename_name(NameKind::Flag, "shrine_lit", "mira_talks_flag two").is_err());
+    assert!(ws.rename_name(NameKind::Flag, "no_such_flag", "x").is_err());
+    let other = all.iter().find(|n| n.kind == NameKind::Flag && n.name != "shrine_lit").unwrap().name.clone();
+    assert!(ws.rename_name(NameKind::Flag, "shrine_lit", &other).unwrap_err().contains("already"));
+    let msg = ws.rename_name(NameKind::Flag, "shrine_lit", "shrine_awake").unwrap();
+    ws.history_frame(None);
+    assert!(msg.contains(&format!("in {uses} places")), "{msg} (surveyed {uses})");
+    assert_eq!(ws.timeline.done.last().unwrap().label, "Rename the flag shrine_lit");
+    let now = ws.survey_names();
+    assert!(get(&now, NameKind::Flag, "shrine_lit").is_none());
+    assert_eq!(get(&now, NameKind::Flag, "shrine_awake").unwrap().uses.len(), uses);
+    // (The event of the same name the script raises is no flag: it keeps its name.)
+    assert!(script(&dir).contains("set_flag(\"shrine_awake\", true)") && !script(&dir).contains("flag(\"shrine_lit\")") && script(&dir).contains("emit(\"shrine_lit\")"));
+    // A fresh look at the project from its files agrees (the rename was written).
+    let again = Workspace::new(dir.clone(), Gpu::No).unwrap();
+    assert_eq!(get(&again.survey_names(), NameKind::Flag, "shrine_awake").unwrap().uses.len(), uses);
+
+    // A note about it, kept with the project, follows a rename.
+    assert!(ws.set_name_note(NameKind::Flag, "shrine_awake", "Set when the shrine is touched at night."));
+    ws.history_frame(None);
+    ws.rename_name(NameKind::Flag, "shrine_awake", "shrine_woken").unwrap();
+    ws.history_frame(None);
+    assert_eq!(ws.name_note(NameKind::Flag, "shrine_woken"), "Set when the shrine is touched at night.");
+
+    // Undone: the old name everywhere again, the script as it was.
+    while ws.undo().is_some() {}
+    let back = ws.survey_names();
+    assert_eq!(get(&back, NameKind::Flag, "shrine_lit").unwrap().uses.len(), uses);
+    assert!(get(&back, NameKind::Flag, "shrine_woken").is_none());
+    assert_eq!(script(&dir), before);
+    let _ = std::fs::remove_dir_all(&dir);
+}

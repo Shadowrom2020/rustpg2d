@@ -128,6 +128,10 @@ impl Meta {
 impl Workspace {
     fn meta_exists(&self, key: &str) -> bool {
         let Some((kind, id)) = key.split_once(':') else { return false };
+        // (A note on a flag or a variable: kept while the creator keeps it.)
+        if crate::names::NameKind::ALL.iter().any(|k| k.key() == kind) {
+            return true;
+        }
         match RefKind::parse(kind) {
             Some(RefKind::Map) => self.maps.iter().any(|m| m == id),
             Some(k) => self.project.db.has(k, id),

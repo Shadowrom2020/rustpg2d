@@ -158,6 +158,9 @@ pub enum Extra {
     /// A prop state renamed, placed props on the maps following: the definitions are restored
     /// and the maps renamed back.
     StateRename { prop: String, old: String, new: String },
+    /// A flag, a variable or a text variable renamed everywhere (`names.rs`): undone by
+    /// renaming back.
+    Name { kind: crate::names::NameKind, old: String, new: String },
     /// Tags, folders, notes or favourites changed (`meta.rs`): what was noted on the step's
     /// other side (definitions that changed with it, a copy's, are restored too).
     Meta(Box<crate::meta::Meta>),
@@ -254,7 +257,7 @@ impl DbHistory {
                 step.part.absorb(before, db, config);
             }
         } else {
-            let part = if matches!(extra, Some(Extra::Rename { .. })) { Part::default() } else { Part::diff(before, db, config) };
+            let part = if matches!(extra, Some(Extra::Rename { .. } | Extra::Name { .. })) { Part::default() } else { Part::diff(before, db, config) };
             self.undo.push(Step { part, extra });
             if self.undo.len() > MAX_STEPS {
                 self.undo.remove(0);
@@ -349,6 +352,13 @@ impl Workspace {
                     self.set_status(format!("Couldn't rename back: {e}"));
                 }
                 format!("the rename '{old}' to '{new}'")
+            }
+            Some(Extra::Name { kind, old, new }) => {
+                let (from, to) = if undo { (new, old) } else { (old, new) };
+                if let Err(e) = self.rename_name_everywhere(*kind, from, to) {
+                    self.set_status(format!("Couldn't rename back: {e}"));
+                }
+                format!("the rename of the {} '{old}' to '{new}'", kind.label())
             }
             Some(Extra::StateRename { prop, old, new }) => {
                 self.restore_defs(&mut step.part);

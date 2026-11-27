@@ -1384,9 +1384,17 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     playing); a problem of the project check that is in a script opens its tab at the
     place; a file changed outside (a rename, an agent, another program) is taken, or asked
     about when the tab has changes of its own.
+  - **Flags and variables** (`studio/src/namespage.rs` over `editor-core/src/names.rs`;
+    *Story › Flags and variables*, tab `names`): every flag, variable and text variable with
+    how often it is set and read; one that is only ever set or only ever read is marked
+    (mostly a name typed two ways); a note for each, kept in `editor/meta.ron`. The one
+    opened lists every place it stands (a definition, a placed thing, a zone, a map's own
+    events, a script's line), each a link there, and *Rename everywhere* follows it through
+    definitions, maps and scripts as one step, undone by renaming back.
   Still open: rows dragged from one list into another and several rows selected at once
-  (copy and paste does it one by one); *Try it*; the conversation view; the flags and
-  variables page; of scripts: a function run in the Play tab, *Find in scripts*; the
+  (copy and paste does it one by one); *Try it*; the conversation view; of flags and
+  variables: `{name}` placeholders in texts aren't counted as reading one; of scripts: a
+  function run in the Play tab, *Find in scripts*; the
   documents (Events graph, visual scripts, cut-scene timeline, animation editor, quest
   designer).
 
@@ -1398,6 +1406,15 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     cut-scene* are not in them (old data keeps them and shows them).
   - **The sheet's clipboard is the editor's own**, kept while it runs; it holds one row of
     each kind (an event, a condition, an action).
+  - **A field is a flag or a variable because the field schema says so** (`schema::NAMES`,
+    the table the forms' suggestions use), in scripts because the script API's argument
+    kinds say so: the page, the survey and the rename are one walk over the values as the
+    files hold them, so a new action that names a flag is found once that table knows it.
+    An action sets, a condition reads.
+  - **Renaming onto a name that exists is refused**: the two would become one, and renaming
+    back could not part them again.
+  - **A rename is written at once** (definitions, map files, scripts with a `.bak` of each
+    changed file), as the rename of an id is.
   - **A script's text has its own undo** (the text field's, Ctrl+Z while writing): it is not
     a step of the project's history, as in 0.35. The tab keeps what was typed until it is
     saved or the editor closes.
@@ -1422,6 +1439,15 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     the window: the campfire's four events read as sentences, one opened with its *If* and
     three *Do* rows, an action opened in place, the palette searched for "stat"; the guard's
     events in the Inspector and the list of events to add.
+  - Flags and variables: `names::tests` (names in a script by what each call does with
+    them; a flag renamed where it is a flag, a text of the same letters left alone);
+    `flags_and_variables_are_surveyed_and_renamed_everywhere` (the example: 55 names
+    surveyed in 0.09 s, every flag the pickers offer among them; `shrine_lit` renamed in
+    its 9 places, the event of the same name a script raises kept, a fresh look at the
+    files agreeing; a note following a second rename; all undone, the script as it was);
+    `namespage::ui_tests` (searched, opened, a place followed to the house's chest, a note
+    typed, renamed from its row). In the window: the page with 24 flags, 27 variables, 4
+    text variables, 13 marked; a rename and its undo by the script's words.
   - Scripts: `scripts::tests` (the 0.35 editor's tests of the cursor's context and of the
     suggestions, how a script is painted, brackets closed and lines indented, a suggestion
     taken); `scriptedit::ui_tests` (a script's functions as its outline, an item that isn't

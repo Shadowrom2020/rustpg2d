@@ -17,6 +17,7 @@ mod form;
 mod gallery;
 mod buildtool;
 mod mapview;
+mod namespage;
 mod play;
 mod scene;
 mod scriptedit;
@@ -82,6 +83,7 @@ impl Studio {
                     if !map.is_empty() {
                         println!("[mapview] {map}");
                     }
+                    println!("[names] {}", self.shell.names.status());
                     let script = self.shell.script_status();
                     if !script.is_empty() {
                         println!("[script] {script}");
@@ -89,6 +91,18 @@ impl Studio {
                     // (What the editor last told the person.)
                     println!("[said] {}", self.shell.ws.status.0);
                     println!("[world] {} link={}", self.shell.world_status(), self.shell.link.as_ref().map_or("-".to_string(), |(m, z)| format!("{m}:{z}")));
+                }
+                // The Flags and variables page: `names open KIND NAME` opens a name's row,
+                // `names rename KIND OLD NEW` renames it everywhere (KIND: flag, variable, text).
+                "names" => {
+                    let Some(kind) = editor_core::names::NameKind::parse(arg(2)) else {
+                        println!("[script] names open|rename flag|variable|text NAME [NEW]");
+                        continue;
+                    };
+                    match arg(1) {
+                        "rename" => println!("[names] {}", self.shell.ws.rename_name(kind, arg(3), arg(4)).unwrap_or_else(|e| format!("not renamed: {e}"))),
+                        _ => self.shell.names.pick(&self.shell.ws, kind, arg(3)),
+                    }
                 }
                 // A picture of tiles of the map being worked on, as agents get it:
                 // `mapshot X Y W H PATH [ZOOM]`.

@@ -94,6 +94,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   *Give 2 x Healing Potion*), opened in place to change it, dragged to another place, copied
   to another event, character or map from its menu. New actions come from a searched list in
   the manual's groups, new events from the events that owner can get.
+- **Flags and variables** (part 7): *Story › Flags and variables* lists every flag, variable and
+  text variable of the game with how often it is set and read, marks the ones that are only
+  ever set or only ever read, keeps a note for each, shows every place one stands (a click goes
+  there) and renames it everywhere: definitions, maps and scripts, as one step.
 - **Scripts in tabs** (part 7): *Story › Scripts* in the Project browser opens a script file with
   its colours, line numbers and its functions as an outline. While you type it suggests script
   functions with what they do, your own functions, and inside a text the ids it can name (items

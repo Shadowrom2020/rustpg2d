@@ -34,6 +34,8 @@ pub enum Tab {
     World,
     /// A script file of the project, by its name (`main.rhai`).
     Script(String),
+    /// Every flag and variable with where it is set and read.
+    Names,
 }
 
 impl Tab {
@@ -43,6 +45,7 @@ impl Tab {
             Tab::Overview => "Overview".into(),
             Tab::World => "World".into(),
             Tab::Script(file) => file.clone(),
+            Tab::Names => "Flags and variables".into(),
             Tab::Play => "Play".into(),
             Tab::Problems => {
                 let (e, w) = ws.problems.counts();
@@ -70,6 +73,7 @@ impl Tab {
             Tab::Overview => "overview".into(),
             Tab::World => "world".into(),
             Tab::Script(file) => format!("script:{file}"),
+            Tab::Names => "names".into(),
             Tab::Play => "play".into(),
             Tab::Problems => "problems".into(),
             Tab::History => "history".into(),
@@ -264,6 +268,8 @@ pub struct Shell {
     pub clip: Option<editor_core::mapedit::Clip>,
     /// The scripts open in tabs, by file name.
     pub scripts: std::collections::HashMap<String, crate::scriptedit::ScriptTab>,
+    /// The Flags and variables page.
+    pub names: crate::namespage::NamesPage,
     /// Answers of commands, newest last (the script prints them too).
     pub log: Vec<String>,
 }
@@ -285,7 +291,7 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), log: Vec::new() }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), log: Vec::new() }
     }
 
     /// Shows `tab`: brings it to the front when it is open, else opens it beside the documents.
@@ -298,7 +304,7 @@ impl Shell {
             return;
         }
         // Next to another document when there is one, else in the first leaf.
-        let doc = self.dock.find_tab_from(|t| matches!(t, Tab::Overview | Tab::World | Tab::Settings(_) | Tab::Kind(_) | Tab::Def(..) | Tab::Map(_) | Tab::Script(_) | Tab::Play));
+        let doc = self.dock.find_tab_from(|t| matches!(t, Tab::Overview | Tab::World | Tab::Settings(_) | Tab::Kind(_) | Tab::Def(..) | Tab::Map(_) | Tab::Script(_) | Tab::Names | Tab::Play));
         match doc {
             Some(path) => {
                 self.dock.set_focused_node_and_surface(path.node_path());
@@ -345,6 +351,7 @@ impl Shell {
             ("project", None, _) => Tab::Browser,
             ("overview", None, _) => Tab::Overview,
             ("world", None, _) => Tab::World,
+            ("names", None, _) => Tab::Names,
             ("play", None, _) => Tab::Play,
             ("problems", None, _) => Tab::Problems,
             ("history", None, _) => Tab::History,
@@ -661,7 +668,7 @@ impl Shell {
 
         let mut asks = Vec::new();
         {
-            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, rs, asks: &mut asks };
+            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, rs, asks: &mut asks };
             DockArea::new(&mut self.dock).show_inside(ui, &mut viewer);
         }
         for ask in asks {
@@ -932,6 +939,7 @@ struct Viewer<'a> {
     link: &'a mut Option<(String, String)>,
     clip: &'a mut Option<editor_core::mapedit::Clip>,
     scripts: &'a mut std::collections::HashMap<String, crate::scriptedit::ScriptTab>,
+    names: &'a mut crate::namespage::NamesPage,
     rs: Option<&'a eframe::egui_wgpu::RenderState>,
     asks: &'a mut Vec<Ask>,
 }
@@ -980,6 +988,13 @@ impl egui_dock::TabViewer for Viewer<'_> {
             Tab::Def(k, id) => self.definition(ui, *k, id),
             Tab::Map(m) => self.map(ui, m),
             Tab::Script(f) => self.script(ui, f),
+            Tab::Names => {
+                // (Scripts saved from their tabs change what the page shows.)
+                let saved = self.scripts.values().filter(|t| !t.dirty()).count().to_string();
+                if let Some(target) = self.names.show(ui, self.ws, &saved) {
+                    self.go(&target);
+                }
+            }
         }
     }
 }
@@ -1057,6 +1072,9 @@ impl Viewer<'_> {
                     self.asks.push(Ask::Open(Tab::World));
                 }
                 if *group == "Story" {
+                    if !filtering && ui.selectable_label(false, "Flags and variables").on_hover_text("What the game remembers: where each is set and read, a note, rename").clicked() {
+                        self.asks.push(Ask::Open(Tab::Names));
+                    }
                     self.browser_scripts(ui, &f);
                 }
                 for (kind, rows) in &found {
@@ -1278,24 +1296,19 @@ impl Viewer<'_> {
             ui.label(if self.ws.problems.status() == "-" { "Not checked yet".to_string() } else { format!("{e} error(s), {w} warning(s)") });
         });
         ui.separator();
+        let mut go = None;
         for p in &self.ws.problems.list {
             ui.horizontal_wrapped(|ui| {
                 let color = if p.severity == editor_core::problems::Severity::Error { egui::Color32::from_rgb(235, 110, 100) } else { egui::Color32::from_rgb(230, 190, 90) };
                 ui.colored_label(color, p.severity.name());
                 if ui.link(&p.place).on_hover_text("Go there").clicked() {
-                    match &p.target {
-                        Target::Def(k, id) => self.asks.push(Ask::Open(Tab::Def(*k, id.clone()))),
-                        Target::Map(m) | Target::MapTriggers(m) | Target::Entity(m, _) | Target::Zone(m, _) => self.asks.push(Ask::Open(Tab::Map(m.clone()))),
-                        Target::Script(path, at) => {
-                            let file = path.file_name().unwrap_or_default().to_string_lossy().to_string();
-                            self.scripts.entry(file.clone()).or_insert_with(|| crate::scriptedit::ScriptTab::open(path.clone())).reveal(*at);
-                            self.asks.push(Ask::Open(Tab::Script(file)));
-                        }
-                        _ => self.asks.push(Ask::Open(Tab::Overview)),
-                    }
+                    go = Some(p.target.clone());
                 }
                 ui.label(&p.text);
             });
+        }
+        if let Some(target) = go {
+            self.go(&target);
         }
     }
 
@@ -1891,6 +1904,28 @@ impl Viewer<'_> {
             d.insert_temp(sort_id, sort);
         });
         open
+    }
+
+    /// Opens the place a problem, a use or a search hit is at.
+    fn go(&mut self, target: &Target) {
+        match target {
+            Target::Def(k, id) => self.asks.push(Ask::Open(Tab::Def(*k, id.clone()))),
+            Target::Map(m) | Target::MapTriggers(m) => self.asks.push(Ask::Open(Tab::Map(m.clone()))),
+            Target::Entity(m, uid) => {
+                self.maps.entry(m.clone()).or_default().select(editor_core::workspace::Selection::Entity(*uid));
+                self.asks.push(Ask::Open(Tab::Map(m.clone())));
+            }
+            Target::Zone(m, uid) => {
+                self.maps.entry(m.clone()).or_default().select(editor_core::workspace::Selection::Zone(*uid));
+                self.asks.push(Ask::Open(Tab::Map(m.clone())));
+            }
+            Target::Script(path, at) => {
+                let file = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+                self.scripts.entry(file.clone()).or_insert_with(|| crate::scriptedit::ScriptTab::open(path.clone())).reveal(*at);
+                self.asks.push(Ask::Open(Tab::Script(file)));
+            }
+            Target::Project => self.asks.push(Ask::Open(Tab::Overview)),
+        }
     }
 
     /// A script's tab.

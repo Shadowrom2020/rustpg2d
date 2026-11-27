@@ -22,6 +22,10 @@ pub struct Pending {
     /// The index it came from ("" = a file).
     pub source: String,
     pub same: SameId,
+    /// An update: what the creator changed and takes the pack's version of all the same, and
+    /// what the pack no longer has and is deleted.
+    pub take: Vec<AssetRef>,
+    pub delete: Vec<AssetRef>,
 }
 
 /// Something fetched beside the editor (a source's index, a pack's file).
@@ -98,9 +102,8 @@ impl PacksPage {
     pub fn look(&mut self, ws: &mut Workspace, bytes: Vec<u8>, source: &str) {
         match ws.pack_preview(&bytes) {
             Ok(preview) => {
-                // (An update replaces what the pack brought before; a first install leaves the library's own alone.)
-                let same = if preview.installed.is_some() { SameId::Replace } else { SameId::Keep };
-                (self.pending, self.said) = (Some(Pending { bytes, preview, source: source.to_string(), same }), None);
+                let same = SameId::Keep;
+                (self.pending, self.said) = (Some(Pending { bytes, preview, source: source.to_string(), same, take: Vec::new(), delete: Vec::new() }), None);
             }
             Err(e) => self.said = Some(Err(e)),
         }
@@ -122,7 +125,8 @@ impl PacksPage {
     /// Installs the pack that waits.
     pub fn install(&mut self, ws: &mut Workspace) {
         let Some(p) = self.pending.take() else { return };
-        self.said = Some(ws.install_pack(&p.bytes, p.same, &p.source));
+        // (An update goes asset by asset, with what was ticked; a copy beside is the old way.)
+        self.said = Some(if p.preview.update.is_some() && p.same != SameId::Copy { ws.update_pack(&p.bytes, &p.take, &p.delete, &p.source) } else { ws.install_pack(&p.bytes, p.same, &p.source) });
     }
 
     /// The script's line: `installed=N sources=N pending=TITLE VERSION new/same/differing|- said=…`.
@@ -137,7 +141,9 @@ impl PacksPage {
     }
 
     /// The script's words: `file PATH` (a pack file looked at), `same keep|replace|copy`,
-    /// `install`, `cancel`, `add ADDRESS` (a source), `remove ADDRESS`.
+    /// `take KIND ID` / `delete KIND ID` (an update: the pack's version of what was changed
+    /// here; what the pack no longer has), `install`, `cancel`, `add ADDRESS` (a source),
+    /// `remove ADDRESS`.
     pub fn word(&mut self, ws: &mut Workspace, args: &[String]) -> Result<(), String> {
         let arg = |i: usize| args.get(i).map(String::as_str).unwrap_or("");
         match arg(0) {
@@ -151,6 +157,12 @@ impl PacksPage {
                     _ => return Err("same keep|replace|copy".into()),
                 };
                 self.pending.as_mut().ok_or("no pack is looked at")?.same = same;
+            }
+            "take" | "delete" => {
+                let kind = rustpg2d_engine::refactor::RefKind::parse(arg(1)).ok_or("take|delete KIND ID")?;
+                let p = self.pending.as_mut().ok_or("no pack is looked at")?;
+                let list = if arg(0) == "take" { &mut p.take } else { &mut p.delete };
+                list.push((kind, arg(2).to_string()));
             }
             "install" => self.install(ws),
             "cancel" => self.pending = None,
@@ -258,26 +270,73 @@ impl PacksPage {
                 ui.colored_label(ui.visuals().warn_fg_color, format!("Some of it runs in your games: {}. Install it only from someone you trust.", p.preview.code.join(", ")));
             }
             let (new, same, differing) = (p.preview.new.len(), p.preview.same.len(), p.preview.differing.len());
-            ui.label(match &p.preview.installed {
-                Some(v) if *v == m.version => format!("Version {v} is installed already. New to the library: {new} · there as they are: {same} · there, but different: {differing}."),
-                Some(v) => format!("Version {v} is installed: this is {}. New to the library: {new} · there as they are: {same} · there, but different: {differing}.", m.version),
-                None => format!("New to the library: {new} · there as they are: {same} · there under the same id, but different: {differing}."),
-            });
-            if differing > 0 {
-                let names: Vec<String> = p.preview.differing.iter().take(8).map(|(k, id)| format!("{} {id}", k.label().to_lowercase())).collect();
-                ui.weak(format!("Different: {}{}", names.join(", "), if differing > 8 { format!(" and {} more", differing - 8) } else { String::new() }));
-                ui.horizontal(|ui| {
-                    ui.label("Those");
-                    ui.radio_value(&mut p.same, SameId::Replace, "are replaced by the pack's").on_hover_text("The library's versions are overwritten: right for an update of a pack you didn't change");
-                    ui.radio_value(&mut p.same, SameId::Keep, "stay as the library has them").on_hover_text("What you changed is kept; the pack's other assets use the library's");
-                    ui.radio_value(&mut p.same, SameId::Copy, "come in beside them, as copies").on_hover_text("Under new ids: both versions are there");
-                });
+            let names = |v: &[AssetRef]| {
+                let shown: Vec<String> = v.iter().take(8).map(|(k, id)| format!("{} {id}", k.label().to_lowercase())).collect();
+                format!("{}{}", shown.join(", "), if v.len() > 8 { format!(" and {} more", v.len() - 8) } else { String::new() })
+            };
+            match &p.preview.update {
+                // An update: asset by asset.
+                Some(u) => {
+                    let v = p.preview.installed.clone().unwrap_or_default();
+                    ui.label(if v == m.version { format!("Version {v} is installed already.") } else { format!("Version {v} is installed: this is {}.", m.version) });
+                    if u.is_empty() {
+                        ui.weak("Your library has everything of it as it is: there is nothing to do.");
+                    }
+                    if !u.added.is_empty() {
+                        ui.label(format!("New in it ({}): {}", u.added.len(), names(&u.added)));
+                    }
+                    if !u.updated.is_empty() {
+                        ui.label(format!("Updated ({}), which you didn't change: {}", u.updated.len(), names(&u.updated)));
+                    }
+                    if !u.edited.is_empty() {
+                        ui.colored_label(ui.visuals().warn_fg_color, format!("Changed by you and by the pack ({}): yours stay unless you tick them.", u.edited.len()));
+                        for a in &u.edited {
+                            let mut on = p.take.contains(a);
+                            if ui.checkbox(&mut on, format!("Take the pack's {} {}", a.0.label().to_lowercase(), a.1)).on_hover_text("Your version is overwritten (the library is copied first)").changed() {
+                                p.take.retain(|x| x != a);
+                                if on {
+                                    p.take.push(a.clone());
+                                }
+                            }
+                        }
+                    }
+                    if !u.retired.is_empty() {
+                        ui.label(format!("No longer in the pack ({}): they stay unless you tick them.", u.retired.len()));
+                        for r in &u.retired {
+                            let a = &r.asset;
+                            let mut on = p.delete.contains(a);
+                            let label = format!("Delete the {} {}{}", a.0.label().to_lowercase(), a.1, if r.untouched { "" } else { " (you changed it)" });
+                            let free = r.used_by.is_empty();
+                            if ui.add_enabled(free, egui::Checkbox::new(&mut on, label)).on_disabled_hover_text(format!("Still needed by {}", r.used_by.join(", "))).changed() {
+                                p.delete.retain(|x| x != a);
+                                if on {
+                                    p.delete.push(a.clone());
+                                }
+                            }
+                        }
+                    }
+                    ui.weak("The library's folder is copied first; what was done says where to.");
+                }
+                // A first install: what the library has under the same ids.
+                None => {
+                    ui.label(format!("New to the library: {new} · there as they are: {same} · there under the same id, but different: {differing}."));
+                    if differing > 0 {
+                        ui.weak(format!("Different: {}", names(&p.preview.differing)));
+                        ui.horizontal(|ui| {
+                            ui.label("Those");
+                            ui.radio_value(&mut p.same, SameId::Keep, "stay as the library has them").on_hover_text("What you have is kept; the pack's other assets use the library's");
+                            ui.radio_value(&mut p.same, SameId::Replace, "are replaced by the pack's").on_hover_text("The library's versions are overwritten (the library is copied first)");
+                            ui.radio_value(&mut p.same, SameId::Copy, "come in beside them, as copies").on_hover_text("Under new ids: both versions are there");
+                        });
+                    }
+                }
             }
             if !p.preview.missing.is_empty() {
                 ui.colored_label(ui.visuals().error_fg_color, format!("It needs {}: install that first.", p.preview.missing.iter().map(|n| if n.version.is_empty() { n.id.clone() } else { format!("{} {} or newer", n.id, n.version) }).collect::<Vec<_>>().join(" and ")));
             }
             ui.horizontal(|ui| {
-                install = ui.add_enabled(p.preview.missing.is_empty(), egui::Button::new(egui::RichText::new(if p.preview.installed.is_some() { "Update it" } else { "Install it" }).strong())).clicked();
+                let nothing = p.preview.update.as_ref().is_some_and(|u| u.is_empty());
+                install = ui.add_enabled(p.preview.missing.is_empty() && !nothing, egui::Button::new(egui::RichText::new(if p.preview.installed.is_some() { "Update it" } else { "Install it" }).strong())).clicked();
                 cancel = ui.button("Not now").clicked();
                 ui.weak(size_text(p.bytes.len() as u64));
             });
@@ -626,9 +685,37 @@ mod ui_tests {
         }
         h.run();
         assert!(h.query_all_by_label_contains("Version 1.0 is installed already").next().is_some());
+        assert!(h.query_all_by_label_contains("there is nothing to do").next().is_some());
         h.get_by_label("Not now").click();
         h.run();
         assert!(h.state().page.pending.is_none());
+        // A version 1.1 with a renamed chest, while the library's chest was changed here too:
+        // the update says so and keeps the library's, unless the pack's is ticked.
+        let v2 = {
+            let s = h.state_mut();
+            let mut value = s.ws.def_value(RefKind::Prop, "chest").unwrap();
+            value["name"] = "Sea chest".into();
+            s.ws.set_def_value(RefKind::Prop, "chest", value).unwrap();
+            let lib = s.ws.lib.lib.as_mut().unwrap();
+            lib.db.props.iter_mut().find(|p| p.id == "chest").unwrap().name = "My chest".into();
+            lib.save_defs().unwrap();
+            let m = PackManifest { author: "Anna".into(), version: "1.1".into(), ..PackManifest::new("Sea chests") };
+            s.ws.share_pack(&m, &[(RefKind::Prop, "chest".to_string())], &[], Vec::new(), &dir.join("shared")).unwrap()
+        };
+        {
+            let s = h.state_mut();
+            s.page.open_file(&mut s.ws, &v2);
+        }
+        h.run();
+        assert!(h.query_all_by_label_contains("Version 1.0 is installed: this is 1.1.").next().is_some());
+        assert!(h.query_all_by_label_contains("Changed by you and by the pack (1)").next().is_some());
+        h.get_by_label("Take the pack's prop chest").click();
+        h.run();
+        h.get_by_label("Update it").click();
+        h.run();
+        h.run();
+        assert_eq!(h.state().ws.lib.lib.as_ref().unwrap().db.prop("chest").unwrap().name, "Sea chest");
+        assert!(h.query_all_by_label_contains("Updated Sea chests from 1.0 to 1.1").next().is_some());
         // What is no pack says so.
         std::fs::write(dir.join("notes.r2dpack"), b"hello").unwrap();
         {

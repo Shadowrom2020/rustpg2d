@@ -2094,9 +2094,21 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     each are in use and their credit lines; one button puts the lines the game's credits
     don't hold yet at their end (a step), and until then the pre-flight says which are
     missing.
+  - **Updates, asset by asset** (`Workspace::update_pack`, over `starter_update::plan` /
+    `apply`, which the starter library's update was written for and which work for any
+    pack): the library keeps what each installed version of a pack shipped
+    (`packs/<id>/history.ron`: fingerprints of definitions, files and script functions), and
+    a pack written by *Share…* carries what its earlier versions in that folder shipped
+    (`<id>.history.ron` beside the index), so skipping versions is fine. A newer version
+    looked at says what it **adds**, what it **updates** (the library has those as an
+    earlier version shipped them), what was **changed here and by the pack** (kept unless
+    ticked) and what the pack **no longer has** (kept unless ticked; not offered while
+    something needs it). The library's folder is copied beside itself before anything is
+    replaced (`<folder>.bak-…`), also on a first install that replaces what the library has
+    differently; what was done names the copy.
   Still open: several assets shared at once from a kind's list, a plugin shared from the
-  window, updates per asset (which ones the creator changed), the starter library
-  installed as a pack, the old writers (`.r2dlib`, `.r2dplugin`)
+  window, the same per-asset update for a project's assets (they know their pack and
+  version), the starter library installed as a pack, the old writers (`.r2dlib`, `.r2dplugin`)
   folded away, packs as cards with their preview pictures; and
   of the tab: pictures of the library's assets, tags and filters, dragging onto a map, the
   starter library's installing and updating from the window.
@@ -2127,6 +2139,16 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     file looked at (4 new), installed, listed (*Chest · version 1.0 · by Anna · CC BY 4.0*);
     its folder added as a source, *See what it offers*: *Anna's packs* with the chest as
     installed; the source is there again after a restart.
+  - Updates: `an_update_replaces_what_is_untouched_and_asks_about_what_was_changed_or_retired`
+    (1.0 with a chest and a barrel installed; 1.1 renames the chest, adds a sign, drops the
+    barrel: looked at, the chest is *updated*, the sign *added*, the barrel *retired*; with
+    the library's chest changed it is *changed by you* and an update keeps it, with a copy
+    of the library made first; taken after all and the barrel deleted; the barrel's picture
+    is then the only thing still offered to go). In the window test the same with the tick
+    *Take the pack's prop chest*. With the real editor: the library's chest renamed by hand,
+    1.1 shared with a barrel more, the update panel (*New in it (2)*, *Changed by you and
+    by the pack (1)*), the chest ticked, *Update it*: the library has the pack's chest and a
+    `.bak-…` copy lies beside it.
   - Origins and credits: in the `packs` core test the chest added to another project from
     the library is noted as *market-things 1.0*, its copy too; the credit line is missing
     from the credits, added once, and the project still knows after saving and reading

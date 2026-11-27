@@ -105,6 +105,21 @@ impl StarterHistory {
         }
     }
 
+    /// Takes in everything another history knows (a pack's own, with the versions it shipped
+    /// before the one at hand).
+    pub fn merge(&mut self, other: &StarterHistory) {
+        for (k, h) in &other.assets {
+            let mine = self.assets.entry(k.clone()).or_default();
+            mine.defs.extend(h.defs.iter().copied());
+            for (f, hs) in &h.files {
+                mine.files.entry(f.clone()).or_default().extend(hs.iter().copied());
+            }
+        }
+        for (name, hs) in &other.functions {
+            self.functions.entry(name.clone()).or_default().extend(hs.iter().copied());
+        }
+    }
+
     /// What of a starter set the history lacks ("kind:id" or "fn name"); empty = it covers it.
     pub fn missing(&self, b: &Bundle) -> Vec<String> {
         let mut probe = StarterHistory::default();
@@ -290,6 +305,14 @@ pub fn backup_path(root: &Path) -> PathBuf {
         n += 1;
     }
     p
+}
+
+/// Copies the library folder `root` beside itself ([`backup_path`]) before something in it is
+/// replaced. Returns where.
+pub fn backup(root: &Path) -> Result<PathBuf> {
+    let to = backup_path(root);
+    copy_dir(root, &to).context("backing up the library")?;
+    Ok(to)
 }
 
 fn copy_dir(from: &Path, to: &Path) -> Result<()> {

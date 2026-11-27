@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
 use rustpg2d_engine::library::{self, AssetRef, Bundle};
 use rustpg2d_engine::packs::{self, IndexEntry, Need, Pack, PackManifest, SourceIndex};
 use rustpg2d_engine::refactor::RefKind;
+use rustpg2d_engine::starter_update::{self, StarterHistory, StarterUpdate};
 use serde::{Deserialize, Serialize};
 
 use crate::workspace::Workspace;
@@ -59,6 +60,11 @@ pub struct Preview {
     pub missing: Vec<Need>,
     /// The version of it that is installed.
     pub installed: Option<String>,
+    /// For a pack that is installed: what this version changes, asset by asset: what it adds,
+    /// what it updates (the library has it as an earlier version of the pack shipped it), what
+    /// the creator changed since (replaced only when chosen), what the pack no longer has
+    /// (deleted only when chosen).
+    pub update: Option<StarterUpdate>,
 }
 
 impl Preview {
@@ -76,6 +82,10 @@ impl Preview {
         if let Some(v) = &self.installed {
             out += &format!("; installed: {v}");
         }
+        if let Some(u) = &self.update {
+            let names = |v: &[AssetRef]| v.iter().map(|a| a.1.as_str()).collect::<Vec<_>>().join(" ");
+            out += &format!("; update: adds {} updates {} [{}] changed by you {} [{}] retired {} [{}]", u.added.len(), u.updated.len(), names(&u.updated), u.edited.len(), names(&u.edited), u.retired.len(), u.retired.iter().map(|r| r.asset.1.as_str()).collect::<Vec<_>>().join(" "));
+        }
         out
     }
 }
@@ -87,6 +97,27 @@ fn def_json(db: &rustpg2d_engine::defs::Database, kind: RefKind, id: &str) -> Op
 
 fn read_record(root: &Path) -> Vec<Installed> {
     std::fs::read_to_string(root.join(RECORD)).ok().and_then(|t| ron::from_str(&t).ok()).unwrap_or_default()
+}
+
+/// What a pack shipped in the versions that were installed here (and those its own history
+/// names): `packs/<id>/history.ron` in the library. An update tells by it which of the
+/// library's assets are still as the pack shipped them.
+fn history_path(root: &Path, id: &str) -> PathBuf {
+    root.join("packs").join(id).join("history.ron")
+}
+
+fn read_history(root: &Path, id: &str) -> StarterHistory {
+    std::fs::read_to_string(history_path(root, id)).ok().and_then(|t| StarterHistory::parse(&t).ok()).unwrap_or_default()
+}
+
+/// The history an update of `pack` is judged by: what was installed here, and what the pack
+/// says it shipped before.
+fn history_for(root: &Path, pack: &Pack) -> StarterHistory {
+    let mut h = read_history(root, &pack.manifest.id);
+    if let Some(own) = pack.history.as_deref().and_then(|t| StarterHistory::parse(t).ok()) {
+        h.merge(&own);
+    }
+    h
 }
 
 /// The packs installed in the library at `root`.
@@ -192,13 +223,24 @@ impl Workspace {
         }
         let installed = read_record(&root);
         let missing = pack.manifest.needs.iter().filter(|n| !installed.iter().any(|p| p.manifest.id == n.id && (n.version.is_empty() || packs::compare_versions(&p.manifest.version, &n.version) != std::cmp::Ordering::Less))).cloned().collect();
-        Ok(Preview { holds: packs::holds(&pack), code: pack.code(), new, same, differing, missing, installed: installed.iter().find(|p| p.manifest.id == pack.manifest.id).map(|p| p.manifest.version.clone()), manifest: pack.manifest })
+        let was = installed.iter().find(|p| p.manifest.id == pack.manifest.id).map(|p| p.manifest.version.clone());
+        let update = match &was {
+            Some(_) => {
+                let mut bundle = pack.assets.clone();
+                bundle.rescale(rustpg2d_engine::project::TILE_SIZE).map_err(|e| format!("{e:#}"))?;
+                Some(starter_update::plan(lib, &bundle, &history_for(&root, &pack)))
+            }
+            None => None,
+        };
+        Ok(Preview { holds: packs::holds(&pack), code: pack.code(), new, same, differing, missing, installed: was, update, manifest: pack.manifest })
     }
 
     /// Installs a pack into the asset library: its assets with their files and script
     /// functions, its plugins into the library's `plugins/`, its previews; `same` says what
     /// happens to assets the library has under the same id with other content. `source`: the
-    /// index it came from ("" = a file). Returns what was done, in words.
+    /// index it came from ("" = a file). A pack that is installed already is updated instead
+    /// ([`Self::update_pack`]: *replace* takes the pack's version of what the creator changed
+    /// too, *keep* leaves those). Returns what was done, in words.
     pub fn install_pack(&mut self, bytes: &[u8], same: SameId, source: &str) -> Result<String, String> {
         let pack = Pack::from_bytes(bytes).map_err(|e| format!("{e:#}"))?;
         pack.manifest.fits().map_err(|e| format!("{e:#}"))?;
@@ -206,7 +248,13 @@ impl Workspace {
         if !preview.missing.is_empty() {
             return Err(format!("{} needs {}: install that first", pack.manifest.title, preview.missing.iter().map(|n| if n.version.is_empty() { n.id.clone() } else { format!("{} {} or newer", n.id, n.version) }).collect::<Vec<_>>().join(" and ")));
         }
+        if let (Some(update), true) = (&preview.update, same != SameId::Copy) {
+            let take = if same == SameId::Replace { update.edited.clone() } else { Vec::new() };
+            return self.update_pack(bytes, &take, &[], source);
+        }
         let root = self.library_root()?;
+        // What the library has differently is overwritten: a copy of the library first.
+        let backup = if same == SameId::Replace && !preview.differing.is_empty() { Some(starter_update::backup(&root).map_err(|e| format!("{e:#}"))?) } else { None };
         let lib = self.lib.lib.as_mut().ok_or("the asset library isn't available")?;
         let mut bundle = pack.assets.clone();
         bundle.rescale(rustpg2d_engine::project::TILE_SIZE).map_err(|e| format!("{e:#}"))?;
@@ -219,6 +267,52 @@ impl Workspace {
         .map_err(|e| format!("{e:#}"))?;
         lib.db.reindex();
         lib.save_defs().map_err(|e| format!("{e:#}"))?;
+        // What it brought, under the ids it has in the library now (a copy has a new one).
+        let now = |kind: RefKind, id: &str| report.renamed.iter().find(|(k, old, _)| *k == kind && old == id).map_or(id.to_string(), |(_, _, new)| new.clone());
+        let assets: Vec<(String, String)> = all.iter().map(|(k, id)| (k.name().to_string(), now(*k, id))).collect();
+        let what = self.installed(&pack, assets, source)?;
+        let said = format!("{what}: {}{}", report.summary(), backup.map(|b| format!(". Backup: {}", b.display())).unwrap_or_default());
+        self.set_status(said.clone());
+        Ok(said)
+    }
+
+    /// Updates a pack that is installed, asset by asset (after a backup of the library's
+    /// folder): what the new version adds comes in; what the library still has as an earlier
+    /// version shipped it is replaced; what the creator changed stays unless it is in
+    /// `take_edited`; what the pack no longer has stays unless it is in `delete` (and nothing
+    /// else needs it). Returns what was done, in words.
+    pub fn update_pack(&mut self, bytes: &[u8], take_edited: &[AssetRef], delete: &[AssetRef], source: &str) -> Result<String, String> {
+        let pack = Pack::from_bytes(bytes).map_err(|e| format!("{e:#}"))?;
+        pack.manifest.fits().map_err(|e| format!("{e:#}"))?;
+        let root = self.library_root()?;
+        let record = read_record(&root);
+        let Some(was) = record.iter().find(|p| p.manifest.id == pack.manifest.id) else { return Err(format!("{} isn't installed: install it first", pack.manifest.title)) };
+        let history = history_for(&root, &pack);
+        let lib = self.lib.lib.as_mut().ok_or("the asset library isn't available")?;
+        let mut bundle = pack.assets.clone();
+        bundle.rescale(rustpg2d_engine::project::TILE_SIZE).map_err(|e| format!("{e:#}"))?;
+        let plan = starter_update::plan(lib, &bundle, &history);
+        let report = starter_update::apply(lib, &bundle, &plan, &history, take_edited, delete).map_err(|e| format!("{e:#}"))?;
+        lib.db.reindex();
+        // What is the pack's in the library now: what this version has, and what it retired but is kept.
+        let mut assets: Vec<(String, String)> = library::all_assets(&bundle.db).iter().map(|(k, id)| (k.name().to_string(), id.clone())).collect();
+        for old in &was.assets {
+            let kept = RefKind::parse(&old.0).is_some_and(|k| lib.db.has(k, &old.1));
+            if kept && !assets.contains(old) {
+                assets.push(old.clone());
+            }
+        }
+        let what = self.installed(&pack, assets, source)?;
+        let said = format!("{what}: {}", report.summary());
+        self.set_status(said.clone());
+        Ok(said)
+    }
+
+    /// After a pack's assets are in the library: its plugins, its preview pictures, what it
+    /// shipped (for the next update) and its place on the list. Returns "Installed …" /
+    /// "Updated … from … to …".
+    fn installed(&mut self, pack: &Pack, assets: Vec<(String, String)>, source: &str) -> Result<String, String> {
+        let root = self.library_root()?;
         // Its plugins lie in the library's folder, as the starter library's do (a project adds one from there).
         for p in &pack.plugins {
             let dir = rustpg2d_engine::plugins::plugin_dir(&root, &p.id);
@@ -231,17 +325,18 @@ impl Workspace {
                 std::fs::write(&file, b).map_err(|e| format!("writing {}: {e}", file.display()))?;
             }
         }
+        // (Its history is taken out of its folder before the folder's pictures are swapped.)
+        let mut history = history_for(&root, pack);
+        let mut bundle = pack.assets.clone();
+        bundle.rescale(rustpg2d_engine::project::TILE_SIZE).map_err(|e| format!("{e:#}"))?;
+        history.record(&bundle);
         let pics = root.join("packs").join(&pack.manifest.id);
         let _ = std::fs::remove_dir_all(&pics);
-        if !pack.previews.is_empty() {
-            std::fs::create_dir_all(&pics).map_err(|e| e.to_string())?;
-            for (name, b) in &pack.previews {
-                std::fs::write(pics.join(name), b).map_err(|e| format!("writing the preview {name}: {e}"))?;
-            }
+        std::fs::create_dir_all(&pics).map_err(|e| e.to_string())?;
+        for (name, b) in &pack.previews {
+            std::fs::write(pics.join(name), b).map_err(|e| format!("writing the preview {name}: {e}"))?;
         }
-        // What it brought, under the ids it has in the library now (a copy has a new one).
-        let now = |kind: RefKind, id: &str| report.renamed.iter().find(|(k, old, _)| *k == kind && old == id).map_or(id.to_string(), |(_, _, new)| new.clone());
-        let assets: Vec<(String, String)> = all.iter().map(|(k, id)| (k.name().to_string(), now(*k, id))).collect();
+        std::fs::write(history_path(&root, &pack.manifest.id), history.to_ron().map_err(|e| format!("{e:#}"))?).map_err(|e| format!("writing the pack's history: {e}"))?;
         let mut manifest = pack.manifest.clone();
         manifest.previews = pack.previews.iter().map(|(n, _)| n.clone()).collect();
         let mut list = read_record(&root);
@@ -250,15 +345,12 @@ impl Workspace {
         list.push(Installed { manifest: manifest.clone(), assets, plugins: pack.plugins.iter().map(|p| p.id.clone()).collect(), source: source.to_string() });
         write_record(&root, &list)?;
         self.lib.tex_dirty = true;
-        let what = match was {
-            Some(v) if v == manifest.version => format!("Installed {} {} again", manifest.title, manifest.version),
-            Some(v) => format!("Updated {} from {v} to {}", manifest.title, manifest.version),
-            None => format!("Installed {} {}", manifest.title, manifest.version),
-        };
-        let plugins = if pack.plugins.is_empty() { String::new() } else { format!("; plugins: {}", pack.plugins.iter().map(|p| p.id.as_str()).collect::<Vec<_>>().join(", ")) };
-        let said = format!("{what}: {}{plugins}", report.summary());
-        self.set_status(said.clone());
-        Ok(said)
+        let plugins = if pack.plugins.is_empty() { String::new() } else { format!(" (plugins: {})", pack.plugins.iter().map(|p| p.id.as_str()).collect::<Vec<_>>().join(", ")) };
+        Ok(match was {
+            Some(v) if v == manifest.version => format!("Installed {} {} again{plugins}", manifest.title, manifest.version),
+            Some(v) => format!("Updated {} from {v} to {}{plugins}", manifest.title, manifest.version),
+            None => format!("Installed {} {}{plugins}", manifest.title, manifest.version),
+        })
     }
 
     /// Takes a pack off the list of installed ones (what it brought stays in the library: a
@@ -348,13 +440,21 @@ impl Workspace {
     /// its entry into the `index.ron` there (made when there is none: the folder is then a
     /// source others can add, as it is or uploaded). Returns the pack's file.
     pub fn share_pack(&mut self, manifest: &PackManifest, assets: &[AssetRef], plugins: &[String], previews: Vec<(String, Vec<u8>)>, out: &Path) -> Result<PathBuf, String> {
-        let pack = self.make_pack(manifest, assets, plugins, previews)?;
+        let mut pack = self.make_pack(manifest, assets, plugins, previews)?;
+        // What earlier versions written into this folder shipped goes along: who updates from
+        // any of them is told what they changed themselves.
+        let history_file = out.join(format!("{}.history.ron", pack.manifest.id));
+        let mut history = std::fs::read_to_string(&history_file).ok().and_then(|t| StarterHistory::parse(&t).ok()).unwrap_or_default();
+        history.record(&pack.assets);
+        let history_text = history.to_ron().map_err(|e| format!("{e:#}"))?;
+        pack.history = Some(history_text.clone());
         let bytes = pack.to_bytes().map_err(|e| format!("{e:#}"))?;
         // (Read again before it leaves: what was written is a pack that installs.)
         Pack::from_bytes(&bytes).map_err(|e| format!("the pack that was written can't be read again: {e:#}"))?;
         std::fs::create_dir_all(out).map_err(|e| format!("making {}: {e}", out.display()))?;
         let file = out.join(pack.manifest.file_name());
         std::fs::write(&file, &bytes).map_err(|e| format!("writing {}: {e}", file.display()))?;
+        std::fs::write(&history_file, history_text).map_err(|e| format!("writing {}: {e}", history_file.display()))?;
         let index_file = out.join(packs::INDEX_FILE);
         let mut index = match std::fs::read_to_string(&index_file) {
             Ok(text) => SourceIndex::from_text(&text).map_err(|e| format!("{}: {e:#}", index_file.display()))?,
@@ -473,44 +573,72 @@ mod tests {
     }
 
     #[test]
-    fn a_newer_version_updates_and_the_same_id_is_kept_replaced_or_copied() {
+    fn an_update_replaces_what_is_untouched_and_asks_about_what_was_changed_or_retired() {
         let (mut ws, dir) = scratch("update");
         let out = dir.join("shared");
-        let chest = [(RefKind::Prop, "chest".to_string())];
-        let v1 = std::fs::read(ws.share_pack(&manifest("Chests", "1.0"), &chest, &[], Vec::new(), &out).unwrap()).unwrap();
+        let prop = |id: &str| (RefKind::Prop, id.to_string());
+        // Version 1.0 has a chest and a barrel.
+        let v1 = std::fs::read(ws.share_pack(&manifest("Chests", "1.0"), &[prop("chest"), prop("barrel")], &[], Vec::new(), &out).unwrap()).unwrap();
         ws.install_pack(&v1, SameId::Keep, "").unwrap();
-        // The project's chest changes and is shared as version 1.1: the index offers that one.
+        // Version 1.1: the chest has another name, a sign is new, the barrel is no longer in it.
         let mut value = ws.def_value(RefKind::Prop, "chest").unwrap();
         value["name"] = "Sea chest".into();
         ws.set_def_value(RefKind::Prop, "chest", value).unwrap();
-        let v2 = std::fs::read(ws.share_pack(&manifest("Chests", "1.1"), &chest, &[], Vec::new(), &out).unwrap()).unwrap();
+        let v2 = std::fs::read(ws.share_pack(&manifest("Chests", "1.1"), &[prop("chest"), prop("sign")], &[], Vec::new(), &out).unwrap()).unwrap();
+        assert!(Pack::from_bytes(&v2).unwrap().history.is_some(), "it carries what 1.0 shipped");
         let index = read_index(&out.display().to_string()).unwrap();
         assert_eq!(index.newest().iter().map(|e| e.manifest.version.as_str()).collect::<Vec<_>>(), ["1.1"]);
+        // Looked at: the chest is updated (the library has it as 1.0 shipped it), the sign is
+        // added, the barrel retired; nothing was changed here.
+        let u = ws.pack_preview(&v2).unwrap().update.expect("it is installed: this is an update");
+        assert!(u.updated.contains(&prop("chest")) && u.added.contains(&prop("sign")) && u.edited.is_empty(), "{u:?}");
+        assert!(u.retired.iter().any(|r| r.asset == prop("barrel") && r.untouched));
+        // The creator changes the library's chest: now it is theirs, and an update keeps it.
+        {
+            let lib = ws.lib.lib.as_mut().unwrap();
+            lib.db.props.iter_mut().find(|p| p.id == "chest").unwrap().name = "My chest".into();
+            lib.save_defs().unwrap();
+        }
         let p = ws.pack_preview(&v2).unwrap();
-        assert_eq!((p.installed.as_deref(), p.differing.as_slice()), (Some("1.0"), &chest[..]), "the chest differs from the library's");
-        // Kept: the library's chest stays as it was. Replaced: it is the pack's.
-        ws.install_pack(&v2, SameId::Keep, "").unwrap();
-        assert_eq!(ws.lib.lib.as_ref().unwrap().db.prop("chest").unwrap().name, "Chest");
-        let said = ws.install_pack(&v2, SameId::Replace, "").unwrap();
-        assert!(said.starts_with("Installed Chests 1.1 again"), "{said}");
-        assert_eq!(ws.lib.lib.as_ref().unwrap().db.prop("chest").unwrap().name, "Sea chest");
-        // The first version again, as a copy: beside it under a new id, and the pack knows which.
-        let said = ws.install_pack(&v1, SameId::Copy, "").unwrap();
-        assert!(said.starts_with("Updated Chests from 1.1 to 1.0"), "{said}");
+        let u = p.update.as_ref().unwrap();
+        assert!(u.edited.contains(&prop("chest")) && !u.updated.contains(&prop("chest")));
+        assert!(p.line().contains("changed by you 1 [chest]"), "{}", p.line());
+        let said = ws.install_pack(&v2, SameId::Keep, "").unwrap();
+        assert!(said.starts_with("Updated Chests from 1.0 to 1.1") && said.contains("kept your version of chest") && said.contains("Backup: "), "{said}");
         let lib = ws.lib.lib.as_ref().unwrap();
-        let copy = lib.db.props.iter().find(|p| p.id != "chest" && p.name == "Chest").expect("the copy").id.clone();
+        assert_eq!(lib.db.prop("chest").unwrap().name, "My chest");
+        assert!(lib.db.prop("sign").is_some() && lib.db.prop("barrel").is_some(), "the sign came, the barrel stays until it is asked to go");
+        assert!(dir.read_dir().unwrap().flatten().any(|e| e.file_name().to_string_lossy().starts_with("library.bak-")), "the library was copied first");
+        // The pack's version of the chest is taken after all, and the barrel deleted.
+        let said = ws.update_pack(&v2, &[prop("chest")], &[prop("barrel")], "").unwrap();
+        assert!(said.starts_with("Installed Chests 1.1 again"), "{said}");
+        let lib = ws.lib.lib.as_ref().unwrap();
         assert_eq!(lib.db.prop("chest").unwrap().name, "Sea chest");
-        assert!(ws.installed_packs()[0].assets.contains(&("prop".to_string(), copy)));
+        assert!(lib.db.prop("barrel").is_none());
+        let packs = ws.installed_packs();
+        assert!(packs[0].assets.contains(&("prop".to_string(), "sign".to_string())) && !packs[0].assets.contains(&("prop".to_string(), "barrel".to_string())));
+        // The library has 1.1 as it is; only the barrel's picture, which nothing needs any
+        // more, is still offered to go.
+        let u = ws.pack_preview(&v2).unwrap().update.unwrap();
+        assert!(u.added.is_empty() && u.updated.is_empty() && u.edited.is_empty(), "{u:?}");
+        assert_eq!(u.retired.iter().map(|r| (r.asset.clone(), r.used_by.is_empty())).collect::<Vec<_>>(), [((RefKind::Sheet, "barrel_painted".to_string()), true)]);
+        // The first version again as a copy: its chest beside the library's under a new id.
+        ws.install_pack(&v1, SameId::Copy, "").unwrap();
+        let lib = ws.lib.lib.as_ref().unwrap();
+        assert!(lib.db.props.iter().any(|p| p.id != "chest" && p.name == "Chest") && lib.db.prop("chest").unwrap().name == "Sea chest");
         // A pack that needs another says so and installs nothing; a changed download is refused.
         let needy = PackManifest { needs: vec![Need { id: "not-there".into(), version: "2.0".into() }], ..manifest("Needy", "1.0") };
-        let bytes = ws.make_pack(&needy, &chest, &[], Vec::new()).unwrap().to_bytes().unwrap();
+        let bytes = ws.make_pack(&needy, &[prop("chest")], &[], Vec::new()).unwrap().to_bytes().unwrap();
         assert!(ws.install_pack(&bytes, SameId::Keep, "").unwrap_err().contains("needs not-there 2.0 or newer"));
         assert_eq!(ws.installed_packs().len(), 1);
         std::fs::write(out.join("chests-1.1.r2dpack"), b"something else").unwrap();
         assert!(download(index.newest()[0], &out.display().to_string()).is_err());
-        // Forgotten, the pack is off the list; what it brought stays.
+        // A first install that replaces what the library has differently copies the library first.
         ws.forget_pack("chests").unwrap();
         assert!(ws.installed_packs().is_empty() && ws.lib.lib.as_ref().unwrap().db.prop("chest").is_some());
+        let said = ws.install_pack(&v1, SameId::Replace, "").unwrap();
+        assert!(said.starts_with("Installed Chests 1.0") && said.contains("Backup: "), "{said}");
+        assert_eq!(ws.lib.lib.as_ref().unwrap().db.prop("chest").unwrap().name, "Chest");
         assert!(ws.make_pack(&manifest("Empty", "1.0"), &[], &[], Vec::new()).is_err());
         let _ = std::fs::remove_dir_all(dir);
     }

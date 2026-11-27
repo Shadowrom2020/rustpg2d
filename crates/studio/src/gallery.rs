@@ -1,6 +1,7 @@
 //! *New…* (Ctrl+N): what to make, its name, and what it starts as: blank, a copy of something
-//! there is, or an asset of the library (which comes with what it needs: the library's assets
-//! are the templates). (From a file or Meshy: part 8 adds them here.)
+//! there is, an asset of the library (which comes with what it needs: the library's assets
+//! are the templates), or a file: a 3D model, a picture, a sound, typed or dropped on the
+//! window. (From Meshy: part 8 adds it here.)
 
 use eframe::egui;
 use rustpg2d_engine::refactor::RefKind;
@@ -20,6 +21,9 @@ pub struct NewAsset {
     filter: String,
     /// What the library has of the kind chosen (read when the kind is picked).
     in_library: Option<(RefKind, Vec<(String, String)>)>,
+    /// It starts from a file: where that is, as typed or dropped.
+    pub from_file: bool,
+    pub file: String,
     /// Why the last *Create* didn't work.
     pub error: Option<String>,
     focused: bool,
@@ -29,6 +33,13 @@ impl NewAsset {
     pub fn of(kind: Option<RefKind>) -> NewAsset {
         NewAsset { kind, ..Default::default() }
     }
+
+    /// The gallery for a file dropped on the window: what it most likely becomes, named after
+    /// the file. None for a file that is no art the editor takes.
+    pub fn of_file(file: &std::path::Path) -> Option<NewAsset> {
+        let what = editor_core::fromfile::FileKind::of(file)?;
+        Some(NewAsset { kind: what.makes().first().copied(), name: editor_core::fromfile::name_from_file(file), from_file: true, file: file.display().to_string(), ..Default::default() })
+    }
 }
 
 /// What the gallery asks for.
@@ -36,6 +47,8 @@ pub enum Outcome {
     Create { kind: RefKind, name: String, from: Option<String> },
     /// A new one from the library's `from` (no name: the asset as it is).
     FromLibrary { kind: RefKind, name: String, from: String },
+    /// A new one from a file (a 3D model, a picture, a sound).
+    FromFile { kind: RefKind, name: String, file: std::path::PathBuf },
     Cancel,
 }
 
@@ -104,15 +117,49 @@ pub fn show(ctx: &egui::Context, state: &mut NewAsset, groups: &[(&str, &[RefKin
                     state.in_library = Some((kind, if rustpg2d_engine::library::KINDS.contains(&kind) { library(kind) } else { Vec::new() }));
                 }
                 let offered: Vec<(String, String)> = state.in_library.as_ref().map(|(_, l)| l.clone()).unwrap_or_default();
-                let mut start = if state.library { 2 } else if state.copy { 1 } else { 0 };
+                let takes_files = [RefKind::Prop, RefKind::Sheet, RefKind::Sound].contains(&kind);
+                if !takes_files {
+                    state.from_file = false;
+                }
+                let mut start = if state.from_file { 3 } else if state.library { 2 } else if state.copy { 1 } else { 0 };
                 let was = start;
                 ui.radio_value(&mut start, 0, "blank");
                 let all: &[(String, String)] = lists.iter().find(|(k, _)| *k == kind).map_or(&[], |(_, l)| l.as_slice());
                 ui.add_enabled_ui(!all.is_empty(), |ui| ui.radio_value(&mut start, 1, format!("as a copy of another {}", kind.label().to_lowercase())));
                 ui.add_enabled_ui(!offered.is_empty(), |ui| ui.radio_value(&mut start, 2, format!("as one of the asset library ({})", offered.len())).on_hover_text("It comes with what it needs: its pictures, sounds and models, the script functions its events call. Without a name it is added as it is.").on_disabled_hover_text("The asset library has none of this kind"));
+                if takes_files {
+                    ui.radio_value(&mut start, 3, match kind {
+                        RefKind::Prop => "from a file: a 3D model (.glb) or a picture (.png)",
+                        RefKind::Sheet => "from a file: a picture (.png)",
+                        _ => "from a file: a sound (.ogg, .wav)",
+                    })
+                    .on_hover_text("The file is copied into the project. Drop a file on the editor's window to start here with it.");
+                }
                 if start != was {
-                    (state.copy, state.library, state.from) = (start == 1, start == 2, None);
+                    (state.copy, state.library, state.from_file, state.from) = (start == 1, start == 2, start == 3, None);
                     state.filter.clear();
+                }
+                let mut file_fits = false;
+                if state.from_file {
+                    ui.horizontal(|ui| {
+                        let by = ui.label("File").id;
+                        ui.add(egui::TextEdit::singleline(&mut state.file).hint_text("Drop a file on the window, or type where it is").desired_width(340.0)).labelled_by(by);
+                    });
+                    let path = std::path::Path::new(state.file.trim());
+                    match editor_core::fromfile::what_it_makes(kind, path) {
+                        _ if state.file.trim().is_empty() => {}
+                        Some(what) if path.is_file() => {
+                            file_fits = true;
+                            ui.weak(what);
+                        }
+                        Some(_) => {
+                            ui.colored_label(ui.visuals().warn_fg_color, "There is no such file.");
+                        }
+                        None => {
+                            let can = editor_core::fromfile::FileKind::of(path).map(|k| format!("{} can become {}", k.label(), k.makes().iter().map(|k| format!("a {}", k.label().to_lowercase())).collect::<Vec<_>>().join(" or ")));
+                            ui.colored_label(ui.visuals().warn_fg_color, can.unwrap_or_else(|| "That is no 3D model (.glb), picture (.png) or sound (.ogg, .wav).".to_string()));
+                        }
+                    }
                 }
                 if state.library {
                     ui.add(egui::TextEdit::singleline(&mut state.filter).hint_text("Search the library").desired_width(300.0)).widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, "Search the library"));
@@ -163,11 +210,12 @@ pub fn show(ctx: &egui::Context, state: &mut NewAsset, groups: &[(&str, &[RefKin
                     ui.colored_label(ui.visuals().error_fg_color, e);
                 }
                 let named = !state.name.trim().is_empty();
-                let ready = if state.library { state.from.is_some() } else { named && (!state.copy || state.from.is_some()) };
+                let ready = if state.from_file { named && file_fits } else if state.library { state.from.is_some() } else { named && (!state.copy || state.from.is_some()) };
                 ui.horizontal(|ui| {
                     let create = ui.add_enabled(ready, egui::Button::new("Create")).clicked();
                     if (create || entered) && ready {
                         outcome = Some(match (&state.from, state.library) {
+                            _ if state.from_file => Outcome::FromFile { kind, name: state.name.trim().to_string(), file: std::path::PathBuf::from(state.file.trim()) },
                             (Some(from), true) => Outcome::FromLibrary { kind, name: state.name.trim().to_string(), from: from.clone() },
                             _ => Outcome::Create { kind, name: state.name.trim().to_string(), from: state.from.clone().filter(|_| state.copy) },
                         });

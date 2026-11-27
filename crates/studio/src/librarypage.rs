@@ -256,6 +256,56 @@ mod ui_tests {
     }
 
     #[test]
+    fn the_new_gallery_starts_from_a_dropped_file() {
+        use crate::gallery::{self, NewAsset, Outcome};
+        struct G {
+            state: NewAsset,
+            asked: Vec<(RefKind, String, std::path::PathBuf)>,
+        }
+        let dir = std::env::temp_dir().join(format!("rustpg2d-gallery-file-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let picture = dir.join("old_oak-tree.png");
+        std::fs::write(&picture, rustpg2d_engine::imageio::Rgba::new(8, 8).encode().unwrap()).unwrap();
+        assert!(NewAsset::of_file(&dir.join("notes.txt")).is_none(), "what is no art opens nothing");
+        // Dropped, a picture is a prop to be, named after its file.
+        let state = NewAsset::of_file(&picture).unwrap();
+        assert_eq!((state.kind, state.name.as_str(), state.from_file), (Some(RefKind::Prop), "Old oak tree", true));
+        let mut h = Harness::builder().with_size(egui::vec2(1000.0, 700.0)).build_ui_state(
+            |ui, g: &mut G| {
+                let library = |_: RefKind| Vec::new();
+                if let Some(Outcome::FromFile { kind, name, file }) = gallery::show(ui.ctx(), &mut g.state, &[("Objects", &[RefKind::Prop]), ("Art & sound", &[RefKind::Sheet, RefKind::Sound])], &[], &library, None) {
+                    g.asked.push((kind, name, file));
+                }
+            },
+            G { state, asked: Vec::new() },
+        );
+        h.run();
+        assert!(h.query_all_by_label_contains("A prop with this picture").next().is_some());
+        // A picture can't be a sound: that kind says so and makes nothing; as a sheet it can.
+        h.get_by_label("Sound").click();
+        h.run();
+        assert!(h.query_all_by_label_contains("a picture can become a prop or a sprite sheet").next().is_some());
+        h.get_by_label("Create").click();
+        h.run();
+        assert!(h.state().asked.is_empty());
+        h.get_by_label("Sprite sheet").click();
+        h.run();
+        assert!(h.query_all_by_label_contains("A sprite sheet of this picture").next().is_some());
+        h.get_by_label("Create").click();
+        h.run();
+        assert_eq!(h.state().asked, [(RefKind::Sheet, "Old oak tree".to_string(), picture.clone())]);
+        // A file that isn't there is said, and nothing is made of it.
+        h.state_mut().state.file = dir.join("gone.png").display().to_string();
+        h.state_mut().asked.clear();
+        h.run();
+        h.get_by_label("There is no such file.");
+        h.get_by_label("Create").click();
+        h.run();
+        assert!(h.state().asked.is_empty());
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
     fn a_library_asset_is_found_ticked_and_added_with_what_it_needs() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         let dir = std::env::temp_dir().join(format!("rustpg2d-library-{}", std::process::id()));

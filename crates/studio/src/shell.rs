@@ -868,6 +868,16 @@ impl Shell {
     /// One frame of the window.
     pub fn ui(&mut self, ui: &mut egui::Ui, rs: Option<&eframe::egui_wgpu::RenderState>, fps: f32) {
         let ctx = ui.ctx().clone();
+        // A file dropped on the window: *New…* with it (a 3D model or a picture as a prop, a sound).
+        if self.ws.project_open {
+            let dropped: Vec<std::path::PathBuf> = ctx.input(|i| i.raw.dropped_files.iter().map(|f| f.path().to_path_buf()).filter(|p| !p.as_os_str().is_empty()).collect());
+            if let Some(file) = dropped.first() {
+                match crate::gallery::NewAsset::of_file(file) {
+                    Some(new) => self.new_asset = Some(new),
+                    None => self.ws.set_status(format!("{} is no 3D model (.glb), picture (.png) or sound (.ogg, .wav)", file.display())),
+                }
+            }
+        }
         // A structure is open as a map for as long as its tab is.
         let gone: Vec<String> = self.ws.struct_docs.keys().filter(|id| self.dock.find_tab(&Tab::Def(RefKind::Structure, (*id).clone())).is_none()).cloned().collect();
         for id in gone {
@@ -1003,6 +1013,7 @@ impl Shell {
         let outcome = crate::gallery::show(ctx, state, GROUPS, &self.lists, &library, pictures);
         let made = match outcome {
             Some(crate::gallery::Outcome::FromLibrary { kind, name, from }) => Some((kind, self.ws.make_from_library(kind, &from, &name))),
+            Some(crate::gallery::Outcome::FromFile { kind, name, file }) => Some((kind, self.ws.make_from_file(kind, &file, &name))),
             Some(crate::gallery::Outcome::Create { kind, name, from }) => Some((kind, self.ws.make_def(kind, &name, from.as_deref()))),
             Some(crate::gallery::Outcome::Cancel) => {
                 self.new_asset = None;

@@ -1645,6 +1645,16 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     added as it is. So the library's chest, door, lamp, bed, crop or merchant is the
     template a new one is made from, and a template of one's own is an asset sent to the
     library.
+  - **A new thing starts from a file** (`editor-core/src/fromfile.rs`; *New…*, the fourth
+    way; command `defs.make KIND file:PATH NAME`): a file dropped on the editor's window
+    opens *New…* with it, named after the file. A 3D model (`.glb`) becomes a prop that
+    shows it: stood on the ground in the middle of its footprint, one tile wide and as deep
+    as the model, its pictures for lists drawn from it. A picture (`.png`) becomes a prop
+    standing on its lower edge with the sprite sheet that holds it (a large picture is
+    shown smaller, through the sheet's scale; its hitbox starts as wide as the foot of what
+    is painted: a tree's trunk, not its crown), or a sprite sheet alone. A sound (`.ogg`,
+    `.wav`) becomes a sound. The file is copied into the project; the new thing's tab
+    opens, a prop's with its workshop.
   - **A structure is worked on as a map** (`editor-core/src/structdoc.rs`; a structure's
     tab): its tab is the structure itself as a small map of its size, with every tool of a
     map: paint its ground, place and move things, build walls and roofs on it, set blocked
@@ -1661,8 +1671,10 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   Still open: the anchor of the picture and the light's place (the engine has neither as a
   field: the picture stands on the hitbox's southern edge, the light sits at two thirds of
   the picture's height), a figure sitting or lying at the use spot instead of the ring, a
-  building's ridge, overhang and openings dragged on the picture; starting from a model, a
-  picture, measurements, Meshy; of structures: what one holds outside its own tiles (the
+  building's ridge, overhang and openings dragged on the picture, how large a prop's model
+  is shown as a handle; starting from measurements and Meshy, a file picked in a dialog (it
+  is dropped or its place typed), a character's model and an item's from a file, pictures
+  other than PNG; of structures: what one holds outside its own tiles (the
   example's garden has a fence a pixel off its edge) is kept but not shown on its map, zones
   drawn there are not part of it (the Zones tool is still offered), a house of the Build
   tool saved as one from the tool itself; of the character workshop: rules,
@@ -1698,6 +1710,13 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     definitions' history joins changes made while one field has it (typing), which made a
     chest placed and a path painted right after one step. Only typing into a field of
     something placed there joins the step before.
+  - **A dropped file opens *New…*, it doesn't make something at once**: what a file should
+    become is a guess (a picture is a prop most of the time, a sheet sometimes), and the
+    thing needs a name; the guess and the file's name are filled in, so Enter is enough.
+  - **A prop from a 3D model is written at once** (its definitions with its files, as the
+    0.35 editor did for generated models): the model's file is in the project then, and a
+    definition that names a file which isn't saved would be worse. It is still a step that
+    can be undone.
   - **Presets are the library's assets, not a list of their own**: *New… › as one of the
     asset library* makes a prop that is a container, a door with a lock, a light or a seat
     by starting from one that is, with its events, sounds and script functions. What was
@@ -1721,6 +1740,15 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     with its light and reach; the chest's corner dragged (28 to 64 pixels wide, 16 deep as
     before) and undone, the chair's spot dragged and the chair turned, the campfire's reach
     dragged from 3 to 5 tiles and undone; the cottage as a building with its roof, turned.
+  - From a file: `fromfile::tests` (files told apart by their names; a picture four tiles
+    wide: a prop on a sheet at scale 2 with the copied file, one step, undone to what was;
+    a tree standing on its trunk's width; the same picture as a sheet alone; a `.glb`: a
+    prop with its model file and a depth from the model; a sound; what can't be, refused);
+    `the_new_gallery_starts_from_a_dropped_file` (a picture dropped is a prop to be, named
+    after its file; as a sound it is refused with what it can become, as a sheet made; a
+    file that isn't there said). In the window: `Smiths_anvil.glb` dropped, Enter: the
+    prop's tab with the anvil on its stage (32 x 28 hitbox), its picture in the header,
+    placed on the village; a painted tree's picture dropped: the prop with its shadow.
   - A structure as a map: `structdoc::tests` (every structure of the example goes through a
     map and back with the same things at the same places, also the garden's fence outside
     its tiles; opened and looked at, nothing changes and nothing is a step; a chest placed

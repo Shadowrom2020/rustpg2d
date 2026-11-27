@@ -140,17 +140,19 @@ pub const COMMANDS: &[Command] = &[
         title: "New from a name",
         keys: "",
         params: &["kind", "name"],
-        help: "Makes a new definition from its name (the id is made from it). A first word from:ID after the kind starts it as a copy of that definition, library:ID as that asset of the library (with what it needs; without a name the asset is added as it is).",
+        help: "Makes a new definition from its name (the id is made from it). A first word from:ID after the kind starts it as a copy of that definition, library:ID as that asset of the library (with what it needs; without a name the asset is added as it is), file:PATH from a file (a .glb or .png as a prop, a .png as a sheet, an .ogg or .wav as a sound; the path without spaces).",
         changes: true,
         run: |ws, a| {
             need_project(ws)?;
             let kind = kind_named(arg(a, 0, "kind")?)?;
             let from = a.get(1).and_then(|w| w.strip_prefix("from:"));
             let library = a.get(1).and_then(|w| w.strip_prefix("library:"));
-            let name = a[(1 + (from.is_some() || library.is_some()) as usize).min(a.len())..].join(" ");
-            let id = match library {
-                Some(asset) => ws.make_from_library(kind, asset, &name)?,
-                None => ws.make_def(kind, &name, from)?,
+            let file = a.get(1).and_then(|w| w.strip_prefix("file:"));
+            let name = a[(1 + (from.is_some() || library.is_some() || file.is_some()) as usize).min(a.len())..].join(" ");
+            let id = match (library, file) {
+                (Some(asset), _) => ws.make_from_library(kind, asset, &name)?,
+                (_, Some(file)) => ws.make_from_file(kind, std::path::Path::new(file), &name)?,
+                _ => ws.make_def(kind, &name, from)?,
             };
             Ok(format!("Made {} \"{id}\"", kind.name()))
         },

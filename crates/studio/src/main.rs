@@ -137,6 +137,14 @@ impl Studio {
                 // A cut-scene's timeline (its tab in front): `timeline time SECS`, `timeline cue TRACK CUE`,
                 // `timeline add TRACK ACTION…`, `timeline play`; alone it prints where everyone is.
                 "timeline" => println!("[timeline] {}", self.shell.timeline_word(&cmd[1..])),
+                // A file dropped on the window: `dropfile PATH` opens *New…* with it, as a real drop does.
+                "dropfile" => {
+                    let path = PathBuf::from(cmd[1.min(cmd.len())..].join(" "));
+                    match gallery::NewAsset::of_file(&path) {
+                        Some(new) => self.shell.new_asset = Some(new),
+                        None => println!("[script] {} is no 3D model, picture or sound", path.display()),
+                    }
+                }
                 // A character's workshop (its tab in front): `char model ID`, `char part SLOT ID|-|own`,
                 // `char color FEATURE RRGGBB|-`, `char random`, `char face front|left|back|right|turn`, `char anim walk|idle|attack|hurt`.
                 "char" => println!("[char] {}", self.shell.char_word(&cmd[1..])),

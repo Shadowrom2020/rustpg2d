@@ -122,7 +122,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   the file and a name from it, Enter makes it. *New…* also takes a file's place typed in.
 - **Structures are edited on a map of their own** (part 8): a structure's tab is the structure
   itself with every map tool: paint its ground, place and move things, build on it; its name,
-  category and size are in the Inspector. What you do is undone like anything else.
+  category and size are in the Inspector. What you do is undone like anything else. Around
+  its own tiles there is a tile of room for what hangs over its edge (a fence, a tree's
+  foot); a structure holds no zones, so there is no Zones tool there.
 - **New… from the asset library** (part 8): a new prop, character, item… can start as one of
   the asset library, under your own name: it comes with its pictures, sounds, models and the
   script functions its events call. The library's chest, lamp or merchant is the template.

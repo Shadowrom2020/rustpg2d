@@ -76,6 +76,12 @@ impl Tool {
     pub fn named(name: &str) -> Option<Tool> {
         Tool::ALL.into_iter().find(|t| t.label().eq_ignore_ascii_case(name))
     }
+
+    /// The tools of map `map`: a structure's map has no zones (a structure can't hold any).
+    pub fn offered(map: &str) -> impl Iterator<Item = Tool> {
+        let structure = editor_core::structdoc::structure_of(map).is_some();
+        Tool::ALL.into_iter().filter(move |t| !(structure && *t == Tool::Zones))
+    }
 }
 
 /// How the Terrain tool paints.
@@ -452,7 +458,7 @@ impl MapView {
 
     fn bar(&mut self, ui: &mut egui::Ui, p: &mut Parts, name: &str) {
         ui.horizontal_wrapped(|ui| {
-            for t in Tool::ALL {
+            for t in Tool::offered(name) {
                 if ui.selectable_label(self.tool == t, t.label()).on_hover_text(format!("{} ({})", t.help(), t.key().name())).clicked() {
                     self.tool = t;
                 }
@@ -802,7 +808,7 @@ impl MapView {
         ui.label(egui::RichText::new(if name.is_empty() { id } else { name.as_str() }).strong());
         ui.weak(format!("A structure · {w} x {h} tiles · {} characters, objects and items · {} pieces of scenery", def.entities.len(), def.decor.len()));
         ui.add_space(6.0);
-        ui.weak("This is the structure itself: everything on these tiles is placed again as one piece by the Place tool. Paint its ground, put things on it, build on it with the tools above; select something to change it here.");
+        ui.weak("This is the structure itself: everything here is placed again as one piece by the Place tool. Paint its ground, put things on it, build on it with the tools above; select something to change it here. The darker tiles around it are room for what hangs over its edge: things can stand there, ground and blocked tiles are its own tiles' only.");
         ui.separator();
         egui::Grid::new("structure facts").num_columns(2).show(ui, |ui| {
             let l = ui.label("Name");
@@ -2054,7 +2060,7 @@ impl MapView {
         let k = ui.input(|i| {
             let plain = !i.modifiers.command && !i.modifiers.alt;
             let key = |k: egui::Key| plain && i.key_pressed(k);
-            let tool = Tool::ALL.into_iter().find(|t| key(t.key()));
+            let tool = Tool::offered(name).find(|t| key(t.key()));
             let pan = vec2(i.key_down(egui::Key::ArrowRight) as i32 as f32 - i.key_down(egui::Key::ArrowLeft) as i32 as f32, i.key_down(egui::Key::ArrowDown) as i32 as f32 - i.key_down(egui::Key::ArrowUp) as i32 as f32);
             let size = key(egui::Key::CloseBracket) as i32 - key(egui::Key::OpenBracket) as i32;
             (tool, key(egui::Key::G), key(egui::Key::R), key(egui::Key::Delete) || key(egui::Key::Backspace), i.modifiers.command && i.key_pressed(egui::Key::D), key(egui::Key::Escape), key(egui::Key::Home), pan, i.stable_dt, size, key(egui::Key::Enter))
@@ -2299,6 +2305,15 @@ impl MapView {
         let (mw, mh) = (doc.map.width as f32 * ts, doc.map.height as f32 * ts);
         let bg = doc.map.background;
         draw_rectangle(0.0, 0.0, mw, mh, Color::from_rgba(bg[0], bg[1], bg[2], 255));
+        // A structure's map: the tiles around its own are room for what hangs over its edge.
+        let own = editor_core::structdoc::structure_of(&doc.map.name).map(|_| editor_core::structdoc::own_tiles(&doc.map)).map(|(x, y, w, h)| Rect::new(x as f32 * ts, y as f32 * ts, w as f32 * ts, h as f32 * ts));
+        if let Some(o) = own {
+            let dim = Color::from_rgba(32, 34, 40, 170);
+            draw_rectangle(0.0, 0.0, mw, o.y, dim);
+            draw_rectangle(0.0, o.y + o.h, mw, mh - o.y - o.h, dim);
+            draw_rectangle(0.0, o.y, o.x, o.h, dim);
+            draw_rectangle(o.x + o.w, o.y, mw - o.x - o.w, o.h, dim);
+        }
         if self.opts.parallax {
             render::parallax::draw(scene.assets, &doc.map.parallax, false, view, time as f32);
         }
@@ -2381,6 +2396,9 @@ impl MapView {
             for y in y0..=y1 {
                 draw_line(x0 as f32 * ts, y as f32 * ts, x1 as f32 * ts, y as f32 * ts, px, c);
             }
+        }
+        if let Some(o) = own {
+            draw_rectangle_lines(o.x, o.y, o.w, o.h, 2.0 * px, Color::new(1.0, 1.0, 1.0, 0.45));
         }
         if self.opts.zones {
             for z in &map.zones {
@@ -2824,6 +2842,10 @@ mod ui_tests {
         // definition too, as a step of its own.
         let pieces = def.decor.len();
         let on_map = s.ws.doc.as_ref().unwrap().map.decor.len();
+        assert_eq!(on_map, pieces, "the fence that hangs a pixel over its edge is on its map too");
+        // A structure holds no zones: the tool for them isn't offered there.
+        assert!(h.query_all_by_role_and_label(egui::accesskit::Role::Button, "Zones").next().is_none());
+        assert!(h.query_all_by_role_and_label(egui::accesskit::Role::Button, "Collision").next().is_some());
         let first = s.ws.doc.as_ref().unwrap().map.decor[0];
         h.state_mut().view.sel = vec![Selection::Scenery(first)];
         h.run();

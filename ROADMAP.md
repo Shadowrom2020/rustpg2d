@@ -1688,7 +1688,12 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     in tiles (smaller cuts off what stood on the tiles that go). Every finished change is a
     step of the editor's history under the name of what was done (*Place Chest*, *Paint
     Dirt*); its picture, and the structure the Place tool puts down, follow at once. A new
-    structure (*New… › Structure*) starts as a few empty tiles to build on.
+    structure (*New… › Structure*) starts as a few empty tiles to build on. Around its own
+    tiles (outlined) its map has a tile of room for what hangs over its edge: the example's
+    garden has a fence a pixel off its western side, which stands there and can be moved;
+    what is put there is part of the structure, ground painted and tiles blocked there are
+    not (they go again, and the editor says why). The Zones tool isn't offered: a structure
+    holds no zones.
   - **Structures have pictures** (`thumbs.rs`): a structure is placed on a map of its own
     and drawn as a map is (its ground, what lies and stands on it), once and again when it
     changed, two a frame: its card in *Structures*, in the Place tool's palette and at the
@@ -1700,9 +1705,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   is shown as a handle; starting from measurements and Meshy, a file picked in a dialog (it
   is dropped or its place typed), a character's model and an item's from a file, pictures
   other than PNG; of the import helpers a model's check (size, rig, clips, what is missing
-  and its fix), a sound's volume and loop points set by ear; of structures: what one holds outside its own tiles (the
-  example's garden has a fence a pixel off its edge) is kept but not shown on its map, zones
-  drawn there are not part of it (the Zones tool is still offered), a house of the Build
+  and its fix), a sound's volume and loop points set by ear; of structures: a house of the Build
   tool saved as one from the tool itself; of the character workshop: rules,
   day, talk, shop and loot as parts of one document (they are sections of the form below),
   *Start from…* another character; presets that are more than
@@ -1736,6 +1739,12 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     definitions' history joins changes made while one field has it (typing), which made a
     chest placed and a path painted right after one step. Only typing into a field of
     something placed there joins the step before.
+  - **A structure's map is a tile larger on every side than the structure**: what a
+    structure holds may lie outside its tiles (placing one puts it there too), and a map of
+    exactly its size could neither show nor hold that. So a structure's own tiles start at
+    1, 1 on its map (`structdoc::MARGIN`, `own_tiles`), and everything standing on the map
+    is the structure's, at places counted from its own corner. What lies further out than
+    that tile is kept as it is, unseen.
   - **A dropped file opens *New…*, it doesn't make something at once**: what a file should
     become is a guess (a picture is a prop most of the time, a sheet sometimes), and the
     thing needs a name; the guess and the file's name are filled in, so Enter is enough.

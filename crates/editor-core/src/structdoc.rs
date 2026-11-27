@@ -29,37 +29,85 @@ pub fn is_scratch(map: &str) -> bool {
     map.starts_with('@')
 }
 
-/// The structure as a map: its size, its top-left corner at 0, 0.
+/// Tiles around a structure's own on its map: what hangs over its edge (a fence a pixel off,
+/// a tree's foot on the next tile) lies there, and is put there. Ground and blocked tiles are
+/// the structure's own tiles' only.
+pub const MARGIN: u32 = 1;
+
+/// The structure's own tiles on its map: `(x, y, w, h)`.
+pub fn own_tiles(map: &Map) -> (u32, u32, u32, u32) {
+    (MARGIN, MARGIN, map.width.saturating_sub(2 * MARGIN).max(1), map.height.saturating_sub(2 * MARGIN).max(1))
+}
+
+/// The structure as a map: its tiles with [`MARGIN`] tiles around them.
 fn as_map(def: &StructureDef) -> Map {
-    let mut map = Map::new(&doc_name(&def.id), def.w.max(1), def.h.max(1));
-    def.place(&mut map, 0, 0);
+    let mut map = Map::new(&doc_name(&def.id), def.w.max(1) + 2 * MARGIN, def.h.max(1) + 2 * MARGIN);
+    def.place(&mut map, MARGIN as i32, MARGIN as i32);
     map
 }
 
 /// The map as the structure it is now: what `def` is called and filed under is kept.
 fn as_structure(map: &Map, def: &StructureDef) -> StructureDef {
     // (With its ground when it had some, or some was painted since.)
-    let ground = !def.ground.is_empty() || !map.materials.is_empty();
-    let mut new = StructureDef::capture(map, &def.id, &def.name, (0, 0, map.width, map.height), ground);
+    let (x0, y0, w, h) = own_tiles(map);
+    let cells = rustpg2d_engine::ground::CELLS;
+    let painted = || (y0 * cells..(y0 + h) * cells).any(|cy| (x0 * cells..(x0 + w) * cells).any(|cx| map.ground.get(cx as i32, cy as i32) != 0));
+    let ground = !def.ground.is_empty() || !def.clear.is_empty() || painted();
+    let mut new = StructureDef::capture(map, &def.id, &def.name, (x0, y0, w, h), ground);
     new.category = def.category.clone();
-    // What the definition holds outside its own tiles (a fence a pixel off its edge) was never
-    // on its map: it is kept as it is.
+    // Everything on its map is part of it, around its tiles too, in the map's order.
     let ts = rustpg2d_engine::project::TILE_SIZE as i32;
-    let inside = |x: i32, y: i32| x.div_euclid(ts) >= 0 && x.div_euclid(ts) < def.w.max(1) as i32 && (y - 1).div_euclid(ts) >= 0 && (y - 1).div_euclid(ts) < def.h.max(1) as i32;
-    for d in def.decor.iter().filter(|d| !inside(d.x, d.y)) {
+    let off = MARGIN as i32 * ts;
+    new.decor.clear();
+    for d in &map.decor {
+        if let Some(prop) = map.decor_defs.get(d.def as usize) {
+            let slot = new.decor_slot(prop);
+            new.decor.push(rustpg2d_engine::decor::Decor { def: slot, x: d.x - off, y: d.y - off, ..*d });
+        }
+    }
+    new.entities = map.entities.iter().map(|e| rustpg2d_engine::entity::EntityInstance { uid: 0, x: e.x - off as f32, y: e.y - off as f32, ..e.clone() }).collect();
+    // What the definition holds further out than its map reaches was never on it (placing
+    // skips it): it is kept as it is.
+    let (mw, mh) = ((def.w.max(1) + 2 * MARGIN) as i32, (def.h.max(1) + 2 * MARGIN) as i32);
+    let on_map = |tx: i32, ty: i32| tx >= 0 && ty >= 0 && tx < mw && ty < mh;
+    for d in def.decor.iter().filter(|d| !on_map((d.x + off).div_euclid(ts), (d.y + off - 1).div_euclid(ts))) {
         if let Some(prop) = def.decor_defs.get(d.def as usize) {
             let slot = new.decor_slot(prop);
             new.decor.push(rustpg2d_engine::decor::Decor { def: slot, ..*d });
         }
     }
-    // (For things placed, as placing a structure decides it: by the tile their feet are on.)
-    let tsf = ts as f32;
-    let placed = |x: f32, y: f32| {
-        let (tx, ty) = ((x / tsf) as i32, ((y - 1.0) / tsf) as i32);
-        tx >= 0 && tx < def.w.max(1) as i32 && ty >= 0 && ty < def.h.max(1) as i32
-    };
-    new.entities.extend(def.entities.iter().filter(|e| !placed(e.x, e.y)).cloned());
+    let (tsf, offf) = (ts as f32, off as f32);
+    new.entities.extend(def.entities.iter().filter(|e| !on_map(((e.x + offf) / tsf) as i32, ((e.y + offf - 1.0) / tsf) as i32)).cloned());
     new
+}
+
+/// Takes away what a structure can't hold from around its tiles on its map: painted ground
+/// and blocked tiles. Whether there was any.
+fn tidy_margin(map: &mut Map) -> bool {
+    use rustpg2d_engine::ground::CELLS;
+    let (x0, y0, w, h) = own_tiles(map);
+    let own = |tx: u32, ty: u32| tx >= x0 && ty >= y0 && tx < x0 + w && ty < y0 + h;
+    let mut any = false;
+    for ty in 0..map.height {
+        for tx in 0..map.width {
+            if own(tx, ty) {
+                continue;
+            }
+            if map.collision_at(tx, ty) != rustpg2d_engine::map::CollisionOverride::Auto {
+                map.set_collision(tx, ty, rustpg2d_engine::map::CollisionOverride::Auto);
+                any = true;
+            }
+            for cy in ty * CELLS..(ty + 1) * CELLS {
+                for cx in tx * CELLS..(tx + 1) * CELLS {
+                    if map.ground.get(cx as i32, cy as i32) != 0 {
+                        map.ground.set(cx as i32, cy as i32, 0);
+                        any = true;
+                    }
+                }
+            }
+        }
+    }
+    any
 }
 
 impl Workspace {
@@ -102,6 +150,7 @@ impl Workspace {
             return;
         }
         let ids: Vec<String> = self.struct_docs.keys().cloned().collect();
+        let mut tidied = false;
         for id in ids {
             let name = doc_name(&id);
             let current = self.doc.as_ref().is_some_and(|d| d.map.name == name);
@@ -143,6 +192,10 @@ impl Workspace {
                 continue;
             }
             let new = as_structure(&doc.map, &def);
+            if tidy_margin(&mut doc.map) {
+                doc.rebuild_overview(assets);
+                tidied = true;
+            }
             doc.mark_saved();
             // (What was done on the map is a step of its own, whatever has the keyboard; only
             // typing into a field of something placed joins the step before, as in any form.)
@@ -162,6 +215,9 @@ impl Workspace {
             self.defs_dirty = true;
             self.stale = true;
         }
+        if tidied {
+            self.set_status("Ground and blocked tiles belong to the structure's own tiles: around them only things can stand");
+        }
     }
 
     /// Another size for structure `id` (tiles; what lies outside the new size is cut off, new
@@ -174,12 +230,14 @@ impl Workspace {
         }
         // (Through a map of it, so cutting and growing are the map's own.)
         let mut map = as_map(&def);
-        map.resize(w, h);
-        // What stood outside goes with the tiles it stood on.
+        map.resize(w + 2 * MARGIN, h + 2 * MARGIN);
+        tidy_margin(&mut map);
+        let mut new = as_structure(&map, &def);
+        // What stood on the tiles that went (and beyond them) goes with them.
         let (pw, ph) = (w as f32 * self.ts(), h as f32 * self.ts());
-        map.entities.retain(|e| e.x < pw && e.y <= ph);
-        map.decor.retain(|d| (d.x as f32) < pw && (d.y as f32) <= ph);
-        let new = as_structure(&map, &def);
+        new.entities.retain(|e| e.x < pw && e.y <= ph);
+        new.decor.retain(|d| (d.x as f32) < pw && (d.y as f32) <= ph);
+        new.prune();
         self.begin(&format!("Resize the structure {} to {w} x {h}", if def.name.is_empty() { id } else { &def.name }));
         if let Some(slot) = self.project.db.structures.iter_mut().find(|s| s.id == id) {
             *slot = new;
@@ -256,7 +314,13 @@ mod tests {
             ws.history_frame(None);
         }
         assert!(ws.project.db.structures == before && !ws.is_dirty() && ws.timeline.done.is_empty());
-        assert_eq!((doc(&ws, &name).map.width, doc(&ws, &name).map.height), (before[0].w, before[0].h));
+        assert_eq!((doc(&ws, &name).map.width, doc(&ws, &name).map.height), (before[0].w + 2 * MARGIN, before[0].h + 2 * MARGIN));
+        assert_eq!(own_tiles(&doc(&ws, &name).map), (MARGIN, MARGIN, before[0].w, before[0].h));
+        // What hangs over a structure's edge is on its map, in the room around its tiles: the
+        // garden's fence stands a pixel off its western edge.
+        let garden = before.iter().find(|s| s.id == "garden").expect("the example has a garden");
+        assert!(garden.decor.iter().any(|d| d.x < 0), "the garden's fence is off its edge");
+        assert_eq!(as_map(garden).decor.len(), garden.decor.len());
         assert!(!ws.maps.iter().any(|m| is_scratch(m)));
         let _ = std::fs::remove_dir_all(dir);
     }
@@ -272,11 +336,12 @@ mod tests {
         // Something is placed on its map: the definition holds it, as one step called what was done.
         let prop = ws.project.db.props.iter().find(|p| p.id == "chest").map(|p| p.id.clone()).expect("the example has a chest");
         let ts = ws.ts();
-        ws.place_entity(EntityKind::Prop, &prop, gfx::prelude::vec2(1.5 * ts, 2.0 * ts)).unwrap();
+        ws.place_entity(EntityKind::Prop, &prop, gfx::prelude::vec2(2.5 * ts, 3.0 * ts)).unwrap();
         ws.history_frame(None);
         let now = ws.project.db.structure(&id).unwrap().clone();
         assert_eq!(now.entities.len(), def.entities.len() + 1);
-        assert!(now.entities.iter().any(|e| e.def == prop));
+        // (Its place in the structure counts from the structure's own corner, not the map's.)
+        assert!(now.entities.iter().any(|e| e.def == prop && (e.x, e.y) == (1.5 * ts, 2.0 * ts)));
         assert_eq!((now.name.as_str(), now.category.as_str()), (def.name.as_str(), def.category.as_str()), "what it is called and filed under is kept");
         assert_eq!(ws.timeline.done.len(), 1, "{:?}", ws.timeline.done.iter().map(|c| (&c.label, c.at.describe())).collect::<Vec<_>>());
         assert!(matches!(ws.timeline.done[0].at, crate::timeline::Where::Defs), "a step of the definitions, not of a map");
@@ -287,11 +352,22 @@ mod tests {
         // A second thing placed right after, the map's view still having the keyboard, is a
         // step of its own (it is no typing on in a field).
         ws.history_frame(Some(7));
-        ws.place_entity(EntityKind::Prop, &prop, gfx::prelude::vec2(2.5 * ts, 2.0 * ts)).unwrap();
+        ws.place_entity(EntityKind::Prop, &prop, gfx::prelude::vec2(3.5 * ts, 3.0 * ts)).unwrap();
         ws.history_frame(Some(7));
-        ws.place_entity(EntityKind::Prop, &prop, gfx::prelude::vec2(0.5 * ts, 2.0 * ts)).unwrap();
+        // (This one on the tiles around its own: it hangs over the structure's western edge.)
+        ws.place_entity(EntityKind::Prop, &prop, gfx::prelude::vec2(0.5 * ts, 3.0 * ts)).unwrap();
         ws.history_frame(Some(7));
         assert_eq!(ws.timeline.done.len(), 3);
+        assert!(ws.project.db.structure(&id).unwrap().entities.iter().any(|e| e.def == prop && e.x < 0.0), "what stands around its tiles is part of it");
+        // Ground painted and tiles blocked around its own tiles are no part of it: they go
+        // again, and nothing is a step.
+        let grass = ws.project.db.materials[0].id.clone();
+        let value = ws.ground_value(&grass).unwrap();
+        let cells = ws.ground_dab(crate::mapedit::Brush { size: 8.0, square: false, snap: false }, gfx::prelude::vec2(0.5 * ts, 0.5 * ts), value);
+        assert!(ws.ground_commit(cells, value) > 0 && doc(&ws, &name).map.ground.get(2, 2) == value);
+        ws.history_frame(Some(7));
+        assert_eq!(ws.timeline.done.len(), 3);
+        assert_eq!(doc(&ws, &name).map.ground.get(2, 2), 0);
         ws.undo().unwrap();
         ws.undo().unwrap();
         ws.history_frame(None);
@@ -372,7 +448,7 @@ mod tests {
         ws.history_frame(None);
         let grown = ws.project.db.structure(&id).unwrap().clone();
         assert_eq!((grown.w, grown.h, grown.entities.len(), grown.decor.len()), (def.w + 2, def.h + 2, def.entities.len(), def.decor.len()));
-        assert_eq!((doc(&ws, &name).map.width, doc(&ws, &name).map.height), (def.w + 2, def.h + 2));
+        assert_eq!(own_tiles(&doc(&ws, &name).map), (MARGIN, MARGIN, def.w + 2, def.h + 2));
         assert_eq!(ws.timeline.done.last().unwrap().label, format!("Resize the structure Another name to {} x {}", def.w + 2, def.h + 2));
         // One tile: what stood outside it went with its tiles.
         ws.resize_structure(&id, 1, 1).unwrap();

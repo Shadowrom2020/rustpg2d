@@ -240,13 +240,14 @@ impl Studio {
                         }
                         continue;
                     }
-                    let Some((view, _)) = self.shell.map_view() else {
+                    let Some((view, on)) = self.shell.map_view() else {
                         println!("[script] no map is open");
                         continue;
                     };
                     match arg(0) {
                         "mapview" => view.look_at(gfx::math::vec2((num(1) + 0.5) * ts, (num(2) + 0.5) * ts), if arg(3).is_empty() { 1.0 } else { num(3) }),
                         "maptool" => match mapview::Tool::named(arg(1)) {
+                            Some(t) if !mapview::Tool::offered(&on).any(|o| o == t) => println!("[script] a structure's map has no {} tool", t.label()),
                             Some(t) => view.tool = t,
                             None => println!("[script] no tool '{}'", arg(1)),
                         },

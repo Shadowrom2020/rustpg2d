@@ -120,6 +120,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **Drop a file to make something of it** (part 8): a 3D model (`.glb`) or a picture (`.png`)
   dropped on the editor becomes a prop that shows it, a sound file a sound: *New…* opens with
   the file and a name from it, Enter makes it. *New…* also takes a file's place typed in.
+- **The manual inside the editor** (part 10): the *Help* tab shows the Creator's Manual with
+  its chapters, a search over all of it and links that lead on. **F1** opens it at the part
+  about what you are working on: a map's tool, a kind of thing, scripts, publishing.
 - **Packs** (part 9): what you make can be given to others as one file. ***Share…*** in a
   prop's, character's, item's… tab writes it as a pack with what it needs, under your name, a
   licence and a version. On the Library tab, *Packs and sources* shows a pack before it is

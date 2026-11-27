@@ -42,6 +42,8 @@ pub enum Tab {
     Library,
     /// Generate art: what Meshy is asked for, the jobs, their results.
     Art,
+    /// The Creator's Manual.
+    Help,
 }
 
 impl Tab {
@@ -55,6 +57,7 @@ impl Tab {
             Tab::Publish => "Publishing".into(),
             Tab::Library => "Library".into(),
             Tab::Art => "Generate art".into(),
+            Tab::Help => "Help".into(),
             Tab::Play => "Play".into(),
             Tab::Problems => {
                 let (e, w) = ws.problems.counts();
@@ -86,6 +89,7 @@ impl Tab {
             Tab::Publish => "publish".into(),
             Tab::Library => "library".into(),
             Tab::Art => "art".into(),
+            Tab::Help => "help".into(),
             Tab::Play => "play".into(),
             Tab::Problems => "problems".into(),
             Tab::History => "history".into(),
@@ -272,6 +276,11 @@ pub struct LibLook {
     thumbs: crate::thumbs::Thumbs,
 }
 
+/// The file of the manual's chapter `k`.
+fn manual_file(k: usize) -> &'static str {
+    editor_core::manual::chapters().get(k).map_or("README.md", |c| c.file)
+}
+
 /// Pixel editors are kept by sheet id; a ground material's under this before its id (no id
 /// has a colon).
 const MATERIAL_KEY: &str = "material:";
@@ -334,6 +343,7 @@ pub struct Shell {
     /// The Library tab.
     pub library: crate::librarypage::LibraryPage,
     pub art: crate::artpage::ArtPage,
+    pub help: crate::helpview::HelpView,
     /// The home screen's fields.
     pub home: Home,
     /// The timelines of the cut-scenes open in tabs, by id.
@@ -383,7 +393,7 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, share: None, lib_look: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), art: Default::default(), timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), model_stages: Default::default(), pixels: Default::default(), sounds: Default::default(), sheets: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new() }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, share: None, lib_look: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), art: Default::default(), help: Default::default(), timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), model_stages: Default::default(), pixels: Default::default(), sounds: Default::default(), sheets: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new() }
     }
 
     /// Whether anything waits to be saved: definitions, maps, scripts.
@@ -468,7 +478,7 @@ impl Shell {
             return;
         }
         // Next to another document when there is one, else in the first leaf.
-        let doc = self.dock.find_tab_from(|t| matches!(t, Tab::Overview | Tab::World | Tab::Settings(_) | Tab::Kind(_) | Tab::Def(..) | Tab::Map(_) | Tab::Script(_) | Tab::Names | Tab::Publish | Tab::Library | Tab::Art | Tab::Play));
+        let doc = self.dock.find_tab_from(|t| matches!(t, Tab::Overview | Tab::World | Tab::Settings(_) | Tab::Kind(_) | Tab::Def(..) | Tab::Map(_) | Tab::Script(_) | Tab::Names | Tab::Publish | Tab::Library | Tab::Art | Tab::Help | Tab::Play));
         match doc {
             Some(path) => {
                 self.dock.set_focused_node_and_surface(path.node_path());
@@ -627,6 +637,71 @@ impl Shell {
         }
     }
 
+    /// Where the manual says something about the tab in front: a chapter's file, and words one
+    /// of which the heading of the section has.
+    pub fn help_topic(&mut self) -> (&'static str, Vec<String>) {
+        let words = |w: &[&str]| w.iter().map(|x| x.to_string()).collect::<Vec<_>>();
+        let of_kind = |kind: RefKind| -> (&'static str, Vec<String>) {
+            let label = plural(kind.label()).to_lowercase();
+            match kind {
+                RefKind::Character => ("06-characters.md", Vec::new()),
+                RefKind::Race | RefKind::Class | RefKind::Background | RefKind::Spell | RefKind::Disease => ("19-srd-rules.md", vec![label]),
+                RefKind::Cutscene => ("07-events.md", words(&["cut-scene", "cutscene"])),
+                RefKind::CommonEvent => ("07-events.md", words(&["common event"])),
+                RefKind::VisualScript => ("20-visual-scripts.md", Vec::new()),
+                RefKind::Structure => ("03-maps.md", words(&["structures"])),
+                RefKind::Model => ("10-art-and-sound.md", words(&["3d model", "model"])),
+                RefKind::Sheet | RefKind::Sound | RefKind::Animation => ("10-art-and-sound.md", vec![label]),
+                RefKind::Map => ("03-maps.md", Vec::new()),
+                _ => ("05-database.md", vec![label, kind.label().to_lowercase()]),
+            }
+        };
+        match self.dock.find_active_focused().map(|(_, t)| t.clone()) {
+            Some(Tab::Map(m)) => match self.maps.get(&m).map(|v| v.tool) {
+                Some(crate::mapview::Tool::Terrain) => ("03-maps.md", words(&["ground tool", "painted ground"])),
+                Some(crate::mapview::Tool::Build) => ("03-maps.md", words(&["building walls", "walls"])),
+                Some(crate::mapview::Tool::Collision) => ("03-maps.md", words(&["collision"])),
+                Some(crate::mapview::Tool::Zones) => ("04-objects-and-zones.md", words(&["zones"])),
+                Some(crate::mapview::Tool::Place) => ("04-objects-and-zones.md", words(&["placing"])),
+                _ => ("03-maps.md", Vec::new()),
+            },
+            Some(Tab::Def(kind, _)) | Some(Tab::Kind(kind)) => of_kind(kind),
+            Some(Tab::World) => ("04-objects-and-zones.md", words(&["transitions"])),
+            Some(Tab::Script(_)) => ("08-scripting.md", Vec::new()),
+            Some(Tab::Names) => ("07-events.md", words(&["variables", "flags"])),
+            Some(Tab::Publish) => ("14-publishing.md", Vec::new()),
+            Some(Tab::Library) => ("11-asset-library.md", Vec::new()),
+            Some(Tab::Art) => ("10-art-and-sound.md", words(&["generate art", "meshy"])),
+            Some(Tab::Play) => ("02-the-editor.md", words(&["play-test", "play"])),
+            Some(Tab::Problems) => ("16-troubleshooting.md", Vec::new()),
+            Some(Tab::History) => ("02-the-editor.md", words(&["undo", "saving"])),
+            Some(Tab::Settings(page)) => ("05-database.md", vec![page.to_lowercase(), "project".into()]),
+            Some(Tab::Help) => (manual_file(self.help.chapter), Vec::new()),
+            _ => ("01-getting-started.md", Vec::new()),
+        }
+    }
+
+    /// F1: the Help tab at the manual's part for what is in front.
+    pub fn open_help(&mut self) {
+        let (file, words) = self.help_topic();
+        let words: Vec<&str> = words.iter().map(String::as_str).collect();
+        let (chapter, anchor) = editor_core::manual::topic(file, &words);
+        self.help.open(chapter, &anchor);
+        self.show_tab(Tab::Help);
+    }
+
+    /// The Help tab: the words of `HelpView::word`, and `topic` (as F1); returns its `status` line.
+    pub fn help_word(&mut self, args: &[String]) -> String {
+        if args.first().map(String::as_str) == Some("topic") {
+            self.open_help();
+            return self.help.status();
+        }
+        match self.help.word(args) {
+            Ok(()) => self.help.status(),
+            Err(e) => format!("failed: {e}"),
+        }
+    }
+
     /// A file dropped on the window: a pack is looked at on the Library tab; a 3D model, a
     /// picture or a sound opens *New…* with it.
     pub fn dropped(&mut self, file: &std::path::Path) {
@@ -730,6 +805,7 @@ impl Shell {
             ("publish", None, _) => Tab::Publish,
             ("library", None, _) => Tab::Library,
             ("art", None, _) => Tab::Art,
+            ("help", None, _) => Tab::Help,
             ("play", None, _) => Tab::Play,
             ("problems", None, _) => Tab::Problems,
             ("history", None, _) => Tab::History,
@@ -1090,7 +1166,7 @@ impl Shell {
 
         let mut asks = Vec::new();
         {
-            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, library: &mut self.library, art: &mut self.art, home: &mut self.home, timelines: &mut self.timelines, nodes: &mut self.nodes, stages: &mut self.stages, figures: &mut self.figures, model_stages: &mut self.model_stages, pixels: &mut self.pixels, sounds: &mut self.sounds, sheets: &mut self.sheets, scrub: &mut self.scrub, try_next: &mut self.try_next, rs, asks: &mut asks };
+            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, library: &mut self.library, art: &mut self.art, help: &mut self.help, home: &mut self.home, timelines: &mut self.timelines, nodes: &mut self.nodes, stages: &mut self.stages, figures: &mut self.figures, model_stages: &mut self.model_stages, pixels: &mut self.pixels, sounds: &mut self.sounds, sheets: &mut self.sheets, scrub: &mut self.scrub, try_next: &mut self.try_next, rs, asks: &mut asks };
             DockArea::new(&mut self.dock).show_inside(ui, &mut viewer);
         }
         for ask in asks {
@@ -1161,6 +1237,10 @@ impl Shell {
         }
         if escape && self.palette.open.is_some() {
             self.palette.open = None;
+        }
+        // F1: the manual, at the chapter for what is in front.
+        if ctx.input(|i| i.key_pressed(egui::Key::F1)) {
+            self.open_help();
         }
         let (f5, f6) = ctx.input(|i| (i.key_pressed(egui::Key::F5), i.key_pressed(egui::Key::F6)));
         if f5 {
@@ -1442,6 +1522,7 @@ struct Viewer<'a> {
     publish: &'a mut crate::publish::PublishPage,
     library: &'a mut crate::librarypage::LibraryPage,
     art: &'a mut crate::artpage::ArtPage,
+    help: &'a mut crate::helpview::HelpView,
     home: &'a mut Home,
     timelines: &'a mut std::collections::HashMap<String, crate::timeline::Timeline>,
     nodes: &'a mut std::collections::HashMap<String, crate::nodesview::NodesView>,
@@ -1513,6 +1594,7 @@ impl egui_dock::TabViewer for Viewer<'_> {
                     self.asks.push(Ask::Open(Tab::Def(kind, id)));
                 }
             }
+            Tab::Help => self.help.show(ui),
             Tab::Publish => {
                 // (The game is exported from its files: what is in the script tabs is written first.)
                 if self.scripts.values().any(|t| t.dirty()) {

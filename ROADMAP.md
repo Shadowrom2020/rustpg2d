@@ -2214,7 +2214,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     the hero: an empty project has none; the Overview's checklist now leads to where each
     missing step is done).
 
-- [ ] Part 10: Help and guidance — `feature/studio`
+- [~] Part 10: Help and guidance — `feature/studio`
 
   **Goal.** A new creator gets from an empty project to a playable game without leaving the
   editor to find out how.
@@ -2236,9 +2236,45 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
 
   **Engine.** None. Tours and the manual's anchors are data in the editor crate.
 
+  **Progress.**
+  - **The manual inside** (`editor-core/src/manual.rs`, `studio/src/helpview.rs`; the tab
+    *Help*, `help`): the 21 files of `Documentation/manual` are built into the editor
+    (`include_str!`) and cut into blocks by a small Markdown reader of its own (headings
+    with their anchors, paragraphs with bold, italic, code and links, lists, tables, fenced
+    code, pictures as their captions). The tab has the chapters at the left, a search over
+    all of them (sections whose title has every word first, then lines), the chapter with
+    *In this chapter* to jump to a heading and *Back*; links between chapters lead on, web
+    links open in the browser. **F1** opens it at the part for what is in front
+    (`Shell::help_topic`: a chapter's file and words one of which the section's heading
+    has, so the mapping survives the manual being rewritten): a map by its tool (*The
+    Ground tool*, *Collision*, zones, placing), a definition or a kind's list by its kind,
+    scripts, flags and variables, Publishing, the Library, Generate art, Problems.
+  Still open: everything else of this part: fields' longer help in the panel, empty places
+  that say what to do next (some do), problems with fixes, guided tours, the agent set-up
+  button, *What's new*; of the Help tab: the manual's pictures, the place read last kept.
+
+  **Decided while building.**
+  - **A Markdown reader of our own, not a crate**: the manual uses a small part of Markdown,
+    and the editor needs what a general renderer doesn't give by itself: anchors as the
+    manual's links write them, links that lead to another chapter of the tab, a search that
+    knows the section a line is in. A test keeps every link of the manual leading to a
+    chapter and a heading that exist (it found one line of chapter 17 that Markdown read as
+    a link: now in code marks).
+  - **The manual is built in, not read from a folder**: a packaged editor has it without
+    files beside it, and it is the manual of exactly that editor.
+
   **Verify.** Each tour followed on a fresh project by `egui_kittest`, ending with a play-test
   that starts. F1 from five places opens the right chapter. A broken reference fixed from the
   Problems panel.
+  - Done so far: `manual` tests (Markdown cut into blocks and spans; all 21 chapters with
+    their sections, every internal link leading somewhere; a search finds *Painted ground*
+    by its title and lockpicking in the gameplay chapter; a topic's section, else the
+    chapter's top), `the_manual_is_read_searched_and_its_links_followed`. In the window, F1
+    (the script's `help topic`) from eight places: a map with the Terrain tool (*The Ground
+    tool*), with Collision (*Collision*), a character (chapter 6), a script (chapter 8, at
+    60 frames a second on the longest chapter), Publishing (14), the Library (11), an item
+    (*Items* of chapter 5), a cut-scene (*A cut-scene* of chapter 7); a search for fishing
+    opened *Fishing* in chapter 9.
 
 - [ ] Part 11: Old things leave — `feature/studio`
 

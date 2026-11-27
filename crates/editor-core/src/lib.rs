@@ -16,6 +16,7 @@ pub mod looks;
 pub mod build;
 pub mod events;
 pub mod export;
+pub mod manual;
 pub mod mapedit;
 pub mod mapops;
 pub mod mcp;

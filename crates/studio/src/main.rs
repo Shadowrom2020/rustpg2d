@@ -15,6 +15,7 @@
 
 mod form;
 mod gallery;
+mod helpview;
 mod librarypage;
 mod artpage;
 mod artshop;
@@ -170,6 +171,9 @@ impl Studio {
                 // A character's workshop (its tab in front): `char model ID`, `char part SLOT ID|-|own`,
                 // `char color FEATURE RRGGBB|-`, `char random`, `char face front|left|back|right|turn`, `char anim walk|idle|attack|hurt`.
                 "char" => println!("[char] {}", self.shell.char_word(&cmd[1..])),
+                // The Help tab: `help topic` (as F1: the manual for the tab in front), `help open FILE [ANCHOR]`,
+                // `help search TEXT…`, `help hit K`, `help back`.
+                "help" => println!("[help] {}", self.shell.help_word(&cmd[1..])),
                 // Generate art: `art kind KIND`, `art id ID`, `art describe TEXT…`, `art for CHARACTER`, `art attack NAME`,
                 // `art extras A,B`, `art draw` (the cost confirmed), `art redo JOB PICTURE`, `art add JOB [ID]`.
                 "art" => println!("[art] {}", self.shell.art_word(&cmd[1..])),

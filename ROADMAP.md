@@ -783,9 +783,16 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   - `RUSTPG2D_STUDIO_SCRIPT`: `wait`, `status` (`tabs=`, `focus=`, `history=`, `problems=`,
     `palette=`), `shot` of the whole window, `tab NAME`, `palette TEXT` / `goto TEXT` / `pick N`,
     `key`, `pause`, `resume`, `quit`, and any command line of the editor (`map.open village`).
-  Still open: the home screen, layouts saved and presets, tearing tabs off into windows, back /
-  forward, favourites, the shortcut sheet with rebinding, dropping files in, the theme (light,
-  UI scale, icons), toasts, the editor's settings, `egui_kittest` tests.
+  - **The home screen** (the Overview while no project is open, and its *Another project*
+    section otherwise): *A new game* (its name, where it is kept: `~/rustpg2d/<name>` as a
+    project file) makes an empty project and opens it; *Open a project* by where it is; the
+    projects worked on lately; the bundled example in a packaged R(ust)PG2D. Another project
+    opens in the same window (`Shell::switch_project`); it is refused while something isn't
+    saved. *Close this project* leads back to the start.
+  Still open: of the home screen a file picker (the place is typed) and pictures of the
+  projects; layouts saved and presets, tearing tabs off into windows, back / forward,
+  favourites, the shortcut sheet with rebinding, dropping files in, the theme (light, UI
+  scale, icons), toasts, the editor's settings, `egui_kittest` tests.
 
   **Decided while building.**
   - The new editor grows in `crates/studio` (the old one keeps `crates/editor`, with the
@@ -798,6 +805,11 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   **Verify.** `egui_kittest`: open the example, open three documents, split, tear one off, restart
   and find the layout again; Ctrl+P and the palette reach a map, an item and a command.
   Screenshots of Home, Overview and a mixed layout in both themes.
+  - The home screen, in the window: the project closed (the start with *A new game*, *Open a
+    project* and the scratch game under *Worked on lately*); a new project made in a scratch
+    folder (project.ron, defs, a start map, a script) and opened; its start map in a tab, where
+    the Build tool says that an empty project has no building to build like yet; the example
+    opened in the same window and the new project again.
 
 - [~] Part 4: The Project browser and asset editors — `feature/studio`
 

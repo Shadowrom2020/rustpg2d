@@ -96,6 +96,17 @@ impl Studio {
                     println!("[said] {}", self.shell.ws.status.0);
                     println!("[world] {} link={}", self.shell.world_status(), self.shell.link.as_ref().map_or("-".to_string(), |(m, z)| format!("{m}:{z}")));
                 }
+                // Projects: `project new PATH`, `project open PATH`, `project close`.
+                "project" => {
+                    let path = PathBuf::from(cmd[2.min(cmd.len())..].join(" "));
+                    let r = match arg(1) {
+                        "new" => self.shell.new_project(&path),
+                        "open" => self.shell.switch_project(&path),
+                        "close" => self.shell.close_project(),
+                        other => Err(format!("project {other}: new PATH, open PATH, close")),
+                    };
+                    println!("[project] {}", r.map_or_else(|e| format!("failed: {e}"), |()| if self.shell.ws.project_open { format!("{} at {}", self.shell.ws.project.config.name, self.shell.ws.project_location().display()) } else { "none".to_string() }));
+                }
                 // The Library tab: `library tick KIND ID`, `library add` (what is ticked, into the project).
                 "library" => match arg(1) {
                     "tick" => match rustpg2d_engine::refactor::RefKind::parse(arg(2)) {

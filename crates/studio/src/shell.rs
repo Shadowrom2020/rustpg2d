@@ -233,6 +233,10 @@ enum Ask {
     PlayWindow,
     /// The first tab above the second, both in view.
     Above(Tab, Tab),
+    /// Open this project in the window; make a new one there and open it; back to none.
+    OpenProject(PathBuf),
+    NewProject(PathBuf),
+    CloseProject,
     /// *Try it*: the game on this map with the hero on the tile and the event raised.
     Try(String, (i32, i32), Box<(rustpg2d_engine::events::TriggerOn, rustpg2d_engine::runtime::EventOwner, String)>),
 }
@@ -248,6 +252,16 @@ pub enum PlayFrom {
     /// A cut-scene on its map, from this second of it.
     Cutscene(String, f32),
     Again,
+}
+
+/// What is typed on the home screen.
+#[derive(Default)]
+pub struct Home {
+    new_name: String,
+    /// Where the new project goes (filled in from its name until it is typed).
+    new_at: String,
+    new_at_typed: bool,
+    open_path: String,
 }
 
 pub struct Shell {
@@ -288,6 +302,8 @@ pub struct Shell {
     pub publish: crate::publish::PublishPage,
     /// The Library tab.
     pub library: crate::librarypage::LibraryPage,
+    /// The home screen's fields.
+    pub home: Home,
     /// The timelines of the cut-scenes open in tabs, by id.
     pub timelines: std::collections::HashMap<String, crate::timeline::Timeline>,
     /// Where a cut-scene has everyone at its playhead (its map, the moment, the frame it was
@@ -301,7 +317,7 @@ pub struct Shell {
 
 impl Shell {
     pub fn open(project: PathBuf, start: rustpg2d_engine::runtime::StartOptions) -> Shell {
-        let mut ws = match Workspace::open_path(project.clone(), Gpu::Yes) {
+        let ws = match Workspace::open_path(project.clone(), Gpu::Yes) {
             Ok(ws) => ws,
             Err(e) => {
                 let mut ws = Workspace::empty();
@@ -309,6 +325,11 @@ impl Shell {
                 ws
             }
         };
+        Shell::around(ws, start)
+    }
+
+    /// The window's parts around a workspace (a project just opened, or none).
+    fn around(mut ws: Workspace, start: rustpg2d_engine::runtime::StartOptions) -> Shell {
         ws.refresh_refs();
         ws.history_frame(None);
         // Documents in the middle, the browser left, problems and history below.
@@ -316,7 +337,54 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), timelines: Default::default(), scrub: None, try_next: None, log: Vec::new() }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), timelines: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new() }
+    }
+
+    /// Whether anything waits to be saved: definitions, maps, scripts.
+    pub fn unsaved(&self) -> bool {
+        self.ws.is_dirty() || self.scripts.values().any(|t| t.dirty())
+    }
+
+    /// Opens another project in this window (a project file, or a folder). Refused while
+    /// something isn't saved; the project that was open has its file written first.
+    pub fn switch_project(&mut self, path: &std::path::Path) -> Result<(), String> {
+        if self.unsaved() {
+            return Err("there are unsaved changes: save first (Ctrl+S)".into());
+        }
+        let ws = Workspace::open_path(path.to_path_buf(), Gpu::Yes).map_err(|e| format!("{}: {e:#}", path.display()))?;
+        self.ws.finish_project_file();
+        let log = std::mem::take(&mut self.log);
+        *self = Shell::around(ws, rustpg2d_engine::runtime::StartOptions::default());
+        self.log = log;
+        self.ws.set_status(format!("Opened {}", path.display()));
+        Ok(())
+    }
+
+    /// Makes a new, empty project at `path` (a project file; a folder where folders are
+    /// allowed) and opens it.
+    pub fn new_project(&mut self, path: &std::path::Path) -> Result<(), String> {
+        if self.unsaved() {
+            return Err("there are unsaved changes: save first (Ctrl+S)".into());
+        }
+        let made = if editor_core::project_file::folders_allowed() {
+            editor_core::files::create_project(path).map(|()| path.to_path_buf())
+        } else {
+            editor_core::files::create_project_file(path)
+        };
+        let made = made.map_err(|e| format!("{e:#}"))?;
+        self.switch_project(&made)
+    }
+
+    /// Back to no project (the home screen).
+    pub fn close_project(&mut self) -> Result<(), String> {
+        if self.unsaved() {
+            return Err("there are unsaved changes: save first (Ctrl+S)".into());
+        }
+        self.ws.close_project();
+        let log = std::mem::take(&mut self.log);
+        *self = Shell::around(Workspace::empty(), rustpg2d_engine::runtime::StartOptions::default());
+        self.log = log;
+        Ok(())
     }
 
     /// Shows `tab`: brings it to the front when it is open, else opens it beside the documents.
@@ -389,11 +457,6 @@ impl Shell {
             self.ws.stale = true;
         }
         saved
-    }
-
-    /// Whether anything waits to be saved: definitions, maps, scripts.
-    pub fn unsaved(&self) -> bool {
-        self.ws.is_dirty() || self.scripts.values().any(|t| t.dirty())
     }
 
     /// The timeline of the cut-scene tab in front: `time SECS`, `cue TRACK CUE` (picks one),
@@ -792,7 +855,7 @@ impl Shell {
 
         let mut asks = Vec::new();
         {
-            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, library: &mut self.library, timelines: &mut self.timelines, scrub: &mut self.scrub, try_next: &mut self.try_next, rs, asks: &mut asks };
+            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, library: &mut self.library, home: &mut self.home, timelines: &mut self.timelines, scrub: &mut self.scrub, try_next: &mut self.try_next, rs, asks: &mut asks };
             DockArea::new(&mut self.dock).show_inside(ui, &mut viewer);
         }
         for ask in asks {
@@ -807,6 +870,25 @@ impl Shell {
                 Ask::Play(from) => self.play_from(from),
                 Ask::PlayWindow => self.play_window(),
                 Ask::Above(tab, beside) => self.show_above(tab, &beside),
+                Ask::OpenProject(path) => {
+                    if let Err(e) = self.switch_project(&path) {
+                        self.ws.set_status(format!("Not opened: {e}"));
+                    }
+                    // (The window is another project's now: what else was asked was the old one's.)
+                    break;
+                }
+                Ask::NewProject(path) => {
+                    if let Err(e) = self.new_project(&path) {
+                        self.ws.set_status(format!("No new project: {e}"));
+                    }
+                    break;
+                }
+                Ask::CloseProject => {
+                    if let Err(e) = self.close_project() {
+                        self.ws.set_status(format!("Not closed: {e}"));
+                    }
+                    break;
+                }
                 Ask::Try(map, tile, what) => {
                     // (With the test setup: a game in progress, so the map's intro doesn't play first.)
                     self.try_next = Some(*what);
@@ -1072,6 +1154,7 @@ struct Viewer<'a> {
     names: &'a mut crate::namespage::NamesPage,
     publish: &'a mut crate::publish::PublishPage,
     library: &'a mut crate::librarypage::LibraryPage,
+    home: &'a mut Home,
     timelines: &'a mut std::collections::HashMap<String, crate::timeline::Timeline>,
     scrub: &'a mut Option<(String, editor_core::cutscene::Preview, u64)>,
     try_next: &'a mut Option<(rustpg2d_engine::events::TriggerOn, rustpg2d_engine::runtime::EventOwner, String)>,
@@ -1354,7 +1437,11 @@ impl Viewer<'_> {
     fn overview(&mut self, ui: &mut egui::Ui) {
         if !self.ws.project_open {
             ui.heading("R(ust)PG2D Studio");
-            ui.label(&self.ws.status.0);
+            if !self.ws.status.0.is_empty() {
+                ui.weak(&self.ws.status.0);
+            }
+            ui.add_space(8.0);
+            self.home(ui);
             return;
         }
         let cfg = &self.ws.project.config;
@@ -1395,6 +1482,15 @@ impl Viewer<'_> {
                 ui.label(format!("{} {}", list.len(), plural(kind.label()).to_lowercase()));
             }
         }
+        // Other projects: another one in this window, or none.
+        ui.add_space(8.0);
+        egui::CollapsingHeader::new("Another project").id_salt("home").default_open(false).show(ui, |ui| {
+            if ui.button("Close this project").on_hover_text("Back to the start, with no project open").clicked() {
+                self.asks.push(Ask::CloseProject);
+            }
+            ui.add_space(6.0);
+            self.home(ui);
+        });
     }
 
     fn play_tab(&mut self, ui: &mut egui::Ui) {
@@ -2072,6 +2168,68 @@ impl Viewer<'_> {
             d.insert_temp(sort_id, sort);
         });
         open
+    }
+
+    /// The home screen: a new project, one opened by where it is, the ones worked on lately.
+    /// With a project open it is the Overview's last section.
+    fn home(&mut self, ui: &mut egui::Ui) {
+        let h = &mut *self.home;
+        ui.strong("A new game");
+        ui.horizontal(|ui| {
+            let l = ui.label("Its name");
+            ui.add(egui::TextEdit::singleline(&mut h.new_name).hint_text("My game").desired_width(220.0)).labelled_by(l.id);
+        });
+        // Where it goes: beside the others, named after it, until another place is typed.
+        if !h.new_at_typed {
+            let base = rustpg2d_engine::paths::home().map(|d| d.join("rustpg2d")).unwrap_or_default();
+            let slug = rustpg2d_engine::release::slug(if h.new_name.trim().is_empty() { "my-game" } else { h.new_name.trim() });
+            let file = if editor_core::project_file::folders_allowed() { slug } else { format!("{slug}.{}", editor_core::project_file::EXT) };
+            h.new_at = base.join(file).display().to_string();
+        }
+        ui.horizontal(|ui| {
+            let l = ui.label("Kept in");
+            if ui.add(egui::TextEdit::singleline(&mut h.new_at).desired_width(520.0)).labelled_by(l.id).changed() {
+                h.new_at_typed = true;
+            }
+        });
+        ui.horizontal(|ui| {
+            let ok = !h.new_name.trim().is_empty() && !h.new_at.trim().is_empty();
+            if ui.add_enabled(ok, egui::Button::new(egui::RichText::new("Make it").strong())).on_hover_text("An empty project: one map to start on, a script file. Everything else comes from the asset library or is made here.").on_disabled_hover_text("Give it a name first").clicked() {
+                self.asks.push(Ask::NewProject(PathBuf::from(h.new_at.trim())));
+            }
+        });
+        ui.add_space(10.0);
+        ui.strong("Open a project");
+        ui.horizontal(|ui| {
+            ui.add(egui::TextEdit::singleline(&mut h.open_path).hint_text("a .r2dproject file, or a project's folder").desired_width(520.0)).widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, "Where the project is"));
+            if ui.add_enabled(!h.open_path.trim().is_empty(), egui::Button::new("Open")).clicked() {
+                self.asks.push(Ask::OpenProject(PathBuf::from(h.open_path.trim())));
+            }
+        });
+        let here = editor_core::project_file::canonical(&self.ws.project_location());
+        let recent: Vec<PathBuf> = editor_core::files::recent_projects().into_iter().filter(|p| !self.ws.project_open || *p != here).collect();
+        if !recent.is_empty() {
+            ui.add_space(6.0);
+            ui.weak("Worked on lately");
+            for p in recent {
+                let name = p.file_stem().map_or_else(|| p.display().to_string(), |n| n.to_string_lossy().to_string());
+                ui.horizontal(|ui| {
+                    if ui.link(name).clicked() {
+                        self.asks.push(Ask::OpenProject(p.clone()));
+                    }
+                    ui.weak(p.display().to_string());
+                });
+            }
+        }
+        if let Some(example) = editor_core::files::bundled_example() {
+            ui.add_space(6.0);
+            if ui.link("The example game").on_hover_text(format!("{}: a small finished game to look into and change (your own copy of it)", example.display())).clicked() {
+                match editor_core::files::example_copy() {
+                    Ok(copy) => self.asks.push(Ask::OpenProject(copy)),
+                    Err(e) => self.ws.set_status(format!("{e:#}")),
+                }
+            }
+        }
     }
 
     /// Opens the place a problem, a use or a search hit is at.

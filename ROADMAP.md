@@ -1645,6 +1645,15 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     added as it is. So the library's chest, door, lamp, bed, crop or merchant is the
     template a new one is made from, and a template of one's own is an asset sent to the
     library.
+  - **A structure is worked on as a map** (`editor-core/src/structdoc.rs`; a structure's
+    tab): its tab is the structure itself as a small map of its size, with every tool of a
+    map: paint its ground, place and move things, build walls and roofs on it, set blocked
+    tiles; the Outliner lists what it holds and the Inspector changes what is selected.
+    With nothing selected the Inspector has its name, its category and its width and depth
+    in tiles (smaller cuts off what stood on the tiles that go). Every finished change is a
+    step of the editor's history under the name of what was done (*Place Chest*, *Paint
+    Dirt*); its picture, and the structure the Place tool puts down, follow at once. A new
+    structure (*New… › Structure*) starts as a few empty tiles to build on.
   - **Structures have pictures** (`thumbs.rs`): a structure is placed on a map of its own
     and drawn as a map is (its ground, what lies and stands on it), once and again when it
     changed, two a frame: its card in *Structures*, in the Place tool's palette and at the
@@ -1653,8 +1662,10 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   field: the picture stands on the hitbox's southern edge, the light sits at two thirds of
   the picture's height), a figure sitting or lying at the use spot instead of the ring, a
   building's ridge, overhang and openings dragged on the picture; starting from a model, a
-  picture, measurements, Meshy; the presets; a structure opened as a document on the map
-  canvas; of the character workshop: rules,
+  picture, measurements, Meshy; of structures: what one holds outside its own tiles (the
+  example's garden has a fence a pixel off its edge) is kept but not shown on its map, zones
+  drawn there are not part of it (the Zones tool is still offered), a house of the Build
+  tool saved as one from the tool itself; of the character workshop: rules,
   day, talk, shop and loot as parts of one document (they are sections of the form below),
   equipment picked as cards, *Start from…* another character; presets that are more than
   one asset (a *Merchant* with a shop and a schedule to fill in), pictures of the library's
@@ -1673,6 +1684,20 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   - **The figure is as large as it stands tall, on its feet**: a pose's frame is roomy and
     grows with what is held, so the preview scales by the height of the figure standing
     still and puts its feet on one spot; a spear or a swung arm reaches as far as the box.
+  - **The definition is what is true of a structure, its map is a way to change it**: a
+    finished change on the map is taken into the definition as a step of the definitions'
+    history, and an undo, a form or an agent changing the definition builds the map again.
+    The map's own undo history is not part of the editor's. (The first plan, the map as the
+    history and the definition following silently, can't work: the definitions' history
+    keeps whole definitions, so an older step undone would have put back a structure from
+    before changes it never saw.)
+  - **A structure's map has no file and is no map of the project**: it is not saved as one,
+    not listed, not part of the world view, not played from (*Play from here* and *Try it*
+    are not offered there); it is open for as long as its tab is.
+  - **What was done on the map is a step of its own**, whatever has the keyboard: the
+    definitions' history joins changes made while one field has it (typing), which made a
+    chest placed and a path painted right after one step. Only typing into a field of
+    something placed there joins the step before.
   - **Presets are the library's assets, not a list of their own**: *New… › as one of the
     asset library* makes a prop that is a container, a door with a lock, a light or a seat
     by starting from one that is, with its events, sounds and script functions. What was
@@ -1696,6 +1721,17 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     with its light and reach; the chest's corner dragged (28 to 64 pixels wide, 16 deep as
     before) and undone, the chair's spot dragged and the chair turned, the campfire's reach
     dragged from 3 to 5 tiles and undone; the cottage as a building with its roof, turned.
+  - A structure as a map: `structdoc::tests` (every structure of the example goes through a
+    map and back with the same things at the same places, also the garden's fence outside
+    its tiles; opened and looked at, nothing changes and nothing is a step; a chest placed
+    is in the definition as one step *of the definitions*, undone and redone with its map
+    following, three placed in a row three steps, saved with the definitions and without a
+    map file; a new name leaves the map, another size rebuilds it, deleted it closes);
+    `a_structure_is_worked_on_as_a_map_with_its_facts_in_the_inspector` (its facts instead
+    of a map's settings, its name typed as one step, a piece of scenery deleted from map
+    and definition, undone). In the window: the garden as a map; a chest placed and a dirt
+    path painted (two steps, each undone), saved (18 pieces of scenery still, no map file),
+    placed on the village with its chest; a new *Hut* sized 6 x 5, painted and furnished.
   - Structures: in the window the example's 37 structures as cards with their pictures
     (cottages with their roofs, walls and fences, furnished rooms on their floors, the
     fishing dock on its water, the lookout tower).

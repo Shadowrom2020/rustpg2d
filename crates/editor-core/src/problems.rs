@@ -225,7 +225,7 @@ impl Workspace {
             self.problems.factions_read = now;
             self.problem_maps();
         }
-        let open = self.doc.as_ref().map(|d| &d.map);
+        let open = self.doc.as_ref().map(|d| &d.map).filter(|m| !crate::structdoc::is_scratch(&m.name));
         let mut maps: Vec<&Map> = self.problems.maps.values().filter_map(|f| f.map.as_ref()).filter(|m| open.is_none_or(|o| o.name != m.name)).collect();
         maps.extend(open);
         let mut out: Vec<(String, u32, String, String)> = maps

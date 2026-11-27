@@ -398,6 +398,12 @@ impl Shell {
         if let Tab::Map(m) = &tab {
             self.ws.open_map(m);
         }
+        // (A structure is worked on as a map of its own: that is then the map in front.)
+        if let Tab::Def(RefKind::Structure, id) = &tab {
+            if let Ok(name) = self.ws.open_structure(id) {
+                self.ws.open_map(&name);
+            }
+        }
         if let Some(path) = self.dock.find_tab(&tab) {
             let _ = self.dock.set_active_tab(path);
             return;
@@ -682,6 +688,10 @@ impl Shell {
         if !self.ws.project_open {
             return;
         }
+        if matches!(&from, PlayFrom::Tile(map, ..) if editor_core::structdoc::is_scratch(map)) {
+            self.ws.set_status("A structure is no map to play on: place it on a map and play from there");
+            return;
+        }
         self.save_scripts();
         if self.ws.is_dirty() {
             self.ws.save_all();
@@ -858,6 +868,12 @@ impl Shell {
     /// One frame of the window.
     pub fn ui(&mut self, ui: &mut egui::Ui, rs: Option<&eframe::egui_wgpu::RenderState>, fps: f32) {
         let ctx = ui.ctx().clone();
+        // A structure is open as a map for as long as its tab is.
+        let gone: Vec<String> = self.ws.struct_docs.keys().filter(|id| self.dock.find_tab(&Tab::Def(RefKind::Structure, (*id).clone())).is_none()).cloned().collect();
+        for id in gone {
+            self.ws.close_structure(&id);
+            self.maps.remove(&editor_core::structdoc::doc_name(&id));
+        }
         // (A drag that asked for it last frame counts as typing on in one field: one step.)
         let held = ctx.data_mut(|d| d.remove_temp::<u64>(held_step_id()));
         self.ws.history_frame(held.or(ctx.memory(|m| m.focused()).map(|id| id.value())));
@@ -1241,7 +1257,7 @@ impl egui_dock::TabViewer for Viewer<'_> {
 
     fn scroll_bars(&self, tab: &Tab) -> [bool; 2] {
         // (The game and a map fill their tabs.)
-        if matches!(tab, Tab::Play | Tab::Map(_) | Tab::Script(_) | Tab::Def(RefKind::VisualScript, _)) {
+        if matches!(tab, Tab::Play | Tab::Map(_) | Tab::Script(_) | Tab::Def(RefKind::VisualScript | RefKind::Structure, _)) {
             [false, false]
         } else {
             [false, true]
@@ -1263,6 +1279,7 @@ impl egui_dock::TabViewer for Viewer<'_> {
             Tab::Settings(page) => self.settings(ui, page),
             Tab::Kind(k) => self.kind(ui, *k),
             Tab::Def(RefKind::VisualScript, id) => self.visual_script(ui, id),
+            Tab::Def(RefKind::Structure, id) => self.structure(ui, id),
             Tab::Def(k, id) => self.definition(ui, *k, id),
             Tab::Map(m) => self.map(ui, m),
             Tab::Script(f) => self.script(ui, f),
@@ -2383,6 +2400,35 @@ impl Viewer<'_> {
             }
             None => {}
         }
+    }
+
+    /// A structure's tab: the structure as a small map of its own, worked on with the map's
+    /// tools; what is done there goes into the definition (`editor_core::structdoc`).
+    fn structure(&mut self, ui: &mut egui::Ui, id: &str) {
+        let name = match self.ws.open_structure(id) {
+            Ok(name) => name,
+            Err(_) => {
+                ui.weak(format!("Structure \"{id}\" is gone (renamed or deleted)."));
+                return;
+            }
+        };
+        egui::Panel::top(egui::Id::unique(("structure head", id))).show(ui, |ui| {
+            ui.horizontal(|ui| {
+                if let Some(rs) = self.rs {
+                    crate::thumbs::boxed(ui, 44.0, || self.thumbs.of(self.ws, rs, RefKind::Structure, id));
+                }
+                ui.vertical(|ui| {
+                    ui.horizontal(|ui| {
+                        let d = self.ws.project.db.structure(id);
+                        ui.heading(d.map(|d| d.name.as_str()).filter(|n| !n.is_empty()).unwrap_or(id));
+                        ui.weak(format!("Structure · {id}"));
+                    });
+                    self.definition_buttons(ui, RefKind::Structure, id);
+                });
+            });
+            ui.add_space(2.0);
+        });
+        self.map(ui, &name);
     }
 
     /// A visual script's tab: what it is called and takes on the left, its nodes on the canvas.

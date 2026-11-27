@@ -793,10 +793,58 @@ impl MapView {
         });
     }
 
+    /// A structure's map with nothing selected: what the structure is called, where it is
+    /// filed, how large it is.
+    fn structure_facts(&mut self, ui: &mut egui::Ui, p: &mut Parts, id: &str) {
+        let Some(def) = p.ws.project.db.structure(id) else { return };
+        let (mut name, mut category, mut w, mut h) = (def.name.clone(), def.category.clone(), def.w, def.h);
+        let was = (name.clone(), category.clone());
+        ui.label(egui::RichText::new(if name.is_empty() { id } else { name.as_str() }).strong());
+        ui.weak(format!("A structure · {w} x {h} tiles · {} characters, objects and items · {} pieces of scenery", def.entities.len(), def.decor.len()));
+        ui.add_space(6.0);
+        ui.weak("This is the structure itself: everything on these tiles is placed again as one piece by the Place tool. Paint its ground, put things on it, build on it with the tools above; select something to change it here.");
+        ui.separator();
+        egui::Grid::new("structure facts").num_columns(2).show(ui, |ui| {
+            let l = ui.label("Name");
+            ui.add(egui::TextEdit::singleline(&mut name).desired_width(200.0)).labelled_by(l.id);
+            ui.end_row();
+            let l = ui.label("Category").on_hover_text("Where the Place tool files it: Buildings, Rooms, Nature…");
+            ui.add(egui::TextEdit::singleline(&mut category).desired_width(200.0)).labelled_by(l.id);
+            ui.end_row();
+            let l = ui.label("Width").on_hover_text("In tiles. Smaller cuts off what stands on the tiles that go; larger adds empty ones to the east.");
+            ui.add(egui::DragValue::new(&mut w).range(1..=64).suffix(" tiles")).labelled_by(l.id);
+            ui.end_row();
+            let l = ui.label("Depth").on_hover_text("In tiles, north to south. Larger adds empty ones to the south.");
+            ui.add(egui::DragValue::new(&mut h).range(1..=64).suffix(" tiles")).labelled_by(l.id);
+            ui.end_row();
+        });
+        let (dw, dh) = (def.w, def.h);
+        if (name.clone(), category.clone()) != was {
+            if let Some(mut value) = p.ws.def_value(RefKind::Structure, id) {
+                value["name"] = serde_json::Value::String(name);
+                value["category"] = serde_json::Value::String(category);
+                if let Err(e) = p.ws.set_def_value(RefKind::Structure, id, value) {
+                    p.ws.set_status(e);
+                }
+            }
+        }
+        if (w, h) != (dw, dh) {
+            // (Dragged over many frames, it is one step.)
+            crate::shell::hold_step(ui.ctx(), ("resize structure", id));
+            if let Err(e) = p.ws.resize_structure(id, w, h) {
+                p.ws.set_status(e);
+            }
+        }
+    }
+
     fn inspector(&mut self, ui: &mut egui::Ui, p: &mut Parts, name: &str) {
         let Some(doc) = doc_of(p.ws, name) else { return };
         let ts = p.ws.ts();
         match self.sel.as_slice() {
+            [] if editor_core::structdoc::structure_of(name).is_some() => {
+                let id = editor_core::structdoc::structure_of(name).unwrap_or_default().to_string();
+                self.structure_facts(ui, p, &id);
+            }
             [] => {
                 let m = &doc.map;
                 ui.label(egui::RichText::new(name).strong());
@@ -1019,7 +1067,8 @@ impl MapView {
                 let mut pics = p.rs.map(|rs| crate::thumbs::Pics { thumbs: &mut *p.thumbs, ws: &*p.ws, rs });
                 let pictures = pics.as_mut().map(|x| x as &mut dyn crate::form::Pictures);
                 let mut cx = crate::form::Cx { lists: p.lists, maps: &p.ws.maps, show_all: p.show_all, compact: true, pictures, refs: Some(&p.ws.refs), asks: Vec::new() };
-                crate::sheet::set_tryable(ui.ctx(), current);
+                // (A structure is no place to play in: its events are tried where it was placed.)
+                crate::sheet::set_tryable(ui.ctx(), current && !editor_core::structdoc::is_scratch(name));
                 let changed = crate::form::sections_ui(ui, &mut cx, node, &mut value, sections) || state_changed;
                 crate::sheet::set_tryable(ui.ctx(), false);
                 let tried = crate::sheet::take_tried(ui.ctx());
@@ -2110,12 +2159,13 @@ impl MapView {
             let setup = p.ws.test_setup();
             if setup == Default::default() { "No test setup yet: a new hero, nothing done".to_string() } else { format!("The test setup: {}", setup.summary()) }
         };
+        let playable = !editor_core::structdoc::is_scratch(name);
         resp.context_menu(|ui| {
-            if ui.button("Play from here").on_hover_text(format!("A new game with the hero on tile {}, {}: the map's Map enter events run", tile.0, tile.1)).clicked() {
+            if playable && ui.button("Play from here").on_hover_text(format!("A new game with the hero on tile {}, {}: the map's Map enter events run", tile.0, tile.1)).clicked() {
                 p.asks.push(Ask::PlayHere(tile, false));
                 ui.close();
             }
-            if ui.button("Play from here with the test setup").on_hover_text(format!("{}. A game in progress loaded here: the map's Map enter events don't run. The Play tab's State panel keeps a running game's state as the setup.", setup)).clicked() {
+            if playable && ui.button("Play from here with the test setup").on_hover_text(format!("{}. A game in progress loaded here: the map's Map enter events don't run. The Play tab's State panel keeps a running game's state as the setup.", setup)).clicked() {
                 p.asks.push(Ask::PlayHere(tile, true));
                 ui.close();
             }
@@ -2734,6 +2784,64 @@ mod ui_tests {
             },
             state,
         )
+    }
+
+    #[test]
+    fn a_structure_is_worked_on_as_a_map_with_its_facts_in_the_inspector() {
+        let dir = std::env::temp_dir().join(format!("rustpg2d-mapview-{}-structure", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        copy(&std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../example_project"), &dir);
+        let mut ws = Workspace::new(dir.clone(), editor_core::Gpu::No).unwrap();
+        ws.refresh_refs();
+        ws.history_frame(None);
+        let def = ws.project.db.structure("garden").expect("the example has a garden").clone();
+        let name = ws.open_structure("garden").unwrap();
+        ws.open_map(&name);
+        let lists: Vec<(RefKind, Vec<(String, String)>)> = RefKind::ALL.iter().map(|k| (*k, editor_core::defs::list(&ws.project.db, *k))).collect();
+        let state = State { ws, view: MapView::default(), thumbs: Thumbs::default(), lists, asks: Vec::new(), link: None, clip: None, dir };
+        let mut h = Harness::builder().with_size(egui::vec2(1300.0, 1000.0)).build_ui_state(
+            move |ui, s: &mut State| {
+                let held = ui.ctx().data_mut(|d| d.remove_temp::<u64>(crate::shell::held_step_id()));
+                s.ws.history_frame(held.or(ui.ctx().memory(|m| m.focused()).map(|id| id.value())));
+                let mut parts = Parts { ws: &mut s.ws, rs: None, lists: &s.lists, thumbs: &mut s.thumbs, show_all: false, link: &mut s.link, clip: &mut s.clip, scrub: None, asks: Vec::new() };
+                s.view.show(ui, &mut parts, &name);
+            },
+            state,
+        );
+        h.run();
+        // Nothing selected: the structure's own facts, not a map's light and weather.
+        assert!(h.query_all_by_label_contains("A structure · 6 x 5 tiles").next().is_some());
+        assert!(h.query_all_by_label("Light and weather").next().is_none());
+        let field = h.get_by_role_and_label(egui::accesskit::Role::TextInput, "Name");
+        field.focus();
+        field.type_text(" (old)");
+        h.run();
+        h.run();
+        let s = h.state();
+        assert_eq!(s.ws.project.db.structure("garden").unwrap().name, format!("{} (old)", def.name));
+        assert_eq!(s.ws.timeline.done.len(), 1, "typed, it is one step");
+        // What it holds is listed as on any map; a piece of it taken away is gone from the
+        // definition too, as a step of its own.
+        let pieces = def.decor.len();
+        let on_map = s.ws.doc.as_ref().unwrap().map.decor.len();
+        let first = s.ws.doc.as_ref().unwrap().map.decor[0];
+        h.state_mut().view.sel = vec![Selection::Scenery(first)];
+        h.run();
+        h.get_by_label("Delete").click();
+        h.run();
+        h.run();
+        let s = h.state();
+        assert_eq!(s.ws.doc.as_ref().unwrap().map.decor.len(), on_map - 1);
+        assert_eq!(s.ws.project.db.structure("garden").unwrap().decor.len(), pieces - 1);
+        assert_eq!(s.ws.timeline.done.len(), 2);
+        // Undone, it stands on the map again.
+        h.state_mut().ws.undo().unwrap();
+        h.run();
+        let s = h.state();
+        assert_eq!(s.ws.doc.as_ref().unwrap().map.decor.len(), on_map);
+        assert_eq!(s.ws.project.db.structure("garden").unwrap().decor.len(), pieces);
+        let dir = h.state().dir.clone();
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]

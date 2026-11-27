@@ -81,7 +81,8 @@ impl Workspace {
         if defs_step {
             new.push(Change { at: Where::Defs, label: label.clone().unwrap_or_else(|| "Change definitions".into()), joined: false });
         }
-        let depths: Vec<(String, usize)> = self.doc.iter().chain(self.parked.values()).map(|d| (d.map.name.clone(), d.undo_depth())).collect();
+        // (A structure's map is no place of its own: its changes are steps of the definitions.)
+        let depths: Vec<(String, usize)> = self.doc.iter().chain(self.parked.values()).filter(|d| !crate::structdoc::is_scratch(&d.map.name)).map(|d| (d.map.name.clone(), d.undo_depth())).collect();
         for (name, depth) in &depths {
             let was = self.timeline.seen.get(name).copied().unwrap_or(0);
             if *depth > was {

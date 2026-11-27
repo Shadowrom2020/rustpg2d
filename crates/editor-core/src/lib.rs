@@ -31,6 +31,7 @@ pub mod schema;
 pub mod scripts;
 pub mod search;
 pub mod starter;
+pub mod structdoc;
 pub mod testsetup;
 pub mod timeline;
 pub mod visualedit;

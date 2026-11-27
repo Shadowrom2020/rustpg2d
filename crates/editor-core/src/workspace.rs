@@ -89,6 +89,9 @@ pub struct Workspace {
     pub doc: Option<MapDoc>,
     /// The other open maps, with their undo histories.
     pub parked: BTreeMap<String, MapDoc>,
+    /// The structures open as maps to work on (`structdoc.rs`), by id: each as its
+    /// definition was when its map was last brought in line with it.
+    pub struct_docs: BTreeMap<String, rustpg2d_engine::defs::StructureDef>,
     pub assets: Assets,
     pub gpu: Gpu,
     /// The definitions or project settings differ from the files.
@@ -164,7 +167,7 @@ impl Workspace {
         let maps = if project_open { project.list_maps() } else { Vec::new() };
         let defs_saved = Box::new((project.db.clone(), project.config.clone()));
         let meta = if project_open { crate::meta::Meta::load(&project.root) } else { Default::default() };
-        Workspace { project, project_open, project_file: None, maps, doc: None, parked: BTreeMap::new(), assets, gpu, defs_dirty: false, defs_saved, db_hist: DbHistory::default(), meta, notices: Vec::new(), defs_warnings: Vec::new(), status: (String::new(), 0.0), sel: Selection::None, cam: Cam { center: gfx::math::Vec2::ZERO, zoom: 1.0 }, view: ViewOpts::default(), db: ScriptBuffer::default(), looking_at: String::new(), asking: None, library_mode: false, refs: Default::default(), map_refs: Default::default(), problems: crate::problems::Problems::new(), search: Default::default(), usages: Default::default(), art: Default::default(), art_settings: { let s = files::load_settings(); crate::art::ArtSettings { model: s.meshy_model, budget: s.meshy_budget, ask: s.meshy_ask } }, lib: Default::default(), timeline: Default::default(), buildings: None, mcp: Default::default(), watch: Default::default(), search_stale: true, scripts_rev: 0, stale: true }
+        Workspace { project, project_open, project_file: None, maps, doc: None, parked: BTreeMap::new(), struct_docs: BTreeMap::new(), assets, gpu, defs_dirty: false, defs_saved, db_hist: DbHistory::default(), meta, notices: Vec::new(), defs_warnings: Vec::new(), status: (String::new(), 0.0), sel: Selection::None, cam: Cam { center: gfx::math::Vec2::ZERO, zoom: 1.0 }, view: ViewOpts::default(), db: ScriptBuffer::default(), looking_at: String::new(), asking: None, library_mode: false, refs: Default::default(), map_refs: Default::default(), problems: crate::problems::Problems::new(), search: Default::default(), usages: Default::default(), art: Default::default(), art_settings: { let s = files::load_settings(); crate::art::ArtSettings { model: s.meshy_model, budget: s.meshy_budget, ask: s.meshy_ask } }, lib: Default::default(), timeline: Default::default(), buildings: None, mcp: Default::default(), watch: Default::default(), search_stale: true, scripts_rev: 0, stale: true }
     }
 
     /// A workspace on the project folder `root` (`file`: the project file it is the working copy
@@ -370,7 +373,8 @@ impl Workspace {
 
     /// Writes the map being worked on.
     pub fn save_map(&mut self) {
-        let Some(doc) = &mut self.doc else { return };
+        // (A structure's map has no file: it is saved with the definitions it is part of.)
+        let Some(doc) = self.doc.as_mut().filter(|d| !crate::structdoc::is_scratch(&d.map.name)) else { return };
         match Workspace::save_doc(&self.project, doc) {
             Ok(name) => {
                 if !self.maps.contains(&name) {
@@ -401,17 +405,18 @@ impl Workspace {
 
     /// Is anything unsaved?
     pub fn is_dirty(&self) -> bool {
-        self.defs_dirty || self.open_maps().iter().any(|d| d.is_dirty())
+        self.defs_dirty || self.open_maps().iter().any(|d| d.is_dirty() && !crate::structdoc::is_scratch(&d.map.name))
     }
 
     /// Writes everything that changed: every open map, the definitions, then (soon, on a thread)
     /// the project file.
     pub fn save_all(&mut self) {
+        self.sync_structures();
         if self.doc.as_ref().is_some_and(|d| d.is_dirty()) {
             self.save_map();
         }
         let mut failed = Vec::new();
-        for doc in self.parked.values_mut().filter(|d| d.is_dirty()) {
+        for doc in self.parked.values_mut().filter(|d| d.is_dirty() && !crate::structdoc::is_scratch(&d.map.name)) {
             if let Err(e) = Workspace::save_doc(&self.project, doc) {
                 failed.push(format!("{}: {e:#}", doc.map.name));
             }

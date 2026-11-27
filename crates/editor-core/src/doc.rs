@@ -70,6 +70,12 @@ impl MapDoc {
         self.undo.last().map(|(id, _)| *id)
     }
 
+    /// Whether the newest step of the map's own history came from a form (typing into a field
+    /// of a placed thing or a zone): more of it within a moment belongs to the same change.
+    pub fn newest_is_typed(&self) -> bool {
+        matches!(self.undo.last(), Some((_, Edit::Objects { tag, .. })) if tag.starts_with("inspector"))
+    }
+
     /// How many steps can be undone (the workspace's timeline watches it grow).
     pub fn undo_depth(&self) -> usize {
         self.undo.len()
@@ -108,6 +114,11 @@ impl MapDoc {
     }
 
     // ------------------------------------------------------------ strokes
+
+    /// A stroke of the collision brush is being painted (it becomes a step when it ends).
+    pub fn in_stroke(&self) -> bool {
+        self.stroke.is_some()
+    }
 
     pub fn begin_stroke(&mut self) {
         self.end_stroke();

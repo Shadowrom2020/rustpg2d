@@ -211,6 +211,12 @@ impl DbHistory {
         format!("{}/{}", self.undo.len(), self.redo.len())
     }
 
+    /// What changes next is a step of its own, whatever has the keyboard (a finished change on
+    /// a structure's map: it is no typing on in the field the step before was made in).
+    pub(crate) fn no_merge(&mut self) {
+        self.typing = None;
+    }
+
     /// Forgets every step (another project, definitions reloaded from disk).
     pub fn clear(&mut self) {
         *self = DbHistory::default();
@@ -303,6 +309,7 @@ impl Workspace {
         if !self.project_open {
             return;
         }
+        self.sync_structures();
         let root = self.project.root.clone();
         let seen = self.db_hist.observe(&root, &self.project.db, &self.project.config, focus, crate::now());
         if seen != Seen::Nothing || self.buildings.is_none() {

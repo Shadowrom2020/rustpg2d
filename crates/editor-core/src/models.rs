@@ -413,6 +413,19 @@ impl Workspace {
     /// (a frame per state, twice the world's pixel density, the feet at the bottom middle), which
     /// become the prop's and its states' pictures: icons in the editor, sizes in the game. Saves.
     pub fn render_prop_pictures(&mut self, only: Option<&str>) -> String {
+        let done = self.prop_pictures(only);
+        if done.is_empty() {
+            return "No prop with a loaded 3D model to render".into();
+        }
+        self.save_defs();
+        self.reload_assets();
+        format!("Rendered the pictures of {} props from their models: {}", done.len(), done.join(", "))
+    }
+
+    /// [`Self::render_prop_pictures`] without saving the definitions: the pictures are written
+    /// and read, the props show them (a change like any other, undone with what made it).
+    /// Returns the props done.
+    pub fn prop_pictures(&mut self, only: Option<&str>) -> Vec<String> {
         use rustpg2d_engine::defs::{Appearance, SheetDef, SpriteRef};
         use rustpg2d_engine::entity::Facing;
         use rustpg2d_engine::imageio::Rgba;
@@ -475,10 +488,12 @@ impl Workspace {
             let path = self.project.root.join(&rel);
             let written = sheet.encode().map_err(|e| format!("{e:#}")).and_then(|png| std::fs::create_dir_all(path.parent().unwrap()).and_then(|_| std::fs::write(&path, png)).map_err(|e| e.to_string()));
             if let Err(e) = written {
-                return format!("Writing {rel} failed: {e}");
+                self.set_status(format!("Writing {rel} failed: {e}"));
+                break;
             }
             let sid = format!("{}_picture", p.id);
             let def = SheetDef { scale: rustpg2d_engine::render::model::PX as u32, ..SheetDef::new(&sid, &rel, fw, fh) };
+            self.assets.load_sheet(&self.project, &def);
             let db = &mut self.project.db;
             match db.sheets.iter_mut().find(|s| s.id == sid) {
                 Some(s) => *s = def,
@@ -493,14 +508,12 @@ impl Workspace {
             }
             done.push(p.id.clone());
         }
-        if done.is_empty() {
-            return "No prop with a loaded 3D model to render".into();
+        if !done.is_empty() {
+            self.project.db.reindex();
+            self.defs_dirty = true;
+            self.stale = true;
         }
-        self.project.db.reindex();
-        self.defs_dirty = true;
-        self.save_defs();
-        self.reload_assets();
-        format!("Rendered the pictures of {} props from their models: {}", done.len(), done.join(", "))
+        done
     }
 }
 

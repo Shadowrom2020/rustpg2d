@@ -131,6 +131,9 @@ pub struct Workspace {
     pub lib: crate::library::LibState,
     /// Every undoable change in the order it was made.
     pub timeline: crate::timeline::Timeline,
+    /// What each building prop's model was built from (`build.rs`: built again when its
+    /// definition changes); `None` until the first look.
+    pub buildings: Option<std::collections::HashMap<String, u64>>,
     /// The agent server and what it saw change on disk.
     pub mcp: crate::mcp::McpState,
     pub watch: crate::mcp::watcher::Watch,
@@ -161,7 +164,7 @@ impl Workspace {
         let maps = if project_open { project.list_maps() } else { Vec::new() };
         let defs_saved = Box::new((project.db.clone(), project.config.clone()));
         let meta = if project_open { crate::meta::Meta::load(&project.root) } else { Default::default() };
-        Workspace { project, project_open, project_file: None, maps, doc: None, parked: BTreeMap::new(), assets, gpu, defs_dirty: false, defs_saved, db_hist: DbHistory::default(), meta, notices: Vec::new(), defs_warnings: Vec::new(), status: (String::new(), 0.0), sel: Selection::None, cam: Cam { center: gfx::math::Vec2::ZERO, zoom: 1.0 }, view: ViewOpts::default(), db: ScriptBuffer::default(), looking_at: String::new(), asking: None, library_mode: false, refs: Default::default(), map_refs: Default::default(), problems: crate::problems::Problems::new(), search: Default::default(), usages: Default::default(), art: Default::default(), art_settings: { let s = files::load_settings(); crate::art::ArtSettings { model: s.meshy_model, budget: s.meshy_budget, ask: s.meshy_ask } }, lib: Default::default(), timeline: Default::default(), mcp: Default::default(), watch: Default::default(), search_stale: true, scripts_rev: 0, stale: true }
+        Workspace { project, project_open, project_file: None, maps, doc: None, parked: BTreeMap::new(), assets, gpu, defs_dirty: false, defs_saved, db_hist: DbHistory::default(), meta, notices: Vec::new(), defs_warnings: Vec::new(), status: (String::new(), 0.0), sel: Selection::None, cam: Cam { center: gfx::math::Vec2::ZERO, zoom: 1.0 }, view: ViewOpts::default(), db: ScriptBuffer::default(), looking_at: String::new(), asking: None, library_mode: false, refs: Default::default(), map_refs: Default::default(), problems: crate::problems::Problems::new(), search: Default::default(), usages: Default::default(), art: Default::default(), art_settings: { let s = files::load_settings(); crate::art::ArtSettings { model: s.meshy_model, budget: s.meshy_budget, ask: s.meshy_ask } }, lib: Default::default(), timeline: Default::default(), buildings: None, mcp: Default::default(), watch: Default::default(), search_stale: true, scripts_rev: 0, stale: true }
     }
 
     /// A workspace on the project folder `root` (`file`: the project file it is the working copy
@@ -431,6 +434,7 @@ impl Workspace {
             return;
         }
         self.assets = Assets::load(&self.project);
+        self.buildings = None;
         if let Some(doc) = &mut self.doc {
             doc.rebuild_overview(&self.assets);
         }

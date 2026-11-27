@@ -1173,8 +1173,18 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     the clock, the party); *Play from here with the test setup* loads a game in progress
     with it on the tile, so the map's *Map enter* events (an intro) don't run. Kept per
     project in the editor's settings.
-  Still open: the **Build** tool (walls, rooms, houses, roofs, doors and windows: 1,400
-  lines in 0.35); a structure's ghost (its footprint is shown); hiding and locking single
+  - **The Build tool** (B; `editor-core/src/build.rs`, the panel in `studio/src/buildtool.rs`):
+    *Walls* painted along the tile edges (thin walls and fences) or tile by tile (thick
+    ones), round corners, Shift for a straight line; a *Room* dragged as its floor, with
+    its back walls or all four and a doorway, a floor material and a roof if wanted; a
+    *House* dragged as its footprint: a new building prop in the look of a chosen one with
+    one to three storeys, its door in the front, windows along the walls, and a wing of the
+    house it is dragged against (one roof over both); a *Roof* alone as a rectangle, or over
+    tiles painted by hand or found inside walls with a click, any shape, cut into joined
+    parts; *Doors*: a door, a window or a gap clicked into a wall piece or a house's wall.
+    The right button takes a wall piece, a door or a window away again. Each is one step:
+    Ctrl+Z takes a house back with the prop that was made for it.
+  Still open: a structure's ghost (its footprint is shown); hiding and locking single
   things in the Outliner; align; *Replace with…* in the menu; routes and schedules changed
   on the map (they are shown; their stops are fields of the Inspector); a region of tiles
   copied and pasted; in the World view: linking by dragging from card to card, the cards'
@@ -1205,9 +1215,33 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     other optional thing (`tidy_schema`). The map's fight music showed it: it was a bare
     text field, it is a sound picker now, and the rename check found that renames follow it.
 
+  - **Changes one action makes in two places are one step** (`Change::joined` in the
+    timeline): a built house is a new prop and a thing on the map, two linked transitions
+    are a change of each map. Undo and redo take them together; the History panel still
+    lists both.
+  - **Building models follow their definitions** (`Workspace::sync_buildings`): a shape
+    changed in a form, or brought back by undo, is built again where it is looked at. The
+    0.35 editor did that from each place that changed one.
+  - **Undoing a change to pictures reads those pictures**, not every asset: a built house
+    comes and goes with the picture rendered of it, and reading everything took 1.8 s on
+    the example (measured). Materials and sounds still read everything.
+  - **A room of thick walls stands around the floor that was dragged**, and its roof reaches
+    over the walls. In 0.35 thick walls stood on the floor's own north and west tiles and
+    one tile past its corner. Thin walls stand on the floor's edges as before.
+  - **A door in a wall closes the room** for *Inside walls*; a doorway left open doesn't
+    (the room's own *With a roof* doesn't need the walls closed).
+  - **What was built is saved as a structure with the Select tool** (a box around it, *Save
+    as structure*): the Build tool's own *Built here* area of 0.35 is gone.
+  - Known, as in 0.35 and in the game: wall pieces in the southern and eastern rows under a
+    roof are drawn over its eaves (things with overlapping footprints are ordered by their
+    feet). A roof alone would have to be drawn after what stands under it: an engine change
+    to propose.
+
   **Engine.** `Game` embeddable (part 1). The canvas draws through the engine's renderer into a
   texture, as the old `canvas.rs` drew on the screen. Added for the Play tab: `Game::step`
   (devices and one update, what `frame` does before drawing) and `Game::thing_under_pointer`.
+  For the Build tool: `Assets::load_sheet` (one picture read again, a built house's, instead
+  of every asset).
 
   **Verify.** Editor script: each tool on a scratch copy (paint, place, turn, link two maps),
   `status` fields as today; the Play panel started from a tile, a flag set in the State panel
@@ -1253,7 +1287,21 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     well, 13:00 on the bench) drawn on the square. `mapview::ui_tests`: 311 oaks selected
     and saved as *Oak grove*, undone by its name. A Town Guard dragged from the Project
     browser's row onto the village stands where it was let go.
-
+  - The Build tool: `walls_rooms_houses_and_roofs_are_built_as_one_step_each` (a thin wall
+    round a corner, a piece taken away, a room of thick walls with a floor on a free site,
+    its inside found once the doorway is walled up, a window piece and a door put in and
+    taken out, a two-storey house undone and redone as one, a wing joined to it, an L of
+    roof in two joined parts, a roof as high as the walls under it; all undone to the map and
+    the definitions as they were), the 0.35 tool's eight unit tests (`build::tests`), and
+    `mapview::ui_tests` (the panel's lists pick a wall and a look, marked tiles get their
+    roof with *Build roof*, one undo takes it and its props away). In the window by real
+    drags and clicks at tiles (`mapbuild`, `mapdrag`, `mapclick … right`): a stone wall, a
+    room of plaster panels closed by four drags, a door and a window clicked into it, its
+    12 tiles found by a click inside and roofed, the door taken out again; rooms of stone
+    and timber walls with a floor and a roof; a painted L of roof built with Enter; a
+    two-storey cottage; a stone house with a wing over one roof and a window clicked into
+    its wall. Not shown: a built house played in the game from the editor (it is the same
+    prop data 0.35's tool made).
 - [ ] Part 7: Events, conversations and scripts — `feature/studio`
 
   **Goal.** What happens in the game is as easy to write and to read as it is to place a prop.

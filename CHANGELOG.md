@@ -20,7 +20,7 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   a machine without a graphics driver gets a message.
 - `Game::step` and `Game::thing_under_pointer` (an editor shows the game itself: its clock
   by hand, what a click would open); `map::MapSettings` (what a map is besides its ground
-  and what stands on it, for forms).
+  and what stands on it, for forms); `Assets::load_sheet` (one picture read again).
 
 ### Editor
 - **The new editor's window** (`rustpg2d-studio`, part 3 of *The Studio*), egui 0.37 on the
@@ -77,6 +77,17 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   are dragged out as rows, scatter sets brushed on, structures put down whole. Scenery is
   selected, moved, turned and deleted like anything else, and *Make interactive* turns a
   piece into an object with a name and events (and back).
+- **The Build tool on the map** (part 6, key B): walls painted along the tile edges or tile by
+  tile, round corners; a room dragged as its floor, with walls, a floor material and a roof if
+  wanted; a house dragged as its footprint, in the look of a building you pick, with one to
+  three storeys (dragged against another house it becomes its wing under one roof); a roof
+  alone as a rectangle or over tiles you paint or find inside walls with a click; doors,
+  windows and gaps clicked into walls and houses, and taken out with the right button. One
+  Ctrl+Z takes a house back together with the prop made for it. A room of thick walls now
+  stands around the floor you dragged (0.35 put the walls on the floor's own tiles), and a
+  door in a wall closes the room for *Inside walls*.
+- **One action, one undo:** what a single action changes in two places (a built house: its
+  prop and the map; two linked maps) is undone and redone together.
 - **The game's settings have pages of their own** (part 5): Game, Hero & party, Rules, World,
   Look & feel, Title & menus, Sound, Languages, Scripts & plugins, first in the Project
   browser, each a form like a definition's (the browser's filter finds a page by a setting's

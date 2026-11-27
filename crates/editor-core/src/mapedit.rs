@@ -129,6 +129,12 @@ impl Workspace {
     /// What changed on the map since `snap` becomes one step of its history called `label`.
     /// False when nothing changed.
     pub fn commit_map(&mut self, snap: MapSnap, label: &str) -> bool {
+        self.commit_built(snap, Vec::new(), 0, label)
+    }
+
+    /// [`Self::commit_map`] with ground painted in the same step: `cells` (x, y, what was
+    /// there) now hold `value`.
+    pub fn commit_built(&mut self, snap: MapSnap, cells: Vec<(i32, i32, u8)>, value: u8, label: &str) -> bool {
         let Some(doc) = &mut self.doc else { return false };
         // Scenery has no numbers: what is there now and wasn't, and the other way round.
         let mut was: std::collections::HashMap<Decor, i32> = std::collections::HashMap::new();
@@ -144,10 +150,10 @@ impl Workspace {
         }
         let removed: Vec<Decor> = snap.decor.iter().filter(|d| was.get_mut(*d).is_some_and(|n| if *n > 0 { *n -= 1; true } else { false })).copied().collect();
         let objects = Objects::of(&doc.map) != snap.objects;
-        if !objects && added.is_empty() && removed.is_empty() {
+        if !objects && added.is_empty() && removed.is_empty() && cells.is_empty() {
             return false;
         }
-        doc.record_build(Vec::new(), 0, added, removed, objects.then_some(snap.objects), &self.assets);
+        doc.record_build(cells, value, added, removed, objects.then_some(snap.objects), &self.assets);
         self.begin_unnamed(label);
         self.stale = true;
         true

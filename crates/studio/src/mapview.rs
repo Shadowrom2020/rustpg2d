@@ -8,6 +8,7 @@
 
 use eframe::egui;
 use eframe::egui_wgpu::RenderState;
+use editor_core::build;
 use editor_core::doc::MapDoc;
 use editor_core::mapedit::{entity_kind, kind_ref, Brush, MapSnap};
 use editor_core::schema::{self, Shape};
@@ -21,6 +22,7 @@ use rustpg2d_engine::map::{CollisionOverride, Map, ZoneKind};
 use rustpg2d_engine::refactor::RefKind;
 use rustpg2d_engine::render::{self, ground::GroundRenderer, lighting::LightPass, weather::WeatherFx};
 
+use crate::buildtool::{BuildMode, BuildTool, RoofDraw};
 use crate::scene::{zone_color, Look, Scene};
 use crate::thumbs::Thumbs;
 
@@ -30,18 +32,20 @@ pub enum Tool {
     Select,
     Terrain,
     Place,
+    Build,
     Zones,
     Collision,
 }
 
 impl Tool {
-    pub const ALL: [Tool; 5] = [Tool::Select, Tool::Terrain, Tool::Place, Tool::Zones, Tool::Collision];
+    pub const ALL: [Tool; 6] = [Tool::Select, Tool::Terrain, Tool::Place, Tool::Build, Tool::Zones, Tool::Collision];
 
     pub fn label(self) -> &'static str {
         match self {
             Tool::Select => "Select",
             Tool::Terrain => "Terrain",
             Tool::Place => "Place",
+            Tool::Build => "Build",
             Tool::Zones => "Zones",
             Tool::Collision => "Collision",
         }
@@ -52,6 +56,7 @@ impl Tool {
             Tool::Select => egui::Key::V,
             Tool::Terrain => egui::Key::P,
             Tool::Place => egui::Key::N,
+            Tool::Build => egui::Key::B,
             Tool::Zones => egui::Key::Z,
             Tool::Collision => egui::Key::C,
         }
@@ -62,6 +67,7 @@ impl Tool {
             Tool::Select => "Click something to select it, drag it to move it (scenery and zones: once they are selected); drag on empty ground to select what is inside. Shift or Ctrl+click adds to the selection.",
             Tool::Terrain => "Paint the ground with the material picked on the left. Shift erases, the right button picks the material under the pointer, [ and ] size the brush.",
             Tool::Place => "Pick what to put down on the left, then click the map: characters, objects, items, scenery, whole structures, scatter sets. Shift places off the grid, R turns it first.",
+            Tool::Build => "Walls painted along the tiles, rooms, houses and roofs dragged as rectangles, doors and windows clicked into walls: pick what to build on the left.",
             Tool::Zones => "Drag a rectangle to make a zone of the kind picked on the left; drag a zone to move it, its corners to size it.",
             Tool::Collision => "Paint where nobody can walk: left button blocks tiles, Shift gives them back to the ground's own rule, right button opens them.",
         }
@@ -138,6 +144,13 @@ enum Drag {
     Row { from: Vec2 },
     /// A scatter set brushed on: where the last dab was.
     Scatter { last: Vec2, before: Box<MapSnap> },
+    /// A wall painted: the wall point it has reached (`None`: a straight line from `from`,
+    /// built when the button goes up) and the pieces placed so far.
+    Wall { last: Option<(i32, i32)>, from: Vec2, before: Box<MapSnap>, pieces: usize },
+    /// A room, a house or a roof dragged as a rectangle from here.
+    BuildRect { from: Vec2 },
+    /// A roof's tiles marked (or cleared) one by one.
+    RoofPaint { clearing: bool },
 }
 
 /// What a map tab asks of the window.
@@ -209,6 +222,8 @@ pub struct MapView {
     pub layers: [bool; 3],
     /// The Zones tool's kind (a variant of `ZoneKind`).
     pub zone_kind: String,
+    /// The Build tool's choices.
+    pub build: BuildTool,
     outliner_filter: String,
     /// The Inspector's form holding something that can't be taken yet, and why.
     pending: Option<(Selection, serde_json::Value, String)>,
@@ -260,6 +275,7 @@ impl Default for MapView {
             picks: Picks { things: true, scenery: true, zones: true },
             layers: [true; 3],
             zone_kind: "Trigger".into(),
+            build: BuildTool::default(),
             outliner_filter: String::new(),
             pending: None,
             reveal: None,
@@ -342,7 +358,7 @@ impl MapView {
             Some("") => "erase",
             Some(m) => m,
         }, self.ground_mode.label().to_lowercase(), self.brush.size * 2.0 / ws.ts(), if self.brush.square { ":square" } else { "" }, if self.brush.snap { ":snap" } else { "" });
-        format!("map={name} tool={} sel=[{}] entities={e} zones={z} decor={d} zoom={:.2} place={place} zonekind={} ground={ground} canvas_ms={:.1}", self.tool.label().to_lowercase(), sel.join(","), self.cam.map_or(0.0, |c| c.1), self.zone_kind, self.draw_ms)
+        format!("map={name} tool={} sel=[{}] entities={e} zones={z} decor={d} zoom={:.2} place={place} zonekind={} ground={ground} build={} canvas_ms={:.1}", self.tool.label().to_lowercase(), sel.join(","), self.cam.map_or(0.0, |c| c.1), self.zone_kind, self.build.status(), self.draw_ms)
     }
 
     /// Selects a thing and brings it into view (a search hit, a problem's place).
@@ -399,6 +415,10 @@ impl MapView {
         egui::Panel::right(egui::Id::unique(("map side", name))).default_size(350.0).resizable(true).show(ui, |ui| self.side(ui, p, name));
         if self.tool != Tool::Select {
             egui::Panel::left(egui::Id::unique(("map tool", name))).default_size(210.0).resizable(true).show(ui, |ui| self.tool_panel(ui, p));
+        }
+        if std::mem::take(&mut self.build.make) {
+            p.ws.open_map(name);
+            self.build_marked(p);
         }
         self.canvas(ui, p, name);
         if p.ws.doc.as_ref().is_some_and(|d| d.map.name == name) {
@@ -485,6 +505,7 @@ impl MapView {
             Tool::Select | Tool::Collision => {}
             Tool::Terrain => self.terrain_panel(ui, p),
             Tool::Place => self.place_panel(ui, p),
+            Tool::Build => self.build.panel(ui, p),
             Tool::Zones => {
                 let Some(Shape::Choice(variants)) = schema::zone().at("/kind").map(|n| n.shape()) else { return };
                 egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
@@ -1258,6 +1279,7 @@ impl MapView {
                     }
                 }
                 Tool::Place => self.place_press(p, world, tile),
+                Tool::Build => self.build_press(p, world, tile),
                 Tool::Terrain => self.terrain_press(p, world),
                 Tool::Collision => {
                     let value = if mods.shift { CollisionOverride::Auto } else { CollisionOverride::Solid } as u8;
@@ -1281,6 +1303,9 @@ impl MapView {
         // material under the pointer.
         if self.tool == Tool::Place && rpressed && over {
             self.place = None;
+        }
+        if self.tool == Tool::Build && rpressed && over {
+            self.build_right(p, world, tile);
         }
         if self.tool == Tool::Terrain && rpressed && over {
             match p.ws.ground_at(world) {
@@ -1471,6 +1496,52 @@ impl MapView {
                 let name = self.place.as_ref().and_then(|(_, id)| p.ws.project.db.scatter_set(id)).map_or_else(String::new, |s| if s.name.is_empty() { s.id.clone() } else { s.name.clone() });
                 p.ws.commit_map(*before, &format!("Scatter {name}"));
             }
+            Some(Drag::Wall { last, from, before, pieces }) => {
+                // The wall goes on to where the pointer is; let go, it is one step.
+                let wall = self.build.wall.clone();
+                let (mut last, mut pieces) = (last, pieces);
+                if let (Some(l), Some(def)) = (last, p.ws.project.db.prop(&wall)) {
+                    let to = build::wall_point(def, world, ts);
+                    if to != l {
+                        pieces += p.ws.wall_to(&wall, l, to);
+                        last = Some(to);
+                    }
+                }
+                if held {
+                    self.drag = Some(Drag::Wall { last, from, before, pieces });
+                } else {
+                    if last.is_none() {
+                        pieces += p.ws.wall_line(&wall, from, world);
+                    }
+                    let what = p.ws.def_label(EntityKind::Prop, &wall);
+                    p.ws.commit_map(*before, &format!("Build {pieces} pieces of {what}"));
+                    p.ws.set_status(if pieces == 0 { format!("{what} stands there already") } else { format!("Built {pieces} pieces of {what}") });
+                }
+            }
+            Some(Drag::BuildRect { from }) if held => self.drag = Some(Drag::BuildRect { from }),
+            Some(Drag::BuildRect { from }) => {
+                if (look.to_screen(world) - look.to_screen(from)).length() < 4.0 * ppp {
+                    p.ws.set_status("Drag a rectangle: from one corner to the other");
+                } else {
+                    let r = build::drag_rect(from, world, ts);
+                    let b = &self.build;
+                    let done = match b.mode {
+                        BuildMode::Room => p.ws.build_room(r, &b.wall, &b.floor, b.all_sides, b.room_roof.then_some((b.style.as_str(), b.roof))),
+                        BuildMode::House => p.ws.build_house(r, &b.style, b.storeys),
+                        _ => p.ws.build_roof(&build::tiles_in(r, ts), &b.style, b.roof, &b.wall),
+                    };
+                    p.ws.set_status(done.unwrap_or_else(|e| e));
+                }
+            }
+            Some(Drag::RoofPaint { clearing }) if held => {
+                if clearing {
+                    self.build.cells.remove(&tile);
+                } else if p.ws.doc.as_ref().is_some_and(|d| d.map.in_bounds(tile.0, tile.1)) {
+                    self.build.cells.insert(tile);
+                }
+                self.drag = Some(Drag::RoofPaint { clearing });
+            }
+            Some(Drag::RoofPaint { .. }) => {}
             Some(Drag::Pan) | None => {}
         }
         let _ = released;
@@ -1535,6 +1606,77 @@ impl MapView {
         };
         if let Err(e) = r {
             p.ws.set_status(e);
+        }
+    }
+
+    /// The Build tool's press.
+    fn build_press(&mut self, p: &mut Parts, world: Vec2, tile: (i32, i32)) {
+        self.sel.clear();
+        self.build.defaults(&p.ws.project.db);
+        let (ts, iso) = (p.ws.ts(), !self.opts.topdown);
+        match self.build.mode {
+            BuildMode::Walls => {
+                let Some(def) = p.ws.project.db.prop(&self.build.wall).filter(|d| build::is_wall(d)).cloned() else {
+                    p.ws.set_status("Pick a wall in the list on the left first");
+                    return;
+                };
+                let Some(before) = p.ws.snap_map() else { return };
+                self.drag = Some(if self.shift {
+                    Drag::Wall { last: None, from: world, before, pieces: 0 }
+                } else {
+                    let at = build::wall_point(&def, world, ts);
+                    let pieces = p.ws.wall_to(&def.id, at, at);
+                    Drag::Wall { last: Some(at), from: world, before, pieces }
+                });
+            }
+            BuildMode::Room | BuildMode::House => self.drag = Some(Drag::BuildRect { from: world }),
+            BuildMode::Roof => match self.build.roof_draw {
+                RoofDraw::Rectangle => self.drag = Some(Drag::BuildRect { from: world }),
+                RoofDraw::Paint => self.drag = Some(Drag::RoofPaint { clearing: self.build.cells.contains(&tile) }),
+                RoofDraw::Fill => match p.ws.roof_fill(world) {
+                    Ok(cells) => {
+                        p.ws.set_status(format!("Marked {} tiles inside the walls: Build roof makes it", cells.len()));
+                        self.build.cells.extend(cells);
+                    }
+                    Err(e) => p.ws.set_status(e),
+                },
+            },
+            BuildMode::Doors => {
+                let piece = match self.build.put {
+                    build::Put::Door => &self.build.door,
+                    build::Put::Window => &self.build.window,
+                    build::Put::Gap => "",
+                };
+                let done = p.ws.put_opening(world, iso, self.build.put, piece);
+                p.ws.set_status(done.unwrap_or_else(|e| e));
+            }
+        }
+    }
+
+    /// The Build tool's right button: what was built is taken away again.
+    fn build_right(&mut self, p: &mut Parts, world: Vec2, tile: (i32, i32)) {
+        let iso = !self.opts.topdown;
+        let done = match self.build.mode {
+            BuildMode::Walls | BuildMode::Room => p.ws.take_wall(world, iso),
+            BuildMode::Doors => p.ws.take_opening(world, iso, &self.build.wall),
+            BuildMode::Roof if self.build.roof_draw != RoofDraw::Rectangle => {
+                self.build.cells.remove(&tile);
+                return;
+            }
+            _ => return,
+        };
+        p.ws.set_status(done.unwrap_or_else(|e| e));
+    }
+
+    /// The roof over the tiles marked (*Build roof*, Enter).
+    fn build_marked(&mut self, p: &mut Parts) {
+        let b = &self.build;
+        match p.ws.build_roof(&b.cells, &b.style, b.roof, &b.wall) {
+            Ok(msg) => {
+                self.build.cells.clear();
+                p.ws.set_status(msg);
+            }
+            Err(e) => p.ws.set_status(e),
         }
     }
 
@@ -1608,9 +1750,12 @@ impl MapView {
             let tool = Tool::ALL.into_iter().find(|t| key(t.key()));
             let pan = vec2(i.key_down(egui::Key::ArrowRight) as i32 as f32 - i.key_down(egui::Key::ArrowLeft) as i32 as f32, i.key_down(egui::Key::ArrowDown) as i32 as f32 - i.key_down(egui::Key::ArrowUp) as i32 as f32);
             let size = key(egui::Key::CloseBracket) as i32 - key(egui::Key::OpenBracket) as i32;
-            (tool, key(egui::Key::G), key(egui::Key::R), key(egui::Key::Delete) || key(egui::Key::Backspace), i.modifiers.command && i.key_pressed(egui::Key::D), key(egui::Key::Escape), key(egui::Key::Home), pan, i.stable_dt, size)
+            (tool, key(egui::Key::G), key(egui::Key::R), key(egui::Key::Delete) || key(egui::Key::Backspace), i.modifiers.command && i.key_pressed(egui::Key::D), key(egui::Key::Escape), key(egui::Key::Home), pan, i.stable_dt, size, key(egui::Key::Enter))
         });
-        let (tool, grid, turn, delete, duplicate, escape, home, pan, dt, size) = k;
+        let (tool, grid, turn, delete, duplicate, escape, home, pan, dt, size, enter) = k;
+        if enter && self.tool == Tool::Build && self.build.mode == BuildMode::Roof && !self.build.cells.is_empty() {
+            self.build.make = true;
+        }
         if size != 0 {
             // [ and ]: the brush's size.
             let ts = p.ws.ts();
@@ -1642,6 +1787,8 @@ impl MapView {
             // Esc: stop placing, else let go of the selection, else back to Select.
             if self.tool == Tool::Place && self.place.is_some() {
                 self.place = None;
+            } else if self.tool == Tool::Build && !self.build.cells.is_empty() {
+                self.build.cells.clear();
             } else if !self.sel.is_empty() {
                 self.sel.clear();
             } else {
@@ -1977,6 +2124,20 @@ impl MapView {
             }
         }
 
+        // The tiles marked for a roof, with their outline.
+        if self.tool == Tool::Build && self.build.mode == BuildMode::Roof {
+            let (cells, col) = (&self.build.cells, Color::new(1.0, 0.85, 0.2, 0.9));
+            for &(x, y) in cells {
+                let (cx, cy) = (x as f32 * ts, y as f32 * ts);
+                draw_rectangle(cx, cy, ts, ts, Color::new(0.85, 0.35, 0.25, 0.35));
+                for (n, a, b) in [((x, y - 1), (cx, cy), (cx + ts, cy)), ((x, y + 1), (cx, cy + ts), (cx + ts, cy + ts)), ((x - 1, y), (cx, cy), (cx, cy + ts)), ((x + 1, y), (cx + ts, cy), (cx + ts, cy + ts))] {
+                    if !cells.contains(&n) {
+                        draw_line(a.0, a.1, b.0, b.1, 2.0 * px, col);
+                    }
+                }
+            }
+        }
+
         // What the tool is about to do.
         if let Some(w) = self.hover {
             let tile = ((w.x / ts).floor() as i32, (w.y / ts).floor() as i32);
@@ -2025,6 +2186,41 @@ impl MapView {
                             }
                         }
                         None => draw_rectangle_lines(fx, fy, ts, ts, px, Color::new(1.0, 1.0, 1.0, 0.25)),
+                    }
+                }
+                (_, Tool::Build) => {
+                    let col = Color::new(1.0, 0.85, 0.2, 0.9);
+                    let b = &self.build;
+                    let wall = scene.db.prop(&b.wall).filter(|d| build::is_wall(d));
+                    match (&self.drag, b.mode) {
+                        // The rectangle a room, a house or a roof will stand on.
+                        (Some(Drag::BuildRect { from }), _) => {
+                            let r = build::drag_rect(*from, w, ts);
+                            draw_rectangle(r.x, r.y, r.w, r.h, Color::new(1.0, 0.85, 0.2, 0.15));
+                            draw_rectangle_lines(r.x, r.y, r.w, r.h, 3.0 * px, col);
+                        }
+                        // A straight wall (Shift) from where the drag began.
+                        (Some(Drag::Wall { last: None, from, .. }), _) => {
+                            let a = vec2(build::edge(from.x, ts), build::edge(from.y, ts));
+                            let e = if (w.x - from.x).abs() >= (w.y - from.y).abs() { vec2(build::edge(w.x, ts), a.y) } else { vec2(a.x, build::edge(w.y, ts)) };
+                            draw_line(a.x, a.y, e.x, e.y, 4.0 * px, col);
+                        }
+                        (_, BuildMode::Roof) if b.roof_draw != RoofDraw::Rectangle => draw_rectangle_lines(fx, fy, ts, ts, 2.0 * px, col),
+                        (_, BuildMode::Doors) => {
+                            // What a click would change.
+                            if let Some(hit) = ws.build_pick(w, !look.topdown, |d| build::is_wall(d) || build::is_house(d)) {
+                                draw_rectangle_lines(hit.rect.x, hit.rect.y, hit.rect.w, hit.rect.h, 3.0 * px, col);
+                            }
+                        }
+                        (_, BuildMode::Walls) => match wall {
+                            // Where the wall starts: a thick one's tile, a thin one's corner.
+                            Some(def) if !build::thin(def) => {
+                                let c = build::point_px(def, build::wall_point(def, w, ts), ts);
+                                draw_rectangle_lines(c.x - ts / 2.0, c.y - ts / 2.0, ts, ts, 2.0 * px, col);
+                            }
+                            _ => draw_circle(build::edge(w.x, ts), build::edge(w.y, ts), 4.0 * px, col),
+                        },
+                        _ => draw_circle(build::edge(w.x, ts), build::edge(w.y, ts), 4.0 * px, col),
                     }
                 }
                 (_, Tool::Terrain) => {
@@ -2289,6 +2485,59 @@ mod ui_tests {
         h.get_by_role_and_label(egui::accesskit::Role::Button, "Cobblestone").click();
         h.run();
         assert_eq!(h.state().view.material.as_deref(), Some("cobblestone"));
+        let dir = h.state().dir.clone();
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn the_build_tool_offers_walls_looks_and_doors_and_builds_a_marked_roof() {
+        let mut h = village("build");
+        h.run();
+        h.get_by_role_and_label(egui::accesskit::Role::Button, "Build").click();
+        h.run();
+        // It starts with the first wall, building, door and window there are, so a drag builds.
+        let b = &h.state().view.build;
+        assert_eq!((b.mode, b.wall.as_str()), (BuildMode::Walls, "stone_wall"));
+        assert!(!b.style.is_empty() && !b.door.is_empty() && !b.window.is_empty());
+        // Walls: the wall props (not the pieces a set turns for its sides); a click picks one.
+        assert!(h.query_all_by_label("Plaster panel (thin)").next().is_some());
+        h.get_by_role_and_label(egui::accesskit::Role::Button, "Timber frame").click();
+        h.run();
+        assert_eq!(h.state().view.build.wall, "timber_frame");
+        // House: the buildings to build like.
+        h.get_by_role_and_label(egui::accesskit::Role::Button, "House").click();
+        h.run();
+        h.get_by_role_and_label(egui::accesskit::Role::Button, "Stone house").click();
+        h.run();
+        assert_eq!(h.state().view.build.style, "house_stone");
+        // Doors: what a click puts in.
+        h.get_by_role_and_label(egui::accesskit::Role::Button, "Doors").click();
+        h.run();
+        h.get_by_role_and_label(egui::accesskit::Role::Button, "A window").click();
+        h.run();
+        assert_eq!(h.state().view.build.put, build::Put::Window);
+        // Roof: tiles marked by hand get their roof with Build roof, one step with its props.
+        h.get_by_role_and_label(egui::accesskit::Role::Button, "Roof").click();
+        h.run();
+        h.get_by_role_and_label(egui::accesskit::Role::Button, "Paint tiles").click();
+        h.run();
+        assert!(h.query_all_by_label("0 tiles marked").next().is_some());
+        let (decor, props) = (h.state().ws.doc.as_ref().unwrap().map.decor.len(), h.state().ws.project.db.props.len());
+        h.state_mut().view.build.cells = [(40, 30), (41, 30), (41, 31)].into();
+        h.run();
+        assert!(h.query_all_by_label("3 tiles marked").next().is_some());
+        h.get_by_role_and_label(egui::accesskit::Role::Button, "Build roof").click();
+        h.run();
+        h.run();
+        let s = h.state();
+        assert!(s.view.build.cells.is_empty());
+        assert_eq!((s.ws.doc.as_ref().unwrap().map.decor.len(), s.ws.project.db.props.len()), (decor + 2, props + 2));
+        assert_eq!(s.ws.timeline.done.last().unwrap().label, "Build a roof over 3 tiles");
+        assert!(s.ws.project.db.props.last().unwrap().id.starts_with("house_stone_roof_"));
+        // One undo takes the roof and its props away.
+        h.state_mut().ws.undo().unwrap();
+        let s = h.state();
+        assert_eq!((s.ws.doc.as_ref().unwrap().map.decor.len(), s.ws.project.db.props.len()), (decor, props));
         let dir = h.state().dir.clone();
         let _ = std::fs::remove_dir_all(dir);
     }

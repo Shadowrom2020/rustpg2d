@@ -58,6 +58,15 @@ impl SheetTex {
     }
 }
 
+/// A sheet's image read and cut into frames as its definition says.
+fn sheet_tex(project: &Project, def: &crate::defs::SheetDef, errors: &mut Vec<String>) -> SheetTex {
+    let image = load_image(project, &def.image, errors);
+    let (fw, fh) = (def.frame_w.max(1), def.frame_h.max(1));
+    let columns = (image.width as u32 / fw).max(1);
+    let rows = (image.height as u32 / fh).max(1);
+    SheetTex { texture: texture(&image), image, frame_w: fw as f32, frame_h: fh as f32, columns, count: columns * rows, scale: def.scale.clamp(1, 4) as f32 }
+}
+
 pub struct Assets {
     pub tile_size: f32,
     pub sheets: HashMap<String, SheetTex>,
@@ -154,22 +163,7 @@ impl Assets {
         let mut errors = Vec::new();
         let mut sheets = HashMap::new();
         for def in &project.db.sheets {
-            let image = load_image(project, &def.image, &mut errors);
-            let (fw, fh) = (def.frame_w.max(1), def.frame_h.max(1));
-            let columns = (image.width as u32 / fw).max(1);
-            let rows = (image.height as u32 / fh).max(1);
-            sheets.insert(
-                def.id.clone(),
-                SheetTex {
-                    texture: texture(&image),
-                    image,
-                    frame_w: fw as f32,
-                    frame_h: fh as f32,
-                    columns,
-                    count: columns * rows,
-                    scale: def.scale.clamp(1, 4) as f32,
-                },
-            );
+            sheets.insert(def.id.clone(), sheet_tex(project, def, &mut errors));
         }
         let mut materials = HashMap::new();
         let mut material_colors = HashMap::new();
@@ -193,6 +187,17 @@ impl Assets {
         models.set_atlas_mb(project.config.model_atlas_mb);
         errors.extend(models.errors.iter().cloned());
         Assets { tile_size: ts, sheets, materials, material_colors, material_frames, generation, errors, models }
+    }
+
+    /// Reads one sheet's image again (or for the first time: a picture the editor just wrote),
+    /// leaving everything else as it is.
+    pub fn load_sheet(&mut self, project: &Project, def: &crate::defs::SheetDef) {
+        let mut errors = Vec::new();
+        self.sheets.insert(def.id.clone(), sheet_tex(project, def, &mut errors));
+        for e in &errors {
+            eprintln!("[assets] {e}");
+        }
+        self.errors.extend(errors);
     }
 
     /// The picture sprite `sp` shows and its size in world pixels (buildings' textures).

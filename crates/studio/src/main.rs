@@ -15,6 +15,7 @@
 
 mod form;
 mod gallery;
+mod buildtool;
 mod mapview;
 mod play;
 mod scene;
@@ -79,6 +80,8 @@ impl Studio {
                     if !map.is_empty() {
                         println!("[mapview] {map}");
                     }
+                    // (What the editor last told the person.)
+                    println!("[said] {}", self.shell.ws.status.0);
                     println!("[world] {} link={}", self.shell.world_status(), self.shell.link.as_ref().map_or("-".to_string(), |(m, z)| format!("{m}:{z}")));
                 }
                 // A picture of tiles of the map being worked on, as agents get it:
@@ -93,8 +96,9 @@ impl Studio {
                 // number is the tile's middle): `mapclick X Y [ctrl|shift|right|double]`,
                 // `mapdrag X1 Y1 X2 Y2`, `maphover X Y` use the window's pointer for real;
                 // `mapview CX CY ZOOM`, `maptool NAME`, `mapopt grid|zones|collision|light|weather|above on|off`,
-                // `mapplace KIND ID|-`, `mapzone KIND`, `mapselect NAME…|-`, `mapact delete|duplicate|turn`.
-                "mapclick" | "maphover" | "mapdrag" | "mapview" | "maptool" | "mapopt" | "mapplace" | "mapzone" | "mapground" | "mapselect" | "mapact" => {
+                // `mapplace KIND ID|-`, `mapzone KIND`, `mapbuild MODE …` (`BuildTool::script`),
+                // `mapselect NAME…|-`, `mapact delete|duplicate|turn`.
+                "mapclick" | "maphover" | "mapdrag" | "mapview" | "maptool" | "mapopt" | "mapplace" | "mapzone" | "mapground" | "mapbuild" | "mapselect" | "mapact" => {
                     let ts = self.shell.ws.ts();
                     let num = |i: usize| arg(i).parse::<f32>().unwrap_or(0.0);
                     if arg(0) == "mapact" {
@@ -166,6 +170,12 @@ impl Studio {
                         "mapzone" => {
                             view.zone_kind = arg(1).to_string();
                             view.tool = mapview::Tool::Zones;
+                        }
+                        "mapbuild" => {
+                            view.tool = mapview::Tool::Build;
+                            if let Err(e) = view.build.script(&cmd[1..]) {
+                                println!("[script] {e}");
+                            }
                         }
                         _ => {
                             let a = view.window_pos(ts, num(1), num(2));

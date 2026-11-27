@@ -36,6 +36,9 @@ pub struct Change {
     pub at: Where,
     /// What was done, for menus and the history panel ("Rename item", "Paint ground").
     pub label: String,
+    /// Made by the same action as the change before it (a built house: its definition and its
+    /// place on the map; two maps linked): they are undone and redone together.
+    pub joined: bool,
 }
 
 #[derive(Default)]
@@ -76,14 +79,15 @@ impl Workspace {
         let label = self.timeline.label.take();
         let mut new = Vec::new();
         if defs_step {
-            new.push(Change { at: Where::Defs, label: label.clone().unwrap_or_else(|| "Change definitions".into()) });
+            new.push(Change { at: Where::Defs, label: label.clone().unwrap_or_else(|| "Change definitions".into()), joined: false });
         }
         let depths: Vec<(String, usize)> = self.doc.iter().chain(self.parked.values()).map(|d| (d.map.name.clone(), d.undo_depth())).collect();
         for (name, depth) in &depths {
             let was = self.timeline.seen.get(name).copied().unwrap_or(0);
             if *depth > was {
                 for _ in was..*depth {
-                    new.push(Change { at: Where::Map(name.clone()), label: label.clone().unwrap_or_else(|| "Edit map".into()) });
+                    let joined = !new.is_empty();
+                    new.push(Change { at: Where::Map(name.clone()), label: label.clone().unwrap_or_else(|| "Edit map".into()), joined });
                 }
             } else if *depth < was {
                 // Steps went away behind our back (the history was cleared by a rename, or the
@@ -93,7 +97,7 @@ impl Workspace {
                 while drop > 0 && k > 0 {
                     k -= 1;
                     if self.timeline.done[k].at == Where::Map(name.clone()) {
-                        self.timeline.done.remove(k);
+                        self.forget_done(k);
                         drop -= 1;
                     }
                 }
@@ -105,6 +109,9 @@ impl Workspace {
             self.timeline.done.extend(new);
             let over = self.timeline.done.len().saturating_sub(MAX_CHANGES);
             self.timeline.done.drain(..over);
+            if let Some(first) = self.timeline.done.first_mut() {
+                first.joined = false;
+            }
             self.stale = true;
             self.search_stale = true;
         }
@@ -151,31 +158,52 @@ impl Workspace {
         }
     }
 
-    /// Takes back the latest change, wherever it was made. Says what it was.
-    pub fn undo(&mut self) -> Option<String> {
-        self.history_frame(None);
-        while let Some(change) = self.timeline.done.pop() {
-            if self.replay(&change, true) {
-                let msg = format!("Undid: {} ({})", change.label, change.at.describe());
-                self.timeline.undone.push(change);
-                self.stale = true;
-                return Some(msg);
+    /// Takes change `k` out of the changes made; what was joined to it alone stands by itself.
+    fn forget_done(&mut self, k: usize) -> Change {
+        let mut change = self.timeline.done.remove(k);
+        if !change.joined {
+            if let Some(next) = self.timeline.done.get_mut(k) {
+                next.joined = false;
             }
         }
-        None
+        change.joined = false;
+        change
     }
 
-    /// Makes the latest undone change again.
-    pub fn redo(&mut self) -> Option<String> {
-        while let Some(change) = self.timeline.undone.pop() {
-            if self.replay(&change, false) {
-                let msg = format!("Redid: {} ({})", change.label, change.at.describe());
-                self.timeline.done.push(change);
+    /// Takes back the latest change, wherever it was made (and what the same action changed
+    /// elsewhere with it). Says what it was.
+    pub fn undo(&mut self) -> Option<String> {
+        self.history_frame(None);
+        let mut said = None;
+        while let Some(change) = self.timeline.done.pop() {
+            let joined = change.joined;
+            if self.replay(&change, true) {
+                said.get_or_insert_with(|| format!("Undid: {} ({})", change.label, change.at.describe()));
+                self.timeline.undone.push(change);
                 self.stale = true;
-                return Some(msg);
+            }
+            // (A change whose step is gone is passed over: the one before it is taken back.)
+            if said.is_some() && !joined {
+                break;
             }
         }
-        None
+        said
+    }
+
+    /// Makes the latest undone change again (and what was undone with it).
+    pub fn redo(&mut self) -> Option<String> {
+        let mut said = None;
+        while let Some(change) = self.timeline.undone.pop() {
+            if self.replay(&change, false) {
+                said.get_or_insert_with(|| format!("Redid: {} ({})", change.label, change.at.describe()));
+                self.timeline.done.push(change);
+                self.stale = true;
+            }
+            if said.is_some() && !self.timeline.undone.last().is_some_and(|c| c.joined) {
+                break;
+            }
+        }
+        said
     }
 
     /// Takes back the latest change made at `at` (a document's own undo), leaving later changes
@@ -183,7 +211,7 @@ impl Workspace {
     pub fn undo_at(&mut self, at: &Where) -> Option<String> {
         self.history_frame(None);
         let k = self.timeline.done.iter().rposition(|c| c.at == *at)?;
-        let change = self.timeline.done.remove(k);
+        let change = self.forget_done(k);
         if self.replay(&change, true) {
             let msg = format!("Undid: {} ({})", change.label, change.at.describe());
             self.timeline.undone.push(change);
@@ -196,7 +224,12 @@ impl Workspace {
     /// Makes the latest undone change of `at` again.
     pub fn redo_at(&mut self, at: &Where) -> Option<String> {
         let k = self.timeline.undone.iter().rposition(|c| c.at == *at)?;
-        let change = self.timeline.undone.remove(k);
+        let mut change = self.timeline.undone.remove(k);
+        // (Undone changes lie the other way round: what was joined to this one is before it.)
+        if !change.joined && k > 0 {
+            self.timeline.undone[k - 1].joined = false;
+        }
+        change.joined = false;
         if self.replay(&change, false) {
             let msg = format!("Redid: {} ({})", change.label, change.at.describe());
             self.timeline.done.push(change);

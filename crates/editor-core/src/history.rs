@@ -302,6 +302,9 @@ impl Workspace {
         }
         let root = self.project.root.clone();
         let seen = self.db_hist.observe(&root, &self.project.db, &self.project.config, focus, crate::now());
+        if seen != Seen::Nothing || self.buildings.is_none() {
+            self.sync_buildings();
+        }
         if seen != Seen::Nothing {
             self.defs_dirty = self.defs_saved.0 != self.project.db || self.defs_saved.1 != self.project.config;
             self.stale = true;
@@ -358,8 +361,21 @@ impl Workspace {
                 "a change to the definitions".to_string()
             }
         };
-        if asset_defs(&self.project.db) != assets_before {
-            self.reload_assets();
+        let assets_now = asset_defs(&self.project.db);
+        if assets_now != assets_before {
+            if assets_now.0 == assets_before.0 && assets_now.2 == assets_before.2 {
+                // Only pictures: those that are new or different are read, the rest stays (a
+                // built house comes and goes with its picture; reading everything takes seconds).
+                if self.gpu != crate::Gpu::No {
+                    for def in assets_now.1.iter().filter(|d| !assets_before.1.contains(d)) {
+                        self.assets.load_sheet(&self.project, def);
+                    }
+                    self.assets.sheets.retain(|id, _| assets_now.1.iter().any(|d| d.id == *id));
+                }
+                self.stale = true;
+            } else {
+                self.reload_assets();
+            }
         }
         self.db_hist.replaying = false;
         label
@@ -374,6 +390,7 @@ impl Workspace {
     fn db_restored(&mut self, msg: &str) {
         self.db_hist.rebase(&self.project.db, &self.project.config);
         self.defs_dirty = self.defs_saved.0 != self.project.db || self.defs_saved.1 != self.project.config;
+        self.sync_buildings();
         self.refresh_refs();
         self.set_status(msg);
     }

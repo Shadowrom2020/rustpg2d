@@ -460,3 +460,129 @@ fn the_world_is_surveyed_and_two_maps_are_linked() {
     assert!(!ws.is_dirty());
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn walls_rooms_houses_and_roofs_are_built_as_one_step_each() {
+    use gfx::prelude::{vec2, Rect};
+    use rustpg2d_editor_core::build::{self, Put};
+    use rustpg2d_engine::defs::RoofKind;
+    let dir = example_copy("build");
+    let mut ws = Workspace::new(dir.clone(), Gpu::No).unwrap();
+    ws.history_frame(None);
+    ws.open_map("village");
+    let ts = ws.ts();
+    let db = &ws.project.db;
+    let pick = |keep: &dyn Fn(&rustpg2d_engine::defs::PropDef) -> bool| db.props.iter().find(|p| keep(p)).map(|p| p.id.clone()).unwrap();
+    let thin = pick(&|p| build::is_wall(p) && build::thin(p));
+    let thick = pick(&|p| build::is_wall(p) && !build::thin(p));
+    let house = pick(&build::is_house);
+    let door = pick(&|p| p.door);
+    let window = pick(&build::is_window);
+    let props = db.props.len();
+    let count = |ws: &Workspace| (ws.doc.as_ref().unwrap().map.entities.len(), ws.doc.as_ref().unwrap().map.decor.len(), ws.project.db.props.len());
+    let (entities, decor, _) = count(&ws);
+    let last = |ws: &Workspace| ws.timeline.done.last().unwrap().label.clone();
+
+    // A thin wall round a corner: three pieces along the edge, two down; again adds nothing.
+    assert_eq!(ws.build_walls(&thin, &[(4, 50), (7, 50), (7, 52)]).unwrap(), 5);
+    ws.history_frame(None);
+    assert!(last(&ws).starts_with("Build 5 pieces of "), "{}", last(&ws));
+    assert_eq!(ws.build_walls(&thin, &[(4, 50), (7, 50)]).unwrap(), 0);
+    ws.history_frame(None);
+    assert_eq!(count(&ws), (entities, decor + 5, props));
+    assert!(ws.build_walls("small_rock", &[(1, 1), (2, 1)]).is_err());
+    // A piece taken away where the pointer shows it (from above: on its footprint).
+    let piece = *ws.doc.as_ref().unwrap().map.decor.last().unwrap();
+    let (_, r) = ws.build_footprint(&piece).unwrap();
+    ws.take_wall(r.center(), false).unwrap();
+    ws.history_frame(None);
+    assert_eq!(count(&ws).1, decor + 4);
+
+    // A room of thick walls on all four sides, with a floor: the walls stand around its 4 x 3
+    // tiles (a ring of 18 tiles less the doorway in the south). On a site where nothing stands.
+    let (ox, oy) = {
+        let map = &ws.doc.as_ref().unwrap().map;
+        let free = |x: i32, y: i32| {
+            let site = Rect::new((x - 2) as f32 * ts, (y - 2) as f32 * ts, 8.0 * ts, 7.0 * ts);
+            !map.decor.iter().any(|d| site.contains(vec2(d.x as f32, d.y as f32))) && !map.entities.iter().any(|e| site.contains(vec2(e.x, e.y)))
+        };
+        (4..map.width as i32 - 8).flat_map(|x| (4..map.height as i32 - 8).map(move |y| (x, y))).find(|&(x, y)| free(x, y)).expect("a free site in the village")
+    };
+    let at = |x: f32, y: f32| vec2((ox as f32 + x) * ts, (oy as f32 + y) * ts);
+    let ground = ws.ground_at(at(1.5, 1.5));
+    let room = build::drag_rect(at(0.2, 0.3), at(3.7, 2.5), ts);
+    assert_eq!(room, Rect::new(ox as f32 * ts, oy as f32 * ts, 4.0 * ts, 3.0 * ts));
+    let before = count(&ws).1;
+    assert!(ws.build_room(room, &thick, "cobblestone", true, None).unwrap().contains("17 wall pieces"));
+    ws.history_frame(None);
+    assert_eq!(last(&ws), "Build a room of 4 x 3 tiles");
+    assert_eq!(count(&ws).1, before + 17);
+    assert_eq!(ws.ground_at(at(1.5, 1.5)).as_deref(), Some("cobblestone"));
+    assert_eq!(ws.ground_at(at(3.5, 2.5)).as_deref(), Some("cobblestone"));
+    // Through its doorway the ground isn't closed in; the doorway walled up, its inside is
+    // found from a click in it, with the tiles its walls stand on.
+    assert!(ws.roof_fill(at(1.5, 1.5)).is_err());
+    assert_eq!(ws.build_walls(&thick, &[(ox + 2, oy + 3)]).unwrap(), 1);
+    ws.history_frame(None);
+    let inside = ws.roof_fill(at(1.5, 1.5));
+    assert_eq!(inside.as_ref().map(|c| c.len()), Ok(12 + 14), "{inside:?}");
+    assert!(ws.roof_fill(at(-3.5, -3.5)).is_err());
+    // A window piece and a door put into its walls: the door is an object.
+    let wall_piece = *ws.doc.as_ref().unwrap().map.decor.iter().rev().find(|d| ws.build_footprint(d).is_some_and(|(p, _)| p.id == thick)).unwrap();
+    let (_, r) = ws.build_footprint(&wall_piece).unwrap();
+    ws.put_opening(r.center(), false, Put::Window, &window).unwrap();
+    ws.history_frame(None);
+    ws.put_opening(r.center(), false, Put::Door, &door).unwrap();
+    ws.history_frame(None);
+    assert_eq!(count(&ws).0, entities + 1);
+    // The door taken away again: the wall comes back.
+    ws.take_opening(r.center(), false, &thick).unwrap();
+    ws.history_frame(None);
+    assert_eq!(count(&ws).0, entities);
+
+    // A house is a new prop of that size and a thing on the map: one action, undone as one.
+    let (_, decor_now, props_now) = count(&ws);
+    let done = ws.timeline.done.len();
+    let msg = ws.build_house(Rect::new(20.0 * ts, 50.0 * ts, 5.0 * ts, 4.0 * ts), &house, 2).unwrap();
+    ws.history_frame(None);
+    assert!(msg.contains("_built_1"), "{msg}");
+    assert_eq!(count(&ws), (entities, decor_now + 1, props_now + 1));
+    assert_eq!(ws.timeline.done.len(), done + 2);
+    let built = ws.project.db.props.last().unwrap().clone();
+    assert_eq!(built.hitbox, [5.0 * ts, 4.0 * ts]);
+    assert!(built.name.contains("5x4, 2 storeys"), "{}", built.name);
+    assert!(built.building.as_ref().unwrap().openings.iter().any(|o| o.sill <= 0.0));
+    ws.undo().unwrap();
+    assert_eq!(count(&ws), (entities, decor_now, props_now));
+    ws.redo().unwrap();
+    assert_eq!(count(&ws), (entities, decor_now + 1, props_now + 1));
+    // A second one against its east wall is its wing: each knows the other.
+    ws.build_house(Rect::new(25.0 * ts, 51.0 * ts, 3.0 * ts, 3.0 * ts), &house, 1).unwrap();
+    ws.history_frame(None);
+    let wing = ws.project.db.props.last().unwrap().clone();
+    let joins = &wing.building.as_ref().unwrap().joins;
+    assert_eq!(joins.len(), 1);
+    assert_eq!(ws.project.db.prop(&joins[0].prop).unwrap().building.as_ref().unwrap().joins[0].prop, wing.id);
+    // A door clicked into the first house's south wall (from above the click meets the roof).
+    assert!(ws.put_opening(vec2(22.5 * ts, 52.0 * ts), false, Put::Door, "").unwrap_err().contains("roof"));
+
+    // A roof over an L of tiles: two parts, joined; over the room: as high as its walls.
+    let l: std::collections::BTreeSet<(i32, i32)> = build::tiles_in(Rect::new(30.0 * ts, 50.0 * ts, 6.0 * ts, 3.0 * ts), ts).into_iter().chain(build::tiles_in(Rect::new(33.0 * ts, 53.0 * ts, 3.0 * ts, 3.0 * ts), ts)).collect();
+    let msg = ws.build_roof(&l, &house, RoofKind::Hip, "").unwrap();
+    ws.history_frame(None);
+    assert!(msg.contains("27 tiles (2 parts)"), "{msg}");
+    let roofs: Vec<_> = ws.project.db.props.iter().filter(|p| p.id.contains("_roof_")).collect();
+    assert_eq!(roofs.len(), 2);
+    assert!(roofs.iter().all(|p| !p.solid && p.building.as_ref().is_some_and(|b| !b.walls && b.joins.len() == 1 && b.roof == RoofKind::Hip)));
+    let msg = ws.build_roof(&inside.unwrap(), &house, RoofKind::Gable, "").unwrap();
+    ws.history_frame(None);
+    let wall_height = ws.project.db.prop(&thick).unwrap().block;
+    assert!(msg.ends_with(&format!("at {wall_height} px")), "{msg}");
+
+    // Everything undone: the map and the definitions as they were.
+    while ws.undo().is_some() {}
+    assert_eq!(count(&ws), (entities, decor, props));
+    assert_eq!(ws.ground_at(at(1.5, 1.5)), ground);
+    assert!(!ws.is_dirty());
+    let _ = std::fs::remove_dir_all(&dir);
+}

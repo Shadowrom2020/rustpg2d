@@ -325,6 +325,7 @@ pub struct Shell {
     pub stages: std::collections::HashMap<String, crate::propshop::PropStage>,
     /// The workshops of the characters open in tabs, by id.
     pub figures: std::collections::HashMap<String, crate::charshop::CharStage>,
+    pub model_stages: std::collections::HashMap<String, crate::modelshop::ModelStage>,
     /// The sounds and sprite sheets open in tabs, by id: listened to, cut into frames.
     pub sounds: std::collections::HashMap<String, crate::artshop::SoundStage>,
     pub sheets: std::collections::HashMap<String, crate::artshop::SheetStage>,
@@ -361,7 +362,7 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, lib_look: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), sounds: Default::default(), sheets: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new() }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, lib_look: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), model_stages: Default::default(), sounds: Default::default(), sheets: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new() }
     }
 
     /// Whether anything waits to be saved: definitions, maps, scripts.
@@ -580,6 +581,17 @@ impl Shell {
     pub fn char_word(&mut self, args: &[String]) -> String {
         let Some(Tab::Def(RefKind::Character, id)) = self.dock.find_active_focused().map(|(_, t)| t.clone()) else { return String::new() };
         let stage = self.figures.entry(id.clone()).or_default();
+        match stage.word(&mut self.ws, &id, args) {
+            Ok(()) => stage.status(&self.ws, &id),
+            Err(e) => format!("{id}: {e}"),
+        }
+    }
+
+    /// The workshop of the 3D model's tab in front: the words of `ModelStage::word`; returns
+    /// its `status` line ("" when no model's tab is in front).
+    pub fn model_word(&mut self, args: &[String]) -> String {
+        let Some(Tab::Def(RefKind::Model, id)) = self.dock.find_active_focused().map(|(_, t)| t.clone()) else { return String::new() };
+        let stage = self.model_stages.entry(id.clone()).or_default();
         match stage.word(&mut self.ws, &id, args) {
             Ok(()) => stage.status(&self.ws, &id),
             Err(e) => format!("{id}: {e}"),
@@ -996,7 +1008,7 @@ impl Shell {
 
         let mut asks = Vec::new();
         {
-            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, library: &mut self.library, home: &mut self.home, timelines: &mut self.timelines, nodes: &mut self.nodes, stages: &mut self.stages, figures: &mut self.figures, sounds: &mut self.sounds, sheets: &mut self.sheets, scrub: &mut self.scrub, try_next: &mut self.try_next, rs, asks: &mut asks };
+            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, library: &mut self.library, home: &mut self.home, timelines: &mut self.timelines, nodes: &mut self.nodes, stages: &mut self.stages, figures: &mut self.figures, model_stages: &mut self.model_stages, sounds: &mut self.sounds, sheets: &mut self.sheets, scrub: &mut self.scrub, try_next: &mut self.try_next, rs, asks: &mut asks };
             DockArea::new(&mut self.dock).show_inside(ui, &mut viewer);
         }
         for ask in asks {
@@ -1340,6 +1352,7 @@ struct Viewer<'a> {
     nodes: &'a mut std::collections::HashMap<String, crate::nodesview::NodesView>,
     stages: &'a mut std::collections::HashMap<String, crate::propshop::PropStage>,
     figures: &'a mut std::collections::HashMap<String, crate::charshop::CharStage>,
+    model_stages: &'a mut std::collections::HashMap<String, crate::modelshop::ModelStage>,
     sounds: &'a mut std::collections::HashMap<String, crate::artshop::SoundStage>,
     sheets: &'a mut std::collections::HashMap<String, crate::artshop::SheetStage>,
     scrub: &'a mut Option<(String, editor_core::cutscene::Preview, u64)>,
@@ -1854,6 +1867,10 @@ impl Viewer<'_> {
         }
         if kind == RefKind::Character {
             self.figures.entry(id.to_string()).or_default().show(ui, self.ws, self.rs, self.thumbs, id);
+            ui.separator();
+        }
+        if kind == RefKind::Model {
+            self.model_stages.entry(id.to_string()).or_default().show(ui, self.ws, self.rs, self.thumbs, id);
             ui.separator();
         }
         if kind == RefKind::Sound {

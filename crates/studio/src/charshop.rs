@@ -17,9 +17,9 @@ use rustpg2d_engine::render::character::{Anim, LAYOUT_FRAMES};
 use rustpg2d_engine::render::model::{anim_req, Gear, PoseReq};
 
 /// The preview's height.
-const PREVIEW: egui::Vec2 = egui::vec2(220.0, 250.0);
+pub const PREVIEW: egui::Vec2 = egui::vec2(220.0, 250.0);
 const ANIMS: [(&str, &str); 4] = [("Walk", "The walk cycle"), ("Idle", "Standing still"), ("Attack", "Wind-up, swing, follow-through, recover"), ("Hurt", "Just hit")];
-const SIDES: [(Facing, &str); 4] = [(Facing::Down, "Front"), (Facing::Left, "Left"), (Facing::Up, "Back"), (Facing::Right, "Right")];
+pub const SIDES: [(Facing, &str); 4] = [(Facing::Down, "Front"), (Facing::Left, "Left"), (Facing::Up, "Back"), (Facing::Right, "Right")];
 
 /// The slots whose items show on the figure, and the others (worn magic items, a tool, ammunition).
 const SHOWN: [EquipSlot; 6] = [EquipSlot::Weapon, EquipSlot::Offhand, EquipSlot::Head, EquipSlot::Body, EquipSlot::Clothing, EquipSlot::Back];
@@ -102,6 +102,38 @@ fn feature_colors(ui: &mut egui::Ui, f: &ColorFeature, a: &mut Appearance) -> bo
         }
     });
     changed
+}
+
+/// A figure drawn into `rect` as the game draws it, playing `anim` (animation, time, once: see
+/// `PoseReq`), seen from `facing`: as large as it stands tall, on its feet.
+#[allow(clippy::too_many_arguments)]
+pub fn draw_figure(ui: &mut egui::Ui, rect: egui::Rect, ws: &Workspace, rs: &RenderState, thumbs: &mut crate::thumbs::Thumbs, look: &Appearance, gear: &Gear, anim: (&str, f32, bool), facing: Facing) {
+    let (anim, time, once) = anim;
+    let req = PoseReq { look, gear, anim, time, once, facing, turn: 0, bust: false };
+    // As large as the figure standing still is tall (so the size holds from pose to
+    // pose), on its feet; what reaches further (a spear, a swung arm) as far as the box does.
+    // (A wolf or an owlbear is longer than tall: its side has to fit too.)
+    let bare = Gear::default();
+    let still = |facing| PoseReq { look, gear: &bare, anim: "idle", time: 0.0, once: true, facing, turn: 0, bust: false };
+    let (front, side) = (thumbs.pose(ws, rs, &still(Facing::Down)), thumbs.pose(ws, rs, &still(Facing::Left)));
+    // (It stands on its feet in the middle: a head or a tail reaching far to one
+    // side needs that much room on both.)
+    let size = front.zip(side).map(|(f, s)| (f.height.max(s.height), f.reach.max(s.reach)));
+    match (thumbs.pose(ws, rs, &req), size) {
+        (Some(pose), Some((tall, reach))) => {
+            let k = ((rect.height() - 36.0) / tall).min((rect.width() / 2.0 - 12.0) / reach).min(6.0);
+            let stands = egui::pos2(rect.center().x, rect.max.y - 16.0);
+            let whole = egui::Rect::from_min_size(stands - pose.feet.to_vec2() * k, pose.thumb.size * k);
+            ui.painter_at(rect).image(pose.thumb.texture, whole, pose.thumb.uv, Color32::WHITE);
+        }
+        _ => {
+            ui.painter().text(rect.center(), egui::Align2::CENTER_CENTER, "drawing…", egui::FontId::default(), Color32::GRAY);
+        }
+    }
+    // (It moves: the next frame is wanted while it is in view.)
+    if ui.is_rect_visible(rect) {
+        ui.ctx().request_repaint_after(std::time::Duration::from_millis(33));
+    }
 }
 
 impl CharStage {
@@ -217,32 +249,7 @@ impl CharStage {
                 let c = &ws.project.db.characters[pos];
                 let look = ws.assets.models.look_of(&c.appearance);
                 let gear = Gear::of(&c.equipment, "", None);
-                let (anim, time, once) = anim_req(preview_anim(self.anim, t), t as f32);
-                let req = PoseReq { look: &look, gear: &gear, anim, time, once, facing, turn: 0, bust: false };
-                // As large as the figure standing still is tall (so the size holds from pose to
-                // pose), on its feet; what reaches further (a spear, a swung arm) as far as the box does.
-                // (A wolf or an owlbear is longer than tall: its side has to fit too.)
-                let bare = Gear::default();
-                let still = |facing| PoseReq { look: &look, gear: &bare, anim: "idle", time: 0.0, once: true, facing, turn: 0, bust: false };
-                let (front, side) = (thumbs.pose(ws, rs, &still(Facing::Down)), thumbs.pose(ws, rs, &still(Facing::Left)));
-                // (It stands on its feet in the middle: a head or a tail reaching far to one
-                // side needs that much room on both.)
-                let size = front.zip(side).map(|(f, s)| (f.height.max(s.height), f.reach.max(s.reach)));
-                match (thumbs.pose(ws, rs, &req), size) {
-                    (Some(pose), Some((tall, reach))) => {
-                        let k = ((rect.height() - 36.0) / tall).min((rect.width() / 2.0 - 12.0) / reach).min(6.0);
-                        let stands = egui::pos2(rect.center().x, rect.max.y - 16.0);
-                        let whole = egui::Rect::from_min_size(stands - pose.feet.to_vec2() * k, pose.thumb.size * k);
-                        ui.painter_at(rect).image(pose.thumb.texture, whole, pose.thumb.uv, Color32::WHITE);
-                    }
-                    _ => {
-                        ui.painter().text(rect.center(), egui::Align2::CENTER_CENTER, "drawing…", egui::FontId::default(), Color32::GRAY);
-                    }
-                }
-                // (It moves: the next frame is wanted while it is in view.)
-                if ui.is_rect_visible(rect) {
-                    ui.ctx().request_repaint_after(std::time::Duration::from_millis(33));
-                }
+                draw_figure(ui, rect, ws, rs, thumbs, &look, &gear, anim_req(preview_anim(self.anim, t), t as f32), facing);
             }
             ui.horizontal(|ui| {
                 for (f, label) in SIDES {

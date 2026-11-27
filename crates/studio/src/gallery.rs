@@ -117,7 +117,7 @@ pub fn show(ctx: &egui::Context, state: &mut NewAsset, groups: &[(&str, &[RefKin
                     state.in_library = Some((kind, if rustpg2d_engine::library::KINDS.contains(&kind) { library(kind) } else { Vec::new() }));
                 }
                 let offered: Vec<(String, String)> = state.in_library.as_ref().map(|(_, l)| l.clone()).unwrap_or_default();
-                let takes_files = [RefKind::Prop, RefKind::Sheet, RefKind::Sound].contains(&kind);
+                let takes_files = [RefKind::Prop, RefKind::Sheet, RefKind::Sound, RefKind::Model].contains(&kind);
                 if !takes_files {
                     state.from_file = false;
                 }
@@ -130,6 +130,7 @@ pub fn show(ctx: &egui::Context, state: &mut NewAsset, groups: &[(&str, &[RefKin
                 if takes_files {
                     ui.radio_value(&mut start, 3, match kind {
                         RefKind::Prop => "from a file: a 3D model (.glb) or a picture (.png)",
+                        RefKind::Model => "from a file: a 3D model (.glb)",
                         RefKind::Sheet => "from a file: a picture (.png)",
                         _ => "from a file: a sound (.ogg, .wav)",
                     })
@@ -146,6 +147,7 @@ pub fn show(ctx: &egui::Context, state: &mut NewAsset, groups: &[(&str, &[RefKin
                         ui.add(egui::TextEdit::singleline(&mut state.file).hint_text("Browse, drop a file on the window, or type where it is").desired_width(270.0)).labelled_by(by);
                         let want = || match kind {
                             RefKind::Prop => crate::pick::Want::File("3D models and pictures", &["glb", "png"]),
+                            RefKind::Model => crate::pick::Want::File("3D models", &["glb"]),
                             RefKind::Sheet => crate::pick::Want::File("Pictures", &["png"]),
                             _ => crate::pick::Want::File("Sounds", &["ogg", "wav"]),
                         };

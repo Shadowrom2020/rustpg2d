@@ -1690,6 +1690,21 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     `.wav`) becomes a sound. The file is copied into the project; the new thing's tab
     opens, a prop's with its workshop. *Browse…* picks the file in the system's file dialog
     (`studio/src/pick.rs`) instead; a new thing without a name yet is named after it.
+  - **The model workshop** (`studio/src/modelshop.rs` over `editor-core/src/modelcheck.rs`;
+    at the top of a 3D model's tab): the model as the game draws it, turning or from one
+    side, playing whichever of its animations is clicked (a piece is shown on a figure it
+    fits). Beside it what the check found (`Models::check`: its size against what one draw
+    takes, its palette, colour features that match no colour, a missing clip for one of the
+    four animations every figure plays, a piece's bones a body lacks), the problems first,
+    the rest folded under *What it is*. The fixes are at hand: each animation's clip is
+    picked from the clips its files hold (with their lengths) instead of typed, and how
+    fast it is drawn; *Guess from the clips' names* maps every animation without a clip
+    ("Walking" for walk, "Hit_Reaction" for hurt); *+ Animation* adds one of the kinds the
+    game knows (work, rest, weapon stances, sneaking) with its likeliest clip; a model
+    without a skeleton is offered the rig templates (four legs, a bird, a flyer…: its
+    animations come with the skeleton) and *Turn it* until it faces the front. A `.glb`
+    also becomes a 3D model for characters (*New… › 3D model › from a file*, or dropped):
+    copied in, made smaller, its animations guessed, its tab open on what is missing.
   - **A structure is worked on as a map** (`editor-core/src/structdoc.rs`; a structure's
     tab): its tab is the structure itself as a small map of its size, with every tool of a
     map: paint its ground, place and move things, build walls and roofs on it, set blocked
@@ -1712,9 +1727,10 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   field: the picture stands on the hitbox's southern edge, the light sits at two thirds of
   the picture's height), a figure sitting or lying at the use spot instead of the ring, a
   building's ridge, overhang and openings dragged on the picture, how large a prop's model
-  is shown as a handle; starting from measurements and Meshy, a character's model and an item's from a file, pictures
-  other than PNG; of the import helpers a model's check (size, rig, clips, what is missing
-  and its fix), a sound's volume and loop points set by ear; of structures: a house of the Build
+  is shown as a handle; starting from measurements and Meshy, an item's model from a file, pictures
+  other than PNG; of a model's workshop the joints of a fitted skeleton moved by hand, clips
+  borrowed from another model, more clip files picked, an attack's hit point, colour
+  features marked on the model; a sound's volume and loop points set by ear; of structures: a house of the Build
   tool saved as one from the tool itself; of the character workshop: rules,
   day, talk, shop and loot as parts of one document (they are sections of the form below),
   *Start from…* another character; presets that are more than
@@ -1757,6 +1773,11 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     1, 1 on its map (`structdoc::MARGIN`, `own_tiles`), and everything standing on the map
     is the structure's, at places counted from its own corner. What lies further out than
     that tile is kept as it is, unseen.
+  - **A model's check is the engine's, its fixes are the editor's**: what a model needs is
+    asked of the loaded model (`Models::check`, the agents' `model_check`), so the workshop
+    and an agent read the same lines; the workshop adds the ways out. A model changed there
+    is taken by the loaded one as it is (`Models::set_def`); only another skeleton reads the
+    project's art again.
   - **A dropped file opens *New…*, it doesn't make something at once**: what a file should
     become is a guess (a picture is a prop most of the time, a sheet sometimes), and the
     thing needs a name; the guess and the file's name are filled in, so Enter is enough.
@@ -1809,6 +1830,26 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
       hero named on *Hero & party*, the trader placed on the map, played: walking into her
       and E opens the *Outfitter* shop with its stock and prices (her items and their
       pictures came along).
+  - The known limits of the steps above, seen to: `structdoc` tests (the garden's fence a
+    pixel off its edge is on its map; a chest put on the tiles around a structure's own is
+    part of it, ground painted there goes again without a step), the structure's tab without
+    a Zones tool (`a_structure_is_worked_on_as_a_map…`); in the window the garden with all
+    four sides of its fence, a barrel put beside it, undone. File dialogs: the gallery's
+    *Browse…* answered by `pick::answer_next` in `the_new_gallery_starts_from_a_dropped_file`;
+    in the window the home screen's *A folder…* answered with the scratch project opens it.
+    **No real dialog was opened**: a scripted run never opens one, so whether the desktop
+    portal shows it on this machine is unseen. The library's owlbear and anvil shown in
+    *New…* when picked; a wolf's side inside the character preview; a prop from a `.glb`
+    not saved until the project is, undone and redone (`fromfile` test).
+  - The model workshop: `modelcheck` tests (the hero lacks nothing; walking without a clip
+    is said and guessed back from the clips' names; a clip picked by hand, an animation of
+    its own added and removed; a creature without its rig template lacks all four animations
+    and has them again with it, turned a quarter), `modelshop::ui_tests` (the missing
+    animation said, its clip picked from the list, *Guess from the clips' names*; the rig
+    templates offered to a model without a skeleton). In the window, end to end: the wolf's
+    file as `Moor_hound.glb` made a 3D model (four things to see to, no skeleton), the
+    four-legged template picked (nothing missing, it walks in the preview), a new character
+    given that model, placed on the village and seen standing there in the Play tab.
   - Sounds and sheets: `a_sheet_is_cut_into_frames_and_gets_an_animation` (a picture of
     96 x 64 as one frame cut 3 x 2: frames of 32 x 32, one step; the fourth frame clicked,
     an animation from it to its row's end; a cut that leaves a pixel over says so). In the

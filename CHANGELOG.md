@@ -120,6 +120,12 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **Drop a file to make something of it** (part 8): a 3D model (`.glb`) or a picture (`.png`)
   dropped on the editor becomes a prop that shows it, a sound file a sound: *New…* opens with
   the file and a name from it, Enter makes it. *New…* also takes a file's place typed in.
+- **The model workshop** (part 8): a 3D model's tab starts with the model playing its
+  animations and with what it still needs: an animation without a clip, a model without a
+  skeleton, too many colours. Each animation's clip is picked from the clips in its files,
+  *Guess from the clips' names* maps them in one go, and a model without bones takes a rig
+  template (four legs, a bird…) with its animations. A `.glb` dropped on the editor can
+  become a 3D model for characters as well as a prop.
 - **File dialogs** (parts 3 and 8): *Browse…* picks a file or folder in the system's dialog:
   the file a new thing starts from, a project to open (a file, or *A folder…*), where a new
   game is kept, the folder a game is published into.

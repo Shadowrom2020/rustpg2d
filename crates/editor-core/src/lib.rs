@@ -20,6 +20,7 @@ pub mod mapedit;
 pub mod mapops;
 pub mod mcp;
 pub mod meta;
+pub mod modelcheck;
 pub mod models;
 pub mod names;
 pub mod package;

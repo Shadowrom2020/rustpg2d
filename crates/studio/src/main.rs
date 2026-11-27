@@ -20,6 +20,7 @@ mod artshop;
 mod buildtool;
 mod charshop;
 mod mapview;
+mod modelshop;
 mod namespage;
 mod nodesview;
 mod pick;
@@ -166,6 +167,9 @@ impl Studio {
                 // A character's workshop (its tab in front): `char model ID`, `char part SLOT ID|-|own`,
                 // `char color FEATURE RRGGBB|-`, `char random`, `char face front|left|back|right|turn`, `char anim walk|idle|attack|hurt`.
                 "char" => println!("[char] {}", self.shell.char_word(&cmd[1..])),
+                // A 3D model's workshop (its tab in front): `model play ANIM CLIP|-`, `model fps ANIM N`, `model guess`,
+                // `model rig TEMPLATE|- [TURN]`, `model face …`, `model anim NAME`, `model check`.
+                "model" => println!("[model] {}", self.shell.model_word(&cmd[1..])),
                 // A prop's workshop (its tab in front): `prop state NAME`, `prop turn`, `prop dark on|off`; prints
                 // where its handles are in the window (for `drag`).
                 "prop" => println!("[prop] {}", self.shell.prop_word(&cmd[1..])),

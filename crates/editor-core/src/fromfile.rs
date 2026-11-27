@@ -40,7 +40,7 @@ impl FileKind {
     /// The kinds of definitions such a file can become, the likeliest first.
     pub fn makes(self) -> &'static [RefKind] {
         match self {
-            FileKind::Model => &[RefKind::Prop],
+            FileKind::Model => &[RefKind::Prop, RefKind::Model],
             FileKind::Picture => &[RefKind::Prop, RefKind::Sheet],
             FileKind::Sound => &[RefKind::Sound],
         }
@@ -52,6 +52,7 @@ impl FileKind {
 pub fn what_it_makes(kind: RefKind, file: &Path) -> Option<&'static str> {
     match (kind, FileKind::of(file)?) {
         (RefKind::Prop, FileKind::Model) => Some("A prop that shows this 3D model, standing on the ground in the middle of its footprint, one tile wide. Its pictures for lists are drawn from the model."),
+        (RefKind::Model, FileKind::Model) => Some("A 3D model for characters: a figure with its skeleton and clips, or an animal or monster that takes a rig template's. Its tab says what is missing and offers the fixes."),
         (RefKind::Prop, FileKind::Picture) => Some("A prop with this picture, standing on its lower edge, and the sprite sheet that holds the picture. A large picture is shown smaller (the sheet's scale)."),
         (RefKind::Sheet, FileKind::Picture) => Some("A sprite sheet of this picture as one frame: set the frame's size in its form when it holds several."),
         (RefKind::Sound, FileKind::Sound) => Some("A sound that plays this file."),
@@ -157,6 +158,29 @@ impl Workspace {
                     id
                 }
             }
+            (RefKind::Model, FileKind::Model) => {
+                let bytes = std::fs::read(file).map_err(|e| format!("reading {}: {e}", file.display()))?;
+                rustpg2d_engine::model::Model::load(&bytes).map_err(|e| format!("{}: {e:#}", file.display()))?;
+                let id = self.make_def(RefKind::Model, name, None)?;
+                std::fs::create_dir_all(root.join("models")).map_err(|e| e.to_string())?;
+                let mut rel = format!("models/{id}.glb");
+                let mut n = 2;
+                while root.join(&rel).exists() {
+                    rel = format!("models/{id}_{n}.glb");
+                    n += 1;
+                }
+                std::fs::write(root.join(&rel), &bytes).map_err(|e| format!("writing {rel}: {e}"))?;
+                // (Smaller where it can be: its texture as the game uses it.)
+                let bytes = self.compact_file(&rel, true).map_err(|e| format!("{e:#}"))?;
+                // Its animations take the clips whose names say what they are for.
+                let clips = rustpg2d_engine::model::guess_clips(&rustpg2d_engine::model::clip_names(&bytes).unwrap_or_default());
+                let clips = serde_json::to_value(&clips).map_err(|e| e.to_string())?;
+                set(self, RefKind::Model, &id, &|v| {
+                    v["file"] = rel.clone().into();
+                    v["clips"] = clips.clone();
+                })?;
+                id
+            }
             (_, FileKind::Model) => {
                 let bytes = std::fs::read(file).map_err(|e| format!("reading {}: {e}", file.display()))?;
                 let (glb, size) = rustpg2d_engine::model::stand_on_ground(&bytes).map_err(|e| format!("{}: {e:#}", file.display()))?;
@@ -177,7 +201,7 @@ impl Workspace {
             (_, FileKind::Sound) => return Err("a sound file becomes a sound".into()),
         };
         self.begin(&label);
-        if what != FileKind::Model {
+        if what != FileKind::Model || kind == RefKind::Model {
             // (`show_prop_model` loaded the art again already.)
             self.reload_assets();
         }
@@ -273,7 +297,9 @@ mod tests {
         ws.history_frame(None);
         assert!(ws.project.db.sheets.iter().any(|s| s.id == sheet && s.frame_w == 128) && ws.project.db.prop("arch_tiles").is_none());
         // A 3D model of the project: a prop showing it, as deep as the model is.
-        let glb = std::fs::read_dir(project.join("models")).unwrap().flatten().map(|e| e.path()).find(|p| p.file_name().is_some_and(|n| n.to_string_lossy().ends_with("_3d.glb"))).expect("the example has a prop's model");
+        // (One file by name: whichever the folder lists first may be a rug, flat on the ground.)
+        let glb = project.join("models/anvil_3d.glb");
+        assert!(glb.is_file(), "the example has the anvil's model");
         let model = dir.join("crate.glb");
         std::fs::copy(&glb, &model).unwrap();
         let id = ws.make_from_file(RefKind::Prop, &model, "Old crate").unwrap();
@@ -290,6 +316,17 @@ mod tests {
         ws.redo().unwrap();
         ws.history_frame(None);
         assert!(ws.project.db.prop("old_crate").is_some_and(|p| !p.model.is_empty()));
+        // A figure's file as a 3D model for characters: its animations take the clips named for them.
+        let figure = dir.join("scratch-figure.glb");
+        // (The four-legged rig template's file holds its clips: Walk, Idle, Attack, Hurt.)
+        std::fs::copy(project.join(&ws.project.db.model("rig_quadruped").unwrap().file), &figure).unwrap();
+        let id = ws.make_from_file(RefKind::Model, &figure, "Scratch figure").unwrap();
+        ws.history_frame(None);
+        let m = ws.project.db.model(&id).unwrap();
+        assert_eq!((id.as_str(), m.name.as_str(), m.file.as_str()), ("scratch_figure", "Scratch figure", "models/scratch_figure.glb"));
+        assert!(project.join("models/scratch_figure.glb").is_file() && ws.project.db.prop("scratch_figure").is_none());
+        assert!(["walk", "idle", "attack", "hurt"].iter().all(|a| m.clip_of(a).is_some()), "{:?}", m.clips);
+        assert!(ws.make_from_file(RefKind::Model, &outside, "X").is_err(), "a picture is no 3D model");
         // A sound; and what can't be.
         let ogg = std::fs::read_dir(project.join("sounds")).unwrap().flatten().map(|e| e.path()).find(|p| p.extension().is_some_and(|e| e == "ogg")).expect("the example has sounds");
         let sound = dir.join("creak.ogg");

@@ -37,6 +37,39 @@ pub struct MapSnap {
     decor: Vec<Decor>,
 }
 
+/// A point of a placed character's day on the map.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Spot {
+    /// A waypoint of its patrol route, by its place in the route.
+    Waypoint(usize),
+    /// A stop of its daily schedule, by its place in the list.
+    Stop(usize),
+}
+
+/// Things copied from a map ([`Workspace::copy_objects`]): pasted on any map of the project.
+#[derive(Clone, Debug, Default)]
+pub struct Clip {
+    entities: Vec<EntityInstance>,
+    zones: Vec<Zone>,
+    /// Scenery with its prop (each map numbers its props itself).
+    decor: Vec<(String, Decor)>,
+    /// The tile the north-west one of them stood on.
+    origin: (i32, i32),
+    /// The map they were copied from.
+    pub from: String,
+}
+
+impl Clip {
+    /// How many things it holds.
+    pub fn len(&self) -> usize {
+        self.entities.len() + self.zones.len() + self.decor.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
 /// How the brush of the Terrain tool paints.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Brush {
@@ -704,6 +737,281 @@ impl Workspace {
         }
         self.commit_map(*snap, &label);
         made
+    }
+
+    // ------------------------------------------------------------ a character's day
+
+    /// Adds a waypoint on `tile` to placed character `uid`'s patrol route (its first one starts
+    /// the route). One step. Returns how many it has now.
+    pub fn add_waypoint(&mut self, uid: u32, tile: (i32, i32)) -> Result<usize, String> {
+        let who = self.describe_object(Selection::Entity(uid));
+        let Some(snap) = self.snap_map() else { return Err("no map is open".into()) };
+        let Some(doc) = &mut self.doc else { return Err("no map is open".into()) };
+        if !doc.map.in_bounds(tile.0, tile.1) {
+            return Err("that is outside the map".into());
+        }
+        let Some(e) = doc.map.entities.iter_mut().find(|e| e.uid == uid && e.kind == EntityKind::Character) else { return Err("only a character walks a route".into()) };
+        let route = e.patrol.get_or_insert_with(Default::default);
+        if route.points.last() == Some(&tile) {
+            return Err("its last waypoint is there already".into());
+        }
+        route.points.push(tile);
+        let n = route.points.len();
+        self.commit_map(*snap, &format!("Add a waypoint for {who}"));
+        Ok(n)
+    }
+
+    /// Takes the last waypoint of placed character `uid`'s patrol route away (the last one
+    /// left: the route with it). One step. False when it has none.
+    pub fn remove_waypoint(&mut self, uid: u32) -> bool {
+        let who = self.describe_object(Selection::Entity(uid));
+        let Some(snap) = self.snap_map() else { return false };
+        let Some(e) = self.doc.as_mut().and_then(|d| d.map.entities.iter_mut().find(|e| e.uid == uid)) else { return false };
+        let Some(route) = &mut e.patrol else { return false };
+        route.points.pop();
+        if route.points.is_empty() {
+            e.patrol = None;
+        }
+        self.commit_map(*snap, &format!("Take a waypoint of {who} away"))
+    }
+
+    /// Where the points of placed character `uid`'s day are on this map: its patrol route's
+    /// waypoints and its schedule's stops here, as tiles.
+    pub fn spots_of(&self, uid: u32) -> Vec<(Spot, (i32, i32))> {
+        let Some(doc) = &self.doc else { return Vec::new() };
+        let Some(e) = doc.map.entity(uid) else { return Vec::new() };
+        let route = e.patrol.iter().flat_map(|r| r.points.iter().enumerate().map(|(k, p)| (Spot::Waypoint(k), *p)));
+        let stops = e.schedule.iter().enumerate().filter(|(_, s)| s.map.is_empty() || s.map == doc.map.name).map(|(k, s)| (Spot::Stop(k), (s.x, s.y)));
+        route.chain(stops).collect()
+    }
+
+    /// Puts a point of placed character `uid`'s day on `tile`. No step by itself (a drag moves
+    /// it many times): take [`Self::snap_map`] before and [`Self::commit_map`] after.
+    pub fn set_spot(&mut self, uid: u32, spot: Spot, tile: (i32, i32)) {
+        let Some(doc) = &mut self.doc else { return };
+        if !doc.map.in_bounds(tile.0, tile.1) {
+            return;
+        }
+        let Some(e) = doc.map.entities.iter_mut().find(|e| e.uid == uid) else { return };
+        match spot {
+            Spot::Waypoint(k) => {
+                if let Some(p) = e.patrol.as_mut().and_then(|r| r.points.get_mut(k)) {
+                    *p = tile;
+                }
+            }
+            Spot::Stop(k) => {
+                if let Some(s) = e.schedule.get_mut(k) {
+                    (s.x, s.y) = tile;
+                }
+            }
+        }
+    }
+
+    /// What moving a point of placed character `uid`'s day is called in the history.
+    pub fn spot_label(&self, uid: u32, spot: Spot) -> String {
+        let who = self.describe_object(Selection::Entity(uid));
+        match spot {
+            Spot::Waypoint(k) => format!("Move waypoint {} of {who}", k + 1),
+            Spot::Stop(k) => {
+                let time = self.doc.as_ref().and_then(|d| d.map.entity(uid)).and_then(|e| e.schedule.get(k)).map_or_else(String::new, |s| s.time_text());
+                format!("Move {who}'s {time} stop")
+            }
+        }
+    }
+
+    /// The things `what` as they are, to be pasted on this map or another (`None`: nothing of
+    /// them is there).
+    pub fn copy_objects(&self, what: &[Selection]) -> Option<Clip> {
+        let ts = self.ts();
+        let doc = self.doc.as_ref()?;
+        let mut clip = Clip::default();
+        let tile = |x: f32, y: f32| ((x / ts).floor() as i32, ((y - 0.5) / ts).floor() as i32);
+        let mut tiles = Vec::new();
+        for s in what {
+            match *s {
+                Selection::Entity(uid) => {
+                    if let Some(e) = doc.map.entity(uid) {
+                        tiles.push(tile(e.x, e.y));
+                        clip.entities.push(e.clone());
+                    }
+                }
+                Selection::Zone(uid) => {
+                    if let Some(z) = doc.map.zones.iter().find(|z| z.uid == uid) {
+                        tiles.push((z.x as i32, z.y as i32));
+                        clip.zones.push(z.clone());
+                    }
+                }
+                Selection::Scenery(d) => {
+                    if let Some(prop) = doc.map.decor_defs.get(d.def as usize).filter(|_| doc.map.decor.contains(&d)) {
+                        tiles.push(tile(d.x as f32, d.y as f32));
+                        clip.decor.push((prop.clone(), d));
+                    }
+                }
+                Selection::Region(_) | Selection::None => {}
+            }
+        }
+        clip.origin = (tiles.iter().map(|t| t.0).min()?, tiles.iter().map(|t| t.1).min()?);
+        clip.from = doc.map.name.clone();
+        Some(clip)
+    }
+
+    /// Puts copied things on the map being worked on, the tile their north-west one stood on
+    /// landing on `tile`: with new numbers, names that are free here, zones cut to the map; what
+    /// would stand outside the map is left out. One step. Returns what was put down.
+    pub fn paste_objects(&mut self, clip: &Clip, tile: (i32, i32)) -> Vec<Selection> {
+        let ts = self.ts();
+        let Some(snap) = self.snap_map() else { return Vec::new() };
+        let Some(doc) = &mut self.doc else { return Vec::new() };
+        let (dx, dy) = (tile.0 - clip.origin.0, tile.1 - clip.origin.1);
+        let (mw, mh) = (doc.map.width as i32, doc.map.height as i32);
+        let inside = |x: f32, y: f32| x >= 0.0 && y >= 0.0 && x < mw as f32 * ts && y <= mh as f32 * ts;
+        let mut made = Vec::new();
+        for e in &clip.entities {
+            let mut e = e.clone();
+            (e.x, e.y) = (e.x + dx as f32 * ts, e.y + dy as f32 * ts);
+            if !inside(e.x, e.y) {
+                continue;
+            }
+            e.uid = doc.map.alloc_uid();
+            if !e.name.is_empty() {
+                e.name = rustpg2d_engine::refactor::unique_id(&e.name, |c| doc.map.entities.iter().any(|o| o.name == c));
+            }
+            made.push(Selection::Entity(e.uid));
+            doc.map.entities.push(e);
+        }
+        for z in &clip.zones {
+            let mut z = z.clone();
+            let (x, y) = (z.x as i32 + dx, z.y as i32 + dy);
+            if x >= mw || y >= mh || x + z.w as i32 <= 0 || y + z.h as i32 <= 0 {
+                continue;
+            }
+            let (x0, y0) = (x.max(0), y.max(0));
+            (z.w, z.h) = (((x + z.w as i32).min(mw) - x0) as u32, ((y + z.h as i32).min(mh) - y0) as u32);
+            (z.x, z.y) = (x0 as u32, y0 as u32);
+            z.uid = doc.map.alloc_uid();
+            z.name = crate::mapops::unique_zone_name(&doc.map, &z.name);
+            made.push(Selection::Zone(z.uid));
+            doc.map.zones.push(z);
+        }
+        for (prop, d) in &clip.decor {
+            let new = Decor { def: doc.map.decor_slot(prop), x: d.x + dx * ts as i32, y: d.y + dy * ts as i32, ..*d };
+            if inside(new.x as f32, new.y as f32) && !doc.map.decor.contains(&new) {
+                doc.map.decor.push(new);
+                made.push(Selection::Scenery(new));
+            }
+        }
+        let label = match made.as_slice() {
+            [one] => format!("Paste {}", self.describe_object(*one)),
+            many => format!("Paste {} things", many.len()),
+        };
+        self.commit_map(*snap, &label);
+        made
+    }
+
+    /// The placed things and scenery of `what` that are of `kind` become definition `id` of
+    /// that kind, each where it stands, as it is otherwise (name, events, facing). One step.
+    /// Returns the selection as it is now, or why nothing can be replaced.
+    pub fn replace_objects(&mut self, what: &[Selection], kind: RefKind, id: &str) -> Result<Vec<Selection>, String> {
+        let Some(ek) = entity_kind(kind) else { return Err(format!("a {} isn't placed on a map", kind.name())) };
+        let known = match ek {
+            EntityKind::Prop => self.project.db.prop(id).is_some(),
+            EntityKind::Character => self.project.db.character(id).is_some(),
+            EntityKind::Item => self.project.db.item(id).is_some(),
+        };
+        if !known {
+            return Err(format!("there is no {} \"{id}\"", kind.name()));
+        }
+        let Some(snap) = self.snap_map() else { return Err("no map is open".into()) };
+        let Some(doc) = &mut self.doc else { return Err("no map is open".into()) };
+        let (mut now, mut n) = (Vec::new(), 0);
+        for s in what {
+            match *s {
+                Selection::Entity(uid) => {
+                    if let Some(e) = doc.map.entities.iter_mut().find(|e| e.uid == uid && e.kind == ek && e.def != id) {
+                        e.def = id.to_string();
+                        n += 1;
+                    }
+                    now.push(*s);
+                }
+                Selection::Scenery(d) if ek == EntityKind::Prop => {
+                    let slot = doc.map.decor_slot(id);
+                    // (A state the new prop may not have: back to its first.)
+                    let mut new = Decor { def: slot, state: 0, ..d };
+                    new.set_turn(d.turn());
+                    match doc.map.decor.iter_mut().find(|x| **x == d).filter(|_| slot != d.def) {
+                        Some(x) => {
+                            *x = new;
+                            n += 1;
+                            now.push(Selection::Scenery(new));
+                        }
+                        None => now.push(*s),
+                    }
+                }
+                _ => now.push(*s),
+            }
+        }
+        if n == 0 {
+            return Err(format!("nothing selected is a {} to replace", kind.label().to_lowercase()));
+        }
+        let name = self.def_label(ek, id);
+        self.commit_map(*snap, &if n == 1 { format!("Replace with {name}") } else { format!("Replace {n} things with {name}") });
+        Ok(now)
+    }
+
+    /// Puts the things `what` in a line with the first of them: `row` on its row (the same
+    /// distance from the map's north edge), else in its column. One step. Returns them as they
+    /// are now.
+    pub fn align_objects(&mut self, what: &[Selection], row: bool) -> Vec<Selection> {
+        let ts = self.ts();
+        let Some(snap) = self.snap_map() else { return what.to_vec() };
+        let Some(doc) = &mut self.doc else { return what.to_vec() };
+        // Where the first one is: its feet (a zone: its north-west corner).
+        let lead = what.iter().find_map(|s| match *s {
+            Selection::Entity(uid) => doc.map.entity(uid).map(|e| (e.x, e.y)),
+            Selection::Scenery(d) => Some((d.x as f32, d.y as f32)),
+            Selection::Zone(uid) => doc.map.zones.iter().find(|z| z.uid == uid).map(|z| (z.x as f32 * ts, z.y as f32 * ts)),
+            _ => None,
+        });
+        let Some((lx, ly)) = lead else { return what.to_vec() };
+        let (mw, mh) = (doc.map.width, doc.map.height);
+        let mut now = Vec::new();
+        for s in what {
+            match *s {
+                Selection::Entity(uid) => {
+                    if let Some(e) = doc.map.entities.iter_mut().find(|e| e.uid == uid) {
+                        if row {
+                            e.y = ly;
+                        } else {
+                            e.x = lx;
+                        }
+                    }
+                    now.push(*s);
+                }
+                Selection::Zone(uid) => {
+                    if let Some(z) = doc.map.zones.iter_mut().find(|z| z.uid == uid) {
+                        if row {
+                            z.y = ((ly / ts).floor() as u32).min(mh.saturating_sub(z.h));
+                        } else {
+                            z.x = ((lx / ts).floor() as u32).min(mw.saturating_sub(z.w));
+                        }
+                    }
+                    now.push(*s);
+                }
+                Selection::Scenery(d) => {
+                    let to = if row { Decor { y: ly as i32, ..d } } else { Decor { x: lx as i32, ..d } };
+                    match doc.map.decor.iter_mut().find(|x| **x == d) {
+                        Some(x) => {
+                            *x = to;
+                            now.push(Selection::Scenery(to));
+                        }
+                        None => now.push(*s),
+                    }
+                }
+                Selection::Region(_) | Selection::None => {}
+            }
+        }
+        self.commit_map(*snap, if row { "Put in a row" } else { "Put in a column" });
+        now
     }
 
     /// Moves placed things, scenery and zones by whole tiles (zones stay on the map). Returns

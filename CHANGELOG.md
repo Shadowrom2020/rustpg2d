@@ -86,6 +86,12 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   Ctrl+Z takes a house back together with the prop made for it. A room of thick walls now
   stands around the floor you dragged (0.35 put the walls on the floor's own tiles), and a
   door in a wall closes the room for *Inside walls*.
+- **More on the map** (part 6): copy, cut and paste what is selected, on the same map or onto
+  another (Ctrl+C / X / V); *Replace with…* puts another definition in a thing's place;
+  several things are put in a row or a column; a placed prop's state is picked among its own
+  states; a character's patrol route gets its waypoints by clicks on the map, and waypoints
+  and the stops of its day are dragged where they are drawn; the World view's cards stay
+  where you put them.
 - **One action, one undo:** what a single action changes in two places (a built house: its
   prop and the map; two linked maps) is undone and redone together.
 - **The game's settings have pages of their own** (part 5): Game, Hero & party, Rules, World,

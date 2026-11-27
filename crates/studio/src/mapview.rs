@@ -10,7 +10,7 @@ use eframe::egui;
 use eframe::egui_wgpu::RenderState;
 use editor_core::build;
 use editor_core::doc::MapDoc;
-use editor_core::mapedit::{entity_kind, kind_ref, Brush, MapSnap};
+use editor_core::mapedit::{entity_kind, kind_ref, Brush, Clip, MapSnap, Spot};
 use editor_core::schema::{self, Shape};
 use editor_core::workspace::{Selection, ViewOpts};
 use editor_core::Workspace;
@@ -151,6 +151,9 @@ enum Drag {
     BuildRect { from: Vec2 },
     /// A roof's tiles marked (or cleared) one by one.
     RoofPaint { clearing: bool },
+    /// A waypoint of the selected character's route or a stop of its schedule follows the
+    /// pointer.
+    Spot { uid: u32, spot: Spot, before: Box<MapSnap> },
 }
 
 /// What a map tab asks of the window.
@@ -173,6 +176,8 @@ pub struct Parts<'a> {
     pub show_all: bool,
     /// A transition zone waiting for its other side to be drawn on another map: (map, zone).
     pub link: &'a mut Option<(String, String)>,
+    /// What was copied on a map (any of them), to be pasted.
+    pub clip: &'a mut Option<Clip>,
     pub asks: Vec<Ask>,
 }
 
@@ -225,6 +230,10 @@ pub struct MapView {
     /// The Build tool's choices.
     pub build: BuildTool,
     outliner_filter: String,
+    /// *Replace with…*: what the list is searched for.
+    replace_filter: String,
+    /// The character whose patrol route the map's clicks add waypoints to.
+    pub route_edit: Option<u32>,
     /// The Inspector's form holding something that can't be taken yet, and why.
     pending: Option<(Selection, serde_json::Value, String)>,
     /// A thing to bring into view with the next frame.
@@ -277,6 +286,8 @@ impl Default for MapView {
             zone_kind: "Trigger".into(),
             build: BuildTool::default(),
             outliner_filter: String::new(),
+            replace_filter: String::new(),
+            route_edit: None,
             pending: None,
             reveal: None,
             structure_name: String::new(),
@@ -358,7 +369,7 @@ impl MapView {
             Some("") => "erase",
             Some(m) => m,
         }, self.ground_mode.label().to_lowercase(), self.brush.size * 2.0 / ws.ts(), if self.brush.square { ":square" } else { "" }, if self.brush.snap { ":snap" } else { "" });
-        format!("map={name} tool={} sel=[{}] entities={e} zones={z} decor={d} zoom={:.2} place={place} zonekind={} ground={ground} build={} canvas_ms={:.1}", self.tool.label().to_lowercase(), sel.join(","), self.cam.map_or(0.0, |c| c.1), self.zone_kind, self.build.status(), self.draw_ms)
+        format!("map={name} tool={} sel=[{}] entities={e} zones={z} decor={d} zoom={:.2} place={place} zonekind={} ground={ground} build={} route={} canvas_ms={:.1}", self.tool.label().to_lowercase(), sel.join(","), self.cam.map_or(0.0, |c| c.1), self.zone_kind, self.build.status(), self.route_edit.map_or("-".to_string(), |u| format!("e{u}")), self.draw_ms)
     }
 
     /// Selects a thing and brings it into view (a search hit, a problem's place).
@@ -410,6 +421,9 @@ impl MapView {
                 Selection::Scenery(d) => doc.map.decor.contains(d),
                 _ => false,
             });
+        }
+        if self.route_edit.is_some_and(|uid| self.sel != [Selection::Entity(uid)] || self.tool != Tool::Select) {
+            self.route_edit = None;
         }
         egui::Panel::top(egui::Id::unique(("map bar", name))).show(ui, |ui| self.bar(ui, p, name));
         egui::Panel::right(egui::Id::unique(("map side", name))).default_size(350.0).resizable(true).show(ui, |ui| self.side(ui, p, name));
@@ -833,6 +847,14 @@ impl MapView {
                         act = Some("delete");
                     }
                 });
+                if let Some(id) = self.replace_menu(ui, p, RefKind::Prop) {
+                    p.ws.open_map(name);
+                    match p.ws.replace_objects(&[Selection::Scenery(d)], RefKind::Prop, &id) {
+                        Ok(now) => self.sel = now,
+                        Err(e) => p.ws.set_status(e),
+                    }
+                    return;
+                }
                 ui.add_space(4.0);
                 ui.weak("Scenery only stands there: no name, no events.");
                 if ui.button("Make interactive").on_hover_text("Turns it into an object of the map: with a name to give, events, states, things in it. The same prop on the same spot.").clicked() {
@@ -903,6 +925,13 @@ impl MapView {
                         if ui.button("Turn").on_hover_text("A quarter further (R)").clicked() {
                             act = Some("turn");
                         }
+                        if let (RefKind::Character, Selection::Entity(uid)) = (*rk, one) {
+                            let on = self.route_edit == Some(uid);
+                            if ui.add(egui::Button::selectable(on, "Add waypoints")).on_hover_text("Click the map: each click adds a waypoint to its patrol route; the right button takes the last one away. Waypoints and the stops of its day are dragged at any time. Esc ends.").clicked() {
+                                self.route_edit = (!on).then_some(uid);
+                                self.tool = Tool::Select;
+                            }
+                        }
                         if let (RefKind::Prop, Selection::Entity(uid)) = (*rk, one) {
                             let why = p.ws.keeps_from_scenery(uid);
                             let r = ui.add_enabled(why.is_none(), egui::Button::new("Make scenery"));
@@ -929,9 +958,42 @@ impl MapView {
                     self.act(p, name, act);
                     return;
                 }
+                if let Some((rk, _)) = &def {
+                    if let Some(id) = self.replace_menu(ui, p, *rk) {
+                        p.ws.open_map(name);
+                        if let Err(e) = p.ws.replace_objects(&[one], *rk, &id) {
+                            p.ws.set_status(e);
+                        }
+                        return;
+                    }
+                }
                 ui.separator();
                 // The form shows what was typed last, also while that can't be taken yet.
                 let mut value = self.pending.as_ref().filter(|(s, ..)| *s == one).map_or_else(|| saved.clone(), |(_, v, _)| v.clone());
+                // A placed prop's state among those its definition has.
+                let states: Vec<String> = match &def {
+                    Some((RefKind::Prop, id)) => p.ws.project.db.prop(id).map_or(Vec::new(), |q| q.states.iter().map(|s| s.name.clone()).collect()),
+                    _ => Vec::new(),
+                };
+                let mut state_changed = false;
+                if !states.is_empty() {
+                    let now = value.get("state").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                    let mut pick = now.clone();
+                    ui.horizontal(|ui| {
+                        let label = ui.label("State").on_hover_text("The state it is in when the map is entered for the first time: one of its definition's states (a chest open, a fire lit)");
+                        let combo = egui::ComboBox::from_id_salt("placed state").selected_text(if now.is_empty() { "Its first state" } else { now.as_str() }).show_ui(ui, |ui| {
+                            ui.selectable_value(&mut pick, String::new(), "Its first state");
+                            for st in &states {
+                                ui.selectable_value(&mut pick, st.clone(), st.as_str());
+                            }
+                        });
+                        combo.response.labelled_by(label.id);
+                    });
+                    if pick != now {
+                        value["state"] = pick.into();
+                        state_changed = true;
+                    }
+                }
                 let (node, sections) = match one {
                     Selection::Entity(_) => (schema::entity(), schema::entity_sections(saved.get("kind").and_then(|k| k.as_str()).unwrap_or(""))),
                     _ => (schema::zone(), schema::ZONE_SECTIONS),
@@ -939,7 +1001,7 @@ impl MapView {
                 let mut pics = p.rs.map(|rs| crate::thumbs::Pics { thumbs: &mut *p.thumbs, ws: &*p.ws, rs });
                 let pictures = pics.as_mut().map(|x| x as &mut dyn crate::form::Pictures);
                 let mut cx = crate::form::Cx { lists: p.lists, maps: &p.ws.maps, show_all: p.show_all, compact: true, pictures, refs: Some(&p.ws.refs), asks: Vec::new() };
-                let changed = crate::form::sections_ui(ui, &mut cx, node, &mut value, sections);
+                let changed = crate::form::sections_ui(ui, &mut cx, node, &mut value, sections) || state_changed;
                 for ask in cx.asks {
                     match ask {
                         crate::form::Ask::Open(RefKind::Map, map) => p.asks.push(Ask::OpenMap(map)),
@@ -968,18 +1030,41 @@ impl MapView {
                 ui.label(egui::RichText::new(format!("{} things selected", many.len())).strong());
                 ui.weak("Drag one of them to move them all.");
                 let mut act = None;
-                ui.horizontal(|ui| {
+                ui.horizontal_wrapped(|ui| {
                     if ui.button("Duplicate").clicked() {
                         act = Some("duplicate");
                     }
                     if ui.button("Delete").clicked() {
                         act = Some("delete");
                     }
+                    if ui.button("In a row").on_hover_text("All as far from the map's north edge as the first one selected").clicked() {
+                        act = Some("row");
+                    }
+                    if ui.button("In a column").on_hover_text("All as far from the map's west edge as the first one selected").clicked() {
+                        act = Some("column");
+                    }
                 });
+                // (Replaced: those of the first one's kind.)
+                let kind = many.iter().find_map(|s| match s {
+                    Selection::Entity(u) => doc.map.entity(*u).map(|e| kind_ref(e.kind)),
+                    Selection::Scenery(_) => Some(RefKind::Prop),
+                    _ => None,
+                });
+                let many = many.to_vec();
+                let replaced = kind.and_then(|k| self.replace_menu(ui, p, k).map(|id| (k, id)));
                 if let Some(act) = act {
                     self.act(p, name, act);
                     return;
                 }
+                if let Some((kind, id)) = replaced {
+                    p.ws.open_map(name);
+                    match p.ws.replace_objects(&many, kind, &id) {
+                        Ok(now) => self.sel = now,
+                        Err(e) => p.ws.set_status(e),
+                    }
+                    return;
+                }
+                let many = many.as_slice();
                 // What is selected, with the ground under it, as a structure to place again.
                 ui.add_space(6.0);
                 ui.label(egui::RichText::new("Save as structure").strong());
@@ -1004,6 +1089,36 @@ impl MapView {
         }
     }
 
+    /// *Replace with…*: a searched list of the definitions of `kind`; the one clicked.
+    fn replace_menu(&mut self, ui: &mut egui::Ui, p: &mut Parts, kind: RefKind) -> Option<String> {
+        let mut pick = None;
+        ui.menu_button("Replace with…", |ui| {
+            ui.set_min_width(240.0);
+            ui.add(egui::TextEdit::singleline(&mut self.replace_filter).hint_text("Search").desired_width(f32::INFINITY)).widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, "Search what to replace with"));
+            let f = self.replace_filter.trim().to_lowercase();
+            let Some((_, list)) = p.lists.iter().find(|(k, _)| *k == kind) else { return };
+            egui::ScrollArea::vertical().max_height(320.0).show(ui, |ui| {
+                for (id, label) in list.iter().filter(|(id, label)| f.is_empty() || id.to_lowercase().contains(&f) || label.to_lowercase().contains(&f)) {
+                    let r = ui
+                        .horizontal(|ui| {
+                            if let (Some(rs), true) = (p.rs, crate::thumbs::has_pictures(kind)) {
+                                crate::thumbs::boxed(ui, 26.0, || p.thumbs.of(p.ws, rs, kind, id));
+                            }
+                            ui.add(egui::Button::selectable(false, if label.is_empty() { id.as_str() } else { label.as_str() }).truncate()).on_hover_text(id)
+                        })
+                        .inner;
+                    if r.clicked() {
+                        pick = Some(id.clone());
+                        ui.close();
+                    }
+                }
+            });
+        })
+        .response
+        .on_hover_text("Another of its kind in its place: where it stands, with its name and events");
+        pick
+    }
+
     fn value_of(&self, doc: &MapDoc, sel: Selection) -> Option<serde_json::Value> {
         match sel {
             Selection::Entity(uid) => doc.map.entity(uid).and_then(|e| serde_json::to_value(e).ok()),
@@ -1012,7 +1127,8 @@ impl MapView {
         }
     }
 
-    /// Something done with the selection: `delete`, `duplicate`, `turn`.
+    /// Something done with the selection: `delete`, `duplicate`, `turn`, `interactive`,
+    /// `scenery`, `copy`, `cut`, `paste`, `row`, `column`, `route`.
     pub fn act(&mut self, p: &mut Parts, name: &str, what: &str) {
         p.ws.open_map(name);
         match what {
@@ -1056,6 +1172,42 @@ impl MapView {
                         Err(e) => p.ws.set_status(e),
                     }
                 }
+            }
+            "copy" | "cut" => match p.ws.copy_objects(&self.sel) {
+                Some(clip) => {
+                    let n = clip.len();
+                    *p.clip = Some(clip);
+                    if what == "cut" {
+                        p.ws.delete_objects(&self.sel);
+                        self.sel.clear();
+                    }
+                    p.ws.set_status(format!("{} {n}: Ctrl+V puts {} down under the pointer, on this map or another", if what == "cut" { "Cut" } else { "Copied" }, if n == 1 { "it" } else { "them" }));
+                }
+                None => p.ws.set_status("Select something to copy first"),
+            },
+            // (Under the pointer; from a menu: where the menu was opened.)
+            "paste" | "paste here" => match p.clip.clone() {
+                Some(clip) => {
+                    let ts = p.ws.ts();
+                    let at = self.hover.filter(|_| what == "paste").map_or(if what == "paste" { let c = self.center(); ((c.x / ts).floor() as i32, (c.y / ts).floor() as i32) } else { self.menu_tile }, |w| ((w.x / ts).floor() as i32, (w.y / ts).floor() as i32));
+                    let made = p.ws.paste_objects(&clip, at);
+                    if made.is_empty() {
+                        p.ws.set_status("Nothing of it fits on the map there");
+                    } else {
+                        p.ws.set_status(format!("Pasted {}", made.len()));
+                        self.sel = made;
+                    }
+                }
+                None => p.ws.set_status("Nothing was copied yet (Ctrl+C on a selection)"),
+            },
+            "row" | "column" => self.sel = p.ws.align_objects(&self.sel, what == "row"),
+            // (The map's clicks add waypoints to the selected character's route, or stop doing so.)
+            "route" => {
+                self.route_edit = match (self.route_edit, self.sel.as_slice()) {
+                    (None, [Selection::Entity(uid)]) => Some(*uid),
+                    _ => None,
+                };
+                self.tool = Tool::Select;
             }
             _ => {}
         }
@@ -1228,6 +1380,22 @@ impl MapView {
                 self.drag = p.ws.snap_map().map(|before| Drag::Resize { uid, fixed, before });
                 return;
             }
+            // A point of the selected character's day; while waypoints are added, a new one.
+            if let ([Selection::Entity(uid)], Tool::Select) = (self.sel.as_slice(), self.tool) {
+                let uid = *uid;
+                let mid = |t: (i32, i32)| look.to_screen(vec2((t.0 as f32 + 0.5) * ts, (t.1 as f32 + 0.5) * ts));
+                if let Some((spot, _)) = p.ws.spots_of(uid).into_iter().find(|(_, t)| mid(*t).distance(at) <= 8.0 * ppp) {
+                    self.drag = p.ws.snap_map().map(|before| Drag::Spot { uid, spot, before });
+                    return;
+                }
+                if self.route_edit == Some(uid) {
+                    match p.ws.add_waypoint(uid, tile) {
+                        Ok(n) => p.ws.set_status(format!("Waypoint {n}: click on for more, Esc ends")),
+                        Err(e) => p.ws.set_status(e),
+                    }
+                    return;
+                }
+            }
             match self.tool {
                 Tool::Select | Tool::Zones => {
                     let stack = if self.tool == Tool::Zones { self.zones_at(p.ws, &doc.map, at) } else { self.things_at(p.ws, &doc.map, at) };
@@ -1306,6 +1474,11 @@ impl MapView {
         }
         if self.tool == Tool::Build && rpressed && over {
             self.build_right(p, world, tile);
+        }
+        if let (Some(uid), true) = (self.route_edit, rpressed && over) {
+            if !p.ws.remove_waypoint(uid) {
+                p.ws.set_status("It has no waypoint left");
+            }
         }
         if self.tool == Tool::Terrain && rpressed && over {
             match p.ws.ground_at(world) {
@@ -1542,6 +1715,14 @@ impl MapView {
                 self.drag = Some(Drag::RoofPaint { clearing });
             }
             Some(Drag::RoofPaint { .. }) => {}
+            Some(Drag::Spot { uid, spot, before }) if held => {
+                p.ws.set_spot(uid, spot, tile);
+                self.drag = Some(Drag::Spot { uid, spot, before });
+            }
+            Some(Drag::Spot { uid, spot, before }) => {
+                let label = p.ws.spot_label(uid, spot);
+                p.ws.commit_map(*before, &label);
+            }
             Some(Drag::Pan) | None => {}
         }
         let _ = released;
@@ -1753,6 +1934,20 @@ impl MapView {
             (tool, key(egui::Key::G), key(egui::Key::R), key(egui::Key::Delete) || key(egui::Key::Backspace), i.modifiers.command && i.key_pressed(egui::Key::D), key(egui::Key::Escape), key(egui::Key::Home), pan, i.stable_dt, size, key(egui::Key::Enter))
         });
         let (tool, grid, turn, delete, duplicate, escape, home, pan, dt, size, enter) = k;
+        // (The window turns Ctrl+C, X and V into events of their own.)
+        let clip = ui.input(|i| i.events.iter().find_map(|e| match e {
+            egui::Event::Copy => Some("copy"),
+            egui::Event::Cut => Some("cut"),
+            egui::Event::Paste(_) => Some("paste"),
+            _ => None,
+        }));
+        if let Some(what) = clip {
+            if what != "paste" && !self.sel.is_empty() {
+                // (Something on the clipboard, so that Ctrl+V arrives here afterwards.)
+                ui.ctx().copy_text(format!("{} things of the map {name}", self.sel.len()));
+            }
+            self.act(p, name, what);
+        }
         if enter && self.tool == Tool::Build && self.build.mode == BuildMode::Roof && !self.build.cells.is_empty() {
             self.build.make = true;
         }
@@ -1785,7 +1980,9 @@ impl MapView {
         }
         if escape {
             // Esc: stop placing, else let go of the selection, else back to Select.
-            if self.tool == Tool::Place && self.place.is_some() {
+            if self.route_edit.is_some() {
+                self.route_edit = None;
+            } else if self.tool == Tool::Place && self.place.is_some() {
                 self.place = None;
             } else if self.tool == Tool::Build && !self.build.cells.is_empty() {
                 self.build.cells.clear();
@@ -1807,7 +2004,8 @@ impl MapView {
     }
 
     fn context_menu(&mut self, p: &mut Parts, name: &str, resp: &egui::Response) {
-        if self.tool != Tool::Select {
+        // (While waypoints are added the right button takes the last one away.)
+        if self.tool != Tool::Select || self.route_edit.is_some() {
             return;
         }
         // The right button selects what is under it (unless that is selected already).
@@ -1844,10 +2042,24 @@ impl MapView {
                 p.asks.push(Ask::PlayHere(tile, true));
                 ui.close();
             }
+            if p.clip.is_some() && ui.button("Paste here").on_hover_text("What was copied, on this tile (Ctrl+V: under the pointer)").clicked() {
+                act = Some("paste here");
+                ui.close();
+            }
             if !any {
                 return;
             }
             ui.separator();
+            if ui.button("Copy").on_hover_text("Ctrl+C; pasted on this map or another").clicked() {
+                ui.ctx().copy_text(format!("{} things of the map {name}", self.sel.len()));
+                act = Some("copy");
+                ui.close();
+            }
+            if ui.button("Cut").on_hover_text("Ctrl+X").clicked() {
+                ui.ctx().copy_text(format!("{} things of the map {name}", self.sel.len()));
+                act = Some("cut");
+                ui.close();
+            }
             if let Some((rk, id)) = &def {
                 if ui.button("Edit definition").clicked() {
                     p.asks.push(Ask::OpenDef(*rk, id.clone()));
@@ -2371,6 +2583,7 @@ mod ui_tests {
         lists: Vec<(RefKind, Vec<(String, String)>)>,
         asks: Vec<String>,
         link: Option<(String, String)>,
+        clip: Option<Clip>,
         dir: std::path::PathBuf,
     }
 
@@ -2399,11 +2612,11 @@ mod ui_tests {
         ws.history_frame(None);
         ws.open_map("village");
         let lists: Vec<(RefKind, Vec<(String, String)>)> = RefKind::ALL.iter().map(|k| (*k, editor_core::defs::list(&ws.project.db, *k))).collect();
-        let state = State { ws, view: MapView::default(), thumbs: Thumbs::default(), lists, asks: Vec::new(), link: None, dir };
+        let state = State { ws, view: MapView::default(), thumbs: Thumbs::default(), lists, asks: Vec::new(), link: None, clip: None, dir };
         Harness::builder().with_size(egui::vec2(1300.0, 1400.0)).build_ui_state(
             |ui, s: &mut State| {
                 s.ws.history_frame(None);
-                let mut parts = Parts { ws: &mut s.ws, rs: None, lists: &s.lists, thumbs: &mut s.thumbs, show_all: false, link: &mut s.link, asks: Vec::new() };
+                let mut parts = Parts { ws: &mut s.ws, rs: None, lists: &s.lists, thumbs: &mut s.thumbs, show_all: false, link: &mut s.link, clip: &mut s.clip, asks: Vec::new() };
                 s.view.show(ui, &mut parts, "village");
                 for ask in parts.asks {
                     s.asks.push(match ask {
@@ -2538,6 +2751,55 @@ mod ui_tests {
         h.state_mut().ws.undo().unwrap();
         let s = h.state();
         assert_eq!((s.ws.doc.as_ref().unwrap().map.decor.len(), s.ws.project.db.props.len()), (decor, props));
+        let dir = h.state().dir.clone();
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn several_things_are_put_in_a_row_copied_and_replaced() {
+        let mut h = village("many");
+        h.run();
+        let uid = |h: &Harness<'static, State>, name: &str| h.state().ws.doc.as_ref().unwrap().map.entities.iter().find(|e| e.name == name).unwrap().uid;
+        let (elder, mira) = (uid(&h, "elder"), uid(&h, "mira"));
+        h.get_by_role_and_label(egui::accesskit::Role::Button, "elder").click();
+        h.run();
+        h.state_mut().view.sel.push(Selection::Entity(mira));
+        h.run();
+        // Two selected: in a row with the first.
+        h.get_by_role_and_label(egui::accesskit::Role::Button, "In a row").click();
+        h.run();
+        let y = |h: &Harness<'static, State>, uid: u32| h.state().ws.doc.as_ref().unwrap().map.entity(uid).unwrap().y;
+        assert_eq!(y(&h, elder), y(&h, mira));
+        assert_eq!(h.state().ws.timeline.done.last().unwrap().label, "Put in a row");
+        // Copied and pasted: two more, selected, with names of their own.
+        let entities = h.state().ws.doc.as_ref().unwrap().map.entities.len();
+        {
+            let s = h.state_mut();
+            let mut parts = Parts { ws: &mut s.ws, rs: None, lists: &s.lists, thumbs: &mut s.thumbs, show_all: false, link: &mut s.link, clip: &mut s.clip, asks: Vec::new() };
+            s.view.act(&mut parts, "village", "copy");
+            s.view.act(&mut parts, "village", "paste");
+        }
+        h.run();
+        let s = h.state();
+        assert_eq!(s.ws.doc.as_ref().unwrap().map.entities.len(), entities + 2);
+        assert_eq!(s.view.sel.len(), 2);
+        assert!(!s.view.sel.contains(&Selection::Entity(elder)));
+        // One of them replaced by a guard, picked from the searched list.
+        h.state_mut().view.sel.truncate(1);
+        h.run();
+        let Selection::Entity(copy) = h.state().view.sel[0] else { panic!() };
+        h.get_by_role_and_label(egui::accesskit::Role::Button, "Replace with…").click();
+        h.run();
+        let search = h.get_by_role_and_label(egui::accesskit::Role::TextInput, "Search what to replace with");
+        search.focus();
+        search.type_text("town guard");
+        h.run();
+        h.get_by_role_and_label(egui::accesskit::Role::Button, "Town Guard").click();
+        h.run();
+        assert_eq!(h.state().ws.doc.as_ref().unwrap().map.entity(copy).unwrap().def, "guard");
+        assert_eq!(h.state().ws.timeline.done.last().unwrap().label, "Replace with Town Guard");
+        while h.state_mut().ws.undo().is_some() {}
+        assert_eq!(h.state().ws.doc.as_ref().unwrap().map.entities.len(), entities);
         let dir = h.state().dir.clone();
         let _ = std::fs::remove_dir_all(dir);
     }

@@ -256,6 +256,8 @@ pub struct Shell {
     pub world: crate::worldview::WorldView,
     /// A transition zone waiting for its other side to be drawn on another map: (map, zone).
     pub link: Option<(String, String)>,
+    /// What was copied on a map, pasted on any.
+    pub clip: Option<editor_core::mapedit::Clip>,
     /// Answers of commands, newest last (the script prints them too).
     pub log: Vec<String>,
 }
@@ -277,7 +279,7 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, log: Vec::new() }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, log: Vec::new() }
     }
 
     /// Shows `tab`: brings it to the front when it is open, else opens it beside the documents.
@@ -514,7 +516,7 @@ impl Shell {
     pub fn map_act(&mut self, what: &str) {
         let Some(name) = self.ws.doc.as_ref().map(|d| d.map.name.clone()) else { return };
         let view = self.maps.entry(name.clone()).or_default();
-        let mut parts = crate::mapview::Parts { ws: &mut self.ws, rs: None, lists: &self.lists, thumbs: &mut self.thumbs, show_all: self.show_all, link: &mut self.link, asks: Vec::new() };
+        let mut parts = crate::mapview::Parts { ws: &mut self.ws, rs: None, lists: &self.lists, thumbs: &mut self.thumbs, show_all: self.show_all, link: &mut self.link, clip: &mut self.clip, asks: Vec::new() };
         view.act(&mut parts, &name, what);
     }
 
@@ -609,7 +611,7 @@ impl Shell {
 
         let mut asks = Vec::new();
         {
-            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, rs, asks: &mut asks };
+            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, rs, asks: &mut asks };
             DockArea::new(&mut self.dock).show_inside(ui, &mut viewer);
         }
         for ask in asks {
@@ -878,6 +880,7 @@ struct Viewer<'a> {
     maps: &'a mut std::collections::HashMap<String, crate::mapview::MapView>,
     world: &'a mut crate::worldview::WorldView,
     link: &'a mut Option<(String, String)>,
+    clip: &'a mut Option<editor_core::mapedit::Clip>,
     rs: Option<&'a eframe::egui_wgpu::RenderState>,
     asks: &'a mut Vec<Ask>,
 }
@@ -1792,7 +1795,7 @@ impl Viewer<'_> {
 
     fn map(&mut self, ui: &mut egui::Ui, name: &str) {
         let view = self.maps.entry(name.to_string()).or_default();
-        let mut parts = crate::mapview::Parts { ws: &mut *self.ws, rs: self.rs, lists: self.lists, thumbs: &mut *self.thumbs, show_all: *self.show_all, link: &mut *self.link, asks: Vec::new() };
+        let mut parts = crate::mapview::Parts { ws: &mut *self.ws, rs: self.rs, lists: self.lists, thumbs: &mut *self.thumbs, show_all: *self.show_all, link: &mut *self.link, clip: &mut *self.clip, asks: Vec::new() };
         view.show(ui, &mut parts, name);
         for ask in parts.asks {
             match ask {

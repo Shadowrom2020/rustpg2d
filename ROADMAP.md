@@ -1184,13 +1184,25 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     parts; *Doors*: a door, a window or a gap clicked into a wall piece or a house's wall.
     The right button takes a wall piece, a door or a window away again. Each is one step:
     Ctrl+Z takes a house back with the prop that was made for it.
+  - **Copy, cut and paste** (Ctrl+C, Ctrl+X, Ctrl+V, the map's menu): what is selected
+    (characters, objects, items, scenery, zones) is put down under the pointer, on the same
+    map or another one, with new numbers and names that are free there
+    (`Workspace::copy_objects`, `paste_objects`).
+  - **Replace with…** (Inspector): another definition of its kind in a thing's place, where
+    it stands, with its name and events; several selected at once. **In a row / In a
+    column** put several things in line with the first one selected.
+  - **A placed prop's state** is picked among its definition's states.
+  - **A character's day on the map:** *Add waypoints* makes the map's clicks add to its
+    patrol route (the right button takes the last one away); waypoints and the stops of its
+    daily schedule are dragged where they are drawn.
+  - **The World view's cards lie where they were left** (noted in `editor/meta.ron` with
+    the creator's folders and tags; *Tidy* forgets the places).
   Still open: a structure's ghost (its footprint is shown); hiding and locking single
-  things in the Outliner; align; *Replace with…* in the menu; routes and schedules changed
-  on the map (they are shown; their stops are fields of the Inspector); a region of tiles
-  copied and pasted; in the World view: linking by dragging from card to card, the cards'
-  places kept. Of playing: the test setup's own form (it is made by playing), the console
-  and script errors as panels (part 7), a click in the game leading to the thing's place on
-  its map (it opens its definition).
+  things in the Outliner; schedule stops added by clicking the map (they are added in the
+  Inspector, then dragged); a region of tiles copied with its ground (*Save as structure*
+  does that by name). Of playing: the test setup's own form (it is made by playing), the
+  console and script errors as panels (part 7), a click in the game leading to the thing's
+  place on its map (it opens its definition).
 
   **Decided while building.**
   - **The world is drawn by the engine, the editor's marks by both.** What lies on the ground
@@ -1225,6 +1237,11 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   - **Undoing a change to pictures reads those pictures**, not every asset: a built house
     comes and goes with the picture rendered of it, and reading everything took 1.8 s on
     the example (measured). Materials and sounds still read everything.
+  - **Maps are linked where the ways are**, by drawing the two transition zones; linking by
+    dragging one card of the World view onto another was dropped: it could not say where on
+    either map the way is.
+  - **Arranging the World view is no step of the history:** a card's place is written at
+    once and changes nothing of the game.
   - **A room of thick walls stands around the floor that was dragged**, and its roof reaches
     over the walls. In 0.35 thick walls stood on the floor's own north and west tiles and
     one tile past its corner. Thin walls stand on the floor's edges as before.
@@ -1287,6 +1304,15 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     well, 13:00 on the bench) drawn on the square. `mapview::ui_tests`: 311 oaks selected
     and saved as *Oak grove*, undone by its name. A Town Guard dragged from the Project
     browser's row onto the village stands where it was let go.
+  - `things_are_copied_to_another_map_replaced_and_put_in_a_row`,
+    `a_characters_route_and_day_are_changed_on_the_map`,
+    `a_maps_card_place_is_noted_with_the_creators_order`; `mapview::ui_tests`: two
+    characters put in a row, copied and pasted, one replaced by a guard picked from the
+    searched list, all undone. In the window: the elder copied in the village and pasted
+    there and in the house (undone by its name); four clicks add waypoints 5 to 8 to the
+    guard's route, the right button takes the last away, one is dragged, Esc ends; the
+    chest's Inspector offers its states; a card of the World view dragged lies there after
+    a restart. Not done by real keys: Ctrl+C / Ctrl+V (the script calls what they call).
   - The Build tool: `walls_rooms_houses_and_roofs_are_built_as_one_step_each` (a thin wall
     round a corner, a piece taken away, a room of thick walls with a floor on a free site,
     its inside found once the doorway is walled up, a window piece and a door put in and

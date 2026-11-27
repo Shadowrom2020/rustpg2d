@@ -51,7 +51,7 @@ being rewritten on a new foundation, in twelve parts. While it lasts:
   `mapground MATERIAL|erase [brush|line|rect|fill] [WIDTH] [square] [snap]`,
   `mapbuild walls [WALL] | room [WALL|-] [FLOOR|-] [all] [roof] | house [LOOK|-] [STOREYS] | roof [LOOK|-] [gable|hip|shed|flat] [paint|fill] | doors door|window|gap [PROP] | make | clear`
   (the Build tool's choices; then `mapdrag` / `mapclick [right]` build: walls follow the pointer, so drag them along one axis),
-  `mapselect NAME`, `mapact delete|duplicate|turn|interactive|scenery`, `mapshot X Y W H PATH [ZOOM]` (a picture of
+  `mapselect NAME`, `mapact delete|duplicate|turn|interactive|scenery|copy|cut|paste|row|column|route` (`route`: the map's clicks add waypoints to the selected character's patrol), `mapshot X Y W H PATH [ZOOM]` (a picture of
   tiles as agents get it; `status` adds a `[mapview]` line and `[said]`, the editor's last message), the Play tab: `play
   title|start|here|again|window|MAP X Y [setup]`, `key NAME`, `pause` / `resume`, `playstep`,
   `playspeed N`, `playflag NAME on|off`, `playvar NAME VALUE`, `playstate on|off`, `playinspect

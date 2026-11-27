@@ -586,3 +586,151 @@ fn walls_rooms_houses_and_roofs_are_built_as_one_step_each() {
     assert!(!ws.is_dirty());
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn things_are_copied_to_another_map_replaced_and_put_in_a_row() {
+    use rustpg2d_editor_core::workspace::Selection;
+    let dir = example_copy("clip");
+    let mut ws = Workspace::new(dir.clone(), Gpu::No).unwrap();
+    ws.history_frame(None);
+    ws.open_map("village");
+    let ts = ws.ts();
+    // The elder, a zone and a piece of scenery of the village, copied.
+    let map = &ws.doc.as_ref().unwrap().map;
+    let elder = map.entities.iter().find(|e| e.name == "elder").unwrap().clone();
+    let zone = map.zones[0].clone();
+    let piece = map.decor[0];
+    let prop = map.decor_defs[piece.def as usize].clone();
+    let what = [Selection::Entity(elder.uid), Selection::Zone(zone.uid), Selection::Scenery(piece)];
+    let clip = ws.copy_objects(&what).unwrap();
+    assert_eq!((clip.len(), clip.from.as_str()), (3, "village"));
+    assert!(ws.copy_objects(&[Selection::Entity(999_999)]).is_none());
+
+    // Pasted on the same map: new numbers, free names, each as far from the others as before.
+    let made = ws.paste_objects(&clip, (40, 30));
+    ws.history_frame(None);
+    assert_eq!(made.len(), 3);
+    assert_eq!(ws.timeline.done.last().unwrap().label, "Paste 3 things");
+    let map = &ws.doc.as_ref().unwrap().map;
+    let [Selection::Entity(e2), Selection::Zone(z2), Selection::Scenery(d2)] = made.as_slice() else { panic!("{made:?}") };
+    let (e2, z2) = (map.entity(*e2).unwrap(), map.zones.iter().find(|z| z.uid == *z2).unwrap());
+    assert!(e2.uid != elder.uid && e2.name != "elder" && e2.name.starts_with("elder") && e2.def == elder.def);
+    assert!(z2.name != zone.name && z2.name.starts_with(&zone.name));
+    assert_eq!(((e2.x - elder.x) / ts, (e2.y - elder.y) / ts), ((d2.x - piece.x) as f32 / ts, (d2.y - piece.y) as f32 / ts));
+    assert_eq!(map.decor_defs[d2.def as usize], prop);
+
+    // On another map: the scenery's prop is known there by its own number; what would stand
+    // outside the map is left out.
+    let one = ws.copy_objects(&[Selection::Scenery(piece), Selection::Entity(elder.uid)]).unwrap();
+    let alone = ws.copy_objects(&[Selection::Scenery(piece)]).unwrap();
+    ws.open_map("house");
+    let decor = ws.doc.as_ref().unwrap().map.decor.len();
+    let made = ws.paste_objects(&alone, (2, 2));
+    ws.history_frame(None);
+    let map = &ws.doc.as_ref().unwrap().map;
+    let [Selection::Scenery(d)] = made.as_slice() else { panic!("{made:?}") };
+    assert_eq!((map.decor.len(), map.decor_defs[d.def as usize].as_str()), (decor + 1, prop.as_str()));
+    assert_eq!(ws.timeline.done.last().unwrap().at.describe(), "map house");
+    assert!(ws.paste_objects(&one, (5000, 5000)).is_empty());
+    // Replaced: the pasted elder becomes a guard where he stands, by his name still.
+    ws.open_map("village");
+    let Selection::Entity(copy) = ws.doc.as_ref().unwrap().map.entities.iter().rev().find(|e| e.name.starts_with("elder") && e.name != "elder").map(|e| Selection::Entity(e.uid)).unwrap() else { unreachable!() };
+    let before = ws.doc.as_ref().unwrap().map.entity(copy).unwrap().clone();
+    ws.replace_objects(&[Selection::Entity(copy)], RefKind::Character, "guard").unwrap();
+    ws.history_frame(None);
+    let after = ws.doc.as_ref().unwrap().map.entity(copy).unwrap();
+    assert_eq!((after.def.as_str(), after.name.as_str(), after.x, after.y), ("guard", before.name.as_str(), before.x, before.y));
+    assert_eq!(ws.timeline.done.last().unwrap().label, "Replace with Town Guard");
+    assert!(ws.replace_objects(&[Selection::Entity(copy)], RefKind::Prop, "chest").is_err());
+    assert!(ws.replace_objects(&[Selection::Entity(copy)], RefKind::Character, "no_such_one").is_err());
+    // Scenery replaced by another prop is told by what it is now.
+    let now = ws.replace_objects(&[Selection::Scenery(piece)], RefKind::Prop, "small_rock").unwrap();
+    ws.history_frame(None);
+    let [Selection::Scenery(rock)] = now.as_slice() else { panic!("{now:?}") };
+    assert_eq!(ws.doc.as_ref().unwrap().map.decor_defs[rock.def as usize], "small_rock");
+    assert_eq!((rock.x, rock.y), (piece.x, piece.y));
+
+    // In a row with the first: the same distance from the north edge.
+    let now = ws.align_objects(&[Selection::Entity(elder.uid), Selection::Entity(copy), Selection::Scenery(*rock)], true);
+    ws.history_frame(None);
+    let map = &ws.doc.as_ref().unwrap().map;
+    assert_eq!(map.entity(copy).unwrap().y, elder.y);
+    let [.., Selection::Scenery(rock)] = now.as_slice() else { panic!("{now:?}") };
+    assert_eq!(rock.y, elder.y as i32);
+    assert_eq!(ws.timeline.done.last().unwrap().label, "Put in a row");
+
+    while ws.undo().is_some() {}
+    assert!(!ws.is_dirty());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_characters_route_and_day_are_changed_on_the_map() {
+    use rustpg2d_editor_core::mapedit::Spot;
+    let dir = example_copy("route");
+    let mut ws = Workspace::new(dir.clone(), Gpu::No).unwrap();
+    ws.history_frame(None);
+    ws.open_map("village");
+    let elder = ws.doc.as_ref().unwrap().map.entities.iter().find(|e| e.name == "elder").unwrap().clone();
+    assert!(elder.patrol.is_none() && !elder.schedule.is_empty());
+    let stops = elder.schedule.iter().filter(|s| s.map.is_empty() || s.map == "village").count();
+    assert_eq!(ws.spots_of(elder.uid).len(), stops);
+
+    // Three clicks are three waypoints, each a step; the same tile twice in a row is refused.
+    assert_eq!(ws.add_waypoint(elder.uid, (30, 30)), Ok(1));
+    ws.history_frame(None);
+    assert_eq!(ws.add_waypoint(elder.uid, (33, 30)), Ok(2));
+    ws.history_frame(None);
+    assert!(ws.add_waypoint(elder.uid, (33, 30)).is_err());
+    assert!(ws.add_waypoint(elder.uid, (-1, 30)).is_err());
+    assert_eq!(ws.add_waypoint(elder.uid, (33, 33)), Ok(3));
+    ws.history_frame(None);
+    assert_eq!(ws.timeline.done.last().unwrap().label, "Add a waypoint for elder");
+    assert_eq!(ws.spots_of(elder.uid).len(), stops + 3);
+    // A waypoint dragged: many moves, one step; a stop of his day likewise.
+    let snap = ws.snap_map().unwrap();
+    ws.set_spot(elder.uid, Spot::Waypoint(1), (34, 30));
+    ws.set_spot(elder.uid, Spot::Waypoint(1), (35, 30));
+    let label = ws.spot_label(elder.uid, Spot::Waypoint(1));
+    assert!(ws.commit_map(*snap, &label));
+    ws.history_frame(None);
+    assert_eq!(label, "Move waypoint 2 of elder");
+    let snap = ws.snap_map().unwrap();
+    ws.set_spot(elder.uid, Spot::Stop(0), (20, 20));
+    let label = ws.spot_label(elder.uid, Spot::Stop(0));
+    assert!(label.starts_with("Move elder's ") && label.ends_with(" stop"), "{label}");
+    assert!(ws.commit_map(*snap, &label));
+    ws.history_frame(None);
+    let now = ws.doc.as_ref().unwrap().map.entity(elder.uid).unwrap().clone();
+    assert_eq!(now.patrol.as_ref().unwrap().points, [(30, 30), (35, 30), (33, 33)]);
+    assert_eq!((now.schedule[0].x, now.schedule[0].y), (20, 20));
+    // The last waypoint taken away, three times: the route goes with the last of them.
+    assert!(ws.remove_waypoint(elder.uid) && ws.remove_waypoint(elder.uid) && ws.remove_waypoint(elder.uid));
+    assert!(ws.doc.as_ref().unwrap().map.entity(elder.uid).unwrap().patrol.is_none());
+    assert!(!ws.remove_waypoint(elder.uid));
+    // A prop walks no route.
+    let prop = ws.doc.as_ref().unwrap().map.entities.iter().find(|e| e.kind == rustpg2d_engine::entity::EntityKind::Prop).unwrap().uid;
+    assert!(ws.add_waypoint(prop, (30, 30)).is_err());
+
+    while ws.undo().is_some() {}
+    assert_eq!(*ws.doc.as_ref().unwrap().map.entity(elder.uid).unwrap(), elder);
+    assert!(!ws.is_dirty());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_maps_card_place_is_noted_with_the_creators_order() {
+    let dir = example_copy("cards");
+    let mut ws = Workspace::new(dir.clone(), Gpu::No).unwrap();
+    ws.history_frame(None);
+    let done = ws.timeline.done.len();
+    ws.set_card_place("village", Some([120.0, 80.0]));
+    ws.history_frame(None);
+    // Written at once, read again, and no step of the history.
+    assert_eq!(ws.timeline.done.len(), done);
+    let again = Workspace::new(dir.clone(), Gpu::No).unwrap();
+    assert_eq!(again.meta.of(RefKind::Map, "village").and_then(|m| m.card), Some([120.0, 80.0]));
+    ws.set_card_place("village", None);
+    assert!(Workspace::new(dir.clone(), Gpu::No).unwrap().meta.of(RefKind::Map, "village").is_none());
+    let _ = std::fs::remove_dir_all(&dir);
+}

@@ -34,6 +34,9 @@ pub struct AssetMeta {
     pub notes: String,
     #[serde(default, skip_serializing_if = "is_false")]
     pub favorite: bool,
+    /// A map: where its card lies in the World view (`None`: where the view puts it).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub card: Option<[f32; 2]>,
 }
 
 impl AssetMeta {
@@ -140,6 +143,21 @@ impl Workspace {
         if let Err(e) = self.meta.save(&self.project.root, |key| self.meta_exists(key)) {
             self.set_status(format!("Writing {FILE} failed: {e:#}"));
         }
+    }
+
+    /// Notes where map `map`'s card lies in the World view (`None`: where the view puts it).
+    /// Written at once; no step of the history (arranging the view changes nothing of the game).
+    pub fn set_card_place(&mut self, map: &str, place: Option<[f32; 2]>) {
+        let key = Meta::key(RefKind::Map, map);
+        let entry = self.meta.assets.entry(key.clone()).or_default();
+        if entry.card == place {
+            return;
+        }
+        entry.card = place;
+        if entry.is_empty() {
+            self.meta.assets.remove(&key);
+        }
+        self.save_meta();
     }
 
     /// Changes what is noted about an asset: a step of the history, written at once. False

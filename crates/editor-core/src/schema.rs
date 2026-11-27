@@ -498,10 +498,11 @@ pub type Sections = &'static [(&'static str, &'static str)];
 pub fn entity_sections(kind: &str) -> Sections {
     match kind {
         "Prop" => &[
-            ("Placed here", "name facing state active ~frame"),
+            ("Placed here", "name facing active ~frame"),
             ("Its own, instead of the definition's", "container lock loot light"),
             ("Events", "triggers"),
-            ("", "uid kind def x y count patrol schedule shop appearance equipment inventory portrait activity faction stats"),
+            // (Its state: picked among the definition's states above the form.)
+            ("", "uid kind def x y state count patrol schedule shop appearance equipment inventory portrait activity faction stats"),
         ],
         "Character" => &[
             ("Placed here", "name facing active faction"),

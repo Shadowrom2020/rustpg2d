@@ -1,6 +1,7 @@
 //! The World view: every map as a card with its picture, the ways between them (portals,
 //! transitions, edges) as arrows, and what is wrong with them said on the spot: a map nothing
-//! leads to, a way that leads nowhere. A click opens a map; cards can be dragged about.
+//! leads to, a way that leads nowhere. A click opens a map; cards can be dragged about, and
+//! lie where they were left the next time (noted with the creator's folders and tags).
 
 use std::collections::HashMap;
 
@@ -59,8 +60,13 @@ impl WorldView {
             }
         }
         // Cards that have no place yet: a column for each step from the start map, the maps
-        // nothing leads to last.
+        // nothing leads to last. Where the creator left a card, it lies.
         self.pos.retain(|name, _| self.maps.iter().any(|m| m.name == *name));
+        for (name, meta) in ws.meta.of_kind(rustpg2d_engine::refactor::RefKind::Map) {
+            if let Some([x, y]) = meta.card {
+                self.pos.insert(name.to_string(), egui::pos2(x, y));
+            }
+        }
         let mut columns: std::collections::BTreeMap<u32, Vec<&WorldMap>> = std::collections::BTreeMap::new();
         for m in &self.maps {
             columns.entry(m.distance.unwrap_or(u32::MAX)).or_default().push(m);
@@ -80,7 +86,7 @@ impl WorldView {
     }
 
     /// The tab. Returns the map a click asked to open.
-    pub fn show(&mut self, ui: &mut egui::Ui, ws: &Workspace) -> Option<String> {
+    pub fn show(&mut self, ui: &mut egui::Ui, ws: &mut Workspace) -> Option<String> {
         if self.zoom == 0.0 {
             self.zoom = 1.0;
         }
@@ -102,6 +108,9 @@ impl WorldView {
             }
             ui.separator();
             if ui.button("Tidy").on_hover_text("Puts every card back in its column: by how many maps lie between it and the start").clicked() {
+                for name in self.pos.keys().cloned().collect::<Vec<_>>() {
+                    ws.set_card_place(&name, None);
+                }
                 self.pos.clear();
                 self.key.clear();
             }
@@ -122,8 +131,10 @@ impl WorldView {
         let painter = ui.painter_at(rect);
         let (pan, zoom) = (self.pan, self.zoom);
         let at = |p: egui::Pos2| rect.min + pan + p.to_vec2() * zoom;
-        let start = &ws.project.config.start_map;
+        let start = ws.project.config.start_map.clone();
+        let start = &start;
         let mut open = None;
+        let mut dropped: Option<String> = None;
         let font = egui::FontId::proportional(13.0);
 
         // The cards.
@@ -139,6 +150,9 @@ impl WorldView {
             }
             if r.dragged() {
                 moved = Some((m.name.clone(), r.drag_delta() / zoom));
+            }
+            if r.drag_stopped() {
+                dropped = Some(m.name.clone());
             }
             let problems: Vec<String> = m.links.iter().filter(|l| !l.problem.is_empty()).map(|l| format!("{}: {}", if l.zone.is_empty() { "An edge" } else { &l.zone }, l.problem)).collect();
             let frame = if !problems.is_empty() {
@@ -175,6 +189,10 @@ impl WorldView {
             if let Some(p) = self.pos.get_mut(&name) {
                 *p += d;
             }
+        }
+        // A card let go lies there from now on.
+        if let Some((name, p)) = dropped.and_then(|n| self.pos.get(&n).map(|p| (n, *p))) {
+            ws.set_card_place(&name, Some([p.x.round(), p.y.round()]));
         }
 
         // The ways: from where each starts on its map to where it arrives on the other.

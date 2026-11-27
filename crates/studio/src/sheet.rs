@@ -63,6 +63,17 @@ enum Op {
     RemoveAnswer { choice: usize, answer: usize },
 }
 
+/// Whether the events shown from here on can be tried in the game at once (a placed thing's,
+/// on the map being worked on): their headers get *Try it*.
+pub fn set_tryable(ctx: &egui::Context, on: bool) {
+    ctx.data_mut(|d| d.insert_temp(egui::Id::unique("events can be tried"), on));
+}
+
+/// The event *Try it* was pressed on since the last look (its `on`), if any.
+pub fn take_tried(ctx: &egui::Context) -> Option<Value> {
+    ctx.data_mut(|d| d.remove_temp::<Value>(egui::Id::unique("event tried")))
+}
+
 fn clip_id(kind: Kind) -> egui::Id {
     egui::Id::unique(("event sheet clipboard", kind))
 }
@@ -496,6 +507,11 @@ fn triggers(ui: &mut egui::Ui, cx: &mut Cx, inner: Node, site: &str, list: &mut 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.small_button("x").on_hover_text("Remove this event with all it does").clicked() {
                     op = Some(Op::Remove(k));
+                }
+                let tryable = ui.data(|d| d.get_temp::<bool>(egui::Id::unique("events can be tried"))).unwrap_or(false);
+                if tryable && ui.small_button("Try it").on_hover_text("Plays the game beside it with this event raised: what it does, with the test setup's flags and things").clicked() {
+                    let on = item.get("on").cloned().unwrap_or(Value::Null);
+                    ui.data_mut(|d| d.insert_temp(egui::Id::unique("event tried"), on));
                 }
             });
         });

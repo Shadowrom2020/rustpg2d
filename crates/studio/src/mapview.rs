@@ -165,6 +165,9 @@ pub enum Ask {
     PlayHere((i32, i32), bool),
     /// Show where a definition is used.
     Usages(RefKind, String),
+    /// Play with the hero on this tile and this event raised for the thing (`Selection::None`:
+    /// the map itself); the last is what to say of it.
+    Try((i32, i32), rustpg2d_engine::events::TriggerOn, Selection, String),
 }
 
 /// What the window lends a map tab for a frame.
@@ -801,13 +804,19 @@ impl MapView {
                 let mut pics = p.rs.map(|rs| crate::thumbs::Pics { thumbs: &mut *p.thumbs, ws: &*p.ws, rs });
                 let pictures = pics.as_mut().map(|x| x as &mut dyn crate::form::Pictures);
                 let mut cx = crate::form::Cx { lists: p.lists, maps: &p.ws.maps, show_all: p.show_all, compact: true, pictures, refs: Some(&p.ws.refs), asks: Vec::new() };
+                crate::sheet::set_tryable(ui.ctx(), true);
                 let changed = crate::form::sections_ui(ui, &mut cx, schema::map_settings(), &mut value, schema::MAP_SECTIONS);
+                crate::sheet::set_tryable(ui.ctx(), false);
+                let tried = crate::sheet::take_tried(ui.ctx());
                 for ask in cx.asks {
                     match ask {
                         crate::form::Ask::Open(RefKind::Map, map) => p.asks.push(Ask::OpenMap(map)),
                         crate::form::Ask::Open(k, i) => p.asks.push(Ask::OpenDef(k, i)),
                         crate::form::Ask::New(k) => p.asks.push(Ask::New(k)),
                     }
+                }
+                if let Some(on) = tried.and_then(|v| serde_json::from_value(v).ok()) {
+                    self.try_event(p, Selection::None, on);
                 }
                 if changed {
                     self.pending = p.ws.set_map_settings_value(value.clone()).err().map(|e| (Selection::None, value, e));
@@ -1003,13 +1012,19 @@ impl MapView {
                 let mut pics = p.rs.map(|rs| crate::thumbs::Pics { thumbs: &mut *p.thumbs, ws: &*p.ws, rs });
                 let pictures = pics.as_mut().map(|x| x as &mut dyn crate::form::Pictures);
                 let mut cx = crate::form::Cx { lists: p.lists, maps: &p.ws.maps, show_all: p.show_all, compact: true, pictures, refs: Some(&p.ws.refs), asks: Vec::new() };
+                crate::sheet::set_tryable(ui.ctx(), current);
                 let changed = crate::form::sections_ui(ui, &mut cx, node, &mut value, sections) || state_changed;
+                crate::sheet::set_tryable(ui.ctx(), false);
+                let tried = crate::sheet::take_tried(ui.ctx());
                 for ask in cx.asks {
                     match ask {
                         crate::form::Ask::Open(RefKind::Map, map) => p.asks.push(Ask::OpenMap(map)),
                         crate::form::Ask::Open(k, i) => p.asks.push(Ask::OpenDef(k, i)),
                         crate::form::Ask::New(k) => p.asks.push(Ask::New(k)),
                     }
+                }
+                if let Some(on) = tried.and_then(|v| serde_json::from_value(v).ok()) {
+                    self.try_event(p, one, on);
                 }
                 if changed {
                     p.ws.open_map(name);
@@ -1089,6 +1104,42 @@ impl MapView {
                 }
             }
         }
+    }
+
+    /// *Try it*: asks for the game with the hero beside the thing (in the zone; for the map's
+    /// own events where the view looks) and the event raised.
+    pub fn try_event(&mut self, p: &mut Parts, whose: Selection, on: rustpg2d_engine::events::TriggerOn) {
+        let ts = p.ws.ts();
+        let Some(doc) = p.ws.doc.as_ref() else { return };
+        let map = &doc.map;
+        let none = |_: RefKind, _: &str| None;
+        let when = editor_core::events::trigger_summary(&serde_json::to_value(&on).unwrap_or_default(), &none);
+        let (tile, what) = match whose {
+            Selection::Entity(uid) => {
+                let Some(e) = map.entity(uid) else { return };
+                let at = ((e.x / ts).floor() as i32, ((e.y - 0.5) / ts).floor() as i32);
+                // Beside it: south of it first (it is seen from there), where one can stand.
+                let mut solid = vec![false; (map.width * map.height) as usize];
+                rustpg2d_engine::decor::mark_solid_tiles(map, &p.ws.project.db, &mut solid);
+                let free = |t: (i32, i32)| {
+                    map.in_bounds(t.0, t.1)
+                        && map.collision_at(t.0 as u32, t.1 as u32) != CollisionOverride::Solid
+                        && !solid[(t.1 as u32 * map.width + t.0 as u32) as usize]
+                        && !map.entities.iter().any(|o| ((o.x / ts).floor() as i32, ((o.y - 0.5) / ts).floor() as i32) == t)
+                };
+                let tile = [(0, 1), (-1, 0), (1, 0), (0, -1), (0, 2)].into_iter().map(|d| (at.0 + d.0, at.1 + d.1)).find(|t| free(*t)).unwrap_or(at);
+                (tile, format!("when {when} ({})", p.ws.describe_object(whose)))
+            }
+            Selection::Zone(uid) => {
+                let Some(z) = map.zones.iter().find(|z| z.uid == uid) else { return };
+                (((z.x + z.w / 2) as i32, (z.y + z.h / 2) as i32), format!("when {when} (zone {})", z.name))
+            }
+            _ => {
+                let c = self.center();
+                (((c.x / ts).floor() as i32, (c.y / ts).floor() as i32), format!("when {when} ({})", map.name))
+            }
+        };
+        p.asks.push(Ask::Try(tile, on, whose, what));
     }
 
     /// *Replace with…*: a searched list of the definitions of `kind`; the one clicked.
@@ -1203,6 +1254,20 @@ impl MapView {
                 None => p.ws.set_status("Nothing was copied yet (Ctrl+C on a selection)"),
             },
             "row" | "column" => self.sel = p.ws.align_objects(&self.sel, what == "row"),
+            // (`try K`: event K of the selected thing, from 1; with nothing selected the map's own.)
+            what if what.starts_with("try") => {
+                let k = what.trim_start_matches("try").trim().parse::<usize>().unwrap_or(1).max(1) - 1;
+                let whose = self.sel.first().copied().unwrap_or(Selection::None);
+                let on = p.ws.doc.as_ref().and_then(|d| match whose {
+                    Selection::Entity(uid) => d.map.entity(uid).and_then(|e| e.triggers.get(k)).map(|t| t.on.clone()),
+                    Selection::Zone(uid) => d.map.zones.iter().find(|z| z.uid == uid).and_then(|z| z.triggers.get(k)).map(|t| t.on.clone()),
+                    _ => d.map.triggers.get(k).map(|t| t.on.clone()),
+                });
+                match on {
+                    Some(on) => self.try_event(p, whose, on),
+                    None => p.ws.set_status(format!("It has no event {}", k + 1)),
+                }
+            }
             // (The map's clicks add waypoints to the selected character's route, or stop doing so.)
             "route" => {
                 self.route_edit = match (self.route_edit, self.sel.as_slice()) {
@@ -2627,6 +2692,7 @@ mod ui_tests {
                         Ask::New(k) => format!("new {}", k.name()),
                         Ask::PlayHere(t, setup) => format!("play {},{}{}", t.0, t.1, if setup { " setup" } else { "" }),
                         Ask::Usages(k, id) => format!("usages {} {id}", k.name()),
+                        Ask::Try(t, on, ..) => format!("try {},{} {on:?}", t.0, t.1),
                     });
                 }
             },
@@ -2842,6 +2908,27 @@ mod ui_tests {
         assert!(matches!(triggers(&h).last().unwrap().actions.as_slice(), [rustpg2d_engine::events::Action::GiveXp { .. }]));
         while h.state_mut().ws.undo().is_some() {}
         assert_eq!(triggers(&h), before);
+        let dir = h.state().dir.clone();
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn an_event_of_a_placed_thing_is_tried_from_beside_it() {
+        let mut h = village("try");
+        h.run();
+        let guard = h.state().ws.doc.as_ref().unwrap().map.entities.iter().find(|e| e.name == "guard").unwrap().clone();
+        h.get_by_role_and_label(egui::accesskit::Role::Button, "guard").click();
+        h.run();
+        h.get_by_label("Try it").scroll_to_me();
+        h.run();
+        h.get_by_label("Try it").click();
+        h.run();
+        // Asked for: the game with the hero on a tile beside the guard, his event raised.
+        let ts = h.state().ws.ts();
+        let at = ((guard.x / ts).floor() as i32, ((guard.y - 0.5) / ts).floor() as i32);
+        let [ask] = h.state().asks.as_slice() else { panic!("{:?}", h.state().asks) };
+        let near = [(0, 1), (-1, 0), (1, 0), (0, -1), (0, 2)].iter().any(|d| *ask == format!("try {},{} Interact", at.0 + d.0, at.1 + d.1));
+        assert!(near, "{ask} (the guard stands on {at:?})");
         let dir = h.state().dir.clone();
         let _ = std::fs::remove_dir_all(dir);
     }

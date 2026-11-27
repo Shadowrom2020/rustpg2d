@@ -21,7 +21,8 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - `Game::step` and `Game::thing_under_pointer` (an editor shows the game itself: its clock
   by hand, what a click would open); `map::MapSettings` (what a map is besides its ground
   and what stands on it, for forms); `Assets::load_sheet` (one picture read again);
-  `ScriptHost::compile_check` (a script checked before it is saved).
+  `ScriptHost::compile_check` (a script checked before it is saved); `Game::raise` (an event
+  raised for a thing as if it had just happened: the editor's *Try it*).
 
 ### Editor
 - **The new editor's window** (`rustpg2d-studio`, part 3 of *The Studio*), egui 0.37 on the
@@ -94,6 +95,8 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   *Give 2 x Healing Potion*), opened in place to change it, dragged to another place, copied
   to another event, character or map from its menu. New actions come from a searched list in
   the manual's groups, new events from the events that owner can get.
+- **Try it** (part 7): an event of a placed character, prop, zone or map has a *Try it* button:
+  the game starts beside the thing with the event raised, so you see at once what it does.
 - **Conversations** (part 7): in the event sheet a line of talk is written where it stands, who
   speaks and what is said; *+ Line* adds the next. A question shows its answers under it, and
   under each answer what it leads to: more lines, any actions, another question.

@@ -35,6 +35,10 @@ pub struct PlayView {
     pub speed: f32,
     /// One step while paused, with the next frame.
     step_once: bool,
+    /// An event to raise once the game has run for a moment (*Try it*): seconds left, the
+    /// event, whose it is, and what to say of it. Then what came of it.
+    raise: Option<(f32, rustpg2d_engine::events::TriggerOn, rustpg2d_engine::runtime::EventOwner, String)>,
+    pub raised: Option<String>,
     /// Clicks tell what is under them instead of playing (Alt+click does it at any time).
     pub inspect: bool,
     /// The State panel is shown, and what its lists are searched for.
@@ -53,7 +57,7 @@ impl PlayView {
         let mut input = Input::new();
         // The game is made with its screen current: it sizes things by it.
         let game = gfx::with_screen(&mut screen, &mut input, || Game::new(project, start))?;
-        Ok(PlayView { game, screen, input, texture: None, paused: false, speed: 1.0, step_once: false, inspect: false, show_state: false, state_filter: String::new(), add: Default::default(), tapped: Vec::new() })
+        Ok(PlayView { game, screen, input, texture: None, paused: false, speed: 1.0, step_once: false, raise: None, raised: None, inspect: false, show_state: false, state_filter: String::new(), add: Default::default(), tapped: Vec::new() })
     }
 
     pub fn status(&self) -> String {
@@ -64,6 +68,11 @@ impl PlayView {
     pub fn tap(&mut self, key: KeyCode) {
         self.input.key_down(key, false);
         self.tapped.push(key);
+    }
+
+    /// Raises an event for a thing of the map once the game has settled (*Try it*).
+    pub fn raise_soon(&mut self, on: rustpg2d_engine::events::TriggerOn, owner: rustpg2d_engine::runtime::EventOwner, what: String) {
+        self.raise = Some((0.4, on, owner, what));
     }
 
     /// One step with the next frame, while paused.
@@ -94,7 +103,12 @@ impl PlayView {
     /// `setup`: the project's test setup as the State panel says it (empty: there is none).
     pub fn show(&mut self, ui: &mut egui::Ui, rs: &eframe::egui_wgpu::RenderState, setup: &str) -> Vec<PlayAsk> {
         let mut asks = Vec::new();
-        egui::Panel::top("play bar").show(ui, |ui| self.bar(ui, &mut asks));
+        egui::Panel::top("play bar").show(ui, |ui| {
+            self.bar(ui, &mut asks);
+            if let Some(said) = &self.raised {
+                ui.weak(said.as_str());
+            }
+        });
         if self.show_state {
             egui::Panel::right("play state").default_size(300.0).resizable(true).show(ui, |ui| self.state_panel(ui, setup, &mut asks));
         }
@@ -314,6 +328,17 @@ impl PlayView {
             (false, _) if self.speed > 1.0 => (self.speed.round() as u32, real),
             (false, _) => (1, real * self.speed),
         };
+        // An event to try: raised once the game has run for a moment.
+        if let Some((left, on, owner, what)) = self.raise.take() {
+            let left = left - if self.paused { 0.0 } else { real.min(0.1) };
+            if left > 0.0 {
+                self.raise = Some((left, on, owner, what));
+            } else {
+                let ran = self.game.raise(&on, owner);
+                self.raised = Some(if ran { format!("Tried: {what}") } else { format!("Tried: {what}. Nothing ran: its conditions don't hold in this game") });
+                println!("[try] {}", self.raised.as_deref().unwrap_or_default());
+            }
+        }
         let game = &mut self.game;
         let plain = !self.paused && self.speed == 1.0;
         for _ in 0..if plain { 0 } else { steps } {

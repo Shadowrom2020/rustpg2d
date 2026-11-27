@@ -449,6 +449,15 @@ impl Perf {
     }
 }
 
+/// Whose event an editor raises ([`Game::raise`]): the map being played, or a thing or a zone
+/// on it by its number.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EventOwner {
+    Map,
+    Entity(u32),
+    Zone(u32),
+}
+
 /// Which owner's triggers an event is delivered to.
 #[derive(Clone, Debug)]
 enum Source {
@@ -1824,6 +1833,41 @@ impl Game {
         let e = &self.loaded.entities[i];
         let placed = self.loaded.map.entities.iter().find(|p| p.uid == e.uid).map_or(&[][..], |p| p.triggers.as_slice());
         self.project.db.def_triggers(e.kind, &e.def).iter().chain(placed).any(|t| on(&t.on))
+    }
+
+    /// Raises the event a trigger waits for as if it had just happened to `owner` (an editor's
+    /// *Try it*): every trigger of the owner that waits for it runs, when its conditions hold.
+    /// False when none ran.
+    pub fn raise(&mut self, on: &crate::events::TriggerOn, owner: EventOwner) -> bool {
+        use crate::events::TriggerOn as T;
+        let ev = match on {
+            T::Interact => GameEvent::Interact,
+            T::Enter => GameEvent::Enter,
+            T::Leave => GameEvent::Leave,
+            T::UseItem { item } => GameEvent::UseItem { item: item.clone() },
+            T::MapEnter => GameEvent::MapEnter,
+            T::Custom { name } => GameEvent::Custom { name: name.clone() },
+            T::Defeat => GameEvent::Defeat,
+            T::Unlock => GameEvent::Unlock,
+            T::Lock => GameEvent::Lock,
+            // (Just across the line the trigger watches.)
+            T::HpBelow { percent } => GameEvent::HpBelow { from: 1.0, to: (*percent as f32 / 100.0 - 0.01).max(0.0) },
+            T::Sleep => GameEvent::Sleep,
+            T::Hour { hour } => GameEvent::Hour { from: hour.rem_euclid(24.0) - 0.01, to: hour.rem_euclid(24.0) },
+            T::CombatStart => GameEvent::CombatStart,
+            T::CombatEnd => GameEvent::CombatEnd,
+            T::Search => GameEvent::Search,
+            T::TrapSprung => GameEvent::TrapSprung,
+            T::TrapDisarmed => GameEvent::TrapDisarmed,
+        };
+        let source = match (owner, on) {
+            // (A raised event reaches the map, its zones and everything on it.)
+            (_, T::Custom { .. }) => Source::Broadcast,
+            (EventOwner::Map, _) => Source::Map,
+            (EventOwner::Entity(uid), _) => Source::Entity(uid),
+            (EventOwner::Zone(uid), _) => Source::Zone(uid),
+        };
+        self.fire(ev, source)
     }
 
     fn fire(&mut self, ev: GameEvent, source: Source) -> bool {

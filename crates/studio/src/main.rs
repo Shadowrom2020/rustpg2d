@@ -122,7 +122,7 @@ impl Studio {
                     let ts = self.shell.ws.ts();
                     let num = |i: usize| arg(i).parse::<f32>().unwrap_or(0.0);
                     if arg(0) == "mapact" {
-                        self.shell.map_act(arg(1));
+                        self.shell.map_act(&cmd[1..].join(" "));
                         continue;
                     }
                     if arg(0) == "mapselect" {

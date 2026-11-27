@@ -1392,6 +1392,10 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     leads to (lines, any actions, another question): the *If* behind the question that
     asks for that answer, made by *+ then…* and shown there instead of as a row of its own.
     Taking an answer away takes what it leads to with it and moves the later answers up.
+  - **Try it** on an event of a placed thing, a zone or the map (the Inspector): the game
+    starts in the Play tab with the hero beside the thing (in the zone) and the event raised
+    a moment later, with the test setup's flags and things, so what the event does is seen
+    at once; when its conditions don't hold in that game, the bar says that nothing ran.
   - **Flags and variables** (`studio/src/namespage.rs` over `editor-core/src/names.rs`;
     *Story › Flags and variables*, tab `names`): every flag, variable and text variable with
     how often it is set and read; one that is only ever set or only ever read is marked
@@ -1400,7 +1404,8 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     events, a script's line), each a link there, and *Rename everywhere* follows it through
     definitions, maps and scripts as one step, undone by renaming back.
   Still open: rows dragged from one list into another and several rows selected at once
-  (copy and paste does it one by one); *Try it*; of conversations: the game's own dialog
+  (copy and paste does it one by one); *Try it* for a definition's events (they have no
+  place to be tried from: a placed one of them is); of conversations: the game's own dialog
   box drawing the line being written (fonts, skin, message codes), answers side by side; of
   flags and variables: `{name}` placeholders in texts aren't counted as reading one; of scripts: a
   function run in the Play tab, *Find in scripts*; the
@@ -1435,8 +1440,13 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     what typing adds, how a script is painted, what is wrong in a text): tested without a
     window, and there for agents.
 
+  - **Try it raises the event, it doesn't run one trigger's actions**: every trigger of the
+    thing that waits for that event runs if its conditions hold, as in play. It starts from
+    the test setup (a game in progress), so a map's intro doesn't play first.
+
   **Engine.** `ScriptHost::compile_check` is no longer for tests only (a script is checked
-  before it is saved). Maybe an *off* mark on an action (a row switched off while testing),
+  before it is saved). `Game::raise(event, owner)` (with `EventOwner`): raises the event a
+  trigger waits for as if it had just happened to a thing, a zone or the map, for *Try it*. Maybe an *off* mark on an action (a row switched off while testing),
   asked for when it is built.
 
   **Verify.** `egui_kittest`: build a trigger with a condition and three actions, reorder, copy to
@@ -1452,6 +1462,10 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     the window: the campfire's four events read as sentences, one opened with its *If* and
     three *Do* rows, an action opened in place, the palette searched for "stat"; the guard's
     events in the Inspector and the list of events to add.
+  - *Try it*: `an_event_of_a_placed_thing_is_tried_from_beside_it` (the Inspector's button
+    asks for the game on a free tile beside the guard with his event). In the window: the
+    guard's event tried from the map; the Play tab opens with the hero west of him and his
+    line "Halt! Oh, it's you, Alex…" in the game's dialog box.
   - Conversations: `a_choices_answers_lead_to_their_branches` (branches found per answer,
     a second question in the same variable keeping its own, where a new branch goes, an
     answer taken away with its branch and the later ones moved up, speakers taking turns);

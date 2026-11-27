@@ -223,6 +223,8 @@ enum Ask {
     Play(PlayFrom),
     /// The game in its own window, started as the Play tab's was.
     PlayWindow,
+    /// *Try it*: the game on this map with the hero on the tile and the event raised.
+    Try(String, (i32, i32), Box<(rustpg2d_engine::events::TriggerOn, rustpg2d_engine::runtime::EventOwner, String)>),
 }
 
 /// Where a game in the Play tab starts.
@@ -270,6 +272,8 @@ pub struct Shell {
     pub scripts: std::collections::HashMap<String, crate::scriptedit::ScriptTab>,
     /// The Flags and variables page.
     pub names: crate::namespage::NamesPage,
+    /// The event the next game in the Play tab raises once it runs (*Try it*).
+    pub try_next: Option<(rustpg2d_engine::events::TriggerOn, rustpg2d_engine::runtime::EventOwner, String)>,
     /// Answers of commands, newest last (the script prints them too).
     pub log: Vec<String>,
 }
@@ -291,7 +295,7 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), log: Vec::new() }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), try_next: None, log: Vec::new() }
     }
 
     /// Shows `tab`: brings it to the front when it is open, else opens it beside the documents.
@@ -575,6 +579,20 @@ impl Shell {
         let view = self.maps.entry(name.clone()).or_default();
         let mut parts = crate::mapview::Parts { ws: &mut self.ws, rs: None, lists: &self.lists, thumbs: &mut self.thumbs, show_all: self.show_all, link: &mut self.link, clip: &mut self.clip, asks: Vec::new() };
         view.act(&mut parts, &name, what);
+        // (What the script's word asks of the window: an event to try.)
+        for ask in parts.asks {
+            if let crate::mapview::Ask::Try(tile, on, whose, what) = ask {
+                use editor_core::workspace::Selection;
+                use rustpg2d_engine::runtime::EventOwner;
+                let owner = match whose {
+                    Selection::Entity(uid) => EventOwner::Entity(uid),
+                    Selection::Zone(uid) => EventOwner::Zone(uid),
+                    _ => EventOwner::Map,
+                };
+                self.try_next = Some((on, owner, what));
+                self.play_from(PlayFrom::Tile(name.clone(), tile, true));
+            }
+        }
     }
 
     /// The World view's line for `status`.
@@ -668,7 +686,7 @@ impl Shell {
 
         let mut asks = Vec::new();
         {
-            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, rs, asks: &mut asks };
+            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, try_next: &mut self.try_next, rs, asks: &mut asks };
             DockArea::new(&mut self.dock).show_inside(ui, &mut viewer);
         }
         for ask in asks {
@@ -682,6 +700,11 @@ impl Shell {
                 Ask::FindUnused => self.find_unused(),
                 Ask::Play(from) => self.play_from(from),
                 Ask::PlayWindow => self.play_window(),
+                Ask::Try(map, tile, what) => {
+                    // (With the test setup: a game in progress, so the map's intro doesn't play first.)
+                    self.try_next = Some(*what);
+                    self.play_from(PlayFrom::Tile(map, tile, true));
+                }
             }
         }
         self.gallery_ui(&ctx, rs);
@@ -940,6 +963,7 @@ struct Viewer<'a> {
     clip: &'a mut Option<editor_core::mapedit::Clip>,
     scripts: &'a mut std::collections::HashMap<String, crate::scriptedit::ScriptTab>,
     names: &'a mut crate::namespage::NamesPage,
+    try_next: &'a mut Option<(rustpg2d_engine::events::TriggerOn, rustpg2d_engine::runtime::EventOwner, String)>,
     rs: Option<&'a eframe::egui_wgpu::RenderState>,
     asks: &'a mut Vec<Ask>,
 }
@@ -1247,7 +1271,12 @@ impl Viewer<'_> {
     fn play_tab(&mut self, ui: &mut egui::Ui) {
         if self.play.is_none() && self.play_error.is_none() && self.ws.project_open {
             match PlayView::open(&self.ws.project.root, self.start.clone()) {
-                Ok(p) => *self.play = Some(p),
+                Ok(mut p) => {
+                    if let Some((on, owner, what)) = self.try_next.take() {
+                        p.raise_soon(on, owner, what);
+                    }
+                    *self.play = Some(p);
+                }
                 Err(e) => *self.play_error = Some(format!("{e:#}")),
             }
         }
@@ -1962,6 +1991,16 @@ impl Viewer<'_> {
                 crate::mapview::Ask::Usages(k, id) => {
                     self.asks.push(Ask::Run(format!("find.usages {} {id}", k.name())));
                     self.asks.push(Ask::Open(Tab::Def(k, id)));
+                }
+                crate::mapview::Ask::Try(tile, on, whose, what) => {
+                    use editor_core::workspace::Selection;
+                    use rustpg2d_engine::runtime::EventOwner;
+                    let owner = match whose {
+                        Selection::Entity(uid) => EventOwner::Entity(uid),
+                        Selection::Zone(uid) => EventOwner::Zone(uid),
+                        _ => EventOwner::Map,
+                    };
+                    self.asks.push(Ask::Try(name.to_string(), tile, Box::new((on, owner, what))));
                 }
             }
         }

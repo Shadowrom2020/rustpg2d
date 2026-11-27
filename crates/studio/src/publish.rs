@@ -161,6 +161,33 @@ impl PublishPage {
             });
         }
 
+        // Whose work is in the game: the packs its assets came from, with their licences.
+        let used = ws.packs_used();
+        if !used.is_empty() {
+            ui.add_space(8.0);
+            ui.separator();
+            ui.label(egui::RichText::new("Packs in this game").strong());
+            ui.weak("What came from packs of the asset library, and what their makers ask for. The credit lines belong on the game's Credits page.");
+            for (_, pack, n) in &used {
+                ui.horizontal_wrapped(|ui| {
+                    ui.label(pack.title.as_str());
+                    ui.weak(format!("{}{} · {n} asset{}", if pack.author.is_empty() { String::new() } else { format!("by {} · ", pack.author) }, if pack.licence.is_empty() { "no licence named".to_string() } else { pack.licence.clone() }, if *n == 1 { "" } else { "s" }));
+                });
+                ui.weak(format!("    Credit line: {}", pack.line()));
+            }
+            let missing = ws.credits_missing();
+            ui.horizontal(|ui| {
+                if ui.add_enabled(!missing.is_empty(), egui::Button::new(match missing.len() {
+                    0 => "The credits hold them all".to_string(),
+                    1 => "Add its credit line to the credits".to_string(),
+                    n => format!("Add {n} credit lines to the credits"),
+                })).on_hover_text("Puts the lines at the end of the game's credits (Title & menus): players read them on the Credits page").clicked() {
+                    let n = ws.add_pack_credits();
+                    ws.set_status(format!("Added {n} credit line{} to the game's credits", if n == 1 { "" } else { "s" }));
+                }
+            });
+        }
+
         // The pre-flight.
         ui.add_space(8.0);
         ui.separator();
@@ -249,4 +276,42 @@ mod ui_tests {
         assert!(h.state().page.preflight.stops.iter().any(|s| s.contains("needs a name")));
         assert!(h.query_all_by_label_contains("The game needs a name").next().is_some());
     }
+    #[test]
+    fn the_packs_in_the_game_are_listed_and_their_credit_lines_added() {
+        // A new project in which the hero came from a pack (as adding him from the library notes it).
+        let dir = std::env::temp_dir().join(format!("rustpg2d-publish-packs-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        editor_core::files::create_project(&dir).unwrap();
+        let mut ws = Workspace::new(dir.clone(), editor_core::Gpu::No).unwrap();
+        ws.make_def(rustpg2d_engine::refactor::RefKind::Character, "Hero", None).unwrap();
+        ws.meta.assets.entry("character:hero".into()).or_default().origin = Some(editor_core::meta::Origin { pack: "anna.heroes".into(), version: "1.2".into() });
+        ws.meta.packs.insert("anna.heroes".into(), editor_core::meta::PackCredit { title: "Heroes".into(), author: "Anna".into(), licence: "CC BY 4.0".into(), attribution: "Hero figures by Anna (CC BY 4.0)".into() });
+        ws.history_frame(None);
+        let mut h = Harness::builder().with_size(egui::vec2(1200.0, 1000.0)).build_ui_state(
+            |ui, s: &mut State| {
+                s.ws.history_frame(None);
+                s.page.show(ui, &mut s.ws)
+            },
+            State { ws, page: PublishPage::default() },
+        );
+        h.run();
+        // The pack is listed with what its maker asks for, and the pre-flight says the credits lack it.
+        h.get_by_label("Packs in this game");
+        h.get_by_label("Heroes");
+        assert!(h.query_all_by_label_contains("by Anna · CC BY 4.0 · 1 asset").next().is_some());
+        assert!(h.query_all_by_label_contains("Credit line: Hero figures by Anna (CC BY 4.0)").next().is_some());
+        assert!(h.state().page.preflight.notes.iter().any(|n| n.contains("credits don't hold: Hero figures by Anna")), "{:?}", h.state().page.preflight.notes);
+        // One click puts the line into the game's credits, as a step; nothing is left to add.
+        h.get_by_label("Add its credit line to the credits").click();
+        h.run();
+        h.run();
+        let s = h.state();
+        assert_eq!(s.ws.project.config.credits, "Hero figures by Anna (CC BY 4.0)");
+        assert!(s.ws.timeline.done.last().is_some_and(|c| c.label.contains("credit lines")));
+        assert!(!s.page.preflight.notes.iter().any(|n| n.contains("credits don't hold")));
+        h.get_by_label("The credits hold them all");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
 }

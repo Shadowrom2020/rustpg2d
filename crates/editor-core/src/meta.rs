@@ -37,6 +37,48 @@ pub struct AssetMeta {
     /// A map: where its card lies in the World view (`None`: where the view puts it).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub card: Option<[f32; 2]>,
+    /// The pack it came from (its id; [`Meta::packs`] says what that pack is) and the version
+    /// it came as: whose work it is, and what an update of the pack compares with.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub origin: Option<Origin>,
+}
+
+/// Where an asset of the project came from.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Origin {
+    pub pack: String,
+    pub version: String,
+}
+
+/// A pack some of the project's assets came from, as the project remembers it (the library
+/// it was installed in may be another by the time the game is published).
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct PackCredit {
+    pub title: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub author: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub licence: String,
+    /// The line a game that uses it shows in its credits.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub attribution: String,
+}
+
+impl PackCredit {
+    /// The line for the game's credits: the pack's own, else made from what is known of it.
+    pub fn line(&self) -> String {
+        if !self.attribution.trim().is_empty() {
+            return self.attribution.trim().to_string();
+        }
+        let mut line = self.title.clone();
+        if !self.author.is_empty() {
+            line += &format!(" by {}", self.author);
+        }
+        if !self.licence.is_empty() {
+            line += &format!(" ({})", self.licence);
+        }
+        line
+    }
 }
 
 impl AssetMeta {
@@ -50,6 +92,9 @@ impl AssetMeta {
 pub struct Meta {
     #[serde(default)]
     pub assets: BTreeMap<String, AssetMeta>,
+    /// The packs assets came from, by pack id.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub packs: BTreeMap<String, PackCredit>,
 }
 
 /// A tag or folder as it is kept: without spaces around it, a folder without empty parts.
@@ -81,7 +126,10 @@ impl Meta {
 
     /// Writes the file: the entries that say something about something `exists`.
     pub fn save(&self, root: &Path, exists: impl Fn(&str) -> bool) -> anyhow::Result<()> {
-        let kept = Meta { assets: self.assets.iter().filter(|(key, m)| !m.is_empty() && exists(key)).map(|(k, m)| (k.clone(), m.clone())).collect() };
+        let assets: BTreeMap<String, AssetMeta> = self.assets.iter().filter(|(key, m)| !m.is_empty() && exists(key)).map(|(k, m)| (k.clone(), m.clone())).collect();
+        // (Only the packs something still comes from.)
+        let packs = self.packs.iter().filter(|(id, _)| assets.values().any(|m| m.origin.as_ref().is_some_and(|o| o.pack == **id))).map(|(k, v)| (k.clone(), v.clone())).collect();
+        let kept = Meta { assets, packs };
         let path = root.join(FILE);
         if kept.assets.is_empty() && !path.exists() {
             return Ok(());
@@ -196,12 +244,52 @@ impl Workspace {
         }
     }
 
+    /// The packs the project's assets came from, with how many of each pack's there are now,
+    /// by title.
+    pub fn packs_used(&self) -> Vec<(String, PackCredit, usize)> {
+        let mut count: BTreeMap<&str, usize> = BTreeMap::new();
+        for (key, m) in &self.meta.assets {
+            if let Some(o) = m.origin.as_ref().filter(|_| self.meta_exists(key)) {
+                *count.entry(o.pack.as_str()).or_default() += 1;
+            }
+        }
+        let mut out: Vec<(String, PackCredit, usize)> = count.into_iter().map(|(id, n)| (id.to_string(), self.meta.packs.get(id).cloned().unwrap_or_else(|| PackCredit { title: id.to_string(), ..Default::default() }), n)).collect();
+        out.sort_by_key(|p| p.1.title.to_lowercase());
+        out
+    }
+
+    /// The credit lines of the packs in use that the game's credits don't hold yet.
+    pub fn credits_missing(&self) -> Vec<String> {
+        let credits = self.project.config.credits.to_lowercase();
+        self.packs_used().into_iter().map(|(_, p, _)| p.line()).filter(|l| !credits.contains(&l.to_lowercase())).collect()
+    }
+
+    /// Puts the credit lines that are missing at the end of the game's credits (one step).
+    /// Returns how many.
+    pub fn add_pack_credits(&mut self) -> usize {
+        let missing = self.credits_missing();
+        if missing.is_empty() {
+            return 0;
+        }
+        self.begin("Add the packs' credit lines to the credits");
+        let credits = &mut self.project.config.credits;
+        if !credits.trim().is_empty() && !credits.ends_with('\n') {
+            credits.push('\n');
+        }
+        *credits += &missing.join("\n");
+        self.defs_dirty = true;
+        self.stale = true;
+        missing.len()
+    }
+
     /// A copy of an asset starts in the same folder with the same tags (not a favourite, no notes).
     pub(crate) fn meta_copied(&mut self, kind: RefKind, from: &str, to: &str) {
         let Some(m) = self.meta.of(kind, from).cloned() else { return };
+        // (And it is still that pack's work: the origin goes with it.)
         self.meta_edit(kind, to, |new| {
             new.folder = m.folder;
             new.tags = m.tags;
+            new.origin = m.origin;
         });
     }
 }

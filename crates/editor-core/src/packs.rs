@@ -89,6 +89,11 @@ fn read_record(root: &Path) -> Vec<Installed> {
     std::fs::read_to_string(root.join(RECORD)).ok().and_then(|t| ron::from_str(&t).ok()).unwrap_or_default()
 }
 
+/// The packs installed in the library at `root`.
+pub(crate) fn installed_at(root: &Path) -> Vec<Installed> {
+    read_record(root)
+}
+
 fn write_record(root: &Path, list: &[Installed]) -> Result<(), String> {
     let text = rustpg2d_engine::project::ron_text(&list.to_vec()).map_err(|e| format!("{e:#}"))?;
     std::fs::write(root.join(RECORD), text).map_err(|e| format!("writing {RECORD}: {e}"))
@@ -396,7 +401,7 @@ mod tests {
     }
 
     fn manifest(title: &str, version: &str) -> PackManifest {
-        PackManifest { author: "Anna".into(), licence: "CC BY 4.0".into(), attribution: "Market things by Anna".into(), version: version.into(), ..PackManifest::new(title) }
+        PackManifest { author: "Anna".into(), licence: "CC BY 4.0".into(), attribution: format!("{title} by Anna"), version: version.into(), ..PackManifest::new(title) }
     }
 
     #[test]
@@ -433,6 +438,33 @@ mod tests {
         // Read from its files again, the library is what was installed.
         let again = rustpg2d_engine::project::Project::load(&dir.join("library")).unwrap();
         assert!(again.db.prop("chest").is_some() && read_record(&again.root).len() == 1);
+        // Added to a project from there, an asset is remembered as that pack's, with the
+        // version it came as; so is a copy of it. The pack's credit line is offered for the
+        // game's credits, once.
+        let game = dir.join("other");
+        std::fs::create_dir_all(&game).unwrap();
+        crate::files::create_project(&game).unwrap();
+        let lib = ws.lib.lib.take();
+        let mut other = Workspace::new(game.clone(), crate::Gpu::No).unwrap();
+        other.lib.lib = lib;
+        other.history_frame(None);
+        other.library_to_project(&[(RefKind::Prop, "chest".into())]).unwrap();
+        other.history_frame(None);
+        assert_eq!(other.meta.of(RefKind::Prop, "chest").and_then(|m| m.origin.clone()), Some(crate::meta::Origin { pack: "market-things".into(), version: "1.0".into() }));
+        other.duplicate_def(RefKind::Prop, "chest", "strongbox").unwrap();
+        other.history_frame(None);
+        assert_eq!(other.meta.of(RefKind::Prop, "strongbox").and_then(|m| m.origin.as_ref()).map(|o| o.pack.as_str()), Some("market-things"));
+        let used = other.packs_used();
+        assert_eq!((used.len(), used[0].0.as_str(), used[0].1.licence.as_str()), (1, "market-things", "CC BY 4.0"));
+        assert!(used[0].2 >= 2, "the chest, its copy and what the chest needs: {}", used[0].2);
+        assert_eq!(other.credits_missing(), ["Market things by Anna"]);
+        assert_eq!(other.add_pack_credits(), 1);
+        assert!(other.project.config.credits.ends_with("Market things by Anna") && other.credits_missing().is_empty() && other.add_pack_credits() == 0);
+        // Saved and read again, the project still knows; with the pack's assets deleted it forgets.
+        other.save_all();
+        let meta = crate::meta::Meta::load(&game);
+        assert!(meta.packs.contains_key("market-things") && meta.assets.values().any(|m| m.origin.is_some()));
+        ws.lib.lib = other.lib.lib.take();
         // The same pack again: everything in it is there as it is.
         let p = ws.pack_preview(&bytes).unwrap();
         assert_eq!((p.new.len(), p.differing.len(), p.installed.as_deref()), (0, 0, Some("1.0")));

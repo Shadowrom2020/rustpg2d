@@ -1898,8 +1898,8 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     four sides of its fence, a barrel put beside it, undone. File dialogs: the gallery's
     *Browse…* answered by `pick::answer_next` in `the_new_gallery_starts_from_a_dropped_file`;
     in the window the home screen's *A folder…* answered with the scratch project opens it.
-    **No real dialog was opened**: a scripted run never opens one, so whether the desktop
-    portal shows it on this machine is unseen. The library's owlbear and anvil shown in
+    A scripted run never opens a real dialog; the maintainer tried them by hand on
+    2026-11-27 (the home screen's, *New…*'s): they open and answer. The library's owlbear and anvil shown in
     *New…* when picked; a wolf's side inside the character preview; a prop from a `.glb`
     not saved until the project is, undone and redone (`fromfile` test).
   - The pixel editor: `pixels` tests (a stroke that runs out of the frame sets only its
@@ -2085,9 +2085,18 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     it is written into; it says what the pack holds with what the selection needs, writes
     the pack with pictures of what was shared and its entry in the folder's index, and
     remembers who shares and where for the next time.
+  - **Where an asset came from, and whose work is in the game** (`editor-core/src/meta.rs`):
+    an asset added to a project from the library is noted as its pack's (`AssetMeta.origin`:
+    the pack's id and the version it came as; a copy of it keeps that), and the project
+    keeps what it needs to know of the pack itself (`Meta.packs`: title, author, licence,
+    credit line), so the library it came from may be gone by the time the game goes out.
+    The Publishing page lists *Packs in this game* with their licences, how many assets of
+    each are in use and their credit lines; one button puts the lines the game's credits
+    don't hold yet at their end (a step), and until then the pre-flight says which are
+    missing.
   Still open: several assets shared at once from a kind's list, a plugin shared from the
-  window, updates per asset (which ones the creator changed), licences on the Publishing
-  page, the starter library installed as a pack, the old writers (`.r2dlib`, `.r2dplugin`)
+  window, updates per asset (which ones the creator changed), the starter library
+  installed as a pack, the old writers (`.r2dlib`, `.r2dplugin`)
   folded away, packs as cards with their preview pictures; and
   of the tab: pictures of the library's assets, tags and filters, dragging onto a map, the
   starter library's installing and updating from the window.
@@ -2118,6 +2127,12 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     file looked at (4 new), installed, listed (*Chest · version 1.0 · by Anna · CC BY 4.0*);
     its folder added as a source, *See what it offers*: *Anna's packs* with the chest as
     installed; the source is there again after a restart.
+  - Origins and credits: in the `packs` core test the chest added to another project from
+    the library is noted as *market-things 1.0*, its copy too; the credit line is missing
+    from the credits, added once, and the project still knows after saving and reading
+    again. `the_packs_in_the_game_are_listed_and_their_credit_lines_added` (the Publishing
+    page lists *Heroes · by Anna · CC BY 4.0 · 1 asset* with its credit line, the pre-flight
+    names it as missing; the button adds it to the credits as a step, and nothing is left).
   - The format: `packs` tests in the engine (a pack with an item, its sheet and file, a
     script function, a plugin and a preview written and read again as it was, its manifest
     alone read without unpacking; bad ids and versions, a newer format, a newer engine and

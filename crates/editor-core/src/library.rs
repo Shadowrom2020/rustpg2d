@@ -73,7 +73,23 @@ impl Workspace {
         let mut b = Bundle::collect_with_needed_scripts(&lib.db, &lib.root, rustpg2d_engine::project::TILE_SIZE, "library", assets)?;
         b.rescale(rustpg2d_engine::project::TILE_SIZE)?;
         let root = self.project.root.clone();
+        let lib_root = lib.root.clone();
         let report = b.merge_into(&mut self.project.db, &root)?;
+        // What came from a pack is remembered as that pack's: whose work it is (the game's
+        // credits), and which version it came as (updates).
+        let installed = crate::packs::installed_at(&lib_root);
+        let mut noted = false;
+        for (kind, id) in &report.added {
+            let lib_id = report.renamed.iter().find(|(k, _, new)| k == kind && new == id).map_or(id, |(_, old, _)| old);
+            let Some(p) = installed.iter().find(|p| p.assets.iter().any(|(k, i)| k == kind.name() && i == lib_id)) else { continue };
+            let m = &p.manifest;
+            self.meta.assets.entry(crate::meta::Meta::key(*kind, id)).or_default().origin = Some(crate::meta::Origin { pack: m.id.clone(), version: m.version.clone() });
+            self.meta.packs.insert(m.id.clone(), crate::meta::PackCredit { title: m.title.clone(), author: m.author.clone(), licence: m.licence.clone(), attribution: m.attribution.clone() });
+            noted = true;
+        }
+        if noted {
+            self.save_meta();
+        }
         self.defs_dirty = true;
         self.after_scripts_merged();
         self.reload_assets();

@@ -127,6 +127,8 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   installed ones, and reads **sources**: a web address or folder that offers packs, whose
   downloads are checked against its index. A pack file can also be dropped on the window.
   Asset packages, plugin files and the starter library file of 0.35 are read as packs.
+  A project remembers which pack each asset came from; the Publishing page lists the packs in
+  the game with their licences and puts their credit lines into the game's credits.
 - **Generate art** (part 8): the page for Meshy jobs (icons, portraits, pictures, 3D characters,
   creatures, item and prop models, more clips): what a job costs is on its button, the jobs
   show their progress and results, *Add to project* makes the thing. *Generate art…* in a

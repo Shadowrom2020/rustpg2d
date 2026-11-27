@@ -250,6 +250,11 @@ impl Workspace {
                 Platform::MacOS => format!("macOS: {out}{sep}{}{sep}{}; saves go to {}", Platform::MacOS.folder(&slug), release::app_bundle(name, &slug), Platform::MacOS.saves_hint(&slug)),
             });
         }
+        // Packs whose makers ask to be named, and aren't in the game's credits.
+        let unnamed = self.credits_missing();
+        if !unnamed.is_empty() {
+            p.notes.push(format!("The game's credits don't hold: {}. The packs this game uses ask to be named (Packs in this game, above).", unnamed.join("; ")));
+        }
         if opts.web {
             if web_binary().is_none() {
                 p.stops.push(NO_WEB_RUNNER.into());

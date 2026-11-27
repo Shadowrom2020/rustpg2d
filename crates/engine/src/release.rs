@@ -305,7 +305,7 @@ pub fn check(project: &Project) -> (Vec<String>, Check) {
     if maps.is_empty() {
         c.errors.push("The project has no maps.".into());
     } else if !maps.contains(&cfg.start_map) {
-        c.errors.push(format!("The start map '{}' does not exist (Database → Project).", cfg.start_map));
+        c.errors.push(format!("The start map '{}' does not exist: pick the map the game starts on (the game's settings, Game).", cfg.start_map));
     } else if let Ok(m) = project.load_map(&cfg.start_map) {
         if !m.zones.iter().any(|z| z.name == cfg.start_spawn) {
             c.warnings.push(format!("The start map has no spawn point '{}'; the player starts in the map's center.", cfg.start_spawn));
@@ -315,7 +315,7 @@ pub fn check(project: &Project) -> (Vec<String>, Check) {
         c.errors.push(format!("The project uses {}px tiles; open it in the editor to convert it to 32px.", cfg.tile_size));
     }
     if cfg.player.is_empty() || project.db.character(&cfg.player).is_none() {
-        c.warnings.push("No player character is set (Database → Project); a placeholder will be used.".into());
+        c.warnings.push("No player character is set (the game's settings, Hero & party); a placeholder will be used.".into());
     }
     let mut files: BTreeSet<String> = BTreeSet::new();
     files.insert("project.ron".into());

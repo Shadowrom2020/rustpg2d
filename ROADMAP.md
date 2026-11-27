@@ -1636,11 +1636,16 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     one's), each slot the model can wear a piece in with the pieces that fit (*the model's
     own*, *None*, a piece), and each colour feature of the model and its pieces as swatches
     of the colours it offers, *As drawn*, any other colour, and *Random colours*.
+  - **Structures have pictures** (`thumbs.rs`): a structure is placed on a map of its own
+    and drawn as a map is (its ground, what lies and stands on it), once and again when it
+    changed, two a frame: its card in *Structures*, in the Place tool's palette and at the
+    top of its tab. (Saving a selection of a map as a structure and placing one are part 6.)
   Still open: the anchor of the picture and the light's place (the engine has neither as a
   field: the picture stands on the hitbox's southern edge, the light sits at two thirds of
   the picture's height), a figure sitting or lying at the use spot instead of the ring, a
   building's ridge, overhang and openings dragged on the picture; starting from a model, a
-  picture, measurements, Meshy; the presets; structures; of the character workshop: rules,
+  picture, measurements, Meshy; the presets; a structure opened as a document on the map
+  canvas; of the character workshop: rules,
   day, talk, shop and loot as parts of one document (they are sections of the form below),
   equipment picked as cards, the presets, *Start from…* another character; templates in
   *New…*; import helpers; the pixel editor; Generate art.
@@ -1673,6 +1678,9 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     with its light and reach; the chest's corner dragged (28 to 64 pixels wide, 16 deep as
     before) and undone, the chair's spot dragged and the chair turned, the campfire's reach
     dragged from 3 to 5 tiles and undone; the cottage as a building with its roof, turned.
+  - Structures: in the window the example's 37 structures as cards with their pictures
+    (cottages with their roofs, walls and fences, furnished rooms on their floors, the
+    fishing dock on its water, the lookout tower).
   - The character's look: `looks::tests` (a figure's slots by name with the pieces that fit
     it, a piece bringing its colour features once each; another model dropping the old
     one's colours and pieces; random colours being offered ones); `charshop::ui_tests` (the

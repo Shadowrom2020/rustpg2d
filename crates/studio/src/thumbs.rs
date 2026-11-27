@@ -61,6 +61,11 @@ pub struct Thumbs {
     /// made when a sheet is first shown. The engine's own textures keep colour and alpha apart,
     /// which egui would draw with bright fringes around soft edges.
     sheets: HashMap<usize, Texture2D>,
+    /// Structures are drawn when first shown (and again when they changed): placed on a map
+    /// of their own and drawn as a map is. By id: what was drawn, and its picture.
+    structures: HashMap<String, (rustpg2d_engine::defs::StructureDef, gfx::Screen)>,
+    /// How many structures may still be drawn this frame (a long list fills in over some).
+    structures_left: u32,
     frame: u64,
     generation: u64,
 }
@@ -80,7 +85,11 @@ impl Thumbs {
         if reloaded {
             self.materials.clear();
             self.sheets.clear();
+            self.structures.clear();
         }
+        self.structures_left = 2;
+        // (Structures that are gone, or renamed.)
+        self.structures.retain(|id, _| ws.project.db.structure(id).is_some());
         let frame = self.frame;
         let old: Vec<usize> = self.shown.iter().filter(|(_, (_, _, last))| reloaded || frame - last > KEEP_FRAMES).map(|(k, _)| *k).collect();
         if !old.is_empty() {
@@ -170,6 +179,43 @@ impl Thumbs {
         Some(Thumb { texture: self.id(rs, &texture, false), uv, size: egui::vec2(image.width as f32 / frames, image.height as f32) })
     }
 
+    /// A structure as it stands on a map: its ground, what lies and stands on it.
+    fn structure(&mut self, ws: &Workspace, rs: &RenderState, id: &str) -> Option<Thumb> {
+        use gfx::prelude::*;
+        let def = ws.project.db.structure(id)?;
+        if !self.structures.get(id).is_some_and(|(drawn, _)| drawn == def) {
+            if self.structures_left == 0 || ws.gpu == editor_core::Gpu::No {
+                // (Its old picture until its turn comes.)
+                return self.structures.get(id).map(|(_, screen)| screen.texture().clone()).map(|t| Thumb { texture: self.id(rs, &t, true), uv: egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)), size: egui::vec2(t.width(), t.height()) });
+            }
+            self.structures_left -= 1;
+            let ts = ws.ts();
+            // A map a tile larger on every side, the structure in its middle.
+            let mut map = rustpg2d_engine::map::Map::new("@structure", def.w + 2, def.h + 2);
+            def.place(&mut map, 1, 1);
+            let (w, h) = (def.w as f32 * ts, def.h as f32 * ts);
+            let screen_size = vec2(240.0, 200.0);
+            let center = vec2(ts + w / 2.0, ts + h / 2.0);
+            let zoom = crate::scene::Look::fit(w, h + 2.0 * ts, screen_size, false).min(2.0);
+            let look = crate::scene::Look { center, zoom, screen: screen_size, topdown: false };
+            // (What stands on it rises above its ground: the ground a little lower in the picture.)
+            let look = crate::scene::Look { center: center - look.pan(vec2(0.0, ts * zoom * 0.6)), ..look };
+            let scene = crate::scene::Scene { db: &ws.project.db, assets: &ws.assets, look };
+            let mut screen = self.structures.remove(id).map_or_else(|| gfx::Screen::new(screen_size.x as u32, screen_size.y as u32, 1.0), |(_, s)| s);
+            let mut input = gfx::input::Input::default();
+            gfx::with_screen(&mut screen, &mut input, || {
+                clear_background(Color::from_rgba(38, 40, 46, 255));
+                set_camera(&look.ground());
+                let view = look.visible();
+                rustpg2d_engine::render::ground::GroundRenderer::new().draw(&map, scene.db, scene.assets, view, WHITE);
+                scene.draw_objects(&map, view, false, WHITE, false, (true, true));
+            });
+            self.structures.insert(id.to_string(), (def.clone(), screen));
+        }
+        let t = self.structures.get(id)?.1.texture().clone();
+        Some(Thumb { texture: self.id(rs, &t, true), uv: egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)), size: egui::vec2(t.width(), t.height()) })
+    }
+
     /// The picture of a definition; `None` for what has none (a sound, a quest).
     pub fn of(&mut self, ws: &Workspace, rs: &RenderState, kind: RefKind, id: &str) -> Option<Thumb> {
         let db = &ws.project.db;
@@ -193,6 +239,7 @@ impl Thumbs {
                 self.figure(ws, rs, &Appearance { model: body.clone(), ..Default::default() })
             }
             RefKind::Material => self.material(ws, rs, id),
+            RefKind::Structure => self.structure(ws, rs, id),
             _ => None,
         }
     }
@@ -233,7 +280,7 @@ pub fn boxed(ui: &mut egui::Ui, side: f32, thumb: impl FnOnce() -> Option<Thumb>
 
 /// Whether definitions of `kind` have pictures ([`Thumbs::of`]).
 pub fn has_pictures(kind: RefKind) -> bool {
-    matches!(kind, RefKind::Item | RefKind::Spell | RefKind::Achievement | RefKind::Prop | RefKind::Sheet | RefKind::Character | RefKind::Model | RefKind::Race | RefKind::Material)
+    matches!(kind, RefKind::Item | RefKind::Spell | RefKind::Achievement | RefKind::Prop | RefKind::Sheet | RefKind::Character | RefKind::Model | RefKind::Race | RefKind::Material | RefKind::Structure)
 }
 
 /// A card to click: a picture with a name under it.

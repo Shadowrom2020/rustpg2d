@@ -49,6 +49,16 @@ fn asset(ws: &Workspace, a: &[String]) -> Result<(RefKind, String), String> {
     }
 }
 
+/// `keep` (the default), `replace` or `copy`: what happens to assets of the same id.
+fn same_id(word: Option<&String>) -> Result<crate::packs::SameId, String> {
+    match word.map(String::as_str) {
+        None | Some("") | Some("keep") => Ok(crate::packs::SameId::Keep),
+        Some("replace") => Ok(crate::packs::SameId::Replace),
+        Some("copy") => Ok(crate::packs::SameId::Copy),
+        Some(other) => Err(format!("{other}: keep, replace or copy")),
+    }
+}
+
 fn need_project(ws: &Workspace) -> Result<(), String> {
     if ws.project_open {
         Ok(())
@@ -155,6 +165,116 @@ pub const COMMANDS: &[Command] = &[
                 _ => ws.make_def(kind, &name, from)?,
             };
             Ok(format!("Made {} \"{id}\"", kind.name()))
+        },
+    },
+    Command {
+        id: "packs.share",
+        title: "Share as a pack",
+        keys: "",
+        params: &["folder", "title", "version", "kind:id…"],
+        help: "Writes assets of the project (each with what it needs) as a pack file into the folder and lists it in the index.ron there: the folder is a source others can add. The title in one word (use _ for spaces); further words author:NAME licence:NAME plugin:ID.",
+        changes: false,
+        run: |ws, a| {
+            need_project(ws)?;
+            let out = std::path::PathBuf::from(arg(a, 0, "folder")?);
+            let mut manifest = rustpg2d_engine::packs::PackManifest::new(&arg(a, 1, "title")?.replace('_', " "));
+            manifest.version = arg(a, 2, "version")?.to_string();
+            let (mut assets, mut plugins) = (Vec::new(), Vec::new());
+            for w in &a[3.min(a.len())..] {
+                match w.split_once(':') {
+                    Some(("author", v)) => manifest.author = v.replace('_', " "),
+                    Some(("licence", v)) => manifest.licence = v.replace('_', " "),
+                    Some(("plugin", v)) => plugins.push(v.to_string()),
+                    Some((kind, id)) => assets.push((kind_named(kind)?, id.to_string())),
+                    None => return Err(format!("{w}: kind:id, author:NAME, licence:NAME or plugin:ID")),
+                }
+            }
+            let file = ws.share_pack(&manifest, &assets, &plugins, Vec::new(), &out)?;
+            Ok(format!("Shared as {}", file.display()))
+        },
+    },
+    Command {
+        id: "packs.look",
+        title: "Look at a pack file",
+        keys: "",
+        params: &["file"],
+        help: "Says what a pack file (or an asset package, plugin or starter library file of 0.35) is and what installing it would do: what is new, the same or different in the asset library, what in it runs, what it needs.",
+        changes: false,
+        run: |ws, a| {
+            let file = arg(a, 0, "file")?;
+            let bytes = std::fs::read(file).map_err(|e| format!("reading {file}: {e}"))?;
+            Ok(ws.pack_preview(&bytes)?.line())
+        },
+    },
+    Command {
+        id: "packs.install",
+        title: "Install a pack file",
+        keys: "",
+        params: &["file", "keep|replace|copy"],
+        help: "Installs a pack file into the asset library. What the library has under the same id with other content is kept (the default), replaced, or the pack's comes in as a copy under a new id.",
+        changes: false,
+        run: |ws, a| {
+            let file = arg(a, 0, "file")?;
+            let bytes = std::fs::read(file).map_err(|e| format!("reading {file}: {e}"))?;
+            ws.install_pack(&bytes, same_id(a.get(1))?, "")
+        },
+    },
+    Command {
+        id: "packs.source",
+        title: "Look at a source of packs",
+        keys: "",
+        params: &["address"],
+        help: "Lists what a source offers: a web address of an index.ron, or a folder with one. The newest version of each pack this editor can use, and whether it is installed.",
+        changes: false,
+        run: |ws, a| {
+            let address = arg(a, 0, "address")?;
+            let index = crate::packs::read_index(address)?;
+            let installed = ws.installed_packs();
+            let lines: Vec<String> = index
+                .newest()
+                .iter()
+                .map(|e| {
+                    let have = installed.iter().find(|p| p.manifest.id == e.manifest.id).map(|p| p.manifest.version.clone());
+                    let state = match have {
+                        Some(v) if v == e.manifest.version => "installed".to_string(),
+                        Some(v) => format!("installed: {v}"),
+                        None => "not installed".to_string(),
+                    };
+                    format!("{} {} ({}): {} · {} bytes · {state}", e.manifest.title, e.manifest.version, e.manifest.id, e.holds.join(", "), e.size)
+                })
+                .collect();
+            Ok(format!("{}: {} pack(s)\n{}", index.title, lines.len(), lines.join("\n")))
+        },
+    },
+    Command {
+        id: "packs.get",
+        title: "Install a pack from a source",
+        keys: "",
+        params: &["address", "pack id", "keep|replace|copy"],
+        help: "Downloads the newest version of a pack from a source, checks it against the size and SHA-256 the source's index names (anything else is refused) and installs it into the asset library.",
+        changes: false,
+        run: |ws, a| {
+            let (address, id) = (arg(a, 0, "address")?, arg(a, 1, "pack id")?);
+            let index = crate::packs::read_index(address)?;
+            let newest = index.newest();
+            let entry = newest.iter().find(|e| e.manifest.id == id).ok_or_else(|| format!("{} offers no pack \"{id}\" this editor can use", index.title))?;
+            let bytes = crate::packs::download(entry, address)?;
+            ws.install_pack(&bytes, same_id(a.get(2))?, address)
+        },
+    },
+    Command {
+        id: "packs.list",
+        title: "List the installed packs",
+        keys: "",
+        params: &[],
+        help: "The packs installed in the asset library, with their versions and where they came from.",
+        changes: false,
+        run: |ws, _| {
+            let list = ws.installed_packs();
+            if list.is_empty() {
+                return Ok("No packs are installed".into());
+            }
+            Ok(list.iter().map(|p| format!("{} {} ({}): {} assets{}{}", p.manifest.title, p.manifest.version, p.manifest.id, p.assets.len(), if p.plugins.is_empty() { String::new() } else { format!(", plugins {}", p.plugins.join(" ")) }, if p.source.is_empty() { String::new() } else { format!(" · from {}", p.source) })).collect::<Vec<_>>().join("\n"))
         },
     },
     Command {

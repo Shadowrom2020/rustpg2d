@@ -2052,8 +2052,25 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     (`index.ron`, `SourceIndex`): each pack's manifest, file, size, SHA-256 and what it
     holds; `IndexEntry::check` refuses a download that isn't the file named; `newest` offers
     the newest usable version of each pack.
-  Still open: installing packs into the library and what is installed, updates, sources in
-  the editor, *Share…*, licences; the old writers (`.r2dlib`, `.r2dplugin`) folded away; and
+  - **Packs in the editor's core** (`editor-core/src/packs.rs`, commands `packs.*`):
+    `pack_preview` says what a file is and what installing it would do (what the library
+    doesn't have, has as it is, has under the same id but different; what in it runs; the
+    packs it needs that aren't there; the version installed); `install_pack` puts its
+    assets, files and script functions into the library with the same id *kept*,
+    *replaced* or brought in as a *copy* under a new id, its plugins into the library's
+    `plugins/`, its previews under `packs/<id>/`, and records it in the library's
+    `packs.ron` (manifest, the assets it brought under the ids they have there, where it
+    came from); a pack that needs one that isn't installed is refused. `share_pack` writes
+    a selection of the project with what it needs as `<id>-<version>.r2dpack` into a folder
+    and lists it in the `index.ron` there, so the folder is a source as it is or uploaded.
+    `read_index` / `download` read a source by web address or folder; a download is checked
+    against the index's size and SHA-256. Commands: `packs.share FOLDER TITLE VERSION
+    kind:id… [author:… licence:… plugin:…]`, `packs.look FILE`, `packs.install FILE
+    [keep|replace|copy]`, `packs.source ADDRESS`, `packs.get ADDRESS ID [keep|replace|copy]`,
+    `packs.list`.
+  Still open: packs, sources and *Share…* in the window (they are commands so far), updates
+  per asset (which ones the creator changed), licences on the Publishing page, the starter
+  library installed as a pack, the old writers (`.r2dlib`, `.r2dplugin`) folded away; and
   of the tab: pictures of the library's assets, tags and filters, dragging onto a map, the
   starter library's installing and updating from the window.
 
@@ -2061,6 +2078,19 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   a version 2 offered and applied, a changed asset kept, a wrong SHA-256 refused. A shared pack
   installed into a fresh library and used in a new project. The starter pack installed through
   the same path. A 0.35 `.r2dpack` and `.r2dplugin` installed.
+  - The core, in tests (`editor-core` `packs`): the example's chest and guard shared (the
+    guard's model and its file come along), the folder read as a source, the pack looked at
+    (all new), installed into an empty library, listed, read again from the library's
+    files; a version 1.1 with a renamed chest: differing, kept, replaced, the first version
+    brought in as a copy under a new id; a pack that needs a missing one refused; a changed
+    file refused; a pack forgotten.
+  - **Over HTTP with the real editor** (`python3 -m http.server` on the shared folder, a new
+    empty library, a new project): `packs.source` lists *Market things 1.0* as not
+    installed, `packs.get` installs its 29 assets, a *Watchman* and a *Strongbox* are made
+    from the library's guard and chest in the new project; version 1.1 is offered
+    (*installed: 1.0*), looked at (1 differing), applied with the library's chest kept,
+    then with it replaced; with a byte of the served file changed the download is refused
+    for its SHA-256.
   - The format: `packs` tests in the engine (a pack with an item, its sheet and file, a
     script function, a plugin and a preview written and read again as it was, its manifest
     alone read without unpacking; bad ids and versions, a newer format, a newer engine and

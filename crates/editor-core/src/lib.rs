@@ -24,6 +24,7 @@ pub mod modelcheck;
 pub mod models;
 pub mod names;
 pub mod package;
+pub mod packs;
 pub mod pixels;
 pub mod problems;
 pub mod project_file;

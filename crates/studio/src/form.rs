@@ -653,7 +653,9 @@ pub fn node_ui(ui: &mut egui::Ui, cx: &mut Cx, node: Node, row: Row, v: &mut Val
         Shape::List(_) | Shape::Map(_) | Shape::Fixed(_) => {
             let n = v.as_array().map(Vec::len).or_else(|| v.as_object().map(serde_json::Map::len)).unwrap_or(0);
             let about = if n == 0 { "none".to_string() } else { format!("{n}") };
-            group(ui, (label, "list"), [label, help, &about], depth <= 1 && n > 0 && n <= 6, |_| (), |ui| body(ui, cx, node, site, v, depth + 1)).0
+            // (Events are open, also while there are none: what happens is what one comes for.)
+            let events = matches!(&shape, Shape::List(inner) if inner.type_name() == "Trigger");
+            group(ui, (label, "list"), [label, help, &about], depth <= 1 && (events || (n > 0 && n <= 6)), |_| (), |ui| body(ui, cx, node, site, v, depth + 1)).0
         }
         _ => {
             let about = summary(v);
@@ -772,7 +774,7 @@ fn sprite_ui(ui: &mut egui::Ui, cx: &mut Cx, fields: &[Field], v: &mut Value, de
 }
 
 /// The inside of a group (no header of its own).
-fn body(ui: &mut egui::Ui, cx: &mut Cx, node: Node, site: &str, v: &mut Value, depth: usize) -> bool {
+pub(crate) fn body(ui: &mut egui::Ui, cx: &mut Cx, node: Node, site: &str, v: &mut Value, depth: usize) -> bool {
     let mut changed = false;
     match node.shape() {
         Shape::Optional(inner) => changed |= body(ui, cx, inner, site, v, depth),
@@ -819,6 +821,10 @@ fn body(ui: &mut egui::Ui, cx: &mut Cx, node: Node, site: &str, v: &mut Value, d
             if list.len() > MAX_LIST {
                 ui.weak(format!("{} entries (too many to lay out here)", list.len()));
                 return false;
+            }
+            // Triggers, conditions and actions are rows of the event sheet.
+            if let Some(changed) = crate::sheet::list(ui, cx, inner, site, list, depth) {
+                return changed;
             }
             let inner_shape = inner.shape();
             let rows = is_inline(&inner_shape);

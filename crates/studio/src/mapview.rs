@@ -778,6 +778,8 @@ impl MapView {
             crate::form::set_narrow(ui.ctx(), true);
             self.inspector(ui, p, name);
             crate::form::set_narrow(ui.ctx(), false);
+            // (Room under the last row: the bar that scrolls sideways lies over the bottom edge.)
+            ui.add_space(18.0);
         });
     }
 
@@ -2800,6 +2802,46 @@ mod ui_tests {
         assert_eq!(h.state().ws.timeline.done.last().unwrap().label, "Replace with Town Guard");
         while h.state_mut().ws.undo().is_some() {}
         assert_eq!(h.state().ws.doc.as_ref().unwrap().map.entities.len(), entities);
+        let dir = h.state().dir.clone();
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn an_event_added_in_the_inspector_is_a_step_of_the_map() {
+        let mut h = village("events");
+        h.run();
+        let uid = h.state().ws.doc.as_ref().unwrap().map.entities.iter().find(|e| e.name == "guard").unwrap().uid;
+        let triggers = |h: &Harness<'static, State>| h.state().ws.doc.as_ref().unwrap().map.entity(uid).unwrap().triggers.clone();
+        let before = triggers(&h);
+        h.get_by_role_and_label(egui::accesskit::Role::Button, "guard").click();
+        h.run();
+        // The event sheet in the Inspector (scrolled to: it is below the character's day): a
+        // new event from the list of what a placed thing gets.
+        h.get_by_label("+ Add an event…").scroll_to_me();
+        h.run();
+        h.get_by_label("+ Add an event…").click();
+        h.run();
+        h.get_by_label("When it is defeated").click();
+        h.run();
+        let now = triggers(&h);
+        assert_eq!(now.len(), before.len() + 1);
+        assert_eq!(now.last().unwrap().on, rustpg2d_engine::events::TriggerOn::Defeat);
+        assert!(h.state().ws.timeline.done.last().unwrap().label.starts_with("Change "));
+        // An action from the palette; undone twice, the guard is as it was.
+        // (Its own event is open too: the new one's list is the last.)
+        h.query_all_by_label("+ Add an action…").last().unwrap().scroll_to_me();
+        h.run();
+        h.query_all_by_label("+ Add an action…").last().unwrap().click();
+        h.run();
+        let search = h.get_by_role_and_label(egui::accesskit::Role::TextInput, "Search the actions");
+        search.focus();
+        search.type_text("experience");
+        h.run();
+        h.get_by_role_and_label(egui::accesskit::Role::Button, "Give experience").click();
+        h.run();
+        assert!(matches!(triggers(&h).last().unwrap().actions.as_slice(), [rustpg2d_engine::events::Action::GiveXp { .. }]));
+        while h.state_mut().ws.undo().is_some() {}
+        assert_eq!(triggers(&h), before);
         let dir = h.state().dir.clone();
         let _ = std::fs::remove_dir_all(dir);
     }

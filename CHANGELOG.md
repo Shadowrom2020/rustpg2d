@@ -86,6 +86,13 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   Ctrl+Z takes a house back together with the prop made for it. A room of thick walls now
   stands around the floor you dragged (0.35 put the walls on the floor's own tiles), and a
   door in a wall closes the room for *Inside walls*.
+- **The event sheet** (part 7): wherever events are edited (a placed character, a zone, a map,
+  a definition), each one reads as a sentence, *When the player uses it or talks to it, if the
+  flag met_elder is not set · 3 actions*, and opens as **When**, **If** and **Do**. Every
+  condition and action is one line that says what it does (*Elder: "Welcome, traveller."*,
+  *Give 2 x Healing Potion*), opened in place to change it, dragged to another place, copied
+  to another event, character or map from its menu. New actions come from a searched list in
+  the manual's groups, new events from the events that owner can get.
 - **More on the map** (part 6): copy, cut and paste what is selected, on the same map or onto
   another (Ctrl+C / X / V); *Replace with…* puts another definition in a thing's place;
   several things are put in a row or a column; a placed prop's state is picked among its own

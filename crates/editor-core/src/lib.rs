@@ -11,6 +11,7 @@ pub mod frame_ops;
 pub mod history;
 pub mod library;
 pub mod build;
+pub mod events;
 pub mod mapedit;
 pub mod mapops;
 pub mod mcp;

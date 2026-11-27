@@ -19,6 +19,7 @@ mod buildtool;
 mod mapview;
 mod play;
 mod scene;
+mod sheet;
 mod shell;
 mod thumbs;
 mod worldview;

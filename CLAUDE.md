@@ -155,7 +155,7 @@ crates/editor-core/src/ the editor without its UI (0.36): workspace.rs (Workspac
                         status), doc.rs (MapDoc + undo), history.rs (definitions' undo: history_frame), meta.rs (the
                         creator's folders, tags, notes, favourites: editor/meta.ron, `Workspace::meta_edit`), schema.rs (the
                         field schema: shapes from the engine's types + labels, sections, id fields), rename.rs,
-                        refs.rs, search.rs, problems.rs, mapops.rs, mapedit.rs (what changes the open map, a step each), build.rs (the Build tool: walls, rooms, houses, roofs, openings; sync_buildings),
+                        refs.rs, search.rs, problems.rs, mapops.rs, mapedit.rs (what changes the open map, a step each), events.rs (triggers, conditions and actions in words; the actions' groups), build.rs (the Build tool: walls, rooms, houses, roofs, openings; sync_buildings),
                         testsetup.rs (what a test-play starts with: kept per project, written as a save),
                         world.rs (the maps and the ways between them: survey_world, link_transitions), models.rs, library.rs, starter.rs, art/ (Meshy
                         jobs), project_file.rs, files.rs (settings, recent), repo_mode.rs, mcp/ (the agent server:
@@ -163,6 +163,7 @@ crates/editor-core/src/ the editor without its UI (0.36): workspace.rs (Workspac
 crates/studio/src/      the new editor (0.36): main.rs (the eframe window; `--headless PROJECT --mcp PORT` = the agent
                         server without a window), shell.rs (dock, browser, palettes, tabs), form.rs (forms from the
                         field schema), thumbs.rs (pictures of assets from the engine's textures), gallery.rs (New…),
+                        sheet.rs (the event sheet: every list of triggers / conditions / actions in a form as When / If / Do rows),
                         mapview.rs (a map's tab: view, tools, Outliner, Inspector; buildtool.rs = the Build tool's panel) over scene.rs (a map drawn as the game does),
                         worldview.rs (every map and the ways between them),
                         play.rs (the game in a panel: its bar, the State panel); examples/mcp_smoke.rs
@@ -586,7 +587,9 @@ itself is still built as content on top of it. The checklist below is for that c
 ### Where a new feature usually has to touch (approved engine changes)
 
 - **New `Action` / `Cond` variant:** `events/mod.rs` (variant at the end, `label()`,
-  `templates()`), execution in `runtime/mod.rs` (`execute`) or `Condition::eval` /
+  `templates()`), the action's group in `editor-core/src/events.rs` (`ACTION_GROUPS`: a test fails
+  until it is in one) and, when it deserves words of its own, its line in `action_summary` /
+  `condition_summary` there (the event sheet's rows), execution in `runtime/mod.rs` (`execute`) or `Condition::eval` /
   `runner::conditions_met`, editor fields in `widgets.rs` (action fields / `conditions_ui`),
   `refactor.rs` if it references ids, and a Rhai function in `script.rs` if useful.
 - **New script function:** register it in `script.rs` and add it to the `API` table in

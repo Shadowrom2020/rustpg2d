@@ -1328,7 +1328,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     two-storey cottage; a stone house with a wing over one roof and a window clicked into
     its wall. Not shown: a built house played in the game from the editor (it is the same
     prop data 0.35's tool made).
-- [ ] Part 7: Events, conversations and scripts — `feature/studio`
+- [~] Part 7: Events, conversations and scripts — `feature/studio`
 
   **Goal.** What happens in the game is as easy to write and to read as it is to place a prop.
 
@@ -1351,12 +1351,56 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     (`nodes.rs`) on one node canvas, the cut-scene timeline, the animation editor, the quest
     designer.
 
+  **Progress.** The event sheet (`studio/src/sheet.rs` over `editor-core/src/events.rs`): every
+  list of triggers, conditions and actions in every form is shown by it (a placed character's
+  Inspector, a zone, the map's own events, a definition, the branches of an *If*).
+  - **An event is a line**, *When the player uses it or talks to it, if the flag met_elder is
+    not set · 3 actions*, opened as **When** (the event and what it names), **If** (its
+    conditions; none: *always*) and **Do** (its actions), with *Only once* under them.
+  - **A condition or an action is a line that says what it does** (`events::action_summary`,
+    `condition_summary`, `trigger_summary`): *Elder: "Welcome, traveller."*, *Give 2 x Healing
+    Potion*, *It changes to the state lit*, *If the flag … is not set: 2 actions, else 1*,
+    definitions by their names. Kinds without words of their own show their name and plain
+    values. A click opens the row in place with its fields (one row of a list at a time).
+  - **Rows are dragged** to another place in their list; a row's menu moves it up and down,
+    duplicates, copies, cuts, pastes above and deletes; *Paste* beside *+ Add…* puts the
+    copied row at the end of any list of its kind: another event, another character,
+    another map. Whole events are copied the same way.
+  - **+ Add an action…** is a searched palette in the manual's groups (Talking, Game state,
+    Entities and the world, Cut-scenes and effects, Rules, Magic), each kind with the engine's
+    own comment as its help and starting as the engine's template (a count of 1, not 0).
+    **+ Add an event…** offers the events that reach that owner, the likeliest first, as
+    sentences. Lists of events are open in a form also while they are empty.
+  Still open: rows dragged from one list into another and several rows selected at once
+  (copy and paste does it one by one); *Try it*; the conversation view; the flags and
+  variables page; scripts in tabs; the documents (Events graph, visual scripts, cut-scene
+  timeline, animation editor, quest designer).
+
+  **Decided while building.**
+  - **The sheet reads the values as the files hold them** (JSON, as the forms do), so it is
+    one piece of code for every place a list of events can be, and a kind the summaries
+    don't know yet still gets a line.
+  - **The palette offers what the engine's templates offer**: *Give skill points* and *End
+    cut-scene* are not in them (old data keeps them and shows them).
+  - **The sheet's clipboard is the editor's own**, kept while it runs; it holds one row of
+    each kind (an event, a condition, an action).
+
   **Engine.** None; maybe an *off* mark on an action (a row switched off while testing), asked
   for when the part starts.
 
   **Verify.** `egui_kittest`: build a trigger with a condition and three actions, reorder, copy to
   another character, undo; write a conversation with a choice and play it; rename a flag from its
   page (script and triggers follow). Screenshots.
+  - Done so far: `events::tests` (every action the engine offers is in exactly one group and
+    has a line, every event and condition has one, fifteen lines word for word);
+    `sheet::ui_tests` (an event built from the lists: a condition, three actions from the
+    grouped palette, a row closed and moved from its menu, duplicated, the event copied to
+    a prop's list and removed; rows keep their place when one is moved, pasted or removed);
+    `an_event_added_in_the_inspector_is_a_step_of_the_map` (a guard gets *When it is
+    defeated* and *Give experience* from the searched palette; undone, he is as he was). In
+    the window: the campfire's four events read as sentences, one opened with its *If* and
+    three *Do* rows, an action opened in place, the palette searched for "stat"; the guard's
+    events in the Inspector and the list of events to add.
 
 - [ ] Part 8: Workshops — `feature/studio`
 

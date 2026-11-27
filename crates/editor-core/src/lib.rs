@@ -39,6 +39,7 @@ pub mod starter;
 pub mod structdoc;
 pub mod testsetup;
 pub mod timeline;
+pub mod tours;
 pub mod visualedit;
 pub mod workspace;
 pub mod world;

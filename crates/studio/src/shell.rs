@@ -344,6 +344,7 @@ pub struct Shell {
     pub library: crate::librarypage::LibraryPage,
     pub art: crate::artpage::ArtPage,
     pub help: crate::helpview::HelpView,
+    pub tour: crate::tourpanel::TourPanel,
     /// The home screen's fields.
     pub home: Home,
     /// The timelines of the cut-scenes open in tabs, by id.
@@ -393,7 +394,7 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, share: None, lib_look: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), art: Default::default(), help: Default::default(), timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), model_stages: Default::default(), pixels: Default::default(), sounds: Default::default(), sheets: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new() }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, share: None, lib_look: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), art: Default::default(), help: Default::default(), tour: Default::default(), timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), model_stages: Default::default(), pixels: Default::default(), sounds: Default::default(), sheets: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new() }
     }
 
     /// Whether anything waits to be saved: definitions, maps, scripts.
@@ -702,6 +703,14 @@ impl Shell {
         }
     }
 
+    /// The tour that is followed: the words of `TourPanel::word`; returns its `status` line.
+    pub fn tour_word(&mut self, ctx: &egui::Context, args: &[String]) -> String {
+        match self.tour.word(&self.ws, args) {
+            Ok(()) => self.tour.status(ctx, &self.ws),
+            Err(e) => format!("failed: {e}"),
+        }
+    }
+
     /// A file dropped on the window: a pack is looked at on the Library tab; a 3D model, a
     /// picture or a sound opens *New…* with it.
     pub fn dropped(&mut self, file: &std::path::Path) {
@@ -927,6 +936,7 @@ impl Shell {
         if !self.ws.project_open {
             return;
         }
+        self.tour.played();
         if matches!(&from, PlayFrom::Tile(map, ..) if editor_core::structdoc::is_scratch(map)) {
             self.ws.set_status("A structure is no map to play on: place it on a map and play from there");
             return;
@@ -1159,14 +1169,15 @@ impl Shell {
                     let (e, w) = self.ws.problems.counts();
                     ui.label(format!("{e} errors, {w} warnings"));
                     ui.separator();
-                    ui.label(if self.unsaved() { "unsaved changes" } else { "saved" });
+                    let r = ui.label(if self.unsaved() { "unsaved changes" } else { "saved" });
+                    crate::tourpanel::mark(ui.ctx(), "status:saved", r.rect);
                 });
             });
         });
 
         let mut asks = Vec::new();
         {
-            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, library: &mut self.library, art: &mut self.art, help: &mut self.help, home: &mut self.home, timelines: &mut self.timelines, nodes: &mut self.nodes, stages: &mut self.stages, figures: &mut self.figures, model_stages: &mut self.model_stages, pixels: &mut self.pixels, sounds: &mut self.sounds, sheets: &mut self.sheets, scrub: &mut self.scrub, try_next: &mut self.try_next, rs, asks: &mut asks };
+            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, library: &mut self.library, art: &mut self.art, help: &mut self.help, tour: &mut self.tour, home: &mut self.home, timelines: &mut self.timelines, nodes: &mut self.nodes, stages: &mut self.stages, figures: &mut self.figures, model_stages: &mut self.model_stages, pixels: &mut self.pixels, sounds: &mut self.sounds, sheets: &mut self.sheets, scrub: &mut self.scrub, try_next: &mut self.try_next, rs, asks: &mut asks };
             DockArea::new(&mut self.dock).show_inside(ui, &mut viewer);
         }
         for ask in asks {
@@ -1213,6 +1224,12 @@ impl Shell {
             }
         }
         self.gallery_ui(&ctx, rs);
+        // A tour that is followed: its steps, and a frame around the control to use.
+        if let Some(crate::tourpanel::Want::Help(file, words)) = self.tour.show(&ctx, &self.ws) {
+            let (chapter, anchor) = editor_core::manual::topic(file, words);
+            self.help.open(chapter, &anchor);
+            self.show_tab(Tab::Help);
+        }
         // The *Share…* window.
         if let Some(mut w) = self.share.take() {
             if w.show(&ctx, &mut self.ws) {
@@ -1362,7 +1379,7 @@ impl Shell {
             }
         }
         ui.separator();
-        ui.menu_button("Play", |ui| {
+        let play_menu = ui.menu_button("Play", |ui| {
             if ui.button("From the title screen   F5").on_hover_text("The game as players get it, here in a tab").clicked() {
                 self.play_from(PlayFrom::Title);
                 ui.close();
@@ -1385,6 +1402,7 @@ impl Shell {
                 ui.close();
             }
         });
+        crate::tourpanel::mark(ui.ctx(), "menu:Play", play_menu.response.rect);
     }
 
     /// The entries the palette shows for its text: (label, detail, what Enter does).
@@ -1523,6 +1541,7 @@ struct Viewer<'a> {
     library: &'a mut crate::librarypage::LibraryPage,
     art: &'a mut crate::artpage::ArtPage,
     help: &'a mut crate::helpview::HelpView,
+    tour: &'a mut crate::tourpanel::TourPanel,
     home: &'a mut Home,
     timelines: &'a mut std::collections::HashMap<String, crate::timeline::Timeline>,
     nodes: &'a mut std::collections::HashMap<String, crate::nodesview::NodesView>,
@@ -1701,7 +1720,7 @@ impl Viewer<'_> {
                     self.browser_scripts(ui, &f);
                 }
                 for (kind, rows) in &found {
-                    egui::CollapsingHeader::new(format!("{} ({})", plural(kind.label()), rows.len())).id_salt(("kind", kind.name())).open(filtering.then_some(rows.len() <= 40)).show(ui, |ui| {
+                    let header = egui::CollapsingHeader::new(format!("{} ({})", plural(kind.label()), rows.len())).id_salt(("kind", kind.name())).open(filtering.then_some(rows.len() <= 40)).show(ui, |ui| {
                         if *kind != RefKind::Map {
                             ui.horizontal(|ui| {
                                 if ui.small_button(format!("+ New {}", kind.label().to_lowercase())).clicked() {
@@ -1749,6 +1768,7 @@ impl Viewer<'_> {
                             }
                         }
                     });
+                    crate::tourpanel::mark(ui.ctx(), &format!("browser:{}", kind.name()), header.header_response.rect);
                 }
             });
         }
@@ -1834,6 +1854,12 @@ impl Viewer<'_> {
         let cfg = &self.ws.project.config;
         ui.heading(&cfg.name);
         ui.weak(self.ws.project_location().display().to_string());
+        ui.add_space(8.0);
+        ui.strong("Learn by doing");
+        ui.weak("Three short tours through the editor: each shows its steps and points at what to click.");
+        if let Some(k) = self.tour.offer(ui) {
+            self.tour.start(self.ws, k);
+        }
         ui.add_space(8.0);
         ui.strong("To a playable game");
         let db = &self.ws.project.db;

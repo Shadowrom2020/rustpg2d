@@ -2256,9 +2256,25 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     one of that id, ***Take it from the library*** (with what it needs); each is a step and
     checks the list again. (A field that names something missing was marked already, and
     its picker picks another.)
+  - **Guided tours** (`editor-core/src/tours.rs`, `studio/src/tourpanel.rs`): a tour is data:
+    its steps, each with what to do, how (the names of what to click), the control the
+    editor points at, the check that ticks it, and where the manual says more. A step is
+    ticked by what the project is like, compared with how it was when the tour began (a map
+    is open, its ground was painted, something more stands on it, nothing waits to be
+    saved, the game was started, a new character, one more on the map, someone on the map
+    has a Say or a Choice, a new quest, its first stage rewritten, an event that starts
+    it), and only once the steps before it are done or skipped: a tour is followed in
+    order, in the creator's own way (a command, a key, a click all count). The three first
+    ones: *Your first map*, *A character who talks*, *A quest*. They are offered on the
+    Overview (*Learn by doing*); a small window at the lower right lists the steps, shows
+    the one at hand with *Read about it* (the manual at that part) and *Skip this step*,
+    and a pulsing frame is drawn around the control to use: the map's tools, a kind in
+    the Project browser, the Play menu, the saved mark (`tourpanel::mark`: a control says
+    where it is). At its end a tour offers the others.
   Still open: fields' longer help in the panel, empty places that say what to do next
-  (some do), guided tours, the agent set-up button, *What's new*; of the problems: *Remove
-  the reference*, fixes for other kinds of entries; of the Help tab: the manual's pictures,
+  (some do), the agent set-up button, *What's new*; of the tours: more controls that can
+  be pointed at (the Inspector's event sheet, *New…*), a tour that waits for the right tab;
+  of the problems: *Remove the reference*, fixes for other kinds of entries; of the Help tab: the manual's pictures,
   the place read last kept.
 
   **Decided while building.**
@@ -2274,6 +2290,18 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   **Verify.** Each tour followed on a fresh project by `egui_kittest`, ending with a play-test
   that starts. F1 from five places opens the right chapter. A broken reference fixed from the
   Problems panel.
+  - Tours: `tours` tests (on a new project with the library's basics, *Your first map*
+    step by step: opened, painted, a barrel placed, saved, played; saving counts only once
+    the steps before it do; steps skipped. *A character who talks*: a villager from the
+    library, placed, given a line. *A quest*: made, its first stage rewritten, handed out
+    by her. Every step's help names a chapter of the manual), `a_tour_shows_its_steps_
+    points_at_the_control_and_ticks_what_is_done` (begun from the offer, the step at hand
+    with how, *Read about it*, the next step pointing at a marked control, skipped, ended).
+    **In the window, the first tour followed to its end** on a new game: the Overview's
+    *Learn by doing*, the frame around *Terrain*, then *Place*, the saved mark and the Play
+    menu as each step was done by the script's map words, *Play here* starting the game:
+    5 of 5. The other two tours were followed in the core tests only; **the play-test of
+    a tour was started, nobody played it**.
   - A broken reference fixed from the Problems panel: `a_broken_reference_is_fixed_by_
     making_what_is_missing_or_taking_it_from_the_library` (a recipe naming two items that
     aren't there: the apple taken from the library with its icon's sheet, the stew made

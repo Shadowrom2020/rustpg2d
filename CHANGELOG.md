@@ -123,6 +123,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **The manual inside the editor** (part 10): the *Help* tab shows the Creator's Manual with
   its chapters, a search over all of it and links that lead on. **F1** opens it at the part
   about what you are working on: a map's tool, a kind of thing, scripts, publishing.
+- **Guided tours** (part 10): *Learn by doing* on the Overview starts one of three tours (*Your
+  first map*, *A character who talks*, *A quest*). A small window lists the steps, says how the
+  one at hand is done and ticks it when it is; a frame shows which control to use.
 - **Problems with fixes** (part 10): the Problems tab groups its entries, and one that says
   something doesn't exist offers *Create it* and, when the library has it, *Take it from the
   library*.

@@ -459,7 +459,9 @@ impl MapView {
     fn bar(&mut self, ui: &mut egui::Ui, p: &mut Parts, name: &str) {
         ui.horizontal_wrapped(|ui| {
             for t in Tool::offered(name) {
-                if ui.selectable_label(self.tool == t, t.label()).on_hover_text(format!("{} ({})", t.help(), t.key().name())).clicked() {
+                let r = ui.selectable_label(self.tool == t, t.label()).on_hover_text(format!("{} ({})", t.help(), t.key().name()));
+                crate::tourpanel::mark(ui.ctx(), &format!("tool:{}", t.label()), r.rect);
+                if r.clicked() {
                     self.tool = t;
                 }
             }

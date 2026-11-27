@@ -37,6 +37,7 @@ mod sheet;
 mod shell;
 mod thumbs;
 mod timeline;
+mod tourpanel;
 mod worldview;
 
 use std::collections::VecDeque;
@@ -171,6 +172,9 @@ impl Studio {
                 // A character's workshop (its tab in front): `char model ID`, `char part SLOT ID|-|own`,
                 // `char color FEATURE RRGGBB|-`, `char random`, `char face front|left|back|right|turn`, `char anim walk|idle|attack|hurt`.
                 "char" => println!("[char] {}", self.shell.char_word(&cmd[1..])),
+                // A guided tour: `tour start first-map|talking-character|a-quest`, `tour skip`, `tour end`; `tour` prints
+                // `ID done/steps [x - .] now=STEP at=X,Y` (where the control it points at is).
+                "tour" => println!("[tour] {}", self.shell.tour_word(ctx, &cmd[1..])),
                 // The Help tab: `help topic` (as F1: the manual for the tab in front), `help open FILE [ANCHOR]`,
                 // `help search TEXT…`, `help hit K`, `help back`.
                 "help" => println!("[help] {}", self.shell.help_word(&cmd[1..])),

@@ -1458,10 +1458,35 @@ impl Viewer<'_> {
             ("A quest", !db.quests.is_empty()),
             ("No errors in the project check", self.ws.problems.status() != "-" && errors == 0),
         ];
-        for (text, done) in steps {
+        // (What is still to do leads to where it is done.)
+        let hero_page = editor_core::schema::PAGES.iter().map(|(title, ..)| *title).find(|t| *t == "Hero & party");
+        for (k, (text, done)) in steps.into_iter().enumerate() {
             ui.horizontal(|ui| {
                 ui.label(if done { "[x]" } else { "[ ]" });
-                ui.label(text);
+                if done {
+                    ui.label(text);
+                    return;
+                }
+                let (how, tip) = match k {
+                    0 => ("Game", "The Game page names the map the game starts on"),
+                    1 => ("Hero & party", "The Hero & party page names the player's character: one of the project's characters (the asset library has heroes to start from)"),
+                    2 => ("Asset library", "Ready-made characters to add, or New… makes one"),
+                    3 => ("New quest", "A quest with its steps and rewards"),
+                    _ => ("Check the project", "Looks for what players would run into"),
+                };
+                if ui.link(text).on_hover_text(tip).clicked() {
+                    match k {
+                        0 => self.asks.push(Ask::Open(Tab::Settings("Game"))),
+                        1 => self.asks.extend(hero_page.map(|p| Ask::Open(Tab::Settings(p)))),
+                        2 => self.asks.push(Ask::Open(Tab::Library)),
+                        3 => self.asks.push(Ask::New(Some(RefKind::Quest))),
+                        _ => {
+                            self.asks.push(Ask::Run("check.problems".into()));
+                            self.asks.push(Ask::Open(Tab::Problems));
+                        }
+                    }
+                }
+                ui.weak(how);
             });
         }
         ui.add_space(8.0);

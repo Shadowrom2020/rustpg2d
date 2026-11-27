@@ -1638,7 +1638,11 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   - Done so far: `librarypage::ui_tests` (the owlbear searched among 2,683 assets, ticked
     among the characters, added with its model as one step, marked as in the project and
     opened from there, undone). In the window: the same on a scratch library, the owlbear's
-    tab with its picture afterwards.
+    tab with its picture afterwards. From nothing to play: a new project, a guard, the stone
+    house and grass from the library (30 assets with what they need), the ground painted, a
+    house built, the guard placed, *Play here*: the game shows them (and a placeholder for
+    the hero: an empty project has none; the Overview's checklist now leads to where each
+    missing step is done).
 
 - [ ] Part 10: Help and guidance — `feature/studio`
 

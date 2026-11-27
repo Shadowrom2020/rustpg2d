@@ -120,6 +120,13 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **Drop a file to make something of it** (part 8): a 3D model (`.glb`) or a picture (`.png`)
   dropped on the editor becomes a prop that shows it, a sound file a sound: *New…* opens with
   the file and a name from it, Enter makes it. *New…* also takes a file's place typed in.
+- **Packs** (part 9): what you make can be given to others as one file. ***Share…*** in a
+  prop's, character's, item's… tab writes it as a pack with what it needs, under your name, a
+  licence and a version. On the Library tab, *Packs and sources* shows a pack before it is
+  installed (what it holds, what in it runs, what your library has differently), lists the
+  installed ones, and reads **sources**: a web address or folder that offers packs, whose
+  downloads are checked against its index. A pack file can also be dropped on the window.
+  Asset packages, plugin files and the starter library file of 0.35 are read as packs.
 - **Generate art** (part 8): the page for Meshy jobs (icons, portraits, pictures, 3D characters,
   creatures, item and prop models, more clips): what a job costs is on its button, the jobs
   show their progress and results, *Add to project* makes the thing. *Generate art…* in a

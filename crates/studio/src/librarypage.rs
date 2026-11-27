@@ -18,6 +18,9 @@ pub struct LibraryPage {
     pub ticked: Vec<AssetRef>,
     /// What the last *Add* said.
     pub said: Option<Result<String, String>>,
+    /// The packs and sources are shown instead of the assets.
+    pub on_packs: bool,
+    pub packs: crate::packspage::PacksPage,
 }
 
 impl LibraryPage {
@@ -65,6 +68,20 @@ impl LibraryPage {
     pub fn show(&mut self, ui: &mut egui::Ui, ws: &mut Workspace) -> Option<AssetRef> {
         ws.lib.ensure_loaded();
         let mut open = None;
+        // Its two sides: what it holds, and the packs that came in (with where more come from).
+        ui.horizontal(|ui| {
+            ui.selectable_value(&mut self.on_packs, false, "Assets").on_hover_text("Everything the library holds, to add to the project");
+            ui.selectable_value(&mut self.on_packs, true, "Packs and sources").on_hover_text("The packs installed, a pack file to install, the places packs are offered at");
+        });
+        ui.separator();
+        if self.on_packs {
+            if let Some(e) = &ws.lib.error {
+                ui.colored_label(ui.visuals().error_fg_color, e.as_str());
+                return None;
+            }
+            egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| self.packs.show(ui, ws));
+            return None;
+        }
         ui.horizontal_wrapped(|ui| {
             ui.label(egui::RichText::new("Asset library").strong());
             ui.add(egui::TextEdit::singleline(&mut self.filter).hint_text("Search").desired_width(200.0)).widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, "Search the library"));

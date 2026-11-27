@@ -230,6 +230,8 @@ enum Ask {
     New(Option<RefKind>),
     /// Generate art for this thing of the project.
     Art(RefKind, String),
+    /// *Share…*: these assets as a pack.
+    Share(Vec<rustpg2d_engine::library::AssetRef>),
     /// Look for what nothing uses.
     FindUnused,
     /// Start the game in the Play tab: from the title screen, on the start map, on a map at a
@@ -311,6 +313,8 @@ pub struct Shell {
     thumbs: crate::thumbs::Thumbs,
     /// The *New…* gallery while it is open.
     pub new_asset: Option<crate::gallery::NewAsset>,
+    /// The *Share…* window while it is open.
+    pub share: Option<crate::packspage::ShareWindow>,
     lib_look: Option<LibLook>,
     marks: Marks,
     /// The open maps' views (camera, selection, tool), by map.
@@ -379,7 +383,7 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, lib_look: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), art: Default::default(), timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), model_stages: Default::default(), pixels: Default::default(), sounds: Default::default(), sheets: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new() }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, share: None, lib_look: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), art: Default::default(), timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), model_stages: Default::default(), pixels: Default::default(), sounds: Default::default(), sheets: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new() }
     }
 
     /// Whether anything waits to be saved: definitions, maps, scripts.
@@ -619,6 +623,30 @@ impl Shell {
     pub fn art_word(&mut self, args: &[String]) -> String {
         match self.art.word(&mut self.ws, args) {
             Ok(()) => self.art.status(&self.ws),
+            Err(e) => format!("failed: {e}"),
+        }
+    }
+
+    /// A file dropped on the window: a pack is looked at on the Library tab; a 3D model, a
+    /// picture or a sound opens *New…* with it.
+    pub fn dropped(&mut self, file: &std::path::Path) {
+        if crate::packspage::PacksPage::takes(file) {
+            self.library.on_packs = true;
+            self.library.packs.open_file(&mut self.ws, file);
+            self.show_tab(Tab::Library);
+            return;
+        }
+        match crate::gallery::NewAsset::of_file(file) {
+            Some(new) => self.new_asset = Some(new),
+            None => self.ws.set_status(format!("{} is no 3D model (.glb), picture (.png), sound (.ogg, .wav) or pack (.r2dpack)", file.display())),
+        }
+    }
+
+    /// The packs of the Library tab: the words of `PacksPage::word`; returns its `status` line.
+    pub fn packs_word(&mut self, args: &[String]) -> String {
+        self.library.on_packs = true;
+        match self.library.packs.word(&mut self.ws, args) {
+            Ok(()) => self.library.packs.status(&mut self.ws),
             Err(e) => format!("failed: {e}"),
         }
     }
@@ -1007,10 +1035,7 @@ impl Shell {
         if self.ws.project_open {
             let dropped: Vec<std::path::PathBuf> = ctx.input(|i| i.raw.dropped_files.iter().map(|f| f.path().to_path_buf()).filter(|p| !p.as_os_str().is_empty()).collect());
             if let Some(file) = dropped.first() {
-                match crate::gallery::NewAsset::of_file(file) {
-                    Some(new) => self.new_asset = Some(new),
-                    None => self.ws.set_status(format!("{} is no 3D model (.glb), picture (.png) or sound (.ogg, .wav)", file.display())),
-                }
+                self.dropped(file);
             }
         }
         // A sound stops when its tab is closed.
@@ -1080,6 +1105,7 @@ impl Shell {
                     self.art.set_for(kind, &id, &self.ws);
                     self.show_tab(Tab::Art);
                 }
+                Ask::Share(assets) => self.share = Some(crate::packspage::ShareWindow::of(&self.ws, assets)),
                 Ask::FindUnused => self.find_unused(),
                 Ask::Play(from) => self.play_from(from),
                 Ask::PlayWindow => self.play_window(),
@@ -1111,6 +1137,12 @@ impl Shell {
             }
         }
         self.gallery_ui(&ctx, rs);
+        // The *Share…* window.
+        if let Some(mut w) = self.share.take() {
+            if w.show(&ctx, &mut self.ws) {
+                self.share = Some(w);
+            }
+        }
         self.palette_ui(&ctx);
     }
 
@@ -2089,6 +2121,9 @@ impl Viewer<'_> {
             }
             if ui.button("Delete").on_hover_text("Refused while something still uses it").clicked() {
                 self.asks.push(Ask::Run(format!("defs.delete {} {id}", kind.name())));
+            }
+            if rustpg2d_engine::library::KINDS.contains(&kind) && ui.button("Share…").on_hover_text("Writes it as a pack file with what it needs (pictures, sounds, models, the script functions its events call), under your name and a licence: to give to others, or to offer from a web address").clicked() {
+                self.asks.push(Ask::Share(vec![(kind, id.to_string())]));
             }
             if rustpg2d_engine::library::KINDS.contains(&kind) && ui.button("Send to library").on_hover_text("Puts it into the asset library with what it needs (pictures, sounds, models, the script functions its events call), for your other projects. One that is there already is added under a new id.").clicked() {
                 match self.ws.project_to_library(&[(kind, id.to_string())], false, false) {

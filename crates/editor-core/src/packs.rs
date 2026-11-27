@@ -298,6 +298,47 @@ impl Workspace {
         Ok(Pack { manifest, assets: bundle, plugins: packed, previews, history: None })
     }
 
+    /// Pictures for a pack's card: of the first few of `assets` that have one (an item's
+    /// icon, a prop's picture, a character's head), as PNGs. None without loaded art.
+    pub fn pack_pictures(&self, assets: &[AssetRef]) -> Vec<(String, Vec<u8>)> {
+        use rustpg2d_engine::imageio::Rgba;
+        let db = &self.project.db;
+        let of_image = |img: &gfx::texture::Image, r: gfx::math::Rect| -> Option<Vec<u8>> {
+            let (x0, y0, w, h) = (r.x.max(0.0) as u32, r.y.max(0.0) as u32, r.w as u32, r.h as u32);
+            if w == 0 || h == 0 || x0 + w > img.width as u32 || y0 + h > img.height as u32 {
+                return None;
+            }
+            let mut out = Rgba::new(w, h);
+            for y in 0..h {
+                let from = ((y0 + y) * img.width as u32 + x0) as usize * 4;
+                out.px[(y * w) as usize * 4..((y + 1) * w) as usize * 4].copy_from_slice(&img.bytes[from..from + w as usize * 4]);
+            }
+            out.encode().ok()
+        };
+        let sprite = |sp: &rustpg2d_engine::defs::SpriteRef| -> Option<Vec<u8>> {
+            let sheet = self.assets.sheets.get(&sp.sheet)?;
+            let (w, h) = sp.cells();
+            of_image(&sheet.image, sheet.region(sp.frame, w, h))
+        };
+        let mut out = Vec::new();
+        for (kind, id) in assets {
+            let png = match kind {
+                RefKind::Item => db.item(id).and_then(|d| sprite(&d.icon)),
+                RefKind::Prop => db.prop(id).and_then(|d| sprite(&d.sprite)),
+                RefKind::Sheet => sprite(&rustpg2d_engine::defs::SpriteRef::new(id, 0)),
+                RefKind::Character if self.gpu != crate::Gpu::No => db.character(id).and_then(|c| self.assets.models.bust_image(db, &self.assets.sheets, &c.appearance)).and_then(|img| of_image(&img, gfx::math::Rect::new(0.0, 0.0, img.width as f32, img.height as f32))),
+                _ => None,
+            };
+            if let Some(png) = png {
+                out.push((format!("{}-{id}.png", kind.name()), png));
+                if out.len() == 4 {
+                    break;
+                }
+            }
+        }
+        out
+    }
+
     /// *Share…*: writes the pack as `<id>-<version>.r2dpack` into the folder `out` and puts
     /// its entry into the `index.ron` there (made when there is none: the folder is then a
     /// source others can add, as it is or uploaded). Returns the pack's file.

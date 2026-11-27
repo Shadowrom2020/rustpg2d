@@ -120,11 +120,19 @@ pub struct EditorSettings {
     /// Clean up unused files: per project (its file, else its folder) the entries the creator
     /// kept (`model:ID`, `file:PATH`), not offered again when the project closes.
     pub cleanup_kept: std::collections::BTreeMap<String, std::collections::BTreeSet<String>>,
+    /// The sources of packs the creator added: web addresses of an `index.ron`, or folders.
+    pub pack_sources: Vec<String>,
+    /// *Share…*: who shares, under which licence, with which credit line and into which
+    /// folder, as entered last.
+    pub share_author: String,
+    pub share_licence: String,
+    pub share_attribution: String,
+    pub share_folder: String,
 }
 
 impl Default for EditorSettings {
     fn default() -> Self {
-        EditorSettings { mcp_autostart: false, mcp_port: crate::DEFAULT_PORT, meshy_model: "nano-banana-2-lite".into(), meshy_budget: 60, meshy_ask: true, test_setups: Default::default(), cleanup_kept: Default::default() }
+        EditorSettings { mcp_autostart: false, mcp_port: crate::DEFAULT_PORT, meshy_model: "nano-banana-2-lite".into(), meshy_budget: 60, meshy_ask: true, test_setups: Default::default(), cleanup_kept: Default::default(), pack_sources: Vec::new(), share_author: String::new(), share_licence: String::new(), share_attribution: String::new(), share_folder: String::new() }
     }
 }
 

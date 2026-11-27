@@ -22,6 +22,11 @@ pub enum Key {
     NewFromFile,
     /// Publishing: the folder the game is exported into.
     PublishOut,
+    /// The Library tab: a pack file to install, a folder that is a source of packs.
+    PackFile,
+    PackSource,
+    /// *Share…*: the folder the pack is written into.
+    ShareFolder,
 }
 
 /// What is asked for.

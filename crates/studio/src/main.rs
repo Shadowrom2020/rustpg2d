@@ -24,6 +24,7 @@ mod mapview;
 mod modelshop;
 mod namespage;
 mod nodesview;
+mod packspage;
 mod pick;
 mod pixeledit;
 mod play;
@@ -156,11 +157,11 @@ impl Studio {
                 // A file dropped on the window: `dropfile PATH` opens *New…* with it, as a real drop does.
                 "dropfile" => {
                     let path = PathBuf::from(cmd[1.min(cmd.len())..].join(" "));
-                    match gallery::NewAsset::of_file(&path) {
-                        Some(new) => self.shell.new_asset = Some(new),
-                        None => println!("[script] {} is no 3D model, picture or sound", path.display()),
-                    }
+                    self.shell.dropped(&path);
                 }
+                // The packs of the Library tab: `packs file PATH` (a pack file looked at), `packs same keep|replace|copy`,
+                // `packs install`, `packs cancel`, `packs add ADDRESS` / `packs remove ADDRESS` (a source).
+                "packs" => println!("[packs] {}", self.shell.packs_word(&cmd[1..])),
                 // What the next file dialog answers (a script never opens a real one): `pickanswer PATH`.
                 "pickanswer" => pick::answer_next(PathBuf::from(cmd[1.min(cmd.len())..].join(" "))),
                 // A sound's tab in front: `sound play|loop|stop`; a sprite sheet's: `sheet cut ACROSS DOWN`, `sheet frame K`.

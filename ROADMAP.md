@@ -2068,9 +2068,27 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     kind:id… [author:… licence:… plugin:…]`, `packs.look FILE`, `packs.install FILE
     [keep|replace|copy]`, `packs.source ADDRESS`, `packs.get ADDRESS ID [keep|replace|copy]`,
     `packs.list`.
-  Still open: packs, sources and *Share…* in the window (they are commands so far), updates
-  per asset (which ones the creator changed), licences on the Publishing page, the starter
-  library installed as a pack, the old writers (`.r2dlib`, `.r2dplugin`) folded away; and
+  - **Packs in the window** (`studio/src/packspage.rs`): the Library tab has two sides,
+    *Assets* and *Packs and sources*. A pack file picked (*From a file…*) or dropped on the
+    window, or fetched from a source, is **shown before anything is installed**: its title,
+    version, author and licence, its credit line, what it holds, a warning naming what in
+    it runs (script functions, plugins), how much of it is new to the library, there as it
+    is, or there under the same id but different, and for those the choice (replaced by
+    the pack's, kept, brought in as copies; an update starts on *replaced*, a first install
+    on *kept*); a pack that needs one that isn't installed says which. The installed packs
+    are listed with what they brought and where from (*Forget* takes one off the list).
+    **Sources** are kept in the editor's settings: an address or a folder added, *See what
+    it offers* reads its index beside the editor, each pack offered with *Install…* /
+    *Update…* (downloaded beside the editor, checked, then shown as above). ***Share…***
+    in a definition's tab opens a window: title (the id follows it), version, by whom,
+    licence (the usual ones to pick, any other typed), credit line, description, the folder
+    it is written into; it says what the pack holds with what the selection needs, writes
+    the pack with pictures of what was shared and its entry in the folder's index, and
+    remembers who shares and where for the next time.
+  Still open: several assets shared at once from a kind's list, a plugin shared from the
+  window, updates per asset (which ones the creator changed), licences on the Publishing
+  page, the starter library installed as a pack, the old writers (`.r2dlib`, `.r2dplugin`)
+  folded away, packs as cards with their preview pictures; and
   of the tab: pictures of the library's assets, tags and filters, dragging onto a map, the
   starter library's installing and updating from the window.
 
@@ -2091,6 +2109,15 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     (*installed: 1.0*), looked at (1 differing), applied with the library's chest kept,
     then with it replaced; with a byte of the served file changed the download is refused
     for its SHA-256.
+  - In the window: `a_selection_is_shared_in_the_window_and_the_pack_looked_at_and_installed`
+    (the window for the chest: its title typed anew, the id following; the pack written;
+    the file looked at: by whom, the licence, *New to the library*, nothing installed yet;
+    *Install it*: the library has the chest; looked at again: installed already, *Not now*;
+    a file that is no pack says so). With the real editor on an empty library: *Share…*
+    clicked in the chest's tab, the author typed, *Write the pack*; on the Library tab the
+    file looked at (4 new), installed, listed (*Chest · version 1.0 · by Anna · CC BY 4.0*);
+    its folder added as a source, *See what it offers*: *Anna's packs* with the chest as
+    installed; the source is there again after a restart.
   - The format: `packs` tests in the engine (a pack with an item, its sheet and file, a
     script function, a plugin and a preview written and read again as it was, its manifest
     alone read without unpacking; bad ids and versions, a newer format, a newer engine and

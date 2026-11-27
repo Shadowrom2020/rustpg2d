@@ -110,6 +110,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   as the game draws it. Drag the corners of its hitbox, the spot it is used from and how far
   its light reaches on the picture instead of typing numbers; pick a state from the strip to
   see it, turn it, and look at it in the dark by its own light.
+- **A new game starts with the basics** (part 3): a new project comes with ground to paint,
+  a hero, a few props and items from the asset library and grass on its first map, so Play
+  works at once. Untick it on the start screen for an empty project. The game keeps the name
+  you typed.
 - **Drop a file to make something of it** (part 8): a 3D model (`.glb`) or a picture (`.png`)
   dropped on the editor becomes a prop that shows it, a sound file a sound: *New…* opens with
   the file and a name from it, Enter makes it. *New…* also takes a file's place typed in.

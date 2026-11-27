@@ -32,6 +32,39 @@ impl LibState {
     }
 }
 
+/// What a new game starts with, from the asset library (those it has): ground materials,
+/// scatter sets, walls, the hero and the heroine's figure, a few items and props.
+pub const BASICS: [(rustpg2d_engine::refactor::RefKind, &str); 25] = {
+    use rustpg2d_engine::refactor::RefKind::*;
+    [
+        (Material, "grass"),
+        (Material, "meadow"),
+        (Material, "dirt"),
+        (Material, "sand"),
+        (Material, "water"),
+        (Material, "cobblestone"),
+        (Material, "flagstones"),
+        (Material, "wood_floor"),
+        (Scatter, "forest"),
+        (Scatter, "rocks"),
+        (Prop, "stone_wall"),
+        (Prop, "wood_fence"),
+        (Character, "hero"),
+        (Model, "hero"),
+        (Model, "heroine"),
+        (Item, "coin"),
+        (Item, "apple"),
+        (Item, "potion"),
+        (Item, "sword"),
+        (Item, "key"),
+        (Prop, "chest"),
+        (Prop, "sign"),
+        (Prop, "barrel"),
+        (Prop, "well"),
+        (Prop, "boulder"),
+    ]
+};
+
 impl Workspace {
     /// Adds library assets (with their dependencies) to the project.
     pub fn library_to_project(&mut self, assets: &[AssetRef]) -> Result<String> {
@@ -45,6 +78,56 @@ impl Workspace {
         self.after_scripts_merged();
         self.reload_assets();
         Ok(format!("Added to the project: {}. Save the definitions to keep them.", report.summary()))
+    }
+
+    /// Gives a project that was just made what a game starts with, from the asset library
+    /// (what of [`BASICS`] the library has): ground to paint with, a hero who is the player's
+    /// character, a few props and items; its first map gets grass. `name`: what the game is
+    /// called. Everything is saved. Returns what was done, in words.
+    pub fn start_with_basics(&mut self, name: &str) -> Result<String, String> {
+        if !name.trim().is_empty() {
+            self.project.config.name = name.trim().to_string();
+            self.defs_dirty = true;
+        }
+        self.lib.ensure_loaded();
+        let mut said = Vec::new();
+        let want: Vec<AssetRef> = match &self.lib.lib {
+            Some(lib) => BASICS.iter().map(|(k, id)| (*k, id.to_string())).filter(|a| rustpg2d_engine::library::exists(&lib.db, a)).collect(),
+            None => Vec::new(),
+        };
+        if want.is_empty() {
+            said.push("the asset library has none of the basics: the project starts empty".to_string());
+        } else {
+            self.library_to_project(&want).map_err(|e| format!("{e:#}"))?;
+            said.push(format!("{} things from the asset library", want.len()));
+            let db = &self.project.db;
+            let has = |id: &str| db.model(id).is_some();
+            let (male, female) = (if has("hero") { "hero" } else { "" }, if has("heroine") { "heroine" } else { "" });
+            let hero = db.character("hero").is_some();
+            let c = &mut self.project.config;
+            c.srd = !rustpg2d_engine::srd::rules::srd_content(db).is_empty();
+            if hero {
+                c.player = "hero".into();
+                said.push("the hero is the player's character".into());
+            }
+            c.creation.body_male = male.into();
+            c.creation.body_female = female.into();
+            // Its first map: grass, when that came along and nothing is painted yet.
+            let start = self.project.config.start_map.clone();
+            if self.project.db.material("grass").is_some() && self.maps.contains(&start) {
+                self.open_map(&start);
+                if let Some(doc) = self.doc.as_mut().filter(|d| d.map.name == start && d.map.materials.is_empty()) {
+                    if let Some(v) = doc.map.material_value("grass") {
+                        doc.map.ground.fill(v);
+                        doc.mark_changed();
+                        said.push(format!("grass on the map {start}"));
+                    }
+                }
+            }
+        }
+        self.defs_dirty = true;
+        self.save_all();
+        Ok(said.join(", "))
     }
 
     /// A new definition that starts as an asset of the library: the asset comes into the project

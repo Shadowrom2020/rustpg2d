@@ -115,10 +115,13 @@ impl Studio {
                 "project" => {
                     let path = PathBuf::from(cmd[2.min(cmd.len())..].join(" "));
                     let r = match arg(1) {
-                        "new" => self.shell.new_project(&path),
+                        // (`project new PATH`: with the basics from the library, as the home screen
+                        // makes one; `project empty PATH`: nothing in it.)
+                        "new" => self.shell.new_project(&path, "", true),
+                        "empty" => self.shell.new_project(&path, "", false),
                         "open" => self.shell.switch_project(&path),
                         "close" => self.shell.close_project(),
-                        other => Err(format!("project {other}: new PATH, open PATH, close")),
+                        other => Err(format!("project {other}: new PATH, empty PATH, open PATH, close")),
                     };
                     println!("[project] {}", r.map_or_else(|e| format!("failed: {e}"), |()| if self.shell.ws.project_open { format!("{} at {}", self.shell.ws.project.config.name, self.shell.ws.project_location().display()) } else { "none".to_string() }));
                 }

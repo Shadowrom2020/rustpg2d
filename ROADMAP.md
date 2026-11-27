@@ -785,14 +785,19 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     `key`, `pause`, `resume`, `quit`, and any command line of the editor (`map.open village`).
   - **The home screen** (the Overview while no project is open, and its *Another project*
     section otherwise): *A new game* (its name, where it is kept: `~/rustpg2d/<name>` as a
-    project file) makes an empty project and opens it; *Open a project* by where it is; the
+    project file) makes a project and opens it: with *the basics from the asset library*
+    unless that is unticked (ground to paint with, scatter sets, a wall and a fence, a hero
+    who is the player's character, a few items and props, grass on the first map:
+    `Workspace::start_with_basics`, the 0.35 wizard's starter assets), so Play shows a hero
+    on grass at once; *Open a project* by where it is; the
     projects worked on lately; the bundled example in a packaged R(ust)PG2D. Another project
     opens in the same window (`Shell::switch_project`); it is refused while something isn't
     saved. *Close this project* leads back to the start.
   Still open: of the home screen a file picker (the place is typed) and pictures of the
   projects; layouts saved and presets, tearing tabs off into windows, back / forward,
-  favourites, the shortcut sheet with rebinding, dropping files in, the theme (light, UI
-  scale, icons), toasts, the editor's settings, `egui_kittest` tests.
+  favourites, the shortcut sheet with rebinding, the theme (light, UI scale, icons), toasts,
+  the editor's settings, `egui_kittest` tests; of a new game what the 0.35 wizard also
+  asked: the hero's sex, whether players make their own character, the first map's size.
 
   **Decided while building.**
   - The new editor grows in `crates/studio` (the old one keeps `crates/editor`, with the
@@ -810,6 +815,12 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     folder (project.ron, defs, a start map, a script) and opened; its start map in a tab, where
     the Build tool says that an empty project has no building to build like yet; the example
     opened in the same window and the new project again.
+  - A new game's basics: `a_new_project_starts_with_the_basics_of_the_library` (made, filled
+    and read again from its files: called what was typed, the hero the player's character
+    with a figure and hit points, every one of the 25 basics, grass on the first map, what
+    they need with them). In the window: a new project, Play: the hero on grass with 12 hit
+    points, walking. (Before, an empty project played a yellow box with none: found when a
+    merchant in one wouldn't answer.)
 
 - [~] Part 4: The Project browser and asset editors — `feature/studio`
 

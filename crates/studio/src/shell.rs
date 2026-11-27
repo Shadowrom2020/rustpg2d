@@ -235,7 +235,8 @@ enum Ask {
     Above(Tab, Tab),
     /// Open this project in the window; make a new one there and open it; back to none.
     OpenProject(PathBuf),
-    NewProject(PathBuf),
+    /// A new project there: what the game is called, and whether it starts with the basics.
+    NewProject(PathBuf, String, bool),
     CloseProject,
     /// *Try it*: the game on this map with the hero on the tile and the event raised.
     Try(String, (i32, i32), Box<(rustpg2d_engine::events::TriggerOn, rustpg2d_engine::runtime::EventOwner, String)>),
@@ -261,6 +262,8 @@ pub struct Home {
     /// Where the new project goes (filled in from its name until it is typed).
     new_at: String,
     new_at_typed: bool,
+    /// The new project doesn't get the basics from the asset library.
+    new_empty: bool,
     open_path: String,
 }
 
@@ -366,9 +369,11 @@ impl Shell {
         Ok(())
     }
 
-    /// Makes a new, empty project at `path` (a project file; a folder where folders are
-    /// allowed) and opens it.
-    pub fn new_project(&mut self, path: &std::path::Path) -> Result<(), String> {
+    /// Makes a new project at `path` (a project file; a folder where folders are allowed) and
+    /// opens it. `name`: what the game is called ("": like its file). `basics`: it starts with
+    /// what a game needs first from the asset library (ground, a hero, a few props and items);
+    /// else empty.
+    pub fn new_project(&mut self, path: &std::path::Path, name: &str, basics: bool) -> Result<(), String> {
         if self.unsaved() {
             return Err("there are unsaved changes: save first (Ctrl+S)".into());
         }
@@ -378,7 +383,24 @@ impl Shell {
             editor_core::files::create_project_file(path)
         };
         let made = made.map_err(|e| format!("{e:#}"))?;
-        self.switch_project(&made)
+        // (Filled before it is opened: what comes from the library is no step to undo.)
+        let mut said = String::new();
+        if basics || !name.trim().is_empty() {
+            let mut new = Workspace::open_path(made.clone(), Gpu::No).map_err(|e| format!("{}: {e:#}", made.display()))?;
+            if basics {
+                said = new.start_with_basics(name)?;
+            } else {
+                new.project.config.name = name.trim().to_string();
+                new.defs_dirty = true;
+                new.save_all();
+            }
+            new.close_project();
+        }
+        self.switch_project(&made)?;
+        if !said.is_empty() {
+            self.ws.set_status(format!("Made {}: {said}", self.ws.project.config.name));
+        }
+        Ok(())
     }
 
     /// Back to no project (the home screen).
@@ -943,8 +965,8 @@ impl Shell {
                     // (The window is another project's now: what else was asked was the old one's.)
                     break;
                 }
-                Ask::NewProject(path) => {
-                    if let Err(e) = self.new_project(&path) {
+                Ask::NewProject(path, name, basics) => {
+                    if let Err(e) = self.new_project(&path, &name, basics) {
                         self.ws.set_status(format!("No new project: {e}"));
                     }
                     break;
@@ -2322,9 +2344,12 @@ impl Viewer<'_> {
         });
         ui.horizontal(|ui| {
             let ok = !h.new_name.trim().is_empty() && !h.new_at.trim().is_empty();
-            if ui.add_enabled(ok, egui::Button::new(egui::RichText::new("Make it").strong())).on_hover_text("An empty project: one map to start on, a script file. Everything else comes from the asset library or is made here.").on_disabled_hover_text("Give it a name first").clicked() {
-                self.asks.push(Ask::NewProject(PathBuf::from(h.new_at.trim())));
+            if ui.add_enabled(ok, egui::Button::new(egui::RichText::new("Make it").strong())).on_hover_text("A project with one map to start on and a script file. Everything else comes from the asset library or is made here.").on_disabled_hover_text("Give it a name first").clicked() {
+                self.asks.push(Ask::NewProject(PathBuf::from(h.new_at.trim()), h.new_name.trim().to_string(), !h.new_empty));
             }
+            let mut basics = !h.new_empty;
+            ui.checkbox(&mut basics, "Start with the basics from the asset library").on_hover_text("Ground to paint with (grass, dirt, water, cobblestone…), forest and rock scatter sets, a wall and a fence, a hero who is the player's character, a few items and props, grass on the first map: Play works at once. Off: an empty project, everything of your own.");
+            h.new_empty = !basics;
         });
         ui.add_space(10.0);
         ui.strong("Open a project");

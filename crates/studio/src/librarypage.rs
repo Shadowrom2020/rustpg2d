@@ -262,6 +262,37 @@ mod ui_tests {
     }
 
     #[test]
+    fn a_new_project_starts_with_the_basics_of_the_library() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let dir = std::env::temp_dir().join(format!("rustpg2d-new-project-{}", std::process::id())).join("my-game");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        editor_core::files::create_project(&dir).unwrap();
+        let mut ws = Workspace::new(dir.clone(), editor_core::Gpu::No).unwrap();
+        ws.lib.lib = Some(rustpg2d_engine::project::Project::load(&root.join("crates/editor/assets/starter_library")).unwrap());
+        let said = ws.start_with_basics("My game").unwrap();
+        assert!(said.contains("the hero is the player's character") && said.contains("grass on the map start"), "{said}");
+        assert!(!ws.is_dirty(), "everything is saved");
+        // Read again from its files: a game that can be played.
+        let made = rustpg2d_engine::project::Project::load(&dir).unwrap();
+        assert_eq!((made.config.name.as_str(), made.config.player.as_str()), ("My game", "hero"));
+        let hero = made.db.character("hero").expect("a hero");
+        assert!(made.db.model(&hero.appearance.model).is_some() && hero.max_hp > 0);
+        assert_eq!(made.config.creation.body_male, "hero");
+        for (kind, id) in editor_core::library::BASICS {
+            assert!(made.db.has(kind, id), "the library's {} {id} is missing in the new project (or gone from the starter library)", kind.name());
+        }
+        let map = rustpg2d_engine::map::io::load(&made.map_path("start")).unwrap();
+        let grass = map.materials.iter().position(|m| m == "grass").expect("grass on the first map") as u8 + 1;
+        assert_eq!(map.ground.get(100, 100), grass);
+        // What the basics need came along: the hero's clothes, the chest's sounds…
+        for item in hero.equipment.clothing.iter().map(|s| s.item.as_str()) {
+            assert!(made.db.item(item).is_some(), "the hero wears {item}");
+        }
+        let _ = std::fs::remove_dir_all(dir.parent().unwrap());
+    }
+
+    #[test]
     fn the_new_gallery_starts_from_a_dropped_file() {
         use crate::gallery::{self, NewAsset, Outcome};
         struct G {

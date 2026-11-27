@@ -398,6 +398,10 @@ crates/engine/src/      library: everything shared by game and editor
                         feet, big footprints box to box), border_fade; Game::view / camera / upright; model.rs
                         ELEVATION 30° + ISO_TURN; keys move along the screen (screen_dir_to_world); draw_block = PropDef.block
                         walls as boxes, hides = the cut-away in front of the hero; status view= … walls=)
+  packs.rs              packs (0.36): the one file format (`.r2dpack`, a zip: pack.ron = PackManifest, assets/ = a
+                        Bundle, plugins/, previews/, history.ron); Pack::from_bytes also reads 0.35's asset
+                        packages, plugin files and the starter library file as packs; SourceIndex / IndexEntry =
+                        what a source offers (size and SHA-256 checked)
   library.rs            asset library + .r2dpack bundles; refactor.rs = id renames / refs_of_*;
                         starter_update.rs = Update asset library (StarterHistory, plan, apply, backup);
                         starter_pack.rs = the starter library file (.r2dlib: manifest, history, files)

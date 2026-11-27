@@ -2037,15 +2037,37 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   lists what the library holds by kind with how many of each, searched, with what the
   project has already marked (a click opens the project's one); what is ticked is added to
   the project with what it needs, as one step (`Workspace::library_to_project`). A
-  definition's tab has *Send to library* (`project_to_library`). Still open: everything
-  this part is about: the one pack format, packs with their manifests and updates, sources,
-  *Share…*, licences; and of the tab: pictures of the library's assets, tags and filters,
-  dragging onto a map, the starter library's installing and updating from the window.
+  definition's tab has *Send to library* (`project_to_library`).
+  - **The pack format** (`engine/src/packs.rs`): a pack file (`.r2dpack`, a zip) is
+    `pack.ron` (`PackManifest`: format, id, title, author, version, licence, attribution,
+    description, tags, the oldest engine it fits, the packs it needs, its previews),
+    `assets/manifest.ron` with `assets/files/…` (the definitions, their files and script
+    functions, as 0.35's asset packages held them: `Bundle::manifest_text` /
+    `from_manifest`), `plugins/<id>/…`, `previews/…` and an optional `history.ron`.
+    `Pack::from_bytes` tells the file kinds apart by what is inside and reads the three of
+    0.35 as packs with a made-up manifest (`legacy`): an asset package, a plugin file
+    (`plugin.<id>`), the starter library file (`rustpg2d.starter`, with its plugins and
+    history). A pack of a newer format or for a newer engine is refused with the reason;
+    `Pack::code` lists what in it runs (script functions, plugins). A source's index
+    (`index.ron`, `SourceIndex`): each pack's manifest, file, size, SHA-256 and what it
+    holds; `IndexEntry::check` refuses a download that isn't the file named; `newest` offers
+    the newest usable version of each pack.
+  Still open: installing packs into the library and what is installed, updates, sources in
+  the editor, *Share…*, licences; the old writers (`.r2dlib`, `.r2dplugin`) folded away; and
+  of the tab: pictures of the library's assets, tags and filters, dragging onto a map, the
+  starter library's installing and updating from the window.
 
   **Verify.** A source served from the scratchpad (`python3 -m http.server`): browse, install,
   a version 2 offered and applied, a changed asset kept, a wrong SHA-256 refused. A shared pack
   installed into a fresh library and used in a new project. The starter pack installed through
   the same path. A 0.35 `.r2dpack` and `.r2dplugin` installed.
+  - The format: `packs` tests in the engine (a pack with an item, its sheet and file, a
+    script function, a plugin and a preview written and read again as it was, its manifest
+    alone read without unpacking; bad ids and versions, a newer format, a newer engine and
+    a missing file refused; a 0.35 asset package and plugin file read as packs and written
+    again as packs of now; the starter library's `.r2dlib` read as `rustpg2d.starter` with
+    its 100+ props, plugins and history; an index with two versions offers 1.10 before 1.0,
+    names the file's address, and refuses another file and a changed byte).
   - Done so far: `librarypage::ui_tests` (the owlbear searched among 2,683 assets, ticked
     among the characters, added with its model as one step, marked as in the project and
     opened from there, undone). In the window: the same on a scratch library, the owlbear's

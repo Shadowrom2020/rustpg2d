@@ -402,8 +402,9 @@ impl Bundle {
         all_assets(&self.db).is_empty() && self.scripts.is_empty()
     }
 
-    /// Writes a `.r2dpack` (zip) package.
-    pub fn to_pack(&self) -> Result<Vec<u8>> {
+    /// The definitions and script functions as the text of a package's `manifest.ron` (the
+    /// files go beside it).
+    pub fn manifest_text(&self) -> Result<String> {
         let m = Manifest {
             version: PACK_VERSION,
             name: self.name.clone(),
@@ -431,7 +432,13 @@ impl Bundle {
             visual_scripts: self.db.visual_scripts.clone(),
             scripts: self.scripts.clone(),
         };
-        let manifest = crate::project::ron_text(&m)?;
+        crate::project::ron_text(&m)
+    }
+
+    /// Writes a 0.35 asset package (a zip with `manifest.ron` and `files/…`): what a pack
+    /// ([`crate::packs`]) holds as its assets, without a pack's own manifest.
+    pub fn to_pack(&self) -> Result<Vec<u8>> {
+        let manifest = self.manifest_text()?;
         let mut zw = zip::ZipWriter::new(Cursor::new(Vec::new()));
         let opts = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
         zw.start_file("manifest.ron", opts)?;
@@ -448,10 +455,6 @@ impl Bundle {
         let mut za = zip::ZipArchive::new(Cursor::new(bytes)).context("not an asset package")?;
         let mut manifest = String::new();
         za.by_name("manifest.ron").context("package has no manifest.ron")?.read_to_string(&mut manifest)?;
-        let m: Manifest = ron::from_str(&manifest).context("parsing manifest.ron")?;
-        if m.version > PACK_VERSION {
-            bail!("package version {} is newer than this editor supports ({PACK_VERSION})", m.version);
-        }
         let mut files = BTreeMap::new();
         for i in 0..za.len() {
             let mut f = za.by_index(i)?;
@@ -466,6 +469,15 @@ impl Bundle {
             let mut data = Vec::new();
             f.read_to_end(&mut data)?;
             files.insert(rel, data);
+        }
+        Bundle::from_manifest(&manifest, files)
+    }
+
+    /// The bundle of a package's `manifest.ron` text and its files (by project-relative path).
+    pub fn from_manifest(manifest: &str, files: BTreeMap<String, Vec<u8>>) -> Result<Bundle> {
+        let m: Manifest = ron::from_str(manifest).context("parsing manifest.ron")?;
+        if m.version > PACK_VERSION {
+            bail!("package version {} is newer than this editor supports ({PACK_VERSION})", m.version);
         }
         let db = Database { sheets: m.sheets, sounds: m.sounds, items: m.items, props: m.props, quests: Vec::new(), characters: m.characters, structures: m.structures, spells: m.spells, recipes: m.recipes, achievements: Vec::new(), races: m.races, models: m.models, materials: m.materials, scatter: m.scatter, fonts: m.fonts, skins: m.skins, common_events: m.common_events, backgrounds: m.backgrounds, classes: m.classes, diseases: m.diseases, animations: m.animations, visual_scripts: m.visual_scripts, ..Default::default() };
         let b = Bundle { name: m.name, tile_size: m.tile_size, db, files, scripts: m.scripts };

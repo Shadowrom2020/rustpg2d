@@ -54,6 +54,9 @@ pub mod old_tiles;
 pub mod model;
 pub mod path;
 pub mod pack;
+// Packs (zip): what the editor installs, shares and offers from sources; not in the web game.
+#[cfg(not(target_arch = "wasm32"))]
+pub mod packs;
 pub mod paths;
 pub mod progression;
 pub mod project;

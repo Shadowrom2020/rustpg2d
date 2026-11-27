@@ -57,7 +57,7 @@ being rewritten on a new foundation, in twelve parts. While it lasts:
   `playspeed N`, `playflag NAME on|off`, `playvar NAME VALUE`, `playstate on|off`, `playinspect
   on|off`, `playkeep [-]` (the running game's state as the test setup; `status` adds the game's
   own line in full as `[game]`), `new [KIND]` opens the *New…* gallery (`defs.make KIND [from:ID|library:ID|file:PATH] NAME` makes one
-  without it; `library:ID` = starting as that asset of the library, with what it needs; `file:PATH` = from a `.glb` / `.png` / `.ogg`; `dropfile PATH` = a file dropped on the window: *New…* with it). Form behaviour is tested in `form.rs` (`ui_tests`: egui_kittest clicks and types
+  without it; `library:ID` = starting as that asset of the library, with what it needs; `file:PATH` = from a `.glb` / `.png` / `.ogg`; `dropfile PATH` = a file dropped on the window: *New…* with it; `pickanswer PATH` = what the next *Browse…* file dialog answers: a scripted run never opens a real one, `click` the button after it). Form behaviour is tested in `form.rs` (`ui_tests`: egui_kittest clicks and types
   through AccessKit; every control must have a name, so pass a row's label id on with
   `labelled_by`).
 - **The field schema** (`crates/editor-core/src/schema.rs`): shapes come from the engine's types
@@ -158,13 +158,13 @@ crates/editor-core/src/ the editor without its UI (0.36): workspace.rs (Workspac
                         field schema: shapes from the engine's types + labels, sections, id fields), rename.rs,
                         refs.rs, search.rs, problems.rs, mapops.rs, mapedit.rs (what changes the open map, a step each), events.rs (triggers, conditions and actions in words; the actions' groups), scripts.rs (a script editor's logic: context, suggestions, typing, painting, issues), names.rs (flags, variables, text variables: where each is set and read, rename everywhere), export.rs + package.rs (the game's export with its pre-flight; AppImage / Flatpak), cutscene.rs (a cut-scene at a moment: where its actors are, the camera), fromfile.rs (new definitions from files: a .glb or .png as a prop, a .png as a sheet, a sound file as a sound), structdoc.rs (a structure worked on as a map of its own, MARGIN tiles larger on every side (own_tiles): open_structure, sync_structures = finished changes into the definition and the map rebuilt when the definition changed, resize_structure), looks.rs (a character's look: the colour features and piece slots of its model, what another model changes), visualedit.rs (a visual script's canvas without its UI: the palette's entries, linking, adding, copying, grouping), build.rs (the Build tool: walls, rooms, houses, roofs, openings; sync_buildings),
                         testsetup.rs (what a test-play starts with: kept per project, written as a save),
-                        world.rs (the maps and the ways between them: survey_world, link_transitions), models.rs, library.rs, starter.rs, art/ (Meshy
+                        world.rs (the maps and the ways between them: survey_world, link_transitions), models.rs, library.rs (the asset library as the workspace uses it: library_to_project, make_from_library, start_with_basics, library_look = one library asset with what it needs as a workspace to draw pictures from), starter.rs, art/ (Meshy
                         jobs), project_file.rs, files.rs (settings, recent), repo_mode.rs, mcp/ (the agent server:
                         tools.rs = the catalogue, exec*.rs, play.rs, watcher.rs, server.rs)
 crates/studio/src/      the new editor (0.36): main.rs (the eframe window; `--headless PROJECT --mcp PORT` = the agent
                         server without a window), shell.rs (dock, browser, palettes, tabs), form.rs (forms from the
                         field schema), thumbs.rs (pictures of assets from the engine's textures), gallery.rs (New…),
-                        sheet.rs (the event sheet: every list of triggers / conditions / actions in a form as When / If / Do rows), scriptedit.rs (a script's tab), namespage.rs (Flags and variables), publish.rs (Publishing), timeline.rs (a cut-scene's timeline, in its tab), nodesview.rs (a visual script's canvas, in its tab), artshop.rs (a sound played and a sprite sheet cut into frames, at the top of their tabs), charshop.rs (the character workshop at the top of a character's tab: the figure animated, its model, pieces and colours picked), propshop.rs (the prop workshop at the top of a prop's tab: the prop on a stage, its hitbox, use spot and light dragged), librarypage.rs (the Library tab),
+                        sheet.rs (the event sheet: every list of triggers / conditions / actions in a form as When / If / Do rows), scriptedit.rs (a script's tab), namespage.rs (Flags and variables), publish.rs (Publishing), timeline.rs (a cut-scene's timeline, in its tab), nodesview.rs (a visual script's canvas, in its tab), artshop.rs (a sound played and a sprite sheet cut into frames, at the top of their tabs), charshop.rs (the character workshop at the top of a character's tab: the figure animated, its model, pieces and colours picked), propshop.rs (the prop workshop at the top of a prop's tab: the prop on a stage, its hitbox, use spot and light dragged), librarypage.rs (the Library tab), pick.rs (the system's file dialogs: `pick::browse` = a *Browse…* button, the answer taken by its `Key` in a later frame; `answer_next` for tests),
                         mapview.rs (a map's tab: view, tools, Outliner, Inspector; buildtool.rs = the Build tool's panel) over scene.rs (a map drawn as the game does),
                         worldview.rs (every map and the ways between them),
                         play.rs (the game in a panel: its bar, the State panel); examples/mcp_smoke.rs
@@ -523,7 +523,8 @@ scripts/art/meshy/      the Meshy pipeline that drew the 2D figures of 0.16 / 0.
   the editor will hand its device to `gfx`), winit 0.30, kira 0.12 (without its default
   features), fontdue 0.9, glam 0.30 (`scalar-math`: the vertex layout needs unaligned `Vec4`),
   image 0.25 (PNG, JPEG), wasm-bindgen (xtask's `wasm-bindgen-cli-support` must be the same
-  version: a test), lewton 0.9, postcard + lz4_flex, ron, rhai, zip 9, png 0.18 (`imageio.rs`).
+  version: a test), lewton 0.9, postcard + lz4_flex, ron, rhai, zip 9, png 0.18 (`imageio.rs`); the editor's file dialogs are
+  `rfd` 0.18 (`xdg-portal`), as the 0.35 editor's.
 - **Compatibility** (maps, defs and save games of older versions load). Until 1.0.0 this is the default, not an
   absolute: a break is allowed only when keeping compatibility costs more than the feature, or makes it impossible.
   The user must agree to the break, and it comes with a conversion where possible (ROADMAP.md, *Compatibility until

@@ -93,7 +93,8 @@ fn foot_width(p: &rustpg2d_engine::imageio::Rgba) -> u32 {
 
 impl Workspace {
     /// A new definition of `kind` called `name` from `file` (copied into the project). One
-    /// step of the history; a 3D model's definitions are written at once, with its files.
+    /// step of the history, saved when the project is (only the files are in its folder at
+    /// once).
     /// Returns its id.
     pub fn make_from_file(&mut self, kind: RefKind, file: &Path, name: &str) -> Result<String, String> {
         let name = name.trim();
@@ -168,16 +169,16 @@ impl Workspace {
                     n += 1;
                 }
                 std::fs::write(root.join(&rel), glb).map_err(|e| format!("writing {rel}: {e}"))?;
-                // One tile wide, as deep as the model is (`use_prop_model` sees to the depth).
+                // One tile wide, as deep as the model is (`show_prop_model` sees to the depth).
                 set(self, RefKind::Prop, &id, &|v| v["hitbox"] = serde_json::json!([32.0, 16.0]))?;
-                self.use_prop_model(&id, &rel, size).map_err(|e| format!("{e:#}"))?;
+                self.show_prop_model(&id, &rel, size).map_err(|e| format!("{e:#}"))?;
                 id
             }
             (_, FileKind::Sound) => return Err("a sound file becomes a sound".into()),
         };
         self.begin(&label);
         if what != FileKind::Model {
-            // (`use_prop_model` loaded the art again already.)
+            // (`show_prop_model` loaded the art again already.)
             self.reload_assets();
         }
         self.refresh_refs();
@@ -281,6 +282,14 @@ mod tests {
         assert_eq!(id, "old_crate");
         assert!(!prop.model.is_empty() && ws.project.db.model(&prop.model).is_some_and(|m| m.file == "models/old_crate_3d.glb" && m.height > 4.0));
         assert!(project.join("models/old_crate_3d.glb").is_file() && prop.hitbox[0] == 32.0 && prop.hitbox[1] >= 16.0);
+        // It is a change like the others: nothing was saved for it, and undone it is gone.
+        assert!(ws.is_dirty() && rustpg2d_engine::project::Project::load(&project).unwrap().db.prop("old_crate").is_none());
+        ws.undo().unwrap();
+        ws.history_frame(None);
+        assert!(ws.project.db.prop("old_crate").is_none() && !ws.project.db.models.iter().any(|m| m.file == "models/old_crate_3d.glb"));
+        ws.redo().unwrap();
+        ws.history_frame(None);
+        assert!(ws.project.db.prop("old_crate").is_some_and(|p| !p.model.is_empty()));
         // A sound; and what can't be.
         let ogg = std::fs::read_dir(project.join("sounds")).unwrap().flatten().map(|e| e.path()).find(|p| p.extension().is_some_and(|e| e == "ogg")).expect("the example has sounds");
         let sound = dir.join("creak.ogg");

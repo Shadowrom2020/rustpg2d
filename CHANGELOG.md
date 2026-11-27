@@ -120,6 +120,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **Drop a file to make something of it** (part 8): a 3D model (`.glb`) or a picture (`.png`)
   dropped on the editor becomes a prop that shows it, a sound file a sound: *New…* opens with
   the file and a name from it, Enter makes it. *New…* also takes a file's place typed in.
+- **File dialogs** (parts 3 and 8): *Browse…* picks a file or folder in the system's dialog:
+  the file a new thing starts from, a project to open (a file, or *A folder…*), where a new
+  game is kept, the folder a game is published into.
 - **Structures are edited on a map of their own** (part 8): a structure's tab is the structure
   itself with every map tool: paint its ground, place and move things, build on it; its name,
   category and size are in the Inspector. What you do is undone like anything else. Around
@@ -128,6 +131,7 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **New… from the asset library** (part 8): a new prop, character, item… can start as one of
   the asset library, under your own name: it comes with its pictures, sounds, models and the
   script functions its events call. The library's chest, lamp or merchant is the template.
+  The one picked is shown as the library has it.
 - **Structures have pictures** (part 8): every structure shows as it stands on a map, in the
   *Structures* list, the Place tool and its own tab.
 - **The character's look** (part 8): a character's tab starts with the figure itself, large,

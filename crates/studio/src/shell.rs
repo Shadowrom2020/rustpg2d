@@ -255,6 +255,15 @@ pub enum PlayFrom {
     Again,
 }
 
+/// The library asset *New…* shows a picture of: it and what it needs as a small workspace of
+/// its own, with the pictures drawn from that.
+pub struct LibLook {
+    kind: RefKind,
+    id: String,
+    ws: Box<Workspace>,
+    thumbs: crate::thumbs::Thumbs,
+}
+
 /// What is typed on the home screen.
 #[derive(Default)]
 pub struct Home {
@@ -288,6 +297,7 @@ pub struct Shell {
     thumbs: crate::thumbs::Thumbs,
     /// The *New…* gallery while it is open.
     pub new_asset: Option<crate::gallery::NewAsset>,
+    lib_look: Option<LibLook>,
     marks: Marks,
     /// The open maps' views (camera, selection, tool), by map.
     pub maps: std::collections::HashMap<String, crate::mapview::MapView>,
@@ -328,7 +338,9 @@ pub struct Shell {
 }
 
 impl Shell {
-    pub fn open(project: PathBuf, start: rustpg2d_engine::runtime::StartOptions) -> Shell {
+    pub fn open(project: Option<PathBuf>, start: rustpg2d_engine::runtime::StartOptions) -> Shell {
+        // (Started without a project: the home screen.)
+        let Some(project) = project else { return Shell::around(Workspace::empty(), start) };
         let ws = match Workspace::open_path(project.clone(), Gpu::Yes) {
             Ok(ws) => ws,
             Err(e) => {
@@ -349,7 +361,7 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), sounds: Default::default(), sheets: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new() }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, lib_look: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), sounds: Default::default(), sheets: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new() }
     }
 
     /// Whether anything waits to be saved: definitions, maps, scripts.
@@ -946,6 +958,7 @@ impl Shell {
             self.ws.close_structure(&id);
             self.maps.remove(&editor_core::structdoc::doc_name(&id));
         }
+        crate::pick::frame();
         // (A drag that asked for it last frame counts as typing on in one field: one step.)
         let held = ctx.data_mut(|d| d.remove_temp::<u64>(held_step_id()));
         self.ws.history_frame(held.or(ctx.memory(|m| m.focused()).map(|id| id.value())));
@@ -1065,14 +1078,37 @@ impl Shell {
 
     /// The *New…* gallery: makes what it asks for and opens it.
     fn gallery_ui(&mut self, ctx: &egui::Context, rs: Option<&eframe::egui_wgpu::RenderState>) {
-        let Some(state) = self.new_asset.as_mut() else { return };
+        let Some(state) = self.new_asset.as_mut() else {
+            // (The library asset that was looked at isn't any more.)
+            if let (Some(mut look), Some(rs)) = (self.lib_look.take(), rs) {
+                look.thumbs.free(rs);
+            }
+            return;
+        };
         // (What the library has of a kind is listed when that kind is picked.)
         self.ws.lib.ensure_loaded();
+        // The library asset picked is looked at as a small project of its own: it and what it
+        // needs, read when it is picked.
+        let picked = state.kind.zip(state.from.clone()).filter(|(k, _)| state.library && crate::thumbs::has_pictures(*k));
+        if self.lib_look.as_ref().map(|l| (l.kind, l.id.clone())) != picked {
+            if let (Some(mut look), Some(rs)) = (self.lib_look.take(), rs) {
+                look.thumbs.free(rs);
+            }
+            self.lib_look = picked.and_then(|(kind, id)| self.ws.library_look(kind, &id).map(|ws| LibLook { kind, id, ws: Box::new(ws), thumbs: Default::default() }));
+        }
+        let mut look = self.lib_look.as_mut();
+        if let (Some(l), Some(rs)) = (look.as_mut(), rs) {
+            l.thumbs.begin_frame(&l.ws, rs);
+        }
+        let mut library_picture = |kind: RefKind, id: &str| -> Option<crate::thumbs::Thumb> {
+            let l = look.as_mut().filter(|l| l.kind == kind && l.id == id)?;
+            l.thumbs.of(&l.ws, rs?, kind, id)
+        };
         let mut pics = rs.map(|rs| crate::thumbs::Pics { thumbs: &mut self.thumbs, ws: &self.ws, rs });
         let pictures = pics.as_mut().map(|p| p as &mut dyn crate::form::Pictures);
         let lib = &self.ws.lib;
         let library = |kind: RefKind| lib.lib.as_ref().map_or(Vec::new(), |l| editor_core::defs::list(&l.db, kind));
-        let outcome = crate::gallery::show(ctx, state, GROUPS, &self.lists, &library, pictures);
+        let outcome = crate::gallery::show(ctx, state, GROUPS, &self.lists, &library, pictures, &mut library_picture);
         let made = match outcome {
             Some(crate::gallery::Outcome::FromLibrary { kind, name, from }) => Some((kind, self.ws.make_from_library(kind, &from, &name))),
             Some(crate::gallery::Outcome::FromFile { kind, name, file }) => Some((kind, self.ws.make_from_file(kind, &file, &name))),
@@ -2391,6 +2427,22 @@ impl Viewer<'_> {
             if ui.add(egui::TextEdit::singleline(&mut h.new_at).desired_width(520.0)).labelled_by(l.id).changed() {
                 h.new_at_typed = true;
             }
+            // A project file is asked for by its name; a project folder by the folder it goes into.
+            let folders = editor_core::project_file::folders_allowed();
+            let at = PathBuf::from(h.new_at.trim());
+            let offered = at.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+            let want = || if folders { crate::pick::Want::Folder } else { crate::pick::Want::Save("R(ust)PG2D project", editor_core::project_file::EXT, offered.clone()) };
+            if let Some(picked) = crate::pick::browse(ui, crate::pick::Key::NewProject, "Browse…", if folders { "The folder the new game's folder goes into" } else { "Where the new game is kept" }, want, at.parent().map(PathBuf::from)) {
+                let picked = if folders {
+                    picked.join(&offered)
+                } else if picked.extension().is_none() {
+                    picked.with_extension(editor_core::project_file::EXT)
+                } else {
+                    picked
+                };
+                h.new_at = picked.display().to_string();
+                h.new_at_typed = true;
+            }
         });
         ui.horizontal(|ui| {
             let ok = !h.new_name.trim().is_empty() && !h.new_at.trim().is_empty();
@@ -2407,6 +2459,14 @@ impl Viewer<'_> {
             ui.add(egui::TextEdit::singleline(&mut h.open_path).hint_text("a .r2dproject file, or a project's folder").desired_width(520.0)).widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, "Where the project is"));
             if ui.add_enabled(!h.open_path.trim().is_empty(), egui::Button::new("Open")).clicked() {
                 self.asks.push(Ask::OpenProject(PathBuf::from(h.open_path.trim())));
+            }
+            // Picked in a dialog, it opens at once.
+            let start = Some(PathBuf::from(h.open_path.trim())).filter(|p| !p.as_os_str().is_empty()).or_else(|| rustpg2d_engine::paths::home().map(|d| d.join("rustpg2d")));
+            let file = crate::pick::browse(ui, crate::pick::Key::OpenProject, "Browse…", "Open a project file", || crate::pick::Want::File("R(ust)PG2D project", &[editor_core::project_file::EXT]), start.clone());
+            let folder = crate::pick::browse(ui, crate::pick::Key::OpenFolder, "A folder…", "Open a project's folder (the one with project.ron in it)", || crate::pick::Want::Folder, start);
+            if let Some(picked) = file.or(folder) {
+                h.open_path = picked.display().to_string();
+                self.asks.push(Ask::OpenProject(picked));
             }
         });
         let here = editor_core::project_file::canonical(&self.ws.project_location());

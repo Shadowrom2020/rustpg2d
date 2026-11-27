@@ -22,6 +22,7 @@ mod charshop;
 mod mapview;
 mod namespage;
 mod nodesview;
+mod pick;
 mod play;
 mod propshop;
 mod publish;
@@ -62,7 +63,7 @@ struct Studio {
 }
 
 impl Studio {
-    fn new(cc: &eframe::CreationContext<'_>, project_dir: PathBuf, start: rustpg2d_engine::runtime::StartOptions) -> Studio {
+    fn new(cc: &eframe::CreationContext<'_>, project_dir: Option<PathBuf>, start: rustpg2d_engine::runtime::StartOptions) -> Studio {
         // The engine draws with eframe's device: what it draws is a texture egui can show.
         let rs = cc.wgpu_render_state.as_ref().expect("eframe was started with the wgpu renderer");
         gfx::init(rs.device.clone(), rs.queue.clone(), 16, 16, &gfx::conf::Conf::default());
@@ -157,6 +158,8 @@ impl Studio {
                         None => println!("[script] {} is no 3D model, picture or sound", path.display()),
                     }
                 }
+                // What the next file dialog answers (a script never opens a real one): `pickanswer PATH`.
+                "pickanswer" => pick::answer_next(PathBuf::from(cmd[1.min(cmd.len())..].join(" "))),
                 // A sound's tab in front: `sound play|loop|stop`; a sprite sheet's: `sheet cut ACROSS DOWN`, `sheet frame K`.
                 "sound" => println!("[sound] {}", self.shell.sound_word(&cmd[1..], ctx.input(|i| i.time))),
                 "sheet" => println!("[sheet] {}", self.shell.sheet_word(&cmd[1..])),
@@ -574,7 +577,8 @@ fn main() -> std::process::ExitCode {
 
 fn window(args: &[String]) -> eframe::Result {
     let opt = |name: &str| args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).cloned();
-    let project_dir = args.first().filter(|a| !a.starts_with("--")).map(PathBuf::from).unwrap_or_else(|| PathBuf::from("example_project"));
+    // The project named; without one the example of a checkout started in, else the home screen.
+    let project_dir = args.first().filter(|a| !a.starts_with("--")).map(PathBuf::from).or_else(|| Some(PathBuf::from("example_project")).filter(|p| p.join("project.ron").is_file()));
     let start = rustpg2d_engine::runtime::StartOptions { map: opt("--map"), spawn: opt("--spawn"), title: opt("--map").is_none(), dev: true, ..Default::default() };
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_title("R(ust)PG2D Studio").with_inner_size([1500.0, 800.0]),

@@ -174,6 +174,19 @@ impl Workspace {
         Ok(id)
     }
 
+    /// One asset of the library with what it needs, as a small workspace of its own to look
+    /// at: its pictures and its figure are drawn from it as from a project (what *New…* shows
+    /// of the library asset picked). Nothing is written. None when the library has no such
+    /// asset.
+    pub fn library_look(&mut self, kind: rustpg2d_engine::refactor::RefKind, id: &str) -> Option<Workspace> {
+        self.lib.ensure_loaded();
+        let lib = self.lib.lib.as_ref().filter(|l| l.db.has(kind, id))?;
+        let bundle = Bundle::collect(&lib.db, &lib.root, rustpg2d_engine::project::TILE_SIZE, "", &[(kind, id.to_string())]).ok()?;
+        // (Its files are read where they are: the library's folder.)
+        let project = Project { root: lib.root.clone(), config: lib.config.clone(), db: bundle.db };
+        Some(Workspace::with_project(project, true, self.gpu))
+    }
+
     /// Sends project assets (with their dependencies and the script functions they need) to the
     /// asset library without asking: the AI agent server's `library_send`. `replace` overwrites
     /// the library's version of assets it already has (updating a library from the project its

@@ -792,9 +792,17 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     on grass at once; *Open a project* by where it is; the
     projects worked on lately; the bundled example in a packaged R(ust)PG2D. Another project
     opens in the same window (`Shell::switch_project`); it is refused while something isn't
-    saved. *Close this project* leads back to the start.
-  Still open: of the home screen a file picker (the place is typed) and pictures of the
-  projects; layouts saved and presets, tearing tabs off into windows, back / forward,
+    saved. *Close this project* leads back to the start. Where a new game is kept, a project
+    file and a project's folder are also picked in the system's file dialog (*Browse…*, *A
+    folder…*; a project picked opens at once), and so is the folder a game is published
+    into. Started without a project (and not in a checkout with its example), the editor
+    shows the home screen and nothing else.
+  - **File dialogs** (`studio/src/pick.rs`, the `rfd` crate through the desktop portal on
+    Linux, as the 0.35 editor's): a dialog runs beside the editor, which keeps drawing; who
+    asked takes the answer by a key in a later frame; one dialog at a time (the buttons
+    wait meanwhile); on macOS the dialog is modal. A scripted run and a test never open one:
+    `pickanswer PATH` (`pick::answer_next`) says what the next answers.
+  Still open: of the home screen pictures of the projects; layouts saved and presets, tearing tabs off into windows, back / forward,
   favourites, the shortcut sheet with rebinding, the theme (light, UI scale, icons), toasts,
   the editor's settings, `egui_kittest` tests; of a new game what the 0.35 wizard also
   asked: the hero's sex, whether players make their own character, the first map's size.
@@ -1661,7 +1669,8 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     events call) under the name typed, with its own id, as one step. Without a name it is
     added as it is. So the library's chest, door, lamp, bed, crop or merchant is the
     template a new one is made from, and a template of one's own is an asset sent to the
-    library.
+    library. The one picked is shown beside the list as the library has it: a prop's
+    picture, an item's icon, a character's figure.
   - **A sound is heard and a sheet is cut where they are defined** (`studio/src/artshop.rs`):
     a sound's tab starts with *Play*, *Loop* (to listen for the seam) and *Stop*, its length
     and file, a bar while it plays, and what is wrong with a file that can't be played. A
@@ -1679,7 +1688,8 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     shown smaller, through the sheet's scale; its hitbox starts as wide as the foot of what
     is painted: a tree's trunk, not its crown), or a sprite sheet alone. A sound (`.ogg`,
     `.wav`) becomes a sound. The file is copied into the project; the new thing's tab
-    opens, a prop's with its workshop.
+    opens, a prop's with its workshop. *Browse…* picks the file in the system's file dialog
+    (`studio/src/pick.rs`) instead; a new thing without a name yet is named after it.
   - **A structure is worked on as a map** (`editor-core/src/structdoc.rs`; a structure's
     tab): its tab is the structure itself as a small map of its size, with every tool of a
     map: paint its ground, place and move things, build walls and roofs on it, set blocked
@@ -1702,15 +1712,15 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   field: the picture stands on the hitbox's southern edge, the light sits at two thirds of
   the picture's height), a figure sitting or lying at the use spot instead of the ring, a
   building's ridge, overhang and openings dragged on the picture, how large a prop's model
-  is shown as a handle; starting from measurements and Meshy, a file picked in a dialog (it
-  is dropped or its place typed), a character's model and an item's from a file, pictures
+  is shown as a handle; starting from measurements and Meshy, a character's model and an item's from a file, pictures
   other than PNG; of the import helpers a model's check (size, rig, clips, what is missing
   and its fix), a sound's volume and loop points set by ear; of structures: a house of the Build
   tool saved as one from the tool itself; of the character workshop: rules,
   day, talk, shop and loot as parts of one document (they are sections of the form below),
   *Start from…* another character; presets that are more than
-  one asset (a *Merchant* with a shop and a schedule to fill in), pictures of the library's
-  assets in *New…*; import helpers; the pixel editor; Generate art.
+  one asset (a *Merchant* with a shop and a schedule to fill in), pictures in the rows of the
+  library's list in *New…* and on the Library tab (the one picked has one); import helpers;
+  the pixel editor; Generate art.
 
   **Decided while building.**
   - **The workshop is the top of the prop's tab, not a tab of its own**: the picture and the
@@ -1724,7 +1734,9 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     pointer (the first version did: a light dragged from 3 tiles ran away to 16).
   - **The figure is as large as it stands tall, on its feet**: a pose's frame is roomy and
     grows with what is held, so the preview scales by the height of the figure standing
-    still and puts its feet on one spot; a spear or a swung arm reaches as far as the box.
+    still and puts its feet on one spot; a spear or a swung arm reaches as far as the box. A
+    wolf is longer than tall, and its head reaches further from its feet than its tail: the
+    preview also fits twice the further reach of the figure standing still, front and side.
   - **The definition is what is true of a structure, its map is a way to change it**: a
     finished change on the map is taken into the definition as a step of the definitions'
     history, and an undo, a form or an agent changing the definition builds the map again.
@@ -1748,10 +1760,16 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   - **A dropped file opens *New…*, it doesn't make something at once**: what a file should
     become is a guess (a picture is a prop most of the time, a sheet sometimes), and the
     thing needs a name; the guess and the file's name are filled in, so Enter is enough.
-  - **A prop from a 3D model is written at once** (its definitions with its files, as the
-    0.35 editor did for generated models): the model's file is in the project then, and a
-    definition that names a file which isn't saved would be worse. It is still a step that
-    can be undone.
+  - **A prop from a 3D model is a change like the others** (`Workspace::show_prop_model`):
+    its model's file and the pictures drawn from it are in the project's folder at once, its
+    definitions are saved when the project is, and undone they are gone (the files stay, for
+    *Clean up unused files*). The first version saved the definitions at once, as the 0.35
+    editor did for generated models: that also saved whatever else waited to be saved.
+  - **The library asset picked in *New…* is looked at as a small project of its own**
+    (`Workspace::library_look`: it and what it needs, read from the library's folder when it
+    is picked; `Shell::lib_look` with pictures of its own): its picture is drawn as a
+    project's is, a figure included, without loading the library's 300 models for a list.
+    The rows of the list have no pictures for the same reason.
   - **Named like the library files it, a new thing from the library is that asset**: *Hero*
     from the library's `hero` is `hero`, not a `hero_2` beside nothing.
   - **Presets are the library's assets, not a list of their own**: *New… › as one of the

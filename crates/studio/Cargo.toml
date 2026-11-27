@@ -19,6 +19,8 @@ eframe = { version = "0.37", default-features = false, features = ["wgpu", "x11"
 egui_dock = "0.22"
 # Only to ask eframe's event loop for an X11 window (the same winit eframe uses).
 winit = "0.30"
+# The system's file dialogs (through the desktop portal on Linux, as the 0.35 editor's).
+rfd = { version = "0.18", default-features = false, features = ["xdg-portal"] }
 
 [dev-dependencies]
 # examples/mcp_smoke.rs: an MCP client driving the agent server.

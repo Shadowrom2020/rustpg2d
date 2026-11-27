@@ -54,7 +54,7 @@ pub enum Outcome {
 
 /// The gallery's window. `groups`: the kinds as the Project browser groups them; `lists`: id
 /// and name of every definition, by kind (what a copy can be taken of).
-pub fn show(ctx: &egui::Context, state: &mut NewAsset, groups: &[(&str, &[RefKind])], lists: &[(RefKind, Vec<(String, String)>)], library: &dyn Fn(RefKind) -> Vec<(String, String)>, mut pictures: Option<&mut dyn Pictures>) -> Option<Outcome> {
+pub fn show(ctx: &egui::Context, state: &mut NewAsset, groups: &[(&str, &[RefKind])], lists: &[(RefKind, Vec<(String, String)>)], library: &dyn Fn(RefKind) -> Vec<(String, String)>, mut pictures: Option<&mut dyn Pictures>, library_picture: &mut dyn FnMut(RefKind, &str) -> Option<crate::thumbs::Thumb>) -> Option<Outcome> {
     let mut outcome = None;
     if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
         return Some(Outcome::Cancel);
@@ -143,7 +143,20 @@ pub fn show(ctx: &egui::Context, state: &mut NewAsset, groups: &[(&str, &[RefKin
                 if state.from_file {
                     ui.horizontal(|ui| {
                         let by = ui.label("File").id;
-                        ui.add(egui::TextEdit::singleline(&mut state.file).hint_text("Drop a file on the window, or type where it is").desired_width(340.0)).labelled_by(by);
+                        ui.add(egui::TextEdit::singleline(&mut state.file).hint_text("Browse, drop a file on the window, or type where it is").desired_width(270.0)).labelled_by(by);
+                        let want = || match kind {
+                            RefKind::Prop => crate::pick::Want::File("3D models and pictures", &["glb", "png"]),
+                            RefKind::Sheet => crate::pick::Want::File("Pictures", &["png"]),
+                            _ => crate::pick::Want::File("Sounds", &["ogg", "wav"]),
+                        };
+                        let start = Some(std::path::PathBuf::from(state.file.trim())).filter(|p| !p.as_os_str().is_empty());
+                        if let Some(picked) = crate::pick::browse(ui, crate::pick::Key::NewFromFile, "Browse…", "The file the new one starts from", want, start) {
+                            // (Named after the file while no name was typed.)
+                            if state.name.trim().is_empty() {
+                                state.name = editor_core::fromfile::name_from_file(&picked);
+                            }
+                            state.file = picked.display().to_string();
+                        }
                     });
                     let path = std::path::Path::new(state.file.trim());
                     match editor_core::fromfile::what_it_makes(kind, path) {
@@ -162,18 +175,27 @@ pub fn show(ctx: &egui::Context, state: &mut NewAsset, groups: &[(&str, &[RefKin
                     }
                 }
                 if state.library {
-                    ui.add(egui::TextEdit::singleline(&mut state.filter).hint_text("Search the library").desired_width(300.0)).widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, "Search the library"));
-                    let f = state.filter.trim().to_lowercase();
-                    egui::ScrollArea::vertical().id_salt("library").max_height(210.0).show(ui, |ui| {
-                        ui.set_min_width(400.0);
-                        for (id, name) in offered.iter().filter(|(id, name)| f.is_empty() || id.to_lowercase().contains(&f) || name.to_lowercase().contains(&f)).take(200) {
-                            let mut label = if name == id || name.is_empty() { id.clone() } else { format!("{name}  ({id})") };
-                            if all.iter().any(|(i, _)| i == id) {
-                                label += "  · in the project";
-                            }
-                            if ui.selectable_label(state.from.as_deref() == Some(id.as_str()), label).clicked() {
-                                state.from = Some(id.clone());
-                            }
+                    ui.horizontal_top(|ui| {
+                        ui.vertical(|ui| {
+                            ui.set_width(300.0);
+                            ui.add(egui::TextEdit::singleline(&mut state.filter).hint_text("Search the library").desired_width(f32::INFINITY)).widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, "Search the library"));
+                            let f = state.filter.trim().to_lowercase();
+                            egui::ScrollArea::vertical().id_salt("library").max_height(210.0).show(ui, |ui| {
+                                ui.set_min_width(290.0);
+                                for (id, name) in offered.iter().filter(|(id, name)| f.is_empty() || id.to_lowercase().contains(&f) || name.to_lowercase().contains(&f)).take(200) {
+                                    let mut label = if name == id || name.is_empty() { id.clone() } else { format!("{name}  ({id})") };
+                                    if all.iter().any(|(i, _)| i == id) {
+                                        label += "  · in the project";
+                                    }
+                                    if ui.selectable_label(state.from.as_deref() == Some(id.as_str()), label).clicked() {
+                                        state.from = Some(id.clone());
+                                    }
+                                }
+                            });
+                        });
+                        // The one picked, as the library has it.
+                        if let Some(from) = state.from.as_ref().filter(|_| crate::thumbs::has_pictures(kind)) {
+                            crate::thumbs::boxed(ui, 96.0, || library_picture(kind, from));
                         }
                     });
                 }

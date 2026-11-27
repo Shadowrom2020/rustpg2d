@@ -113,6 +113,10 @@ impl PublishPage {
         });
         row(ui, "Goes into the folder", &mut |ui, by| {
             ui.add(egui::TextEdit::singleline(&mut self.out).desired_width(520.0)).labelled_by(by);
+            let start = Some(std::path::PathBuf::from(self.out.trim())).filter(|p| !p.as_os_str().is_empty());
+            if let Some(picked) = crate::pick::browse(ui, crate::pick::Key::PublishOut, "Browse…", "The folder the game is exported into", || crate::pick::Want::Folder, start) {
+                self.out = picked.display().to_string();
+            }
         });
         row(ui, "For", &mut |ui, _| {
             ui.checkbox(&mut self.opts.linux, "Linux").on_hover_text("A folder with the game for Linux (x86_64): players run the program in it");

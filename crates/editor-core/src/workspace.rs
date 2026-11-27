@@ -162,7 +162,7 @@ impl Workspace {
         Workspace::with_project(project, false, Gpu::No)
     }
 
-    fn with_project(project: Project, project_open: bool, gpu: Gpu) -> Workspace {
+    pub(crate) fn with_project(project: Project, project_open: bool, gpu: Gpu) -> Workspace {
         let assets = if gpu == Gpu::Yes && project_open { Assets::load(&project) } else { no_assets() };
         let maps = if project_open { project.list_maps() } else { Vec::new() };
         let defs_saved = Box::new((project.db.clone(), project.config.clone()));

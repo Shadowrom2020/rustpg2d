@@ -225,10 +225,12 @@ impl CharStage {
                 let bare = Gear::default();
                 let still = |facing| PoseReq { look: &look, gear: &bare, anim: "idle", time: 0.0, once: true, facing, turn: 0, bust: false };
                 let (front, side) = (thumbs.pose(ws, rs, &still(Facing::Down)), thumbs.pose(ws, rs, &still(Facing::Left)));
-                let size = front.zip(side).map(|(f, s)| (f.height.max(s.height), f.width.max(s.width)));
+                // (It stands on its feet in the middle: a head or a tail reaching far to one
+                // side needs that much room on both.)
+                let size = front.zip(side).map(|(f, s)| (f.height.max(s.height), f.reach.max(s.reach)));
                 match (thumbs.pose(ws, rs, &req), size) {
-                    (Some(pose), Some((tall, wide))) => {
-                        let k = ((rect.height() - 36.0) / tall).min((rect.width() - 24.0) / wide).min(6.0);
+                    (Some(pose), Some((tall, reach))) => {
+                        let k = ((rect.height() - 36.0) / tall).min((rect.width() / 2.0 - 12.0) / reach).min(6.0);
                         let stands = egui::pos2(rect.center().x, rect.max.y - 16.0);
                         let whole = egui::Rect::from_min_size(stands - pose.feet.to_vec2() * k, pose.thumb.size * k);
                         ui.painter_at(rect).image(pose.thumb.texture, whole, pose.thumb.uv, Color32::WHITE);

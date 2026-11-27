@@ -187,6 +187,15 @@ mod ui_tests {
         ws.lib.lib = Some(rustpg2d_engine::project::Project::load(&root.join("crates/editor/assets/starter_library")).unwrap());
         assert!(!ws.project.db.has(RefKind::Character, "owlbear") && ws.project.db.has(RefKind::Prop, "chest"));
         let before = ws.project.db.clone();
+        // Looked at before it is taken (the picture *New…* shows of it): the owlbear and what
+        // it is drawn with as a small project of its own, read from the library's folder;
+        // the project isn't touched.
+        let look = ws.library_look(RefKind::Character, "owlbear").expect("the library has an owlbear");
+        let model = look.project.db.character("owlbear").unwrap().appearance.model.clone();
+        assert!(look.project.db.has(RefKind::Model, &model) && look.project.db.characters.len() == 1);
+        assert!(look.project.path(&look.project.db.model(&model).unwrap().file).is_file());
+        assert!(ws.library_look(RefKind::Character, "nobody").is_none());
+        assert!(ws.project.db == before && !ws.is_dirty());
         // The library's owlbear as "Grumpy": the new character has that name and its own id, the
         // model it is drawn with came along, and the library's own owlbear did not stay.
         let id = ws.make_from_library(RefKind::Character, "owlbear", "Grumpy").unwrap();
@@ -232,7 +241,7 @@ mod ui_tests {
         let mut h = Harness::builder().with_size(egui::vec2(1000.0, 700.0)).build_ui_state(
             move |ui, g: &mut G| {
                 let library = |kind: RefKind| if kind == RefKind::Prop { vec![("chest".to_string(), "Chest".to_string()), ("anvil".to_string(), "Anvil".to_string())] } else { Vec::new() };
-                if let Some(Outcome::FromLibrary { kind, name, from }) = gallery::show(ui.ctx(), &mut g.state, &[("Objects", &[RefKind::Prop])], &lists, &library, None) {
+                if let Some(Outcome::FromLibrary { kind, name, from }) = gallery::show(ui.ctx(), &mut g.state, &[("Objects", &[RefKind::Prop])], &lists, &library, None, &mut |_, _| None) {
                     g.asked.push((kind, name, from));
                 }
             },
@@ -310,7 +319,7 @@ mod ui_tests {
         let mut h = Harness::builder().with_size(egui::vec2(1000.0, 700.0)).build_ui_state(
             |ui, g: &mut G| {
                 let library = |_: RefKind| Vec::new();
-                if let Some(Outcome::FromFile { kind, name, file }) = gallery::show(ui.ctx(), &mut g.state, &[("Objects", &[RefKind::Prop]), ("Art & sound", &[RefKind::Sheet, RefKind::Sound])], &[], &library, None) {
+                if let Some(Outcome::FromFile { kind, name, file }) = gallery::show(ui.ctx(), &mut g.state, &[("Objects", &[RefKind::Prop]), ("Art & sound", &[RefKind::Sheet, RefKind::Sound])], &[], &library, None, &mut |_, _| None) {
                     g.asked.push((kind, name, file));
                 }
             },
@@ -339,6 +348,27 @@ mod ui_tests {
         h.get_by_label("Create").click();
         h.run();
         assert!(h.state().asked.is_empty());
+        // Picked in the file dialog instead (here it answers at once): the field holds the
+        // file, and a new thing without a name yet is named after it.
+        let sound = dir.join("door-creak.ogg");
+        std::fs::write(&sound, b"OggS").unwrap();
+        h.get_by_label("Sound").click();
+        h.state_mut().state.name.clear();
+        h.run();
+        crate::pick::answer_next(&sound);
+        h.get_by_label("Browse…").click();
+        h.run();
+        h.run();
+        assert_eq!((h.state().state.file.as_str(), h.state().state.name.as_str()), (sound.display().to_string().as_str(), "Door creak"));
+        h.get_by_label("Create").click();
+        h.run();
+        assert_eq!(h.state().asked, [(RefKind::Sound, "Door creak".to_string(), sound.clone())]);
+        // A dialog closed without a file changes nothing (in a test none opens at all).
+        h.state_mut().asked.clear();
+        h.get_by_label("Browse…").click();
+        h.run();
+        h.run();
+        assert_eq!(h.state().state.file, sound.display().to_string());
         let _ = std::fs::remove_dir_all(dir);
     }
 

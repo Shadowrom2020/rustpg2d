@@ -302,8 +302,16 @@ impl Workspace {
     /// Gives prop `prop` the still 3D model `rel` (a `.glb` under the project standing on the
     /// ground in its middle, `size` its width, height and depth in its units): a model definition
     /// `<prop>_3d` as tall as fits the prop's hitbox, the prop showing it, its pictures rendered
-    /// from it. Returns the status message.
+    /// from it. Saves the definitions. Returns the status message.
     pub fn use_prop_model(&mut self, prop: &str, rel: &str, size: gfx::math::Vec3) -> anyhow::Result<String> {
+        let msg = self.show_prop_model(prop, rel, size)?;
+        self.save_defs();
+        Ok(msg)
+    }
+
+    /// [`Self::use_prop_model`] without saving the definitions: a change like any other (the
+    /// model's file and the pictures drawn from it are in the project's folder already).
+    pub fn show_prop_model(&mut self, prop: &str, rel: &str, size: gfx::math::Vec3) -> anyhow::Result<String> {
         let hitbox = self.project.db.prop(prop).map(|p| p.hitbox).ok_or_else(|| anyhow::anyhow!("the prop \"{prop}\" is gone"))?;
         self.compact_file(rel, true)?;
         // Drawn `height` px tall, its footprint is size.x / size.y * height wide: as wide as the
@@ -322,9 +330,14 @@ impl Workspace {
         }
         db.reindex();
         self.defs_dirty = true;
-        self.save_defs();
         self.reload_assets();
-        let pictures = self.render_prop_pictures(Some(prop));
+        let pictures = if self.prop_pictures(Some(prop)).is_empty() {
+            "its pictures could not be drawn from it".to_string()
+        } else {
+            // (The sheet of its pictures is read.)
+            self.reload_assets();
+            "its pictures were drawn from it".to_string()
+        };
         Ok(format!("Prop {prop} shows the 3D model {id} ({height} px tall, on a {} x {} px footprint); {pictures}", hitbox[0], hitbox[1].max(depth)))
     }
 

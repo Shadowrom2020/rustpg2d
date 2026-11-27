@@ -23,6 +23,7 @@ pub mod refs;
 pub mod rename;
 pub mod repo_mode;
 pub mod schema;
+pub mod scripts;
 pub mod search;
 pub mod starter;
 pub mod testsetup;

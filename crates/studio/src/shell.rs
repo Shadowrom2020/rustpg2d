@@ -32,6 +32,8 @@ pub enum Tab {
     Map(String),
     /// Every map and the ways between them.
     World,
+    /// A script file of the project, by its name (`main.rhai`).
+    Script(String),
 }
 
 impl Tab {
@@ -40,6 +42,7 @@ impl Tab {
             Tab::Browser => "Project".into(),
             Tab::Overview => "Overview".into(),
             Tab::World => "World".into(),
+            Tab::Script(file) => file.clone(),
             Tab::Play => "Play".into(),
             Tab::Problems => {
                 let (e, w) = ws.problems.counts();
@@ -66,6 +69,7 @@ impl Tab {
             Tab::Browser => "project".into(),
             Tab::Overview => "overview".into(),
             Tab::World => "world".into(),
+            Tab::Script(file) => format!("script:{file}"),
             Tab::Play => "play".into(),
             Tab::Problems => "problems".into(),
             Tab::History => "history".into(),
@@ -258,6 +262,8 @@ pub struct Shell {
     pub link: Option<(String, String)>,
     /// What was copied on a map, pasted on any.
     pub clip: Option<editor_core::mapedit::Clip>,
+    /// The scripts open in tabs, by file name.
+    pub scripts: std::collections::HashMap<String, crate::scriptedit::ScriptTab>,
     /// Answers of commands, newest last (the script prints them too).
     pub log: Vec<String>,
 }
@@ -279,7 +285,7 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, log: Vec::new() }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), log: Vec::new() }
     }
 
     /// Shows `tab`: brings it to the front when it is open, else opens it beside the documents.
@@ -292,13 +298,43 @@ impl Shell {
             return;
         }
         // Next to another document when there is one, else in the first leaf.
-        let doc = self.dock.find_tab_from(|t| matches!(t, Tab::Overview | Tab::World | Tab::Settings(_) | Tab::Kind(_) | Tab::Def(..) | Tab::Map(_) | Tab::Play));
+        let doc = self.dock.find_tab_from(|t| matches!(t, Tab::Overview | Tab::World | Tab::Settings(_) | Tab::Kind(_) | Tab::Def(..) | Tab::Map(_) | Tab::Script(_) | Tab::Play));
         match doc {
             Some(path) => {
                 self.dock.set_focused_node_and_surface(path.node_path());
                 self.dock.push_to_focused_leaf(tab);
             }
             None => self.dock.push_to_first_leaf(tab),
+        }
+    }
+
+    /// Writes the scripts changed in their tabs (with everything else that is saved; the game
+    /// reads the files).
+    pub fn save_scripts(&mut self) -> usize {
+        let mut saved = 0;
+        for tab in self.scripts.values_mut().filter(|t| t.dirty()) {
+            match tab.save() {
+                Ok(()) => saved += 1,
+                Err(e) => self.ws.set_status(e),
+            }
+        }
+        if saved > 0 {
+            self.ws.refresh_refs();
+            self.ws.stale = true;
+        }
+        saved
+    }
+
+    /// Whether anything waits to be saved: definitions, maps, scripts.
+    pub fn unsaved(&self) -> bool {
+        self.ws.is_dirty() || self.scripts.values().any(|t| t.dirty())
+    }
+
+    /// `script=…` of the script tab in front ("" when none is).
+    pub fn script_status(&mut self) -> String {
+        match self.dock.find_active_focused().map(|(_, t)| t.clone()) {
+            Some(Tab::Script(f)) => self.scripts.get(&f).map_or_else(String::new, |t| t.status()),
+            _ => String::new(),
         }
     }
 
@@ -313,6 +349,7 @@ impl Shell {
             ("problems", None, _) => Tab::Problems,
             ("history", None, _) => Tab::History,
             ("map", Some(m), None) if self.ws.maps.iter().any(|x| x == m) => Tab::Map(m.to_string()),
+            ("script", Some(f), None) if self.ws.script_names().iter().any(|(n, _)| n == f) => Tab::Script(f.to_string()),
             ("settings", Some(page), None) => Tab::Settings(editor_core::schema::PAGES.iter().find(|(t, ..)| editor_core::schema::page_slug(t) == page)?.0),
             ("kind", Some(kind), None) => Tab::Kind(RefKind::ALL.iter().copied().find(|k| k.name() == kind && k.is_def())?),
             ("def", Some(kind), Some(id)) => {
@@ -336,13 +373,24 @@ impl Shell {
                 self.show_tab(Tab::Map(m.clone()));
             }
             Target::Def(k, id) => self.show_tab(Tab::Def(*k, id.clone())),
-            Target::Script(..) | Target::Project => self.show_tab(Tab::Overview),
+            Target::Script(path, at) => {
+                let file = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+                self.scripts.entry(file.clone()).or_insert_with(|| crate::scriptedit::ScriptTab::open(path.clone())).reveal(*at);
+                self.show_tab(Tab::Script(file));
+            }
+            Target::Project => self.show_tab(Tab::Overview),
         }
     }
 
     /// Runs a command line and keeps its answer.
     pub fn run(&mut self, line: &str) -> Result<String, String> {
+        let scripts = if line.trim() == "file.save_all" { self.save_scripts() } else { 0 };
         let r = self.ws.run_line(line);
+        // (Scripts are saved with everything; said when they were all there was to save.)
+        let r = match r {
+            Ok(m) if scripts > 0 && m.starts_with("Nothing") => Ok(format!("Saved {scripts} script{}", if scripts == 1 { "" } else { "s" })),
+            other => other,
+        };
         self.log.push(match &r {
             Ok(m) => format!("{line}: {}", m.lines().next().unwrap_or_default()),
             Err(e) => format!("{line}: failed: {e}"),
@@ -418,6 +466,7 @@ impl Shell {
         if !self.ws.project_open {
             return;
         }
+        self.save_scripts();
         if self.ws.is_dirty() {
             self.ws.save_all();
         }
@@ -474,6 +523,7 @@ impl Shell {
         if !self.ws.project_open {
             return;
         }
+        self.save_scripts();
         if self.ws.is_dirty() {
             self.ws.save_all();
         }
@@ -540,7 +590,7 @@ impl Shell {
             self.ws.doc.as_ref().map_or("-".into(), |d| d.map.name.clone()),
             self.ws.timeline.status(),
             self.ws.problems.status(),
-            self.ws.is_dirty(),
+            self.unsaved(),
             match self.palette.open {
                 Some(PaletteKind::Commands) => format!("commands:{}", self.palette.text),
                 Some(PaletteKind::Search) => format!("search:{}", self.palette.text),
@@ -604,14 +654,14 @@ impl Shell {
                     let (e, w) = self.ws.problems.counts();
                     ui.label(format!("{e} errors, {w} warnings"));
                     ui.separator();
-                    ui.label(if self.ws.is_dirty() { "unsaved changes" } else { "saved" });
+                    ui.label(if self.unsaved() { "unsaved changes" } else { "saved" });
                 });
             });
         });
 
         let mut asks = Vec::new();
         {
-            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, rs, asks: &mut asks };
+            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, rs, asks: &mut asks };
             DockArea::new(&mut self.dock).show_inside(ui, &mut viewer);
         }
         for ask in asks {
@@ -881,6 +931,7 @@ struct Viewer<'a> {
     world: &'a mut crate::worldview::WorldView,
     link: &'a mut Option<(String, String)>,
     clip: &'a mut Option<editor_core::mapedit::Clip>,
+    scripts: &'a mut std::collections::HashMap<String, crate::scriptedit::ScriptTab>,
     rs: Option<&'a eframe::egui_wgpu::RenderState>,
     asks: &'a mut Vec<Ask>,
 }
@@ -893,7 +944,10 @@ impl egui_dock::TabViewer for Viewer<'_> {
     }
 
     fn title(&mut self, tab: &mut Tab) -> egui::WidgetText {
-        tab.title(self.ws).into()
+        match tab {
+            Tab::Script(f) if self.scripts.get(f).is_some_and(|t| t.dirty()) => format!("{f} *").into(),
+            _ => tab.title(self.ws).into(),
+        }
     }
 
     fn is_closeable(&self, tab: &Tab) -> bool {
@@ -902,7 +956,7 @@ impl egui_dock::TabViewer for Viewer<'_> {
 
     fn scroll_bars(&self, tab: &Tab) -> [bool; 2] {
         // (The game and a map fill their tabs.)
-        if matches!(tab, Tab::Play | Tab::Map(_)) {
+        if matches!(tab, Tab::Play | Tab::Map(_) | Tab::Script(_)) {
             [false, false]
         } else {
             [false, true]
@@ -925,6 +979,7 @@ impl egui_dock::TabViewer for Viewer<'_> {
             Tab::Kind(k) => self.kind(ui, *k),
             Tab::Def(k, id) => self.definition(ui, *k, id),
             Tab::Map(m) => self.map(ui, m),
+            Tab::Script(f) => self.script(ui, f),
         }
     }
 }
@@ -1001,6 +1056,9 @@ impl Viewer<'_> {
                 if *group == "World" && !filtering && ui.selectable_label(false, "World view").on_hover_text("Every map and the ways between them").clicked() {
                     self.asks.push(Ask::Open(Tab::World));
                 }
+                if *group == "Story" {
+                    self.browser_scripts(ui, &f);
+                }
                 for (kind, rows) in &found {
                     egui::CollapsingHeader::new(format!("{} ({})", plural(kind.label()), rows.len())).id_salt(("kind", kind.name())).open(filtering.then_some(rows.len() <= 40)).show(ui, |ui| {
                         if *kind != RefKind::Map {
@@ -1056,6 +1114,43 @@ impl Viewer<'_> {
     }
 
     /// A definition (or map) in the browser: its picture and name, opened by a click.
+    /// The project's script files, in the Story group.
+    fn browser_scripts(&mut self, ui: &mut egui::Ui, filter: &str) {
+        let files: Vec<String> = self.ws.script_names().into_iter().map(|(n, _)| n).filter(|n| filter.is_empty() || n.to_lowercase().contains(filter)).collect();
+        if files.is_empty() && !filter.is_empty() {
+            return;
+        }
+        egui::CollapsingHeader::new(format!("Scripts ({})", files.len())).id_salt("scripts").open((!filter.is_empty()).then_some(true)).show(ui, |ui| {
+            for f in &files {
+                let dirty = self.scripts.get(f).is_some_and(|t| t.dirty());
+                if ui.selectable_label(false, if dirty { format!("{f} *") } else { f.clone() }).on_hover_text("A file of script functions (Rhai): what events run by name").clicked() {
+                    self.asks.push(Ask::Open(Tab::Script(f.clone())));
+                }
+            }
+            // A new file: named, with a first function to write in.
+            let id = ui.scope_id().with("new script");
+            let mut name: String = ui.data_mut(|d| d.get_temp(id).unwrap_or_default());
+            ui.horizontal(|ui| {
+                ui.add(egui::TextEdit::singleline(&mut name).hint_text("new file").desired_width(110.0)).widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, "Name of the new script"));
+                let file = format!("{}.rhai", name.trim().trim_end_matches(".rhai"));
+                let ok = !name.trim().is_empty() && rustpg2d_engine::project::safe_rel(&file) && !file.contains('/') && !files.contains(&file);
+                if ui.add_enabled(ok, egui::Button::new("+ New script")).clicked() {
+                    let path = self.ws.project.scripts_dir().join(&file);
+                    let written = std::fs::create_dir_all(self.ws.project.scripts_dir()).and_then(|_| std::fs::write(&path, format!("// {file}\n\nfn {}() {{\n}}\n", name.trim().trim_end_matches(".rhai").replace(|c: char| !c.is_alphanumeric(), "_"))));
+                    match written {
+                        Ok(()) => {
+                            self.ws.refresh_refs();
+                            self.asks.push(Ask::Open(Tab::Script(file)));
+                            name.clear();
+                        }
+                        Err(e) => self.ws.set_status(format!("{file}: {e}")),
+                    }
+                }
+            });
+            ui.data_mut(|d| d.insert_temp(id, name));
+        });
+    }
+
     fn browser_row(&mut self, ui: &mut egui::Ui, kind: RefKind, id: &str, name: &str) {
         let label = if name == id { id.to_string() } else { format!("{name}  ({id})") };
         let clicked = ui
@@ -1191,6 +1286,11 @@ impl Viewer<'_> {
                     match &p.target {
                         Target::Def(k, id) => self.asks.push(Ask::Open(Tab::Def(*k, id.clone()))),
                         Target::Map(m) | Target::MapTriggers(m) | Target::Entity(m, _) | Target::Zone(m, _) => self.asks.push(Ask::Open(Tab::Map(m.clone()))),
+                        Target::Script(path, at) => {
+                            let file = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+                            self.scripts.entry(file.clone()).or_insert_with(|| crate::scriptedit::ScriptTab::open(path.clone())).reveal(*at);
+                            self.asks.push(Ask::Open(Tab::Script(file)));
+                        }
                         _ => self.asks.push(Ask::Open(Tab::Overview)),
                     }
                 }
@@ -1791,6 +1891,27 @@ impl Viewer<'_> {
             d.insert_temp(sort_id, sort);
         });
         open
+    }
+
+    /// A script's tab.
+    fn script(&mut self, ui: &mut egui::Ui, file: &str) {
+        let Some(path) = self.ws.script_names().into_iter().find(|(n, _)| n == file).map(|(_, p)| p).or_else(|| self.scripts.get(file).map(|t| t.path.clone())) else {
+            ui.weak(format!("There is no script {file} in this project."));
+            return;
+        };
+        let tab = self.scripts.entry(file.to_string()).or_insert_with(|| crate::scriptedit::ScriptTab::open(path));
+        if let Some(crate::scriptedit::Ask::Function(name)) = tab.show(ui, self.ws) {
+            // Defined in another file: that file's tab, at the function.
+            let found = self.ws.script_names().into_iter().find_map(|(n, p)| {
+                let src = std::fs::read_to_string(&p).ok()?;
+                let at = src.find(&format!("fn {name}"))?;
+                Some((n, p, src[..at].chars().count()))
+            });
+            if let Some((n, p, at)) = found {
+                self.scripts.entry(n.clone()).or_insert_with(|| crate::scriptedit::ScriptTab::open(p)).reveal(at);
+                self.asks.push(Ask::Open(Tab::Script(n)));
+            }
+        }
     }
 
     fn map(&mut self, ui: &mut egui::Ui, name: &str) {

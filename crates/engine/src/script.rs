@@ -111,8 +111,8 @@ impl ScriptHost {
         self.engine.gen_fn_signatures(false)
     }
 
-    /// Whether `code` compiles (tests of generated scripts).
-    #[cfg(test)]
+    /// Whether `code` compiles (an editor checks a script before it is saved; tests of
+    /// generated scripts).
     pub fn compile_check(&self, code: &str) -> Result<(), String> {
         self.engine.compile(code).map(|_| ()).map_err(|e| e.to_string())
     }

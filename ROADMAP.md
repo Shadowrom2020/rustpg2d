@@ -1371,10 +1371,24 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     own comment as its help and starting as the engine's template (a count of 1, not 0).
     **+ Add an event…** offers the events that reach that owner, the likeliest first, as
     sentences. Lists of events are open in a form also while they are empty.
+  - **Scripts in tabs** (`studio/src/scriptedit.rs` over `editor-core/src/scripts.rs`; the
+    Project browser's *Story › Scripts*, with *+ New script*): a file with its colours and
+    line numbers, its functions as an outline, suggestions while typing (the script API with
+    its documentation, the project's own functions, and inside a string argument the ids it
+    can name: items by id and name, maps, a map's spawn points, flags, states…), the
+    signature of the call being written with the current parameter marked, brackets and
+    quotes closed, new lines indented, Ctrl+click on a function to go to it (also into
+    another file). The text is checked a moment after typing stops: ids that aren't there,
+    functions named in strings that no script defines, what the compiler says, each
+    underlined and listed with its line. Scripts are saved with everything (Ctrl+S, before
+    playing); a problem of the project check that is in a script opens its tab at the
+    place; a file changed outside (a rename, an agent, another program) is taken, or asked
+    about when the tab has changes of its own.
   Still open: rows dragged from one list into another and several rows selected at once
   (copy and paste does it one by one); *Try it*; the conversation view; the flags and
-  variables page; scripts in tabs; the documents (Events graph, visual scripts, cut-scene
-  timeline, animation editor, quest designer).
+  variables page; of scripts: a function run in the Play tab, *Find in scripts*; the
+  documents (Events graph, visual scripts, cut-scene timeline, animation editor, quest
+  designer).
 
   **Decided while building.**
   - **The sheet reads the values as the files hold them** (JSON, as the forms do), so it is
@@ -1384,9 +1398,16 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     cut-scene* are not in them (old data keeps them and shows them).
   - **The sheet's clipboard is the editor's own**, kept while it runs; it holds one row of
     each kind (an event, a condition, an action).
+  - **A script's text has its own undo** (the text field's, Ctrl+Z while writing): it is not
+    a step of the project's history, as in 0.35. The tab keeps what was typed until it is
+    saved or the editor closes.
+  - **The script editor's thinking is in the core** (where the cursor is, what to suggest,
+    what typing adds, how a script is painted, what is wrong in a text): tested without a
+    window, and there for agents.
 
-  **Engine.** None; maybe an *off* mark on an action (a row switched off while testing), asked
-  for when the part starts.
+  **Engine.** `ScriptHost::compile_check` is no longer for tests only (a script is checked
+  before it is saved). Maybe an *off* mark on an action (a row switched off while testing),
+  asked for when it is built.
 
   **Verify.** `egui_kittest`: build a trigger with a condition and three actions, reorder, copy to
   another character, undo; write a conversation with a choice and play it; rename a flag from its
@@ -1401,6 +1422,14 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     the window: the campfire's four events read as sentences, one opened with its *If* and
     three *Do* rows, an action opened in place, the palette searched for "stat"; the guard's
     events in the Inspector and the list of events to add.
+  - Scripts: `scripts::tests` (the 0.35 editor's tests of the cursor's context and of the
+    suggestions, how a script is painted, brackets closed and lines indented, a suggestion
+    taken); `scriptedit::ui_tests` (a script's functions as its outline, an item that isn't
+    there said with its line, the text put right and saved, the project knowing its new
+    functions, a compile error at its line; a file changed outside taken, or asked about
+    and kept). In the window: the example's `main.rhai` (50 functions), `give_item("po`
+    typed after a line: six items offered by id and name, the signature with *item* marked,
+    then *count*; Enter takes the first; Ctrl+S writes the file.
 
 - [ ] Part 8: Workshops — `feature/studio`
 

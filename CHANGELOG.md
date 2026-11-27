@@ -20,7 +20,8 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   a machine without a graphics driver gets a message.
 - `Game::step` and `Game::thing_under_pointer` (an editor shows the game itself: its clock
   by hand, what a click would open); `map::MapSettings` (what a map is besides its ground
-  and what stands on it, for forms); `Assets::load_sheet` (one picture read again).
+  and what stands on it, for forms); `Assets::load_sheet` (one picture read again);
+  `ScriptHost::compile_check` (a script checked before it is saved).
 
 ### Editor
 - **The new editor's window** (`rustpg2d-studio`, part 3 of *The Studio*), egui 0.37 on the
@@ -93,6 +94,12 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   *Give 2 x Healing Potion*), opened in place to change it, dragged to another place, copied
   to another event, character or map from its menu. New actions come from a searched list in
   the manual's groups, new events from the events that owner can get.
+- **Scripts in tabs** (part 7): *Story › Scripts* in the Project browser opens a script file with
+  its colours, line numbers and its functions as an outline. While you type it suggests script
+  functions with what they do, your own functions, and inside a text the ids it can name (items
+  with their names, maps, spawn points, flags); it shows the call's parameters, closes brackets,
+  indents new lines, and underlines what is wrong a moment after you stop (an id that isn't
+  there, a line that doesn't compile). Ctrl+click goes to a function. Saved with everything.
 - **More on the map** (part 6): copy, cut and paste what is selected, on the same map or onto
   another (Ctrl+C / X / V); *Replace with…* puts another definition in a thing's place;
   several things are put in a row or a column; a placed prop's state is picked among its own

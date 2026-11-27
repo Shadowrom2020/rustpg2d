@@ -161,7 +161,7 @@ fn shorten(text: &str, n: usize) -> String {
 }
 
 /// The line of a compiler message ("… (line 12, position 4)").
-fn message_line(msg: &str) -> Option<usize> {
+pub(crate) fn message_line(msg: &str) -> Option<usize> {
     let i = msg.rfind("line ")?;
     msg[i + 5..].chars().take_while(char::is_ascii_digit).collect::<String>().parse().ok()
 }

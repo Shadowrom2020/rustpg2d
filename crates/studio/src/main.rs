@@ -19,6 +19,7 @@ mod buildtool;
 mod mapview;
 mod play;
 mod scene;
+mod scriptedit;
 mod sheet;
 mod shell;
 mod thumbs;
@@ -80,6 +81,10 @@ impl Studio {
                     let map = self.shell.map_status();
                     if !map.is_empty() {
                         println!("[mapview] {map}");
+                    }
+                    let script = self.shell.script_status();
+                    if !script.is_empty() {
+                        println!("[script] {script}");
                     }
                     // (What the editor last told the person.)
                     println!("[said] {}", self.shell.ws.status.0);

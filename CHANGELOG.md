@@ -130,6 +130,8 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   A newer version of an installed pack is applied asset by asset: what you didn't change is
   updated, what you changed stays unless you tick it, what the pack dropped stays unless you
   tick it; the library is copied first.
+  The starter library can be installed as a pack too (taken from the editor or downloaded),
+  and is then listed and updated like the others.
   A project remembers which pack each asset came from; the Publishing page lists the packs in
   the game with their licences and puts their credit lines into the game's credits.
 - **Generate art** (part 8): the page for Meshy jobs (icons, portraits, pictures, 3D characters,

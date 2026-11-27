@@ -221,6 +221,24 @@ impl PacksPage {
             1 => "1 pack is installed".to_string(),
             n => format!("{n} packs are installed"),
         });
+        // The starter library, when it isn't a pack here yet.
+        if !installed.iter().any(|p| p.manifest.id == rustpg2d_engine::packs::STARTER_ID) && self.pending.as_ref().is_none_or(|p| p.preview.manifest.id != rustpg2d_engine::packs::STARTER_ID) {
+            ui.group(|ui| {
+                ui.label(egui::RichText::new("The starter library").strong());
+                ui.weak("Characters, props, items, ground, sounds and music to start from. Installed as a pack, it is listed here and kept up to date like any other; what you changed of it stays yours.");
+                let busy = self.getting.is_some();
+                ui.horizontal(|ui| {
+                    if let Some(found) = editor_core::starter::current() {
+                        if ui.add_enabled(!busy, egui::Button::new(format!("Take the one this editor has ({})", found.describe()))).on_hover_text("Shown first, as every pack: what it would add and update").clicked() {
+                            self.getting = Some((String::new(), Fetch::start(ui.ctx(), "the starter library".into(), || editor_core::starter::as_file().unwrap_or_else(|| Err(anyhow::anyhow!("no starter library was found"))).map_err(|e| format!("{e:#}")))));
+                        }
+                    }
+                    if ui.add_enabled(!busy, egui::Button::new("Download it")).on_hover_text(format!("The starter library of R(ust)PG2D {} from its release, checked against the release's SHA256SUMS; shown before anything is installed", env!("CARGO_PKG_VERSION"))).clicked() {
+                        self.getting = Some(("the R(ust)PG2D release".into(), Fetch::start(ui.ctx(), "the starter library".into(), || editor_core::starter::fetch().map_err(|e| format!("{e:#}")))));
+                    }
+                });
+            });
+        }
         let mut forget = None;
         for p in &installed {
             ui.group(|ui| {
@@ -256,7 +274,8 @@ impl PacksPage {
                 ui.label(egui::RichText::new(&m.title).heading());
                 ui.weak(byline(m));
             });
-            if m.legacy {
+            let starter = m.id == rustpg2d_engine::packs::STARTER_ID;
+            if m.legacy && !starter {
                 ui.weak("A file of R(ust)PG2D 0.35: it has no pack manifest of its own.");
             }
             if !m.description.is_empty() {
@@ -266,8 +285,11 @@ impl PacksPage {
                 ui.weak(format!("Credit: {}", m.attribution));
             }
             ui.label(format!("It holds {}.", if p.preview.holds.is_empty() { "nothing".to_string() } else { p.preview.holds.join(", ") }));
-            if !p.preview.code.is_empty() {
-                ui.colored_label(ui.visuals().warn_fg_color, format!("Some of it runs in your games: {}. Install it only from someone you trust.", p.preview.code.join(", ")));
+            // (The starter library is the editor's own: its script functions need no warning.)
+            if !p.preview.code.is_empty() && !starter {
+                let shown: Vec<&str> = p.preview.code.iter().take(6).map(String::as_str).collect();
+                let more = p.preview.code.len().saturating_sub(6);
+                ui.colored_label(ui.visuals().warn_fg_color, format!("Some of it runs in your games: {}{}. Install it only from someone you trust.", shown.join(", "), if more > 0 { format!(" and {more} more") } else { String::new() })).on_hover_text(p.preview.code.join("\n"));
             }
             let (new, same, differing) = (p.preview.new.len(), p.preview.same.len(), p.preview.differing.len());
             let names = |v: &[AssetRef]| {
@@ -277,10 +299,16 @@ impl PacksPage {
             match &p.preview.update {
                 // An update: asset by asset.
                 Some(u) => {
-                    let v = p.preview.installed.clone().unwrap_or_default();
-                    ui.label(if v == m.version { format!("Version {v} is installed already.") } else { format!("Version {v} is installed: this is {}.", m.version) });
-                    if u.is_empty() {
+                    match &p.preview.installed {
+                        Some(v) if *v == m.version => ui.label(format!("Version {v} is installed already.")),
+                        Some(v) => ui.label(format!("Version {v} is installed: this is {}.", m.version)),
+                        // (The starter library, until now part of every library without being a pack.)
+                        None => ui.label("Your library has what it had of this already. Installed as a pack, it is kept up to date like the others."),
+                    };
+                    if u.is_empty() && p.preview.installed.is_some() {
                         ui.weak("Your library has everything of it as it is: there is nothing to do.");
+                    } else if u.is_empty() {
+                        ui.weak("Everything of it is there as it is: installing only puts it on the list.");
                     }
                     if !u.added.is_empty() {
                         ui.label(format!("New in it ({}): {}", u.added.len(), names(&u.added)));
@@ -335,7 +363,7 @@ impl PacksPage {
                 ui.colored_label(ui.visuals().error_fg_color, format!("It needs {}: install that first.", p.preview.missing.iter().map(|n| if n.version.is_empty() { n.id.clone() } else { format!("{} {} or newer", n.id, n.version) }).collect::<Vec<_>>().join(" and ")));
             }
             ui.horizontal(|ui| {
-                let nothing = p.preview.update.as_ref().is_some_and(|u| u.is_empty());
+                let nothing = p.preview.installed.is_some() && p.preview.update.as_ref().is_some_and(|u| u.is_empty());
                 install = ui.add_enabled(p.preview.missing.is_empty() && !nothing, egui::Button::new(egui::RichText::new(if p.preview.installed.is_some() { "Update it" } else { "Install it" }).strong())).clicked();
                 cancel = ui.button("Not now").clicked();
                 ui.weak(size_text(p.bytes.len() as u64));

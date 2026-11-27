@@ -224,8 +224,11 @@ impl Workspace {
         let installed = read_record(&root);
         let missing = pack.manifest.needs.iter().filter(|n| !installed.iter().any(|p| p.manifest.id == n.id && (n.version.is_empty() || packs::compare_versions(&p.manifest.version, &n.version) != std::cmp::Ordering::Less))).cloned().collect();
         let was = installed.iter().find(|p| p.manifest.id == pack.manifest.id).map(|p| p.manifest.version.clone());
-        let update = match &was {
-            Some(_) => {
+        // An update is judged asset by asset. So is the starter library coming in as a pack
+        // for the first time: a library has its assets already (they came by themselves
+        // until 0.36), and its history knows every version of them that was shipped.
+        let update = match was.as_ref().map(|_| ()).or_else(|| (pack.manifest.id == packs::STARTER_ID && pack.history.is_some()).then_some(())) {
+            Some(()) => {
                 let mut bundle = pack.assets.clone();
                 bundle.rescale(rustpg2d_engine::project::TILE_SIZE).map_err(|e| format!("{e:#}"))?;
                 Some(starter_update::plan(lib, &bundle, &history_for(&root, &pack)))
@@ -286,24 +289,35 @@ impl Workspace {
         pack.manifest.fits().map_err(|e| format!("{e:#}"))?;
         let root = self.library_root()?;
         let record = read_record(&root);
-        let Some(was) = record.iter().find(|p| p.manifest.id == pack.manifest.id) else { return Err(format!("{} isn't installed: install it first", pack.manifest.title)) };
+        // (The starter library's first time as a pack is an update of what the library has of it.)
+        let was: Vec<(String, String)> = match record.iter().find(|p| p.manifest.id == pack.manifest.id) {
+            Some(p) => p.assets.clone(),
+            None if pack.manifest.id == packs::STARTER_ID && pack.history.is_some() => Vec::new(),
+            None => return Err(format!("{} isn't installed: install it first", pack.manifest.title)),
+        };
         let history = history_for(&root, &pack);
         let lib = self.lib.lib.as_mut().ok_or("the asset library isn't available")?;
         let mut bundle = pack.assets.clone();
         bundle.rescale(rustpg2d_engine::project::TILE_SIZE).map_err(|e| format!("{e:#}"))?;
         let plan = starter_update::plan(lib, &bundle, &history);
-        let report = starter_update::apply(lib, &bundle, &plan, &history, take_edited, delete).map_err(|e| format!("{e:#}"))?;
+        // (Nothing to bring in, replace or delete: the library is left as it is, without a copy.)
+        let idle = plan.added.is_empty() && plan.updated.is_empty() && !take_edited.iter().any(|a| plan.edited.contains(a)) && !delete.iter().any(|a| plan.retired.iter().any(|r| r.asset == *a));
+        let summary = if idle {
+            if plan.edited.is_empty() { "the library has it as it is".to_string() } else { format!("nothing to change; kept your version of {}", plan.edited.iter().map(|a| a.1.as_str()).collect::<Vec<_>>().join(", ")) }
+        } else {
+            starter_update::apply(lib, &bundle, &plan, &history, take_edited, delete).map_err(|e| format!("{e:#}"))?.summary()
+        };
         lib.db.reindex();
         // What is the pack's in the library now: what this version has, and what it retired but is kept.
         let mut assets: Vec<(String, String)> = library::all_assets(&bundle.db).iter().map(|(k, id)| (k.name().to_string(), id.clone())).collect();
-        for old in &was.assets {
+        for old in &was {
             let kept = RefKind::parse(&old.0).is_some_and(|k| lib.db.has(k, &old.1));
             if kept && !assets.contains(old) {
                 assets.push(old.clone());
             }
         }
         let what = self.installed(&pack, assets, source)?;
-        let said = format!("{what}: {}", report.summary());
+        let said = format!("{what}: {summary}");
         self.set_status(said.clone());
         Ok(said)
     }
@@ -642,4 +656,60 @@ mod tests {
         assert!(ws.make_pack(&manifest("Empty", "1.0"), &[], &[], Vec::new()).is_err());
         let _ = std::fs::remove_dir_all(dir);
     }
+    #[test]
+    fn the_starter_library_comes_in_as_a_pack_over_what_a_library_has_of_it() {
+        use rustpg2d_engine::starter_pack::StarterPack;
+        let (mut ws, dir) = scratch("starter");
+        // A small starter library: a crate with its picture. Its history knows what it shipped.
+        let source = dir.join("starter");
+        std::fs::create_dir_all(&source).unwrap();
+        crate::files::create_project(&source).unwrap();
+        let write = |name: &str, history: &mut StarterHistory, version: &str| -> Vec<u8> {
+            let mut p = rustpg2d_engine::project::Project::load(&source).unwrap();
+            p.db.sheets.retain(|s| s.id != "crates");
+            p.db.props.retain(|s| s.id != "crate");
+            p.db.sheets.push(rustpg2d_engine::defs::SheetDef::new("crates", "sprites/crates.png", 32, 32));
+            p.db.props.push(rustpg2d_engine::defs::PropDef { name: name.into(), sprite: rustpg2d_engine::defs::SpriteRef::new("crates", 0), ..rustpg2d_engine::defs::PropDef::fresh("crate") });
+            std::fs::create_dir_all(source.join("sprites")).unwrap();
+            std::fs::write(source.join("sprites/crates.png"), rustpg2d_engine::imageio::Rgba::new(32, 32).encode().unwrap()).unwrap();
+            p.save_defs().unwrap();
+            let files = rustpg2d_engine::pack::read_dir_files(&source).unwrap();
+            history.record(&Bundle::from_files(&files.iter().map(|(f, b)| (f.as_str(), b.as_slice())).collect::<Vec<_>>()).unwrap());
+            let history_file = dir.join("starter_history.ron");
+            std::fs::write(&history_file, history.to_ron().unwrap()).unwrap();
+            StarterPack::from_dir(&source, &history_file, version).unwrap().to_bytes().unwrap()
+        };
+        let mut history = StarterHistory::default();
+        let v1 = write("Crate", &mut history, "9.1");
+        // The library has the starter's assets already, as they came by themselves before
+        // 0.36: nothing says they are a pack's.
+        copy(&source, &dir.join("library"));
+        ws.lib.lib = Some(rustpg2d_engine::project::Project::load(&dir.join("library")).unwrap());
+        assert!(ws.installed_packs().is_empty());
+        // Looked at, the file is the starter pack, and there is nothing to do; installed, it is on the list.
+        let p = ws.pack_preview(&v1).unwrap();
+        assert_eq!((p.manifest.id.as_str(), p.manifest.version.as_str(), p.installed.clone()), (packs::STARTER_ID, "9.1", None));
+        assert!(p.update.as_ref().is_some_and(|u| u.is_empty()), "{:?}", p.update);
+        let said = ws.install_pack(&v1, SameId::Keep, "").unwrap();
+        assert!(said.starts_with("Installed Starter asset library 9.1") && said.ends_with("the library has it as it is"), "{said}");
+        assert!(!dir.read_dir().unwrap().flatten().any(|e| e.file_name().to_string_lossy().starts_with("library.bak-")), "nothing was replaced: no copy of the library is made");
+        assert_eq!(ws.installed_packs()[0].manifest.id, packs::STARTER_ID);
+        // The next version renames the crate. A library that left it alone gets the new one…
+        let v2 = write("Sturdy crate", &mut history, "9.2");
+        let u = ws.pack_preview(&v2).unwrap().update.unwrap();
+        assert_eq!((u.updated.as_slice(), u.edited.len()), (&[(RefKind::Prop, "crate".to_string())][..], 0));
+        // …one whose crate was changed keeps it, and is told.
+        {
+            let lib = ws.lib.lib.as_mut().unwrap();
+            lib.db.props.iter_mut().find(|p| p.id == "crate").unwrap().name = "My crate".into();
+            lib.save_defs().unwrap();
+        }
+        let u = ws.pack_preview(&v2).unwrap().update.unwrap();
+        assert_eq!((u.updated.len(), u.edited.as_slice()), (0, &[(RefKind::Prop, "crate".to_string())][..]));
+        let said = ws.install_pack(&v2, SameId::Keep, "").unwrap();
+        assert!(said.starts_with("Updated Starter asset library from 9.1 to 9.2") && said.contains("kept your version of crate"), "{said}");
+        assert_eq!(ws.lib.lib.as_ref().unwrap().db.prop("crate").unwrap().name, "My crate");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
 }

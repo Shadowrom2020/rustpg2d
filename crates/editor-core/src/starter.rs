@@ -220,6 +220,18 @@ impl Download {
     }
 }
 
+/// The starter library file of this editor's version, fetched from its release and checked
+/// against the release's `SHA256SUMS` (nothing is installed: the bytes are a pack to look at).
+pub fn fetch() -> Result<Vec<u8>> {
+    download(env!("CARGO_PKG_VERSION"), &Mutex::new((0, 0)))
+}
+
+/// The starter library that was found (the checkout's folder, an installed file) as the bytes
+/// of a starter library file. `None`: none was found.
+pub fn as_file() -> Option<Result<Vec<u8>>> {
+    current().map(|s| s.pack.to_bytes())
+}
+
 fn agent() -> ureq::Agent {
     ureq::Agent::config_builder().timeout_connect(Some(std::time::Duration::from_secs(20))).http_status_as_error(false).build().into()
 }

@@ -2106,9 +2106,20 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     something needs it). The library's folder is copied beside itself before anything is
     replaced (`<folder>.bak-…`), also on a first install that replaces what the library has
     differently; what was done names the copy.
+  - **The starter library as a pack** (`rustpg2d.starter`): *Packs and sources* offers it
+    while it isn't one in the library: *Take the one this editor has* (the checkout's
+    folder, an installed file) or *Download it* (the file of the editor's version from its
+    release, checked against the release's `SHA256SUMS`). It is shown like any pack; since a
+    library has had the starter's assets without their being a pack, its first install is
+    judged asset by asset with the starter's own history (what was changed here stays
+    unless ticked), and from then on it is listed, with its plugins, and updated like the
+    others. Nothing is copied or replaced when the library has everything as it is.
+    (The release still ships the `.r2dlib` file, read as this pack; the library still takes
+    the starter's new ids by itself when it is opened: both end with part 11 / 12.)
   Still open: several assets shared at once from a kind's list, a plugin shared from the
   window, the same per-asset update for a project's assets (they know their pack and
-  version), the starter library installed as a pack, the old writers (`.r2dlib`, `.r2dplugin`)
+  version), the release shipping the starter as a pack with an official index (the preset
+  source), the library no longer taking the starter's assets by itself, the old writers (`.r2dlib`, `.r2dplugin`)
   folded away, packs as cards with their preview pictures; and
   of the tab: pictures of the library's assets, tags and filters, dragging onto a map, the
   starter library's installing and updating from the window.
@@ -2149,6 +2160,14 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     1.1 shared with a barrel more, the update panel (*New in it (2)*, *Changed by you and
     by the pack (1)*), the chest ticked, *Update it*: the library has the pack's chest and a
     `.bak-…` copy lies beside it.
+  - The starter as a pack: `the_starter_library_comes_in_as_a_pack_over_what_a_library_has_
+    of_it` (a small starter file over a library that has its assets already: nothing to do,
+    installed without a copy of the library, on the list; the next version renames its
+    crate: updated in a library that left it alone, kept in one that changed it). With the
+    real editor: *Take the one this editor has* on a library made the old way (2,681 assets
+    all there as they are; installed, listed with its four plugins); ***Download it*** on
+    another library: the 61 MB file of 0.35.0-alpha.1 fetched from the GitHub release,
+    checked, shown (2,675 new, the chest there *changed by you and by the pack*), installed.
   - Origins and credits: in the `packs` core test the chest added to another project from
     the library is noted as *market-things 1.0*, its copy too; the credit line is missing
     from the credits, added once, and the project still knows after saving and reading

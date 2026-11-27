@@ -59,6 +59,8 @@ enum Op {
     Duplicate(usize),
     /// Puts a copied row in before row `k` (or at the end).
     Paste(usize, Value),
+    /// Takes an answer of the choice in row `choice` away, with what it leads to.
+    RemoveAnswer { choice: usize, answer: usize },
 }
 
 fn clip_id(kind: Kind) -> egui::Id {
@@ -128,6 +130,10 @@ fn apply(list: &mut Vec<Value>, op: Op, open: &mut Option<usize>) {
             list.insert(k, v);
             *open = open.map(|o| if o >= k { o + 1 } else { o });
         }
+        Op::RemoveAnswer { choice, answer } => {
+            events::remove_answer(list, choice, answer);
+            *open = None;
+        }
         _ => {}
     }
 }
@@ -175,8 +181,19 @@ fn rows(ui: &mut egui::Ui, cx: &mut Cx, inner: Node, site: &str, list: &mut Vec<
     let lines: Vec<String> = list.iter().map(|v| line(cx, kind, v)).collect();
     let n = list.len();
     let (mut changed, mut op) = (false, None);
-    for (k, item) in list.iter_mut().enumerate() {
+    // What a choice's answers lead to stands under them, not as rows of its own.
+    let claimed = if kind == Kind::Action { events::branches(list) } else { Vec::new() };
+    for k in 0..n {
+        if claimed.contains(&k) {
+            continue;
+        }
         ui.push_id(k, |ui| {
+            // A line of a conversation is written where it stands.
+            if kind == Kind::Action && matches!(events::variant(&list[k]).0, "Dialog" | "Choice") {
+                changed |= talk_row(ui, cx, inner, list, k, depth, list_id, &mut op);
+                return;
+            }
+            let item = &mut list[k];
             let is_open = open == Some(k);
             let r = ui
                 .horizontal(|ui| {
@@ -193,20 +210,7 @@ fn rows(ui: &mut egui::Ui, cx: &mut Cx, inner: Node, site: &str, list: &mut Vec<
             if r.clicked() {
                 open = (!is_open).then_some(k);
             }
-            // Dragged onto another row of its list, it takes that row's place.
-            r.dnd_set_drag_payload(RowDrag { list: list_id, from: k });
-            if let Some(d) = r.dnd_hover_payload::<RowDrag>().filter(|d| d.list == list_id && d.from != k) {
-                let y = if d.from < k { r.rect.bottom() } else { r.rect.top() };
-                ui.painter().hline(r.rect.x_range(), y, egui::Stroke::new(2.0, ui.visuals().selection.stroke.color));
-            }
-            if let Some(d) = r.dnd_release_payload::<RowDrag>().filter(|d| d.list == list_id && d.from != k) {
-                op = Some(Op::Move { from: d.from, to: k });
-            }
-            r.context_menu(|ui| {
-                if let Some(picked) = row_menu(ui, kind, k, n, item) {
-                    op = Some(picked);
-                }
-            });
+            handle(ui, &r, kind, list_id, k, n, item, &mut op);
             if is_open {
                 ui.indent("open row", |ui| changed |= form::body(ui, cx, inner, site, item, depth + 1));
             }
@@ -216,20 +220,190 @@ fn rows(ui: &mut egui::Ui, cx: &mut Cx, inner: Node, site: &str, list: &mut Vec<
         apply(list, op, &mut open);
         changed = true;
     }
-    if let Some(new) = add_menu(ui, inner, site, kind) {
+    let speaker = (kind == Kind::Action).then(|| events::next_speaker(list));
+    if let Some(new) = add_menu(ui, inner, site, kind, speaker) {
+        // (A line is written where it stands; anything else opens to be filled in.)
+        let talk = matches!(events::variant(&new).0, "Dialog" | "Choice");
         list.push(new);
-        open = Some(list.len() - 1);
+        open = (!talk).then_some(list.len() - 1);
         changed = true;
     }
     ui.data_mut(|d| d.insert_temp(list_id, open));
     changed
 }
 
+/// What a row's handle does besides being clicked: dragged onto another row of its list it
+/// takes that row's place; the right button opens the row's menu.
+#[allow(clippy::too_many_arguments)]
+fn handle(ui: &egui::Ui, r: &egui::Response, kind: Kind, list_id: egui::Id, k: usize, n: usize, item: &Value, op: &mut Option<Op>) {
+    r.dnd_set_drag_payload(RowDrag { list: list_id, from: k });
+    if let Some(d) = r.dnd_hover_payload::<RowDrag>().filter(|d| d.list == list_id && d.from != k) {
+        let y = if d.from < k { r.rect.bottom() } else { r.rect.top() };
+        ui.painter().hline(r.rect.x_range(), y, egui::Stroke::new(2.0, ui.visuals().selection.stroke.color));
+    }
+    if let Some(d) = r.dnd_release_payload::<RowDrag>().filter(|d| d.list == list_id && d.from != k) {
+        *op = Some(Op::Move { from: d.from, to: k });
+    }
+    r.context_menu(|ui| {
+        if let Some(picked) = row_menu(ui, kind, k, n, item) {
+            *op = Some(picked);
+        }
+    });
+}
+
+/// A text of a row's fields, changed in place.
+fn text_of(fields: &serde_json::Map<String, Value>, key: &str) -> String {
+    fields.get(key).and_then(Value::as_str).unwrap_or("").to_string()
+}
+
+/// A line of a conversation: who speaks and what is said, written where it stands; a question
+/// with its answers and, under each, what it leads to.
+#[allow(clippy::too_many_arguments)]
+fn talk_row(ui: &mut egui::Ui, cx: &mut Cx, inner: Node, list: &mut [Value], k: usize, depth: usize, list_id: egui::Id, op: &mut Option<Op>) -> bool {
+    let n = list.len();
+    let question = events::variant(&list[k]).0 == "Choice";
+    // Who has spoken in this list so far, to pick from.
+    let mut speakers: Vec<String> = vec!["{self}".into(), "{player}".into()];
+    for a in list.iter() {
+        if let Some(sp) = a.get("Dialog").or_else(|| a.get("Choice")).and_then(|d| d.get("speaker")).and_then(Value::as_str).filter(|sp| !sp.is_empty()) {
+            if !speakers.iter().any(|x| x == sp) {
+                speakers.push(sp.to_string());
+            }
+        }
+    }
+    let item_now = list[k].clone();
+    let Some(fields) = list[k].as_object_mut().and_then(|m| m.values_mut().next()).and_then(Value::as_object_mut) else { return false };
+    let mut changed = false;
+    let (mut speaker, mut text) = (text_of(fields, "speaker"), text_of(fields, "text"));
+    ui.horizontal(|ui| {
+        let r = ui.add(egui::Label::new(egui::RichText::new(format!("{}.", k + 1)).weak()).sense(egui::Sense::click_and_drag())).on_hover_text("Drag to move the line; right-click for more");
+        handle(ui, &r, Kind::Action, list_id, k, n, &item_now, op);
+        // The speaker's face, when a character of that name is known.
+        let face = cx.lists.iter().find(|(kind, _)| *kind == RefKind::Character).and_then(|(_, l)| l.iter().find(|(_, name)| !name.is_empty() && name.eq_ignore_ascii_case(&speaker))).map(|(id, _)| id.clone());
+        if let (Some(id), Some(p)) = (face, cx.pictures.as_mut()) {
+            crate::thumbs::boxed(ui, 22.0, || p.of(RefKind::Character, &id));
+        }
+        let who = ui.add(egui::TextEdit::singleline(&mut speaker).hint_text("who").desired_width(96.0));
+        who.widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, "Who speaks"));
+        changed |= who.changed();
+        ui.menu_button("…", |ui| {
+            for sp in &speakers {
+                let label = match sp.as_str() {
+                    "{self}" => "{self}  (whose event it is)".to_string(),
+                    "{player}" => "{player}  (the hero)".to_string(),
+                    other => other.to_string(),
+                };
+                if ui.button(label).clicked() {
+                    speaker = sp.clone();
+                    changed = true;
+                    ui.close();
+                }
+            }
+        })
+        .response
+        .on_hover_text("Who has spoken here, and the names that fill themselves in");
+        if question {
+            ui.weak("asks").on_hover_text("A question: the player picks one of the answers under it");
+        }
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
+            if ui.small_button("x").on_hover_text("Remove this line").clicked() {
+                *op = Some(Op::Remove(k));
+            }
+            let said = ui.add(egui::TextEdit::multiline(&mut text).desired_rows(1).desired_width(f32::INFINITY).hint_text(if question { "the question" } else { "what is said" }));
+            said.widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, if question { "The question" } else { "What is said" }));
+            changed |= said.changed();
+        });
+    });
+    if changed {
+        fields.insert("speaker".into(), speaker.into());
+        fields.insert("text".into(), text.into());
+    }
+    if !question {
+        return changed;
+    }
+    // The answers, each with what it leads to.
+    let mut var = text_of(fields, "var");
+    let mut options: Vec<String> = fields.get("options").and_then(Value::as_array).map(|o| o.iter().map(|v| v.as_str().unwrap_or("").to_string()).collect()).unwrap_or_default();
+    let (mut options_changed, mut add_branch) = (false, None);
+    ui.indent("answers", |ui| {
+        for (o, option) in options.iter_mut().enumerate() {
+            ui.push_id(o, |ui| {
+                ui.horizontal(|ui| {
+                    ui.weak(format!("answer {}", o + 1));
+                    let r = ui.add(egui::TextEdit::singleline(option).hint_text("an answer").desired_width(280.0));
+                    r.widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, format!("Answer {}", o + 1)));
+                    options_changed |= r.changed();
+                    if ui.small_button("x").on_hover_text("Remove this answer and what it leads to").clicked() {
+                        *op = Some(Op::RemoveAnswer { choice: k, answer: o });
+                    }
+                    if events::branch_of(list, k, o).is_none() && ui.small_button("+ then…").on_hover_text("What happens after this answer").clicked() {
+                        add_branch = Some(o);
+                    }
+                });
+                // What it leads to: the actions of the If behind the question that asks for it.
+                if let Some(j) = events::branch_of(list, k, o) {
+                    let mut then = list[j].pointer_mut("/If/then").map(Value::take).unwrap_or_default();
+                    if let Value::Array(then_list) = &mut then {
+                        ui.indent("then", |ui| changed |= rows(ui, cx, inner, "Action.If.then", then_list, depth + 1, Kind::Action));
+                    }
+                    if let Some(slot) = list[j].pointer_mut("/If/then") {
+                        *slot = then;
+                    }
+                }
+            });
+        }
+        ui.horizontal(|ui| {
+            if ui.small_button("+ Answer").clicked() {
+                options.push(String::new());
+                options_changed = true;
+            }
+            let label = ui.weak("the answer's number is kept in").on_hover_text("A variable: 0 for the first answer, 1 for the second…");
+            let r = ui.add(egui::TextEdit::singleline(&mut var).hint_text("a variable").desired_width(130.0)).labelled_by(label.id);
+            options_changed |= r.changed();
+        });
+    });
+    if let Some(o) = add_branch {
+        // (An answer leads somewhere through the variable it is kept in: one is made up if needed.)
+        if var.trim().is_empty() {
+            var = format!("answer_{}", k + 1);
+            options_changed = true;
+        }
+        *op = Some(Op::Paste(events::branch_place(list, k, o), events::new_branch(var.trim(), o)));
+    }
+    if options_changed {
+        if let Some(fields) = list[k].as_object_mut().and_then(|m| m.values_mut().next()).and_then(Value::as_object_mut) {
+            // (The branches follow the variable when it is given another name.)
+            let old = text_of(fields, "var");
+            fields.insert("options".into(), Value::Array(options.into_iter().map(Value::from).collect()));
+            fields.insert("var".into(), var.clone().into());
+            if old != var && !old.is_empty() {
+                for a in list.iter_mut().skip(k + 1) {
+                    // (Up to the next question kept in the old name: its answers are its own.)
+                    if a.pointer("/Choice/var").and_then(Value::as_str) == Some(old.as_str()) {
+                        break;
+                    }
+                    if let Some(name) = a.pointer_mut("/If/conditions/0/cond/Var/name").filter(|n| n.as_str() == Some(old.as_str())) {
+                        *name = Value::from(var.clone());
+                    }
+                }
+            }
+        }
+        changed = true;
+    }
+    changed
+}
+
 /// *+ Add…*: what a new row starts as, picked from a searched list (actions: by their groups).
-fn add_menu(ui: &mut egui::Ui, inner: Node, site: &str, kind: Kind) -> Option<Value> {
+/// `speaker`: for a list of actions, who a new line of talk is spoken by.
+fn add_menu(ui: &mut egui::Ui, inner: Node, site: &str, kind: Kind, speaker: Option<String>) -> Option<Value> {
     let (one, _) = kind.words();
     let mut pick = None;
     ui.horizontal(|ui| {
+        if let Some(speaker) = &speaker {
+            if ui.button("+ Line").on_hover_text("A line of talk, written here: who speaks and what is said").clicked() {
+                pick = Some(serde_json::json!({"Dialog": {"speaker": speaker, "text": ""}}));
+            }
+        }
         ui.menu_button(format!("+ Add {} {one}…", if kind == Kind::Condition { "a" } else { "an" }), |ui| {
             ui.set_min_width(260.0);
             let fid = ui.scope_id().with("search");
@@ -374,7 +548,7 @@ fn triggers(ui: &mut egui::Ui, cx: &mut Cx, inner: Node, site: &str, list: &mut 
         apply(list, op, &mut None);
         changed = true;
     }
-    if let Some(new) = add_menu(ui, inner, site, Kind::Trigger) {
+    if let Some(new) = add_menu(ui, inner, site, Kind::Trigger, None) {
         list.push(new);
         // (A new event is open: its actions are what comes next.)
         let mut state = egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), list_id.with(list.len() - 1), true);
@@ -488,6 +662,75 @@ mod ui_tests {
         h.query_all_by_label("x").next().unwrap().click();
         h.run();
         assert!(h.state().elder.is_empty() && h.state().well.len() == 1);
+    }
+
+    #[test]
+    fn a_conversation_is_written_line_by_line_with_a_question_and_its_answers() {
+        let mut h = sheet();
+        h.state_mut().elder = vec![serde_json::json!({"on": "Interact", "conditions": [], "actions": [], "once": false})];
+        h.run();
+        let actions = |h: &Harness<'static, State>| h.state().elder[0]["actions"].clone();
+        // Two lines: the second speaker is typed, the third line is the first speaker's again.
+        h.get_by_label("+ Line").click();
+        h.run();
+        let who = h.get_by_role_and_label(egui::accesskit::Role::TextInput, "Who speaks");
+        who.focus();
+        who.type_text("Elder");
+        let said = h.get_by_role_and_label(egui::accesskit::Role::TextInput, "What is said");
+        said.focus();
+        said.type_text("The shrine has gone dark.");
+        h.run();
+        assert_eq!(actions(&h), serde_json::json!([{"Dialog": {"speaker": "Elder", "text": "The shrine has gone dark."}}]));
+        h.get_by_label("+ Line").click();
+        h.run();
+        let who = h.query_all_by_role_and_label(egui::accesskit::Role::TextInput, "Who speaks").nth(1).unwrap();
+        who.focus();
+        who.type_text("{player}");
+        h.run();
+        h.get_by_label("+ Line").click();
+        h.run();
+        assert_eq!(actions(&h)[2]["Dialog"]["speaker"], "Elder", "two people take turns");
+        // A question from the palette, with two answers.
+        h.get_by_label("+ Add an action…").click();
+        h.run();
+        h.get_by_role_and_label(egui::accesskit::Role::Button, label_of("Choice")).click();
+        h.run();
+        let q = h.get_by_role_and_label(egui::accesskit::Role::TextInput, "The question");
+        q.focus();
+        q.type_text("Will you look?");
+        h.run();
+        let before = actions(&h)[3]["Choice"]["options"].as_array().unwrap().len();
+        for _ in before..2 {
+            h.get_by_label("+ Answer").click();
+            h.run();
+        }
+        let a1 = h.get_by_role_and_label(egui::accesskit::Role::TextInput, "Answer 1");
+        a1.focus();
+        a1.type_text("Yes");
+        h.run();
+        // What the first answer leads to: an If behind the question, shown under the answer.
+        h.query_all_by_label("+ then…").next().unwrap().click();
+        h.run();
+        let now = actions(&h);
+        assert_eq!(now.as_array().unwrap().len(), 5);
+        let var = now[3]["Choice"]["var"].as_str().unwrap().to_string();
+        assert!(!var.is_empty(), "a variable is made up for the answer");
+        assert_eq!(now[4], events::new_branch(&var, 0));
+        assert_eq!(h.query_all_by_label("+ then…").count(), 1, "the first answer has its branch, the second doesn't yet");
+        // A line under the answer goes into that branch.
+        h.query_all_by_label("+ Line").next().unwrap().click();
+        h.run();
+        assert_eq!(actions(&h)[4]["If"]["then"].as_array().unwrap().len(), 1);
+        assert_eq!(events::variant(&actions(&h)[4]["If"]["then"][0]).0, "Dialog");
+        // The answer taken away takes its branch with it.
+        {
+            let s = h.state_mut();
+            let list = s.elder[0]["actions"].as_array_mut().unwrap();
+            apply(list, Op::RemoveAnswer { choice: 3, answer: 0 }, &mut None);
+        }
+        h.run();
+        assert_eq!(actions(&h).as_array().unwrap().len(), 4);
+        assert_eq!(h.query_all_by_label("+ then…").count(), 1);
     }
 
     #[test]

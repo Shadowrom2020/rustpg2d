@@ -94,6 +94,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   *Give 2 x Healing Potion*), opened in place to change it, dragged to another place, copied
   to another event, character or map from its menu. New actions come from a searched list in
   the manual's groups, new events from the events that owner can get.
+- **Conversations** (part 7): in the event sheet a line of talk is written where it stands, who
+  speaks and what is said; *+ Line* adds the next. A question shows its answers under it, and
+  under each answer what it leads to: more lines, any actions, another question.
 - **Flags and variables** (part 7): *Story › Flags and variables* lists every flag, variable and
   text variable of the game with how often it is set and read, marks the ones that are only
   ever set or only ever read, keeps a note for each, shows every place one stands (a click goes

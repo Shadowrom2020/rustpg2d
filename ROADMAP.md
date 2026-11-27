@@ -1384,6 +1384,14 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     playing); a problem of the project check that is in a script opens its tab at the
     place; a file changed outside (a rename, an agent, another program) is taken, or asked
     about when the tab has changes of its own.
+  - **Conversations are written in the sheet**, line after line: a *Dialog* row is who
+    speaks (typed, or picked from who has spoken here and the names that fill themselves in;
+    a character of that name shows its face) and what is said, changed where it stands;
+    *+ Line* adds the next one, spoken by the other of two people who take turns. A
+    *Choice* is a line that *asks*, with its answers under it and under each answer what it
+    leads to (lines, any actions, another question): the *If* behind the question that
+    asks for that answer, made by *+ then…* and shown there instead of as a row of its own.
+    Taking an answer away takes what it leads to with it and moves the later answers up.
   - **Flags and variables** (`studio/src/namespage.rs` over `editor-core/src/names.rs`;
     *Story › Flags and variables*, tab `names`): every flag, variable and text variable with
     how often it is set and read; one that is only ever set or only ever read is marked
@@ -1392,8 +1400,9 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     events, a script's line), each a link there, and *Rename everywhere* follows it through
     definitions, maps and scripts as one step, undone by renaming back.
   Still open: rows dragged from one list into another and several rows selected at once
-  (copy and paste does it one by one); *Try it*; the conversation view; of flags and
-  variables: `{name}` placeholders in texts aren't counted as reading one; of scripts: a
+  (copy and paste does it one by one); *Try it*; of conversations: the game's own dialog
+  box drawing the line being written (fonts, skin, message codes), answers side by side; of
+  flags and variables: `{name}` placeholders in texts aren't counted as reading one; of scripts: a
   function run in the Play tab, *Find in scripts*; the
   documents (Events graph, visual scripts, cut-scene timeline, animation editor, quest
   designer).
@@ -1406,6 +1415,10 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     cut-scene* are not in them (old data keeps them and shows them).
   - **The sheet's clipboard is the editor's own**, kept while it runs; it holds one row of
     each kind (an event, a condition, an action).
+  - **A conversation is not a view of its own**: it is how the sheet shows talk, so a line,
+    a question and what follows them are written where every other action is, in every
+    place events are edited. It stays the actions it was: a branch is an *If* that asks for
+    one answer, and an *If* that asks for more is a row like any other.
   - **A field is a flag or a variable because the field schema says so** (`schema::NAMES`,
     the table the forms' suggestions use), in scripts because the script API's argument
     kinds say so: the page, the survey and the rename are one walk over the values as the
@@ -1439,6 +1452,15 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     the window: the campfire's four events read as sentences, one opened with its *If* and
     three *Do* rows, an action opened in place, the palette searched for "stat"; the guard's
     events in the Inspector and the list of events to add.
+  - Conversations: `a_choices_answers_lead_to_their_branches` (branches found per answer,
+    a second question in the same variable keeping its own, where a new branch goes, an
+    answer taken away with its branch and the later ones moved up, speakers taking turns);
+    `a_conversation_is_written_line_by_line_with_a_question_and_its_answers` (three lines
+    typed, the third the first speaker's again, a question with two answers, *+ then…*
+    making the branch behind it with a variable made up, a line written into the branch).
+    In the window: a conversation of two lines, a question with two answers and what each
+    leads to, read as written. Not shown: such a conversation played in the game from the
+    editor (it is the actions 0.35 ran).
   - Flags and variables: `names::tests` (names in a script by what each call does with
     them; a flag renamed where it is a flag, a text of the same letters left alone);
     `flags_and_variables_are_surveyed_and_renamed_everywhere` (the example: 55 names

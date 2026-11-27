@@ -401,6 +401,107 @@ fn action_line(a: &Value, names: Names) -> String {
     }
 }
 
+// ------------------------------------------------------------ conversations
+
+/// The variable the *Choice* action at `choice` keeps its answer in ("" when it isn't one or
+/// names none).
+fn choice_var(actions: &[Value], choice: usize) -> &str {
+    actions.get(choice).and_then(|a| a.get("Choice")).and_then(|c| c.get("var")).and_then(Value::as_str).unwrap_or("")
+}
+
+/// Whether `action` is an *If* whose only condition is that `var` is `answer`: what a choice's
+/// answer leads to.
+fn is_branch(action: &Value, var: &str, answer: Option<usize>) -> bool {
+    let Some([only]) = action.get("If").and_then(|i| i.get("conditions")).and_then(Value::as_array).map(Vec::as_slice) else { return false };
+    let Some(cond) = only.get("cond").and_then(|c| c.get("Var")) else { return false };
+    !only.get("negate").and_then(Value::as_bool).unwrap_or(false)
+        && cond.get("name").and_then(Value::as_str) == Some(var)
+        && cond.get("op").and_then(Value::as_str) == Some("Eq")
+        && answer.is_none_or(|a| cond.get("value").and_then(Value::as_u64) == Some(a as u64))
+}
+
+/// The actions after the choice at `choice` that belong to it: up to the next choice that
+/// keeps its answer in the same variable.
+fn after_choice(actions: &[Value], choice: usize) -> std::ops::Range<usize> {
+    let var = choice_var(actions, choice);
+    let end = (choice + 1..actions.len()).find(|j| choice_var(actions, *j) == var).unwrap_or(actions.len());
+    choice + 1..end
+}
+
+/// Where in `actions` it says what happens after answer `answer` (from 0) of the choice at
+/// `choice`: the *If* behind it that asks for just that answer.
+pub fn branch_of(actions: &[Value], choice: usize, answer: usize) -> Option<usize> {
+    let var = choice_var(actions, choice);
+    if var.is_empty() {
+        return None;
+    }
+    after_choice(actions, choice).find(|j| is_branch(&actions[*j], var, Some(answer)))
+}
+
+/// Every action of `actions` that is the branch of an answer of a choice of the list (shown
+/// under its answer, not as a row of its own).
+pub fn branches(actions: &[Value]) -> Vec<usize> {
+    let mut out = Vec::new();
+    for choice in (0..actions.len()).filter(|k| !choice_var(actions, *k).is_empty()) {
+        let answers = actions[choice]["Choice"].get("options").and_then(Value::as_array).map_or(0, Vec::len);
+        out.extend((0..answers).filter_map(|a| branch_of(actions, choice, a)));
+    }
+    out.sort_unstable();
+    out.dedup();
+    out
+}
+
+/// What happens after answer `answer` of a choice that keeps its answer in `var`, to begin
+/// with: nothing yet.
+pub fn new_branch(var: &str, answer: usize) -> Value {
+    serde_json::json!({"If": {"conditions": [{"cond": {"Var": {"name": var, "op": "Eq", "value": answer}}, "negate": false}], "then": [], "otherwise": []}})
+}
+
+/// Where a new branch for answer `answer` of the choice at `choice` goes: behind the branches
+/// of the answers before it, else right behind the choice.
+pub fn branch_place(actions: &[Value], choice: usize, answer: usize) -> usize {
+    (0..answer).rev().find_map(|a| branch_of(actions, choice, a)).map_or(choice + 1, |j| j + 1)
+}
+
+/// Takes answer `answer` of the choice at `choice` away, with what it leads to; the answers
+/// behind it move up, and what they lead to with them.
+pub fn remove_answer(actions: &mut Vec<Value>, choice: usize, answer: usize) {
+    let var = choice_var(actions, choice).to_string();
+    let Some(options) = actions.get_mut(choice).and_then(|a| a.get_mut("Choice")).and_then(|c| c.get_mut("options")).and_then(Value::as_array_mut) else { return };
+    if answer >= options.len() {
+        return;
+    }
+    options.remove(answer);
+    if var.is_empty() {
+        return;
+    }
+    let range = after_choice(actions, choice);
+    let gone = range.clone().find(|j| is_branch(&actions[*j], &var, Some(answer)));
+    for j in range {
+        if !is_branch(&actions[j], &var, None) {
+            continue;
+        }
+        if let Some(v) = actions[j].pointer_mut("/If/conditions/0/cond/Var/value") {
+            if let Some(n) = v.as_u64().filter(|n| *n as usize > answer) {
+                *v = Value::from(n - 1);
+            }
+        }
+    }
+    if let Some(j) = gone {
+        actions.remove(j);
+    }
+}
+
+/// Who speaks next in a conversation, for a new line: the one before the last speaker (two
+/// people take turns), else the last one.
+pub fn next_speaker(actions: &[Value]) -> String {
+    let speakers: Vec<&str> = actions.iter().filter_map(|a| a.get("Dialog").or_else(|| a.get("Choice"))).filter_map(|d| d.get("speaker").and_then(Value::as_str)).collect();
+    match speakers.as_slice() {
+        [.., last] => speakers.iter().rev().find(|s| *s != last).unwrap_or(last).to_string(),
+        [] => String::new(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -442,6 +543,41 @@ mod tests {
             let v = serde_json::to_value(Condition::new(c.clone())).unwrap();
             assert!(!condition_summary(&v, &none).is_empty(), "{c:?}");
         }
+    }
+
+    #[test]
+    fn a_choices_answers_lead_to_their_branches() {
+        let say = |who: &str, text: &str| json!({"Dialog": {"speaker": who, "text": text}});
+        let mut actions = vec![
+            say("Elder", "Will you help?"),
+            json!({"Choice": {"speaker": "Elder", "text": "Well?", "options": ["Yes", "Later", "No"], "var": "help"}}),
+            new_branch("help", 0),
+            json!({"SetFlag": {"name": "asked", "value": true}}),
+            new_branch("help", 2),
+            // (Another question in the same variable: its branches are its own.)
+            json!({"Choice": {"speaker": "Elder", "text": "Sure?", "options": ["Yes"], "var": "help"}}),
+            new_branch("help", 0),
+        ];
+        assert_eq!((branch_of(&actions, 1, 0), branch_of(&actions, 1, 1), branch_of(&actions, 1, 2)), (Some(2), None, Some(4)));
+        assert_eq!(branch_of(&actions, 5, 0), Some(6));
+        assert_eq!(branches(&actions), [2, 4, 6]);
+        // A branch for the middle answer goes behind the first one's.
+        assert_eq!(branch_place(&actions, 1, 1), 3);
+        assert_eq!(branch_place(&actions, 1, 0), 2);
+        // The first answer taken away: its branch goes, "No" is answer 1 now and keeps its own.
+        remove_answer(&mut actions, 1, 0);
+        assert_eq!(actions[1]["Choice"]["options"], json!(["Later", "No"]));
+        assert_eq!(actions.len(), 6);
+        assert_eq!((branch_of(&actions, 1, 0), branch_of(&actions, 1, 1)), (None, Some(3)));
+        assert_eq!(branch_of(&actions, 4, 0), Some(5), "the second question's branch is untouched");
+        // An If that asks for more than the answer is no branch.
+        let mut two = new_branch("help", 0);
+        two["If"]["conditions"].as_array_mut().unwrap().push(json!({"cond": {"Flag": {"name": "x"}}, "negate": false}));
+        assert!(!is_branch(&two, "help", Some(0)));
+        // Two people take turns.
+        assert_eq!(next_speaker(&[say("Elder", "a"), say("{player}", "b")]), "Elder");
+        assert_eq!(next_speaker(&[say("Elder", "a"), say("Elder", "b")]), "Elder");
+        assert_eq!(next_speaker(&[]), "");
     }
 
     #[test]

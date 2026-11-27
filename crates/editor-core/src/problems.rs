@@ -96,6 +96,25 @@ impl Problem {
     pub fn line(&self) -> String {
         format!("{} [{}] {}: {}", self.severity.name(), self.area.name(), self.place, self.text)
     }
+
+    /// The definition it says doesn't exist (a broken reference: [`refers_text`], [`own_text`]),
+    /// for the fixes the Problems panel offers.
+    pub fn missing(&self) -> Option<(RefKind, String)> {
+        let rest = self.text.strip_prefix("refers to ").or_else(|| self.text.strip_prefix("its "))?;
+        let (kind, rest) = rest.split_once(" \"")?;
+        let id = rest.strip_suffix("\", which doesn't exist").or_else(|| rest.strip_suffix("\" doesn't exist"))?;
+        Some((RefKind::parse(kind)?, id.to_string()))
+    }
+}
+
+/// "refers to item "potion", which doesn't exist": the text of a broken reference.
+fn refers_text(kind: RefKind, id: &str) -> String {
+    format!("refers to {} \"{id}\", which doesn't exist", kind.name())
+}
+
+/// "its prop "chest" doesn't exist": the text for something placed whose definition is gone.
+fn own_text(kind: RefKind, id: &str) -> String {
+    format!("its {} \"{id}\" doesn't exist", kind.name())
 }
 
 /// A map as read from its file (cached until the file changes).
@@ -203,6 +222,36 @@ fn entity_refs(e: &rustpg2d_engine::entity::EntityInstance) -> Vec<(RefKind, Str
 
 impl Workspace {
     /// Does `id` of `kind` exist (maps included; an empty id counts as "none chosen")?
+    /// *Create it*: a fresh definition under exactly the id something refers to, so the
+    /// reference leads somewhere again (one step; the list is checked again).
+    pub fn create_missing(&mut self, kind: RefKind, id: &str) -> Result<String, String> {
+        if !kind.is_def() {
+            return Err(format!("a {} can't be made from here", kind.label().to_lowercase()));
+        }
+        if self.project.db.has(kind, id) {
+            return Err(format!("{} \"{id}\" is there already", kind.label()));
+        }
+        self.new_def(kind, id)?;
+        self.begin(&format!("Create the missing {} {id}", kind.label().to_lowercase()));
+        self.defs_dirty = true;
+        self.refresh_refs();
+        self.refresh_problems();
+        Ok(format!("Made {} \"{id}\": it is empty, fill it in", kind.label().to_lowercase()))
+    }
+
+    /// *From the library*: the library's asset of that id, with what it needs (one step).
+    pub fn add_missing_from_library(&mut self, kind: RefKind, id: &str) -> Result<String, String> {
+        self.lib.ensure_loaded();
+        if !self.lib.lib.as_ref().is_some_and(|l| l.db.has(kind, id)) {
+            return Err(format!("the asset library has no {} \"{id}\"", kind.label().to_lowercase()));
+        }
+        self.begin(&format!("Add the missing {} {id} from the library", kind.label().to_lowercase()));
+        let said = self.library_to_project(&[(kind, id.to_string())]).map_err(|e| format!("{e:#}"))?;
+        self.refresh_refs();
+        self.refresh_problems();
+        Ok(said)
+    }
+
     fn problem_id_exists(&self, kind: RefKind, id: &str) -> bool {
         id.is_empty()
             || match kind {
@@ -294,7 +343,7 @@ impl Workspace {
                 missing.sort();
                 missing.dedup();
                 for (rk, rid) in missing {
-                    out.push(Problem { severity: Severity::Error, area: Area::Definitions, place: place.clone(), text: format!("refers to {} \"{rid}\", which doesn't exist", rk.name()), target: target.clone() });
+                    out.push(Problem { severity: Severity::Error, area: Area::Definitions, place: place.clone(), text: refers_text(rk, &rid), target: target.clone() });
                 }
                 let triggers = match k {
                     RefKind::Item => db.item(&id).map(|d| d.on_use.clone()),
@@ -471,7 +520,7 @@ impl Workspace {
                         to.insert(rid.clone());
                     }
                     if !self.problem_id_exists(rk, &rid) && seen.insert((rk, rid.clone())) {
-                        out.push(Problem { severity: Severity::Error, area: Area::Maps, place: format!("map {name}: {what}"), text: format!("refers to {} \"{rid}\", which doesn't exist", rk.name()), target: target.clone() });
+                        out.push(Problem { severity: Severity::Error, area: Area::Maps, place: format!("map {name}: {what}"), text: refers_text(rk, &rid), target: target.clone() });
                     }
                 }
             };
@@ -492,7 +541,7 @@ impl Workspace {
                     EntityKind::Character => RefKind::Character,
                 };
                 if !db.has(def_kind, &e.def) {
-                    out.push(Problem { severity: Severity::Error, area: Area::Maps, place: format!("map {name}: {who}"), text: format!("its {} \"{}\" doesn't exist", def_kind.name(), e.def), target: target.clone() });
+                    out.push(Problem { severity: Severity::Error, area: Area::Maps, place: format!("map {name}: {who}"), text: own_text(def_kind, &e.def), target: target.clone() });
                 }
                 unknown(&who, &target, entity_refs(e), out, to);
                 if !e.faction.is_empty() && self.project.config.factions.get(&e.faction).is_none() {
@@ -867,4 +916,46 @@ mod tests {
         // A character without its own look names no body of its own.
         assert!(!refs.iter().any(|(k, _)| *k == RefKind::Sheet), "{refs:?}");
     }
+    #[test]
+    fn a_broken_reference_is_fixed_by_making_what_is_missing_or_taking_it_from_the_library() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let dir = std::env::temp_dir().join(format!("rustpg2d-problem-fix-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        crate::files::create_project(&dir).unwrap();
+        let mut ws = Workspace::new(dir.clone(), crate::Gpu::No).unwrap();
+        ws.lib.lib = Some(rustpg2d_engine::project::Project::load(&root.join("crates/editor/assets/starter_library")).unwrap());
+        // A recipe that makes a thing that isn't there, from another that isn't there.
+        ws.make_def(RefKind::Recipe, "Stew", None).unwrap();
+        let mut value = ws.def_value(RefKind::Recipe, "stew").unwrap();
+        value["result"] = "moon_stew".into();
+        value["ingredients"] = serde_json::json!([{ "item": "apple", "count": 2 }]);
+        ws.set_def_value(RefKind::Recipe, "stew", value).unwrap();
+        ws.history_frame(None);
+        ws.refresh_refs();
+        ws.refresh_problems();
+        let missing: Vec<(RefKind, String)> = ws.problems.list.iter().filter_map(|p| p.missing()).collect();
+        assert!(missing.contains(&(RefKind::Item, "moon_stew".to_string())) && missing.contains(&(RefKind::Item, "apple".to_string())), "{:?}", ws.problems.list.iter().map(|p| p.line()).collect::<Vec<_>>());
+        // The apple is in the library: taken from there, with its icon's sheet. The stew is
+        // nowhere: made, empty, under the id the recipe names.
+        ws.add_missing_from_library(RefKind::Item, "apple").unwrap();
+        ws.history_frame(None);
+        assert!(ws.project.db.item("apple").is_some_and(|a| ws.project.db.sheet(&a.icon.sheet).is_some()));
+        assert!(ws.add_missing_from_library(RefKind::Item, "moon_stew").is_err(), "the library has no such thing");
+        ws.create_missing(RefKind::Item, "moon_stew").unwrap();
+        ws.history_frame(None);
+        assert!(ws.project.db.item("moon_stew").is_some());
+        assert!(!ws.problems.list.iter().any(|p| p.missing().is_some()), "{:?}", ws.problems.list.iter().map(|p| p.line()).collect::<Vec<_>>());
+        assert!(ws.create_missing(RefKind::Item, "moon_stew").is_err() && ws.create_missing(RefKind::Map, "nowhere").is_err());
+        // Each was a step: undone, the stew is missing again.
+        ws.undo().unwrap();
+        ws.history_frame(None);
+        assert!(ws.project.db.item("moon_stew").is_none() && ws.project.db.item("apple").is_some());
+        // The two texts a missing thing is told by.
+        let p = |text: String| Problem { severity: Severity::Error, area: Area::Maps, place: String::new(), text, target: Target::Project };
+        assert_eq!(p(own_text(RefKind::Prop, "old chest")).missing(), Some((RefKind::Prop, "old chest".to_string())));
+        assert_eq!(p("its file a.png is missing".into()).missing(), None);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
 }

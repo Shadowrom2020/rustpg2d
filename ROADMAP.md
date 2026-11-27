@@ -2249,9 +2249,17 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     has, so the mapping survives the manual being rewritten): a map by its tool (*The
     Ground tool*, *Collision*, zones, placing), a definition or a kind's list by its kind,
     scripts, flags and variables, Publishing, the Library, Generate art, Problems.
-  Still open: everything else of this part: fields' longer help in the panel, empty places
-  that say what to do next (some do), problems with fixes, guided tours, the agent set-up
-  button, *What's new*; of the Help tab: the manual's pictures, the place read last kept.
+  - **Problems with fixes**: the Problems tab groups its entries by where they are
+    (definitions, maps, scripts…) with how many of each. An entry that says something
+    doesn't exist (a broken reference; `Problem::missing`) offers ***Create it*** (an empty
+    definition under exactly that id, opened to fill in) and, when the asset library has
+    one of that id, ***Take it from the library*** (with what it needs); each is a step and
+    checks the list again. (A field that names something missing was marked already, and
+    its picker picks another.)
+  Still open: fields' longer help in the panel, empty places that say what to do next
+  (some do), guided tours, the agent set-up button, *What's new*; of the problems: *Remove
+  the reference*, fixes for other kinds of entries; of the Help tab: the manual's pictures,
+  the place read last kept.
 
   **Decided while building.**
   - **A Markdown reader of our own, not a crate**: the manual uses a small part of Markdown,
@@ -2266,6 +2274,12 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   **Verify.** Each tour followed on a fresh project by `egui_kittest`, ending with a play-test
   that starts. F1 from five places opens the right chapter. A broken reference fixed from the
   Problems panel.
+  - A broken reference fixed from the Problems panel: `a_broken_reference_is_fixed_by_
+    making_what_is_missing_or_taking_it_from_the_library` (a recipe naming two items that
+    aren't there: the apple taken from the library with its icon's sheet, the stew made
+    empty under its id; no entry is left; undone, the stew is missing again). In the
+    window: a recipe's result set to a *ghost_pie*, the entry under *Definitions (1)*,
+    *Create it* clicked: the item's tab opens, no error is left.
   - Done so far: `manual` tests (Markdown cut into blocks and spans; all 21 chapters with
     their sections, every internal link leading somewhere; a search finds *Painted ground*
     by its title and lockpicking in the gameplay chapter; a topic's section, else the

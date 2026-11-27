@@ -1962,19 +1962,58 @@ impl Viewer<'_> {
             ui.label(if self.ws.problems.status() == "-" { "Not checked yet".to_string() } else { format!("{e} error(s), {w} warning(s)") });
         });
         ui.separator();
-        let mut go = None;
-        for p in &self.ws.problems.list {
-            ui.horizontal_wrapped(|ui| {
-                let color = if p.severity == editor_core::problems::Severity::Error { egui::Color32::from_rgb(235, 110, 100) } else { egui::Color32::from_rgb(230, 190, 90) };
-                ui.colored_label(color, p.severity.name());
-                if ui.link(&p.place).on_hover_text("Go there").clicked() {
-                    go = Some(p.target.clone());
-                }
-                ui.label(&p.text);
-            });
+        // (What the library has is only known once it is read: when something is missing.)
+        if self.ws.problems.list.iter().any(|p| p.missing().is_some()) {
+            self.ws.lib.ensure_loaded();
         }
+        let (mut go, mut fix) = (None, None);
+        let list = &self.ws.problems.list;
+        egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+            // By where they are, each group with how many.
+            let mut areas: Vec<editor_core::problems::Area> = Vec::new();
+            for p in list {
+                if !areas.contains(&p.area) {
+                    areas.push(p.area);
+                }
+            }
+            for area in areas {
+                let of: Vec<&editor_core::problems::Problem> = list.iter().filter(|p| p.area == area).collect();
+                egui::CollapsingHeader::new(format!("{} ({})", area.label(), of.len())).id_salt(("problems of", area.name())).default_open(true).show(ui, |ui| {
+                    for p in of {
+                        ui.horizontal_wrapped(|ui| {
+                            let color = if p.severity == editor_core::problems::Severity::Error { egui::Color32::from_rgb(235, 110, 100) } else { egui::Color32::from_rgb(230, 190, 90) };
+                            ui.colored_label(color, p.severity.name());
+                            if ui.link(&p.place).on_hover_text("Go there").clicked() {
+                                go = Some(p.target.clone());
+                            }
+                            ui.label(&p.text);
+                            // A broken reference: what is missing can be made, or taken from the library.
+                            if let Some((kind, id)) = p.missing().filter(|(k, _)| k.is_def()) {
+                                let what = kind.label().to_lowercase();
+                                if self.ws.lib.lib.as_ref().is_some_and(|l| l.db.has(kind, &id)) && ui.small_button("Take it from the library").on_hover_text(format!("The library has a {what} \"{id}\": it comes with what it needs")).clicked() {
+                                    fix = Some((kind, id.clone(), true));
+                                }
+                                if ui.small_button("Create it").on_hover_text(format!("Makes an empty {what} \"{id}\" and opens it to fill in. (Or go there and pick another.)")).clicked() {
+                                    fix = Some((kind, id, false));
+                                }
+                            }
+                        });
+                    }
+                });
+            }
+        });
         if let Some(target) = go {
             self.go(&target);
+        }
+        if let Some((kind, id, from_library)) = fix {
+            let r = if from_library { self.ws.add_missing_from_library(kind, &id) } else { self.ws.create_missing(kind, &id) };
+            match r {
+                Ok(said) => {
+                    self.ws.set_status(said);
+                    self.asks.push(Ask::Open(Tab::Def(kind, id)));
+                }
+                Err(e) => self.ws.set_status(e),
+            }
         }
     }
 

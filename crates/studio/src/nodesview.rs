@@ -52,11 +52,13 @@ pub struct NodesView {
     text_fns_at: f64,
     /// Nodes copied, with the links between them.
     clip: Option<(Vec<Node>, Vec<Link>)>,
+    /// How many times nodes were dragged: each drag is a step of the history of its own.
+    moves: u32,
 }
 
 impl Default for NodesView {
     fn default() -> NodesView {
-        NodesView { scene_rect: Rect::ZERO, screen_rect: Rect::ZERO, selected: BTreeSet::new(), drag: None, pointer: None, palette: None, pins: HashMap::new(), text_fns: Vec::new(), text_fns_at: -10.0, clip: None }
+        NodesView { scene_rect: Rect::ZERO, screen_rect: Rect::ZERO, selected: BTreeSet::new(), drag: None, pointer: None, palette: None, pins: HashMap::new(), text_fns: Vec::new(), text_fns_at: -10.0, clip: None, moves: 0 }
     }
 }
 
@@ -549,6 +551,9 @@ impl NodesView {
                 }
                 let drag = ui.interact(head.expand2(vec2(12.0, 2.0)), id.with("move"), Sense::click_and_drag());
                 drag.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, format!("Node {title}")));
+                if drag.drag_started() {
+                    st.moves += 1;
+                }
                 if drag.dragged() {
                     moved.push((n.id, drag.drag_delta()));
                 }
@@ -603,7 +608,7 @@ impl NodesView {
         }
         if !moved.is_empty() {
             // (A drag is one step of the history, however many frames it takes.)
-            crate::shell::hold_step(ui.ctx(), ("move nodes", &vs.id));
+            crate::shell::hold_step(ui.ctx(), ("move nodes", &vs.id, self.moves));
         }
         for (id, d) in moved {
             let ids: Vec<u32> = if self.selected.contains(&id) { self.selected.iter().copied().collect() } else { vec![id] };

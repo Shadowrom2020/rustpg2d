@@ -1589,7 +1589,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     takes it, Delete and undo; three nodes grouped into a function of their own (the Rhai
     calls it), saved: `scripts/visual_scripts.rhai` holds both and the game starts with them.
 
-- [ ] Part 8: Workshops — `feature/studio`
+- [~] Part 8: Workshops — `feature/studio`
 
   **Goal.** Making a prop, a structure or a character is done on the thing itself, not in number
   fields.
@@ -1617,9 +1617,49 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
 
   **Engine.** None. The presets are library content (*Content route*).
 
+  **Progress.**
+  - **The prop workshop** (`studio/src/propshop.rs`; at the top of a prop's tab, above its
+    form): the prop large on a few tiles, drawn by the game's renderer as a placed one is
+    (its picture or model, its shadow, a building's walls and roof). On the picture: the
+    hitbox as its outline on the ground (red when that state is in the way, green when not)
+    with its corners to drag, the spot it is used from as a ring with the way its user
+    looks, and the light's reach as a circle with a point to drag. Its states are a strip of
+    pictures above; the one picked is the one shown, *+ State* adds one that starts as a
+    copy of the first. *Turn* shows a prop that turns a quarter further, *In the dark* shows
+    it at night, lit by its own light, from far enough away to see the whole reach. Drags
+    go in steps of four pixels (a quarter of a tile for the light), Shift pixel by pixel.
+  Still open: the anchor of the picture and the light's place (the engine has neither as a
+  field: the picture stands on the hitbox's southern edge, the light sits at two thirds of
+  the picture's height), a figure sitting or lying at the use spot instead of the ring, a
+  building's ridge, overhang and openings dragged on the picture; starting from a model, a
+  picture, measurements, Meshy; the presets; structures; the character workshop; templates
+  in *New…*; import helpers; the pixel editor; Generate art.
+
+  **Decided while building.**
+  - **The workshop is the top of the prop's tab, not a tab of its own**: the picture and the
+    form show the same prop, so a number typed below moves the outline above and the other
+    way round, and there is one place a prop is made in.
+  - **The stage is a map of its own with the prop placed on it**, drawn by the map view's
+    scene code: what the workshop shows is what a map shows, also for kinds of props that
+    get their own way of being drawn later.
+  - **The camera holds still while something is dragged** and fits again when it is let go:
+    a view that zooms out as the hitbox or the light grows moves the picture under the
+    pointer (the first version did: a light dragged from 3 tiles ran away to 16).
+  - **A corner drags the width on both sides**: the hitbox stays centred on where the prop
+    stands, as the engine has it; the southern corners change the width only.
+
   **Verify.** Editor script and `egui_kittest`: a prop from a `.glb` to a placed, opened chest
   without typing a number; a house saved as a structure and placed on another map; a merchant
   from the preset trades in the Play panel. Screenshots of each workshop.
+  - Done so far: `propshop::ui_tests` (the chair's north-east corner dragged east: wider in
+    steps of four, as deep as before, one step named *Change the prop Chair*; its use spot
+    dragged south, a step of its own; *+ State* adds a copy of the first and shows it; all
+    undone, the chair as it was; the campfire's reach dragged in the dark grows by what the
+    drag is on the ground, the camera not zooming out under it). In the window: the chest
+    with its outline and shadow, the chair with its use spot, the campfire lit in the dark
+    with its light and reach; the chest's corner dragged (28 to 64 pixels wide, 16 deep as
+    before) and undone, the chair's spot dragged and the chair turned, the campfire's reach
+    dragged from 3 to 5 tiles and undone.
 
 - [~] Part 9: Library and sharing — `feature/studio`
 

@@ -21,6 +21,7 @@ mod mapview;
 mod namespage;
 mod nodesview;
 mod play;
+mod propshop;
 mod publish;
 mod scene;
 mod scriptedit;
@@ -93,6 +94,10 @@ impl Studio {
                     if !script.is_empty() {
                         println!("[script] {script}");
                     }
+                    let prop = self.shell.prop_word(&[]);
+                    if !prop.is_empty() {
+                        println!("[prop] {prop}");
+                    }
                     let nodes = self.shell.nodes_word(&[]);
                     if !nodes.is_empty() {
                         println!("[nodes] {nodes}");
@@ -127,6 +132,9 @@ impl Studio {
                 // A cut-scene's timeline (its tab in front): `timeline time SECS`, `timeline cue TRACK CUE`,
                 // `timeline add TRACK ACTION…`, `timeline play`; alone it prints where everyone is.
                 "timeline" => println!("[timeline] {}", self.shell.timeline_word(&cmd[1..])),
+                // A prop's workshop (its tab in front): `prop state NAME`, `prop turn`, `prop dark on|off`; prints
+                // where its handles are in the window (for `drag`).
+                "prop" => println!("[prop] {}", self.shell.prop_word(&cmd[1..])),
                 // A visual script's canvas (its tab in front): `nodes add KIND X Y`, `nodes link FROM OUT TO IN`,
                 // `nodes value NODE INPUT VALUE`, `nodes select N…`, `nodes delete|group|copy|paste [X Y]|code`.
                 "nodes" => println!("[nodes] {}", self.shell.nodes_word(&cmd[1..])),

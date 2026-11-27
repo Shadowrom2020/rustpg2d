@@ -106,6 +106,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **The asset library in a tab** (part 9, a first step): *Game › Asset library* lists what the
   library holds by kind, searched; tick what you want and *Add to the project* brings it in
   with what it needs. A definition's tab has *Send to library*.
+- **The prop workshop** (part 8, a first step): a prop's tab starts with the prop itself, large,
+  as the game draws it. Drag the corners of its hitbox, the spot it is used from and how far
+  its light reaches on the picture instead of typing numbers; pick a state from the strip to
+  see it, turn it, and look at it in the dark by its own light.
 - **Visual scripts on a canvas** (part 7): a visual script's tab shows its nodes: drag from pin
   to pin to link them, right-click or Space for the searched palette of nodes, type values
   into a node, group nodes into a function of their own. Beside the canvas: what the selected

@@ -109,7 +109,7 @@ by surprise: bump the three together in a `feature/` branch. Its jobs are the re
 |---|---|---|
 | *Branch policy* | `cargo xtask check-branch HEAD BASE` (seconds: xtask without the engine) | every PR (required) |
 | *Build, lint, test* | `cargo clippy --all-targets --all-features -D warnings`, `cargo test` (workspace, `--locked`, unoptimized: fast to compile) | every PR (required) |
-| *Runtime smoke* | `scripts/ci/smoke.sh`: the game and the editor on a copy of the example project under Xvfb (title, a map, the clock, an old save, quick save, a map change + autosave, the editor opening a map, the MCP smoke client) | every PR (advisory) |
+| *Runtime smoke* | `scripts/ci/smoke.sh`: the game and the editor on a copy of the example project under Xvfb (title, a map, the clock, an old save, quick save, a map change + autosave, a fight, the editor's agent server without a window with the MCP smoke client, the editor in a window opening a map) | every PR (advisory) |
 | *Version* | `cargo xtask check-version BRANCH` | release PRs (required) |
 | *Release builds* | `builds.yml`, all at the same time: macOS editor + game per architecture (two `macos-latest` jobs), Linux editor + game + the packaging tool (`xtask` with `dist`), the web game, Windows editor + game (MinGW-w64) | release PRs, manual runs |
 | *Packages* | assembles the release builds without compiling: universal macOS binaries (`llvm-lipo`), `xtask dist` (AppImage, Flatpak, Windows zip, unsigned macOS app), smoke test of game and editor under Xvfb, downloads as artifact (kept 30 days: the release publishes them) | release PRs (required) |
@@ -124,11 +124,10 @@ Release › Run workflow* (builds the downloads as artifacts, or with *from_comm
 pull request's head commit fetches and checks that pull request's packages; it never tags or
 publishes).
 
-Dependabot opens monthly grouped updates (cargo, GitHub Actions) against `master`; macroquad,
-egui-macroquad, egui, egui-phosphor and egui_kittest (the editor's UI tests) are pinned and
-updated by hand, and so are `image` and
-`lewton`, which share macroquad's versions (`image` only turns on the JPEG decoder of macroquad's
-copy).
+Dependabot opens monthly grouped updates (cargo, GitHub Actions) against `master`; egui and the
+crates built on it (eframe, egui_dock, egui_kittest) come in one group pull request of their own;
+wgpu, winit and glow get only patch updates (the engine draws on egui-wgpu's device) and move
+with egui by hand.
 
 `cargo xtask` (crates/xtask) runs the same tasks locally: `check-version BRANCH`,
 `check-branch HEAD BASE`, `release-notes X.Y.Z` (no engine: builds in seconds), and

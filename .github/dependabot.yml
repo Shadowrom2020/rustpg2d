@@ -1,5 +1,6 @@
 # Monthly dependency updates as pull requests into master (allowed by the branch policy as
-# dependabot/*). Minor and patch updates come grouped in one pull request per ecosystem.
+# dependabot/*). Minor and patch updates come grouped in one pull request per ecosystem; egui's
+# crates come in a pull request of their own.
 version: 2
 updates:
   - package-ecosystem: cargo
@@ -8,23 +9,25 @@ updates:
       interval: monthly
     open-pull-requests-limit: 5
     groups:
+      # The editor's UI (crates/studio): egui and the crates built on it are released together
+      # (egui_dock, egui_kittest follow each egui release), so they move as one, also across a
+      # 0.x minor version, which is a breaking one. (First: a dependency joins the first group
+      # that matches it.)
+      egui:
+        patterns: ["egui", "egui*", "eframe", "epaint*", "emath", "ecolor"]
       cargo-minor:
         update-types: [minor, patch]
     ignore:
-      # Pinned stack (CLAUDE.md): macroquad / egui-macroquad move together, by hand. egui and
-      # egui-phosphor follow egui-macroquad: every egui-phosphor after 0.9 needs a newer egui
-      # than egui-macroquad 0.17.3 (egui 0.31) provides.
-      - dependency-name: macroquad
-      - dependency-name: egui-macroquad
-      - dependency-name: egui
-      - dependency-name: egui-phosphor
-      # The editor's UI tests: each egui_kittest release needs the egui of the same version.
-      - dependency-name: egui_kittest
-      # Shared with macroquad: `image` only turns on the JPEG decoder of macroquad's image 0.24,
-      # `lewton` is the Ogg decoder macroquad uses. A newer version would be a second, unused
-      # (image: JPEG textures stop loading) or duplicate crate; they move with macroquad.
-      - dependency-name: image
-      - dependency-name: lewton
+      # The engine draws with the editor's wgpu device (gfx::init takes eframe's device and
+      # queue), so wgpu must stay the version egui-wgpu uses: it moves with an egui update, by
+      # hand. The same for winit (the studio asks eframe's event loop for an X11 window, gfx's
+      # window is winit too) and glow (gfx reads textures back through wgpu's WebGL context).
+      - dependency-name: wgpu
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: winit
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: glow
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
   - package-ecosystem: github-actions
     directory: /
     schedule:

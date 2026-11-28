@@ -2,8 +2,9 @@
 # Runtime smoke test: the game and the editor really run on a scratch copy of the example project
 # (CI's "Runtime smoke" job; runs the same way on a developer machine). It checks `status` fields
 # of scripted runs: title screen, a map with the player, the clock, loading an old save game,
-# quick-saving, a map change with its autosave, the editor opening a map, and the agent server's
-# smoke client (crates/editor/examples/mcp_smoke.rs).
+# quick-saving, a map change with its autosave, a turn-based fight, the agent server of the editor
+# without a window driven by its smoke client (crates/studio/examples/mcp_smoke.rs), and the editor
+# in a window opening a map.
 #
 # Needs target/debug/rustpg2d-game, rustpg2d-studio and examples/mcp_smoke:
 #   cargo build -p rustpg2d-game -p rustpg2d-studio && cargo build -p rustpg2d-studio --example mcp_smoke
@@ -18,7 +19,8 @@ FIXTURES=$ROOT/crates/engine/tests/fixtures
 rm -rf "$WORK"
 mkdir -p "$WORK/proj" "$WORK/home" "$WORK/settings" "$WORK/cfg" "$WORK/lib"
 (cd "$ROOT/example_project" && find . -path ./saves -prune -o -type f -print | cpio -pdm "$WORK/proj" 2>/dev/null)
-export RUSTPG2D_MUTE=1 RUSTPG2D_SETTINGS_DIR=$WORK/settings RUSTPG2D_EDITOR_CONFIG=$WORK/cfg RUSTPG2D_LIBRARY=$WORK/lib HOME=$WORK/home
+# (RUSTPG2D_REPO=0: started in the checkout, the editor would otherwise be in repository mode.)
+export RUSTPG2D_MUTE=1 RUSTPG2D_SETTINGS_DIR=$WORK/settings RUSTPG2D_EDITOR_CONFIG=$WORK/cfg RUSTPG2D_LIBRARY=$WORK/lib HOME=$WORK/home RUSTPG2D_REPO=0
 if [ -z "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] && command -v xvfb-run >/dev/null; then
   X=(xvfb-run -a -s "-screen 0 1280x720x24")
   # No graphics card under Xvfb: the software renderer (lavapipe) is fine for a test.
@@ -103,32 +105,18 @@ else
   echo "SKIP the agent server: no $BIN/rustpg2d-studio or $BIN/examples/mcp_smoke"
 fi
 
-# The 0.35 editor's checks need that editor: it is not built on this branch.
-if [ ! -x "$BIN/rustpg2d-editor" ]; then
-  echo "SKIP the editor's checks: no $BIN/rustpg2d-editor"
-  if [ "$failed" -gt 0 ]; then
-    echo "$failed check(s) failed (logs in $WORK)"
-    exit 1
-  fi
-  echo "all smoke checks passed"
-  exit 0
+# The new editor in a window: it opens the scratch project (a folder: converted into a project file
+# beside it, which it works on), opens a map, and quits cleanly when its script says so.
+if [ -x "$BIN/rustpg2d-studio" ]; then
+  out=$(RUSTPG2D_STUDIO_SCRIPT="wait 2; map.open village; wait 1; status; quit" timeout 120 "${X[@]}" "$BIN/rustpg2d-studio" "$WORK/proj" 2>&1; echo "[exit] $?")
+  printf '%s\n' "$out" >> "$WORK/studio.log"
+  line=$(grep '^\[status\]' <<<"$out" | tail -1)
+  expect "the editor opens a map" "$line" "project=R(ust)PG2D_example" "focus=map:village" "map=village"
+  expect "the editor quits cleanly" "$(grep '^\[exit\]' <<<"$out")" "[exit] 0"
+  if [ -s "$WORK/proj.r2dproject" ]; then echo "PASS the folder becomes a project file"; else echo "FAIL the folder becomes a project file: no $WORK/proj.r2dproject"; failed=$((failed + 1)); fi
+else
+  echo "SKIP the editor in a window: no $BIN/rustpg2d-studio"
 fi
-
-# The editor converts the project folder into a project file beside it and works on its copy.
-line=$(RUSTPG2D_EDITOR_SCRIPT="wait 2; open village; status; quit" timeout 120 "${X[@]}" "$BIN/rustpg2d-editor" "$WORK/proj" 2>&1 | tee -a "$WORK/editor.log" | grep '^\[status\]' | tail -1)
-expect "the editor opens a map" "$line" "open=true" 'map=Some("village")'
-expect "the folder becomes a project file" "$line" "projectfile=$WORK/proj.r2dproject:saved"
-
-# The agent server: the smoke client lists the tools, edits the project, writes art, captures a
-# structure, sends assets to the scratch library and play-tests (it needs the game next to the editor).
-RUSTPG2D_EDITOR_SCRIPT="mcp on $PORT; wait 300; quit" timeout 330 "${X[@]}" "$BIN/rustpg2d-editor" "$WORK/proj.r2dproject" > "$WORK/editor-mcp.log" 2>&1 &
-editor=$!
-for _ in $(seq 1 120); do
-  curl -s -o /dev/null "http://127.0.0.1:$PORT/mcp" && break
-  sleep 0.5
-done
-if timeout 300 "$BIN/examples/mcp_smoke" "$PORT" > "$WORK/mcp_smoke.log" 2>&1; then echo "PASS agent server smoke client"; else echo "FAIL agent server smoke client:"; cat "$WORK/mcp_smoke.log"; failed=$((failed + 1)); fi
-kill "$editor" 2>/dev/null; wait "$editor" 2>/dev/null
 
 if [ "$failed" -gt 0 ]; then
   echo "$failed check(s) failed (logs in $WORK)"

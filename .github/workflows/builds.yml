@@ -5,6 +5,8 @@
 #   linux:   editor + game, plus the packaging tool (xtask with feature dist)
 #   web:     the game for browsers (wasm32)
 #   windows: editor + game cross-compiled with MinGW-w64
+# The editor is the package and binary rustpg2d-studio (the new editor, ROADMAP.md 0.36.0; the
+# name is EDITOR in crates/xtask/src/dist.rs, and actions/packages names it too).
 # Each uploads its binaries as an artifact (rustpg2d-<platform>-build). Called by ci.yml (pull
 # requests into master, manual runs) and release.yml (only when the pull request's packages
 # can't be reused).
@@ -38,12 +40,12 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: macos-${{ matrix.target }}
-      - run: cargo build --release --locked -p rustpg2d-editor -p rustpg2d-game --target ${{ matrix.target }}
+      - run: cargo build --release --locked -p rustpg2d-studio -p rustpg2d-game --target ${{ matrix.target }}
       - uses: actions/upload-artifact@v7
         with:
           name: rustpg2d-macos-${{ matrix.target }}
           path: |
-            target/${{ matrix.target }}/release/rustpg2d-editor
+            target/${{ matrix.target }}/release/rustpg2d-studio
             target/${{ matrix.target }}/release/rustpg2d-game
           retention-days: 7
 
@@ -58,8 +60,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: linux-build
+      # ALSA (kira's cpal) and udev (gilrs' gamepads) are linked; wgpu loads Vulkan / EGL and winit
+      # X11 / Wayland / xkbcommon at run time, so they need no -dev packages.
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends libasound2-dev libudev-dev
-      - run: cargo build --release --locked -p rustpg2d-editor -p rustpg2d-game
+      - run: cargo build --release --locked -p rustpg2d-studio -p rustpg2d-game
       # The packaging tool, so the Packages job needs no Rust toolchain. A separate build: the
       # dist feature must not change the features the editor and the game are built with.
       - run: cargo build --release --locked -p xtask --features dist
@@ -67,7 +71,7 @@ jobs:
         with:
           name: rustpg2d-linux-build
           path: |
-            target/release/rustpg2d-editor
+            target/release/rustpg2d-studio
             target/release/rustpg2d-game
             target/release/xtask
           retention-days: 7
@@ -108,11 +112,11 @@ jobs:
         with:
           shared-key: windows-build
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends gcc-mingw-w64-x86-64
-      - run: cargo build --release --locked --target x86_64-pc-windows-gnu -p rustpg2d-editor -p rustpg2d-game
+      - run: cargo build --release --locked --target x86_64-pc-windows-gnu -p rustpg2d-studio -p rustpg2d-game
       - uses: actions/upload-artifact@v7
         with:
           name: rustpg2d-windows-build
           path: |
-            target/x86_64-pc-windows-gnu/release/rustpg2d-editor.exe
+            target/x86_64-pc-windows-gnu/release/rustpg2d-studio.exe
             target/x86_64-pc-windows-gnu/release/rustpg2d-game.exe
           retention-days: 7

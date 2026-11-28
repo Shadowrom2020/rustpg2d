@@ -7,8 +7,8 @@
 # when started by hand (Actions > CI > Run workflow, any branch: all of them, to try platform or
 # packaging changes before a release). Merging a release pull request publishes its packages
 # (release.yml) instead of building them again.
-# Runtime smoke (scripts/ci/smoke.sh: the game and the editor running under Xvfb) runs for every
-# pull request; it is advisory until it has proven itself stable.
+# Runtime smoke (scripts/ci/smoke.sh: the game and the editor, rustpg2d-studio, running under Xvfb)
+# runs for every pull request; it is advisory until it has proven itself stable.
 # A push to master whose tree is the merged pull request's (always: master must be up to date
 # before a merge) only reports the checks; the pull request ran them on that very tree.
 name: CI
@@ -102,8 +102,9 @@ jobs:
         run: rustup target add wasm32-unknown-unknown
       - if: steps.tested.outputs.skip != 'true'
         run: cargo clippy --locked --target wasm32-unknown-unknown -p rustpg2d-game -- -D warnings
-      # The game also compiles for Windows (no linking; the Windows job tests it natively).
-      # (The editor joins again when the new one exists: ROADMAP.md, 0.36.0.)
+      # The game also compiles for Windows (no linking; the Windows job tests it natively). The
+      # editor is checked for Windows by the Windows job and built by the release builds: its
+      # TLS (ring) compiles C for the target, which needs MinGW-w64 here.
       - if: steps.tested.outputs.skip != 'true'
         run: rustup target add x86_64-pc-windows-gnu
       - if: steps.tested.outputs.skip != 'true'
@@ -142,8 +143,8 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends libasound2-dev libudev-dev xvfb xauth mesa-vulkan-drivers libvulkan1 libxi6 libxcursor1 libxrandr2 libxkbcommon-x11-0
       # The repository's dev profile (optimized dependencies): what developers and the editor's
       # play-test run; opt-level 0 renders too slowly in software for timed autoplay steps.
-      # (The new editor's agent server runs without a window; the 0.35 editor's own checks are
-      # skipped: ROADMAP.md, 0.36.0.)
+      # (The editor: its agent server without a window, driven by mcp_smoke, and the editor in a
+      # window opening a map.)
       - if: steps.tested.outputs.skip != 'true'
         run: cargo build --locked -p rustpg2d-game -p rustpg2d-studio
       - if: steps.tested.outputs.skip != 'true'
@@ -195,8 +196,8 @@ jobs:
 
   macos:
     name: macOS
-    # Clippy for editor and game and the engine's tests on a Mac (the release builds are in
-    # builds.yml).
+    # Clippy for the editor (rustpg2d-studio) and the game and the engine's tests on a Mac (the
+    # release builds are in builds.yml).
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && startsWith(github.head_ref, 'release/'))
     runs-on: macos-latest
     env:
@@ -211,7 +212,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: macos
-      - run: cargo clippy --locked -p rustpg2d-game -- -D warnings
+      - run: cargo clippy --locked -p rustpg2d-game -p rustpg2d-studio -- -D warnings
       # The engine's tests on macOS (paths, export, signing).
       - run: cargo test --locked -p rustpg2d-engine --lib
 

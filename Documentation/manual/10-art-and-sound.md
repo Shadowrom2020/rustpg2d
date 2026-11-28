@@ -119,7 +119,8 @@ The 3D kinds (characters are 3D models; see [Characters › How characters look]
   and `models/<id>_clips.glb`, adds the 3D model with its clips mapped to the animations and a
   character using it. Mark its colour features in the 3D model's form afterwards.
 - **3D creature**: an animal or monster: a picture and an unrigged model of it (33 credits). Meshy rigs only people, so it is added as a 3D
-  model without a character; a rig template animates it.
+  model without a character; a rig template animates it, its joints moved by hand where they sit
+  wrong ([Characters › How characters look](06-characters.md#how-characters-look)).
 - **Item 3D model**: the **Id** is an existing item. With a **description** Meshy first draws a
   clean picture of it (the icon as the reference: same colours and parts, in proper proportions;
   long things upright, handle at the bottom) and models that (33 credits); without one it models

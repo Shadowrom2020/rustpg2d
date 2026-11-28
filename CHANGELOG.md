@@ -181,6 +181,20 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **More clips for a 3D model** (part 8): the model workshop adds a file of animations for the
   model's skeleton (*Add a file of clips…*), or takes the animations of another model with the
   same skeleton (*Take clips from another model…*, the ones to take ticked).
+- **A rig template's joints moved by hand** (part 8): a model that borrows its skeleton from a
+  rig template lists the template's joints under *Joints of the skeleton*, each with three
+  numbers (across, up, to the front, in parts of the model's height); the preview shows the
+  change as it is made, and *Reset* puts one joint or all of them back where the fit puts them.
+- **A building's doors and windows added in its workshop** (part 8): a building prop's tab says
+  above its picture what it is (its roof, its size, its doors, windows and chimneys) and has
+  *Add a door* and *Add a window*: the new one goes on the front wall where there is room and
+  looks like the ones the building has. Its measurements, its roof's ridge, each door's and
+  window's place and size are numbers in the form's *Building* section, and the picture
+  follows at once.
+- **Fixed in the forms:** a building's *Walls* box showed unticked (and could not be turned
+  off), and a few fields that are on or 1 unless set (a prop's *Casts a shadow*, a sheet's
+  scale, a sprite's size in cells, *Eight facings*…) showed as off or 0 when the file left them
+  out.
 - **The item workshop** (part 8): an item's tab shows its own 3D model in the hero's hand,
   standing, walking and striking. A model file is taken with *From a file…*; buttons find
   where it is held, turn its handle and its front and set how it is held and how long it is;

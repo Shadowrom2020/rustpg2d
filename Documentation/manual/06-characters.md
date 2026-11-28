@@ -54,7 +54,13 @@ modelled with Meshy from hand-drawn pictures of earlier versions.
   plays. The starter library has six, made for it: **four legs** (wolves, dogs, boars, deer),
   **dragon** (four legs, a long neck and tail, wings that beat), **bird** (standing birds), **flyer** (bats, birds in flight), **blob** (oozes) and **floating**
   (ghosts, wisps). *Turn it* makes the model face the front first (the front view shows its face).
-  The model keeps its own file; the fit is worked out when it loads.
+  The model keeps its own file; the fit is worked out when it loads. When a joint sits wrong (a
+  knee too high, a head too far back, a leg that bends in its middle), open **Joints of the
+  skeleton** under *Skeleton*: every joint of the template is listed by name with three numbers,
+  how far it is moved across, up and to the front, in parts of the model's height (0.1 is a
+  tenth of it). Drag a number or type one; the preview shows the model fitted again at once.
+  Moved joints are marked *(moved)*; *Reset* puts one back where the fit puts it, *Reset all
+  joints* all of them.
 - **Generate art** makes 3D characters, creatures and items' models with Meshy ([Art and sound ›
   Generate art](10-art-and-sound.md#generate-art-with-meshy)), and adds clips to a model.
 

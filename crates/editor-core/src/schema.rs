@@ -58,17 +58,64 @@ fn tidy_schema(mut v: Value) -> Value {
     v
 }
 
+/// Defaults the schemas leave out: a field read with a default of its own (`default = "yes"`)
+/// that is not written while it holds it (`skip_serializing_if`) gets no `default` from
+/// schemars, so a form would show it as off or 0 while the game takes it as on or 1 (a
+/// building's walls, a prop's shadow). Type, field, the value serde reads when it is left out.
+const LEFT_OUT_DEFAULTS: &[(&str, &str, Defaulted)] = &[
+    ("BuildingShape", "walls", Defaulted::Bool(true)),
+    ("PropDef", "shadow", Defaulted::Bool(true)),
+    ("TitleScreen", "panel", Defaulted::Bool(true)),
+    ("ProjectConfig", "eight_facings", Defaulted::Bool(true)),
+    ("ProjectConfig", "model_atlas_mb", Defaulted::Int(rustpg2d_engine::render::model::DEFAULT_ATLAS_MB as i64)),
+    ("SheetDef", "scale", Defaulted::Int(1)),
+    ("SpriteRef", "w", Defaulted::Int(1)),
+    ("SpriteRef", "h", Defaulted::Int(1)),
+    ("FontDef", "scale", Defaulted::Float(1.0)),
+    ("RaceDef", "size", Defaulted::Float(1.0)),
+];
+
+#[derive(Clone, Copy, Debug)]
+enum Defaulted {
+    Bool(bool),
+    Int(i64),
+    Float(f64),
+}
+
+/// [`LEFT_OUT_DEFAULTS`] written into a schema: into the root when it is that type, and into
+/// its named types.
+fn with_left_out_defaults(mut v: Value) -> Value {
+    fn put(ty_schema: Option<&mut Value>, key: &str, value: &Value) {
+        if let Some(field) = ty_schema.and_then(|t| t.get_mut("properties")).and_then(|p| p.get_mut(key)).and_then(Value::as_object_mut) {
+            field.entry("default").or_insert_with(|| value.clone());
+        }
+    }
+    for (ty, key, value) in LEFT_OUT_DEFAULTS {
+        let value = match value {
+            Defaulted::Bool(b) => Value::from(*b),
+            Defaulted::Int(i) => Value::from(*i),
+            Defaulted::Float(f) => Value::from(*f),
+        };
+        if v.get("title").and_then(Value::as_str) == Some(*ty) {
+            put(Some(&mut v), key, &value);
+        }
+        put(v.get_mut("$defs").and_then(|d| d.get_mut(*ty)), key, &value);
+    }
+    v
+}
+
 fn store() -> &'static Store {
     static STORE: OnceLock<Store> = OnceLock::new();
     STORE.get_or_init(|| {
         use rustpg2d_engine::schema;
+        let read = |v: Value| tidy_schema(with_left_out_defaults(v));
         Store {
-            kinds: RefKind::ALL.iter().filter_map(|k| Some((*k, tidy_schema(schema::of_kind(*k)?.to_value())))).collect(),
-            project: tidy_schema(schema::project().to_value()),
-            entity: tidy_schema(schema::entity().to_value()),
-            zone: tidy_schema(schema::zone().to_value()),
-            trigger: tidy_schema(schema::trigger().to_value()),
-            map_settings: tidy_schema(schema::map_settings().to_value()),
+            kinds: RefKind::ALL.iter().filter_map(|k| Some((*k, read(schema::of_kind(*k)?.to_value())))).collect(),
+            project: read(schema::project().to_value()),
+            entity: read(schema::entity().to_value()),
+            zone: read(schema::zone().to_value()),
+            trigger: read(schema::trigger().to_value()),
+            map_settings: read(schema::map_settings().to_value()),
         }
     })
 }
@@ -970,6 +1017,37 @@ mod tests {
     use rustpg2d_engine::defs::Database;
     use rustpg2d_engine::project::ProjectConfig;
     use std::collections::{BTreeMap, BTreeSet};
+
+    #[test]
+    fn defaults_left_out_of_the_schemas_are_put_back() {
+        use rustpg2d_engine::defs::{BuildingShape, PropDef, SheetDef, SpriteRef};
+        // What serde reads for a field left out of a file is what a form shows for it.
+        let prop = of_kind(RefKind::Prop).unwrap();
+        assert_eq!(prop.at("/building/walls").unwrap().blank(), Value::Bool(BuildingShape::default().walls));
+        assert_eq!(prop.at("/shadow").unwrap().blank(), Value::Bool(PropDef::default().shadow));
+        let sprite: SpriteRef = ron::from_str("(sheet: \"a\", frame: 0)").unwrap();
+        assert_eq!(prop.at("/sprite/w").unwrap().blank(), serde_json::json!(sprite.w));
+        assert_eq!(of_kind(RefKind::Sheet).unwrap().at("/scale").unwrap().blank(), serde_json::json!(SheetDef::default().scale));
+        let mut left_out = serde_json::to_value(ProjectConfig::new("probe")).unwrap();
+        for key in ["eight_facings", "model_atlas_mb"] {
+            left_out.as_object_mut().unwrap().remove(key);
+        }
+        // (A title screen as it comes: not written at all, its panel read as the default.)
+        left_out.as_object_mut().unwrap().remove("title");
+        let config: ProjectConfig = serde_json::from_value(left_out).unwrap();
+        assert_eq!(project().at("/eight_facings").unwrap().blank(), Value::Bool(config.eight_facings));
+        assert_eq!(project().at("/model_atlas_mb").unwrap().blank(), serde_json::json!(config.model_atlas_mb));
+        assert_eq!(project().at("/title/panel").unwrap().blank(), Value::Bool(config.title.panel));
+        // Every line of the table is a field of some schema.
+        let all: Vec<&Value> = store().kinds.values().chain([&store().project, &store().entity, &store().zone, &store().trigger, &store().map_settings]).collect();
+        for (ty, key, _) in LEFT_OUT_DEFAULTS {
+            let found = all.iter().any(|v| {
+                let here = if v.get("title").and_then(Value::as_str) == Some(*ty) { Some(*v) } else { v.get("$defs").and_then(|d| d.get(*ty)) };
+                here.and_then(|t| t.get("properties")).and_then(|p| p.get(*key)).is_some_and(|f| f.get("default").is_some())
+            });
+            assert!(found, "{ty}.{key} is in no schema");
+        }
+    }
 
     #[test]
     fn labels_and_help() {

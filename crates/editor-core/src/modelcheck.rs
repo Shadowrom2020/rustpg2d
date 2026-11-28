@@ -81,10 +81,13 @@ impl Workspace {
         if new == old {
             return Ok(false);
         }
-        let files = (new.file != old.file, new.rig != old.rig, new.clip_files != old.clip_files, new.shared_clips != old.shared_clips) != (false, false, false, false);
+        // (Joints of the same rig template moved are fitted again from what is kept: no files read.)
+        let template = |d: &ModelDef| d.rig.as_ref().map(|r| r.template.clone());
+        let files = (new.file != old.file, template(&new) != template(&old), new.clip_files != old.clip_files, new.shared_clips != old.shared_clips) != (false, false, false, false);
         let value = serde_json::to_value(&new).map_err(|e| e.to_string())?;
         self.set_def_value(RefKind::Model, id, value)?;
-        self.assets.models.set_def(&new);
+        let kept = self.assets.models.set_def(&new);
+        let files = files || (new.rig != old.rig && !kept);
         self.begin(label);
         // (Another skeleton or other files: read again. Anything else the loaded model takes as it is.)
         if files && self.gpu != crate::Gpu::No {
@@ -177,6 +180,54 @@ impl Workspace {
             }
             if let (Some(rig), Some(turn)) = (&mut d.rig, turn) {
                 rig.turn = turn.rem_euclid(360.0);
+            }
+        })?;
+        Ok(())
+    }
+
+    /// The joints of model `id`'s rig template, by name, in the skeleton's order (empty without
+    /// a template, or while the template isn't loaded).
+    pub fn rig_joints(&self, id: &str) -> Vec<String> {
+        let Some(rig) = self.project.db.model(id).and_then(|m| m.rig.as_ref()) else { return Vec::new() };
+        self.assets.models.info(&rig.template).map(|i| i.bones).unwrap_or_default()
+    }
+
+    /// Joint `joint` of model `id`'s rig template moved by `offset` (x right, y up, z front; in
+    /// parts of the model's height) from where the fit puts it; `None` or no move = where the
+    /// fit puts it again. One step; the model is fitted again at once.
+    pub fn model_joint(&mut self, id: &str, joint: &str, offset: Option<[f32; 3]>) -> Result<(), String> {
+        let def = self.project.db.model(id).ok_or_else(|| format!("there is no model \"{id}\""))?;
+        let Some(rig) = &def.rig else { return Err(format!("{id} has no rig template: its joints are its own")) };
+        let joints = self.rig_joints(id);
+        // (One moved before that the template doesn't have any more can still be put back.)
+        let moved = rig.joints.iter().any(|j| j.joint == joint);
+        // (While the template isn't loaded its joints aren't known: the name is taken as it is.)
+        if !moved && !joints.is_empty() && !joints.iter().any(|j| j == joint) {
+            return Err(format!("the rig template {} has no joint \"{joint}\"", rig.template));
+        }
+        let offset = offset.filter(|o| o.iter().any(|v| *v != 0.0));
+        let name = def.label().to_string();
+        let label = match offset {
+            Some(_) => format!("{name}: the joint {joint} moved"),
+            None => format!("{name}: the joint {joint} where the fit puts it"),
+        };
+        self.change_model(id, &label, |d, _| {
+            let Some(rig) = &mut d.rig else { return };
+            match (rig.joints.iter_mut().find(|j| j.joint == joint), offset) {
+                (Some(j), Some(o)) => j.offset = o,
+                (None, Some(o)) => rig.joints.push(rustpg2d_engine::defs::JointNudge { joint: joint.to_string(), offset: o }),
+                (_, None) => rig.joints.retain(|j| j.joint != joint),
+            }
+        })?;
+        Ok(())
+    }
+
+    /// Every joint of model `id`'s rig template where the fit puts it. One step.
+    pub fn model_joints_reset(&mut self, id: &str) -> Result<(), String> {
+        let name = self.project.db.model(id).map_or(id.to_string(), |m| m.label().to_string());
+        self.change_model(id, &format!("{name}: every joint where the fit puts it"), |d, _| {
+            if let Some(rig) = &mut d.rig {
+                rig.joints.clear();
             }
         })?;
         Ok(())
@@ -286,6 +337,57 @@ mod tests {
         // What can't be: itself, a model that is none, a template for a model with a skeleton.
         assert!(ws.model_rig(&fitted.id, &fitted.id, None).is_err() && ws.model_rig(&fitted.id, "nobody", None).is_err());
         assert!(ws.model_rig("rig_bird", "rig_quadruped", None).is_err());
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_joint_of_a_rig_template_is_moved_by_hand_and_put_back() {
+        // The dog stands on the four-legged template's skeleton, its joints moved to fit it.
+        let (mut ws, dir) = scratch("joints", &["dog", "rig_quadruped"]);
+        let rig = |ws: &Workspace| ws.project.db.model("dog").unwrap().rig.clone().unwrap();
+        let first = rig(&ws);
+        assert_eq!(first.template, "rig_quadruped");
+        let joints = ws.rig_joints("dog");
+        assert!(joints.len() > 4 && joints.iter().any(|j| j == "Head"), "{joints:?}");
+        let offset = |ws: &Workspace, joint: &str| rig(ws).joints.iter().find(|j| j.joint == joint).map(|j| j.offset);
+        let was = offset(&ws, "Head").unwrap_or_default();
+        let at = |ws: &Workspace| {
+            let view = ws.assets.models.rig_view("dog").unwrap();
+            (view.joints.iter().find(|j| j.0 == "Head").unwrap().1, view.hi.y - view.lo.y)
+        };
+        let (before, height) = at(&ws);
+        // The head a tenth of the height higher: one step, and the model fitted again at once.
+        let up = [was[0], was[1] + 0.1, was[2]];
+        ws.model_joint("dog", "Head", Some(up)).unwrap();
+        ws.history_frame(None);
+        assert_eq!(offset(&ws, "Head"), Some(up));
+        assert_eq!(rig(&ws).joints.len(), first.joints.len());
+        assert_eq!(ws.timeline.done.len(), 1);
+        assert!(ws.timeline.done[0].label.contains("the joint Head moved"), "{}", ws.timeline.done[0].label);
+        let (after, _) = at(&ws);
+        assert!((after.y - before.y - 0.1 * height).abs() < 0.02 * height, "{before} {after} {height}");
+        // Set, not added to: the offset is the one given. Undone, it is the one before.
+        ws.model_joint("dog", "Head", Some([0.0, 0.05, 0.0])).unwrap();
+        ws.history_frame(None);
+        assert_eq!(offset(&ws, "Head"), Some([0.0, 0.05, 0.0]));
+        ws.undo();
+        assert_eq!(offset(&ws, "Head"), Some(up));
+        // No move (or none given) is where the fit puts it: the joint leaves the list.
+        ws.model_joint("dog", "Head", Some([0.0; 3])).unwrap();
+        ws.history_frame(None);
+        assert_eq!((offset(&ws, "Head"), rig(&ws).joints.len()), (None, first.joints.len() - 1));
+        ws.model_joint("dog", "Tail", None).unwrap();
+        ws.history_frame(None);
+        assert_eq!((offset(&ws, "Tail"), rig(&ws).joints.len()), (None, first.joints.len() - 2));
+        // A joint the template doesn't have, and a model without a template, are refused in words.
+        assert_eq!(ws.model_joint("dog", "Antenna", Some([0.0, 0.1, 0.0])).unwrap_err(), "the rig template rig_quadruped has no joint \"Antenna\"");
+        assert_eq!(ws.model_joint("rig_quadruped", "Head", Some([0.0, 0.1, 0.0])).unwrap_err(), "rig_quadruped has no rig template: its joints are its own");
+        // All put back in one step.
+        let steps = ws.timeline.done.len();
+        ws.model_joints_reset("dog").unwrap();
+        ws.history_frame(None);
+        assert!(rig(&ws).joints.is_empty());
+        assert_eq!(ws.timeline.done.len(), steps + 1);
         let _ = std::fs::remove_dir_all(dir);
     }
 }

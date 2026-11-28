@@ -898,6 +898,57 @@ impl Workspace {
     }
 }
 
+/// A building prop as the script reads it: `Roof:WxD:doors/windows/chimneys` (0.35's
+/// `buildings=` entry without the id); `None` for a prop that is no building.
+pub fn building_line(p: &PropDef) -> Option<String> {
+    let b = p.building.as_ref()?;
+    let doors = b.openings.iter().filter(|o| o.sill <= 0.0).count();
+    Some(format!("{:?}:{}x{}:{}/{}/{}", b.roof, p.hitbox[0], p.hitbox[1], doors, b.openings.len() - doors, b.chimneys.len()))
+}
+
+/// Where on `side` (a wall `length` pixels long) an opening `width` wide has the most room: the
+/// middle of the widest stretch the others leave free.
+fn free_place(openings: &[Opening], side: WallSide, length: f32, width: f32) -> f32 {
+    let mut taken: Vec<(f32, f32)> = openings.iter().filter(|o| o.side == side).map(|o| (o.at - o.size[0] / 2.0, o.at + o.size[0] / 2.0)).collect();
+    taken.sort_by(|a, b| a.0.total_cmp(&b.0));
+    let mut best = (0.0f32, length / 2.0);
+    let mut from = 0.0f32;
+    for (a, b) in taken.iter().copied().chain([(length, length)]) {
+        let room = a - from;
+        if room > best.0 {
+            best = (room, (from + a) / 2.0);
+        }
+        from = from.max(b);
+    }
+    // (No room anywhere: the middle; the creator moves it.)
+    if best.0 < width { length / 2.0 } else { best.1.round() }
+}
+
+impl Workspace {
+    /// A door (`door`) or a window added to the building prop `id`: like the last of its kind
+    /// (its picture, size and how high it sits), else a door of 26 x 40 on the ground or a
+    /// window of 24 x 24 24 pixels up; on the front (south) wall where the most room is. One
+    /// step; the building is built again with it.
+    pub fn building_opening(&mut self, id: &str, door: bool) -> Result<String, String> {
+        let p = self.project.db.prop(id).ok_or_else(|| format!("there is no prop \"{id}\""))?;
+        let name = if p.name.is_empty() { id } else { p.name.as_str() };
+        let Some(shape) = &p.building else { return Err(format!("{name} is no building")) };
+        let like = shape.openings.iter().rev().find(|o| (o.sill <= 0.0) == door).cloned();
+        let (picture, size, sill) = like.map_or_else(|| (SpriteRef::default(), if door { [26.0, 40.0] } else { [24.0, 24.0] }, if door { 0.0 } else { 24.0 }), |o| (o.picture, o.size, o.sill));
+        let at = free_place(&shape.openings, WallSide::South, p.hitbox[0], size[0]);
+        let what = if door { "door" } else { "window" };
+        let label = format!("Add a {what} to {name}");
+        let mut new = p.clone();
+        if let Some(b) = &mut new.building {
+            b.openings.push(Opening { side: WallSide::South, at, picture, size, sill });
+        }
+        let value = serde_json::to_value(&new).map_err(|e| e.to_string())?;
+        self.set_def_value(rustpg2d_engine::refactor::RefKind::Prop, id, value)?;
+        self.begin(&label);
+        Ok(format!("A {what} on the south wall, {at} pixels from its west end"))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -938,6 +989,53 @@ mod tests {
         }
         assert_eq!(n, 5);
         assert_eq!(map.decor.iter().filter(|d| d.turn() == 1).count(), 2);
+    }
+
+    #[test]
+    fn a_buildings_door_and_window_are_added_and_its_ridge_turned_one_step_each() {
+        let dir = std::env::temp_dir().join(format!("rustpg2d-build-openings-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        crate::files::create_project(&dir).unwrap();
+        let mut ws = Workspace::new(dir.clone(), crate::Gpu::No).unwrap();
+        let door = Opening { side: WallSide::South, at: 80.0, picture: SpriteRef { sheet: "openings".into(), frame: 2, w: 1, h: 1 }, size: [28.0, 44.0], sill: 0.0 };
+        let shape = BuildingShape { openings: vec![door.clone()], ..Default::default() };
+        ws.project.db.props.push(PropDef { name: "Cottage".into(), hitbox: [160.0, 128.0], building: Some(shape), ..PropDef::fresh("cottage") });
+        ws.project.db.props.push(PropDef { name: "Barrel".into(), ..PropDef::fresh("barrel") });
+        ws.project.db.reindex();
+        ws.history_frame(None);
+        let shape = |ws: &Workspace| ws.project.db.prop("cottage").unwrap().building.clone().unwrap();
+        assert_eq!(building_line(ws.project.db.prop("cottage").unwrap()).as_deref(), Some("Gable:160x128:1/0/0"));
+        // A window: none to be like, so 24 x 24, 24 up, where the south wall has most room.
+        ws.building_opening("cottage", false).unwrap();
+        ws.history_frame(None);
+        let w = shape(&ws).openings[1].clone();
+        assert_eq!((w.side, w.at, w.size, w.sill, w.picture.sheet.as_str()), (WallSide::South, 33.0, [24.0, 24.0], 24.0, ""));
+        // A door like the one it has: its picture and size, in the room left on the east.
+        ws.building_opening("cottage", true).unwrap();
+        ws.history_frame(None);
+        let d = shape(&ws).openings[2].clone();
+        assert_eq!((d.at, d.size, d.sill, d.picture.clone()), (127.0, door.size, 0.0, door.picture.clone()));
+        assert_eq!(building_line(ws.project.db.prop("cottage").unwrap()).as_deref(), Some("Gable:160x128:2/1/0"));
+        // The ridge turned by number, as the form does: a step of its own.
+        let mut value = ws.def_value(rustpg2d_engine::refactor::RefKind::Prop, "cottage").unwrap();
+        value["building"]["ridge"] = serde_json::json!("NorthSouth");
+        ws.set_def_value(rustpg2d_engine::refactor::RefKind::Prop, "cottage", value).unwrap();
+        ws.history_frame(None);
+        assert_eq!(shape(&ws).ridge, Ridge::NorthSouth);
+        let labels: Vec<&str> = ws.timeline.done.iter().map(|c| c.label.as_str()).collect();
+        assert_eq!(labels[..2], ["Add a window to Cottage", "Add a door to Cottage"]);
+        assert_eq!(labels.len(), 3);
+        // Undone one by one.
+        ws.undo();
+        assert_eq!(shape(&ws).ridge, Ridge::Auto);
+        ws.undo();
+        assert_eq!(shape(&ws).openings.len(), 2);
+        ws.undo();
+        assert_eq!(shape(&ws).openings, vec![door]);
+        // What is no building, and what isn't there, say so.
+        assert_eq!(ws.building_opening("barrel", true).unwrap_err(), "Barrel is no building");
+        assert!(ws.building_opening("nothing", true).is_err());
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]

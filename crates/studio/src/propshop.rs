@@ -220,8 +220,9 @@ impl PropStage {
         Some(self.rect.min + egui::vec2(s.x, s.y) / self.ppp)
     }
 
-    /// The script's line: `state=NAME facing=… dark=… hitbox=WxH [spot=X,Y] [light=R] HANDLE@X,Y…`
-    /// (where each handle is in the window, for `drag`).
+    /// The script's line: `state=NAME facing=… dark=… hitbox=WxH [spot=X,Y] [light=R]
+    /// [building=Roof:WxD:doors/windows/chimneys] HANDLE@X,Y…` (where each handle is in the
+    /// window, for `drag`).
     pub fn status(&self, ws: &Workspace, id: &str) -> String {
         let Some(def) = ws.project.db.prop(id) else { return "-".into() };
         let mut out = format!("{id} state={} facing={:?} dark={} hitbox={}x{}", def.state_names().get(self.state).cloned().unwrap_or_default(), self.facing, self.dark, def.hitbox[0], def.hitbox[1]);
@@ -236,6 +237,9 @@ impl PropStage {
         }
         if def.picture_offset != [0.0, 0.0] {
             out += &format!(" picture={},{}", def.picture_offset[0], def.picture_offset[1]);
+        }
+        if let Some(line) = editor_core::build::building_line(def) {
+            out += &format!(" building={line}");
         }
         for h in self.handles(def) {
             let name = match h {
@@ -253,7 +257,7 @@ impl PropStage {
     }
 
     /// The script's words: `state NAME`, `turn`, `dark on|off`, `usual light|picture` (the
-    /// light, the picture back where the engine puts it).
+    /// light, the picture back where the engine puts it), `add door|window` (a building's).
     pub fn word(&mut self, ws: &mut Workspace, id: &str, args: &[String]) {
         let Some(def) = ws.project.db.prop(id) else { return };
         let arg = |k: usize| args.get(k).map(String::as_str).unwrap_or("");
@@ -261,6 +265,14 @@ impl PropStage {
             "state" => self.state = def.state_index(arg(1)).unwrap_or(0),
             "turn" => self.facing = quarter(self.facing),
             "dark" => self.dark = arg(1) != "off",
+            "add" => {
+                let said = match arg(1) {
+                    "door" => ws.building_opening(id, true),
+                    "window" => ws.building_opening(id, false),
+                    _ => Err("add door|window".to_string()),
+                };
+                println!("[prop] {}", said.unwrap_or_else(|e| e));
+            }
             "usual" => {
                 let mut def = def.clone();
                 match arg(1) {
@@ -333,6 +345,36 @@ impl PropStage {
                 self.dark = false;
             }
         });
+        // A building: what it is, and a door or a window added like the ones it has. (Its
+        // measurements and each opening's numbers are the form's, under Building.)
+        let mut add: Option<bool> = None;
+        if let Some(b) = &def.building {
+            ui.horizontal_wrapped(|ui| {
+                let doors = b.openings.iter().filter(|o| o.sill <= 0.0).count();
+                let count = |n: usize, one: &str, many: &str| match n {
+                    0 => format!("no {one}"),
+                    1 => format!("1 {one}"),
+                    n => format!("{n} {many}"),
+                };
+                ui.strong("Building");
+                ui.label(format!(
+                    "{} roof, {} x {} pixels, {}, {}, {}",
+                    editor_core::schema::variant_label(&format!("{:?}", b.roof)),
+                    def.hitbox[0],
+                    def.hitbox[1],
+                    count(doors, "door", "doors"),
+                    count(b.openings.len() - doors, "window", "windows"),
+                    count(b.chimneys.len(), "chimney", "chimneys")
+                ));
+                if ui.button("Add a door").on_hover_text("On the front (south) wall where it has the most room, like the last door it has: its picture and size. Where it sits is under Building, Openings, in the form below.").clicked() {
+                    add = Some(true);
+                }
+                if ui.button("Add a window").on_hover_text("On the front (south) wall where it has the most room, like the last window it has: its picture, size and how high it sits. Where it sits is under Building, Openings, in the form below.").clicked() {
+                    add = Some(false);
+                }
+            });
+            ui.weak("Its walls, roof (kind, ridge, pitch, overhang), doors, windows and chimneys are set by numbers under Building in the form below; the picture follows at once.");
+        }
         ui.weak(match (def.use_spot.is_some(), PropStage::light_of(&def, self.state).is_some()) {
             (false, false) => "Drag the corners of the hitbox: what is in the way of someone walking, and what E and a click reach. (Shift: pixel by pixel.)",
             (true, false) => "Drag the corners of the hitbox, and the ring to where someone using it sits, lies or stands. (Shift: pixel by pixel.)",
@@ -452,17 +494,23 @@ impl PropStage {
         }
         painter.text(rect.left_bottom() + egui::vec2(8.0, -6.0), egui::Align2::LEFT_BOTTOM, format!("Hitbox {} x {} px", def.hitbox[0], def.hitbox[1]), egui::FontId::proportional(12.0), Color32::from_gray(170));
         self.dragging = dragging;
-        if def == before {
-            return false;
+        let mut changed = false;
+        if def != before {
+            if dragging {
+                // (A drag is one step of the history.)
+                crate::shell::hold_step(ui.ctx(), ("prop workshop", id, self.drags));
+            }
+            ws.begin(&format!("Change the prop {}", if def.name.is_empty() { id } else { &def.name }));
+            ws.project.db.props[pos] = def;
+            ws.stale = true;
+            changed = true;
         }
-        if dragging {
-            // (A drag is one step of the history.)
-            crate::shell::hold_step(ui.ctx(), ("prop workshop", id, self.drags));
+        if let Some(door) = add {
+            let said = ws.building_opening(id, door).unwrap_or_else(|e| e);
+            ws.set_status(said);
+            changed = true;
         }
-        ws.begin(&format!("Change the prop {}", if def.name.is_empty() { id } else { &def.name }));
-        ws.project.db.props[pos] = def;
-        ws.stale = true;
-        true
+        changed
     }
 
     /// Draws the stage with the game's renderer: a few tiles, the prop on them, at night its light.
@@ -698,4 +746,74 @@ mod ui_tests {
         let _ = std::fs::remove_dir_all(dir);
     }
 
+    /// A building's workshop with its form below, as the prop's tab has them.
+    struct Both {
+        ws: Workspace,
+        stage: PropStage,
+        thumbs: crate::thumbs::Thumbs,
+        lists: Vec<(rustpg2d_engine::refactor::RefKind, Vec<(String, String)>)>,
+    }
+
+    #[test]
+    fn a_buildings_window_is_added_and_its_ridge_turned_by_number() {
+        use egui_kittest::kittest::NodeT;
+        use rustpg2d_engine::defs::{Ridge, WallSide};
+        use rustpg2d_engine::refactor::RefKind;
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let dir = std::env::temp_dir().join(format!("rustpg2d-propshop-building-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        copy(&root.join("example_project"), &dir);
+        let mut ws = Workspace::new(dir.clone(), editor_core::Gpu::No).unwrap();
+        ws.history_frame(None);
+        let id = "cottage_red_small";
+        let cottage = ws.project.db.prop(id).expect("the example has the small cottage").clone();
+        let shape = cottage.building.clone().unwrap();
+        assert_eq!(shape.ridge, Ridge::Auto);
+        let lists = RefKind::ALL.iter().map(|k| (*k, editor_core::defs::list(&ws.project.db, *k))).collect();
+        let mut h = Harness::builder().with_size(egui::vec2(1000.0, 3000.0)).build_ui_state(
+            |ui, s: &mut Both| {
+                let held = ui.ctx().data_mut(|d| d.remove_temp::<u64>(crate::shell::held_step_id()));
+                s.ws.history_frame(held.or(ui.ctx().memory(|m| m.focused()).map(|id| id.value())));
+                s.stage.show(ui, &mut s.ws, None, &mut s.thumbs, "cottage_red_small");
+                // (The form below, as the shell shows it: a change is the definition's.)
+                let mut value = s.ws.def_value(RefKind::Prop, "cottage_red_small").unwrap();
+                let mut cx = crate::form::Cx { lists: &s.lists, maps: &[], show_all: false, compact: false, pictures: None, refs: None, asks: Vec::new() };
+                if crate::form::definition_ui(ui, &mut cx, editor_core::schema::of_kind(RefKind::Prop).unwrap(), &mut value) {
+                    s.ws.set_def_value(RefKind::Prop, "cottage_red_small", value).unwrap();
+                }
+            },
+            Both { ws, stage: PropStage::default(), thumbs: Default::default(), lists },
+        );
+        h.run();
+        // What it is, said above the picture.
+        h.get_by_label("Gable roof, 160 x 160 pixels, 1 door, 3 windows, no chimney");
+        assert!(h.state().stage.status(&h.state().ws, id).contains(" building=Gable:160x160:1/3/0 "));
+        // A window: like the others, where the front wall has the most room; one step.
+        h.get_by_label("Add a window").click();
+        h.run();
+        h.run();
+        let now = h.state().ws.project.db.prop(id).unwrap().building.clone().unwrap();
+        let (last, like) = (now.openings.last().unwrap(), &shape.openings[2]);
+        assert_eq!((now.openings.len(), last.side, last.size, last.sill, &last.picture), (5, WallSide::South, like.size, like.sill, &like.picture));
+        assert!(shape.openings.iter().filter(|o| o.side == WallSide::South).all(|o| (o.at - last.at).abs() >= (o.size[0] + last.size[0]) / 2.0), "{} overlaps {:?}", last.at, shape.openings);
+        h.get_by_label("Gable roof, 160 x 160 pixels, 1 door, 4 windows, no chimney");
+        // The ridge turned in the form below: its own step.
+        h.get_by_role_and_label(egui::accesskit::Role::ComboBox, "Ridge").click();
+        h.run();
+        h.get_by_label("North south").click();
+        h.run();
+        h.run();
+        assert_eq!(h.state().ws.project.db.prop(id).unwrap().building.as_ref().unwrap().ridge, Ridge::NorthSouth);
+        // The walls are ticked: the building has them (left out of the file, read as on).
+        assert_eq!(h.get_by_role_and_label(egui::accesskit::Role::CheckBox, "Walls").accesskit_node().toggled(), Some(egui::accesskit::Toggled::True));
+        let labels: Vec<String> = h.state().ws.timeline.done.iter().map(|c| c.label.clone()).collect();
+        assert_eq!(labels.len(), 2, "{labels:?}");
+        assert_eq!(labels[0], "Add a window to Small red-roofed cottage");
+        // Both undone: as it was.
+        h.state_mut().ws.undo();
+        h.state_mut().ws.undo();
+        h.run();
+        assert_eq!(h.state().ws.project.db.prop(id).unwrap(), &cottage);
+        let _ = std::fs::remove_dir_all(dir);
+    }
 }

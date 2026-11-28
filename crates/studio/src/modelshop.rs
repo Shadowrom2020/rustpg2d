@@ -97,7 +97,8 @@ impl ModelStage {
         }
     }
 
-    /// The script's line: `ID ok|problemsN|not loaded clips=N rig=own|TEMPLATE|none anims=[walk=Clip …] missing=[…] shown=ANIM`.
+    /// The script's line: `ID ok|problemsN|not loaded clips=N rig=own|TEMPLATE@TURN|none [joints=N] anims=[walk=Clip …] missing=[…] shown=ANIM`
+    /// (`joints=` the rig template's joints moved by hand).
     pub fn status(&self, ws: &Workspace, id: &str) -> String {
         let Some(def) = ws.project.db.model(id) else { return "-".into() };
         let c = ws.model_checked(id);
@@ -110,10 +111,14 @@ impl ModelStage {
             None => "none".to_string(),
         };
         let anims: Vec<String> = def.clips.iter().map(|m| format!("{}={}@{}", m.anim, m.clip, m.fps)).collect();
-        format!("{id} {} clips={} rig={rig} anims=[{}] missing=[{}] shown={}", if c.problems() == 0 { "ok".to_string() } else { format!("problems{}", c.problems()) }, c.clips.len(), anims.join(" "), c.missing.join(" "), self.anim)
+        let joints = def.rig.as_ref().map_or(0, |r| r.joints.len());
+        let joints = if joints > 0 { format!(" joints={joints}") } else { String::new() };
+        format!("{id} {} clips={} rig={rig}{joints} anims=[{}] missing=[{}] shown={}", if c.problems() == 0 { "ok".to_string() } else { format!("problems{}", c.problems()) }, c.clips.len(), anims.join(" "), c.missing.join(" "), self.anim)
     }
 
     /// The script's words: `play ANIM CLIP|-`, `fps ANIM N`, `guess`, `rig TEMPLATE|- [TURN]`,
+    /// `joint JOINT DX DY DZ` (a joint of the rig template moved, in parts of the height) or
+    /// `joint JOINT -` (put back),
     /// `face front|left|back|right|turn`, `anim NAME`, `check` (prints the check's lines),
     /// `clips FILE` (a file of clips added), `share SOURCE [ANIM…] [replace]` (clips taken from
     /// another model with the same skeleton; no animations named: all of them).
@@ -125,6 +130,11 @@ impl ModelStage {
             "fps" => ws.model_fps(id, arg(1), arg(2).parse().map_err(|_| "fps ANIM NUMBER")?)?,
             "guess" => println!("[model] guessed: {}", ws.model_guess(id)?.join(" ")),
             "rig" => ws.model_rig(id, arg(1), arg(2).parse().ok())?,
+            "joint" if arg(2) == "-" => ws.model_joint(id, arg(1), None)?,
+            "joint" => {
+                let n = |i: usize| arg(i).parse::<f32>().map_err(|_| "joint JOINT DX DY DZ | joint JOINT -".to_string());
+                ws.model_joint(id, arg(1), Some([n(2)?, n(3)?, n(4)?]))?
+            }
             "face" => match SIDES.iter().find(|(_, l)| l.eq_ignore_ascii_case(arg(1))) {
                 Some((f, _)) => (self.facing, self.turning) = (*f, false),
                 None if arg(1) == "turn" => self.turning = true,
@@ -147,7 +157,7 @@ impl ModelStage {
                 self.said = ws.share_clips(id, arg(1), &anims, replace)?;
                 println!("[model] {}", self.said);
             }
-            other => return Err(format!("model {other}: play, fps, guess, rig, face, anim, check, clips, share")),
+            other => return Err(format!("model {other}: play, fps, guess, rig, joint, face, anim, check, clips, share")),
         }
         Ok(())
     }
@@ -258,10 +268,75 @@ impl ModelStage {
             if templates.is_empty() {
                 ui.weak("The project has no rig templates: the asset library has them (3D models named \"Rig: …\").");
             }
+            if def.rig.is_some() {
+                Self::joints(ui, ws, id, def);
+            }
         }
         egui::CollapsingHeader::new("What it is").id_salt(("model facts", id)).show(ui, |ui| {
             for (_, line) in c.lines.iter().filter(|l| !l.0) {
                 ui.weak(line);
+            }
+        });
+    }
+
+    /// The rig template's joints, each moved by hand from where the fit puts it (in parts of
+    /// the model's height): three numbers a joint, the moved ones marked, each put back alone or
+    /// all at once.
+    fn joints(ui: &mut egui::Ui, ws: &mut Workspace, id: &str, def: &rustpg2d_engine::defs::ModelDef) {
+        let Some(rig) = &def.rig else { return };
+        let names = ws.rig_joints(id);
+        let moved = rig.joints.len();
+        let title = match moved {
+            0 => "Joints of the skeleton".to_string(),
+            1 => "Joints of the skeleton (1 moved)".to_string(),
+            n => format!("Joints of the skeleton ({n} moved)"),
+        };
+        egui::CollapsingHeader::new(title).id_salt(("rig joints", id)).show(ui, |ui| {
+            ui.weak("The template's skeleton is stretched over the model. A joint that sits wrong (a knee too high, a head too far back) is moved here: across, up, to the front, in parts of the model's height. The preview shows it at once, as it moves.");
+            if names.is_empty() {
+                ui.weak("The template isn't loaded: its joints are shown once it is.");
+                return;
+            }
+            let mut set: Option<(String, Option<[f32; 3]>)> = None;
+            egui::Grid::new(("rig joints grid", id)).num_columns(5).spacing([6.0, 3.0]).show(ui, |ui| {
+                ui.weak("Joint");
+                ui.weak("Across");
+                ui.weak("Up");
+                ui.weak("To the front");
+                ui.label("");
+                ui.end_row();
+                for name in &names {
+                    let was = rig.joints.iter().find(|j| j.joint == *name).map(|j| j.offset);
+                    let mut v = was.unwrap_or_default();
+                    let text = if was.is_some() { egui::RichText::new(format!("{name} (moved)")).strong() } else { egui::RichText::new(name) };
+                    ui.label(text);
+                    let mut changed = false;
+                    for (k, axis) in ["across", "up", "to the front"].iter().enumerate() {
+                        let r = ui.add(egui::DragValue::new(&mut v[k]).range(-1.0..=1.0).speed(0.002).fixed_decimals(3)).on_hover_text("Parts of the model's height: 0.1 is a tenth of it");
+                        r.widget_info(|| egui::WidgetInfo::labeled(egui::Role::SpinButton, true, format!("{name} {axis}")));
+                        changed |= r.changed();
+                    }
+                    if changed {
+                        crate::shell::hold_step(ui.ctx(), ("rig joint", id, name.as_str()));
+                        set = Some((name.clone(), Some(v)));
+                    }
+                    let reset = ui.add_enabled(was.is_some(), egui::Button::new("Reset").small()).on_hover_text("Where the fit puts it");
+                    reset.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, was.is_some(), format!("Reset {name}")));
+                    if reset.clicked() {
+                        set = Some((name.clone(), None));
+                    }
+                    ui.end_row();
+                }
+            });
+            if ui.add_enabled(moved > 0, egui::Button::new("Reset all joints")).on_hover_text("Every joint where the fit puts it").clicked() {
+                if let Err(e) = ws.model_joints_reset(id) {
+                    ws.set_status(e);
+                }
+            }
+            if let Some((name, offset)) = set {
+                if let Err(e) = ws.model_joint(id, &name, offset) {
+                    ws.set_status(e);
+                }
             }
         });
     }
@@ -564,6 +639,41 @@ mod ui_tests {
         h.get_by_label(name.as_str()).click();
         h.run();
         assert_eq!(h.state().ws.project.db.model(&id).unwrap().rig.as_ref().map(|r| r.template.as_str()), Some("rig_bird"));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_joint_of_the_rig_template_is_moved_by_numbers_and_reset() {
+        let (mut h, dir) = harness("joints", "dog", &["dog", "rig_quadruped"]);
+        let moved = h.state().ws.project.db.model("dog").unwrap().rig.as_ref().unwrap().joints.len();
+        assert!(moved > 2);
+        h.run();
+        // Under the skeleton's row: its joints, how many moved.
+        h.get_by_label(format!("Joints of the skeleton ({moved} moved)").as_str()).click();
+        h.run();
+        h.get_by_label("Head (moved)");
+        // The head a tenth of the height up: one step.
+        h.get_by_role_and_label(egui::accesskit::Role::SpinButton, "Head up").set_value_accesskit(0.1);
+        h.run();
+        h.run();
+        let head = |h: &Harness<'static, State>| h.state().ws.project.db.model("dog").unwrap().rig.as_ref().unwrap().joints.iter().find(|j| j.joint == "Head").map(|j| j.offset[1]);
+        assert_eq!(head(&h), Some(0.1));
+        assert!(h.state().ws.timeline.done.iter().any(|c| c.label.contains("the joint Head moved")), "{:?}", h.state().ws.timeline.done.iter().map(|c| &c.label).collect::<Vec<_>>());
+        assert!(h.state().stage.status(&h.state().ws, "dog").contains(&format!(" joints={moved} ")));
+        // Put back alone: no longer marked.
+        h.get_by_label("Reset Head").click();
+        h.run();
+        h.run();
+        assert_eq!(head(&h), None);
+        h.get_by_label("Head");
+        h.get_by_label(format!("Joints of the skeleton ({} moved)", moved - 1).as_str());
+        // All of them: the line leaves the status.
+        h.get_by_label("Reset all joints").click();
+        h.run();
+        h.run();
+        assert!(h.state().ws.project.db.model("dog").unwrap().rig.as_ref().unwrap().joints.is_empty());
+        h.get_by_label("Joints of the skeleton");
+        assert!(!h.state().stage.status(&h.state().ws, "dog").contains("joints="));
         let _ = std::fs::remove_dir_all(dir);
     }
 

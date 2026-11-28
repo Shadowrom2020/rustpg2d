@@ -1823,6 +1823,22 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     The light's middle (a dot in a ring) is dragged to where it sits on the ground, and the
     foot of a prop drawn as a picture (a cross) to where the picture stands on its hitbox,
     a pixel of the picture at a time; *Light / Picture back to its usual place* undo that.
+    **A building by numbers** (2026-11-28): the form's *Building* section already had every
+    measure of `BuildingShape` (height, roof, ridge, pitch, overhang, pictures, openings with
+    side, place, size, sill and picture, chimneys, joins), and a change already built the
+    model again for the stage (`sync_buildings` in `history_frame`); what was missing: the
+    *Walls* box showed unticked for every building (schemars writes no default for a field
+    read as `true` but not written while it is, so the form took it as off and it could never
+    be turned off; the ten such fields now get theirs from `schema::LEFT_OUT_DEFAULTS`: the
+    walls, a prop's shadow, a sheet's scale, a sprite's cells, a font's scale, a race's size, the title's
+    panel, eight facings, the pose atlas), and a door or window added with its picture: *+
+    Add* under *Openings* makes one with none, at the wall's end. The workshop now says above
+    the picture what the building is (*Gable roof, 160 x 160 pixels, 1 door, 3 windows, no
+    chimney*) with **Add a door** and **Add a window** (`Workspace::building_opening`: like
+    the last of its kind, else 0.35's sizes, on the south wall in the middle of its widest
+    free stretch; one step). 0.35's plan to click openings into, *Copy the look of…* and the
+    footprint as two numbers beside the walls are not built: the numbers are the form's, the
+    footprint the hitbox's corners.
   - **The character workshop, the look** (`studio/src/charshop.rs` over
     `editor-core/src/looks.rs`; at the top of a character's tab): the figure large as the
     game draws it, with what it wears and holds, turning or seen from one side, walking,
@@ -1935,6 +1951,15 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     Both are 0.35's and write the definitions at once with the file (said in their hover
     texts). The list of models offers every one with a skeleton of its own, the rig templates
     first; whether their bones fit is found out on *Take them*.
+    **Joints moved by hand** (2026-11-28): under the skeleton's row of a model on a rig
+    template, *Joints of the skeleton (N moved)* lists the template's joints by name, each
+    with three numbers (across, up, to the front, in parts of the model's height, as 0.35's
+    `JointNudge`), the moved ones marked, *Reset* for one and *Reset all joints*
+    (`Workspace::model_joint`, `model_joints_reset`, `rig_joints`). A change is one step (a
+    drag of a number too); the model is fitted again from what is kept (`Models::set_def`),
+    so the preview shows it as it moves, without reading files. The numbers are set, not
+    added to (0.35's `modeljoint` added). 0.35's two views of the skeleton with joints
+    dragged on them and its *Mirror left and right* are not built: the numbers do it.
   - **A structure is worked on as a map** (`editor-core/src/structdoc.rs`; a structure's
     tab): its tab is the structure itself as a small map of its size, with every tool of a
     map: paint its ground, place and move things, build walls and roofs on it, set blocked
@@ -1963,10 +1988,10 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     these do is 0.35's (`models.rs`: `use_item_model`, `item_hold`, `render_item_icon`),
     written at once with the model's file, not steps of the history.
   Still open: a figure sitting or lying at the use spot instead of the ring, a
-  building's ridge, overhang and openings dragged on the picture, how large a prop's model
+  building's ridge, overhang and openings dragged on the picture (they are set by numbers), how large a prop's model
   is shown as a handle; starting from measurements and Meshy, an item's model from a file, pictures
-  other than PNG; of a model's workshop the joints of a fitted skeleton moved by hand, clips
-  borrowed from another model, more clip files picked, an attack's hit point, colour
+  other than PNG; of a model's workshop the joints of a fitted skeleton dragged on a picture
+  of it, an attack's hit point, colour
   features marked on the model; a sound's volume and loop points set by ear; of structures: a house of the Build
   tool saved as one from the tool itself; of the character workshop: rules,
   day, talk, shop and loot as parts of one document (they are sections of the form below),
@@ -2158,6 +2183,25 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     step; both put back with their buttons: the lamp as it was). In the window: the lamp in
     the dark with its light dragged from beside it onto its head, its picture dragged off
     its hitbox and undone.
+  - A building by numbers:
+    `a_buildings_door_and_window_are_added_and_its_ridge_turned_one_step_each` (a cottage with one door: a window of 24 x 24 at 33 pixels, in the widest free
+    stretch of the south wall; a door like the first, at 127; the ridge turned through the
+    definition's value as the form does; three steps, undone one by one; a barrel is "no
+    building"), `defaults_left_out_of_the_schemas_are_put_back` (walls, shadow, a sprite's
+    cells, a sheet's scale, eight facings, the atlas, the title's panel: what serde reads is
+    what the form shows), `a_buildings_window_is_added_and_its_ridge_turned_by_number` (the
+    workshop over the form, as the tab has them: *Gable roof, 160 x 160 pixels, 1 door, 3
+    windows, no chimney*, `building=Gable:160x160:1/3/0`; *Add a window*: one like the others
+    where the front wall has room, four windows said; *Ridge* picked *North south* in the
+    form; *Walls* ticked; two steps, undone: as it was). In the window on a scratch copy: the
+    small red-roofed cottage, its form scrolled to *Building* (every measure there, *Openings
+    4* with each one's side, *Walls* ticked after the fix, unticked before it); `field prop
+    cottage_red_small /building/ridge "NorthSouth"`: the stage's roof turned at once; then by
+    clicks: *Add a window* (a fourth window at the front's left end, "A window on the south
+    wall, 18 pixels from its west end", `building=Gable:160x160:1/4/0`), *Ridge* opened and
+    *North south* clicked (the roof turned on the stage), History with both steps, saved
+    (`ridge: NorthSouth`, the window `at: 18.0` in `props.ron`), both undone: the cottage as
+    it was.
   - The model workshop: `modelcheck` tests (the hero lacks nothing; walking without a clip
     is said and guessed back from the clips' names; a clip picked by hand, an animation of
     its own added and removed; a creature without its rig template lacks all four animations
@@ -2176,6 +2220,20 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     file as `Moor_hound.glb` made a 3D model (four things to see to, no skeleton), the
     four-legged template picked (nothing missing, it walks in the preview), a new character
     given that model, placed on the village and seen standing there in the Play tab.
+  - Joints moved by hand: `a_joint_of_a_rig_template_is_moved_by_hand_and_put_back` (the
+    dog's head a tenth of its height up: one step named *Dog: the joint Head moved*, the
+    fitted skeleton's head that much higher at once; set again, undone; no move takes it off
+    the list; *Antenna* refused ("the rig template rig_quadruped has no joint …"), a model
+    without a template too; all put back in one step),
+    `a_joint_of_the_rig_template_is_moved_by_numbers_and_reset` (*Joints of the skeleton (18
+    moved)* opened, *Head up* set to 0.1, `joints=18` in the status; *Reset Head*: 17 moved;
+    *Reset all joints*: no `joints=` any more). In the window on a scratch copy: the dog
+    walking seen from the left, its left front leg's three joints and its head moved by
+    `model joint` (the leg drawn bent up and forward at once); the panel opened by a click,
+    the *Up* of *FrontPaw_L* dragged 100 pixels to the right with the pointer (0.016 to
+    0.215, one step *Dog: the joint FrontPaw_L moved* in History, in `models.ron` after
+    saving); `model joint FrontPaw_L -` (17 moved), `edit.undo` (18), *Antenna* and a number
+    that is none refused in words.
   - Sounds and sheets: `a_sheet_is_cut_into_frames_and_gets_an_animation` (a picture of
     96 x 64 as one frame cut 3 x 2: frames of 32 x 32, one step; the fourth frame clicked,
     an animation from it to its row's end; a cut that leaves a pixel over says so). In the
@@ -2854,10 +2912,10 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   | Flags and variables | the *Flags and variables* page (new) | there |
   | **Art**: pixel editor (frames, tools, nudge, replace colours, seamless) | under a sheet's picture, a material's tab; frames added and duplicated, a rectangle selected (2026-11-28) | there (2026-11-28) |
   | Sounds played | the sound's tab | there |
-  | 3D models: import, animations' clips, rig templates, check | model workshop; more clip files and clips taken from another model (2026-11-28) | partly (joints moved by hand) |
+  | 3D models: import, animations' clips, rig templates, check | model workshop; more clip files and clips taken from another model, a rig template's joints moved by numbers (2026-11-28) | there (2026-11-28) |
   | An item's 3D model: imported, its hold point and front set, shown in the hand, its icon rendered | the item workshop at the top of an item's tab (2026-11-28): the hero holding it, standing, walking, striking; *From a file…*, *Find where it is held*, *Other end*, *Turn the handle*, *Turn the front*, how it is held, its length, where along it the hand is, *Render its icon* | there |
   | Character editor: model, pieces, colours, equipment, random colours, new from a model / a file / Meshy | character workshop, *New…*, Generate art; *Start from…* another character of the project (2026-11-28) | there (a library character's look: *New…* from the library) |
-  | Props: pictures, states, hitbox, light, building shape | prop workshop + form | partly (a building's ridge and openings by numbers) |
+  | Props: pictures, states, hitbox, light, building shape | prop workshop + form; a building's measures and openings by numbers in the form, *Add a door* / *Add a window* in the workshop (2026-11-28) | there (2026-11-28) |
   | Generate art (Meshy), its settings and budget | the Generate art page | there |
   | Import… Tiled maps, Aseprite sheets | — | removed (the maintainer, 2026-11-28); their code leaves with the old editor (part 11), their sections with the manual's rewrite |
   | **Library**: browse, add to project, send to library (with its script functions), its own window | Library tab; *Send to library*; no second process | there |

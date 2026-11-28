@@ -159,7 +159,8 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   kept aside.
 - **Clean up unused files** (part 4): *Assets › Clean up unused files* lists what nothing in
   the game names, with its size; what is ticked is deleted after a copy is put beside the
-  project, what isn't is remembered as kept.
+  project, what isn't is remembered as kept. It is also offered when you close the project or
+  the editor and the project has unused files you haven't kept.
 - **Translations** (part 5): the *Languages* page lists the languages the game is offered in
   with how far each is translated, adds one (a click for the nine languages the game's own
   menus exist in), and opens a language's table: every text players read with its translation

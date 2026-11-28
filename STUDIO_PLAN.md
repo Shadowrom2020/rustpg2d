@@ -233,7 +233,9 @@ the new value). Scripted `quit` with unsaved changes ends the run at once.
 
 **Don't.** Don't ask on `quit` from a script. Don't save without being asked.
 
-### - [ ] Task 2 (S): the clean-up is offered when a project is left
+### - [x] Task 2 (S): the clean-up is offered when a project is left
+
+Done 2026-11-28. Not done: the look through the project runs in the frame (about two seconds on the example, only when leaving), not on a thread.
 
 **Why.** Decision of 2026-11-28. 0.35 did it (`crates/editor/src/cleanup.rs`, `offer_cleanup`).
 

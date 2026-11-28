@@ -976,6 +976,16 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     remembered for the project and comes unticked the next time. The definitions' steps
     leave the History with it (`forget_defs_steps`: they would bring deleted definitions
     back without their files; the same now when definitions are read again from disk).
+    **Offered when the project is left** (2026-11-28, STUDIO_PLAN.md task 2): quitting,
+    closing the project, opening or making another (after the question about unsaved changes,
+    if any) first shows the window with *Before you go: this project has files nothing uses*
+    when the project **as it is on disk** has unused things it didn't keep
+    (`Workspace::cleanup_offer`: nothing is saved by it, and what is deleted goes from the
+    files, so changes dropped with *Don't save* stay dropped). Each way out (*Delete the
+    ticked*, *Keep all*, the window's close) goes on with leaving, once; *Keep all* remembers
+    them, so the next close asks nothing. A scripted `quit` never offers it; `cleanup` prints
+    `TICKED/ALL:leaving` while it is the offer. Looking through the example takes about two
+    seconds, in which the window stands still (only when leaving).
   Still open: the hand-made editors (triggers as an event sheet in part 7; stat blocks,
   buildings, class levels), a state picked among the states of the prop in question, tool
   kinds and piece styles, units and ranges on numbers, problems at the field, live previews (an
@@ -1056,6 +1066,18 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     title, undo). In the window: *Item*, "Moon Blade" typed, *as a copy of another item*, the
     Hunting Bow clicked (its picture beside the list), *Create*: the tab of `moon_blade` opens,
     one history step, and after saving `items.ron` has it with the bow's values.
+  - The clean-up on leaving: `what_is_offered_on_leaving_is_what_is_on_disk_and_was_not_kept`
+    (offered from the files, *Keep all* not offered again, the offer saves nothing, deleting
+    leaves the editor's unsaved copy alone) and
+    `the_clean_up_is_offered_once_on_leaving_and_keep_all_is_not_asked_again` (the window's
+    line and *Keep all* by click, then closed; opened again, closed without asking; unsaved
+    changes asked first, *Don't save*, the clean-up after, *Delete*: quit, the dropped name not
+    written). In the window on a scratch copy of the example: closed with nothing unused: no
+    window; a sound `Old bell` made and saved, *Close this project* clicked: *Clean up unused
+    files* with *Before you go…*, `1/1:leaving`, *Keep all*: closed, opened again and the
+    window closed: the editor ended without asking; another copy with a sound, the window
+    closed, *Delete the ticked*: the file in `game-backup-cleanup/sounds/`, gone from the
+    project, the editor ended.
 
 - [~] Part 5: Game settings and rules — `feature/studio`
 
@@ -2568,7 +2590,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   | *Browse…* in a form: a sheet's picture, a sound's file, a material's texture, a font's file and its licence copied in | *Browse…* beside every field that names a file (`schema::FILES`); *New…* from a file also for ground (a picture) and fonts (2026-11-28) | there |
   | Languages: translation template exported, play-test in a language | *Translations* on the Languages page: languages with how far each is, a language added, its table (every text, its translation typed beside it), *Play in it* (2026-11-28) | there |
   | Plugins window: add from a file or the library, on / off, order, parameters, export, to the library, remove | *Plugins* on the *Scripts & plugins* page: each with what it is, on / off, order, its parameters by name with the control that fits, *Remove* (its files kept aside), added from the library or a plugin file; out of the project they go as part of a pack (*Share…*) (2026-11-28) | there |
-  | Clean up unused files (definitions nothing uses, stray files; a backup first; offered on close) | *Assets › Clean up unused files* (`assets.cleanup`): the list to tick, a copy beside the project, what is kept remembered (2026-11-28). The offer when a project closes comes back (the maintainer, 2026-11-28; STUDIO_PLAN.md tasks 1 and 2) | partly (the offer on close) |
+  | Clean up unused files (definitions nothing uses, stray files; a backup first; offered on close) | *Assets › Clean up unused files* (`assets.cleanup`): the list to tick, a copy beside the project, what is kept remembered (2026-11-28); offered when the project is left: quitting, closing, opening or making another (2026-11-28) | there |
   | **Events**: trigger editors | the event sheet | there |
   | Events graph (a map's triggers, scripts and maps as a graph) | — | **open**: to be built (the maintainer, 2026-11-28; STUDIO_PLAN.md tasks 3 and 4) |
   | Scripts: editor with completion, check, API help | script tabs | there |

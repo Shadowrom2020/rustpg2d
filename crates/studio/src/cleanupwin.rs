@@ -9,12 +9,26 @@ use editor_core::Workspace;
 
 pub struct CleanupWindow {
     pub cleanup: Cleanup,
+    /// Offered when the project is left: what is done once the window is answered or closed.
+    pub then: Option<crate::shell::Leaving>,
+    /// Deleting went wrong: the project isn't left (the status line says why).
+    pub failed: bool,
 }
 
 impl CleanupWindow {
     /// Looks through the project (it is saved first).
     pub fn open(ws: &mut Workspace) -> Result<CleanupWindow, String> {
-        Ok(CleanupWindow { cleanup: ws.cleanup_find()? })
+        Ok(CleanupWindow { cleanup: ws.cleanup_find()?, then: None, failed: false })
+    }
+
+    /// Offered on leaving (`Workspace::cleanup_offer`): `then` is done after it.
+    pub fn leaving(cleanup: Cleanup, then: crate::shell::Leaving) -> CleanupWindow {
+        CleanupWindow { cleanup, then: Some(then), failed: false }
+    }
+
+    /// `TICKED/ALL`, with `:leaving` while it is offered on leaving.
+    pub fn status(&self) -> String {
+        format!("{}{}", self.cleanup.status(), if self.then.is_some() { ":leaving" } else { "" })
     }
 
     /// The script's lines: one an entry (`x sound:old_bell 12 KB sounds/old_bell.ogg`).
@@ -34,6 +48,9 @@ impl CleanupWindow {
                     answer = Some(false);
                 }
                 return;
+            }
+            if self.then.is_some() {
+                ui.strong("Before you go: this project has files nothing uses.");
             }
             ui.label("These are in the project and nothing in the game names them: no definition, map, setting or script. An exported game leaves them out anyway; deleting them makes the project smaller.");
             ui.weak("A copy of what is deleted is put beside the project first. What you leave unticked is remembered as kept.");
@@ -66,7 +83,8 @@ impl CleanupWindow {
                 if ui.add_enabled(ticked > 0, egui::Button::new(format!("Delete the {ticked} ticked ({})", size(self.cleanup.ticked_bytes())))).on_hover_text("The history is emptied: its steps would bring deleted definitions back without their files").clicked() {
                     answer = Some(true);
                 }
-                if ui.button("Keep all").on_hover_text("Deletes nothing and remembers them as kept").clicked() {
+                let keep = if self.then.is_some() { "Deletes nothing and remembers them as kept: you aren't asked about them again" } else { "Deletes nothing and remembers them as kept" };
+                if ui.button("Keep all").on_hover_text(keep).clicked() {
                     answer = Some(false);
                 }
             });
@@ -74,7 +92,10 @@ impl CleanupWindow {
         if let Some(delete) = answer {
             match ws.cleanup_apply(&self.cleanup, delete) {
                 Ok(said) => ws.set_status(said),
-                Err(e) => ws.set_status(format!("Cleaning up failed: {e}")),
+                Err(e) => {
+                    self.failed = true;
+                    ws.set_status(format!("Cleaning up failed: {e}"));
+                }
             }
             return false;
         }

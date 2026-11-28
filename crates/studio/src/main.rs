@@ -564,10 +564,15 @@ impl eframe::App for Studio {
         self.shell.ws.mcp_drain();
         self.shell.ui(ui, frame.wgpu_render_state(), self.fps);
         self.shell.ws.mcp_answer_shots(Some(&mut |ws, spec| mapview::MapView::shot(ws, spec)));
-        // The window's close button with changes that aren't saved: asked first.
-        if ctx.input(|i| i.viewport().close_requested()) && !self.shell.quit_now && self.shell.unsaved() {
-            ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
-            self.shell.leaving = Some(shell::Leaving::Quit);
+        // The window's close button: unsaved changes and the clean-up of unused files are asked
+        // about first (the window stays until they are answered).
+        if ctx.input(|i| i.viewport().close_requested()) && !self.shell.quit_now {
+            if !self.shell.leaving_asks() {
+                self.shell.leave(shell::Leaving::Quit);
+            }
+            if !self.shell.quit_now {
+                ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            }
         }
         // (Answered: now it may close.)
         if self.shell.quit_now && !self.closing {

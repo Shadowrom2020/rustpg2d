@@ -408,6 +408,8 @@ pub struct Shell {
     pub leaving: Option<Leaving>,
     /// The editor may quit now (asked and answered): the window's close goes through.
     pub quit_now: bool,
+    /// The clean-up was offered for this leaving already.
+    cleanup_passed: bool,
 }
 
 /// What leaves the open project: the editor quits, the project is closed, another one is opened
@@ -470,7 +472,7 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, share: None, cleanup: None, lib_look: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), art: Default::default(), help: Default::default(), tour: Default::default(), agents: Default::default(), langs: Default::default(), plugins: Default::default(), play_lang: None, news: false, timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), model_stages: Default::default(), item_stages: Default::default(), pixels: Default::default(), sounds: Default::default(), sheets: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new(), leaving: None, quit_now: false }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, share: None, cleanup: None, lib_look: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), art: Default::default(), help: Default::default(), tour: Default::default(), agents: Default::default(), langs: Default::default(), plugins: Default::default(), play_lang: None, news: false, timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), model_stages: Default::default(), item_stages: Default::default(), pixels: Default::default(), sounds: Default::default(), sheets: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new(), leaving: None, quit_now: false, cleanup_passed: false }
     }
 
     /// The window around another workspace (another project, or none). What belongs to the
@@ -596,8 +598,15 @@ impl Shell {
         Ok(())
     }
 
-    /// Does what leaves the project, without asking.
+    /// Does what leaves the project: the clean-up of unused files is offered first (once a
+    /// leaving) when the project has some it didn't keep.
     fn leave_now(&mut self, what: Leaving) {
+        if !std::mem::take(&mut self.cleanup_passed) {
+            if let Some(c) = self.ws.cleanup_offer() {
+                self.cleanup = Some(crate::cleanupwin::CleanupWindow::leaving(c, what));
+                return;
+            }
+        }
         let failed = match what {
             Leaving::Quit => {
                 self.quit_now = true;
@@ -613,6 +622,34 @@ impl Shell {
         if let Err(e) = failed {
             self.ws.set_status(e);
         }
+    }
+
+    /// The clean-up window was answered or closed: what was deleted is gone from the lists,
+    /// and leaving goes on (unless deleting failed).
+    fn cleanup_closed(&mut self, w: crate::cleanupwin::CleanupWindow) {
+        self.lists.clear();
+        self.marks.unused = None;
+        if let Some(then) = w.then.filter(|_| !w.failed) {
+            self.cleanup_passed = true;
+            self.leave_now(then);
+        }
+    }
+
+    /// *Clean up unused files…*, from the menu or offered on leaving.
+    fn cleanup_ui(&mut self, ctx: &egui::Context) {
+        if let Some(mut w) = self.cleanup.take() {
+            if w.show(ctx, &mut self.ws) {
+                self.cleanup = Some(w);
+            } else {
+                // (What was deleted is gone from the lists and the pictures; leaving goes on.)
+                self.cleanup_closed(w);
+            }
+        }
+    }
+
+    /// Whether something is being asked before the project is left (unsaved changes, the clean-up).
+    pub fn leaving_asks(&self) -> bool {
+        self.leaving.is_some() || self.cleanup.as_ref().is_some_and(|w| w.then.is_some())
     }
 
     /// `leave`: what is asked (`-|quit|close|open|new`); `leave save|discard|stay` answers.
@@ -1002,19 +1039,30 @@ impl Shell {
                 }
             }
             "delete" | "keep" => {
-                let Some(w) = self.cleanup.take() else { return "failed: the clean-up isn't open".into() };
+                let Some(mut w) = self.cleanup.take() else { return "failed: the clean-up isn't open".into() };
                 match self.ws.cleanup_apply(&w.cleanup, arg(0) == "delete") {
                     Ok(said) => self.ws.set_status(said),
-                    Err(e) => return format!("failed: {e}"),
+                    Err(e) => {
+                        w.failed = true;
+                        self.ws.set_status(format!("Cleaning up failed: {e}"));
+                    }
                 }
-                self.lists.clear();
-                self.marks.unused = None;
+                let failed = w.failed.then(|| self.ws.status.0.clone());
+                self.cleanup_closed(w);
+                if let Some(e) = failed {
+                    return format!("failed: {e}");
+                }
             }
-            "cancel" => self.cleanup = None,
+            // (The window's close button: on leaving, that goes on too.)
+            "cancel" => {
+                if let Some(w) = self.cleanup.take() {
+                    self.cleanup_closed(w);
+                }
+            }
             _ => {}
         }
         match &self.cleanup {
-            Some(w) => std::iter::once(w.cleanup.status()).chain(w.listing()).collect::<Vec<_>>().join("\n[cleanup] "),
+            Some(w) => std::iter::once(w.status()).chain(w.listing()).collect::<Vec<_>>().join("\n[cleanup] "),
             None => "closed".into(),
         }
     }
@@ -1616,16 +1664,7 @@ impl Shell {
             }
             None => {}
         }
-        // *Clean up unused files…*
-        if let Some(mut w) = self.cleanup.take() {
-            if w.show(&ctx, &mut self.ws) {
-                self.cleanup = Some(w);
-            } else {
-                // (What was deleted is gone from the lists and the pictures.)
-                self.lists.clear();
-                self.marks.unused = None;
-            }
-        }
+        self.cleanup_ui(&ctx);
         // Leaving the project with changes that aren't saved: asked first.
         self.leaving_ui(&ctx);
         // The *Share…* window.
@@ -3496,7 +3535,13 @@ mod ui_tests {
     }
 
     fn harness(shell: Shell) -> Harness<'static, Shell> {
-        Harness::builder().with_size(egui::vec2(900.0, 600.0)).build_ui_state(|ui, s: &mut Shell| s.leaving_ui(ui.ctx()), shell)
+        Harness::builder().with_size(egui::vec2(900.0, 700.0)).build_ui_state(
+            |ui, s: &mut Shell| {
+                s.leaving_ui(ui.ctx());
+                s.cleanup_ui(ui.ctx());
+            },
+            shell,
+        )
     }
 
     #[test]
@@ -3542,6 +3587,53 @@ mod ui_tests {
         shell.ws.defs_dirty = false;
         shell.leave(Leaving::Close);
         assert!(shell.leaving.is_none() && !shell.ws.project_open, "saved: closed at once");
+        editor_core::files::config_dir_here(None);
+        let _ = std::fs::remove_dir_all(base);
+    }
+
+    #[test]
+    fn the_clean_up_is_offered_once_on_leaving_and_keep_all_is_not_asked_again() {
+        let base = std::env::temp_dir().join(format!("rustpg2d-leaving-cleanup-{}", std::process::id()));
+        editor_core::files::config_dir_here(Some(base.join("config")));
+        let dir = base.join("game");
+        let mut shell = changed(&dir);
+        // A sound nothing plays, saved with the rest.
+        let file = base.join("old_bell.ogg");
+        std::fs::write(&file, b"OggS").unwrap();
+        shell.ws.make_from_file(RefKind::Sound, &file, "Old bell").unwrap();
+        shell.ws.history_frame(None);
+        shell.ws.save_all();
+        // Closing: the clean-up first, then the project is closed.
+        shell.leave(Leaving::Close);
+        assert_eq!(shell.cleanup_word(&[]), "1/1:leaving\n[cleanup] x sound:old_bell 1 KB sounds/old_bell.ogg");
+        let mut h = harness(shell);
+        h.run();
+        h.get_by_label("Before you go: this project has files nothing uses.");
+        h.get_by_label("Keep all").click();
+        h.run();
+        assert!(h.state().cleanup.is_none() && !h.state().ws.project_open, "kept, then closed");
+        // Opened again and closed: not asked again.
+        let mut shell = Shell::around(Workspace::new(dir.clone(), Gpu::No).unwrap(), Default::default());
+        shell.leave(Leaving::Close);
+        assert!(shell.cleanup.is_none() && !shell.ws.project_open);
+        // Unsaved changes are asked about first, the clean-up after: a second sound, unsaved name.
+        let mut shell = Shell::around(Workspace::new(dir.clone(), Gpu::No).unwrap(), Default::default());
+        let file = base.join("old_horn.ogg");
+        std::fs::write(&file, b"OggS").unwrap();
+        shell.ws.make_from_file(RefKind::Sound, &file, "Old horn").unwrap();
+        shell.ws.history_frame(None);
+        shell.ws.save_all();
+        shell.ws.project.config.name = "Dropped".into();
+        shell.ws.defs_dirty = true;
+        shell.leave(Leaving::Quit);
+        assert_eq!(shell.leave_word(&[]), "quit");
+        assert!(shell.leave_word(&["discard".into()]).starts_with("- "));
+        assert!(shell.cleanup_word(&[]).starts_with("1/1:leaving"), "offered after the answer");
+        assert!(!shell.quit_now, "not yet");
+        // Deleted: then the editor may quit.
+        assert_eq!(shell.cleanup_word(&["delete".into()]), "closed");
+        assert!(shell.quit_now && !dir.join("sounds/old_horn.ogg").exists());
+        assert_eq!(rustpg2d_engine::project::Project::load(&dir).unwrap().config.name, "Changed", "the dropped name wasn't written");
         editor_core::files::config_dir_here(None);
         let _ = std::fs::remove_dir_all(base);
     }

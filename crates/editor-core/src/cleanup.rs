@@ -37,6 +37,9 @@ pub struct Cleanup {
     pub unused: Unused,
     /// By key: ticked (it is deleted).
     pub picks: BTreeMap<String, bool>,
+    /// Looked for in the project as it is on disk (offered when the project is left): what is
+    /// deleted goes from there, and changes of the editor's own that were dropped stay dropped.
+    pub from_disk: bool,
 }
 
 /// One line of the list.
@@ -91,9 +94,37 @@ impl Workspace {
         }
         let unused = unused::find_in(&self.project).map_err(|e| format!("{e:#}"))?.deletable();
         let kept = crate::files::load_settings().cleanup_kept.get(&self.cleanup_key()).cloned().unwrap_or_default();
-        let mut c = Cleanup { unused, picks: BTreeMap::new() };
+        let mut c = Cleanup { unused, picks: BTreeMap::new(), from_disk: false };
         c.picks = c.entries().into_iter().map(|e| (e.key.clone(), !kept.contains(&e.key))).collect();
         Ok(c)
+    }
+
+    /// What is offered when the project is left: the unused things that weren't kept before,
+    /// all ticked; `None` when there are none. Nothing is saved: it looks at the project as it
+    /// is on disk (after *Don't save* the editor's own copy still holds what was dropped).
+    pub fn cleanup_offer(&self) -> Option<Cleanup> {
+        if !self.project_open {
+            return None;
+        }
+        let found = rustpg2d_engine::project::Project::load(&self.project.root).and_then(|disk| unused::find_in(&disk));
+        let found = match found {
+            Ok(u) => u.deletable(),
+            Err(e) => {
+                eprintln!("[editor] the clean-up on leaving: {e:#}");
+                return None;
+            }
+        };
+        let kept = crate::files::load_settings().cleanup_kept.get(&self.cleanup_key()).cloned().unwrap_or_default();
+        let unused = Unused {
+            defs: found.defs.into_iter().filter(|d| !kept.contains(&def_key(d.kind, &d.id))).collect(),
+            files: found.files.into_iter().filter(|(f, _)| !kept.contains(&file_key(f))).collect(),
+        };
+        if unused.defs.is_empty() && unused.files.is_empty() {
+            return None;
+        }
+        let mut c = Cleanup { unused, picks: BTreeMap::new(), from_disk: true };
+        c.picks = c.entries().into_iter().map(|e| (e.key, true)).collect();
+        Some(c)
     }
 
     /// Where the copy of what is deleted goes: `<name>-backup-cleanup[-N]` beside the project
@@ -137,21 +168,44 @@ impl Workspace {
             return Ok(if delete { "Nothing was ticked: nothing was deleted".to_string() } else { format!("Kept all {}: they aren't offered ticked again", c.picks.len()) });
         }
         let backup = self.cleanup_backup();
+        if c.from_disk {
+            // (The project on disk loses them; the editor's copy is left as it is, unless it
+            // holds nothing else: then it is what is on disk again.)
+            let done = rustpg2d_engine::project::Project::load(&self.project.root).and_then(|mut disk| {
+                let done = unused::delete(&mut disk, &c.unused, &defs, &files, &backup)?;
+                Ok((disk, done))
+            });
+            return match done {
+                Ok((disk, done)) => {
+                    if !self.is_dirty() {
+                        self.project.db = disk.db;
+                        self.after_cleanup();
+                    }
+                    Ok(format!("Deleted {} unused definition(s) and {} file(s), {}; a copy is in {}", done.defs, done.files, size(done.bytes), backup.display()))
+                }
+                Err(e) => Err(format!("{e:#}; what was deleted before that is in {}", backup.display())),
+            };
+        }
         match unused::delete(&mut self.project, &c.unused, &defs, &files, &backup) {
             Ok(done) => {
-                self.defs_dirty = false;
-                *self.defs_saved = (self.project.db.clone(), self.project.config.clone());
-                self.forget_defs_steps();
-                self.reload_assets();
-                self.refresh_refs();
-                self.watch_resnapshot();
-                self.problems.stale = true;
-                self.search_stale = true;
-                self.stale = true;
+                self.after_cleanup();
                 Ok(format!("Deleted {} unused definition(s) and {} file(s), {}; a copy is in {}", done.defs, done.files, size(done.bytes), backup.display()))
             }
             Err(e) => Err(format!("{e:#}; what was deleted before that is in {}", backup.display())),
         }
+    }
+
+    /// The definitions on disk are the editor's again after a clean-up.
+    fn after_cleanup(&mut self) {
+        self.defs_dirty = false;
+        *self.defs_saved = (self.project.db.clone(), self.project.config.clone());
+        self.forget_defs_steps();
+        self.reload_assets();
+        self.refresh_refs();
+        self.watch_resnapshot();
+        self.problems.stale = true;
+        self.search_stale = true;
+        self.stale = true;
     }
 }
 
@@ -200,6 +254,51 @@ mod tests {
         // Deleting with nothing ticked deletes nothing; a second copy would get a name of its own.
         assert!(ws.cleanup_apply(&c, true).unwrap().contains("nothing was deleted"));
         assert!(ws.cleanup_backup().ends_with("game-backup-cleanup-2"));
+        crate::files::config_dir_here(None);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn what_is_offered_on_leaving_is_what_is_on_disk_and_was_not_kept() {
+        let dir = std::env::temp_dir().join(format!("rustpg2d-cleanup-offer-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let game = dir.join("game");
+        std::fs::create_dir_all(&game).unwrap();
+        crate::files::config_dir_here(Some(dir.join("config")));
+        crate::files::create_project(&game).unwrap();
+        let mut ws = Workspace::new(game.clone(), crate::Gpu::No).unwrap();
+        ws.history_frame(None);
+        assert_eq!(ws.cleanup_offer(), None, "a new project has nothing unused");
+        let sound = |ws: &mut Workspace, name: &str| {
+            let file = dir.join(format!("{}.ogg", name.to_lowercase().replace(' ', "_")));
+            std::fs::write(&file, b"OggS").unwrap();
+            ws.make_from_file(RefKind::Sound, &file, name).unwrap();
+            ws.history_frame(None);
+            ws.save_all();
+        };
+        sound(&mut ws, "Old bell");
+        sound(&mut ws, "Old horn");
+        // Both offered, ticked, from the project on disk.
+        let c = ws.cleanup_offer().unwrap();
+        assert!(c.from_disk && c.status() == "2/2", "{c:?}");
+        // *Keep all*: not offered again.
+        ws.cleanup_apply(&c, false).unwrap();
+        assert_eq!(ws.cleanup_offer(), None);
+        // A third, then a change that isn't saved: the offer saves nothing, and deleting what
+        // it offers leaves the editor's unsaved copy alone.
+        sound(&mut ws, "Old drum");
+        let name = ws.project.config.name.clone();
+        ws.project.config.name = "Changed".into();
+        ws.defs_dirty = true;
+        let c = ws.cleanup_offer().unwrap();
+        assert_eq!(c.entries().iter().map(|e| e.key.as_str()).collect::<Vec<_>>(), ["sound:old_drum"]);
+        assert!(ws.is_dirty() && rustpg2d_engine::project::Project::load(&game).unwrap().config.name == name, "nothing was saved");
+        let said = ws.cleanup_apply(&c, true).unwrap();
+        assert!(said.starts_with("Deleted 1 unused definition(s) and 1 file(s)"), "{said}");
+        let disk = rustpg2d_engine::project::Project::load(&game).unwrap();
+        assert!(disk.db.sound("old_drum").is_none() && disk.db.sound("old_bell").is_some() && disk.config.name == name);
+        assert!(!game.join("sounds/old_drum.ogg").exists() && dir.join("game-backup-cleanup/sounds/old_drum.ogg").is_file());
+        assert!(ws.is_dirty() && ws.project.config.name == "Changed", "the editor's copy is left as it was");
         crate::files::config_dir_here(None);
         let _ = std::fs::remove_dir_all(dir);
     }

@@ -5,21 +5,21 @@ thing: give an item, check a skill, compare two numbers. You wire them together 
 R(ust)PG2D writes the [Rhai](08-scripting.md) code for you. Everything a script can do, a visual
 script can do, and the game runs both the same way. *Since 0.35.*
 
-![The Nodes tab: a door that opens with an Athletics check, its Rhai on the right](../images/editor-nodes.webp)
+![A visual script's tab: a door that opens with an Athletics check, its Rhai on the right](../images/editor-nodes.webp)
 
-## The Nodes tab
+## A visual script's tab
 
-The **Nodes** tab (beside *Map*, *Events* and *Database*) has three parts:
+Visual scripts are definitions (*Story › Visual scripts* in the Project browser; *New…* › Visual
+script makes one with a *Start* node). A visual script's tab has:
 
-- **Left:** the project's visual scripts. *New* makes one with a *Start* node, *Duplicate* copies
-  it, *Delete* removes it (Ctrl+Z brings it back). Below the list, the selected script's
-  **name** (what the editor shows), its **function name** (what triggers and scripts call: small
-  letters, digits and `_`), a **description**, its **parameters** (values the caller passes in)
-  and its **result** (what it gives back, if anything).
-- **Middle:** the canvas with the nodes. Drag the background to move around and use Ctrl+wheel to
-  zoom.
-- **Right:** help for the selected node, the script's **problems**, and the **Rhai** it turns
-  into (*Copy* puts it on the clipboard).
+- **At the top:** the canvas with the nodes. Drag the background to move around and use
+  Ctrl+wheel to zoom. Beside it, what the selected node does (with *Group into a function*, *Copy*
+  and *Delete* for what is selected), the script's **problems**, and the **Rhai** it turns into
+  (*Copy the code* puts it on the clipboard).
+- **Below:** its form: the **name** (what the editor shows), its **function name** (what triggers
+  and scripts call: small letters, digits and `_`), a **description**, its **parameters** (values
+  the caller passes in) and its **result** (what it gives back, if anything). *Duplicate…* and
+  *Delete* are in its header, as for every definition (Ctrl+Z brings a deleted one back).
 
 ## Nodes and links
 
@@ -55,7 +55,7 @@ them at the mouse (also into another visual script), Ctrl+D duplicates them.
 ## Groups: new functions from nodes
 
 When part of a visual script does one job (works out a reward, checks a few things), turn it into
-a function of its own: select its nodes and press **Group into a function** (right side, or
+a function of its own: select its nodes and press **Group into a function** (beside the canvas, or
 Ctrl+G). The nodes move into a new visual script, and a single node calling it takes their place:
 
 - values linked into the group from outside become its **parameters**: the call node gets an input
@@ -122,7 +122,7 @@ scripts turn into code, never the other way round.
 
 ## In the example
 
-Two of Emberbrook's functions are visual scripts (*Nodes* tab): **Brother Ansel's blessing**
+Two of Emberbrook's functions are visual scripts (*Story › Visual scripts*): **Brother Ansel's blessing**
 (`ansel_blessing`: once a day the priest heals a hurt hero with *Cure Wounds*) and **A giant rat
 defeated** (`rat_defeated`: counts the rats, and for Tilda's quest once it was accepted). The
 first shows *If* with *Return*, comparisons and a variable kept per day; the second a *Sequence*

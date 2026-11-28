@@ -1,0 +1,35 @@
+#head headc.txt
+tab kind:item
+wait 2
+# Table view; Columns: Description off, Cost (copper) and Weight on
+click 745 65
+wait 1
+click 360 208
+wait 0.5
+click 341 258
+wait 0.5
+click 360 208
+wait 0.5
+click 341 557
+wait 0.5
+click 360 208
+wait 0.5
+hover 400 500
+wheel -200
+wait 0.5
+click 341 506
+wait 0.5
+# sorted by cost, the dearest first
+click 1133 232
+wait 0.5
+click 1133 232
+wait 0.5
+# three rows chosen
+click 335 266
+click 335 291 ctrl
+click 335 316 ctrl
+wait 0.5
+hover 1500 880
+wait 1
+shot $S/out/dbtable.png
+quit

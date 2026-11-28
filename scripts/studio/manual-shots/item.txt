@@ -1,0 +1,10 @@
+#head headc.txt
+tab def:item:axe
+wait 2
+itemshop anim walk
+itemshop face turn
+wait 3
+hover 1000 880
+itemshop
+shot $S/out/item.png
+quit

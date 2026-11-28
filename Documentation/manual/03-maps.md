@@ -23,6 +23,8 @@ collision overrides, route planning, zones and positions in events and scripts.
   in fights; or a track of its own), what lies beyond its edges and its events. **Rename** a map
   with *Edit › Rename* (every reference in the project follows).
 
+![The World view: every map of the example and the ways between them](../images/editor-world.webp)
+
 ## Painted ground
 
 The map's **painted ground** is a grid of 8 × 8 pixel cells (four per tile side), each holding a **material** ([Definitions › Materials](05-database.md#materials)): grass,
@@ -274,7 +276,7 @@ it elsewhere, in pixels from the place of what carries it (a lantern on a post's
 at the back of a range). **Light** in the map's bar (with the hour beside it) shows darkness and
 lights in the editor.
 
-![The lighting preview at 21:30](../images/editor-lighting.webp)
+![The village with Light on at 22:00](../images/editor-lighting.webp)
 
 The clock itself is set on the *World* page (day length, the hour new games start at); see
 [Gameplay › Time of day](09-gameplay.md#time-of-day).

@@ -1,0 +1,11 @@
+#head headc.txt
+# runs on game2: a scratch copy of the example with force_door built by nodes_prepare.txt (run.sh scripts/nodes_prepare.txt game2 first)
+drag 320 400 200 400
+wait 0.5
+tab def:visual_script:force_door
+wait 2
+nodes select 2
+wait 1
+hover 1000 880
+shot $S/out/nodes.png
+quit

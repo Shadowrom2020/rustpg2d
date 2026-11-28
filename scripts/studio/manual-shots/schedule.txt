@@ -1,0 +1,12 @@
+map.open village
+wait 1
+mapselect tomas
+wait 1
+mapview 32 24 0.9
+wait 2
+hover 1420 600
+wheel -150
+wait 1
+hover 1000 860
+shot $S/out/schedule.png
+quit

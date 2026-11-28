@@ -1,0 +1,18 @@
+map.open village
+wait 1
+mapview 36 24 0.9
+testsetup clear
+testsetup level 3
+testsetup class barbarian
+testsetup item bread 3
+testsetup flag met_elder on
+testsetup var coins_found 7
+# (no quest: its combo box clashes with the item combo box, see the report)
+testsetup hour 21.5
+testsetup party guard on
+testsetup open
+wait 2
+click 665 300 right
+wait 1
+shot $S/out/testsetup.png
+quit

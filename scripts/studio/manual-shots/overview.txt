@@ -1,0 +1,8 @@
+#head headc.txt
+check.problems
+wait 2
+tab overview
+wait 1
+hover 1000 880
+shot $S/out/overview.png
+quit

@@ -29,8 +29,12 @@ place, or to an edge of another tab to split the room between them. From top to 
 - **The status bar** says what was done last, whether everything is saved, how many errors and
   warnings the last check found, and the frames a second.
 
+![The Overview: the tours, the checklist to a playable game and what is in the project](../images/editor-overview.webp)
+
 **F1** opens the manual in the Help tab at the part about the tab in front; with the pointer on a
 field's label it explains that field.
+
+![The Help tab with this chapter](../images/editor-help.webp)
 
 ### A map's tab
 

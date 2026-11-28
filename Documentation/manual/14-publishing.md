@@ -4,6 +4,8 @@ The **Publishing** page (under *Game* in the Project browser) writes a game that
 editor, for **Linux**, **Windows**, **macOS** and the **Web**. Tick the platforms; every editor
 exports for all four, also without the other systems.
 
+![The Publishing page with its pre-flight](../images/editor-publish.webp)
+
 **Before it goes out** says, as you change the page, what would stop the export (a start map that
 doesn't exist, missing files) and what is worth a look (an unset player character, credit lines
 of packs that aren't in the credits yet), and what will be written where; *Check the project* runs

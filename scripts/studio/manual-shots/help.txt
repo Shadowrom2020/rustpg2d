@@ -1,0 +1,9 @@
+#head headc.txt
+tab help
+wait 1
+help open 02-the-editor.md
+wait 2
+hover 1000 880
+help
+shot $S/out/help.png
+quit

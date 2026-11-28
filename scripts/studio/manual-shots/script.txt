@@ -1,0 +1,6 @@
+#head headc.txt
+tab script:main.rhai
+wait 2
+hover 1000 880
+shot $S/out/script.png
+quit

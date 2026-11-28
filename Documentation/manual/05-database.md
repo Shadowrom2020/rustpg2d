@@ -484,7 +484,7 @@ and achievements belong to the game systems they drive: [Spellcasting](09-gamepl
 
 ## Animations
 
-![The Fire animation in its form](../images/editor-animations.webp)
+![The Fire animation on its stage, above its form](../images/editor-animations.webp)
 
 An animation is what shows where something lands: a sword's hit, a spell's impact, a potion
 drunk, a class action. An animation (`defs/animations.ron`) is built from four kinds of

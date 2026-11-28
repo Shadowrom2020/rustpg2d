@@ -138,34 +138,33 @@ project has pieces) names the
 figure wears its own piece of that style ([Characters › Pieces](06-characters.md#pieces-hair-outfits-and-shown-equipment));
 figures without one look as before.
 
-The **3D model** section gives the item a model (a `.glb`, copied into `models/`) for characters
-made of 3D models ([Characters › 3D models](06-characters.md#how-characters-look)). Choosing one
-sets everything from the item's kind and the model's shape; then check the big **preview** (four
-facings, *Standing*, *Walking*, *Attacking* or *Blocking* with the item's animations, *Play* to animate it, *held by* any character model)
-and correct it with the buttons:
+The **item workshop** at the top of an item's tab gives it a 3D model (*From a file…*: a `.glb` of
+the item alone, copied into `models/`) for characters made of 3D models ([Characters › 3D
+models](06-characters.md#how-characters-look)). Choosing one sets everything from the item's kind and
+the model's shape; then look at the hero holding it (seen from four sides or turning, standing,
+walking or attacking with the item's animations) and correct it:
 
 | Setting | What it does |
 |---|---|
-| **Held as** | *On the back* (backpacks): on the upper back, against the back of the body, its top up and its front (pockets, a bedroll) facing away; *Estimate* puts the hold point at the middle of its flatter side. *Grip*: in the fist, the handle through it and the item's front (a blade's edge, an axe's head, a bow's back) where the knuckles point; swords, axes, tools, bows. Two-handed items lie along both fists when they are together, else in the right hand. *Upright*: held up, the handle pointing up whatever the arm does (torches, staffs). *Hang*: hanging from the hand by its top (lanterns, buckets). *Strap*: on the forearm, its face turned out and forward, its top up (shields). Changing it estimates the item again. |
-| **Length** | The whole model's length in world pixels (a character is about 40 tall: a sword 24, a spear 44). |
-| **Hold at** | Where along its length the hand holds it, from the handle's end to the far end. |
-| **Estimate** | Hold point, handle and front guessed from the shape again: along the model's length (also when it lies diagonally, like an icon) a thin stretch at one end is the handle (when both ends are thin, the shorter: a sword's grip rather than its blade), held 40 % along it; the front is where its head sticks out, else its wider side. By kind, bows are held upright at their middle, shields at the middle of their back, lanterns at their top. |
-| **Turn handle** | The handle runs along the model's next main direction (its length, width, thickness, both ways): press until it lies in the hand. |
-| **Turn front** | A quarter turn about the handle: the edge, the head or the shield's face points another way. |
-| **Flip ends** | The other end is the handle. |
-| **Render icon** | Draws the model into a 32 x 32 inventory icon (on the `icons_3d` sheet) and makes it the item's icon: weapons and tools point up-right with their face to the viewer, shields and lanterns show their front. |
+| **Held** | *On the back* (backpacks): on the upper back, against the back of the body, its top up and its front (pockets, a bedroll) facing away; *Estimate* puts the hold point at the middle of its flatter side. *Grip*: in the fist, the handle through it and the item's front (a blade's edge, an axe's head, a bow's back) where the knuckles point; swords, axes, tools, bows. Two-handed items lie along both fists when they are together, else in the right hand. *Upright*: held up, the handle pointing up whatever the arm does (torches, staffs). *Hang*: hanging from the hand by its top (lanterns, buckets). *Strap*: on the forearm, its face turned out and forward, its top up (shields). Changing it estimates the item again. |
+| **Its length** | The whole model's length in world pixels (a character is about 40 tall: a sword 24, a spear 44). |
+| **The hand is** | Where along its length the hand holds it, from the handle's end to the far end. |
+| **Find where it is held** | Hold point, handle and front guessed from the shape again: along the model's length (also when it lies diagonally, like an icon) a thin stretch at one end is the handle (when both ends are thin, the shorter: a sword's grip rather than its blade), held 40 % along it; the front is where its head sticks out, else its wider side. By kind, bows are held upright at their middle, shields at the middle of their back, lanterns at their top. |
+| **Turn the handle** | The handle runs along the model's next main direction (its length, width, thickness, both ways): press until it lies in the hand. |
+| **Turn the front** | A quarter turn about the handle: the edge, the head or the shield's face points another way. |
+| **Other end** | The other end is the handle. |
+| **Render its icon** | Draws the model into a 32 x 32 inventory icon (on the `icons_3d` sheet) and makes it the item's icon: weapons and tools point up-right with their face to the viewer, shields and lanterns show their front. |
 
-**Numbers** shows the values behind the buttons in the model's own coordinates: the hold point, the
-direction from it toward the far end, and the front (`0 0 0`: the wider side across the handle).
-Models made of plain-coloured materials without textures work too. While an item has a model, the
-picture settings below are folded away as **Picture in the hand** (they are used only without a
-model).
+The form's *3D model* fields hold the values behind the buttons in the model's own coordinates: the
+hold point, the direction from it toward the far end, and the front (`0 0 0`: the wider side
+across the handle). Models made of plain-coloured materials without textures work too. The picture
+settings for the hand (*Held*) are used only without a model.
 
 A hand's **grip axis** is the line a handle runs through the closed fist. Turned to the left, the
 picture is mirrored across it, so whatever is tilted up stays up in both directions. Two-handed
 things run along the line through both fists.
 
-![An item form: the battle axe's 3D model, how it is held, and the preview](../images/editor-item.webp)
+![An item's tab: the battle axe's 3D model and how it is held](../images/editor-item.webp)
 
 ## Props
 
@@ -275,22 +274,13 @@ Ground materials painted on maps ([Maps › Painted ground](03-maps.md#painted-g
 | **Flow** | The texture drifts this many pixels per second (flowing water) |
 | **Animation** | How many **frames** the texture holds side by side (each one seamless; together up to 256 × 256 px) and how many are shown **per second**: rippling water, bubbling lava. Works together with *Flow* |
 
-Beside the settings a **preview** draws the material as on a map: a round and a square patch of it on
-a neighbour material (*Preview next to*; grass by default), with its edge, raggedness, rim, priority
-and flow. *Swap* puts the neighbour inside it instead, to see both sides of the edge. The preview
-follows every change at once, also strokes in the texture not saved yet.
-
-**Drawing the texture**: the pixel editor sits under the form with the texture open as one seamless
-picture. Copies of it are drawn around it (*Show copies around it*), and the pencil, line, rectangle
-and fill wrap across its edges, so a stroke leaving the picture on one side comes back on the other
-and the seams can be painted away where you see them. *Size* resizes it in steps of 8 px (growing
-repeats the picture). *Save* (Ctrl+S) writes the PNG and the maps show it. An **animated** material
-shows one frame at a time, with its copies: the strip of frames beside the tools picks the frame to
-draw (Copy / Paste carries one over to start the next), and a small preview plays them tiled.
-Raising *Animation* adds copies of the last frame to the texture (lowering it removes frames at
-the end): draw the differences, then save. A material without a
-texture gets one with **Draw a new one** (`materials/<id>.png`) and a size to start from (16 to 128 px,
-filled with the left colour).
+**Painting the texture**: a material's tab has the pixel editor at its top (*Paint*), with the
+texture as one seamless picture shown with part of itself again on every side: a stroke that leaves
+it on one side comes back on the other, so the seams can be painted away where you see them; *Left* /
+*Up* / *Down* / *Right* move a seam into the middle. An **animated** material shows one frame at a
+time: the frame painted is picked above the canvas. Saved (*Save picture*, or Ctrl+S), the ground of
+every open map shows it at once. A new material with its texture: *New…* › Ground material ›
+*from a file* (a `.png`) ([Art and sound › The pixel editor](10-art-and-sound.md#the-pixel-editor)).
 
 ## Scatter sets
 
@@ -319,15 +309,15 @@ portraits and parallax images all come from sprite sheets.
 | **Image**, **Frame size** | The picture and the size of one frame (in image pixels) |
 | **Scale** | 1× normally; 2× (3×, 4×) for high-resolution art: the frames are drawn at half (a third, a quarter) of their pixel size, so 64 × 96 frames fill a 32 × 48 place ([Art and sound › High-resolution sprites](10-art-and-sound.md#high-resolution-sprites)) |
 | **Kind** | *Emotions* (every animation is an emotion shown over heads, [Events › Emotions over heads](07-events.md#emotions-over-heads)) or plain *Sprite* (characters are 3D models) |
-| **Animations** | Named frame ranges (imported from Aseprite tags, or made here) for the *Effect* and *Fly* actions |
+| **Animations** | Named frame ranges (*+ Animation from this frame* at the top of the sheet's tab, or made here) for the *Effect* and *Fly* actions |
 | **Used by** | Which items, props and characters use the sheet |
 
-The pixel editor sits right below the form ([Art and sound](10-art-and-sound.md)).
+A sheet's tab paints it with *Paint* ([Art and sound](10-art-and-sound.md#the-pixel-editor)).
 
 ## Sounds
 
 Each sound has an id, a file (WAV or Ogg Vorbis, copied into `sounds/` by *Browse…*) and a volume.
-*Play* and *Stop* preview it. **Caption**: what it sounds like (*Door creaks*, *Dog barks*; for music
+Its tab plays it (*Play*, *Loop*, *Stop*). **Caption**: what it sounds like (*Door creaks*, *Dog barks*; for music
 the track's name), shown to players who turn on *Captions* (Options › Accessibility) while it plays,
 translated like dialogs; empty for sounds that need none (footsteps, menu blips). Sounds are used by the *Play sound* and *Play music* actions, a map's
 music, the game's built-in sounds (the *Sound* page) and scripts. See

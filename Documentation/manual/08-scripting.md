@@ -1076,7 +1076,7 @@ keys are ignored, missing keys use the default.
 | `speed` | `fly` | Tiles per second | `8` |
 | `frames` | `fly`, `effect` | `[first, last]` frame of the sheet | all frames |
 | `frame` | `fly`, `effect` | A single frame | — |
-| `tag` | `fly`, `effect` | A named animation of the sheet (*Database › Sprite sheets › Animations*, e.g. the tags of an imported Aseprite sheet): its frames and speed replace `frames` / `fps` | — |
+| `tag` | `fly`, `effect` | A named animation of the sheet (the sheet's *Animations*): its frames and speed replace `frames` / `fps` | — |
 | `fps` | `fly`, `effect` | Frames per second (`fly` loops, `effect` plays once) | `12` |
 | `scale` | `fly`, `effect` | Size factor (`2` = twice the frame size) | `1` |
 | `light` | `fly`, `effect` | Radius of a glow in tiles (an effect's glow fades with it) | `0` (none) |

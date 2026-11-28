@@ -12,8 +12,8 @@ use crate::map::{io as map_io, Map};
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ProjectConfig {
     pub name: String,
-    /// Always [`TILE_SIZE`]. Projects saved with another size are converted by
-    /// [`crate::migrate::upgrade`] (the editor does this when opening them).
+    /// Always [`TILE_SIZE`]. Projects saved with another size are of versions before 0.35 and
+    /// refused ([`made_before_035`]).
     #[serde(default = "default_tile_size")]
     pub tile_size: u32,
     pub start_map: String,

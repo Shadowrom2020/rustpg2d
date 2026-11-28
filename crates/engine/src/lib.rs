@@ -48,7 +48,6 @@ pub mod library;
 pub mod macsign;
 pub mod map;
 #[cfg(not(target_arch = "wasm32"))]
-pub mod migrate;
 pub mod old_tiles;
 pub mod model;
 pub mod path;

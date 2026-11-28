@@ -70,8 +70,7 @@ impl Workspace {
     pub fn library_to_project(&mut self, assets: &[AssetRef]) -> Result<String> {
         self.lib.ensure_loaded();
         let lib = self.lib.lib.as_ref().context("library not available")?;
-        let mut b = Bundle::collect_with_needed_scripts(&lib.db, &lib.root, rustpg2d_engine::project::TILE_SIZE, "library", assets)?;
-        b.rescale(rustpg2d_engine::project::TILE_SIZE)?;
+        let b = Bundle::collect_with_needed_scripts(&lib.db, &lib.root, rustpg2d_engine::project::TILE_SIZE, "library", assets)?;
         let root = self.project.root.clone();
         let lib_root = lib.root.clone();
         let report = b.merge_into(&mut self.project.db, &root)?;

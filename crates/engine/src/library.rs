@@ -4,7 +4,6 @@
 //! characters) together with the image / sound files they need. Bundles are
 //! - collected from a project with all their dependencies ([`Bundle::collect`]),
 //! - stored as `.r2dpack` packages (a zip with `manifest.ron` and `files/…`),
-//! - rescaled between tile sizes (e.g. 32 px library art into a 16 px project),
 //! - merged into a project or the library: identical assets are reused, clashing ids and
 //!   file names get a numeric suffix and every reference inside the bundle follows.
 //!
@@ -36,6 +35,15 @@ pub type AssetRef = (RefKind, String);
 
 /// Asset kinds in dependency order (things later in the list may refer to earlier ones).
 pub const KINDS: [RefKind; 20] = [RefKind::Font, RefKind::Sound, RefKind::Disease, RefKind::Material, RefKind::Sheet, RefKind::Animation, RefKind::Model, RefKind::Item, RefKind::Prop, RefKind::Scatter, RefKind::Character, RefKind::Structure, RefKind::Spell, RefKind::Recipe, RefKind::Race, RefKind::Skin, RefKind::CommonEvent, RefKind::Background, RefKind::Class, RefKind::VisualScript];
+
+/// A package's or library's tile size: 32 px (0 = not written). Another one is art of the 16 px
+/// projects, whose conversion 0.35 still had.
+fn tile_size(t: u32) -> Result<u32> {
+    match t {
+        0 | TILE_SIZE => Ok(TILE_SIZE),
+        t => bail!("made with {t} px tiles, before R(ust)PG2D 0.35: open it with 0.35 first"),
+    }
+}
 
 pub fn kind_label(k: RefKind) -> &'static str {
     k.label()
@@ -480,7 +488,7 @@ impl Bundle {
             bail!("package version {} is newer than this editor supports ({PACK_VERSION})", m.version);
         }
         let db = Database { sheets: m.sheets, sounds: m.sounds, items: m.items, props: m.props, quests: Vec::new(), characters: m.characters, structures: m.structures, spells: m.spells, recipes: m.recipes, achievements: Vec::new(), races: m.races, models: m.models, materials: m.materials, scatter: m.scatter, fonts: m.fonts, skins: m.skins, common_events: m.common_events, backgrounds: m.backgrounds, classes: m.classes, diseases: m.diseases, animations: m.animations, visual_scripts: m.visual_scripts, ..Default::default() };
-        let b = Bundle { name: m.name, tile_size: m.tile_size, db, files, scripts: m.scripts };
+        let b = Bundle { name: m.name, tile_size: tile_size(m.tile_size)?, db, files, scripts: m.scripts };
         for rel in asset_files(&b.db).into_iter().chain(m.tilesets.iter().map(|t| t.image.clone())) {
             if !rel.is_empty() && !b.files.contains_key(&rel) {
                 bail!("package is missing {rel}");
@@ -526,25 +534,14 @@ impl Bundle {
                 scripts.entry(f.name).or_insert(f.text);
             }
         }
-        Bundle { name: config.name, tile_size: config.tile_size, db, files: out, scripts }.with_tiles_converted(tilesets)
+        Bundle { name: config.name, tile_size: tile_size(config.tile_size)?, db, files: out, scripts }.with_tiles_converted(tilesets)
     }
 
     /// A bundle from before painted maps (with `tilesets`, or tile structures) converted like a
     /// project ([`crate::convert_tiles`]) in a temporary folder; others are returned as they are.
-    fn with_tiles_converted(mut self, tilesets: Vec<crate::old_tiles::TilesetDef>) -> Result<Bundle> {
+    fn with_tiles_converted(self, tilesets: Vec<crate::old_tiles::TilesetDef>) -> Result<Bundle> {
         if tilesets.is_empty() && !self.db.structures.iter().any(|s| !s.layers.is_empty()) {
             return Ok(self);
-        }
-        // (Old 16 px art is enlarged first: the converter cuts 32 px tiles.)
-        if self.tile_size != 0 && self.tile_size != TILE_SIZE {
-            let f = TILE_SIZE as f32 / self.tile_size as f32;
-            for t in &tilesets {
-                if let Some(img) = self.files.get(&t.image).and_then(|b| Rgba::decode(b).ok()) {
-                    let out = img.resized((img.w as f32 * f).round() as u32, (img.h as f32 * f).round() as u32);
-                    self.files.insert(t.image.clone(), out.encode()?);
-                }
-            }
-            self.rescale(TILE_SIZE)?;
         }
         static N: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
         let dir = std::env::temp_dir().join(format!("rustpg2d-convert-{}-{}", std::process::id(), N.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
@@ -615,50 +612,6 @@ impl Bundle {
         out.extend(self.files.iter().map(|(p, b)| (p.clone(), b.clone())));
         out.sort();
         Ok(out)
-    }
-
-    /// Rescales the art and pixel-based values (frame sizes, hitboxes, speeds) for a project
-    /// with tile size `to` (nearest-neighbour, so 16 → 32 is lossless).
-    pub fn rescale(&mut self, to: u32) -> Result<()> {
-        if to == 0 || self.tile_size == 0 || self.tile_size == to {
-            self.tile_size = to.max(self.tile_size);
-            return Ok(());
-        }
-        let f = to as f32 / self.tile_size as f32;
-        let sc = |v: u32| ((v as f32 * f).round() as u32).max(1);
-        let images: BTreeSet<String> = self.db.sheets.iter().map(|d| d.image.clone()).collect();
-        for rel in images {
-            let Some(bytes) = self.files.get(&rel) else { continue };
-            let img = Rgba::decode(bytes).with_context(|| format!("rescaling {rel} (only PNG images can be rescaled)"))?;
-            let out = img.resized(sc(img.w), sc(img.h));
-            self.files.insert(rel, out.encode()?);
-        }
-        for s in &mut self.db.sheets {
-            s.frame_w = sc(s.frame_w);
-            s.frame_h = sc(s.frame_h);
-        }
-        let ranged = |w: &mut Option<Weapon>| {
-            if let Some(r) = w.as_mut().and_then(|w| w.ranged.as_mut()) {
-                r.speed *= f;
-            }
-        };
-        for d in &mut self.db.items {
-            ranged(&mut d.weapon);
-        }
-        for d in &mut self.db.props {
-            d.hitbox = [d.hitbox[0] * f, d.hitbox[1] * f];
-        }
-        for e in self.db.structures.iter_mut().flat_map(|d| d.entities.iter_mut()) {
-            e.x *= f;
-            e.y *= f;
-        }
-        for d in &mut self.db.characters {
-            d.hitbox = [d.hitbox[0] * f, d.hitbox[1] * f];
-            d.speed *= f;
-            ranged(&mut d.weapon);
-        }
-        self.tile_size = to;
-        Ok(())
     }
 
     /// Renames an asset inside the bundle (its definition and every reference to it).
@@ -1062,8 +1015,7 @@ pub fn open_library(dir: &Path, starter: Option<&LibraryFiles>) -> Result<Projec
         std::fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
         let bundle = starter.map(Bundle::from_files).transpose().context("reading the starter assets")?;
         let mut lib = Project { root: dir.to_path_buf(), config: ProjectConfig::new("Asset library"), db: Database::default() };
-        if let Some(mut b) = bundle {
-            b.rescale(TILE_SIZE)?;
+        if let Some(b) = bundle {
             b.merge_into(&mut lib.db, dir)?;
         }
         lib.save_config()?;
@@ -1077,8 +1029,6 @@ pub fn open_library(dir: &Path, starter: Option<&LibraryFiles>) -> Result<Projec
     }
     // (A library of a version before 0.35 is refused, as projects are: 0.35 converts it.)
     crate::project::refuse_before_035(dir).with_context(|| format!("the asset library {}", dir.display()))?;
-    // Libraries from before tiles were fixed at 32 px.
-    crate::migrate::upgrade(dir, None)?;
     // Libraries from before painted maps: tile structures and tilesets become ground and
     // decorations (a copy of the library is kept beside it).
     if crate::convert_tiles::needs_conversion(dir) {
@@ -1097,8 +1047,7 @@ pub fn open_library(dir: &Path, starter: Option<&LibraryFiles>) -> Result<Projec
     // A newer starter set (new editor version): add the assets the library doesn't have yet.
     if let (Some(files), Some(s)) = (starter, &stamp) {
         if std::fs::read_to_string(&stamp_file).ok().as_deref() != Some(s.as_str()) {
-            let mut b = Bundle::from_files(files).context("reading the starter assets")?;
-            b.rescale(TILE_SIZE)?;
+            let b = Bundle::from_files(files).context("reading the starter assets")?;
             let report = b.add_missing(&mut lib.db, dir)?;
             if !report.added.is_empty() || !report.upgraded.is_empty() {
                 lib.save_defs()?;
@@ -1140,9 +1089,8 @@ fn files_hash(files: &LibraryFiles) -> u64 {
     })
 }
 
-/// Adds a bundle to the library (rescaled to the library's tile size) and saves it.
-pub fn add_to_library(lib: &mut Project, mut bundle: Bundle) -> Result<MergeReport> {
-    bundle.rescale(TILE_SIZE)?;
+/// Adds a bundle to the library and saves it.
+pub fn add_to_library(lib: &mut Project, bundle: Bundle) -> Result<MergeReport> {
     let root = lib.root.clone();
     let report = bundle.merge_into(&mut lib.db, &root)?;
     lib.save_defs()?;
@@ -1152,6 +1100,13 @@ pub fn add_to_library(lib: &mut Project, mut bundle: Bundle) -> Result<MergeRepo
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Packages and libraries of 16 px art (before 0.35) are refused; 0 = not written = 32 px.
+    #[test]
+    fn only_32_px_packages_are_read() {
+        assert_eq!((tile_size(0).unwrap(), tile_size(32).unwrap()), (32, 32));
+        assert!(tile_size(16).unwrap_err().to_string().contains("0.35"));
+    }
 
     fn tmp(name: &str) -> PathBuf {
         let p = std::env::temp_dir().join(format!("rustpg2d_lib_test_{name}_{}", std::process::id()));
@@ -1247,7 +1202,7 @@ mod tests {
     fn collect_pack_and_merge() {
         let (root, db) = source("merge");
         // Collecting the bow brings its ammo and the sheet along.
-        let b = Bundle::collect(&db, &root, 16, "bow", &[(RefKind::Item, "bow".into())]).unwrap();
+        let b = Bundle::collect(&db, &root, 32, "bow", &[(RefKind::Item, "bow".into())]).unwrap();
         assert_eq!(b.db.items.len(), 2);
         assert_eq!(b.db.sheets.len(), 1);
         assert!(b.files.contains_key("sprites/items.png"));
@@ -1333,7 +1288,7 @@ mod tests {
         let (root, mut db) = source("recipes");
         db.recipes.push(crate::crafting::RecipeDef::new("fletch", "arrows", 10, vec![crate::inventory::ItemStack::new("bow", 1)], "bench"));
         let r = (RefKind::Recipe, "fletch".to_string());
-        let b = Bundle::collect(&db, &root, 16, "x", std::slice::from_ref(&r)).unwrap();
+        let b = Bundle::collect(&db, &root, 32, "x", std::slice::from_ref(&r)).unwrap();
         assert!(b.db.item("arrows").is_some() && b.db.item("bow").is_some() && b.db.sheet("items").is_some());
         let b = Bundle::from_pack(&b.to_pack().unwrap()).unwrap();
         assert_eq!(b.db.recipe("fletch"), db.recipe("fletch"));
@@ -1366,7 +1321,7 @@ mod tests {
 
         // Chosen functions travel with the bundle, and bring the sheet they use by id.
         let chosen: Vec<ScriptFn> = fns.iter().filter(|f| f.name != "shop_talk").cloned().collect();
-        let b = Bundle::collect_with_scripts(&db, &root, 16, "x", std::slice::from_ref(&spell), &chosen).unwrap();
+        let b = Bundle::collect_with_scripts(&db, &root, 32, "x", std::slice::from_ref(&spell), &chosen).unwrap();
         assert!(b.db.sheet("boom").is_some());
         let b = Bundle::from_pack(&b.to_pack().unwrap()).unwrap();
         assert_eq!(b.scripts.keys().collect::<Vec<_>>(), ["cast_fireball", "fireball_at", "helper"]);
@@ -1401,20 +1356,6 @@ mod tests {
         for p in [root, lib_dir, proj, other] {
             let _ = std::fs::remove_dir_all(p);
         }
-    }
-
-    #[test]
-    fn rescale_doubles_art_and_sizes() {
-        let (root, mut db) = source("rescale");
-        db.props.push(PropDef { id: "crate".into(), name: "Crate".into(), sprite: SpriteRef::new("items", 0), solid: true, hitbox: [12.0, 6.0], ..Default::default() });
-        let mut b = Bundle::collect(&db, &root, 16, "x", &all_assets(&db)).unwrap();
-        b.rescale(32).unwrap();
-        let img = Rgba::decode(&b.files["sprites/items.png"]).unwrap();
-        assert_eq!((img.w, img.h), (64, 32));
-        assert_eq!(b.db.sheets[0].frame_w, 32);
-        assert_eq!(b.db.props[0].hitbox, [24.0, 12.0]);
-        assert_eq!(b.db.item("bow").unwrap().weapon.as_ref().unwrap().ranged.as_ref().unwrap().speed, 200.0);
-        let _ = std::fs::remove_dir_all(root);
     }
 
     #[test]
@@ -1500,13 +1441,11 @@ mod tests {
     #[test]
     fn library_and_removal() {
         let (root, db) = source("lib");
-        let pack = Bundle::collect(&db, &root, 16, "starter", &all_assets(&db)).unwrap().to_files().unwrap();
+        let pack = Bundle::collect(&db, &root, 32, "starter", &all_assets(&db)).unwrap().to_files().unwrap();
         let dir = tmp("lib");
         let _ = std::fs::remove_dir_all(&dir);
         let mut lib = open_library(&dir, Some(&borrowed(&pack))).unwrap();
-        // The 16px pack was enlarged to the fixed 32px tiles.
         assert_eq!(lib.config.tile_size, 32);
-        assert_eq!(lib.db.sheet("items").unwrap().frame_w, 32);
         assert_eq!(lib.db.items.len(), 2);
         // The sheet is still used by the items.
         assert!(remove_assets(&mut lib, &[(RefKind::Sheet, "items".into())]).is_err());
@@ -1515,7 +1454,7 @@ mod tests {
         db2.items[0].name = "Changed arrows".into();
         db2.sheets.push(SheetDef { id: "extra".into(), image: "sprites/extra.png".into(), frame_w: 16, frame_h: 16, ..Default::default() });
         std::fs::write(root.join("sprites/extra.png"), png(16, 16, [1, 2, 3, 255])).unwrap();
-        let pack2 = Bundle::collect(&db2, &root, 16, "starter", &all_assets(&db2)).unwrap().to_files().unwrap();
+        let pack2 = Bundle::collect(&db2, &root, 32, "starter", &all_assets(&db2)).unwrap().to_files().unwrap();
         let lib = open_library(&dir, Some(&borrowed(&pack2))).unwrap();
         assert!(lib.db.sheet("extra").is_some(), "new sheet added");
         // A newer set whose "items" image only grew (frames added on the right) upgrades it;

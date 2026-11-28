@@ -420,26 +420,6 @@ pub fn load_with(path: &Path, warn: &mut dyn FnMut(String)) -> Result<Map> {
     decode_with(&bytes, warn).with_context(|| format!("loading map {}", path.display()))
 }
 
-/// Writes a tile map in format version 2: only the 16 px upgrade (`migrate`) does, for the tile
-/// converter that runs after it.
-pub fn save_tiles(map: &Map, tiles: &OldTiles, path: &Path) -> Result<()> {
-    #[derive(Serialize)]
-    struct Core2<'a> {
-        name: &'a str,
-        width: u32,
-        height: u32,
-        tilesets: &'a [String],
-        layers: &'a [TileLayer],
-        collision: &'a [u8],
-        meta: String,
-    }
-    let core = Core2 { name: &map.name, width: map.width, height: map.height, tilesets: &tiles.tilesets, layers: &tiles.layers, collision: &map.collision, meta: ron::to_string(&Meta::of(map))? };
-    let mut out = MAGIC.to_vec();
-    out.extend_from_slice(&2u32.to_le_bytes());
-    out.extend_from_slice(&lz4_flex::compress_prepend_size(&postcard::to_stdvec(&core)?));
-    crate::sys::write(path, &out).with_context(|| format!("writing {}", path.display()))
-}
-
 /// Loads a map with the tiles of an older version ([`decode_tiles`]).
 pub fn load_tiles(path: &Path) -> Result<(Map, OldTiles)> {
     let bytes = crate::sys::read(path).with_context(|| format!("reading {}", path.display()))?;

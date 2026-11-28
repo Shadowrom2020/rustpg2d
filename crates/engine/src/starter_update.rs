@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::defs::Database;
 use crate::library::{all_assets, dependents, exists, kind_label, remove_assets, script_roots, AssetRef, Bundle, LibraryFiles, KINDS};
-use crate::project::{Project, TILE_SIZE};
+use crate::project::Project;
 use crate::refactor::RefKind;
 use crate::script_refs::ScriptFn;
 
@@ -169,9 +169,7 @@ impl StarterHistory {
 
 /// The starter set as a bundle at the library's tile size.
 pub fn starter_bundle(files: &LibraryFiles) -> Result<Bundle> {
-    let mut b = Bundle::from_files(files).context("reading the starter assets")?;
-    b.rescale(TILE_SIZE)?;
-    Ok(b)
+    Bundle::from_files(files).context("reading the starter assets")
 }
 
 /// An asset the starter set no longer has.
@@ -321,7 +319,7 @@ pub fn backup(root: &Path) -> Result<PathBuf> {
     Ok(to)
 }
 
-fn copy_dir(from: &Path, to: &Path) -> Result<()> {
+pub(crate) fn copy_dir(from: &Path, to: &Path) -> Result<()> {
     std::fs::create_dir_all(to).with_context(|| format!("creating {}", to.display()))?;
     for e in std::fs::read_dir(from)?.flatten() {
         let (src, dst) = (e.path(), to.join(e.file_name()));
@@ -442,7 +440,7 @@ mod tests {
 
     fn starter(colour: [u8; 4], items: Vec<ItemDef>, script: &str) -> Bundle {
         let db = Database { sheets: vec![SheetDef { id: "items".into(), image: "sprites/items.png".into(), frame_w: 16, frame_h: 16, ..Default::default() }], items, ..Default::default() };
-        Bundle { name: "starter".into(), tile_size: TILE_SIZE, db, files: [("sprites/items.png".to_string(), png(colour))].into(), scripts: [("arrows_used".to_string(), format!("fn arrows_used() {{ say(\"{script}\"); }}"))].into() }
+        Bundle { name: "starter".into(), tile_size: crate::project::TILE_SIZE, db, files: [("sprites/items.png".to_string(), png(colour))].into(), scripts: [("arrows_used".to_string(), format!("fn arrows_used() {{ say(\"{script}\"); }}"))].into() }
     }
 
     fn arrows(name: &str) -> ItemDef {

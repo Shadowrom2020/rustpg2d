@@ -269,8 +269,7 @@ impl Workspace {
         // until 0.36), and its history knows every version of them that was shipped.
         let update = match was.as_ref().map(|_| ()).or_else(|| (pack.manifest.id == packs::STARTER_ID && pack.history.is_some()).then_some(())) {
             Some(()) => {
-                let mut bundle = pack.assets.clone();
-                bundle.rescale(rustpg2d_engine::project::TILE_SIZE).map_err(|e| format!("{e:#}"))?;
+                let bundle = pack.assets.clone();
                 Some(starter_update::plan(lib, &bundle, &history_for(&root, &pack)))
             }
             None => None,
@@ -299,8 +298,7 @@ impl Workspace {
         // What the library has differently is overwritten: a copy of the library first.
         let backup = if same == SameId::Replace && !preview.differing.is_empty() { Some(starter_update::backup(&root).map_err(|e| format!("{e:#}"))?) } else { None };
         let lib = self.lib.lib.as_mut().ok_or("the asset library isn't available")?;
-        let mut bundle = pack.assets.clone();
-        bundle.rescale(rustpg2d_engine::project::TILE_SIZE).map_err(|e| format!("{e:#}"))?;
+        let bundle = pack.assets.clone();
         let all = library::all_assets(&bundle.db);
         let report = match same {
             SameId::Keep => bundle.add_missing(&mut lib.db, &root),
@@ -337,8 +335,7 @@ impl Workspace {
         };
         let history = history_for(&root, &pack);
         let lib = self.lib.lib.as_mut().ok_or("the asset library isn't available")?;
-        let mut bundle = pack.assets.clone();
-        bundle.rescale(rustpg2d_engine::project::TILE_SIZE).map_err(|e| format!("{e:#}"))?;
+        let bundle = pack.assets.clone();
         let plan = starter_update::plan(lib, &bundle, &history);
         // (Nothing to bring in, replace or delete: the library is left as it is, without a copy.)
         let idle = plan.added.is_empty() && plan.updated.is_empty() && !take_edited.iter().any(|a| plan.edited.contains(a)) && !delete.iter().any(|a| plan.retired.iter().any(|r| r.asset == *a));
@@ -381,8 +378,7 @@ impl Workspace {
         }
         // (Its history is taken out of its folder before the folder's pictures are swapped.)
         let mut history = history_for(&root, pack);
-        let mut bundle = pack.assets.clone();
-        bundle.rescale(rustpg2d_engine::project::TILE_SIZE).map_err(|e| format!("{e:#}"))?;
+        let bundle = pack.assets.clone();
         history.record(&bundle);
         let pics = root.join("packs").join(&pack.manifest.id);
         let _ = std::fs::remove_dir_all(&pics);
@@ -430,8 +426,7 @@ impl Workspace {
         if wanted.is_empty() {
             return Ok(None);
         }
-        let mut bundle = Bundle::collect_with_needed_scripts(&lib.db, &lib.root, rustpg2d_engine::project::TILE_SIZE, &installed.manifest.title, &wanted).map_err(|e| format!("{e:#}"))?;
-        bundle.rescale(rustpg2d_engine::project::TILE_SIZE).map_err(|e| format!("{e:#}"))?;
+        let bundle = Bundle::collect_with_needed_scripts(&lib.db, &lib.root, rustpg2d_engine::project::TILE_SIZE, &installed.manifest.title, &wanted).map_err(|e| format!("{e:#}"))?;
         from.sort_by(|a, b| packs::compare_versions(a, b));
         Ok(Some((installed, from, bundle, read_history(&root, pack))))
     }

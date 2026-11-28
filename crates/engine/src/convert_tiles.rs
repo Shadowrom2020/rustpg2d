@@ -485,7 +485,7 @@ const TILESETS: &str = "defs/tilesets.ron";
 /// tilesets are removed from its definitions. `backup` = copy the folder there first.
 pub fn convert_project(root: &Path, backup: Option<&Path>) -> Result<Report> {
     if let Some(b) = backup {
-        crate::migrate::copy_dir(root, b).context("making a backup")?;
+        crate::starter_update::copy_dir(root, b).context("making a backup")?;
     }
     let mut project = crate::project::Project::load(root)?;
     let tilesets = crate::old_tiles::read_tilesets(root)?;

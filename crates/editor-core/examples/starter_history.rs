@@ -15,7 +15,6 @@ use std::process::{Command, Stdio};
 
 use anyhow::{bail, Context, Result};
 use rustpg2d_engine::library::Bundle;
-use rustpg2d_engine::project::TILE_SIZE;
 use rustpg2d_engine::starter_update::{starter_bundle, StarterHistory};
 
 const FOLDER: &str = "crates/editor/assets/starter_library";
@@ -74,8 +73,7 @@ fn starter_at(repo: &Path, blobs: &mut Blobs, rev: &str) -> Result<Option<Bundle
     }
     match blobs.get(&format!("{rev}:{PACK}"))? {
         Some(bytes) => {
-            let mut b = Bundle::from_pack(&bytes)?;
-            b.rescale(TILE_SIZE)?;
+            let b = Bundle::from_pack(&bytes)?;
             Ok(Some(b))
         }
         None => Ok(None),

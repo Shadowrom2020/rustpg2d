@@ -256,8 +256,6 @@ struct Renamer<'a> {
     count: usize,
     /// Collecting mode: records every non-empty reference instead of renaming.
     found: Option<Vec<(RefKind, String)>>,
-    /// Also converts 0.27's skill levels in events to the SRD rules ([`srd_upgrade_db`]).
-    srd: bool,
 }
 
 impl Renamer<'_> {
@@ -556,17 +554,7 @@ impl Renamer<'_> {
     fn conditions(&mut self, cs: &mut [Condition]) {
         for c in cs {
             match &mut c.cond {
-                Cond::Skill { skill, op, level } => {
-                    self.fix(RefKind::Skill, skill);
-                    if self.srd {
-                        if let Some((o, l)) = srd_skill_compare(*op, *level) {
-                            if (o, l) != (*op, *level) {
-                                (*op, *level) = (o, l);
-                                self.count += 1;
-                            }
-                        }
-                    }
-                }
+                Cond::Skill { skill, .. } => self.fix(RefKind::Skill, skill),
                 Cond::HasItem { item, .. } | Cond::Attuned { item } => self.fix(RefKind::Item, item),
                 Cond::HasDisease { disease } => self.fix(RefKind::Disease, disease),
                 // (A definition id there follows its renames; a name stays.)
@@ -598,17 +586,7 @@ impl Renamer<'_> {
             Action::ShowImage { sheet, .. } | Action::ShowPicture { sheet, .. } => self.fix(RefKind::Sheet, sheet),
             Action::TeachSpell { spell, .. } | Action::CastSpell { spell, .. } => self.fix(RefKind::Spell, spell),
             Action::If { conditions, .. } => self.conditions(conditions),
-            Action::SetSkill { skill, level } => {
-                self.fix(RefKind::Skill, skill);
-                if self.srd && *level > 1 {
-                    *level = 1;
-                    self.count += 1;
-                }
-            }
-            Action::Lockpick { difficulty, .. } if self.srd && (1..10).contains(difficulty) => {
-                *difficulty = crate::srd::old_level_dc(*difficulty);
-                self.count += 1;
-            }
+            Action::SetSkill { skill, .. } => self.fix(RefKind::Skill, skill),
             _ => {}
         });
     }
@@ -617,37 +595,11 @@ impl Renamer<'_> {
 /// Updates references inside definitions and the project config. Returns the number changed.
 /// (The definition's own `id` must be renamed by the caller.)
 pub fn rename_in_db(db: &mut Database, config: &mut ProjectConfig, kind: RefKind, old: &str, new: &str) -> usize {
-    db_pass(db, config, kind, old, new, false)
+    db_pass(db, config, kind, old, new)
 }
 
-/// Converts the events of a 0.27 project's definitions to the SRD rules: *Skill* conditions
-/// compare proficiency (1 / 0) instead of a level, *Set skill* sets a proficiency, the
-/// *Lockpick* action's difficulty becomes a DC. Returns the number changed.
-pub fn srd_upgrade_db(db: &mut Database, config: &mut ProjectConfig) -> usize {
-    db_pass(db, config, RefKind::Skill, "\u{0}", "\u{0}", true)
-}
-
-/// [`srd_upgrade_db`] for a map.
-pub fn srd_upgrade_map(map: &mut Map) -> usize {
-    map_pass(map, RefKind::Skill, "\u{0}", "\u{0}", true)
-}
-
-/// A 0.27 *Skill level* comparison as a proficiency comparison (proficiency counts as level 1
-/// or more): "≥ 2" = proficient, "= 0" = not; `None` = it can't hold for any level.
-fn srd_skill_compare(op: crate::events::CmpOp, level: i64) -> Option<(crate::events::CmpOp, i64)> {
-    use crate::events::CmpOp;
-    let none = op.apply(0, level);
-    let some = (1..=20).any(|l| op.apply(l, level));
-    match (none, some) {
-        (false, true) => Some((CmpOp::Ge, 1)),
-        (true, false) => Some((CmpOp::Eq, 0)),
-        (true, true) => Some((CmpOp::Ge, 0)),
-        (false, false) => None,
-    }
-}
-
-fn db_pass(db: &mut Database, config: &mut ProjectConfig, kind: RefKind, old: &str, new: &str, srd: bool) -> usize {
-    let mut r = Renamer { kind, old, new, count: 0, found: None, srd };
+fn db_pass(db: &mut Database, config: &mut ProjectConfig, kind: RefKind, old: &str, new: &str) -> usize {
+    let mut r = Renamer { kind, old, new, count: 0, found: None };
     // A renamed map keeps its title.
     if kind == RefKind::Map {
         if let Some(t) = config.map_titles.remove(old) {
@@ -805,11 +757,11 @@ fn db_pass(db: &mut Database, config: &mut ProjectConfig, kind: RefKind, old: &s
 
 /// Updates references inside a map. Returns the number changed.
 pub fn rename_in_map(map: &mut Map, kind: RefKind, old: &str, new: &str) -> usize {
-    map_pass(map, kind, old, new, false)
+    map_pass(map, kind, old, new)
 }
 
-fn map_pass(map: &mut Map, kind: RefKind, old: &str, new: &str, srd: bool) -> usize {
-    let mut r = Renamer { kind, old, new, count: 0, found: None, srd };
+fn map_pass(map: &mut Map, kind: RefKind, old: &str, new: &str) -> usize {
+    let mut r = Renamer { kind, old, new, count: 0, found: None };
     for m in &mut map.materials {
         r.fix(RefKind::Material, m);
     }
@@ -880,7 +832,7 @@ pub fn refs_of_visual_script(d: &crate::visual::VisualScript) -> Vec<(RefKind, S
 }
 
 fn collector() -> Renamer<'static> {
-    Renamer { kind: RefKind::Map, old: "", new: "", count: 0, found: Some(Vec::new()), srd: false }
+    Renamer { kind: RefKind::Map, old: "", new: "", count: 0, found: Some(Vec::new()) }
 }
 
 /// The items a background starts the hero with.

@@ -77,7 +77,6 @@ pub mod settings;
 pub mod skills;
 pub mod srd;
 #[cfg(not(target_arch = "wasm32"))]
-pub mod srd_convert;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod starter_pack;
 #[cfg(not(target_arch = "wasm32"))]

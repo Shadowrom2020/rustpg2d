@@ -47,28 +47,10 @@ pub struct RecipeDef {
 /// A crafting check of `dc` or more makes `result` instead (`RecipeDef::quality`).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(from = "QualityStepRepr")]
 pub struct QualityStep {
+    #[serde(default)]
     pub dc: u32,
     pub result: String,
-}
-
-/// A quality step as files have it: `dc` since 0.28, a skill `level` before (converted to a DC
-/// with [`crate::srd::old_level_dc`]).
-#[derive(Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-struct QualityStepRepr {
-    #[serde(default)]
-    dc: u32,
-    #[serde(default)]
-    level: u32,
-    result: String,
-}
-
-impl From<QualityStepRepr> for QualityStep {
-    fn from(r: QualityStepRepr) -> Self {
-        QualityStep { dc: if r.dc > 0 { r.dc } else { crate::srd::old_level_dc(r.level) }, result: r.result }
-    }
 }
 
 /// What crafting made.
@@ -252,9 +234,7 @@ mod tests {
     }
 
     #[test]
-    fn old_quality_levels_become_dcs() {
-        let q: QualityStep = ron::from_str("(level: 2, result: \"fine\")").unwrap();
-        assert_eq!(q, QualityStep { dc: 12, result: "fine".into() });
+    fn quality_steps_read_their_dc() {
         let q: QualityStep = ron::from_str("(dc: 17, result: \"fine\")").unwrap();
         assert_eq!(q.dc, 17);
         assert!(ron::to_string(&q).unwrap().contains("dc:17"));

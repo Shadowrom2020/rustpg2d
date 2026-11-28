@@ -24,8 +24,6 @@ fn definitions_of_0_9_0_load() {
     assert!(!db.items.is_empty() && !db.props.is_empty() && !db.characters.is_empty() && !db.sheets.is_empty());
     assert!(!read_tilesets(&fixture("project-0.9.0")).unwrap().is_empty());
     assert!(!db.structures.is_empty() && !db.recipes.is_empty() && !db.spells.is_empty());
-    // (Its skill tree, defs/skills.ron, is read only by the SRD conversion since 0.28.)
-    assert!(rustpg2d_engine::srd_convert::needs_conversion(&fixture("project-0.9.0")));
     assert!(!db.quests.is_empty() && !db.sounds.is_empty() && !db.achievements.is_empty());
     // Its layered characters (removed in 0.17) load without their figure (drawn as the mannequin);
     // hair, outfit and armor sheets load as plain sprites.
@@ -88,42 +86,6 @@ fn tile_projects_convert() {
 }
 
 /// The same for the last tile release, 0.20.0 (its example's definitions, village and mine).
-/// A 0.27 project: its skill tree becomes SRD proficiencies, lock levels DCs, recipe quality
-/// levels DCs (0.28).
-#[test]
-fn projects_of_0_27_0_convert_to_the_srd_rules() {
-    let root = std::env::temp_dir().join(format!("rustpg2d_compat_srd_{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&root);
-    std::fs::create_dir_all(root.join("defs")).unwrap();
-    let src = fixture("project-0.27.0");
-    std::fs::copy(src.join("project.ron"), root.join("project.ron")).unwrap();
-    for e in std::fs::read_dir(src.join("defs")).unwrap() {
-        let p = e.unwrap().path();
-        std::fs::copy(&p, root.join("defs").join(p.file_name().unwrap())).unwrap();
-    }
-    assert!(rustpg2d_engine::srd_convert::needs_conversion(&root));
-    let r = rustpg2d_engine::srd_convert::convert_project(&root, None).expect("converts");
-    assert!(r.mapped.iter().any(|(a, b)| a == "lockpicking" && b == "thieves-tools"), "{:?}", r.mapped);
-    assert!(r.dropped.contains(&"swordsmanship".to_string()));
-    assert!(!root.join("defs/skills.ron").exists());
-    let p = Project::load(&root).unwrap();
-    assert_eq!(p.config.rules_version, rustpg2d_engine::srd::RULES_VERSION);
-    assert!(p.config.skills.magic_on(), "magic stays on");
-    // The XP curve of 0.27 gives way to the SRD's table; the levels stay on.
-    let prog = &p.config.progression;
-    assert_eq!((prog.enabled, prog.max_level, prog.hit_points, prog.mana_per_level), (true, 20, rustpg2d_engine::progression::HitPoints::Average, 2));
-    assert_eq!(prog.level_for(300), 2);
-    // Projects of 0.27 don't say they use SRD content (Problems asks when they do).
-    assert!(!p.config.srd);
-    let fine = p.db.recipes.iter().find(|r| r.quality.iter().any(|q| q.result == "fine_iron_sword")).expect("the sword recipe");
-    assert_eq!((fine.skill.as_str(), fine.quality[0].dc), ("smiths-tools", 12));
-    let known: Vec<String> = rustpg2d_engine::srd::abilities::proficiency_choices();
-    for race in &p.db.races {
-        assert!(race.skills.iter().all(|s| known.contains(&s.skill)), "{}: {:?}", race.id, race.skills.iter().map(|s| &s.skill).collect::<Vec<_>>());
-    }
-    let _ = std::fs::remove_dir_all(&root);
-}
-
 #[test]
 fn projects_of_0_20_0_convert() {
     convert_and_check("project-0.20.0", &[("village-0.20.0.map", "village"), ("mine-0.20.0.map", "mine")]);

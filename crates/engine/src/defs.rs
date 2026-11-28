@@ -1357,7 +1357,6 @@ pub enum OnUnlock {
 /// A lock that needs a key item, or can be picked.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(from = "LockSpecRepr")]
 pub struct LockSpec {
     /// Item id of the key.
     pub key: String,
@@ -1383,37 +1382,6 @@ pub struct LockSpec {
     /// be picked).
     #[serde(default)]
     pub pick_dc: u32,
-}
-
-/// A lock as files have it: `pick_dc` since 0.28; until then `pick_difficulty`, a lockpicking
-/// skill level, converted with [`crate::srd::old_level_dc`].
-#[derive(Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-struct LockSpecRepr {
-    key: String,
-    #[serde(default = "yes")]
-    consume_key: bool,
-    #[serde(default = "on_unlock_default")]
-    on_unlock: OnUnlock,
-    #[serde(default)]
-    locked_text: String,
-    #[serde(default)]
-    unlock_text: String,
-    #[serde(default)]
-    relock: bool,
-    #[serde(default)]
-    lock_text: String,
-    #[serde(default)]
-    pick_dc: u32,
-    #[serde(default)]
-    pick_difficulty: u32,
-}
-
-impl From<LockSpecRepr> for LockSpec {
-    fn from(r: LockSpecRepr) -> Self {
-        let pick_dc = if r.pick_dc > 0 { r.pick_dc } else { crate::srd::old_level_dc(r.pick_difficulty) };
-        LockSpec { key: r.key, consume_key: r.consume_key, on_unlock: r.on_unlock, locked_text: r.locked_text, unlock_text: r.unlock_text, relock: r.relock, lock_text: r.lock_text, pick_dc }
-    }
 }
 
 fn yes() -> bool {

@@ -1093,19 +1093,6 @@ pub fn open_library(dir: &Path, starter: Option<&LibraryFiles>) -> Result<Projec
         let r = crate::convert_tiles::convert_project(dir, Some(&backup))?;
         println!("[library] {}", r.summary());
     }
-    // Libraries from before the SRD rules: skills become proficiencies (a copy is kept beside it).
-    if crate::srd_convert::needs_conversion(dir) {
-        let name = dir.file_name().map_or("library".into(), |n| n.to_string_lossy().into_owned());
-        let parent = dir.parent().unwrap_or(Path::new("."));
-        let mut backup = parent.join(format!("{name}-backup-srd"));
-        let mut n = 2;
-        while backup.exists() {
-            backup = parent.join(format!("{name}-backup-srd-{n}"));
-            n += 1;
-        }
-        let r = crate::srd_convert::convert_project(dir, Some(&backup))?;
-        println!("[library] {}", r.summary());
-    }
     let mut lib = Project::load(dir)?;
     // A newer starter set (new editor version): add the assets the library doesn't have yet.
     if let (Some(files), Some(s)) = (starter, &stamp) {

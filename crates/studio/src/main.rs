@@ -17,6 +17,7 @@ mod agentspage;
 mod form;
 mod gallery;
 mod helpview;
+mod itemshop;
 mod langpage;
 mod librarypage;
 mod artpage;
@@ -177,6 +178,8 @@ impl Studio {
                 // A character's workshop (its tab in front): `char model ID`, `char part SLOT ID|-|own`,
                 // `char color FEATURE RRGGBB|-`, `char random`, `char face front|left|back|right|turn`, `char anim walk|idle|attack|hurt`.
                 "char" => println!("[char] {}", self.shell.char_word(&cmd[1..])),
+                // (`itemshop`: `item` alone is a kind's name in other words.)
+                "itemshop" => println!("[itemshop] {}", self.shell.item_word(&cmd[1..])),
                 // A guided tour: `tour start first-map|talking-character|a-quest`, `tour skip`, `tour end`; `tour` prints
                 // `ID done/steps [x - .] now=STEP at=X,Y` (where the control it points at is).
                 "tour" => println!("[tour] {}", self.shell.tour_word(ctx, &cmd[1..])),

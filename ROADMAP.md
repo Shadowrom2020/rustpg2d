@@ -1790,6 +1790,15 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     and drawn as a map is (its ground, what lies and stands on it), once and again when it
     changed, two a frame: its card in *Structures*, in the Place tool's palette and at the
     top of its tab. (Saving a selection of a map as a structure and placing one are part 6.)
+  - **The item workshop** (`studio/src/itemshop.rs`, at the top of an item's tab; the script's
+    `itemshop`): an item's own 3D model taken from a `.glb` (*From a file…*: copied into the
+    project, the hold point found from its shape), the game's hero shown with it where its
+    kind puts it (the hand, the arm, the back), standing, walking or striking, from four
+    sides; *Find where it is held*, *Other end*, *Turn the handle*, *Turn the front*, how
+    it is held (grip, upright, hanging, strapped, on the back), its length in pixels, how
+    far along it the hand is; *Render its icon* draws the model as the inventory icon. What
+    these do is 0.35's (`models.rs`: `use_item_model`, `item_hold`, `render_item_icon`),
+    written at once with the model's file, not steps of the history.
   Still open: a figure sitting or lying at the use spot instead of the ring, a
   building's ridge, overhang and openings dragged on the picture, how large a prop's model
   is shown as a handle; starting from measurements and Meshy, an item's model from a file, pictures
@@ -2539,7 +2548,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   | **Art**: pixel editor (frames, tools, nudge, replace colours, seamless) | under a sheet's picture, a material's tab | partly (frames added / duplicated, selection) |
   | Sounds played | the sound's tab | there |
   | 3D models: import, animations' clips, rig templates, check | model workshop | partly (more clip files added, clips shared between models, joints moved by hand) |
-  | An item's 3D model: imported, its hold point and front set, shown in the hand, its icon rendered | the form's numbers only | **open** |
+  | An item's 3D model: imported, its hold point and front set, shown in the hand, its icon rendered | the item workshop at the top of an item's tab (2026-11-28): the hero holding it, standing, walking, striking; *From a file…*, *Find where it is held*, *Other end*, *Turn the handle*, *Turn the front*, how it is held, its length, where along it the hand is, *Render its icon* | there |
   | Character editor: model, pieces, colours, equipment, random colours, new from a model / a file / Meshy | character workshop, *New…*, Generate art | partly (*Start from…* another character) |
   | Props: pictures, states, hitbox, light, building shape | prop workshop + form | partly (a building's ridge and openings by numbers) |
   | Generate art (Meshy), its settings and budget | the Generate art page | there |

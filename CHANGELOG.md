@@ -146,6 +146,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   Place and Terrain tools; the Problems tab says what the check looks for before it ran and
   that nothing was found after; the Place tool and the World view say what to do when there
   is nothing to place or only one map.
+- **The item workshop** (part 8): an item's tab shows its own 3D model in the hero's hand,
+  standing, walking and striking. A model file is taken with *From a file…*; buttons find
+  where it is held, turn its handle and its front and set how it is held and how long it is;
+  *Render its icon* draws the model as the item's inventory icon.
 - **Plugins on their page** (part 5): *Scripts & plugins* shows the project's plugins with
   what each does, on / off, their order, and every parameter by its name with the control that
   fits; a plugin is added from the asset library or a plugin file and removed with its files

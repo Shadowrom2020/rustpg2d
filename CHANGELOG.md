@@ -120,6 +120,27 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **Drop a file to make something of it** (part 8): a 3D model (`.glb`) or a picture (`.png`)
   dropped on the editor becomes a prop that shows it, a sound file a sound: *New…* opens with
   the file and a name from it, Enter makes it. *New…* also takes a file's place typed in.
+- **New maps and a map's size** (part 6): *Map* is one of the things *New…* (Ctrl+N) makes:
+  its name, its size in tiles and the material its ground starts with; *+ New map* is in the
+  Project browser. A map's Inspector has its *Size* with *Resize* (one step; the top left
+  stays). Commands `map.new NAME [W H] [GROUND]` and `map.resize W H`. (Until now only agents
+  could do either in the new editor.)
+- **AI agents have a page** (part 10): *AI agents* in the Project browser starts and stops the
+  agent server (its port, *Start it with the editor*), has the set-up for Claude Code, for
+  Cursor and VS Code and for Claude Desktop with a *Copy the set-up* button each, a first
+  thing to ask to copy, and the list of what the agents did. The server stays on when another
+  project is opened.
+- **What's new** (part 10): after an update the Overview says so once, with *What's new*: this
+  version's part of the changelog in the Help tab, where it stays (last of the chapters), with
+  the versions before it to pick.
+- **A field explains itself in the Help tab** (part 10): F1 with the pointer on a field's
+  label, or *About this field* in the label's menu (right-click), opens the Help tab with what
+  the field is for and the places the manual names it, the chapter about that form first.
+- **Empty places say what to do next** (part 10): a kind with nothing in it says what belongs
+  there with *New…* and *Take some from the asset library*; a map with nothing on it offers the
+  Place and Terrain tools; the Problems tab says what the check looks for before it ran and
+  that nothing was found after; the Place tool and the World view say what to do when there
+  is nothing to place or only one map.
 - **The manual inside the editor** (part 10): the *Help* tab shows the Creator's Manual with
   its chapters, a search over all of it and links that lead on. **F1** opens it at the part
   about what you are working on: a map's tool, a kind of thing, scripts, publishing.

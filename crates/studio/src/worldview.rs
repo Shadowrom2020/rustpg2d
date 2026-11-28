@@ -116,6 +116,12 @@ impl WorldView {
             }
             ui.weak("Click a map to open it. Drag a card to move it, the background to move the view; the wheel zooms.");
         });
+        // A world of one map: how it becomes more.
+        if self.maps.len() <= 1 {
+            ui.horizontal_wrapped(|ui| {
+                ui.weak("This game is one map so far. Make another (+ New map in the Project browser, or Ctrl+N), then draw a transition zone at an edge of one (the Zones tool): the editor asks where on the other map it leads, and the way shows here as a line.");
+            });
+        }
         ui.separator();
         let rect = ui.available_rect_before_wrap();
         let back = ui.interact(rect, egui::Id::unique("world view"), egui::Sense::drag());

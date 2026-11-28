@@ -267,7 +267,10 @@ impl Workspace {
     /// Back to no project (the project file is written first).
     pub fn close_project(&mut self) {
         self.finish_project_file();
+        // (The agent server is the editor's, not the project's: it goes on listening.)
+        let mcp = std::mem::take(&mut self.mcp);
         *self = Workspace::empty();
+        self.mcp = mcp;
     }
 
     /// Pixels of a tile.

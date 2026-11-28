@@ -30,6 +30,63 @@ use crate::workspace::Workspace;
 
 /// The port the server listens on unless the settings say otherwise.
 pub const DEFAULT_PORT: u16 = 7743;
+/// What is asked of an agent first, to paste into its chat: it finds its way from there.
+pub const FIRST_ASK: &str = "Use the rustpg2d tools: read the project's overview, then show me the map the game starts on and tell me what you could build there.";
+
+/// The programs an agent is connected from, each with its own way to be told where the server is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Client {
+    /// Claude Code: one line in a terminal.
+    ClaudeCode,
+    /// Cursor, VS Code: a file in the project the agent works in.
+    Cursor,
+    /// Claude Desktop and others that only start programs: through `mcp-remote` (Node.js).
+    Desktop,
+}
+
+impl Client {
+    pub const ALL: [Client; 3] = [Client::ClaudeCode, Client::Cursor, Client::Desktop];
+
+    /// How the script names it.
+    pub fn name(self) -> &'static str {
+        match self {
+            Client::ClaudeCode => "claude",
+            Client::Cursor => "cursor",
+            Client::Desktop => "desktop",
+        }
+    }
+
+    pub fn title(self) -> &'static str {
+        match self {
+            Client::ClaudeCode => "Claude Code",
+            Client::Cursor => "Cursor, VS Code",
+            Client::Desktop => "Claude Desktop and others",
+        }
+    }
+
+    /// Where its set-up goes.
+    pub fn place(self) -> &'static str {
+        match self {
+            Client::ClaudeCode => "Paste it into a terminal and press Enter. Claude Code then knows the editor in every session.",
+            Client::Cursor => "Save it as .cursor/mcp.json (Cursor) or .vscode/mcp.json (VS Code) in the folder the agent works in.",
+            Client::Desktop => "Put it into the program's MCP settings (Claude Desktop: Settings, Developer, Edit Config). It needs Node.js: the program reaches the editor through mcp-remote.",
+        }
+    }
+
+    /// The set-up itself for a server at `url`: a command line, or the settings as JSON.
+    pub fn setup(self, url: &str) -> String {
+        match self {
+            Client::ClaudeCode => format!("claude mcp add --transport http rustpg2d {url}"),
+            Client::Cursor => format!("{{\"mcpServers\": {{\"rustpg2d\": {{\"url\": \"{url}\"}}}}}}"),
+            Client::Desktop => format!("{{\"mcpServers\": {{\"rustpg2d\": {{\"command\": \"npx\", \"args\": [\"-y\", \"mcp-remote\", \"{url}\"]}}}}}}"),
+        }
+    }
+
+    pub fn named(name: &str) -> Option<Client> {
+        Client::ALL.into_iter().find(|c| c.name() == name)
+    }
+}
+
 /// Requests executed per frame at most, and the time budget for them.
 const DRAIN_MAX: usize = 40;
 const DRAIN_MS: f64 = 8.0;
@@ -123,6 +180,11 @@ impl McpState {
 
     pub fn url(&self) -> Option<String> {
         self.running.as_ref().map(|r| format!("http://{}/mcp", r.addr))
+    }
+
+    /// The address agents are told: where the server listens, or would with its port.
+    pub fn address(&self) -> String {
+        self.url().unwrap_or_else(|| format!("http://127.0.0.1:{}/mcp", self.port))
     }
 
     fn log_call(&mut self, tool: &'static str, summary: String, ok: bool, started: Instant) {

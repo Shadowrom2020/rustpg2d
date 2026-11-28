@@ -4,7 +4,7 @@
 use gfx::math::vec2;
 use rustpg2d_engine::entity::{EntityInstance, EntityKind, Facing};
 use rustpg2d_engine::events::{Trigger, TriggerOwner};
-use rustpg2d_engine::map::{CollisionOverride, Map, Zone, ZoneKind, MAX_MAP_SIZE};
+use rustpg2d_engine::map::{CollisionOverride, Map, Zone, ZoneKind};
 use rustpg2d_engine::refactor::RefKind;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -423,28 +423,11 @@ impl Workspace {
 
     pub(crate) fn mcp_create_map(&mut self, p: CreateMapParams) -> Result<Reply, String> {
         self.mcp_writable()?;
-        if !crate::rename::valid_name(&p.name) {
-            return Err("map names use letters, digits, '_' and '-'".into());
-        }
-        if self.maps.contains(&p.name) {
-            return Err(format!("a map named \"{}\" exists", p.name));
-        }
-        if p.width == 0 || p.height == 0 || p.width > MAX_MAP_SIZE || p.height > MAX_MAP_SIZE {
-            return Err(format!("the size must be 1..{MAX_MAP_SIZE} tiles each way"));
-        }
-        let mut map = Map::new(&p.name, p.width, p.height);
-        if let Some(f) = p.fill.as_deref().filter(|f| !f.is_empty()) {
-            if self.project.db.material(f).is_none() {
-                return Err(format!("\"{f}\" is not a material.{}", suggestions(f, self.project.db.materials.iter().map(|m| m.id.as_str()))));
-            }
-            if let Some(v) = map.material_value(f) {
-                map.ground.fill(v);
-            }
+        if let Some(f) = p.fill.as_deref().filter(|f| !f.is_empty() && self.project.db.material(f).is_none()) {
+            return Err(format!("\"{f}\" is not a material.{}", suggestions(f, self.project.db.materials.iter().map(|m| m.id.as_str()))));
         }
         self.save_all();
-        self.doc = None;
-        self.load_doc(map);
-        self.save_map();
+        self.create_map(&p.name, p.width, p.height, p.fill.as_deref())?;
         self.mcp_after_write(format!("Created map \"{}\" ({}x{}) and opened it{}.", p.name, p.width, p.height, p.fill.as_deref().filter(|f| !f.is_empty()).map_or(String::new(), |f| format!(", the ground filled with {f}"))))
     }
 
@@ -511,16 +494,8 @@ impl Workspace {
 
     pub(crate) fn mcp_resize_map(&mut self, p: ResizeParams) -> Result<Reply, String> {
         self.mcp_target_map(&p.map)?;
-        if p.width == 0 || p.height == 0 || p.width > MAX_MAP_SIZE || p.height > MAX_MAP_SIZE {
-            return Err(format!("the size must be 1..{MAX_MAP_SIZE} tiles each way"));
-        }
-        let assets = &self.assets;
-        let Some(doc) = &mut self.doc else { return Err("no map is open".into()) };
-        let before = doc.map.clone();
-        let old = (before.width, before.height);
-        doc.map.resize(p.width, p.height);
-        doc.record_map(before, assets);
-        let name = doc.map.name.clone();
+        let (name, old) = self.doc.as_ref().map(|d| (d.map.name.clone(), (d.map.width, d.map.height))).ok_or("no map is open")?;
+        self.resize_map(p.width, p.height)?;
         self.mcp_after_write(format!("Resized \"{name}\" from {}x{} to {}x{} (top-left kept).", old.0, old.1, p.width, p.height))
     }
 

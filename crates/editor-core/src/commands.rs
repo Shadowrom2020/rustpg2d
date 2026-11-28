@@ -403,6 +403,32 @@ pub const COMMANDS: &[Command] = &[
         },
     },
     Command {
+        id: "map.new",
+        title: "New map",
+        keys: "",
+        params: &["name", "width", "height", "ground"],
+        help: "Makes a map (40 x 30 tiles unless a size is given), its ground filled with a material when one is named, and opens it.",
+        changes: false,
+        run: |ws, a| {
+            need_project(ws)?;
+            let name = arg(a, 0, "name")?;
+            let size = |k: usize, usual: u32| a.get(k).map_or(Ok(usual), |t| t.parse::<u32>().map_err(|_| format!("{t} isn't a number of tiles")));
+            ws.create_map(name, size(1, 40)?, size(2, 30)?, a.get(3).map(String::as_str))
+        },
+    },
+    Command {
+        id: "map.resize",
+        title: "Resize the map",
+        keys: "",
+        params: &["width", "height"],
+        help: "Makes the map being worked on that many tiles wide and high: its top left stays, what lies beyond the new edges goes.",
+        changes: true,
+        run: |ws, a| {
+            let size = |k: usize, what: &str| arg(a, k, what)?.parse::<u32>().map_err(|_| format!("{} isn't a number of tiles", a[k]));
+            ws.resize_map(size(0, "width")?, size(1, "height")?)
+        },
+    },
+    Command {
         id: "map.close",
         title: "Close map",
         keys: "",

@@ -1249,6 +1249,13 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     daily schedule are dragged where they are drawn.
   - **The World view's cards lie where they were left** (noted in `editor/meta.ron` with
     the creator's folders and tags; *Tidy* forgets the places).
+  - **A new map, a map's size** (`mapedit.rs`: `create_map`, `resize_map`; the agents'
+    `create_map` and `resize_map` tools run the same): *Map* in *New…* (name, width and
+    height in tiles, the material its ground is filled with: grass when the game has it) and
+    *+ New map* in the Project browser; the map's Inspector has *Size* with *Resize* (one
+    step; the top left stays, ground and scenery beyond the new edges go). Commands
+    `map.new NAME [W H] [GROUND]`, `map.resize W H`. (Missing until part 10's empty places
+    asked for them; an agent's `create_map` also closed the map in front, no longer.)
   Still open: a structure's ghost (its footprint is shown); hiding and locking single
   things in the Outliner; schedule stops added by clicking the map (they are added in the
   Inspector, then dragged); a region of tiles copied with its ground (*Save as structure*
@@ -2271,11 +2278,36 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     and a pulsing frame is drawn around the control to use: the map's tools, a kind in
     the Project browser, the Play menu, the saved mark (`tourpanel::mark`: a control says
     where it is). At its end a tour offers the others.
-  Still open: fields' longer help in the panel, empty places that say what to do next
-  (some do), the agent set-up button, *What's new*; of the tours: more controls that can
-  be pointed at (the Inspector's event sheet, *New…*), a tour that waits for the right tab;
-  of the problems: *Remove the reference*, fixes for other kinds of entries; of the Help tab: the manual's pictures,
-  the place read last kept.
+  - **Fields explain themselves in the Help tab**: a field's label says so to the window
+    (`form::pointed_field`, `asked_field`): **F1** with the pointer on it, or *About this
+    field* in its menu (right-click; *Back to the default* is there too), opens the Help tab
+    with the field's label and what the schema says it is for above the places the manual
+    names it, the chapter about the form in front first, the best of them opened.
+  - **Empty places say what to do next**: a kind's tab with nothing in it (what the kind is,
+    *New…*, *Take some from the asset library*), a map's Outliner with nothing on the map
+    (*Place something*, *Paint its ground*: the tools), the Place tool's list when the game
+    has nothing to place, the Problems tab before the check ran (what it looks for) and
+    after it found nothing (*Play*), the World view of one map (how a second is made and
+    joined). (The Flags and variables page, History, the art jobs, packs and the agents' list
+    said theirs already.)
+  - **Agents** (`studio/src/agentspage.rs`; the tab *AI agents*, `agents`): the server
+    started and stopped with its port and *Start it with the editor* (the editor's settings:
+    now read by this editor too), the set-up for each kind of program
+    (`editor_core::mcp::Client`: Claude Code's command line, the JSON for Cursor and VS Code,
+    the JSON for Claude Desktop through `mcp-remote`) with *Copy the set-up* and where it
+    goes, a first thing to ask to copy, and the calls the agents made. A test keeps the
+    set-ups the same as the manual's chapter 13. The server belongs to the editor, not to a
+    project: it stays on when another project is opened (it was dropped with the workspace).
+  - **What's new**: the changelog is built in like the manual (`manual::releases`: its
+    newest eight versions). The editor's settings remember the version whose news were
+    looked at (`seen_version`); a newer editor says so once on the Overview (and on the home
+    screen) with *What's new* and *Not now*. An editor that starts for the first time has
+    no news. *What's new* is the last entry of the Help tab's chapters, with the versions to
+    pick from.
+  Still open: of the tours: more controls that can be pointed at (the Inspector's event
+  sheet, *New…*), a tour that waits for the right tab; of the problems: *Remove the
+  reference*, fixes for other kinds of entries; of the Help tab: the manual's pictures (they
+  show the 0.35 editor: with the manual's rewrite, part 12), the place read last kept.
 
   **Decided while building.**
   - **A Markdown reader of our own, not a crate**: the manual uses a small part of Markdown,
@@ -2286,6 +2318,19 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     a link: now in code marks).
   - **The manual is built in, not read from a folder**: a packaged editor has it without
     files beside it, and it is the manual of exactly that editor.
+  - **What the editor's font can't draw is written plainly** (`manual::drawable`): the manual
+    and the changelog are written for the web; the editor's font has no arrows, no signs
+    like the square root, no Japanese or Chinese. Arrows and signs become what they mean
+    (`->`, `Up`, `>=`), a language's name in such writing becomes `…`. A test draws every
+    chapter and every version's news and stops at a character without a glyph, so what is
+    written later can't bring boxes into the Help tab.
+  - **A field's longer help is the manual's, found by its label**: the schema has one text a
+    field (the engine's doc comment, shown on hover). The Help tab shows that text and looks
+    the label up in the manual; where the manual still calls a field by its 0.35 name it
+    finds less (the rewrite of part 12 uses the forms' labels).
+  - **A new map and a map's size were missing in the new editor** (found while writing the
+    empty places: nothing could be offered for "make another map"). Both are in now: see
+    part 6.
 
   **Verify.** Each tour followed on a fresh project by `egui_kittest`, ending with a play-test
   that starts. F1 from five places opens the right chapter. A broken reference fixed from the

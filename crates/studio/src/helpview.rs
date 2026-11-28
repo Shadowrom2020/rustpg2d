@@ -19,15 +19,21 @@ pub struct HelpView {
     back: Vec<usize>,
     /// The heading last jumped to (for scripts).
     pub at: String,
+    /// *What's new* is shown instead of a chapter: this release of `manual::releases`.
+    pub news: Option<usize>,
+    /// The field that was asked about (F1 with the pointer on it): its label and what it is
+    /// for, shown above what the manual says about it.
+    pub about: Option<(String, String)>,
 }
 
 impl HelpView {
     /// Opens chapter `chapter` at heading `anchor` ("" = its top).
     pub fn open(&mut self, chapter: usize, anchor: &str) {
         let chapter = chapter.min(manual::chapters().len() - 1);
-        if chapter != self.chapter {
+        if chapter != self.chapter && self.news.is_none() {
             self.back.push(self.chapter);
         }
+        self.news = None;
         self.chapter = chapter;
         self.at = anchor.to_string();
         self.jump = Some(if anchor.is_empty() { manual::chapters()[chapter].sections.first().map_or(String::new(), |s| s.anchor.clone()) } else { anchor.to_string() });
@@ -47,6 +53,29 @@ impl HelpView {
         None
     }
 
+    /// *What's new*: release `k` of the changelog (0 = the newest).
+    pub fn open_news(&mut self, k: usize) {
+        self.news = Some(k.min(manual::releases().len().saturating_sub(1)));
+        self.jump = None;
+        self.at = String::new();
+        self.query.clear();
+        self.hits.clear();
+        self.about = None;
+    }
+
+    /// A field of a form was asked about: what it is for, and where the manual names it.
+    /// `file`: the chapter about the form it is in (what that says comes first).
+    pub fn open_field(&mut self, label: &str, help: &str, file: &str) {
+        self.about = Some((label.to_string(), help.to_string()));
+        self.search(label);
+        let home = manual::chapter_named(file);
+        self.hits.sort_by_key(|h| Some(h.chapter) != home);
+        // (The best place the manual has is opened at once.)
+        if let Some(h) = self.hits.first().cloned() {
+            self.open(h.chapter, &h.anchor);
+        }
+    }
+
     pub fn search(&mut self, query: &str) {
         self.query = query.to_string();
         self.hits = manual::search(query, 60);
@@ -56,16 +85,26 @@ impl HelpView {
     pub fn status(&self) -> String {
         let all = manual::chapters();
         let first = self.hits.first().map_or(String::new(), |h| format!(" first={}#{}", all[h.chapter].file, h.anchor));
-        format!("chapter={} at={} hits={}{first}", all[self.chapter].file, if self.at.is_empty() { "-" } else { &self.at }, self.hits.len())
+        let shown = match self.news {
+            Some(k) => format!("news:{}", manual::releases().get(k).map_or("-", |r| r.title.split_whitespace().next().unwrap_or("-"))),
+            None => all[self.chapter].file.to_string(),
+        };
+        let about = self.about.as_ref().map_or(String::new(), |(label, _)| format!(" field={}", label.replace(' ', "_")));
+        format!("chapter={shown} at={} hits={}{first}{about}", if self.at.is_empty() { "-" } else { &self.at }, self.hits.len())
     }
 
-    /// The script's words: `open FILE [ANCHOR]`, `search TEXT…`, `hit K` (opens the K-th hit), `back`.
+    /// The script's words: `open FILE [ANCHOR]`, `search TEXT…`, `hit K` (opens the K-th hit),
+    /// `back`, `news [K]` (*What's new*, release K).
     pub fn word(&mut self, args: &[String]) -> Result<(), String> {
         let arg = |i: usize| args.get(i).map(String::as_str).unwrap_or("");
         match arg(0) {
             "" => {}
             "open" => self.open(manual::chapter_named(arg(1)).ok_or_else(|| format!("the manual has no chapter {}", arg(1)))?, arg(2)),
-            "search" => self.search(&args[1..].join(" ")),
+            "search" => {
+                self.about = None;
+                self.search(&args[1..].join(" "));
+            }
+            "news" => self.open_news(arg(1).parse().unwrap_or(0)),
             "hit" => {
                 let h = self.hits.get(arg(1).parse::<usize>().unwrap_or(0)).cloned().ok_or("no such hit")?;
                 self.open(h.chapter, &h.anchor);
@@ -75,7 +114,7 @@ impl HelpView {
                     (self.chapter, self.jump, self.at) = (k, None, String::new());
                 }
             }
-            other => return Err(format!("help {other}: open, search, hit, back")),
+            other => return Err(format!("help {other}: open, search, hit, back, news")),
         }
         Ok(())
     }
@@ -88,18 +127,46 @@ impl HelpView {
             r.widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, "Search the manual"));
             if r.changed() {
                 self.hits = manual::search(&self.query, 60);
+                self.about = None;
             }
             ui.separator();
+            // The field that was asked about, before what the manual has on it.
+            let mut put_away = false;
+            if let Some((label, help)) = &self.about {
+                egui::Frame::group(ui.style()).show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new(label).strong());
+                        ui.weak("a field");
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            let r = ui.small_button("x").on_hover_text("Put this away");
+                            r.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, "Put this away"));
+                            put_away = r.clicked();
+                        });
+                    });
+                    ui.label(if help.is_empty() { "Nothing more is written about this field." } else { help.as_str() });
+                });
+                ui.weak(if self.hits.is_empty() { "The manual doesn't name it." } else { "Where the manual names it:" });
+                ui.add_space(2.0);
+            }
+            if put_away {
+                self.about = None;
+            }
             egui::ScrollArea::vertical().id_salt("help list").auto_shrink([false, false]).show(ui, |ui| {
                 if self.query.trim().is_empty() {
                     for (k, c) in all.iter().enumerate() {
                         let title = if k == 0 { "Contents" } else { c.title.as_str() };
-                        if ui.selectable_label(self.chapter == k, title).clicked() {
+                        if ui.selectable_label(self.news.is_none() && self.chapter == k, title).clicked() {
                             self.open(k, "");
                         }
                     }
+                    ui.separator();
+                    if ui.selectable_label(self.news.is_some(), "What's new").on_hover_text("What changed in this version of the editor, and in the ones before").clicked() {
+                        self.open_news(0);
+                    }
                 } else if self.hits.is_empty() {
-                    ui.weak("Nothing in the manual has these words.");
+                    if self.about.is_none() {
+                        ui.weak("Nothing in the manual has these words.");
+                    }
                 } else {
                     let mut go = None;
                     for (k, h) in self.hits.iter().enumerate() {
@@ -121,18 +188,41 @@ impl HelpView {
                 }
             });
         });
-        // The chapter.
-        let chapter = &all[self.chapter];
+        // The chapter, or a release's news.
+        let releases = manual::releases();
+        let (blocks, sections): (&[Block], &[manual::Section]) = match self.news.and_then(|k| releases.get(k)) {
+            Some(r) => (&r.blocks, &r.sections),
+            None => (&all[self.chapter].blocks, &all[self.chapter].sections),
+        };
         ui.horizontal(|ui| {
-            if ui.add_enabled(!self.back.is_empty(), egui::Button::new("Back")).on_hover_text("The chapter read before").clicked() {
-                if let Some(k) = self.back.pop() {
-                    (self.chapter, self.jump, self.at) = (k, None, String::new());
+            if ui.add_enabled(!self.back.is_empty() || self.news.is_some(), egui::Button::new("Back")).on_hover_text("The chapter read before").clicked() {
+                if self.news.take().is_none() {
+                    if let Some(k) = self.back.pop() {
+                        self.chapter = k;
+                    }
+                }
+                (self.jump, self.at) = (None, String::new());
+            }
+            // Which version's news.
+            if let Some(now) = self.news {
+                let mut pick = None;
+                egui::ComboBox::from_id_salt("help releases").selected_text(release_title(&releases[now.min(releases.len() - 1)])).width(220.0).show_ui(ui, |ui| {
+                    for (k, r) in releases.iter().enumerate() {
+                        if ui.selectable_label(k == now, release_title(r)).clicked() {
+                            pick = Some(k);
+                        }
+                    }
+                })
+                .response
+                .widget_info(|| egui::WidgetInfo::labeled(egui::Role::ComboBox, true, "Version"));
+                if let Some(k) = pick {
+                    self.open_news(k);
                 }
             }
             // The chapter's sections, to jump to.
-            egui::ComboBox::from_id_salt("help sections").selected_text("In this chapter").width(260.0).show_ui(ui, |ui| {
-                for s in chapter.sections.iter().filter(|s| s.level <= 3) {
-                    let indent = "    ".repeat(s.level.saturating_sub(1) as usize);
+            egui::ComboBox::from_id_salt("help sections").selected_text(if self.news.is_some() { "In this version" } else { "In this chapter" }).width(260.0).show_ui(ui, |ui| {
+                for s in sections.iter().filter(|s| s.level <= 3) {
+                    let indent = "    ".repeat(s.level.saturating_sub(if self.news.is_some() { 3 } else { 1 }) as usize);
                     if ui.selectable_label(false, format!("{indent}{}", s.title)).clicked() {
                         self.jump = Some(s.anchor.clone());
                         self.at = s.anchor.clone();
@@ -141,15 +231,20 @@ impl HelpView {
             })
             .response
             .widget_info(|| egui::WidgetInfo::labeled(egui::Role::ComboBox, true, "In this chapter"));
-            ui.weak("The manual still describes the editor of 0.35 in places: the menus it names are commands here (Ctrl+Shift+P finds them).");
+            if self.news.is_none() {
+                ui.weak("The manual still describes the editor of 0.35 in places: the menus it names are commands here (Ctrl+Shift+P finds them).");
+            }
         });
         ui.separator();
-        let chapter = &all[self.chapter];
         let mut follow: Option<String> = None;
         let jump = self.jump.take();
-        egui::ScrollArea::vertical().id_salt(("help text", self.chapter)).auto_shrink([false, false]).show(ui, |ui| {
+        egui::ScrollArea::vertical().id_salt(("help text", self.chapter, self.news)).auto_shrink([false, false]).show(ui, |ui| {
             ui.set_max_width(ui.available_width().min(860.0));
-            for (n, block) in chapter.blocks.iter().enumerate() {
+            if let Some(r) = self.news.and_then(|k| releases.get(k)) {
+                ui.label(RichText::new(format!("What's new: {}", release_title(r))).heading().strong().size(22.0));
+                ui.add_space(4.0);
+            }
+            for (n, block) in blocks.iter().enumerate() {
                 match block {
                     Block::Heading(level, title, anchor) => {
                         ui.add_space(if *level <= 2 { 10.0 } else { 6.0 });
@@ -229,6 +324,15 @@ impl HelpView {
                 ui.ctx().open_url(egui::OpenUrl::new_tab(web));
             }
         }
+    }
+}
+
+/// A release as its list names it: its heading, or what isn't released yet.
+fn release_title(r: &manual::Release) -> String {
+    if r.version.is_empty() {
+        format!("This version ({})", manual::VERSION)
+    } else {
+        r.title.clone()
     }
 }
 
@@ -313,5 +417,64 @@ mod ui_tests {
         h.run();
         assert_eq!((manual::chapters()[h.state().chapter].file, h.state().at.as_str()), ("07-events.md", "triggers"));
         assert_eq!(h.state_mut().follow("https://example.org"), Some("https://example.org".to_string()));
+    }
+
+    #[test]
+    fn every_chapter_and_every_release_is_drawn_in_characters_the_font_has() {
+        // (The harness stops at a character without a glyph: what the manual or the changelog
+        // gains must be drawable, or `manual::drawable` learns it.)
+        let mut h = Harness::builder().with_size(egui::vec2(1200.0, 800.0)).build_ui_state(|ui, v: &mut HelpView| v.show(ui), HelpView::default());
+        for k in 0..manual::chapters().len() {
+            h.state_mut().open(k, "");
+            h.run_steps(2);
+        }
+        for k in 0..manual::releases().len() {
+            h.state_mut().open_news(k);
+            h.run_steps(2);
+        }
+        // Searching shows lines of any chapter.
+        for words in ["the", "choose", "language", "pad"] {
+            h.state_mut().search(words);
+            h.run_steps(2);
+        }
+    }
+
+    #[test]
+    fn whats_new_is_a_chapter_of_its_own_and_a_field_is_explained() {
+        let mut h = Harness::builder().with_size(egui::vec2(1200.0, 800.0)).build_ui_state(|ui, v: &mut HelpView| v.show(ui), HelpView::default());
+        h.run();
+        // What's new: at the end of the chapters, the newest version first, the others to pick.
+        h.get_by_label("What's new").click();
+        h.run();
+        assert_eq!(h.state().news, Some(0));
+        let newest = release_title(&manual::releases()[0]);
+        assert!(h.query_all_by_label_contains(&format!("What's new: {newest}")).next().is_some());
+        assert!(h.state().status().starts_with("chapter=news:"), "{}", h.state().status());
+        if manual::releases().len() > 1 {
+            h.state_mut().open_news(1);
+            h.run();
+            assert!(h.query_all_by_label_contains(&format!("What's new: {}", release_title(&manual::releases()[1]))).next().is_some());
+        }
+        // Back leads to the chapter that was read; a chapter picked leaves the news too.
+        h.get_by_label("Back").click();
+        h.run();
+        assert_eq!((h.state().news, h.state().chapter), (None, 0));
+        // A field asked about: what it is for stands above where the manual names it, and the
+        // chapter about its form comes first.
+        h.state_mut().open_field("Stack size", "How many fit in one inventory slot.", "05-database.md");
+        h.run();
+        assert!(h.query_all_by_label("Stack size").next().is_some());
+        h.get_by_label("How many fit in one inventory slot.");
+        h.get_by_label("Where the manual names it:");
+        assert_eq!(manual::chapters()[h.state().chapter].file, "05-database.md");
+        assert!(h.state().status().ends_with("field=Stack_size"), "{}", h.state().status());
+        // One the manual doesn't name says so; put away, the search is a search again.
+        h.state_mut().open_field("Zzyzx", "", "05-database.md");
+        h.run();
+        h.get_by_label("The manual doesn't name it.");
+        h.get_by_label("Nothing more is written about this field.");
+        h.get_by_label("Put this away").click();
+        h.run();
+        assert!(h.state().about.is_none());
     }
 }

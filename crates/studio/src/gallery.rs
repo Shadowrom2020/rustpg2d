@@ -27,7 +27,14 @@ pub struct NewAsset {
     /// Why the last *Create* didn't work.
     pub error: Option<String>,
     focused: bool,
+    /// A new map: how many tiles wide and high (0 = not looked at yet: the usual size), and
+    /// the material its ground is filled with (`None` = not picked yet: the first there is).
+    pub map_size: (u32, u32),
+    pub map_ground: Option<String>,
 }
+
+/// The size a new map starts with.
+pub const MAP_SIZE: (u32, u32) = (40, 30);
 
 impl NewAsset {
     pub fn of(kind: Option<RefKind>) -> NewAsset {
@@ -49,7 +56,83 @@ pub enum Outcome {
     FromLibrary { kind: RefKind, name: String, from: String },
     /// A new one from a file (a 3D model, a picture, a sound).
     FromFile { kind: RefKind, name: String, file: std::path::PathBuf },
+    /// A new map: its name, its size in tiles, the material its ground is filled with ("" = bare).
+    Map { name: String, width: u32, height: u32, ground: String },
     Cancel,
+}
+
+/// A new map: its name, its size, its ground. Returns what was asked for.
+fn new_map(ui: &mut egui::Ui, state: &mut NewAsset, lists: &[(RefKind, Vec<(String, String)>)]) -> Option<Outcome> {
+    use rustpg2d_engine::map::MAX_MAP_SIZE;
+    if state.map_size.0 == 0 {
+        state.map_size = MAP_SIZE;
+    }
+    let materials: &[(String, String)] = lists.iter().find(|(k, _)| *k == RefKind::Material).map_or(&[], |(_, l)| l.as_slice());
+    let maps: &[(String, String)] = lists.iter().find(|(k, _)| *k == RefKind::Map).map_or(&[], |(_, l)| l.as_slice());
+    // (Grass when the project has it, else the first material there is.)
+    let ground = state.map_ground.get_or_insert_with(|| materials.iter().find(|(id, _)| id == "grass").or(materials.first()).map_or(String::new(), |(id, _)| id.clone()));
+    let entered = ui
+        .horizontal(|ui| {
+            let by = ui.label("Name").id;
+            let r = ui.add(egui::TextEdit::singleline(&mut state.name).hint_text("forest, old_mill, cellar-2").desired_width(300.0)).labelled_by(by);
+            let entered = r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+            if !state.focused {
+                r.request_focus();
+                state.focused = true;
+            }
+            entered
+        })
+        .inner;
+    ui.weak("Its name is also its file's: letters, digits, _ and -. Rename changes it later, everywhere it is named.");
+    ui.add_space(6.0);
+    ui.horizontal(|ui| {
+        let by = ui.label("Width").id;
+        ui.add(egui::DragValue::new(&mut state.map_size.0).range(1..=MAX_MAP_SIZE)).labelled_by(by);
+        let by = ui.label("Height").id;
+        ui.add(egui::DragValue::new(&mut state.map_size.1).range(1..=MAX_MAP_SIZE)).labelled_by(by);
+        ui.weak("tiles").on_hover_text("A tile is one step of a character. A room: 8 x 6; a village: 40 x 30. The size can be changed later (the map's Inspector).");
+    });
+    ui.horizontal(|ui| {
+        let by = ui.label("Ground").id;
+        let shown = |id: &str| materials.iter().find(|(i, _)| i == id).map_or_else(|| "bare (nothing painted)".to_string(), |(i, n)| if n == i || n.is_empty() { i.clone() } else { format!("{n}  ({i})") });
+        egui::ComboBox::from_id_salt("new map ground").selected_text(shown(ground)).width(240.0).show_ui(ui, |ui| {
+            ui.selectable_value(ground, String::new(), "bare (nothing painted)");
+            for (id, _) in materials {
+                ui.selectable_value(ground, id.clone(), shown(id));
+            }
+        })
+        .response
+        .labelled_by(by)
+        .on_hover_text("What the whole map is painted with to begin with. The Terrain tool paints over it.");
+    });
+    ui.add_space(8.0);
+    let name = state.name.trim().to_string();
+    let why = if name.is_empty() {
+        Some("")
+    } else if !editor_core::rename::valid_name(&name) {
+        Some("A map's name has letters, digits, _ and - only (no spaces).")
+    } else if maps.iter().any(|(id, _)| *id == name) {
+        Some("A map of this name exists.")
+    } else {
+        None
+    };
+    if let Some(why) = why.filter(|w| !w.is_empty()) {
+        ui.colored_label(ui.visuals().warn_fg_color, why);
+    }
+    if let Some(e) = &state.error {
+        ui.colored_label(ui.visuals().error_fg_color, e);
+    }
+    let mut outcome = None;
+    ui.horizontal(|ui| {
+        let create = ui.add_enabled(why.is_none(), egui::Button::new("Create")).clicked();
+        if (create || entered) && why.is_none() {
+            outcome = Some(Outcome::Map { name, width: state.map_size.0, height: state.map_size.1, ground: ground.clone() });
+        }
+        if ui.button("Cancel").clicked() {
+            outcome = Some(Outcome::Cancel);
+        }
+    });
+    outcome
 }
 
 /// The gallery's window. `groups`: the kinds as the Project browser groups them; `lists`: id
@@ -66,7 +149,7 @@ pub fn show(ctx: &egui::Context, state: &mut NewAsset, groups: &[(&str, &[RefKin
                 ui.set_width(200.0);
                 egui::ScrollArea::vertical().id_salt("kinds").max_height(430.0).show(ui, |ui| {
                     for (group, kinds) in groups {
-                        let kinds: Vec<RefKind> = kinds.iter().copied().filter(|k| k.is_def()).collect();
+                        let kinds: Vec<RefKind> = kinds.iter().copied().filter(|k| k.is_def() || *k == RefKind::Map).collect();
                         if kinds.is_empty() {
                             continue;
                         }
@@ -96,6 +179,12 @@ pub fn show(ctx: &egui::Context, state: &mut NewAsset, groups: &[(&str, &[RefKin
                 ui.heading(format!("New {}", kind.label().to_lowercase()));
                 ui.weak(editor_core::defs::about(kind));
                 ui.add_space(6.0);
+                if kind == RefKind::Map {
+                    if let Some(o) = new_map(ui, state, lists) {
+                        outcome = Some(o);
+                    }
+                    return;
+                }
                 let entered = ui
                     .horizontal(|ui| {
                         let by = ui.label("Name").id;
@@ -262,4 +351,63 @@ pub fn show(ctx: &egui::Context, state: &mut NewAsset, groups: &[(&str, &[RefKin
         });
     });
     outcome
+}
+
+#[cfg(test)]
+mod ui_tests {
+    use super::*;
+    use egui_kittest::kittest::Queryable;
+    use egui_kittest::Harness;
+
+    struct G {
+        state: NewAsset,
+        asked: Vec<(String, u32, u32, String)>,
+    }
+
+    #[test]
+    fn a_new_map_gets_its_name_its_size_and_its_ground() {
+        let lists = vec![
+            (RefKind::Material, vec![("dirt".to_string(), "Dirt".to_string()), ("grass".to_string(), "Grass".to_string())]),
+            (RefKind::Map, vec![("village".to_string(), "village".to_string())]),
+        ];
+        let mut h = Harness::builder().with_size(egui::vec2(1000.0, 700.0)).build_ui_state(
+            move |ui, g: &mut G| {
+                let library = |_: RefKind| Vec::new();
+                if let Some(Outcome::Map { name, width, height, ground }) = show(ui.ctx(), &mut g.state, &[("World", &[RefKind::Map, RefKind::Material])], &lists, &library, None, &mut |_, _| None) {
+                    g.asked.push((name, width, height, ground));
+                }
+            },
+            G { state: NewAsset::of(None), asked: Vec::new() },
+        );
+        h.run();
+        // A map is one of the things to make; it starts with the usual size and grass.
+        h.get_by_label("Map").click();
+        h.run();
+        h.get_by_label("New map");
+        assert_eq!(h.state().state.map_size, MAP_SIZE);
+        assert_eq!(h.state().state.map_ground.as_deref(), Some("grass"));
+        // A name that is no file's, or taken, says why; nothing is made.
+        let name = h.get_by_role_and_label(egui::accesskit::Role::TextInput, "Name");
+        name.focus();
+        name.type_text("old mill");
+        h.run();
+        assert!(h.query_all_by_label_contains("letters, digits, _ and - only").next().is_some());
+        h.get_by_label("Create").click();
+        h.run();
+        assert!(h.state().asked.is_empty());
+        h.state_mut().state.name = "village".into();
+        h.run();
+        h.get_by_label("A map of this name exists.");
+        // Named, sized and with its ground picked, it is asked for.
+        h.state_mut().state.name = "old_mill".into();
+        h.state_mut().state.map_size = (24, 18);
+        h.run();
+        h.get_by_role_and_label(egui::accesskit::Role::ComboBox, "Ground").click();
+        h.run();
+        h.get_by_label("Dirt  (dirt)").click();
+        h.run();
+        h.get_by_label("Create").click();
+        h.run();
+        assert_eq!(h.state().asked, [("old_mill".to_string(), 24, 18, "dirt".to_string())]);
+    }
 }

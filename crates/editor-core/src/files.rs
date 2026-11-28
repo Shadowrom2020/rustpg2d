@@ -128,12 +128,19 @@ pub struct EditorSettings {
     pub share_licence: String,
     pub share_attribution: String,
     pub share_folder: String,
+    /// The version of the editor whose news were looked at (or put away) last: "" = never.
+    pub seen_version: String,
 }
 
 impl Default for EditorSettings {
     fn default() -> Self {
-        EditorSettings { mcp_autostart: false, mcp_port: crate::DEFAULT_PORT, meshy_model: "nano-banana-2-lite".into(), meshy_budget: 60, meshy_ask: true, test_setups: Default::default(), cleanup_kept: Default::default(), pack_sources: Vec::new(), share_author: String::new(), share_licence: String::new(), share_attribution: String::new(), share_folder: String::new() }
+        EditorSettings { mcp_autostart: false, mcp_port: crate::DEFAULT_PORT, meshy_model: "nano-banana-2-lite".into(), meshy_budget: 60, meshy_ask: true, test_setups: Default::default(), cleanup_kept: Default::default(), pack_sources: Vec::new(), share_author: String::new(), share_licence: String::new(), share_attribution: String::new(), share_folder: String::new(), seen_version: String::new() }
     }
+}
+
+/// Whether an editor kept settings on this computer before (else this is its first start).
+pub fn settings_exist() -> bool {
+    config_dir().is_some_and(|d| d.join("editor.ron").is_file())
 }
 
 pub fn load_settings() -> EditorSettings {

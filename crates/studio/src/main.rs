@@ -13,6 +13,7 @@
 //! `maphover`, `mapview`, `maptool`, `mapopt`, `mapplace`, `mapzone`, `mapselect`, `mapact`, `mapshot`; any other line
 //! is a command of the editor, e.g. `map.open village` or `edit.undo`).
 
+mod agentspage;
 mod form;
 mod gallery;
 mod helpview;
@@ -75,6 +76,7 @@ impl Studio {
         gfx::init(rs.device.clone(), rs.queue.clone(), 16, 16, &gfx::conf::Conf::default());
         let mut shell = shell::Shell::open(project_dir, start);
         shell.ws.looking_at = "the overview".into();
+        shell.started();
         Studio { shell, script: Script::from_env(), frames: 0, fps_time: 0.0, fps: 0.0 }
     }
 
@@ -175,6 +177,7 @@ impl Studio {
                 // A guided tour: `tour start first-map|talking-character|a-quest`, `tour skip`, `tour end`; `tour` prints
                 // `ID done/steps [x - .] now=STEP at=X,Y` (where the control it points at is).
                 "tour" => println!("[tour] {}", self.shell.tour_word(ctx, &cmd[1..])),
+                "agents" => println!("[agents] {}", self.shell.agents_word(ctx, &cmd[1..])),
                 // The Help tab: `help topic` (as F1: the manual for the tab in front), `help open FILE [ANCHOR]`,
                 // `help search TEXT…`, `help hit K`, `help back`.
                 "help" => println!("[help] {}", self.shell.help_word(&cmd[1..])),
@@ -460,7 +463,9 @@ impl Studio {
                     let modifiers = if arg(0) == "click" && arg(3) == "ctrl" { egui::Modifiers::COMMAND | egui::Modifiers::CTRL } else { egui::Modifiers::NONE };
                     self.script.input.push_back(vec![egui::Event::ModifiersChanged(modifiers), egui::Event::PointerMoved(pos)]);
                     if arg(0) == "click" {
-                        let button = |pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers };
+                        // (`click X Y right`: the other button, for menus.)
+                        let which = if arg(3) == "right" { egui::PointerButton::Secondary } else { egui::PointerButton::Primary };
+                        let button = |pressed| egui::Event::PointerButton { pos, button: which, pressed, modifiers };
                         self.script.input.push_back(vec![button(true)]);
                         self.script.input.push_back(vec![button(false)]);
                         self.script.input.push_back(vec![egui::Event::ModifiersChanged(egui::Modifiers::NONE)]);

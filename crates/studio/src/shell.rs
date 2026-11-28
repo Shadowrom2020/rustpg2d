@@ -44,6 +44,8 @@ pub enum Tab {
     Art,
     /// The Creator's Manual.
     Help,
+    /// AI agents: the agent server, the set-up for an agent's program, what the agents did.
+    Agents,
 }
 
 impl Tab {
@@ -58,6 +60,7 @@ impl Tab {
             Tab::Library => "Library".into(),
             Tab::Art => "Generate art".into(),
             Tab::Help => "Help".into(),
+            Tab::Agents => "AI agents".into(),
             Tab::Play => "Play".into(),
             Tab::Problems => {
                 let (e, w) = ws.problems.counts();
@@ -90,6 +93,7 @@ impl Tab {
             Tab::Library => "library".into(),
             Tab::Art => "art".into(),
             Tab::Help => "help".into(),
+            Tab::Agents => "agents".into(),
             Tab::Play => "play".into(),
             Tab::Problems => "problems".into(),
             Tab::History => "history".into(),
@@ -236,6 +240,12 @@ enum Ask {
     Art(RefKind, String),
     /// *Share…*: these assets as a pack.
     Share(Vec<rustpg2d_engine::library::AssetRef>),
+    /// The manual at this chapter.
+    Help(&'static str),
+    /// *What's new*: the changelog's part for this version, and the news counted as seen.
+    News,
+    /// The news were put away unread.
+    NewsSeen,
     /// Look for what nothing uses.
     FindUnused,
     /// Start the game in the Play tab: from the title screen, on the start map, on a map at a
@@ -345,6 +355,9 @@ pub struct Shell {
     pub art: crate::artpage::ArtPage,
     pub help: crate::helpview::HelpView,
     pub tour: crate::tourpanel::TourPanel,
+    pub agents: crate::agentspage::AgentsPage,
+    /// The editor is newer than the one whose news were looked at: the Overview says so.
+    pub news: bool,
     /// The home screen's fields.
     pub home: Home,
     /// The timelines of the cut-scenes open in tabs, by id.
@@ -389,12 +402,28 @@ impl Shell {
     fn around(mut ws: Workspace, start: rustpg2d_engine::runtime::StartOptions) -> Shell {
         ws.refresh_refs();
         ws.history_frame(None);
+        // (The agent server's port and whether it starts with the editor are the editor's settings.)
+        let settings = editor_core::files::load_settings();
+        (ws.mcp.port, ws.mcp.autostart) = (settings.mcp_port, settings.mcp_autostart);
         // Documents in the middle, the browser left, problems and history below.
         let mut dock = DockState::new(vec![Tab::Overview]);
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, share: None, lib_look: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), art: Default::default(), help: Default::default(), tour: Default::default(), timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), model_stages: Default::default(), pixels: Default::default(), sounds: Default::default(), sheets: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new() }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, share: None, lib_look: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), art: Default::default(), help: Default::default(), tour: Default::default(), agents: Default::default(), news: false, timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), model_stages: Default::default(), pixels: Default::default(), sounds: Default::default(), sheets: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new() }
+    }
+
+    /// The window around another workspace (another project, or none). What belongs to the
+    /// editor and not to a project stays: its answers, the agent server (agents that are
+    /// connected go on in the new project), the Help tab, the news.
+    fn around_another(&mut self, mut ws: Workspace) {
+        ws.mcp = std::mem::take(&mut self.ws.mcp);
+        let (log, help, agents, news) = (std::mem::take(&mut self.log), std::mem::take(&mut self.help), std::mem::take(&mut self.agents), self.news);
+        let (port, autostart) = (ws.mcp.port, ws.mcp.autostart);
+        *self = Shell::around(ws, rustpg2d_engine::runtime::StartOptions::default());
+        // (A server that listens keeps its port, whatever the settings say meanwhile.)
+        (self.ws.mcp.port, self.ws.mcp.autostart) = (port, autostart);
+        (self.log, self.help, self.agents, self.news) = (log, help, agents, news);
     }
 
     /// Whether anything waits to be saved: definitions, maps, scripts.
@@ -410,9 +439,7 @@ impl Shell {
         }
         let ws = Workspace::open_path(path.to_path_buf(), Gpu::Yes).map_err(|e| format!("{}: {e:#}", path.display()))?;
         self.ws.finish_project_file();
-        let log = std::mem::take(&mut self.log);
-        *self = Shell::around(ws, rustpg2d_engine::runtime::StartOptions::default());
-        self.log = log;
+        self.around_another(ws);
         self.ws.set_status(format!("Opened {}", path.display()));
         Ok(())
     }
@@ -457,9 +484,7 @@ impl Shell {
             return Err("there are unsaved changes: save first (Ctrl+S)".into());
         }
         self.ws.close_project();
-        let log = std::mem::take(&mut self.log);
-        *self = Shell::around(Workspace::empty(), rustpg2d_engine::runtime::StartOptions::default());
-        self.log = log;
+        self.around_another(Workspace::empty());
         Ok(())
     }
 
@@ -479,7 +504,7 @@ impl Shell {
             return;
         }
         // Next to another document when there is one, else in the first leaf.
-        let doc = self.dock.find_tab_from(|t| matches!(t, Tab::Overview | Tab::World | Tab::Settings(_) | Tab::Kind(_) | Tab::Def(..) | Tab::Map(_) | Tab::Script(_) | Tab::Names | Tab::Publish | Tab::Library | Tab::Art | Tab::Help | Tab::Play));
+        let doc = self.dock.find_tab_from(|t| matches!(t, Tab::Overview | Tab::World | Tab::Settings(_) | Tab::Kind(_) | Tab::Def(..) | Tab::Map(_) | Tab::Script(_) | Tab::Names | Tab::Publish | Tab::Library | Tab::Art | Tab::Help | Tab::Agents | Tab::Play));
         match doc {
             Some(path) => {
                 self.dock.set_focused_node_and_surface(path.node_path());
@@ -678,8 +703,17 @@ impl Shell {
             Some(Tab::History) => ("02-the-editor.md", words(&["undo", "saving"])),
             Some(Tab::Settings(page)) => ("05-database.md", vec![page.to_lowercase(), "project".into()]),
             Some(Tab::Help) => (manual_file(self.help.chapter), Vec::new()),
+            Some(Tab::Agents) => ("13-ai-agents.md", Vec::new()),
             _ => ("01-getting-started.md", Vec::new()),
         }
+    }
+
+    /// A field of a form was asked about: the Help tab with what it is for and where the
+    /// manual names it.
+    pub fn open_field_help(&mut self, label: &str, help: &str) {
+        let (file, _) = self.help_topic();
+        self.help.open_field(label, help, file);
+        self.show_tab(Tab::Help);
     }
 
     /// F1: the Help tab at the manual's part for what is in front.
@@ -697,8 +731,47 @@ impl Shell {
             self.open_help();
             return self.help.status();
         }
+        // (*What's new* as its button opens it: in front, and the news count as seen.)
+        if args.first().map(String::as_str) == Some("news") && args.len() == 1 {
+            self.open_news();
+            return self.help.status();
+        }
         match self.help.word(args) {
             Ok(()) => self.help.status(),
+            Err(e) => format!("failed: {e}"),
+        }
+    }
+
+    /// *What's new*: the Help tab at the changelog's part for this version; the news count as seen.
+    pub fn open_news(&mut self) {
+        self.help.open_news(0);
+        self.show_tab(Tab::Help);
+        self.news_seen();
+    }
+
+    /// The news of this version were looked at, or put away: not offered again.
+    pub fn news_seen(&mut self) {
+        self.news = false;
+        editor_core::files::save_settings(&editor_core::files::EditorSettings { seen_version: editor_core::manual::VERSION.to_string(), ..editor_core::files::load_settings() });
+    }
+
+    /// Looked at when the editor starts: whether it is newer than the one that ran here last
+    /// (then the Overview offers *What's new*). An editor that starts for the first time has
+    /// no news; the agent server starts when the settings say so.
+    pub fn started(&mut self) {
+        let settings = editor_core::files::load_settings();
+        if !editor_core::files::settings_exist() {
+            editor_core::files::save_settings(&editor_core::files::EditorSettings { seen_version: editor_core::manual::VERSION.to_string(), ..settings });
+        } else {
+            self.news = settings.seen_version != editor_core::manual::VERSION;
+        }
+        self.ws.mcp_autostart();
+    }
+
+    /// The AI agents page: the words of `AgentsPage::word`; returns its `status` line.
+    pub fn agents_word(&mut self, ctx: &egui::Context, args: &[String]) -> String {
+        match self.agents.word(ctx, &mut self.ws, args) {
+            Ok(()) => self.agents.status(&self.ws),
             Err(e) => format!("failed: {e}"),
         }
     }
@@ -815,6 +888,7 @@ impl Shell {
             ("library", None, _) => Tab::Library,
             ("art", None, _) => Tab::Art,
             ("help", None, _) => Tab::Help,
+            ("agents", None, _) => Tab::Agents,
             ("play", None, _) => Tab::Play,
             ("problems", None, _) => Tab::Problems,
             ("history", None, _) => Tab::History,
@@ -869,7 +943,7 @@ impl Shell {
         if r.is_ok() {
             let words: Vec<&str> = line.split_whitespace().collect();
             match words.as_slice() {
-                ["map.open", ..] => {
+                ["map.open", ..] | ["map.new", ..] => {
                     if let Some(m) = self.ws.doc.as_ref().map(|d| d.map.name.clone()) {
                         self.show_tab(Tab::Map(m));
                     }
@@ -1177,7 +1251,7 @@ impl Shell {
 
         let mut asks = Vec::new();
         {
-            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, library: &mut self.library, art: &mut self.art, help: &mut self.help, tour: &mut self.tour, home: &mut self.home, timelines: &mut self.timelines, nodes: &mut self.nodes, stages: &mut self.stages, figures: &mut self.figures, model_stages: &mut self.model_stages, pixels: &mut self.pixels, sounds: &mut self.sounds, sheets: &mut self.sheets, scrub: &mut self.scrub, try_next: &mut self.try_next, rs, asks: &mut asks };
+            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, library: &mut self.library, art: &mut self.art, help: &mut self.help, tour: &mut self.tour, agents: &mut self.agents, news: &mut self.news, home: &mut self.home, timelines: &mut self.timelines, nodes: &mut self.nodes, stages: &mut self.stages, figures: &mut self.figures, model_stages: &mut self.model_stages, pixels: &mut self.pixels, sounds: &mut self.sounds, sheets: &mut self.sheets, scrub: &mut self.scrub, try_next: &mut self.try_next, rs, asks: &mut asks };
             DockArea::new(&mut self.dock).show_inside(ui, &mut viewer);
         }
         for ask in asks {
@@ -1193,6 +1267,13 @@ impl Shell {
                     self.show_tab(Tab::Art);
                 }
                 Ask::Share(assets) => self.share = Some(crate::packspage::ShareWindow::of(&self.ws, assets)),
+                Ask::Help(file) => {
+                    let (chapter, anchor) = editor_core::manual::topic(file, &[]);
+                    self.help.open(chapter, &anchor);
+                    self.show_tab(Tab::Help);
+                }
+                Ask::News => self.open_news(),
+                Ask::NewsSeen => self.news_seen(),
                 Ask::FindUnused => self.find_unused(),
                 Ask::Play(from) => self.play_from(from),
                 Ask::PlayWindow => self.play_window(),
@@ -1255,9 +1336,16 @@ impl Shell {
         if escape && self.palette.open.is_some() {
             self.palette.open = None;
         }
-        // F1: the manual, at the chapter for what is in front.
+        // F1: the manual, at the chapter for what is in front; with the pointer on a field's
+        // label, about that field. (A field's menu asks the same.)
+        let asked = crate::form::asked_field(ctx);
         if ctx.input(|i| i.key_pressed(egui::Key::F1)) {
-            self.open_help();
+            match crate::form::pointed_field(ctx) {
+                Some((label, help)) => self.open_field_help(&label, &help),
+                None => self.open_help(),
+            }
+        } else if let Some((label, help)) = asked {
+            self.open_field_help(&label, &help);
         }
         let (f5, f6) = ctx.input(|i| (i.key_pressed(egui::Key::F5), i.key_pressed(egui::Key::F6)));
         if f5 {
@@ -1311,7 +1399,26 @@ impl Shell {
         let pictures = pics.as_mut().map(|p| p as &mut dyn crate::form::Pictures);
         let lib = &self.ws.lib;
         let library = |kind: RefKind| lib.lib.as_ref().map_or(Vec::new(), |l| editor_core::defs::list(&l.db, kind));
-        let outcome = crate::gallery::show(ctx, state, GROUPS, &self.lists, &library, pictures, &mut library_picture);
+        // (The maps are a list like the others here: a new one's name must be free.)
+        let mut lists = self.lists.clone();
+        lists.push((RefKind::Map, self.ws.maps.iter().map(|m| (m.clone(), m.clone())).collect()));
+        let outcome = crate::gallery::show(ctx, state, GROUPS, &lists, &library, pictures, &mut library_picture);
+        if let Some(crate::gallery::Outcome::Map { name, width, height, ground }) = &outcome {
+            match self.ws.create_map(name, *width, *height, Some(ground.as_str())) {
+                Ok(said) => {
+                    self.new_asset = None;
+                    self.log.push(said.clone());
+                    self.ws.set_status(said);
+                    self.show_tab(Tab::Map(name.clone()));
+                }
+                Err(e) => {
+                    if let Some(state) = self.new_asset.as_mut() {
+                        state.error = Some(e);
+                    }
+                }
+            }
+            return;
+        }
         let made = match outcome {
             Some(crate::gallery::Outcome::FromLibrary { kind, name, from }) => Some((kind, self.ws.make_from_library(kind, &from, &name))),
             Some(crate::gallery::Outcome::FromFile { kind, name, file }) => Some((kind, self.ws.make_from_file(kind, &file, &name))),
@@ -1320,7 +1427,7 @@ impl Shell {
                 self.new_asset = None;
                 None
             }
-            None => None,
+            Some(crate::gallery::Outcome::Map { .. }) | None => None,
         };
         if let Some((kind, made)) = made {
             match made {
@@ -1542,6 +1649,8 @@ struct Viewer<'a> {
     art: &'a mut crate::artpage::ArtPage,
     help: &'a mut crate::helpview::HelpView,
     tour: &'a mut crate::tourpanel::TourPanel,
+    agents: &'a mut crate::agentspage::AgentsPage,
+    news: &'a mut bool,
     home: &'a mut Home,
     timelines: &'a mut std::collections::HashMap<String, crate::timeline::Timeline>,
     nodes: &'a mut std::collections::HashMap<String, crate::nodesview::NodesView>,
@@ -1614,6 +1723,11 @@ impl egui_dock::TabViewer for Viewer<'_> {
                 }
             }
             Tab::Help => self.help.show(ui),
+            Tab::Agents => {
+                if let Some(crate::agentspage::Want::Help) = self.agents.show(ui, self.ws) {
+                    self.asks.push(Ask::Help("13-ai-agents.md"));
+                }
+            }
             Tab::Publish => {
                 // (The game is exported from its files: what is in the script tabs is written first.)
                 if self.scripts.values().any(|t| t.dirty()) {
@@ -1661,6 +1775,9 @@ impl Viewer<'_> {
             }
             if (f.is_empty() || "generate art meshy".contains(&f)) && ui.selectable_label(false, "Generate art").on_hover_text("Icons, portraits, pictures and 3D models drawn by Meshy with your own account").clicked() {
                 self.asks.push(Ask::Open(Tab::Art));
+            }
+            if (f.is_empty() || "ai agents mcp".contains(&f)) && ui.selectable_label(false, "AI agents").on_hover_text("An AI assistant works in the project with you: the agent server and the set-up for its program").clicked() {
+                self.asks.push(Ask::Open(Tab::Agents));
             }
             if (f.is_empty() || "publishing export".contains(&f)) && ui.selectable_label(false, "Publishing").on_hover_text("The game exported to play without the editor: for Linux, Windows, macOS and the web").clicked() {
                 self.asks.push(Ask::Open(Tab::Publish));
@@ -1721,16 +1838,14 @@ impl Viewer<'_> {
                 }
                 for (kind, rows) in &found {
                     let header = egui::CollapsingHeader::new(format!("{} ({})", plural(kind.label()), rows.len())).id_salt(("kind", kind.name())).open(filtering.then_some(rows.len() <= 40)).show(ui, |ui| {
-                        if *kind != RefKind::Map {
-                            ui.horizontal(|ui| {
-                                if ui.small_button(format!("+ New {}", kind.label().to_lowercase())).clicked() {
-                                    self.asks.push(Ask::New(Some(*kind)));
-                                }
-                                if ui.small_button("Show all").on_hover_text("All of them in a tab, as pictures or a list").clicked() {
-                                    self.asks.push(Ask::Open(Tab::Kind(*kind)));
-                                }
-                            });
-                        }
+                        ui.horizontal(|ui| {
+                            if ui.small_button(format!("+ New {}", kind.label().to_lowercase())).clicked() {
+                                self.asks.push(Ask::New(Some(*kind)));
+                            }
+                            if *kind != RefKind::Map && ui.small_button("Show all").on_hover_text("All of them in a tab, as pictures or a list").clicked() {
+                                self.asks.push(Ask::Open(Tab::Kind(*kind)));
+                            }
+                        });
                         // Nothing typed: the creator's folders first, then the rest by what they
                         // are, where the kind has categories.
                         let folder_of = |id: &str| meta.of(*kind, id).map(|m| m.folder.as_str()).filter(|f| !f.is_empty());
@@ -1848,9 +1963,11 @@ impl Viewer<'_> {
                 ui.weak(&self.ws.status.0);
             }
             ui.add_space(8.0);
+            self.news_banner(ui);
             self.home(ui);
             return;
         }
+        self.news_banner(ui);
         let cfg = &self.ws.project.config;
         ui.heading(&cfg.name);
         ui.weak(self.ws.project_location().display().to_string());
@@ -1931,6 +2048,25 @@ impl Viewer<'_> {
         });
     }
 
+    /// After an update: this editor is newer than the one that ran here last.
+    fn news_banner(&mut self, ui: &mut egui::Ui) {
+        if !*self.news {
+            return;
+        }
+        egui::Frame::group(ui.style()).show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.label(format!("The editor was updated to {}.", editor_core::manual::VERSION));
+                if ui.button("What's new").on_hover_text("What changed, in the Help tab (it stays there to read later)").clicked() {
+                    self.asks.push(Ask::News);
+                }
+                if ui.small_button("Not now").on_hover_text("Puts this away. What's new stays at the end of the Help tab's chapters.").clicked() {
+                    self.asks.push(Ask::NewsSeen);
+                }
+            });
+        });
+        ui.add_space(8.0);
+    }
+
     fn play_tab(&mut self, ui: &mut egui::Ui) {
         if self.play.is_none() && self.play_error.is_none() && self.ws.project_open {
             match PlayView::open(&self.ws.project.root, self.start.clone()) {
@@ -1988,6 +2124,19 @@ impl Viewer<'_> {
             ui.label(if self.ws.problems.status() == "-" { "Not checked yet".to_string() } else { format!("{e} error(s), {w} warning(s)") });
         });
         ui.separator();
+        // Nothing listed: why, and what to do.
+        if self.ws.problems.list.is_empty() {
+            if self.ws.problems.status() == "-" {
+                ui.weak("The check looks through everything for what players would run into: a door that leads nowhere, a quest nobody gives, a script that doesn't compile. What it finds is listed here, each with the way to its place.");
+            } else {
+                ui.label("Nothing was found: the check has nothing to say against this game.");
+                ui.weak("It looks for what is broken, not for what is missing in the story: play it too.");
+                if ui.button("Play").clicked() {
+                    self.asks.push(Ask::Play(PlayFrom::Title));
+                }
+            }
+            return;
+        }
         // (What the library has is only known once it is read: when something is missing.)
         if self.ws.problems.list.iter().any(|p| p.missing().is_some()) {
             self.ws.lib.ensure_loaded();
@@ -2463,6 +2612,25 @@ impl Viewer<'_> {
         }
         ui.weak(if rows.len() == all.len() { format!("{}", all.len()) } else { format!("{} of {}", rows.len(), all.len()) });
         ui.separator();
+        // Nothing of this kind yet: what belongs here, and the ways to the first one.
+        if all.is_empty() {
+            let (one, many) = (kind.label().to_lowercase(), plural(kind.label()).to_lowercase());
+            ui.add_space(6.0);
+            ui.label(format!("This game has no {many} yet."));
+            ui.weak(editor_core::defs::about(kind));
+            ui.add_space(4.0);
+            ui.horizontal(|ui| {
+                if ui.button(format!("New {one}…")).on_hover_text("Blank, or from a file where the kind takes one").clicked() {
+                    self.asks.push(Ask::New(Some(kind)));
+                }
+                if rustpg2d_engine::library::KINDS.contains(&kind) && ui.button("Take some from the asset library").on_hover_text("Ready-made ones: tick what you want, they come with what they need").clicked() {
+                    self.asks.push(Ask::Open(Tab::Library));
+                }
+            });
+        } else if rows.is_empty() {
+            ui.add_space(6.0);
+            ui.weak(format!("None of the {} fits what is typed and picked above.", all.len()));
+        }
         let mut open = None;
         if view == 2 {
             let ids: Vec<String> = rows.iter().map(|(id, _)| id.clone()).collect();

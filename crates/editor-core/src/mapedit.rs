@@ -152,6 +152,72 @@ impl Workspace {
         }
     }
 
+    // ------------------------------------------------------------ whole maps
+
+    /// A new map of `width` x `height` tiles, its ground filled with `fill` when one is named:
+    /// written as its file and made the map being worked on (the others stay open). Says
+    /// what was made.
+    pub fn create_map(&mut self, name: &str, width: u32, height: u32, fill: Option<&str>) -> Result<String, String> {
+        use rustpg2d_engine::map::MAX_MAP_SIZE;
+        let name = name.trim();
+        if !self.project_open {
+            return Err("no project is open".into());
+        }
+        if !crate::rename::valid_name(name) {
+            return Err("map names use letters, digits, '_' and '-'".into());
+        }
+        if self.maps.iter().any(|m| m == name) {
+            return Err(format!("a map named \"{name}\" exists"));
+        }
+        if width == 0 || height == 0 || width > MAX_MAP_SIZE || height > MAX_MAP_SIZE {
+            return Err(format!("the size must be 1..{MAX_MAP_SIZE} tiles each way"));
+        }
+        let mut map = rustpg2d_engine::map::Map::new(name, width, height);
+        let fill = fill.filter(|f| !f.is_empty());
+        if let Some(f) = fill {
+            if self.project.db.material(f).is_none() {
+                return Err(format!("\"{f}\" is not a ground material"));
+            }
+            if let Some(v) = map.material_value(f) {
+                map.ground.fill(v);
+            }
+        }
+        self.load_doc(map);
+        self.save_map();
+        if !self.maps.iter().any(|m| m == name) {
+            // (Its file couldn't be written: the status says why.)
+            self.close_map(name);
+            return Err(self.status.0.clone());
+        }
+        self.search_stale = true;
+        Ok(format!("Made the map {name} ({width} x {height} tiles{})", fill.map_or(String::new(), |f| format!(", its ground {f}"))))
+    }
+
+    /// The map being worked on made `width` x `height` tiles, as one step: what is at its top
+    /// left stays, ground and scenery beyond the new edges go (characters, objects and zones
+    /// out there are kept: the check names them).
+    pub fn resize_map(&mut self, width: u32, height: u32) -> Result<String, String> {
+        use rustpg2d_engine::map::MAX_MAP_SIZE;
+        if width == 0 || height == 0 || width > MAX_MAP_SIZE || height > MAX_MAP_SIZE {
+            return Err(format!("the size must be 1..{MAX_MAP_SIZE} tiles each way"));
+        }
+        let assets = &self.assets;
+        let Some(doc) = &mut self.doc else { return Err("no map is open".into()) };
+        if crate::structdoc::is_scratch(&doc.map.name) {
+            return Err("a structure's size is changed in its own tab".into());
+        }
+        let (name, old) = (doc.map.name.clone(), (doc.map.width, doc.map.height));
+        if old == (width, height) {
+            return Ok(format!("{name} is {width} x {height} tiles already"));
+        }
+        let before = doc.map.clone();
+        doc.map.resize(width, height);
+        doc.record_map(before, assets);
+        self.begin_unnamed(&format!("Resize the map {name}"));
+        self.stale = true;
+        Ok(format!("{name}: {} x {} tiles became {width} x {height} (its top left kept)", old.0, old.1))
+    }
+
     // ------------------------------------------------------------ steps
 
     /// The map's objects and scenery now: change them, then [`Self::commit_map`].
@@ -1092,5 +1158,53 @@ impl Workspace {
         } else {
             Err("it is gone from the map".into())
         }
+    }
+}
+
+#[cfg(test)]
+mod map_tests {
+    use crate::Workspace;
+
+    #[test]
+    fn a_map_is_made_with_its_ground_and_resized_as_a_step() {
+        let dir = std::env::temp_dir().join(format!("rustpg2d-newmap-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        crate::files::create_project(&dir).unwrap();
+        let mut ws = Workspace::new(dir.clone(), crate::Gpu::No).unwrap();
+        ws.history_frame(None);
+        // A name that is no file name, one that is taken, a size that is none: refused.
+        assert!(ws.create_map("my forest", 20, 15, None).unwrap_err().contains("letters"));
+        assert!(ws.create_map("start", 20, 15, None).unwrap_err().contains("exists"));
+        assert!(ws.create_map("forest", 0, 15, None).unwrap_err().contains("size"));
+        assert!(ws.create_map("forest", 20, 15, Some("no_such_ground")).unwrap_err().contains("not a ground material"));
+        // Made: its file is there, it is the map being worked on, the one before stays open.
+        ws.open_map("start");
+        let said = ws.create_map("forest", 20, 15, None).unwrap();
+        assert!(said.contains("forest (20 x 15 tiles)"), "{said}");
+        assert!(ws.maps.iter().any(|m| m == "forest"));
+        assert_eq!(ws.doc.as_ref().map(|d| (d.map.name.as_str(), d.map.width, d.map.height, d.is_dirty())), Some(("forest", 20, 15, false)));
+        assert_eq!(ws.open_maps().len(), 2);
+        assert!(ws.project.load_map("forest").is_ok(), "the map's file was written");
+        // Resized: one step, undone as one.
+        ws.history_frame(None);
+        let steps = ws.timeline.done.len();
+        let said = ws.resize_map(8, 6).unwrap();
+        assert!(said.contains("20 x 15 tiles became 8 x 6"), "{said}");
+        ws.history_frame(None);
+        assert_eq!(ws.timeline.done.len(), steps + 1);
+        assert_eq!(ws.doc.as_ref().map(|d| (d.map.width, d.map.height)), Some((8, 6)));
+        ws.run("edit.undo", &[]).unwrap();
+        assert_eq!(ws.doc.as_ref().map(|d| (d.map.width, d.map.height)), Some((20, 15)));
+        // The same size again is no step; the commands do the same.
+        assert!(ws.resize_map(20, 15).unwrap().contains("already"));
+        assert!(ws.resize_map(0, 4).is_err());
+        let said = ws.run_line("map.new cellar 8 6").unwrap();
+        assert!(said.contains("cellar (8 x 6 tiles)"), "{said}");
+        assert!(ws.run_line("map.new cellar").unwrap_err().contains("exists"));
+        assert!(ws.run_line("map.new attic wide 6").unwrap_err().contains("isn't a number"));
+        ws.run_line("map.resize 10 7").unwrap();
+        assert_eq!(ws.doc.as_ref().map(|d| (d.map.name.as_str(), d.map.width, d.map.height)), Some(("cellar", 10, 7)));
+        let _ = std::fs::remove_dir_all(dir);
     }
 }

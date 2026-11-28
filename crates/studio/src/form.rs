@@ -173,26 +173,71 @@ fn label_cell(ui: &mut egui::Ui, label: &str, help: &str) -> egui::Id {
     .inner
 }
 
+/// A field the pointer rests on, or whose label's menu asked *About this field*: its label
+/// and what it is for, with the frame it was said in.
+#[derive(Clone, Default)]
+struct Pointed {
+    label: String,
+    help: String,
+    frame: u64,
+    asked: bool,
+}
+
+fn pointed_id() -> egui::Id {
+    egui::Id::unique("form field pointed at")
+}
+
+fn point_at(ctx: &egui::Context, row: &Row, asked: bool) {
+    let frame = ctx.cumulative_frame_nr();
+    ctx.data_mut(|d| {
+        // (Asked for by its menu: kept until the window took it, whatever the pointer does.)
+        if !asked && d.get_temp::<Pointed>(pointed_id()).is_some_and(|p| p.asked) {
+            return;
+        }
+        d.insert_temp(pointed_id(), Pointed { label: row.label.to_string(), help: row.help.to_string(), frame, asked });
+    });
+}
+
+/// The field the pointer rests on now (F1 is about it): its label and what it is for.
+pub fn pointed_field(ctx: &egui::Context) -> Option<(String, String)> {
+    let frame = ctx.cumulative_frame_nr();
+    ctx.data(|d| d.get_temp::<Pointed>(pointed_id())).filter(|p| frame.saturating_sub(p.frame) <= 1).map(|p| (p.label, p.help))
+}
+
+/// The field whose menu asked *About this field*, once.
+pub fn asked_field(ctx: &egui::Context) -> Option<(String, String)> {
+    ctx.data_mut(|d| {
+        let p = d.get_temp::<Pointed>(pointed_id()).filter(|p| p.asked)?;
+        d.remove_temp::<Pointed>(pointed_id());
+        Some((p.label, p.help))
+    })
+}
+
 /// The label of a field's row; true when *Back to the default* was picked from its menu.
 fn field_label(ui: &mut egui::Ui, row: Row) -> (egui::Id, bool) {
     let width = label_width(ui);
     let size = egui::vec2(width, ui.spacing().interact_size.y);
     ui.allocate_ui_with_layout(size, egui::Layout::left_to_right(egui::Align::Center), |ui| {
         ui.set_min_width(width);
-        let mut r = ui.add(egui::Label::new(row.label).truncate().sense(if row.reset { egui::Sense::click() } else { egui::Sense::hover() }));
+        let mut r = ui.add(egui::Label::new(row.label).truncate().sense(egui::Sense::click()));
         let id = r.id;
+        if r.hovered() {
+            point_at(ui.ctx(), &row, false);
+        }
         if !row.help.is_empty() {
-            r = r.on_hover_text(row.help);
+            r = r.on_hover_text(format!("{}\n\nF1: more about it", row.help));
         }
         let mut reset = false;
-        if row.reset {
-            r.context_menu(|ui| {
-                if ui.button("Back to the default").clicked() {
-                    reset = true;
-                    ui.close();
-                }
-            });
-        }
+        r.context_menu(|ui| {
+            if ui.button("About this field").on_hover_text("What it is for, and where the manual names it (F1 with the pointer on it does the same)").clicked() {
+                point_at(ui.ctx(), &row, true);
+                ui.close();
+            }
+            if ui.add_enabled(row.reset, egui::Button::new("Back to the default")).clicked() {
+                reset = true;
+                ui.close();
+            }
+        });
         (id, reset)
     })
     .inner
@@ -1203,6 +1248,26 @@ mod ui_tests {
         h.get_by_label("Ally").click();
         h.run();
         assert_eq!(h.state().value["use_on"], "Ally");
+    }
+
+    #[test]
+    fn a_fields_label_tells_the_window_what_was_asked_about() {
+        let mut h = form(RefKind::Item, "potion");
+        h.run();
+        assert!(asked_field(&h.ctx).is_none());
+        // Its menu's *About this field*: the label and what the schema says it is for, once.
+        h.get_by_role_and_label(egui::accesskit::Role::Label, "Stack size").click_secondary();
+        h.run();
+        h.get_by_label("About this field").click();
+        h.run();
+        let (label, help) = asked_field(&h.ctx).expect("the field asked about");
+        assert_eq!(label, "Stack size");
+        assert!(help.contains("inventory slot"), "{help}");
+        assert!(asked_field(&h.ctx).is_none(), "taken once");
+        // The pointer on a label: F1 is about that field (for as long as it rests there).
+        h.get_by_role_and_label(egui::accesskit::Role::Label, "Value").hover();
+        h.run_steps(2);
+        assert_eq!(pointed_field(&h.ctx).map(|(label, _)| label).as_deref(), Some("Value"));
     }
 
     #[test]

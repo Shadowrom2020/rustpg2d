@@ -43,7 +43,8 @@ pub struct Chapter {
     /// Its file's name (`03-maps.md`): what links name.
     pub file: &'static str,
     pub title: String,
-    pub text: &'static str,
+    /// Its Markdown, in the characters the editor can draw ([`drawable`]).
+    pub text: String,
     pub blocks: Vec<Block>,
     pub sections: Vec<Section>,
 }
@@ -85,13 +86,114 @@ pub fn chapters() -> &'static [Chapter] {
         FILES
             .iter()
             .map(|(file, text)| {
-                let blocks = parse(text);
+                let text = drawable(text);
+                let blocks = parse(&text);
                 let sections: Vec<Section> = blocks.iter().filter_map(|b| if let Block::Heading(level, title, anchor) = b { Some(Section { level: *level, title: title.clone(), anchor: anchor.clone() }) } else { None }).collect();
                 let title = sections.first().map_or_else(|| file.to_string(), |s| s.title.clone());
                 Chapter { file, title, text, blocks, sections }
             })
             .collect()
     })
+}
+
+/// The editor's version.
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// What changed in a version of R(ust)PG2D: its part of the changelog (built into the editor
+/// like the manual).
+pub struct Release {
+    /// Its heading (`0.36.0 — 2026-12-01`, `Unreleased`).
+    pub title: String,
+    /// Its version ("" while it isn't released).
+    pub version: String,
+    pub blocks: Vec<Block>,
+    pub sections: Vec<Section>,
+}
+
+/// The releases shown under *What's new*, the newest first (the changelog's older ones are
+/// left out: they are on the web).
+pub const RELEASES_SHOWN: usize = 8;
+
+/// The changelog cut into its releases: (heading, text).
+fn release_texts(changelog: &str) -> Vec<(String, String)> {
+    let mut out: Vec<(String, String)> = Vec::new();
+    for line in changelog.lines() {
+        if let Some(title) = line.strip_prefix("## ") {
+            out.push((title.trim().to_string(), String::new()));
+        } else if let Some((_, text)) = out.last_mut() {
+            text.push_str(line);
+            text.push('\n');
+        }
+    }
+    out
+}
+
+/// The newest releases with what changed in each.
+pub fn releases() -> &'static [Release] {
+    static ALL: OnceLock<Vec<Release>> = OnceLock::new();
+    ALL.get_or_init(|| {
+        release_texts(include_str!("../../../CHANGELOG.md"))
+            .into_iter()
+            .take(RELEASES_SHOWN)
+            .map(|(title, text)| {
+                let (title, blocks) = (drawable(&title), parse(&drawable(&text)));
+                let sections = blocks.iter().filter_map(|b| if let Block::Heading(level, title, anchor) = b { Some(Section { level: *level, title: title.clone(), anchor: anchor.clone() }) } else { None }).collect();
+                let version = title.split_whitespace().next().filter(|v| v.starts_with(|c: char| c.is_ascii_digit())).unwrap_or_default().to_string();
+                Release { title, version, blocks, sections }
+            })
+            .collect()
+    })
+}
+
+/// How many of [`releases`] are news to someone who saw version `seen` last: those above it
+/// (the newest alone when that version isn't among them, or nothing was seen yet).
+pub fn news_since(seen: &str) -> usize {
+    match releases().iter().position(|r| !seen.is_empty() && r.version == seen) {
+        Some(0) | None => 1,
+        Some(k) => k,
+    }
+    .min(releases().len())
+}
+
+/// A text in the characters the editor's font has: the manual and the changelog are written
+/// for the web, where any character shows. Arrows and signs become what they mean in plain
+/// characters; writing the font has no letters for (a language's own name in Japanese or
+/// Chinese) becomes `…`. A test in the editor draws every chapter to keep this complete.
+pub fn drawable(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut skipped = false;
+    for c in text.chars() {
+        let plain = match c {
+            '→' => "->",
+            '←' => "<-",
+            '↑' => "Up",
+            '↓' => "Down",
+            '≥' => ">=",
+            '≤' => "<=",
+            '≠' => "!=",
+            '√' => "the square root of ",
+            '✕' | '✖' => "x",
+            '○' => "Circle",
+            '□' => "Square",
+            '△' => "Triangle",
+            // (East Asian writing and its full-width signs.)
+            '\u{2E80}'..='\u{9FFF}' | '\u{F900}'..='\u{FAFF}' | '\u{FF00}'..='\u{FFEF}' => {
+                if !skipped {
+                    out.push('…');
+                }
+                skipped = true;
+                continue;
+            }
+            _ => {
+                out.push(c);
+                skipped = false;
+                continue;
+            }
+        };
+        out.push_str(plain);
+        skipped = false;
+    }
+    out
 }
 
 /// The chapter a link's file part names.
@@ -342,7 +444,11 @@ pub fn search(query: &str, most: usize) -> Vec<Hit> {
             if t.is_empty() || t.starts_with("```") || t.starts_with("![") {
                 continue;
             }
-            let text = plain(t);
+            // (A table's row reads as its cells, not as its bars.)
+            let text = if t.starts_with('|') { plain(t).trim_matches('|').split('|').map(str::trim).filter(|c| !c.is_empty() && !c.chars().all(|ch| ch == '-' || ch == ':')).collect::<Vec<_>>().join(" · ") } else { plain(t) };
+            if text.is_empty() {
+                continue;
+            }
             if fits(&text) && lines.len() < most {
                 lines.push(Hit { chapter: k, anchor: section.0.clone(), section: section.1.clone(), line: text });
             }
@@ -434,6 +540,32 @@ mod tests {
     }
 
     #[test]
+    fn the_changelog_is_cut_into_releases_and_the_news_counted() {
+        let texts = release_texts("# Changelog\n\nAbout.\n\n## Unreleased\n\n### Editor\n\n- one\n\n## 0.35.0 — 2026-11-26\n\n- two\n");
+        assert_eq!(texts.len(), 2);
+        assert_eq!((texts[0].0.as_str(), texts[1].0.as_str()), ("Unreleased", "0.35.0 — 2026-11-26"));
+        assert!(texts[0].1.contains("- one") && !texts[0].1.contains("two"));
+        // The real one: the newest first, each with what changed, its version read from its heading.
+        let all = releases();
+        assert!(!all.is_empty() && all.len() <= RELEASES_SHOWN);
+        assert!(all.iter().all(|r| r.blocks.len() > 1), "every release says what changed");
+        assert!(all.iter().skip(1).all(|r| !r.version.is_empty()), "{:?}", all.iter().map(|r| &r.title).collect::<Vec<_>>());
+        // News: everything above the version seen last; the newest alone when that isn't known.
+        assert_eq!(news_since(""), 1);
+        assert_eq!(news_since("0.0.1"), 1);
+        if let Some(k) = all.iter().position(|r| !r.version.is_empty()).filter(|k| *k > 0) {
+            assert_eq!(news_since(&all[k].version), k);
+        }
+    }
+
+    #[test]
+    fn what_the_font_lacks_is_written_plainly() {
+        assert_eq!(drawable("Left → Right, ↑/↓ choose, HP ≥ 1"), "Left -> Right, Up/Down choose, HP >= 1");
+        assert_eq!(drawable("(*Deutsch*, *日本語*, *Русский*)"), "(*Deutsch*, *…*, *Русский*)");
+        assert_eq!(drawable("Ctrl+P › Go to… — fine"), "Ctrl+P › Go to… — fine");
+    }
+
+    #[test]
     fn the_manual_is_searched_and_a_topic_found() {
         // A section's title first, then lines.
         let hits = search("painted ground", 20);
@@ -442,6 +574,7 @@ mod tests {
         assert!(search("lockpick", 50).iter().any(|h| chapters()[h.chapter].file == "09-gameplay.md"));
         assert!(search("zzzznothing", 5).is_empty() && search("   ", 5).is_empty());
         assert!(search("the", 7).len() <= 7);
+        assert!(search("stack size", 20).iter().all(|h| !h.line.starts_with('|')), "a table's row is shown as its cells");
         // F1: the section about what is at hand, else the chapter's top.
         let (k, anchor) = topic("03-maps.md", &["collision"]);
         assert_eq!((chapters()[k].file, anchor.as_str()), ("03-maps.md", "collision"));

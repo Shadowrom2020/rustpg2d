@@ -667,6 +667,19 @@ impl MapView {
         let f = self.place_filter.trim().to_lowercase();
         let mut pick = None;
         egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+            // Nothing to place: the project has none (of the kind picked), or nothing fits.
+            let offered = |kind: RefKind| p.lists.iter().find(|(k, _)| *k == kind).map_or(0, |(_, l)| l.len());
+            let there: usize = KINDS.iter().filter(|(k, _)| self.place_kind.is_none_or(|x| x == *k)).map(|(k, _)| offered(*k)).sum();
+            if there == 0 {
+                let what = self.place_kind.map_or("nothing to place".to_string(), |k| format!("no {}", crate::shell::plural(k.label()).to_lowercase()));
+                ui.weak(format!("This game has {what} yet."));
+                if ui.small_button(format!("New {}…", self.place_kind.unwrap_or(RefKind::Prop).label().to_lowercase())).clicked() {
+                    p.asks.push(Ask::New(self.place_kind.unwrap_or(RefKind::Prop)));
+                }
+                ui.weak("The asset library (in the Project browser, under Game) has ready-made ones.");
+            } else if !f.is_empty() && !KINDS.iter().filter(|(k, _)| self.place_kind.is_none_or(|x| x == *k)).any(|(k, _)| p.lists.iter().find(|(x, _)| x == k).is_some_and(|(_, l)| l.iter().any(|(id, label)| id.to_lowercase().contains(&f) || label.to_lowercase().contains(&f)))) {
+                ui.weak("Nothing fits what is typed.");
+            }
             for (kind, title) in KINDS {
                 if self.place_kind.is_some_and(|k| k != kind) {
                     continue;
@@ -716,6 +729,7 @@ impl MapView {
         let f = self.outliner_filter.trim().to_lowercase();
         let mut click: Option<(Selection, bool)> = None;
         let mut pick_scenery: Option<u16> = None;
+        let mut empty_tool: Option<Tool> = None;
         if let Some(doc) = doc_of(p.ws, name) {
             let ws = &*p.ws;
             egui::ScrollArea::vertical().id_salt("outliner").max_height(half).auto_shrink([false, false]).show(ui, |ui| {
@@ -763,6 +777,20 @@ impl MapView {
                     });
                 }
                 let zones: Vec<&rustpg2d_engine::map::Zone> = doc.map.zones.iter().filter(|z| f.is_empty() || z.name.to_lowercase().contains(&f)).collect();
+                // Nothing here yet: what the list is for, and the tools that fill it.
+                if doc.map.entities.is_empty() && doc.map.decor.is_empty() && doc.map.zones.is_empty() {
+                    ui.weak("Nothing stands on this map yet. Characters, objects, items and zones are listed here once they are there.");
+                    ui.horizontal_wrapped(|ui| {
+                        if ui.small_button("Place something").on_hover_text("The Place tool: pick a character, a prop or an item, then click the map").clicked() {
+                            empty_tool = Some(Tool::Place);
+                        }
+                        if ui.small_button("Paint its ground").on_hover_text("The Terrain tool: pick a material, then drag over the map").clicked() {
+                            empty_tool = Some(Tool::Terrain);
+                        }
+                    });
+                } else if !f.is_empty() && scenery.is_empty() && zones.is_empty() && !doc.map.entities.iter().any(|e| e.name.to_lowercase().contains(&f) || e.def.to_lowercase().contains(&f)) {
+                    ui.weak("Nothing on this map fits what is typed.");
+                }
                 if !zones.is_empty() {
                     egui::CollapsingHeader::new(format!("Zones ({})", zones.len())).id_salt("zones").default_open(true).open((!f.is_empty()).then_some(true)).show(ui, |ui| {
                         for z in zones {
@@ -776,6 +804,9 @@ impl MapView {
                     });
                 }
             });
+        }
+        if let Some(t) = empty_tool {
+            self.tool = t;
         }
         if let Some((s, add)) = click {
             if add {
@@ -860,6 +891,31 @@ impl MapView {
                 ui.add_space(6.0);
                 ui.weak("Select something on the map or in the list above to see and change it here. Below: the map itself.");
                 ui.separator();
+                // Its size (of the map being worked on).
+                if p.ws.doc.as_ref().is_some_and(|d| d.map.name == name) {
+                    let (now, id) = ((m.width, m.height), ui.scope_id().with(("map size", name)));
+                    let mut size: (u32, u32) = ui.data_mut(|d| d.get_temp(id)).unwrap_or(now);
+                    let mut apply = false;
+                    ui.horizontal(|ui| {
+                        let by = ui.label("Size").on_hover_text("In tiles. The map's top left stays where it is: a smaller map loses the ground and scenery beyond its new right and lower edges.").id;
+                        ui.add(egui::DragValue::new(&mut size.0).range(1..=rustpg2d_engine::map::MAX_MAP_SIZE)).labelled_by(by).on_hover_text("Width in tiles");
+                        ui.label("x");
+                        ui.add(egui::DragValue::new(&mut size.1).range(1..=rustpg2d_engine::map::MAX_MAP_SIZE)).on_hover_text("Height in tiles").widget_info(|| egui::WidgetInfo::labeled(egui::Role::SpinButton, true, "Height"));
+                        apply = ui.add_enabled(size != now, egui::Button::new("Resize")).on_hover_text("One step: Ctrl+Z brings the map back as it was").clicked();
+                    });
+                    if apply {
+                        match p.ws.resize_map(size.0, size.1) {
+                            Ok(said) => p.ws.set_status(said),
+                            Err(e) => p.ws.set_status(format!("Not resized: {e}")),
+                        }
+                        ui.data_mut(|d| d.remove_temp::<(u32, u32)>(id));
+                    } else if size != now {
+                        ui.data_mut(|d| d.insert_temp(id, size));
+                    } else {
+                        ui.data_mut(|d| d.remove_temp::<(u32, u32)>(id));
+                    }
+                    ui.separator();
+                }
                 // The map's own settings (the map being worked on: a map beside it shows its facts).
                 let current = p.ws.doc.as_ref().is_some_and(|d| d.map.name == name);
                 let Some(saved) = current.then(|| p.ws.map_settings_value()).flatten() else { return };

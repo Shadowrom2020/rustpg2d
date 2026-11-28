@@ -166,6 +166,8 @@ enum Drag {
 pub enum Ask {
     OpenDef(RefKind, String),
     OpenMap(String),
+    /// The map's events graph.
+    Graph,
     New(RefKind),
     /// Play the game with the hero on this tile of this map; true: with the test setup.
     PlayHere((i32, i32), bool),
@@ -504,6 +506,13 @@ impl MapView {
             }
             if ui.button("Fit").on_hover_text("The whole map (Home)").clicked() {
                 self.fit(p.ws, name);
+            }
+            // (A structure's own map has no events of its own.)
+            if !name.starts_with('@') {
+                ui.separator();
+                if ui.button("Events graph").on_hover_text("The map's events as a graph: who has events, what they run, raise and set, where they lead").clicked() {
+                    p.asks.push(Ask::Graph);
+                }
             }
             if doc_of(p.ws, name).is_some_and(|d| d.is_dirty()) {
                 ui.weak("changed");
@@ -2860,6 +2869,7 @@ mod ui_tests {
                     s.asks.push(match ask {
                         Ask::OpenDef(k, id) => format!("open {} {id}", k.name()),
                         Ask::OpenMap(m) => format!("map {m}"),
+                        Ask::Graph => "graph".into(),
                         Ask::New(k) => format!("new {}", k.name()),
                         Ask::PlayHere(t, setup) => format!("play {},{}{}", t.0, t.1, if setup { " setup" } else { "" }),
                         Ask::Usages(k, id) => format!("usages {} {id}", k.name()),

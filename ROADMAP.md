@@ -1569,8 +1569,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   flags and variables: `{name}` placeholders in texts aren't counted as reading one; of scripts: a
   function run in the Play tab, *Find in scripts*; of visual scripts: a box drawn around
   nodes to select them, *Fit all*; the
-  documents still to come: the map's Events graph (its tab: STUDIO_PLAN.md task 4), the
-  animation editor, the quest designer.
+  documents still to come: the animation editor, the quest designer.
   - **The events graph's logic** (2026-11-28, STUDIO_PLAN.md task 3; `editor-core/src/graph.rs`,
     0.35's `graph.rs` without its window): `Workspace::events_graph(map, all_fns, focus)` =
     the map as it is being edited (else its file) and the saved script files, built into
@@ -1581,6 +1580,20 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     summaries are not carried over), with `first_row` where the actions begin. `Graph::dump`
     is its text form (`trigger entity 12 #0 | Event: When … | …`, `calls trigger entity 12
     #0 [row 1] -> fn talk`).
+  - **The events graph's tab** (2026-11-28, STUDIO_PLAN.md task 4; `studio/src/graphview.rs`):
+    *Events graph* in a map's bar, or *Map › Events graph* (`map.graph`), opens *Events:
+    village* (`Tab::Graph`). Cards in four columns (0.35's layout: an owner's events beside
+    it, functions and maps level with what leads to them) on an `egui::Scene`; lines in five
+    colours with a legend, from the action's line where they start there; the pointer on a
+    card lights its lines. A click on a card goes where it is edited (`Shell::go_to`: the map
+    with the thing selected, the script at the function, the map); **nothing is edited in the
+    graph**. *Everything on the map | Only what is selected* (the selection of the map's tab),
+    *Functions: those the map reaches | all*, *Find* (dims the cards without it), *Arrange*;
+    cards dragged keep their place for the session. Made again only when the definitions, the
+    maps' history, the scripts or the choices change. F1: chapter 7's *The Events graph*
+    (rewritten for the tab). Script `graph` (its tab in front): `MAP nodes= edges= focus=
+    functions= search=`; `graph dump|focus entity UID|zone UID|-|functions all|map|find
+    TEXT|-|click NODE|view X Y ZOOM`.
 
   **Decided while building.**
   - **The sheet reads the values as the files hold them** (JSON, as the forms do), so it is
@@ -1701,6 +1714,23 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     row; *focus* on the elder keeps the zone and map it reaches and drops the well nothing
     reaches; the cards' words) and `the_village_of_the_example_has_a_graph` (62 who, 330
     lines of dump, every edge between nodes with cards; `RUSTPG2D_GRAPH_DUMP=1` prints it).
+  - The events graph's tab: `the_cards_are_drawn_and_a_click_goes_where_the_thing_is_edited`
+    (a guard whose event runs a function that raises an event the map listens for, which
+    leads to a map: six cards by their labels, three lines; pointer clicks on the guard, the
+    function, the map and the event give the guard on the map, the script at 0, the map; lines
+    end at cards, an action's line is known, no card lies on another). In the window on the
+    example's village: *Events graph* clicked in the map's bar: 222 cards, 108 lines; zoomed
+    out (`graph view -20 -20 0.35`, and further down) the columns are orderly, no card on
+    another, the portals' lines run straight to their maps; at 100 % the texts read clearly
+    (at 89 % thin strokes of `_` and `i` were lost: the first look is at 100 % since). A
+    click on the map's first event showed the village; `graph click owner entity 118` showed
+    the village with the elder selected; `graph click fn mira_talk` opened `main.rhai` at
+    `mira_talk`; *Only what is selected* on the elder: 11 cards (its event, its definition's
+    two, `friend_chat` and the functions it calls); *Find* "gift" dimmed all but the gift
+    event, whose lines to `give_gift` and `friend_takes_gifts` stay lit; F1 opened *The Events
+    graph*. How it looks: a long column of the village's 22 map events and 60 owners, readable
+    card by card; functions called by functions loop out to the right of their column, a
+    bundle on busy ones (`friend_chat`).
 
 - [~] Part 8: Workshops — `feature/studio`
 
@@ -2607,7 +2637,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   | Plugins window: add from a file or the library, on / off, order, parameters, export, to the library, remove | *Plugins* on the *Scripts & plugins* page: each with what it is, on / off, order, its parameters by name with the control that fits, *Remove* (its files kept aside), added from the library or a plugin file; out of the project they go as part of a pack (*Share…*) (2026-11-28) | there |
   | Clean up unused files (definitions nothing uses, stray files; a backup first; offered on close) | *Assets › Clean up unused files* (`assets.cleanup`): the list to tick, a copy beside the project, what is kept remembered (2026-11-28); offered when the project is left: quitting, closing, opening or making another (2026-11-28) | there |
   | **Events**: trigger editors | the event sheet | there |
-  | Events graph (a map's triggers, scripts and maps as a graph) | its logic: `Workspace::events_graph` (2026-11-28) | partly (its tab: STUDIO_PLAN.md task 4) |
+  | Events graph (a map's triggers, scripts and maps as a graph) | *Events graph* in a map's bar: its own tab, a click leads where the thing is edited; editing inside the graph (0.35's pencil) is not built (2026-11-28) | there |
   | Scripts: editor with completion, check, API help | script tabs | there |
   | Visual scripts | the canvas in their tab | there |
   | Cut-scene timeline, scrubbed on the map, played from here | the timeline in their tab | there |

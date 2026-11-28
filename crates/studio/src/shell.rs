@@ -32,6 +32,8 @@ pub enum Tab {
     Map(String),
     /// Every map and the ways between them.
     World,
+    /// A map's events as a graph, by the map's name.
+    Graph(String),
     /// A script file of the project, by its name (`main.rhai`).
     Script(String),
     /// Every flag and variable with where it is set and read.
@@ -54,6 +56,7 @@ impl Tab {
             Tab::Browser => "Project".into(),
             Tab::Overview => "Overview".into(),
             Tab::World => "World".into(),
+            Tab::Graph(m) => format!("Events: {m}"),
             Tab::Script(file) => file.clone(),
             Tab::Names => "Flags and variables".into(),
             Tab::Publish => "Publishing".into(),
@@ -87,6 +90,7 @@ impl Tab {
             Tab::Browser => "project".into(),
             Tab::Overview => "overview".into(),
             Tab::World => "world".into(),
+            Tab::Graph(m) => format!("graph:{m}"),
             Tab::Script(file) => format!("script:{file}"),
             Tab::Names => "names".into(),
             Tab::Publish => "publish".into(),
@@ -272,6 +276,8 @@ enum Ask {
     /// A new project there: what the game is called, and whether it starts with the basics.
     NewProject(PathBuf, String, bool),
     CloseProject,
+    /// Where a search hit, a usage or a card of the events graph leads.
+    GoTo(Target),
     /// *Try it*: the game on this map with the hero on the tile and the event raised.
     Try(String, (i32, i32), Box<(rustpg2d_engine::events::TriggerOn, rustpg2d_engine::runtime::EventOwner, String)>),
 }
@@ -354,6 +360,8 @@ pub struct Shell {
     pub maps: std::collections::HashMap<String, crate::mapview::MapView>,
     /// The World view.
     pub world: crate::worldview::WorldView,
+    /// The events graphs open in tabs, by map.
+    pub graphs: std::collections::HashMap<String, crate::graphview::GraphView>,
     /// A transition zone waiting for its other side to be drawn on another map: (map, zone).
     pub link: Option<(String, String)>,
     /// What was copied on a map, pasted on any.
@@ -445,6 +453,16 @@ impl Leaving {
     }
 }
 
+/// What is selected on a map's tab, as the owner of events the graph can be focused on.
+fn selected_owner(maps: &std::collections::HashMap<String, crate::mapview::MapView>, map: &str) -> Option<editor_core::graph::Owner> {
+    use editor_core::workspace::Selection;
+    match maps.get(map).and_then(|v| v.sel.first()) {
+        Some(Selection::Entity(uid)) => Some(editor_core::graph::Owner::Entity(*uid)),
+        Some(Selection::Zone(uid)) => Some(editor_core::graph::Owner::Zone(*uid)),
+        _ => None,
+    }
+}
+
 impl Shell {
     pub fn open(project: Option<PathBuf>, start: rustpg2d_engine::runtime::StartOptions) -> Shell {
         // (Started without a project: the home screen.)
@@ -472,7 +490,7 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, share: None, cleanup: None, lib_look: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), art: Default::default(), help: Default::default(), tour: Default::default(), agents: Default::default(), langs: Default::default(), plugins: Default::default(), play_lang: None, news: false, timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), model_stages: Default::default(), item_stages: Default::default(), pixels: Default::default(), sounds: Default::default(), sheets: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new(), leaving: None, quit_now: false, cleanup_passed: false }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, share: None, cleanup: None, lib_look: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), graphs: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), art: Default::default(), help: Default::default(), tour: Default::default(), agents: Default::default(), langs: Default::default(), plugins: Default::default(), play_lang: None, news: false, timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), model_stages: Default::default(), item_stages: Default::default(), pixels: Default::default(), sounds: Default::default(), sheets: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new(), leaving: None, quit_now: false, cleanup_passed: false }
     }
 
     /// The window around another workspace (another project, or none). What belongs to the
@@ -716,7 +734,7 @@ impl Shell {
             return;
         }
         // Next to another document when there is one, else in the first leaf.
-        let doc = self.dock.find_tab_from(|t| matches!(t, Tab::Overview | Tab::World | Tab::Settings(_) | Tab::Kind(_) | Tab::Def(..) | Tab::Map(_) | Tab::Script(_) | Tab::Names | Tab::Publish | Tab::Library | Tab::Art | Tab::Help | Tab::Agents | Tab::Play));
+        let doc = self.dock.find_tab_from(|t| matches!(t, Tab::Overview | Tab::World | Tab::Graph(_) | Tab::Settings(_) | Tab::Kind(_) | Tab::Def(..) | Tab::Map(_) | Tab::Script(_) | Tab::Names | Tab::Publish | Tab::Library | Tab::Art | Tab::Help | Tab::Agents | Tab::Play));
         match doc {
             Some(path) => {
                 self.dock.set_focused_node_and_surface(path.node_path());
@@ -796,6 +814,29 @@ impl Shell {
     /// The timeline of the cut-scene tab in front: `time SECS`, `cue TRACK CUE` (picks one),
     /// `add TRACK ACTION…` (a cue at the playhead, the action by its name), `play`. Returns
     /// its `status` line ("" when no cut-scene's tab is in front).
+    /// `graph …` with an events graph's tab in front (`GraphView::word`); prints its lines.
+    pub fn graph_word(&mut self, args: &[String]) -> Vec<String> {
+        let Some(Tab::Graph(map)) = self.dock.find_active_focused().map(|(_, t)| t.clone()) else { return vec!["failed: no events graph is in front (map.graph)".into()] };
+        // (`graph focus entity 12`: selected on the map, then shown alone.)
+        let arg = |k: usize| args.get(k).map(String::as_str).unwrap_or("");
+        if arg(0) == "focus" {
+            let sel = match (arg(1), arg(2).parse::<u32>()) {
+                ("entity", Ok(uid)) => Some(editor_core::workspace::Selection::Entity(uid)),
+                ("zone", Ok(uid)) => Some(editor_core::workspace::Selection::Zone(uid)),
+                _ => None,
+            };
+            if let Some(sel) = sel {
+                self.maps.entry(map.clone()).or_default().select(sel);
+            }
+        }
+        let selected = selected_owner(&self.maps, &map);
+        let (lines, go) = self.graphs.entry(map.clone()).or_default().word(&self.ws, &map, selected, args);
+        if let Some(t) = go {
+            self.go_to(&t);
+        }
+        lines
+    }
+
     pub fn timeline_word(&mut self, args: &[String]) -> String {
         let Some(Tab::Def(RefKind::Cutscene, id)) = self.dock.find_active_focused().map(|(_, t)| t.clone()) else { return String::new() };
         let Some(pos) = self.ws.project.db.cutscenes.iter().position(|d| d.id == id) else { return String::new() };
@@ -920,6 +961,7 @@ impl Shell {
             },
             Some(Tab::Def(kind, _)) | Some(Tab::Kind(kind)) => of_kind(kind),
             Some(Tab::World) => ("04-objects-and-zones.md", words(&["transitions"])),
+            Some(Tab::Graph(_)) => ("07-events.md", words(&["graph"])),
             Some(Tab::Script(_)) => ("08-scripting.md", Vec::new()),
             Some(Tab::Names) => ("07-events.md", words(&["variables", "flags"])),
             Some(Tab::Publish) => ("14-publishing.md", Vec::new()),
@@ -1200,6 +1242,7 @@ impl Shell {
             ("problems", None, _) => Tab::Problems,
             ("history", None, _) => Tab::History,
             ("map", Some(m), None) if self.ws.maps.iter().any(|x| x == m) => Tab::Map(m.to_string()),
+            ("graph", Some(m), None) if self.ws.maps.iter().any(|x| x == m) => Tab::Graph(m.to_string()),
             ("script", Some(f), None) if self.ws.script_names().iter().any(|(n, _)| n == f) => Tab::Script(f.to_string()),
             ("settings", Some(page), None) => Tab::Settings(editor_core::schema::PAGES.iter().find(|(t, ..)| editor_core::schema::page_slug(t) == page)?.0),
             ("kind", Some(kind), None) => Tab::Kind(RefKind::ALL.iter().copied().find(|k| k.name() == kind && k.is_def())?),
@@ -1246,6 +1289,12 @@ impl Shell {
                 }
                 Err(e) => Err(e),
             };
+        }
+        // (In the window the events graph is a tab.)
+        if line.trim() == "map.graph" {
+            let Some(map) = self.ws.doc.as_ref().map(|d| d.map.name.clone()).filter(|m| !m.starts_with('@')) else { return Err("no map is open".into()) };
+            self.show_tab(Tab::Graph(map.clone()));
+            return Ok(format!("The events graph of {map}"));
         }
         let scripts = if line.trim() == "file.save_all" { self.save_scripts() } else { 0 };
         let r = self.ws.run_line(line);
@@ -1600,12 +1649,13 @@ impl Shell {
 
         let mut asks = Vec::new();
         {
-            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, library: &mut self.library, art: &mut self.art, help: &mut self.help, tour: &mut self.tour, agents: &mut self.agents, langs: &mut self.langs, plugins: &mut self.plugins, play_lang: &self.play_lang, news: &mut self.news, home: &mut self.home, timelines: &mut self.timelines, nodes: &mut self.nodes, stages: &mut self.stages, figures: &mut self.figures, model_stages: &mut self.model_stages, item_stages: &mut self.item_stages, pixels: &mut self.pixels, sounds: &mut self.sounds, sheets: &mut self.sheets, scrub: &mut self.scrub, try_next: &mut self.try_next, rs, asks: &mut asks };
+            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, graphs: &mut self.graphs, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, library: &mut self.library, art: &mut self.art, help: &mut self.help, tour: &mut self.tour, agents: &mut self.agents, langs: &mut self.langs, plugins: &mut self.plugins, play_lang: &self.play_lang, news: &mut self.news, home: &mut self.home, timelines: &mut self.timelines, nodes: &mut self.nodes, stages: &mut self.stages, figures: &mut self.figures, model_stages: &mut self.model_stages, item_stages: &mut self.item_stages, pixels: &mut self.pixels, sounds: &mut self.sounds, sheets: &mut self.sheets, scrub: &mut self.scrub, try_next: &mut self.try_next, rs, asks: &mut asks };
             DockArea::new(&mut self.dock).show_inside(ui, &mut viewer);
         }
         for ask in asks {
             match ask {
                 Ask::Open(tab) => self.show_tab(tab),
+                Ask::GoTo(target) => self.go_to(&target),
                 Ask::Run(line) => {
                     let _ = self.run(&line);
                 }
@@ -1996,6 +2046,7 @@ struct Viewer<'a> {
     marks: &'a Marks,
     maps: &'a mut std::collections::HashMap<String, crate::mapview::MapView>,
     world: &'a mut crate::worldview::WorldView,
+    graphs: &'a mut std::collections::HashMap<String, crate::graphview::GraphView>,
     link: &'a mut Option<(String, String)>,
     clip: &'a mut Option<editor_core::mapedit::Clip>,
     scripts: &'a mut std::collections::HashMap<String, crate::scriptedit::ScriptTab>,
@@ -2062,6 +2113,12 @@ impl egui_dock::TabViewer for Viewer<'_> {
             Tab::World => {
                 if let Some(map) = self.world.show(ui, self.ws) {
                     self.asks.push(Ask::Open(Tab::Map(map)));
+                }
+            }
+            Tab::Graph(m) => {
+                let selected = selected_owner(self.maps, m);
+                if let Some(t) = self.graphs.entry(m.clone()).or_default().show(ui, self.ws, m, selected) {
+                    self.asks.push(Ask::GoTo(t));
                 }
             }
             Tab::Play => self.play_tab(ui),
@@ -3481,6 +3538,7 @@ impl Viewer<'_> {
             match ask {
                 crate::mapview::Ask::OpenDef(k, id) => self.asks.push(Ask::Open(Tab::Def(k, id))),
                 crate::mapview::Ask::OpenMap(m) => self.asks.push(Ask::Open(Tab::Map(m))),
+                crate::mapview::Ask::Graph => self.asks.push(Ask::Open(Tab::Graph(name.to_string()))),
                 crate::mapview::Ask::New(k) => self.asks.push(Ask::New(Some(k))),
                 crate::mapview::Ask::PlayHere(tile, setup) => self.asks.push(Ask::Play(PlayFrom::Tile(name.to_string(), tile, setup))),
                 crate::mapview::Ask::Usages(k, id) => {

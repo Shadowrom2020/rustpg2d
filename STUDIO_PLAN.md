@@ -308,7 +308,9 @@ reads sensibly (paste ten lines of it into your report).
 
 **Don't.** No UI. No new data in map files: the graph is computed.
 
-### - [ ] Task 4 (L): the events graph, its tab
+### - [x] Task 4 (L): the events graph, its tab
+
+Done 2026-11-28. The script's `graph focus` takes `entity UID`, `zone UID` or `-` (not `map`: the map itself can't be selected on its tab). Extra words: `graph find`, `graph click NODE`, `graph view X Y ZOOM`.
 
 **Needs.** Task 3.
 

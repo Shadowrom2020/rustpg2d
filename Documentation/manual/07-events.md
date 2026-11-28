@@ -497,26 +497,30 @@ event's: the event goes on at once. Cut-scenes use it for cues that don't wait.
 
 ![The Events graph of Whisperwood](../images/editor-events.webp)
 
-The **Events** tab next to *Map* shows the open map's events as a graph:
+**Events graph** in a map's bar (or *Map › Events graph*) opens the map's events as a graph in
+a tab of its own, *Events: village*:
 
-- on the left the **owners** (the map, its zones, placed entities), next to them their **triggers**
-  with their conditions and actions summarised (dialog lines, choices with their options and the
-  variable that keeps the answer);
+- first **who has events**: the map itself, its zones and what is placed on it; next to each its
+  **events**, with *When …*, their conditions (*If …*) and their actions in the same words as the
+  event sheet (an event a placed thing has from its definition says *Event of its definition*);
 - then the **script functions** they run, with their dialog lines, choices, events, flags and
   teleports read from the script;
 - and the **maps** they lead to.
 
-The edges show how things connect: **green** runs a script function, **orange** an emitted event
-reaching the triggers that listen for it, **blue** a choice, variable or flag reaching the
-conditions and scripts that test it, **purple** a teleport, portal or transition to another map.
+The lines show how things connect (the legend above the graph says the same): **grey** an event
+of who has it, **green** runs a script function, **orange** raises an event that other events
+listen for, **blue** sets a flag or variable (or keeps a choice's answer) that conditions and
+scripts test, **purple** a teleport, portal or transition to another map. A line that comes from
+an action starts at that action's line.
 
-Drag the background to pan, Ctrl+wheel to zoom, a node's title to move it (*Arrange* lays them out
-again, *Fit* shows everything); click a title to highlight its edges. The pencil on a trigger opens
-its condition and action editors inside the node; changes can be undone. Triggers from a definition
-are read-only with *Open in Database*; function nodes have *Edit in <file>*, owners *Show on map*,
-maps *Open*. *Whole map* / *Selected object* switches between everything and only what the selected
-entity's or zone's triggers lead to; *All script functions* also shows functions the map doesn't
-run.
+The graph shows, it doesn't edit: **a click on a card goes where it is edited**. Who has events and
+their events open the map with that thing selected (its Inspector edits its events), a script
+function opens its script at the function, a map opens that map. *Everything on the map* /
+*Only what is selected* switches between the whole map and only what the events of the thing
+selected on the map lead to; *Functions: those the map reaches / all* also shows the functions
+nothing on the map runs. *Find* dims the cards that don't have what is typed (a name, a flag, a
+word of a line). Drag a card to move it (*Arrange* lays them out again); drag the background or
+turn the wheel to move the view, Ctrl+wheel zooms. The pointer on a card lights its lines.
 
 ## The JSON form (AI agents, hand-written files)
 

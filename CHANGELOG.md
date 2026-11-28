@@ -146,6 +146,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   Place and Terrain tools; the Problems tab says what the check looks for before it ran and
   that nothing was found after; the Place tool and the World view say what to do when there
   is nothing to place or only one map.
+- **The events graph** (part 7): *Events graph* in a map's bar shows the map's events as a
+  graph in a tab of its own: who has events, their events in the event sheet's words, the script
+  functions they run and the maps they lead to, with lines for what runs, raises, sets and leads
+  where. A click on a card goes where it is edited; *Only what is selected* and *Find* narrow it.
 - **Unsaved changes are asked about**: closing the window, closing the project or opening
   another one with changes that aren't saved asks first: *Save and go on*, *Don't save* or
   *Stay*. Before, closing the window lost them without a word.

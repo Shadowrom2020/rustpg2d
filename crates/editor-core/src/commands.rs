@@ -429,6 +429,19 @@ pub const COMMANDS: &[Command] = &[
         },
     },
     Command {
+        id: "map.graph",
+        title: "Events graph",
+        keys: "",
+        params: &[],
+        help: "The map's events as a graph: who has events, the script functions they run, the events they raise, the flags and variables they set, the maps they lead to (in the window: a tab).",
+        changes: false,
+        run: |ws, _| {
+            let map = ws.doc.as_ref().map(|d| d.map.name.clone()).ok_or("no map is open")?;
+            let g = ws.events_graph(&map, false, None)?;
+            Ok(g.dump().join("\n"))
+        },
+    },
+    Command {
         id: "map.close",
         title: "Close map",
         keys: "",

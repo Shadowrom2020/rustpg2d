@@ -157,7 +157,12 @@ pub fn script_info(files: &[(PathBuf, String)]) -> Vec<FnInfo> {
                 "say" if first_of_call => {
                     // Texts built at run time ("…" + name) show as "…".
                     let text = |i: usize| if s(i).is_empty() { "…".to_string() } else { clip(&s(i), 90) };
-                    info.lines.push(if a.siblings.len() >= 2 { format!("{}: {}", s(0), text(1)) } else { text(0) });
+                    // (A speaker worked out at run time: the line alone.)
+                    info.lines.push(match a.siblings.len() {
+                        n if n >= 2 && !s(0).is_empty() => format!("{}: {}", s(0), text(1)),
+                        n if n >= 2 => text(1),
+                        _ => text(0),
+                    });
                 }
                 "choice" if first_of_call => {
                     info.lines.push(format!("? {}", clip(&s(0), 80)));
@@ -490,7 +495,7 @@ fn thing_title(db: &Database, kind: EntityKind, def: &str, own: &str) -> (String
         EntityKind::Item => (db.item(def).map(|d| d.name.clone()), "Item"),
     };
     let name = name.filter(|n| !n.is_empty()).unwrap_or_else(|| def.to_string());
-    (if own.is_empty() || own == name { name } else { format!("{own} ({name})") }, label)
+    (if own.is_empty() || own.eq_ignore_ascii_case(&name) { name } else { format!("{own} ({name})") }, label)
 }
 
 /// The cards of the graph's nodes.
@@ -659,7 +664,7 @@ mod tests {
         let c = &cards[&tr(Owner::Map, 0)];
         assert_eq!((c.title.as_str(), c.first_row), ("When the event bell is raised", 1));
         assert_eq!(c.lines, ["If help is 0", "Go to forest (s)"]);
-        assert_eq!(cards[&NodeKey::Owner(Owner::Entity(elder))].title, "elder");
+        assert_eq!(cards[&NodeKey::Owner(Owner::Entity(elder))].title, "elder", "no definition: its id");
     }
 
     #[test]

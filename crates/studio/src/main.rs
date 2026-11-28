@@ -16,6 +16,7 @@
 mod agentspage;
 mod form;
 mod gallery;
+mod graphview;
 mod helpview;
 mod itemshop;
 mod langpage;
@@ -528,6 +529,12 @@ impl Studio {
                 "quit" => {
                     self.shell.quit_now = true;
                     ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                }
+                // The events graph in front: `graph [dump|focus entity UID|zone UID|-|functions all|map|find TEXT|-|click NODE]`.
+                "graph" => {
+                    for l in self.shell.graph_word(&cmd[1..]) {
+                        println!("[graph] {l}");
+                    }
                 }
                 // The window's close button: asks first when something isn't saved.
                 "closewindow" => ctx.send_viewport_cmd(egui::ViewportCommand::Close),

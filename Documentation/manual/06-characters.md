@@ -1,15 +1,15 @@
 # 6. Characters
 
 Villagers, merchants, guards, enemies, animals and the player are all **characters**: definitions
-in *Database › Characters*, placed on maps with the Entities tool.
+(*Characters* in the Project browser), placed on maps with the Place tool.
 
 ## How characters look
 
-Every character is a **3D model** (*Database › 3D models*): a rigged model with its animation clips.
+Every character is a **3D model** (*Art & sound › 3D models*): a rigged model with its animation clips.
 The game renders it with what it holds in the pixel look (a few light bands, a dark outline) and
 draws it into the world as a picture, facing down, left, right or up; while it walks along a
-diagonal it is drawn turned halfway between two of them (*Eight facings* in *Database › Project*,
-on by default). It plays its clips by itself:
+diagonal it is drawn turned halfway between two of them (*Eight facings* on the *Look & feel*
+page, on by default). It plays its clips by itself:
 **walk**, **idle** (standing), its **attack**, **hurt** (when hit), **sit** and **sleep** on
 furniture, the activities (`fish`, `farm`, `craft`, `chop`, `mine`, `sweep`, `read`) and **sneak**
 (the player sneaking; without it the walk, slowed); a model without a clip for one of them plays idle (sitting and lying without a clip show the standing pose,
@@ -23,15 +23,22 @@ townspeople, guards, bandits, goblins, the troll and skeletons. The kit also bui
 models they hold and carry (weapons, shields, tools, lights, backpacks). The 9 animals were
 modelled with Meshy from hand-drawn pictures of earlier versions.
 
-- *Database › 3D models › Import model…* takes a rigged `.glb` (Meshy, Blender, Mixamo…): it is
-  copied into `models/` (made smaller: textures as the game uses them, clip files without their
-  mesh) and its clips are matched to the animations by their names. *Clip files › Add…* uses the
-  clips of more files of the same rig (Meshy writes animations as separate files).
-- The form sets the **height** (standing, in world pixels: a person is about 40), the **clip each
-  animation plays** (an animation without one plays idle) and its frames per second (12: drawn
-  stepped like pixel animation), *Playable* / *Female* for the character creator, and shows a
-  turning preview, the four facings and the portrait. Clips that stand turned are straightened by
-  the body's direction, and walking stays in place.
+- *New…* › *3D model* › *from a file* (or a `.glb` dropped on the window) takes a rigged `.glb`
+  (Meshy, Blender, Mixamo…): it is copied into `models/` (made smaller: textures as the game uses
+  them) and its clips are matched to the animations by their names; its tab opens on what is
+  missing.
+- A 3D model's tab has the **model workshop** at the top: the model as the game draws it, turning
+  or seen from one side, playing the animation clicked; beside it what the check found (its size
+  against what one draw takes, colour features that match no colour, a missing clip for one of the
+  four animations every figure plays), with the fixes at hand: **the clip each animation plays**,
+  picked from the clips its files hold (with their lengths), and its frames a second (12: drawn
+  stepped like pixel animation); *Guess from the clips' names*; *+ Animation* for the kinds the game
+  knows (work, rest, weapon stances, sneaking). **More clips**: *Add a file of clips…* (Meshy writes
+  animations as separate files) and *Take clips from another model…* (one with the same skeleton:
+  the animations to take ticked). Clips that stand turned are straightened by the body's direction,
+  and walking stays in place.
+- Its form sets the **height** (standing, in world pixels: a person is about 40) and *Playable* /
+  *Female* for the character creator.
 - **Colour features** are parts of a model that can take other colours, such as its skin, hair or
   clothing. A feature is made of the shades of its texture (reduced to 32 colours when it loads)
   that belong to that part; a character that chooses a colour for it gets those shades replaced by
@@ -42,15 +49,12 @@ modelled with Meshy from hand-drawn pictures of earlier versions.
   playable models and the villagers have skin, hair and clothing; two placed villagers wear their
   own colours.
 - **Animals and creatures** without a skeleton of their own (Meshy rigs only people; a 3D creature
-  from *Generate art* is unrigged) get a **rig template** in the model's form: *Template* picks a
+  from *Generate art* is unrigged) get a **rig template** in the model workshop: *Skeleton* picks a
   rigged model whose skeleton is stretched over this one and whose walk, idle, attack and hurt it
   plays. The starter library has six, made for it: **four legs** (wolves, dogs, boars, deer),
   **dragon** (four legs, a long neck and tail, wings that beat), **bird** (standing birds), **flyer** (bats, birds in flight), **blob** (oozes) and **floating**
-  (ghosts, wisps). *Turn* makes the model face the front first (the down view shows its face). The
-  side and front views show the fitted skeleton over the model: drag a joint (a dot) to where it
-  belongs, a leg into its leg or the head into the head; *Mirror left and right* moves the other
-  side's twin along, *Reset joints* starts over. The model keeps its own file; the fit is worked
-  out when it loads.
+  (ghosts, wisps). *Turn it* makes the model face the front first (the front view shows its face).
+  The model keeps its own file; the fit is worked out when it loads.
 - **Generate art** makes 3D characters, creatures and items' models with Meshy ([Art and sound ›
   Generate art](10-art-and-sound.md#generate-art-with-meshy)), and adds clips to a model.
 
@@ -60,7 +64,7 @@ A figure doesn't have to be one model. A **piece** is a 3D model that other mode
 beard, an outfit, a helmet, a cloak. It has the same bones as the figure (matched by name), so the
 game draws figure and pieces in one pose, and they move together in every animation.
 
-On a model's form (*Database › 3D models*):
+In a 3D model's form:
 
 - **Piece › Worn by other models** makes it a piece, with:
   - its **slot** (`outfit`, `hair`, `beard`, `headwear`, `cloak` or a name of your own): a figure
@@ -84,7 +88,8 @@ Colour features work across figure and pieces by name: *Hair* colours the hair a
 *Clothing* the outfit and the hood. A piece takes the figure's default for a feature (an orc's
 green skin on the hands of its clothes).
 
-The *3D models* list shows *All*, *Figures* or *Pieces*.
+The 3D models' own tab (*Show all* in the Project browser) sorts them into playable figures, figures,
+pieces and rig templates.
 
 **The figure kit.** The starter library's people are built this way, sculpted in voxels and
 smoothed:
@@ -123,9 +128,9 @@ style guide), not generated art: a new outfit, hat or townsperson is a change th
 ### Weapon animations
 
 What a character does with its hands depends on what it holds: a spear thrusts, a bow is drawn, a
-shield is raised. **Items name animations** (*Database › Items › Animations*: what is played
+shield is raised. **Items name animations** (an item's *Animations*: what is played
 *attacking*, *standing*, *walking* and *blocking* with it) and **models map the names to clips**
-(the *Weapons* rows of the model's *Animations*). The standard names:
+(the animations in the model workshop, under *Its other animations*). The standard names:
 
 | Kind | Names |
 |---|---|
@@ -164,7 +169,7 @@ own slash.
 **Equipment** is real: a character's weapon, armor and clothing count in combat, and an enemy drops
 them when defeated. **What it holds is in its hands**: the weapon, the left-hand item (a shield, a
 lantern, a torch), a tool while it works (the fisher's rod, the farmer's hoe) and a prop it carries,
-each at the hand bone. Items with a **3D model** ([Database › Items](05-database.md#items)) are
+each at the hand bone. Items with a **3D model** ([Definitions › Items](05-database.md#items)) are
 held as that model by their hold style (in the fist with the handle across it, upright, hanging or
 strapped to the forearm), others as their picture (*Held* section: hold point and orientation). Worn armour and clothing show only in the model's art.
 
@@ -173,64 +178,56 @@ strapped to the forearm), others as their picture (*Held* section: hold point an
 basket) in both hands. While carrying, the weapon and left-hand item aren't shown and the player
 can't attack (*Put down what you carry first.*). What the player carries is saved.
 
-## The character editor
+## The character workshop
 
-![The character editor](../images/editor-builder.webp)
+![The character workshop](../images/editor-builder.webp)
 
-*Database › Characters* shows the character editor under the form's first rows. On the left is a
-**preview** that walks, breathes, attacks or flinches (*Walk*, *Idle*, *Attack*, *Hurt*; facing
-buttons, *turn around*, and the four standing directions); on the right:
+A character's tab has the **character workshop** above its form. On the left the figure as the game
+draws it, with what it wears and holds: seen from the *Front*, *Left*, *Back* or *Right*, or
+*Turning*, and *Walk*, *Idle*, *Attack* or *Hurt*. On the right:
 
-- **Model**: cards of the project's 3D models (figures, not pieces); *Playable* lets players
-  choose it in the creator;
-- **Pieces** (when the model can wear some): per slot the model's own piece, none, or another
+- **Model**: its name, and *Change…* for cards of the project's figures (searched); another model
+  has other colours and pieces, so the ones chosen for the old one go;
+- **Random colours**: an offered colour for each feature;
+- **Start from…**: the project's other characters with their pictures (searched); the one clicked
+  lends its look, its model, pieces and colours, as one step (what this character wears, its name
+  and everything else stay its own);
+- **Pieces** (when the model can wear some): per slot the model's own piece, *None*, or another
   that fits it ([Pieces](#pieces-hair-outfits-and-shown-equipment));
-- **Colours**: for each colour feature of the model and its pieces, *As made*, the feature's
+- **Colours**: for each colour feature of the model and its pieces, *As drawn*, the feature's
   colours and any other colour;
-- **Equipment**: weapon, left hand, head, body armor and clothing (they count in play; an item
-  that is *Shown as* a style changes the figure);
-- **Carried items**.
+- **Wears and holds**: a box per slot with the item's picture (weapon, left hand, head, body,
+  clothing, backpack; *More slots* for a tool, ammunition and what is worn besides); a click offers
+  the items that go there, searched, and *Nothing*. They count in play; an item that is *Shown as* a
+  style changes the figure.
 
-**Random colours** picks an offered colour for each feature. **Start from…** lists the project's
-other characters with their pictures (searched); the one clicked lends its look: its model, pieces
-and colours, as one step (what this character wears, its name and everything else stay its own).
+Each change is a step of the history. What it carries (not shown) is in the form's *Gear*.
 
-**Placed characters with their own look**: select one on the map; *Look & equipment* in the
-inspector shows it. **Customize this one…** opens the character editor for that one character only
-(*Apply*), and *Use the definition's* drops the changes. A whole village can share one *villager*
-definition while every villager wears other colours.
+**Placed characters with their own look**: select one on the map; the Inspector's section *Their
+own, instead of the definition's* holds its own look, equipment and carried items. Left empty, the
+definition's count. A whole village can share one *villager* definition while every villager wears
+other colours.
 
 ## New characters
 
-**New character…** (in the Characters tab, or *Assets › New asset… › Character*) asks for an id
-and a name and where the model comes from:
-
-- **Existing model**: one of the project's models (or one added from the asset library), with
-  the character editor to choose its colours and equipment;
-- **Import a model**: a rigged `.glb` (Meshy, Blender, Mixamo…), imported like *Database › 3D
-  models › Import model…*; then choose it under *Existing model*;
-- **Generate with AI**: opens [Generate art](10-art-and-sound.md#generate-art-with-meshy) for a
-  3D character with this id (*a woman* picks the women's clips); *Add to project* creates the
-  model and the character with a person's speed and hitbox.
-
-Then set the character's behaviour and combat values in the form.
+*New…* (**Ctrl+N**) › *Character*: a name, and how it starts: *blank*, *as a copy* of another, or
+*as one of the asset library* (the library's characters, the SRD's monsters among them, with their
+models). Then pick its model and look in the workshop. A model of your own comes first: *New…* ›
+*3D model* › *from a file* (a rigged `.glb`: Meshy, Blender, Mixamo…), or
+[Generate art](10-art-and-sound.md#generate-art-with-meshy) for a 3D character (*a woman* picks the
+women's clips; *Add to project* makes the model and the character with a person's speed and
+hitbox). Then set the character's behaviour and combat values in the form.
 
 ## The character form
 
 | Section | Settings |
 |---|---|
-| **Character** | Name; **Description** (shown in the bestiary once the player has defeated one); speed in pixels per second; **Size** (in percent of its 3D model's height, times its race's size: the figure, what it holds and its hitbox; every placed character of the definition, and the player when it is the player character, gets it; the starter library's realistic hero and elves are 115 %); hitbox |
-| **Portrait** | A drawn portrait for dialogs and **Moods** ([below](#dialog-portraits-and-moods)) |
-| **Look & equipment** | The character editor: model, colours, equipment, carried items |
-| **Behavior** | *Static*, *Wander* or *Chase foes* (below) |
-| **Combat** | **Max HP** (0 = can't be defeated and doesn't fight; with a stat block its hit points count), **Damage** and **Defense** (without a stat block: its attack's dice, 1 = 1d4 … 5 = 1d12, and armor class 10 + Defense), **Hostile**, a condition **On touch** its melee hits give (poisoned, prone…, with a saving throw and damage every round; it also comes with the hits of a weapon it holds), an optional ranged attack (without attacks in its stat block it shoots with it) |
-| **Experience** | XP the player gets for defeating it |
-| **Stat block (SRD 5.1)** | What it is by the rules, from a template or by hand ([below](#stat-blocks)) |
-| **Loot** | What it drops ([Objects and zones › Loot](04-objects-and-zones.md#loot)) |
-| **Merchant** | Makes it a trader ([Merchants](#merchants)) |
-| **As companion** | *Can't be given gear*, for animals and creatures |
-| **Light** | Carries a light (a lantern); placed characters can carry their own instead |
-| **Default triggers** | Triggers every copy runs ([Events](07-events.md)) |
+| **Basics** | Name; **Description** (shown in the bestiary once the player has defeated one); race; faction ([Factions](#factions)); **Behavior** (*Static*, *Wander* or *Chase foes*, below); **Hostile**; speed in pixels per second |
+| **Look** | The look the workshop above edits (model, pieces, colours; **Size**: in percent of its 3D model's height, times its race's size: the figure, what it holds and its hitbox; every placed character of the definition, and the player when it is the player character, gets it; the starter library's realistic hero and elves are 115 %); a drawn **Portrait** for dialogs and **Moods** ([below](#dialog-portraits-and-moods)); a **Light** it carries (a lantern; placed characters can carry their own instead); hitbox |
+| **Rules** | The **Stat block (SRD 5.1)**: what it is by the rules, from a template or by hand ([below](#stat-blocks)); a class and level; the **XP** the player gets for defeating it |
+| **Gear** | Equipment and carried items (the workshop's *Wears and holds*), *Gear can't be changed* (for animals and creatures as companions), **Loot** (what it drops, [Objects and zones › Loot](04-objects-and-zones.md#loot)), **Shop** (makes it a trader, [Merchants](#merchants)) |
+| **Events** | Events every copy runs ([Events](07-events.md)) |
+| **Values from before the SRD rules** | (*Show all fields*) hit points, damage, defense and the like of 0.27's fights: a stat block takes their place |
 
 ### Monsters
 
@@ -241,8 +238,8 @@ the texts of their traits, actions, reactions and legendary actions. Monsters at
 (*Hostile*, *Chase foes*); humanoids live among others unless they are evil. Their look is a library
 model where one fits (wolves, bats, skeletons for undead, the slime for oozes, the guard, bandit,
 noble and priest models for those NPCs), else the **mannequin**, drawn at the creature's size (Tiny
-50 %, Small 75 %, Large 150 %, Huge 200 %, Gargantuan 300 %) until models for the monsters come. *Add
-from library* (filter *Characters*, search the name) brings one into a project; place it or name it
+50 %, Small 75 %, Large 150 %, Huge 200 %, Gargantuan 300 %) until models for the monsters come. *New…* ›
+*Character* › *as one of the asset library* (search the name) brings one into a project; place it or name it
 in an [encounter](04-objects-and-zones.md#encounters).
 
 What acts in fights is the stat block's attacks and its **spellcasting** (the 36 casters: the
@@ -286,7 +283,7 @@ proficient in, its **languages**, its **challenge** rating and the **XP** it is 
   **Effects**: a saving throw (or none) with its DC against a condition for some rounds (0 = until
   it ends), and / or damage on a failed save (half on a success when ticked), and an **escape DC**
   for a grapple or restraint (the target's *Escape* action rolls against it), and a **disease** (an
-  id of *Database › Diseases*) a failed save, or the hit without a save, gives the hero. The SRD
+  id of a disease, *Rules › Diseases*) a failed save, or the hit without a save, gives the hero. The SRD
   monsters bring theirs (a wolf's bite: DC 11 STR or prone; a diseased giant rat's: DC 10 CON or
   Rat-Bite Fever).
 - **Special abilities** (since 0.32): **save actions** (a name, an area: a cone or line from the
@@ -302,7 +299,7 @@ proficient in, its **languages**, its **challenge** rating and the **XP** it is 
   **Can't get**: conditions it is immune to (a grimlock can't be blinded). Saving throws against
   conditions are rolled with its scores and proficiencies. *By hand* starts an empty one, *Remove stat
   block* takes it away.
-- A **placed character** can have its own (the map's inspector, *Stat block (SRD 5.1)* › *Own stat
+- A **placed character** can have its own (the map's Inspector, *Their own, instead of the definition's* › *Own stat
   block…*): the captain among the guards.
 - [Turn-based fights](09-gameplay.md#health-and-combat) use it: its armor class, hit points (they
   replace *Max HP* when that is above 0), speed, DEX for initiative, attacks, resistances and saving
@@ -357,10 +354,11 @@ the player in.
 
 A patrolling character walks a route of waypoints.
 
-1. Select a placed character and choose *Patrol route › Add a patrol route*.
-2. Click tiles on the map to add waypoints. Drag a waypoint to move it, right-click removes it,
-   Esc or *Done editing* finishes.
-3. Choose *Loop* or *Back and forth*, the *Pause* at each point and an optional *Speed*.
+1. Select a placed character and press **Add waypoints** in the Inspector.
+2. Click tiles on the map: each click adds a waypoint, the right button takes the last one away,
+   Esc ends. Waypoints are dragged to another tile at any time.
+3. In the Inspector's *Daily life*, choose *Loop* or *Back and forth*, the *Pause* at each point and
+   an optional *Speed*.
 
 The route is drawn with numbered points while the character is selected. In the game the character
 finds its way around obstacles, waits briefly when talked to, and continues where it was after map
@@ -370,13 +368,13 @@ route means "walk there and stay".
 
 ## Daily schedules
 
-![A villager selected, with his daily schedule in the inspector](../images/editor-schedule.webp)
+![A villager selected, with his daily schedule in the Inspector](../images/editor-schedule.webp)
 
 A schedule makes a character live by the clock.
 
-1. Select a placed character and choose *Daily schedule › Add a schedule*.
-2. Click tiles on the map to add the places it goes to during the day. Drag a stop to move it,
-   right-click removes it, Esc or *Done editing* finishes.
+1. Select a placed character; its schedule is in the Inspector's *Daily life*.
+2. *+ Add* a stop for each place it goes to during the day, then drag the stop's mark on the map to
+   its tile (the stops show while the character is selected).
 3. Give each stop a **time** (from then on the character goes there; type `7:30` or drag in quarter
    hours), optionally a **direction** to face, and:
    - **inside**: the character goes indoors here (e.g. at a door) and is out of sight until the next
@@ -409,7 +407,7 @@ bench in the afternoon and sleeps in the elder's guest bed at night.
 ![The fisher at the pond, with his rod, line and bobber](../images/game-fishing.webp)
 
 Characters can be seen **doing** something: *fishing, hoeing, hammering, chopping wood, mining,
-sweeping* or *reading*, at a schedule stop or all day where they're placed (inspector › *Activity*),
+sweeping* or *reading*, at a schedule stop or all day where they're placed (the Inspector's *Daily life* › *Activity*),
 with an optional tool in the hand. They stay at their spot, work in place with small effects (the
 fishing line and bobber, soil specks, sparks on the anvil, wood chips, an open book whose pages
 turn), and turn to the player for a few seconds when talked to. Activities are only for the look:
@@ -427,8 +425,8 @@ Tick **Merchant** in the character form to make every copy a trader:
   choice, or `open_shop(target)`);
 - the **stock**: items with a quantity (or *unlimited*) and a price (0 = the item's *Value*).
 
-A placed character can *Customize stock & prices* or become a merchant on its own (*Make this a
-merchant*). In the game, talking to a merchant runs its *Interact* triggers (a greeting) and then
+A placed character can have its own stock and prices, or become a merchant on its own (*Shop* in
+the Inspector's *Their own, instead of the definition's*). In the game, talking to a merchant runs its *Interact* triggers (a greeting) and then
 opens the trade window. Items the player sells join the stock, and every merchant's stock is kept
 in save games. Prices can change with the *buy* and *sell* [script hooks](08-scripting.md#script-hooks)
 (the example's friends' prices), and an *Ability check* (Persuasion) in a dialog makes a haggle.
@@ -464,7 +462,7 @@ the player:
 - **At 0 HP** in a fight a companion falls unconscious and rolls death saving throws like the hero;
   when the fight is won it gets up with 1 HP. Dead (three failures), or at 0 HP outside fights, it
   is **knocked down**: it lies where it fell, enemies leave it alone, and any heal gets it back up. Leaving the map with a downed companion asks whether to leave it behind
-  (it then limps home). *Database › Project › Companions at 0 HP* can instead let it get up by
+  (it then limps home). *Companions at 0 HP* on the *Hero & party* page can instead let it get up by
   itself after some seconds, send it home at once, or make it **dead**: only a spell that brings
   back the dead helps then (Revivify within a minute, Raise Dead within ten days, Resurrection;
   see the manual's *Life and death*), and healing does nothing.
@@ -485,21 +483,22 @@ have no portrait.
 
 **Drawn portraits** replace the automatic one: *Portrait* in the character form (any frame size, e.g.
 64 × 64; *New blank portrait* adds a frame on a `portraits` sheet and opens the pixel editor), a
-placed character's own portrait in the inspector, and the player's (*Project › Player portrait*).
+placed character's own portrait in the Inspector, and the player's (*Player portrait* on the *Hero &
+party* page).
 
 **Moods** are more portraits by name ("worried", "angry") in the character's *Moods* list. A single
 line can use one (`say("Elder Rowan", "...", #{ mood: "worried" })`), or the **Set mood** action /
-`mood(name, mood)` changes it until the event ends. *Database › Project › Dialog portraits* turns
+`mood(name, mood)` changes it until the event ends. *Dialog portraits* on the *Look & feel* page turns
 portraits off.
 
 ![Elder Rowan's drawn portrait in a dialog](../images/game-dialog.webp)
 
 ## The player character and the character creator
 
-The player is a character too: *Database › Project › Player character* names the definition, and
+The player is a character too: *Player character* on the *Hero & party* page names the definition, and
 its look and equipment are what a new game starts with.
 
-The **character creator** (*Database › Project › Character creator*, *Show the character creator…*)
+The **character creator** (*Character creator* on the *Hero & party* page)
 lets players create their hero after *New game*, step by step in the order of an SRD 5.1 hero.
 A step the project has nothing for is skipped, and *Step 2 of 6* at the top says where the player
 is. *Next* goes on, *Back* (or Esc) goes back, and *Start adventure* on the last step makes the hero.
@@ -515,7 +514,7 @@ is. *Next* goes on, *Back* (or Esc) goes back, and *Start adventure* on the last
    feature's colours) and a race's choice that colours the model (the dragonborn's ancestry). An
    animated preview walks through all four directions; under it the race's ability increases, size,
    speed, darkvision and traits.
-2. **Class** (with classes in the project, *Database › Classes*): the class (the example's default
+2. **Class** (with classes in the project, *Characters › Classes*): the class (the example's default
    is the fighter), a row per **skill** it lets the hero choose (a fighter two of eight, a rogue
    four) and level 1's other **choices**: a fighter's fighting style, a cleric's domain, a
    sorcerer's origin, a warlock's patron. The selected choice's text shows under the rows. Beside
@@ -527,7 +526,7 @@ is. *Next* goes on, *Back* (or Esc) goes back, and *Start adventure* on the last
 3. **Ability scores** (the SRD 5.1 rules; [Gameplay › Rules](09-gameplay.md#rules-srd-51)): the
    method the project allows (*Character creator › Ability scores*). The **standard array** (15 14
    13 12 10 8) starts **placed for the class**: its highest scores on the class's best abilities
-   (*Database › Classes › Ability order*: a wizard's INT, CON, DEX). Left / Right on an ability
+   (the class's *Ability order*: a wizard's INT, CON, DEX). Left / Right on an ability
    swaps its value with another. **Point buy** starts from the same placed array (it costs all 27
    points) and changes every score between 8 and 15: 13 costs 5, 14 costs 7, 15 costs 9; the points
    left show beside the method. With **4d6**, each score is the best three of four dice, placed the
@@ -538,7 +537,7 @@ is. *Next* goes on, *Back* (or Esc) goes back, and *Start adventure* on the last
 
 ![The creator's ability scores: the standard array placed for a wizard](../images/game-creator-abilities.webp)
 
-4. **Background** (*Database › Backgrounds*, [Backgrounds](#backgrounds)): the background and the
+4. **Background** ([Backgrounds](#backgrounds)): the background and the
    languages it lets the hero choose, with its skills, feature and equipment on the left. A rogue's
    **expertise** is chosen here, because it doubles skills the background gives too.
 5. **Spells**, when the class picks some at level 1: a checklist of the class's cantrips and
@@ -553,7 +552,7 @@ is. *Next* goes on, *Back* (or Esc) goes back, and *Start adventure* on the last
 6. **Starting equipment**, when the project has a **starter store** (*Character creator › Starter
    store*: a character whose shop stock is sold, the example's and the starter library's
    **Outfitter** with the SRD's weapons, armour, ammunition, spellcasting focuses, tools, packs
-   and gear) and the class has **starting gold** (*Database › Classes › Starting gold*, e.g.
+   and gear) and the class has **starting gold** (the class's *Starting gold*, e.g.
    `5d4x10`; the hero gets the average, 125 gp for a fighter). The cart starts with the class's
    **starting equipment** (as far as the store sells it), and the budget is the starting gold or
    that equipment's price, whichever is more, so the kit always fits: a player who is happy with
@@ -580,7 +579,7 @@ name and the project's *Rules*.
 
 ## Races
 
-Races are definitions of their own (*Database › Races*). The example and the starter library have
+Races are definitions of their own (*Characters › Races* in the Project browser). The example and the starter library have
 the nine races of the **SRD 5.1** (dwarf, elf, halfling, human, dragonborn, gnome, half-elf,
 half-orc, tiefling) with their four subraces (Hill Dwarf, High Elf, Lightfoot Halfling, Rock
 Gnome), and goblins, orcs and trolls for the world's characters. A race has:
@@ -647,7 +646,7 @@ same field (for scripts and [factions](#factions)). The **Player race** conditio
 
 ### Backgrounds
 
-*Database › Backgrounds*: what the hero did before the adventure. The creator offers every
+Backgrounds (*Characters › Backgrounds*): what the hero did before the adventure. The creator offers every
 background on its *Background* step. A background has proficiencies (skills and tools), a number of
 **languages to choose**, **starting items** (given when the game starts) and a **feature** (its
 name and rule in words). The SRD's **Acolyte** (Insight, Religion, two languages, *Shelter of the
@@ -658,7 +657,7 @@ Acolyte starts with 15 coins. `background()` tells the hero's.
 
 ### Classes
 
-*Database › Classes*: the SRD 5.1's twelve classes, imported into the starter library and the
+Classes (*Characters › Classes*): the SRD 5.1's twelve classes, imported into the starter library and the
 example by the [SRD import](11-asset-library.md#the-srd-51-data) (*Add from library…* brings them into
 a project). A class has:
 
@@ -688,16 +687,14 @@ and `{sir|madam}` the first word for a male player and the second for a female o
 
 ## Factions
 
-Factions decide who fights whom. They are set up in *Database › Factions*: a list of
-factions (an id, fixed once added because triggers and scripts name it, and a name) and an
-**attitude table** where every pair of factions is *hostile*, *neutral* (the default) or
-*friendly*; click a cell to change it, the table reads both ways.
+Factions decide who fights whom. They are set up on the *World* page of the game's settings: a
+list of factions (an id, which triggers and scripts name, and a name) and their **attitudes**: every
+pair of factions is *hostile*, *neutral* (the default) or *friendly*, both ways.
 
-- A character belongs to its own **Faction** (*Database › Characters*), else to its race's
-  (*Database › Races › Faction*). Characters without a faction stay out of it. A **placed
-  character** can have a faction of its own (*Faction* in the map's inspector): one goblin who
-  trades with the humans, one guard in the bandits' pay. The **Members** list of *Database ›
-  Factions* shows who belongs to each faction and adds or removes races and characters.
+- A character belongs to its own **Faction** (its form's *Basics*), else to its race's (the
+  race's *Faction*). Characters without a faction stay out of it. A **placed
+  character** can have a faction of its own (*Faction* in the map's Inspector): one goblin who
+  trades with the humans, one guard in the bandits' pay.
 - **Characters of hostile factions fight each other**: chasers (*Chase foes*) notice foes within
   their sight like they notice the player and close in on them; in a fight near the player they
   take sides (the guards fight beside the player against bandits). Arrows of a shooter fly past its
@@ -719,7 +716,7 @@ factions (an id, fixed once added because triggers and scripts name it, and a na
   their own: their standing with it starts at 100 and with the others from its attitudes, unless
   a standing was already changed. `faction_of(target)` reads a character's (or the player's)
   faction.
-- *Edit › Problems* warns about characters, races and placed characters naming a faction the
+- The project check (Problems) warns about characters, races and placed characters naming a faction the
   project doesn't have.
 
 In the example, humans, elves, dwarves, goblin tribes, orc clans, bandits, wild beasts and

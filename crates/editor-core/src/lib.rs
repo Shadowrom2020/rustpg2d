@@ -4,6 +4,7 @@
 
 pub mod doc;
 pub mod art;
+pub mod cleanup;
 pub mod commands;
 pub mod cutscene;
 pub mod defs;
@@ -28,6 +29,7 @@ pub mod names;
 pub mod package;
 pub mod packs;
 pub mod pixels;
+pub mod plugins;
 pub mod problems;
 pub mod project_file;
 pub mod refs;

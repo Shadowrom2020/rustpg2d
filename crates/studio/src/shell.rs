@@ -346,6 +346,8 @@ pub struct Shell {
     pub new_asset: Option<crate::gallery::NewAsset>,
     /// The *Share…* window while it is open.
     pub share: Option<crate::packspage::ShareWindow>,
+    /// *Clean up unused files…* while it is open.
+    pub cleanup: Option<crate::cleanupwin::CleanupWindow>,
     lib_look: Option<LibLook>,
     marks: Marks,
     /// The open maps' views (camera, selection, tool), by map.
@@ -370,6 +372,8 @@ pub struct Shell {
     pub agents: crate::agentspage::AgentsPage,
     /// Translations, on the Languages page.
     pub langs: crate::langpage::LangPage,
+    /// Plugins, on the Scripts & plugins page.
+    pub plugins: crate::pluginspage::PluginsPage,
     /// The language play-tests start in (`None`: as the player's settings say).
     pub play_lang: Option<String>,
     /// The editor is newer than the one whose news were looked at: the Overview says so.
@@ -426,7 +430,7 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, share: None, lib_look: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), art: Default::default(), help: Default::default(), tour: Default::default(), agents: Default::default(), langs: Default::default(), play_lang: None, news: false, timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), model_stages: Default::default(), pixels: Default::default(), sounds: Default::default(), sheets: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new() }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, share: None, cleanup: None, lib_look: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), art: Default::default(), help: Default::default(), tour: Default::default(), agents: Default::default(), langs: Default::default(), plugins: Default::default(), play_lang: None, news: false, timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), model_stages: Default::default(), pixels: Default::default(), sounds: Default::default(), sheets: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new() }
     }
 
     /// The window around another workspace (another project, or none). What belongs to the
@@ -814,6 +818,49 @@ impl Shell {
         }
     }
 
+    /// *Clean up unused files…*: `open`, `pick KEY on|off`, `delete`, `keep`, `cancel`; returns
+    /// `closed` or `TICKED/ALL` with a line an entry.
+    pub fn cleanup_word(&mut self, args: &[String]) -> String {
+        let arg = |i: usize| args.get(i).map(String::as_str).unwrap_or("");
+        match arg(0) {
+            "open" => {
+                if let Err(e) = self.run("assets.cleanup") {
+                    return format!("failed: {e}");
+                }
+            }
+            "pick" => {
+                if let Some(w) = self.cleanup.as_mut().filter(|w| w.cleanup.picks.contains_key(arg(1))) {
+                    w.cleanup.picks.insert(arg(1).to_string(), arg(2) == "on");
+                } else {
+                    return format!("failed: nothing unused is called {}", arg(1));
+                }
+            }
+            "delete" | "keep" => {
+                let Some(w) = self.cleanup.take() else { return "failed: the clean-up isn't open".into() };
+                match self.ws.cleanup_apply(&w.cleanup, arg(0) == "delete") {
+                    Ok(said) => self.ws.set_status(said),
+                    Err(e) => return format!("failed: {e}"),
+                }
+                self.lists.clear();
+                self.marks.unused = None;
+            }
+            "cancel" => self.cleanup = None,
+            _ => {}
+        }
+        match &self.cleanup {
+            Some(w) => std::iter::once(w.cleanup.status()).chain(w.listing()).collect::<Vec<_>>().join("\n[cleanup] "),
+            None => "closed".into(),
+        }
+    }
+
+    /// Plugins on the Scripts & plugins page: the words of `PluginsPage::word`; returns its `status` line.
+    pub fn plugins_word(&mut self, args: &[String]) -> String {
+        match self.plugins.word(&mut self.ws, args) {
+            Ok(()) => self.plugins.status(&self.ws),
+            Err(e) => format!("failed: {e}"),
+        }
+    }
+
     /// The AI agents page: the words of `AgentsPage::word`; returns its `status` line.
     pub fn agents_word(&mut self, ctx: &egui::Context, args: &[String]) -> String {
         match self.agents.word(ctx, &mut self.ws, args) {
@@ -974,6 +1021,18 @@ impl Shell {
 
     /// Runs a command line and keeps its answer.
     pub fn run(&mut self, line: &str) -> Result<String, String> {
+        // (In the window the clean-up is a list to tick, not a line of text.)
+        if line.trim() == "assets.cleanup" {
+            self.save_scripts();
+            return match crate::cleanupwin::CleanupWindow::open(&mut self.ws) {
+                Ok(w) => {
+                    let said = format!("{} unused", w.listing().len());
+                    self.cleanup = Some(w);
+                    Ok(said)
+                }
+                Err(e) => Err(e),
+            };
+        }
         let scripts = if line.trim() == "file.save_all" { self.save_scripts() } else { 0 };
         let r = self.ws.run_line(line);
         // (Scripts and painted pictures are saved with everything; said when they were all there was to save.)
@@ -1327,7 +1386,7 @@ impl Shell {
 
         let mut asks = Vec::new();
         {
-            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, library: &mut self.library, art: &mut self.art, help: &mut self.help, tour: &mut self.tour, agents: &mut self.agents, langs: &mut self.langs, play_lang: &self.play_lang, news: &mut self.news, home: &mut self.home, timelines: &mut self.timelines, nodes: &mut self.nodes, stages: &mut self.stages, figures: &mut self.figures, model_stages: &mut self.model_stages, pixels: &mut self.pixels, sounds: &mut self.sounds, sheets: &mut self.sheets, scrub: &mut self.scrub, try_next: &mut self.try_next, rs, asks: &mut asks };
+            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, library: &mut self.library, art: &mut self.art, help: &mut self.help, tour: &mut self.tour, agents: &mut self.agents, langs: &mut self.langs, plugins: &mut self.plugins, play_lang: &self.play_lang, news: &mut self.news, home: &mut self.home, timelines: &mut self.timelines, nodes: &mut self.nodes, stages: &mut self.stages, figures: &mut self.figures, model_stages: &mut self.model_stages, pixels: &mut self.pixels, sounds: &mut self.sounds, sheets: &mut self.sheets, scrub: &mut self.scrub, try_next: &mut self.try_next, rs, asks: &mut asks };
             DockArea::new(&mut self.dock).show_inside(ui, &mut viewer);
         }
         for ask in asks {
@@ -1396,6 +1455,16 @@ impl Shell {
                 }
             }
             None => {}
+        }
+        // *Clean up unused files…*
+        if let Some(mut w) = self.cleanup.take() {
+            if w.show(&ctx, &mut self.ws) {
+                self.cleanup = Some(w);
+            } else {
+                // (What was deleted is gone from the lists and the pictures.)
+                self.lists.clear();
+                self.marks.unused = None;
+            }
         }
         // The *Share…* window.
         if let Some(mut w) = self.share.take() {
@@ -1737,6 +1806,7 @@ struct Viewer<'a> {
     tour: &'a mut crate::tourpanel::TourPanel,
     agents: &'a mut crate::agentspage::AgentsPage,
     langs: &'a mut crate::langpage::LangPage,
+    plugins: &'a mut crate::pluginspage::PluginsPage,
     play_lang: &'a Option<String>,
     news: &'a mut bool,
     home: &'a mut Home,
@@ -2500,6 +2570,10 @@ impl Viewer<'_> {
             if let Some(crate::langpage::Want::PlayIn(code, now)) = self.langs.show(ui, self.ws, self.play_lang) {
                 self.asks.push(Ask::PlayIn(code, now));
             }
+        }
+        // Scripts & plugins: the plugins before the hooks.
+        if page == "Scripts & plugins" {
+            self.plugins.show(ui, self.ws, self.lists);
         }
         let mut value = self.ws.config_value();
         let mut pics = self.rs.map(|rs| crate::thumbs::Pics { thumbs: &mut *self.thumbs, ws: &*self.ws, rs });

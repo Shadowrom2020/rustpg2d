@@ -146,6 +146,13 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   Place and Terrain tools; the Problems tab says what the check looks for before it ran and
   that nothing was found after; the Place tool and the World view say what to do when there
   is nothing to place or only one map.
+- **Plugins on their page** (part 5): *Scripts & plugins* shows the project's plugins with
+  what each does, on / off, their order, and every parameter by its name with the control that
+  fits; a plugin is added from the asset library or a plugin file and removed with its files
+  kept aside.
+- **Clean up unused files** (part 4): *Assets › Clean up unused files* lists what nothing in
+  the game names, with its size; what is ticked is deleted after a copy is put beside the
+  project, what isn't is remembered as kept.
 - **Translations** (part 5): the *Languages* page lists the languages the game is offered in
   with how far each is translated, adds one (a click for the nine languages the game's own
   menus exist in), and opens a language's table: every text players read with its translation

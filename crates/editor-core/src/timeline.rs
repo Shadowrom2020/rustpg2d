@@ -118,6 +118,28 @@ impl Workspace {
         }
     }
 
+    /// The definitions' steps are gone (the definitions were read again from their files, or
+    /// files they named were deleted): their entries leave the history with them. What was
+    /// done together with one of them (a map's part of the same action) stands alone.
+    pub fn forget_defs_steps(&mut self) {
+        self.db_hist.clear();
+        for list in [&mut self.timeline.done, &mut self.timeline.undone] {
+            // (A group: an entry and the joined ones after it.)
+            let mut broken = false;
+            for k in 0..list.len() {
+                if !list[k].joined {
+                    let end = (k + 1..list.len()).find(|j| !list[*j].joined).unwrap_or(list.len());
+                    broken = list[k..end].iter().any(|c| c.at == Where::Defs);
+                }
+                if broken {
+                    list[k].joined = false;
+                }
+            }
+            list.retain(|c| c.at != Where::Defs);
+        }
+        self.stale = true;
+    }
+
     fn doc_named(&mut self, name: &str) -> bool {
         self.doc.as_ref().is_some_and(|d| d.map.name == name) || self.parked.contains_key(name)
     }

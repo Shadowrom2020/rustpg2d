@@ -29,6 +29,8 @@ pub enum Key {
     ShareFolder,
     /// A form's field that names a file (the number tells the fields apart).
     FormFile(u64),
+    /// The Scripts & plugins page: a plugin file to add.
+    PluginFile,
 }
 
 /// What is asked for.

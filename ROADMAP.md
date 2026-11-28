@@ -947,6 +947,14 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   - Script: `field KIND ID /POINTER VALUE` changes a field as the form does; `click X Y`,
     `hover X Y`, `wheel DY`, `type TEXT`, `press KEY` are real input in the window (eframe's
     input hook), `size W H`, `allfields on|off`.
+  - **Clean up unused files** (`editor-core/src/cleanup.rs`, `studio/src/cleanupwin.rs`;
+    *Assets › Clean up unused files*, `cleanup`): the project is saved, then what nothing
+    names is listed (definitions with the files only they use, and files no definition
+    names) with its size, to tick; *Delete the ticked* puts a copy beside the project
+    (`<name>-backup-cleanup`) and deletes, *Keep all* deletes nothing; what stays unticked is
+    remembered for the project and comes unticked the next time. The definitions' steps
+    leave the History with it (`forget_defs_steps`: they would bring deleted definitions
+    back without their files; the same now when definitions are read again from disk).
   Still open: the hand-made editors (triggers as an event sheet in part 7; stat blocks,
   buildings, class levels), a state picked among the states of the prop in question, tool
   kinds and piece styles, units and ranges on numbers, problems at the field, live previews (an
@@ -1084,6 +1092,14 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     play-tests keep starting in it (*Play-tests start in*). *Take off the list* leaves the
     file. Japanese, Chinese and Korean show as boxes in the table (the editor's font; the
     table says so): open.
+  - **Plugins** (`editor-core/src/plugins.rs`, `studio/src/pluginspage.rs`; at the top of the
+    *Scripts & plugins* page, `plugins`): the project's plugins as cards (name, version,
+    author, what it does; on / off; up / down in the order; *Remove*, its folder kept under
+    `editor/backup`), each parameter by its label with the control its kind takes (a number
+    in its range, a switch, a text, one of the project's sheets / sounds / items / maps) and
+    *Default* when it was set; a parameter set to its default isn't kept. *Add a plugin*:
+    the asset library's that the project lacks (or has older: *Update to…*), or a plugin
+    file. The raw list of the settings is under *Show all fields*.
   Still open: what a plain form doesn't give. The factions as a table of standings, the title
   screen's live preview, the translation table, the hooks with their script functions and the
   plugins' parameters by their kinds, the game's icon picked from a picture (it is a path on
@@ -2511,8 +2527,8 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   | Project settings (one long form) | the *Game* pages | there |
   | *Browse…* in a form: a sheet's picture, a sound's file, a material's texture, a font's file and its licence copied in | *Browse…* beside every field that names a file (`schema::FILES`); *New…* from a file also for ground (a picture) and fonts (2026-11-28) | there |
   | Languages: translation template exported, play-test in a language | *Translations* on the Languages page: languages with how far each is, a language added, its table (every text, its translation typed beside it), *Play in it* (2026-11-28) | there |
-  | Plugins window: add from a file or the library, on / off, order, parameters, export, to the library, remove | on / off, order and values in the *Scripts & plugins* form; a pack brings plugins into the library; nothing puts one into a project or takes it out | **open** |
-  | Clean up unused files (definitions nothing uses, stray files; a backup first; offered on close) | kinds show *unused*; nothing deletes stray files | **open** |
+  | Plugins window: add from a file or the library, on / off, order, parameters, export, to the library, remove | *Plugins* on the *Scripts & plugins* page: each with what it is, on / off, order, its parameters by name with the control that fits, *Remove* (its files kept aside), added from the library or a plugin file; out of the project they go as part of a pack (*Share…*) (2026-11-28) | there |
+  | Clean up unused files (definitions nothing uses, stray files; a backup first; offered on close) | *Assets › Clean up unused files* (`assets.cleanup`): the list to tick, a copy beside the project, what is kept remembered (2026-11-28); it isn't offered when a project closes | partly (the offer on close) |
   | **Events**: trigger editors | the event sheet | there |
   | Events graph (a map's triggers, scripts and maps as a graph) | — | **open** (or decide) |
   | Scripts: editor with completion, check, API help | script tabs | there |

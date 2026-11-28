@@ -518,6 +518,23 @@ pub const COMMANDS: &[Command] = &[
         },
     },
     Command {
+        id: "assets.cleanup",
+        title: "Clean up unused files",
+        keys: "",
+        params: &[],
+        help: "Lists the pictures, models, sounds, ground and fonts nothing in the game names, and files no definition names (in the window: to tick and delete, with a copy kept).",
+        changes: false,
+        run: |ws, _| {
+            let c = ws.cleanup_find()?;
+            let entries = c.entries();
+            if entries.is_empty() {
+                return Ok("Nothing is unused".into());
+            }
+            let bytes: u64 = entries.iter().map(|e| e.bytes).sum();
+            Ok(format!("{} unused ({}): {}", entries.len(), crate::cleanup::size(bytes), entries.iter().map(|e| e.key.as_str()).collect::<Vec<_>>().join(", ")))
+        },
+    },
+    Command {
         id: "agent.start",
         title: "Start the agent server",
         keys: "",

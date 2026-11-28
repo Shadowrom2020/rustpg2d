@@ -89,11 +89,29 @@ pub fn create_project_file(path: &Path) -> Result<PathBuf> {
 
 const RECENT_MAX: usize = 8;
 
+thread_local! {
+    /// The editor's settings folder for what runs on this thread (tests: each has its own).
+    static CONFIG_HERE: std::cell::RefCell<Option<PathBuf>> = const { std::cell::RefCell::new(None) };
+}
+
+/// From here on, what runs on this thread keeps the editor's settings in `dir` (`None`: where
+/// they usually are). For tests that write settings: each test runs on a thread of its own.
+pub fn config_dir_here(dir: Option<PathBuf>) {
+    CONFIG_HERE.with_borrow_mut(|c| *c = dir);
+}
+
 /// `$RUSTPG2D_EDITOR_CONFIG`, else `$XDG_CONFIG_HOME/rustpg2d`, else `~/.config/rustpg2d`
 /// (Windows: `%APPDATA%\rustpg2d`).
 pub(crate) fn config_dir() -> Option<PathBuf> {
+    if let Some(p) = CONFIG_HERE.with_borrow(|c| c.clone()) {
+        return Some(p);
+    }
     if let Some(p) = std::env::var_os("RUSTPG2D_EDITOR_CONFIG") {
         return Some(PathBuf::from(p));
+    }
+    // (This crate's own tests never read or write the settings of whoever runs them.)
+    if cfg!(test) {
+        return None;
     }
     let base = rustpg2d_engine::paths::config_base()?;
     let dir = base.join("rustpg2d");

@@ -655,7 +655,7 @@ pub const PAGES: &[(&str, &str, &str)] = &[
     ("Title & menus", "The title screen, the pause menu, the action bar.", "title menu action_bar"),
     ("Sound", "The sounds the game itself plays, and the music of fights.", "sfx battle_music"),
     ("Languages", "The language the game is written in and the ones it is translated into.", "language languages"),
-    ("Scripts & plugins", "Script functions the game calls at its own moments, and plugins.", "hooks plugins"),
+    ("Scripts & plugins", "Script functions the game calls at its own moments, and plugins.", "hooks ~plugins"),
 ];
 
 /// A page's name in scripts and tab names: `Hero & party` -> `hero-party`.

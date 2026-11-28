@@ -23,6 +23,7 @@ mod artpage;
 mod artshop;
 mod buildtool;
 mod charshop;
+mod cleanupwin;
 mod mapview;
 mod modelshop;
 mod namespage;
@@ -30,6 +31,7 @@ mod nodesview;
 mod packspage;
 mod pick;
 mod pixeledit;
+mod pluginspage;
 mod play;
 mod propshop;
 mod publish;
@@ -180,6 +182,8 @@ impl Studio {
                 "tour" => println!("[tour] {}", self.shell.tour_word(ctx, &cmd[1..])),
                 "agents" => println!("[agents] {}", self.shell.agents_word(ctx, &cmd[1..])),
                 "lang" => println!("[lang] {}", self.shell.lang_word(&cmd[1..])),
+                "plugins" => println!("[plugins] {}", self.shell.plugins_word(&cmd[1..])),
+                "cleanup" => println!("[cleanup] {}", self.shell.cleanup_word(&cmd[1..])),
                 // What another program changed in the project's files: `watch` prints `clean` or
                 // `changed:FILES` (waiting for an answer), `watch reload|keep` answers.
                 "watch" => {

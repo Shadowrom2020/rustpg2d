@@ -341,6 +341,33 @@ impl Workspace {
         }
     }
 
+    /// Reads an open map again from its file: what the editor had of it, with its undo steps,
+    /// is dropped (its file was changed by another program). Returns false when the map
+    /// isn't open or its file can't be read (then it stays as it is).
+    pub fn reload_map(&mut self, name: &str) -> bool {
+        let front = self.doc.as_ref().is_some_and(|d| d.map.name == name);
+        if !front && !self.parked.contains_key(name) {
+            return false;
+        }
+        let mut warnings = Vec::new();
+        let map = match rustpg2d_engine::map::io::load_with(&self.project.map_path(name), &mut |w| warnings.push(w)) {
+            Ok(map) => map,
+            Err(e) => {
+                self.set_status(format!("{name} changed on disk but can't be read: {e:#}"));
+                return false;
+            }
+        };
+        self.note_load_warnings(&self.project.map_path(name), &warnings);
+        let doc = MapDoc::new(map, &self.assets);
+        if front {
+            self.doc = Some(doc);
+        } else {
+            self.parked.insert(name.to_string(), doc);
+        }
+        self.stale = true;
+        true
+    }
+
     /// Makes `map` the map being worked on (a new or loaded one).
     pub fn load_doc(&mut self, map: Map) {
         if let Some(d) = self.doc.take() {

@@ -180,29 +180,31 @@ impl Workspace {
                         Err(e) => self.set_status(format!("Definitions changed on disk but can't be read: {e:#}")),
                     }
                 }
-                Changed::Map(name) if Some(&name) == open_map.as_ref() => {
+                // A map that is open: the one in front, or one beside it.
+                Changed::Map(name) if Some(&name) == open_map.as_ref() || self.parked.contains_key(&name) => {
+                    let front = Some(&name) == open_map.as_ref();
                     let path = self.project.map_path(&name);
+                    let doc = if front { self.doc.as_ref() } else { self.parked.get(&name) };
                     // The file holds the map as the editor has it (the editor wrote it): nothing
                     // to reload (reloading would also drop the map's undo history).
-                    let same = self.doc.as_ref().is_some_and(|d| {
-                        std::fs::read(&path).ok().zip(rustpg2d_engine::map::io::encode(&d.map).ok()).is_some_and(|(disk, mine)| disk == mine)
-                    });
+                    let same = doc.is_some_and(|d| std::fs::read(&path).ok().zip(rustpg2d_engine::map::io::encode(&d.map).ok()).is_some_and(|(disk, mine)| disk == mine));
                     if same {
                         continue;
                     }
-                    if self.doc.as_ref().is_some_and(|d| d.is_dirty()) && !force {
+                    if doc.is_some_and(|d| d.is_dirty()) && !force {
                         blocked.push(format!("maps/{name}.map"));
                         continue;
                     }
                     if path.exists() {
                         let sel = self.sel;
-                        self.open_map(&name);
+                        if self.reload_map(&name) {
+                            reloaded.push(if front { "the open map" } else { "a map open beside it" });
+                        }
                         self.sel = sel;
-                        reloaded.push("the open map");
                     } else {
-                        self.doc = None;
+                        self.close_map(&name);
                         map_list = true;
-                        reloaded.push("the open map (deleted on disk: closed)");
+                        reloaded.push("a map (deleted on disk: closed)");
                     }
                 }
                 Changed::Map(_) => map_list = true,
@@ -262,8 +264,13 @@ impl Workspace {
                 };
                 changes.push(c);
             }
-            if let Some(d) = &mut self.doc {
-                d.mark_saved();
+            // (What is reloaded gives its unsaved changes up: said so by the banner.)
+            for c in &changes {
+                if let Changed::Map(name) = c {
+                    if let Some(d) = self.doc.iter_mut().chain(self.parked.values_mut()).find(|d| d.map.name == *name) {
+                        d.mark_saved();
+                    }
+                }
             }
             self.defs_dirty = false;
             self.db.script_dirty = false;
@@ -274,4 +281,72 @@ impl Workspace {
     }
 
 
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::Workspace;
+
+    /// A look at the files now (the watcher looks once a second).
+    fn look(ws: &mut Workspace) {
+        ws.watch.last_check = -10.0;
+        ws.watch_project();
+    }
+
+    /// Another program writes `name` with another size.
+    fn outside(ws: &Workspace, name: &str, w: u32, h: u32) {
+        let mut m = ws.project.load_map(name).unwrap();
+        m.resize(w, h);
+        ws.project.save_map(&m).unwrap();
+    }
+
+    fn size(ws: &Workspace, name: &str) -> (u32, u32) {
+        ws.open_maps().iter().find(|d| d.map.name == name).map(|d| (d.map.width, d.map.height)).unwrap()
+    }
+
+    #[test]
+    fn maps_changed_by_another_program_are_read_again_or_asked_about() {
+        let dir = std::env::temp_dir().join(format!("rustpg2d-watcher-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        crate::files::create_project(&dir).unwrap();
+        let mut ws = Workspace::new(dir.clone(), crate::Gpu::No).unwrap();
+        ws.open_map("start");
+        ws.create_map("cellar", 8, 6, None).unwrap();
+        ws.history_frame(None);
+        ws.watch_resnapshot();
+        // The map in front, without changes of its own: read again as the file has it.
+        outside(&ws, "cellar", 10, 7);
+        look(&mut ws);
+        assert_eq!((size(&ws, "cellar"), ws.watch.status().as_str()), ((10, 7), "clean"));
+        assert!(ws.status.0.contains("the open map"), "{}", ws.status.0);
+        // A map open beside it too.
+        outside(&ws, "start", 12, 9);
+        look(&mut ws);
+        assert_eq!(size(&ws, "start"), (12, 9));
+        assert_eq!(ws.doc.as_ref().unwrap().map.name, "cellar", "the map in front stays in front");
+        // With changes of its own it is asked about: kept, the editor's stays (and is what a save writes)…
+        ws.resize_map(11, 8).unwrap();
+        outside(&ws, "cellar", 20, 20);
+        look(&mut ws);
+        assert_eq!((size(&ws, "cellar"), ws.watch.status().as_str()), ((11, 8), "changed:maps/cellar.map"));
+        ws.watch_answer(false);
+        assert_eq!((size(&ws, "cellar"), ws.watch.status().as_str()), ((11, 8), "clean"));
+        assert!(ws.doc.as_ref().unwrap().is_dirty());
+        // …reloaded, the file's is taken and nothing waits to be saved.
+        outside(&ws, "cellar", 21, 21);
+        look(&mut ws);
+        assert_eq!(ws.watch.status(), "changed:maps/cellar.map");
+        ws.watch_answer(true);
+        assert_eq!(size(&ws, "cellar"), (21, 21));
+        assert!(!ws.doc.as_ref().unwrap().is_dirty());
+        // What the editor saves itself is no change from outside: the map keeps its undo steps.
+        ws.resize_map(5, 5).unwrap();
+        ws.history_frame(None);
+        ws.save_all();
+        look(&mut ws);
+        assert_eq!((size(&ws, "cellar"), ws.watch.status().as_str()), ((5, 5), "clean"));
+        assert!(ws.can_undo(), "saving doesn't cost the history");
+        let _ = std::fs::remove_dir_all(dir);
+    }
 }

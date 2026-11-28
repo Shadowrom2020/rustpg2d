@@ -17,6 +17,7 @@ mod agentspage;
 mod form;
 mod gallery;
 mod helpview;
+mod langpage;
 mod librarypage;
 mod artpage;
 mod artshop;
@@ -178,6 +179,17 @@ impl Studio {
                 // `ID done/steps [x - .] now=STEP at=X,Y` (where the control it points at is).
                 "tour" => println!("[tour] {}", self.shell.tour_word(ctx, &cmd[1..])),
                 "agents" => println!("[agents] {}", self.shell.agents_word(ctx, &cmd[1..])),
+                "lang" => println!("[lang] {}", self.shell.lang_word(&cmd[1..])),
+                // What another program changed in the project's files: `watch` prints `clean` or
+                // `changed:FILES` (waiting for an answer), `watch reload|keep` answers.
+                "watch" => {
+                    match arg(1) {
+                        "reload" => self.shell.ws.watch_answer(true),
+                        "keep" => self.shell.ws.watch_answer(false),
+                        _ => {}
+                    }
+                    println!("[watch] {}", self.shell.ws.watch.status());
+                }
                 // The Help tab: `help topic` (as F1: the manual for the tab in front), `help open FILE [ANCHOR]`,
                 // `help search TEXT…`, `help hit K`, `help back`.
                 "help" => println!("[help] {}", self.shell.help_word(&cmd[1..])),

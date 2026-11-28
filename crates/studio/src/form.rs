@@ -129,6 +129,45 @@ fn summary(v: &Value) -> String {
     }
 }
 
+fn root_id() -> egui::Id {
+    egui::Id::unique("forms' project folder")
+}
+
+/// The folder of the project whose forms are shown: a file picked for a field is copied in
+/// there. (None: forms of something that is no project's, in tests: *Browse…* isn't offered.)
+pub fn set_root(ctx: &egui::Context, root: Option<std::path::PathBuf>) {
+    ctx.data_mut(|d| match root {
+        Some(root) => {
+            d.insert_temp(root_id(), root);
+        }
+        None => {
+            d.remove_temp::<std::path::PathBuf>(root_id());
+        }
+    });
+}
+
+/// A field that names a file of the project: its place typed, or *Browse…*: the file picked
+/// is copied into the project's `folder` (one already in the project stays where it is).
+fn file_field(ui: &mut egui::Ui, s: &mut String, by: egui::Id, folder: &str, files: &'static str, exts: &'static [&'static str]) -> bool {
+    let mut changed = ui.add(egui::TextEdit::singleline(s).hint_text(format!("{folder}/…")).desired_width(text_width(ui, 230.0))).labelled_by(by).changed();
+    let Some(root) = ui.data(|d| d.get_temp::<std::path::PathBuf>(root_id())) else { return changed };
+    let key = crate::pick::Key::FormFile(by.value());
+    let start = Some(root.join(if s.is_empty() { folder } else { s.as_str() }));
+    let hover = format!("A file ({}): it is copied into the project's {folder} folder", exts.iter().map(|e| format!(".{e}")).collect::<Vec<_>>().join(", "));
+    if let Some(picked) = crate::pick::browse(ui, key, "Browse…", &hover, || crate::pick::Want::File(files, exts), start) {
+        match editor_core::files::import_asset(&root, &picked, folder) {
+            Ok(rel) => {
+                changed |= *s != rel;
+                *s = rel;
+            }
+            Err(e) => {
+                ui.colored_label(ui.visuals().error_fg_color, format!("{e:#}"));
+            }
+        }
+    }
+    changed
+}
+
 /// Forms shown from here on are in a narrow panel (a map's Inspector): shorter labels and
 /// fields. Switch it off again after the form.
 pub fn set_narrow(ctx: &egui::Context, narrow: bool) {
@@ -484,6 +523,8 @@ fn inline(ui: &mut egui::Ui, cx: &mut Cx, node: Node, site: &str, v: &mut Value,
                 picker(ui, cx, kinds, s, by)
             } else if let Some(names) = schema::names(site, key) {
                 named(ui, &cx.names(names), s, by)
+            } else if let Some((folder, files, exts)) = schema::file_field(site).filter(|_| !cx.compact) {
+                file_field(ui, s, by, folder, files, exts)
             } else if !cx.compact && (s.contains('\n') || s.len() > 60) {
                 ui.add(egui::TextEdit::multiline(s).desired_rows(2).desired_width(text_width(ui, 460.0))).labelled_by(by).changed()
             } else {
@@ -1248,6 +1289,30 @@ mod ui_tests {
         h.get_by_label("Ally").click();
         h.run();
         assert_eq!(h.state().value["use_on"], "Ally");
+    }
+
+    #[test]
+    fn a_field_that_names_a_file_takes_one_from_a_dialog_into_the_project() {
+        // A project's folder of the test's own, and a sound file outside it.
+        let dir = std::env::temp_dir().join(format!("rustpg2d-form-file-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("game")).unwrap();
+        let outside = dir.join("Door slam.ogg");
+        std::fs::write(&outside, b"OggS not really").unwrap();
+        let mut h = form(RefKind::Sound, "chime");
+        h.run();
+        // Without a project there is nothing to copy into: no button.
+        assert!(h.query_all_by_label("Browse…").next().is_none());
+        set_root(&h.ctx, Some(dir.join("game")));
+        h.run();
+        // The dialog's answer (as a script gives it): the file is copied in, the field names the copy.
+        crate::pick::answer_next(&outside);
+        h.get_by_label("Browse…").click();
+        h.run_steps(3);
+        assert_eq!(h.state().value["file"], "sounds/Door slam.ogg");
+        assert_eq!(std::fs::read(dir.join("game/sounds/Door slam.ogg")).unwrap(), b"OggS not really");
+        set_root(&h.ctx, None);
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]

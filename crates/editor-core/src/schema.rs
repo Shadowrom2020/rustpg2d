@@ -855,6 +855,25 @@ pub enum Names {
 
 /// The kind of name the text field at `site` holds (see [`Names`]); `None`: free text, or a
 /// definition's id ([`reference`], which goes first).
+/// The fields that name a file of the project: the folder such a file is kept in, what the
+/// files are called, and their extensions. A form puts *Browse…* beside them (the file picked
+/// is copied into the project).
+pub const FILES: &[(&str, &str, &str, &[&str])] = &[
+    ("SheetDef.image", "sprites", "Pictures", &["png"]),
+    ("SoundDef.file", "sounds", "Sounds", &["ogg", "wav"]),
+    ("MaterialDef.texture", "materials", "Pictures", &["png"]),
+    ("FontDef.file", "fonts", "Fonts", &["ttf", "otf"]),
+    ("FontDef.license", "fonts", "Texts", &["txt", "md"]),
+    ("ModelDef.file", "models", "3D models", &["glb"]),
+    ("ItemModel.file", "models", "3D models", &["glb"]),
+];
+
+/// What a field that names a file takes: its folder in the project, the files' name, their
+/// extensions.
+pub fn file_field(site: &str) -> Option<(&'static str, &'static str, &'static [&'static str])> {
+    FILES.iter().find(|(s, ..)| *s == site).map(|(_, folder, name, exts)| (*folder, *name, *exts))
+}
+
 pub fn names(site: &str, key: &str) -> Option<Names> {
     if !reference(site).is_empty() {
         return None;

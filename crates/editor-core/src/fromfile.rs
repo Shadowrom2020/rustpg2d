@@ -17,6 +17,8 @@ pub enum FileKind {
     Picture,
     /// A sound (`.ogg`, `.wav`).
     Sound,
+    /// A font (`.ttf`, `.otf`).
+    Font,
 }
 
 impl FileKind {
@@ -25,6 +27,7 @@ impl FileKind {
             "glb" => Some(FileKind::Model),
             "png" => Some(FileKind::Picture),
             "ogg" | "wav" => Some(FileKind::Sound),
+            "ttf" | "otf" => Some(FileKind::Font),
             _ => None,
         }
     }
@@ -34,6 +37,7 @@ impl FileKind {
             FileKind::Model => "a 3D model",
             FileKind::Picture => "a picture",
             FileKind::Sound => "a sound",
+            FileKind::Font => "a font",
         }
     }
 
@@ -41,8 +45,9 @@ impl FileKind {
     pub fn makes(self) -> &'static [RefKind] {
         match self {
             FileKind::Model => &[RefKind::Prop, RefKind::Model],
-            FileKind::Picture => &[RefKind::Prop, RefKind::Sheet],
+            FileKind::Picture => &[RefKind::Prop, RefKind::Sheet, RefKind::Material],
             FileKind::Sound => &[RefKind::Sound],
+            FileKind::Font => &[RefKind::Font],
         }
     }
 }
@@ -56,6 +61,8 @@ pub fn what_it_makes(kind: RefKind, file: &Path) -> Option<&'static str> {
         (RefKind::Prop, FileKind::Picture) => Some("A prop with this picture, standing on its lower edge, and the sprite sheet that holds the picture. A large picture is shown smaller (the sheet's scale)."),
         (RefKind::Sheet, FileKind::Picture) => Some("A sprite sheet of this picture as one frame: set the frame's size in its form when it holds several."),
         (RefKind::Sound, FileKind::Sound) => Some("A sound that plays this file."),
+        (RefKind::Material, FileKind::Picture) => Some("Ground to paint with, this picture repeated over it: one that joins itself at its edges (up to 256 px wide and high). Its tab paints it and sets its edge."),
+        (RefKind::Font, FileKind::Font) => Some("A font of this file for the game's texts (which texts use it: the Look & feel page). A pixel font: set the size it is drawn for in its form."),
         _ => None,
     }
 }
@@ -102,7 +109,7 @@ impl Workspace {
         if name.is_empty() {
             return Err("it needs a name".into());
         }
-        let what = FileKind::of(file).ok_or_else(|| format!("{} is no 3D model (.glb), picture (.png) or sound (.ogg, .wav)", file.display()))?;
+        let what = FileKind::of(file).ok_or_else(|| format!("{} is no 3D model (.glb), picture (.png), sound (.ogg, .wav) or font (.ttf, .otf)", file.display()))?;
         if what_it_makes(kind, file).is_none() {
             return Err(format!("{} can't become a {}: it can become {}", what.label(), kind.label().to_lowercase(), what.makes().iter().map(|k| format!("a {}", k.label().to_lowercase())).collect::<Vec<_>>().join(" or ")));
         }
@@ -121,6 +128,25 @@ impl Workspace {
                 let rel = crate::files::import_asset(&root, file, "sounds").map_err(|e| format!("{e:#}"))?;
                 let id = self.make_def(kind, name, None)?;
                 set(self, kind, &id, &|v| v["file"] = rel.clone().into())?;
+                id
+            }
+            (RefKind::Font, _) => {
+                let bytes = std::fs::read(file).map_err(|e| format!("reading {}: {e}", file.display()))?;
+                rustpg2d_engine::fonts::Coverage::of(&bytes).ok_or_else(|| format!("{} is no font the game can read (TTF or OTF)", file.display()))?;
+                let rel = crate::files::import_asset(&root, file, "fonts").map_err(|e| format!("{e:#}"))?;
+                let id = self.make_def(kind, name, None)?;
+                set(self, kind, &id, &|v| v["file"] = rel.clone().into())?;
+                id
+            }
+            (RefKind::Material, _) => {
+                let bytes = std::fs::read(file).map_err(|e| format!("reading {}: {e}", file.display()))?;
+                let picture = rustpg2d_engine::imageio::Rgba::decode(&bytes).map_err(|e| format!("{}: {e:#}", file.display()))?;
+                if picture.w > 256 || picture.h > 256 {
+                    return Err(format!("the picture is {} x {} px: ground takes up to 256 x 256", picture.w, picture.h));
+                }
+                let rel = crate::files::import_asset(&root, file, "materials").map_err(|e| format!("{e:#}"))?;
+                let id = self.make_def(kind, name, None)?;
+                set(self, kind, &id, &|v| v["texture"] = rel.clone().into())?;
                 id
             }
             (_, FileKind::Picture) => {
@@ -199,6 +225,7 @@ impl Workspace {
                 id
             }
             (_, FileKind::Sound) => return Err("a sound file becomes a sound".into()),
+            (_, FileKind::Font) => return Err("a font file becomes a font".into()),
         };
         self.begin(&label);
         if what != FileKind::Model || kind == RefKind::Model {
@@ -235,10 +262,51 @@ mod tests {
         assert_eq!(FileKind::of(Path::new("barrel.glb")), Some(FileKind::Model));
         assert_eq!(FileKind::of(Path::new("door.ogg")), Some(FileKind::Sound));
         assert_eq!(FileKind::of(Path::new("notes.txt")), None);
+        assert_eq!(FileKind::of(Path::new("Old London.TTF")), Some(FileKind::Font));
+        assert!(what_it_makes(RefKind::Font, Path::new("a.otf")).is_some() && what_it_makes(RefKind::Material, Path::new("a.png")).is_some());
+        assert!(what_it_makes(RefKind::Font, Path::new("a.png")).is_none() && FileKind::Picture.makes().contains(&RefKind::Material));
         assert_eq!(name_from_file(Path::new("/x/old_oak-tree 2.png")), "Old oak tree 2");
         assert!(what_it_makes(RefKind::Prop, Path::new("a.glb")).is_some() && what_it_makes(RefKind::Sheet, Path::new("a.glb")).is_none());
         assert!(what_it_makes(RefKind::Sound, Path::new("a.png")).is_none());
         assert_eq!((scale_for(32), scale_for(96), scale_for(97), scale_for(512)), (1, 1, 2, 6));
+    }
+
+    #[test]
+    fn a_font_file_becomes_a_font_and_a_picture_ground() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let dir = std::env::temp_dir().join(format!("rustpg2d-fromfile-font-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let project = dir.join("game");
+        std::fs::create_dir_all(&project).unwrap();
+        crate::files::create_project(&project).unwrap();
+        let mut ws = Workspace::new(project.clone(), crate::Gpu::No).unwrap();
+        ws.history_frame(None);
+        // A font from outside the project: copied into fonts/, the definition names it.
+        let font = dir.join("Old Hand.ttf");
+        std::fs::copy(root.join("example_project/fonts/monogram.ttf"), &font).unwrap();
+        let id = ws.make_from_file(RefKind::Font, &font, &name_from_file(&font)).unwrap();
+        ws.history_frame(None);
+        let def = ws.project.db.font(&id).unwrap().clone();
+        assert_eq!((id.as_str(), def.name.as_str(), def.file.as_str()), ("old_hand", "Old Hand", "fonts/Old Hand.ttf"));
+        assert!(project.join("fonts/Old Hand.ttf").is_file());
+        // What is no font is refused, and nothing is made of it.
+        let fake = dir.join("fake.ttf");
+        std::fs::write(&fake, b"not a font").unwrap();
+        assert!(ws.make_from_file(RefKind::Font, &fake, "Fake").unwrap_err().contains("no font"));
+        assert!(ws.project.db.fonts.len() == 1 && !project.join("fonts/fake.ttf").exists());
+        // A picture as ground: copied into materials/; one too large for ground is refused.
+        let grass = dir.join("moss.png");
+        std::fs::write(&grass, rustpg2d_engine::imageio::Rgba::new(64, 64).encode().unwrap()).unwrap();
+        let id = ws.make_from_file(RefKind::Material, &grass, "Moss").unwrap();
+        ws.history_frame(None);
+        assert_eq!(ws.project.db.material(&id).map(|m| m.texture.as_str()), Some("materials/moss.png"));
+        let big = dir.join("big.png");
+        std::fs::write(&big, rustpg2d_engine::imageio::Rgba::new(512, 64).encode().unwrap()).unwrap();
+        assert!(ws.make_from_file(RefKind::Material, &big, "Big").unwrap_err().contains("256"));
+        // Each was a step: undone, the moss is gone (its file stays, as files do).
+        ws.undo().unwrap();
+        assert!(ws.project.db.material("moss").is_none() && ws.project.db.font("old_hand").is_some());
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]

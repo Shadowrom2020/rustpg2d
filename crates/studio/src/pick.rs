@@ -27,6 +27,8 @@ pub enum Key {
     PackSource,
     /// *Share…*: the folder the pack is written into.
     ShareFolder,
+    /// A form's field that names a file (the number tells the fields apart).
+    FormFile(u64),
 }
 
 /// What is asked for.

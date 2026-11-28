@@ -256,6 +256,8 @@ enum Ask {
     News,
     /// The news were put away unread.
     NewsSeen,
+    /// Play-tests start in this language from now on; true: one starts now, from the title.
+    PlayIn(Option<String>, bool),
     /// Look for what nothing uses.
     FindUnused,
     /// Start the game in the Play tab: from the title screen, on the start map, on a map at a
@@ -366,6 +368,10 @@ pub struct Shell {
     pub help: crate::helpview::HelpView,
     pub tour: crate::tourpanel::TourPanel,
     pub agents: crate::agentspage::AgentsPage,
+    /// Translations, on the Languages page.
+    pub langs: crate::langpage::LangPage,
+    /// The language play-tests start in (`None`: as the player's settings say).
+    pub play_lang: Option<String>,
     /// The editor is newer than the one whose news were looked at: the Overview says so.
     pub news: bool,
     /// The home screen's fields.
@@ -420,7 +426,7 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, share: None, lib_look: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), art: Default::default(), help: Default::default(), tour: Default::default(), agents: Default::default(), news: false, timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), model_stages: Default::default(), pixels: Default::default(), sounds: Default::default(), sheets: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new() }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, share: None, lib_look: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), art: Default::default(), help: Default::default(), tour: Default::default(), agents: Default::default(), langs: Default::default(), play_lang: None, news: false, timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), model_stages: Default::default(), pixels: Default::default(), sounds: Default::default(), sheets: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new() }
     }
 
     /// The window around another workspace (another project, or none). What belongs to the
@@ -438,7 +444,7 @@ impl Shell {
 
     /// Whether anything waits to be saved: definitions, maps, scripts.
     pub fn unsaved(&self) -> bool {
-        self.ws.is_dirty() || self.scripts.values().any(|t| t.dirty()) || self.pixels.values().any(|p| p.dirty())
+        self.ws.is_dirty() || self.scripts.values().any(|t| t.dirty()) || self.pixels.values().any(|p| p.dirty()) || self.langs.dirty()
     }
 
     /// Opens another project in this window (a project file, or a folder). Refused while
@@ -572,6 +578,10 @@ impl Shell {
         if saved > 0 {
             self.ws.refresh_refs();
             self.ws.stale = true;
+        }
+        // A language's table that was typed into is a file too.
+        if self.langs.save(&mut self.ws) {
+            saved += 1;
         }
         // Pictures painted in their sheets' tabs are files of their own too.
         let painted: Vec<String> = self.pixels.iter().filter(|(_, p)| p.dirty()).map(|(id, _)| id.clone()).collect();
@@ -778,6 +788,32 @@ impl Shell {
         self.ws.mcp_autostart();
     }
 
+    /// Play-tests start in `code` from now on (`None`: as the player's settings say); `now`:
+    /// one starts, from the title screen.
+    pub fn play_in(&mut self, code: Option<String>, now: bool) {
+        self.ws.set_status(match &code {
+            Some(c) => format!("Play-tests start in {c}"),
+            None => "Play-tests start in the language the player's settings say".to_string(),
+        });
+        self.play_lang = code;
+        if now {
+            self.play_from(PlayFrom::Title);
+        }
+    }
+
+    /// Translations on the Languages page: the words of `LangPage::word`; returns its `status` line.
+    pub fn lang_word(&mut self, args: &[String]) -> String {
+        match self.langs.word(&mut self.ws, args) {
+            Ok(want) => {
+                if let Some(crate::langpage::Want::PlayIn(code, now)) = want {
+                    self.play_in(code, now);
+                }
+                format!("{} play={}", self.langs.status(&self.ws), self.play_lang.as_deref().unwrap_or("-"))
+            }
+            Err(e) => format!("failed: {e}"),
+        }
+    }
+
     /// The AI agents page: the words of `AgentsPage::word`; returns its `status` line.
     pub fn agents_word(&mut self, ctx: &egui::Context, args: &[String]) -> String {
         match self.agents.word(ctx, &mut self.ws, args) {
@@ -805,7 +841,7 @@ impl Shell {
         }
         match crate::gallery::NewAsset::of_file(file) {
             Some(new) => self.new_asset = Some(new),
-            None => self.ws.set_status(format!("{} is no 3D model (.glb), picture (.png), sound (.ogg, .wav) or pack (.r2dpack)", file.display())),
+            None => self.ws.set_status(format!("{} is no 3D model (.glb), picture (.png), sound (.ogg, .wav), font (.ttf, .otf) or pack (.r2dpack)", file.display())),
         }
     }
 
@@ -1030,7 +1066,8 @@ impl Shell {
             self.ws.save_all();
         }
         let ts = self.ws.ts();
-        let base = rustpg2d_engine::runtime::StartOptions { dev: true, ..Default::default() };
+        // (In the language picked on the Languages page, when one is.)
+        let base = rustpg2d_engine::runtime::StartOptions { dev: true, lang: self.play_lang.clone(), ..Default::default() };
         self.start = match from {
             PlayFrom::Again => self.start.clone(),
             PlayFrom::Title => rustpg2d_engine::runtime::StartOptions { title: true, ..base },
@@ -1222,7 +1259,13 @@ impl Shell {
             self.maps.remove(&editor_core::structdoc::doc_name(&id));
         }
         crate::pick::frame();
+        // (A file picked for a form's field is copied into the project that is open.)
+        crate::form::set_root(&ctx, self.ws.project_open.then(|| self.ws.project.root.clone()));
         self.ws.art_tick();
+        // (Both look once a second or less: what another program changed in the project's
+        // files, and whether the project's file is to be written again.)
+        self.ws.watch_project();
+        self.ws.project_file_tick();
         // (A drag that asked for it last frame counts as typing on in one field: one step.)
         let held = ctx.data_mut(|d| d.remove_temp::<u64>(held_step_id()));
         self.ws.history_frame(held.or(ctx.memory(|m| m.focused()).map(|id| id.value())));
@@ -1244,6 +1287,29 @@ impl Shell {
         egui::Panel::top("menu").show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| self.menus(ui));
         });
+        // Files another program changed while the editor has unsaved changes of its own there.
+        if !self.ws.watch.changed.is_empty() {
+            let mut answer = None;
+            egui::Panel::top("changed on disk").show(ui, |ui| {
+                ui.horizontal_wrapped(|ui| {
+                    let what: Vec<String> = self.ws.watch.changed.iter().map(|f| match f.as_str() {
+                        "defs/" => "the definitions".to_string(),
+                        "project.ron" => "the game's settings".to_string(),
+                        f => f.strip_prefix("maps/").map(|m| format!("the map {}", m.trim_end_matches(".map"))).unwrap_or_else(|| f.to_string()),
+                    }).collect();
+                    ui.colored_label(ui.visuals().warn_fg_color, format!("Another program changed {} on disk while you have changes there that aren't saved.", what.join(", ")));
+                    if ui.button("Take the files' version").on_hover_text("Reads them again: your unsaved changes there are dropped").clicked() {
+                        answer = Some(true);
+                    }
+                    if ui.button("Keep mine").on_hover_text("Stays as it is here: saving writes it over the files").clicked() {
+                        answer = Some(false);
+                    }
+                });
+            });
+            if let Some(reload) = answer {
+                self.ws.watch_answer(reload);
+            }
+        }
         egui::Panel::bottom("status").show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.label(&self.ws.status.0);
@@ -1261,7 +1327,7 @@ impl Shell {
 
         let mut asks = Vec::new();
         {
-            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, library: &mut self.library, art: &mut self.art, help: &mut self.help, tour: &mut self.tour, agents: &mut self.agents, news: &mut self.news, home: &mut self.home, timelines: &mut self.timelines, nodes: &mut self.nodes, stages: &mut self.stages, figures: &mut self.figures, model_stages: &mut self.model_stages, pixels: &mut self.pixels, sounds: &mut self.sounds, sheets: &mut self.sheets, scrub: &mut self.scrub, try_next: &mut self.try_next, rs, asks: &mut asks };
+            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, library: &mut self.library, art: &mut self.art, help: &mut self.help, tour: &mut self.tour, agents: &mut self.agents, langs: &mut self.langs, play_lang: &self.play_lang, news: &mut self.news, home: &mut self.home, timelines: &mut self.timelines, nodes: &mut self.nodes, stages: &mut self.stages, figures: &mut self.figures, model_stages: &mut self.model_stages, pixels: &mut self.pixels, sounds: &mut self.sounds, sheets: &mut self.sheets, scrub: &mut self.scrub, try_next: &mut self.try_next, rs, asks: &mut asks };
             DockArea::new(&mut self.dock).show_inside(ui, &mut viewer);
         }
         for ask in asks {
@@ -1284,6 +1350,7 @@ impl Shell {
                 }
                 Ask::News => self.open_news(),
                 Ask::NewsSeen => self.news_seen(),
+                Ask::PlayIn(code, now) => self.play_in(code, now),
                 Ask::FindUnused => self.find_unused(),
                 Ask::Play(from) => self.play_from(from),
                 Ask::PlayWindow => self.play_window(),
@@ -1669,6 +1736,8 @@ struct Viewer<'a> {
     help: &'a mut crate::helpview::HelpView,
     tour: &'a mut crate::tourpanel::TourPanel,
     agents: &'a mut crate::agentspage::AgentsPage,
+    langs: &'a mut crate::langpage::LangPage,
+    play_lang: &'a Option<String>,
     news: &'a mut bool,
     home: &'a mut Home,
     timelines: &'a mut std::collections::HashMap<String, crate::timeline::Timeline>,
@@ -2426,6 +2495,12 @@ impl Viewer<'_> {
             });
         });
         ui.separator();
+        // The Languages page: the translations before the settings.
+        if page == "Languages" {
+            if let Some(crate::langpage::Want::PlayIn(code, now)) = self.langs.show(ui, self.ws, self.play_lang) {
+                self.asks.push(Ask::PlayIn(code, now));
+            }
+        }
         let mut value = self.ws.config_value();
         let mut pics = self.rs.map(|rs| crate::thumbs::Pics { thumbs: &mut *self.thumbs, ws: &*self.ws, rs });
         let pictures = pics.as_mut().map(|p| p as &mut dyn crate::form::Pictures);

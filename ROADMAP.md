@@ -1072,6 +1072,18 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     app id) in red, what is worth knowing (the project not checked yet, a debug runner, a
     glibc too new for older distributions) in yellow, and what will be written where with
     the folder the saves go to. *Export* is there once nothing stands in the way.
+  - **Translations** (`editor-core/src/langs.rs`, `studio/src/langpage.rs`; at the top of
+    the *Languages* page, `lang`): the languages the game is offered in, each with how many
+    of the game's texts it has (`Workspace::languages`); a language added by its code, or
+    by a click for the nine the engine has its own menus in (the project is saved, the
+    language's file written with every text); *Translate…* opens its table: the texts
+    players read at the left, the translation typed at the right, searched, *Only what
+    isn't translated*, the language's own name, translations of texts the game no longer has
+    taken out by a click, *Update from the game*. A table that was typed into is saved with
+    everything (Ctrl+S). *Play in it* starts the game from its title in that language, and
+    play-tests keep starting in it (*Play-tests start in*). *Take off the list* leaves the
+    file. Japanese, Chinese and Korean show as boxes in the table (the editor's font; the
+    table says so): open.
   Still open: what a plain form doesn't give. The factions as a table of standings, the title
   screen's live preview, the translation table, the hooks with their script functions and the
   plugins' parameters by their kinds, the game's icon picked from a picture (it is a path on
@@ -2476,6 +2488,55 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     AGENTS.md; the README; the CHANGELOG with its **Breaking** lines.
   - **The merge:** the draft pull request is made ready and merged; 0.36.0 is cut when the user
     asks.
+
+  **Progress.** **The parity table, first written 2026-11-28** from the 0.35 editor's menus
+  and its script commands (each command is a feature the tests reached). *there* = in the new
+  editor; *partly* = what is missing is named; *open* = not there yet; *decide* = leaves only
+  with the maintainer's word (part 11). Rows are ticked here as they close.
+
+  | 0.35 | In the new editor | State |
+  |---|---|---|
+  | **Projects**: new (wizard), open file / folder, close, recent, the example copy, project files packed | Home screen, `project …`; the wizard's choices (hero's sex, creator, map size) are settings pages | there |
+  | Save all, undo / redo (maps and Database apart) | `file.save_all`, one History | there |
+  | Files changed on disk by another program: reload or keep (`watchanswer`) | read again when nothing unsaved is in the way, else a bar asks (*Take the files' version* / *Keep mine*); `watch`. (It did nothing for a map that was open: fixed, 2026-11-28) | there |
+  | **Map**: new map, resize | *New…* › Map, the Inspector's *Size* (2026-11-28) | there |
+  | Open, save, fit, rename a map; several maps | tabs, World view | there |
+  | Tools: select / multi-select / move / duplicate / delete, ground, collision, zones, transitions drawn and linked, place (characters, props, items, decorations, scatter, structures), build | Select, Terrain, Collision, Zones, Place, Build | there |
+  | A region of tiles copied / cut / pasted with its ground | things are copied; ground only by *Save as structure* | partly |
+  | Structures: captured, placed, edited as a map of their own | *Save as structure*, Place, the structure's tab | there |
+  | Schedules and patrol routes edited on the map | Inspector + dragged on the map | there |
+  | View: grid, collision, zones, lighting at an hour, weather, parallax, top-down | the map's bar (*From above*) | there |
+  | View: minimap | the World view shows every map; no minimap in a map's tab | decide |
+  | **Database**: 25 tabs, search, item categories, table, sort, bulk change, undo | Project browser, kind tabs, forms from the schema | there |
+  | Project settings (one long form) | the *Game* pages | there |
+  | *Browse…* in a form: a sheet's picture, a sound's file, a material's texture, a font's file and its licence copied in | *Browse…* beside every field that names a file (`schema::FILES`); *New…* from a file also for ground (a picture) and fonts (2026-11-28) | there |
+  | Languages: translation template exported, play-test in a language | *Translations* on the Languages page: languages with how far each is, a language added, its table (every text, its translation typed beside it), *Play in it* (2026-11-28) | there |
+  | Plugins window: add from a file or the library, on / off, order, parameters, export, to the library, remove | on / off, order and values in the *Scripts & plugins* form; a pack brings plugins into the library; nothing puts one into a project or takes it out | **open** |
+  | Clean up unused files (definitions nothing uses, stray files; a backup first; offered on close) | kinds show *unused*; nothing deletes stray files | **open** |
+  | **Events**: trigger editors | the event sheet | there |
+  | Events graph (a map's triggers, scripts and maps as a graph) | — | **open** (or decide) |
+  | Scripts: editor with completion, check, API help | script tabs | there |
+  | Visual scripts | the canvas in their tab | there |
+  | Cut-scene timeline, scrubbed on the map, played from here | the timeline in their tab | there |
+  | Animation editor (cels, emitters, flashes and sounds on a time line, played) | the form only | **open** |
+  | Flags and variables | the *Flags and variables* page (new) | there |
+  | **Art**: pixel editor (frames, tools, nudge, replace colours, seamless) | under a sheet's picture, a material's tab | partly (frames added / duplicated, selection) |
+  | Sounds played | the sound's tab | there |
+  | 3D models: import, animations' clips, rig templates, check | model workshop | partly (more clip files added, clips shared between models, joints moved by hand) |
+  | An item's 3D model: imported, its hold point and front set, shown in the hand, its icon rendered | the form's numbers only | **open** |
+  | Character editor: model, pieces, colours, equipment, random colours, new from a model / a file / Meshy | character workshop, *New…*, Generate art | partly (*Start from…* another character) |
+  | Props: pictures, states, hitbox, light, building shape | prop workshop + form | partly (a building's ridge and openings by numbers) |
+  | Generate art (Meshy), its settings and budget | the Generate art page | there |
+  | Import… Tiled maps, Aseprite sheets | — | decide (part 11) |
+  | **Library**: browse, add to project, send to library (with its script functions), its own window | Library tab; *Send to library*; no second process | there |
+  | Asset packages, plugin files, the starter library file; update asset library; starter download | packs (one format, sources, updates asset by asset) | there |
+  | **Play**: here / from start / title screen, in a language, with a test setup | Play tab, own window; the language on the Languages page; the setup is made by playing | partly (the setup's own form) |
+  | Hot reload and the developer console in a play-test | the Play tab's game runs as a developer's (F4 opens its console; seen 2026-11-28); script errors as a panel of the editor: part 7's open point | there |
+  | **Export**: Linux, Windows, macOS, web, zip, data pack, AppImage, Flatpak, the game's icon | Publishing page | there |
+  | **Other**: quick search, find usages, problems | Go to anything, *Used by*, Problems with fixes | there |
+  | AI agent server window | the *AI agents* page; `--headless` | there |
+  | Editor settings | on the pages they belong to (art, agents, packs) | there |
+  | Developer tools kept in the old crate: the SRD import (`srd_import`), UI tests, `mcp_smoke` | `mcp_smoke` and the history tool are here; the SRD import isn't | **open** |
 
   **Engine.** None.
 

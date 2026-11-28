@@ -11,6 +11,7 @@ pub mod files;
 pub mod frame_ops;
 pub mod fromfile;
 pub mod history;
+pub mod langs;
 pub mod library;
 pub mod looks;
 pub mod build;

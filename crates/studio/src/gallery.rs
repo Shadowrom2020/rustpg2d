@@ -212,7 +212,7 @@ pub fn show(ctx: &egui::Context, state: &mut NewAsset, groups: &[(&str, &[RefKin
                     state.in_library = Some((kind, if rustpg2d_engine::library::KINDS.contains(&kind) { library(kind) } else { Vec::new() }));
                 }
                 let offered: Vec<(String, String)> = state.in_library.as_ref().map(|(_, l)| l.clone()).unwrap_or_default();
-                let takes_files = [RefKind::Prop, RefKind::Sheet, RefKind::Sound, RefKind::Model].contains(&kind);
+                let takes_files = [RefKind::Prop, RefKind::Sheet, RefKind::Sound, RefKind::Model, RefKind::Material, RefKind::Font].contains(&kind);
                 if !takes_files {
                     state.from_file = false;
                 }
@@ -227,6 +227,8 @@ pub fn show(ctx: &egui::Context, state: &mut NewAsset, groups: &[(&str, &[RefKin
                         RefKind::Prop => "from a file: a 3D model (.glb) or a picture (.png)",
                         RefKind::Model => "from a file: a 3D model (.glb)",
                         RefKind::Sheet => "from a file: a picture (.png)",
+                        RefKind::Material => "from a file: a picture that joins itself at its edges (.png)",
+                        RefKind::Font => "from a file: a font (.ttf, .otf)",
                         _ => "from a file: a sound (.ogg, .wav)",
                     })
                     .on_hover_text("The file is copied into the project. Drop a file on the editor's window to start here with it.");
@@ -243,7 +245,8 @@ pub fn show(ctx: &egui::Context, state: &mut NewAsset, groups: &[(&str, &[RefKin
                         let want = || match kind {
                             RefKind::Prop => crate::pick::Want::File("3D models and pictures", &["glb", "png"]),
                             RefKind::Model => crate::pick::Want::File("3D models", &["glb"]),
-                            RefKind::Sheet => crate::pick::Want::File("Pictures", &["png"]),
+                            RefKind::Sheet | RefKind::Material => crate::pick::Want::File("Pictures", &["png"]),
+                            RefKind::Font => crate::pick::Want::File("Fonts", &["ttf", "otf"]),
                             _ => crate::pick::Want::File("Sounds", &["ogg", "wav"]),
                         };
                         let start = Some(std::path::PathBuf::from(state.file.trim())).filter(|p| !p.as_os_str().is_empty());
@@ -267,7 +270,7 @@ pub fn show(ctx: &egui::Context, state: &mut NewAsset, groups: &[(&str, &[RefKin
                         }
                         None => {
                             let can = editor_core::fromfile::FileKind::of(path).map(|k| format!("{} can become {}", k.label(), k.makes().iter().map(|k| format!("a {}", k.label().to_lowercase())).collect::<Vec<_>>().join(" or ")));
-                            ui.colored_label(ui.visuals().warn_fg_color, can.unwrap_or_else(|| "That is no 3D model (.glb), picture (.png) or sound (.ogg, .wav).".to_string()));
+                            ui.colored_label(ui.visuals().warn_fg_color, can.unwrap_or_else(|| "That is no 3D model (.glb), picture (.png), sound (.ogg, .wav) or font (.ttf, .otf).".to_string()));
                         }
                     }
                 }

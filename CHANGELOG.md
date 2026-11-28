@@ -146,6 +146,18 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   Place and Terrain tools; the Problems tab says what the check looks for before it ran and
   that nothing was found after; the Place tool and the World view say what to do when there
   is nothing to place or only one map.
+- **Translations** (part 5): the *Languages* page lists the languages the game is offered in
+  with how far each is translated, adds one (a click for the nine languages the game's own
+  menus exist in), and opens a language's table: every text players read with its translation
+  typed beside it, searched, or only what isn't translated yet. *Play in it* starts the game in
+  that language.
+- **Files changed by another program** are noticed in the window too: definitions, settings
+  and maps are read again when nothing unsaved is in the way; else a bar asks whether to take
+  the files' version or keep yours. (An open map was never read again: fixed, also for the
+  agent server without a window.)
+- **Browse… for every file a form names**: a sheet's picture, a sound, a material's texture, a
+  font and its licence, a model's file; the file picked is copied into the project. *New…*
+  takes a font file (.ttf, .otf) and a picture as ground.
 - **Tours point nearer and lead back** (part 10): a tour's frame goes to the control nearest
   to what is to be done (*Character* in *New…*, the Place tool's *Characters*, *+ Add an
   event…* and *+ Line* in the Inspector) and is never drawn around something scrolled out of

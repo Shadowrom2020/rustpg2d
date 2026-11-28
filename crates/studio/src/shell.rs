@@ -399,6 +399,8 @@ pub struct Shell {
     pub model_stages: std::collections::HashMap<String, crate::modelshop::ModelStage>,
     /// The workshops of the items open in tabs, by id.
     pub item_stages: std::collections::HashMap<String, crate::itemshop::ItemStage>,
+    /// The animations open in tabs, by id: played on their stage.
+    pub anim_stages: std::collections::HashMap<String, crate::animshop::AnimStage>,
     /// The pixel editors of sprite sheets, by sheet (a picture changed there waits to be saved).
     pub pixels: std::collections::HashMap<String, crate::pixeledit::PixelEdit>,
     /// The sounds and sprite sheets open in tabs, by id: listened to, cut into frames.
@@ -490,7 +492,7 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, share: None, cleanup: None, lib_look: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), graphs: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), art: Default::default(), help: Default::default(), tour: Default::default(), agents: Default::default(), langs: Default::default(), plugins: Default::default(), play_lang: None, news: false, timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), model_stages: Default::default(), item_stages: Default::default(), pixels: Default::default(), sounds: Default::default(), sheets: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new(), leaving: None, quit_now: false, cleanup_passed: false }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, share: None, cleanup: None, lib_look: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), graphs: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), art: Default::default(), help: Default::default(), tour: Default::default(), agents: Default::default(), langs: Default::default(), plugins: Default::default(), play_lang: None, news: false, timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), model_stages: Default::default(), item_stages: Default::default(), anim_stages: Default::default(), pixels: Default::default(), sounds: Default::default(), sheets: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new(), leaving: None, quit_now: false, cleanup_passed: false }
     }
 
     /// The window around another workspace (another project, or none). What belongs to the
@@ -907,6 +909,17 @@ impl Shell {
         let Some(Tab::Def(RefKind::Item, id)) = self.dock.find_active_focused().map(|(_, t)| t.clone()) else { return String::new() };
         let stage = self.item_stages.entry(id.clone()).or_default();
         match stage.word(&mut self.ws, &id, args) {
+            Ok(()) => stage.status(&self.ws, &id),
+            Err(e) => format!("{id}: {e}"),
+        }
+    }
+
+    /// The animation's tab in front: the words of `AnimStage::word`; returns its `status` line
+    /// ("" when no animation's tab is in front).
+    pub fn anim_word(&mut self, args: &[String]) -> String {
+        let Some(Tab::Def(RefKind::Animation, id)) = self.dock.find_active_focused().map(|(_, t)| t.clone()) else { return String::new() };
+        let stage = self.anim_stages.entry(id.clone()).or_default();
+        match stage.word(&self.ws, &id, args) {
             Ok(()) => stage.status(&self.ws, &id),
             Err(e) => format!("{id}: {e}"),
         }
@@ -1649,7 +1662,7 @@ impl Shell {
 
         let mut asks = Vec::new();
         {
-            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, graphs: &mut self.graphs, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, library: &mut self.library, art: &mut self.art, help: &mut self.help, tour: &mut self.tour, agents: &mut self.agents, langs: &mut self.langs, plugins: &mut self.plugins, play_lang: &self.play_lang, news: &mut self.news, home: &mut self.home, timelines: &mut self.timelines, nodes: &mut self.nodes, stages: &mut self.stages, figures: &mut self.figures, model_stages: &mut self.model_stages, item_stages: &mut self.item_stages, pixels: &mut self.pixels, sounds: &mut self.sounds, sheets: &mut self.sheets, scrub: &mut self.scrub, try_next: &mut self.try_next, rs, asks: &mut asks };
+            let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, graphs: &mut self.graphs, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, library: &mut self.library, art: &mut self.art, help: &mut self.help, tour: &mut self.tour, agents: &mut self.agents, langs: &mut self.langs, plugins: &mut self.plugins, play_lang: &self.play_lang, news: &mut self.news, home: &mut self.home, timelines: &mut self.timelines, nodes: &mut self.nodes, stages: &mut self.stages, figures: &mut self.figures, model_stages: &mut self.model_stages, item_stages: &mut self.item_stages, anim_stages: &mut self.anim_stages, pixels: &mut self.pixels, sounds: &mut self.sounds, sheets: &mut self.sheets, scrub: &mut self.scrub, try_next: &mut self.try_next, rs, asks: &mut asks };
             DockArea::new(&mut self.dock).show_inside(ui, &mut viewer);
         }
         for ask in asks {
@@ -2068,6 +2081,7 @@ struct Viewer<'a> {
     figures: &'a mut std::collections::HashMap<String, crate::charshop::CharStage>,
     model_stages: &'a mut std::collections::HashMap<String, crate::modelshop::ModelStage>,
     item_stages: &'a mut std::collections::HashMap<String, crate::itemshop::ItemStage>,
+    anim_stages: &'a mut std::collections::HashMap<String, crate::animshop::AnimStage>,
     pixels: &'a mut std::collections::HashMap<String, crate::pixeledit::PixelEdit>,
     sounds: &'a mut std::collections::HashMap<String, crate::artshop::SoundStage>,
     sheets: &'a mut std::collections::HashMap<String, crate::artshop::SheetStage>,
@@ -2706,6 +2720,10 @@ impl Viewer<'_> {
         }
         if kind == RefKind::Item {
             self.item_stages.entry(id.to_string()).or_default().show(ui, self.ws, self.rs, self.thumbs, id);
+            ui.separator();
+        }
+        if kind == RefKind::Animation {
+            self.anim_stages.entry(id.to_string()).or_default().show(ui, self.ws, self.rs, self.thumbs, id);
             ui.separator();
         }
         if kind == RefKind::Character {

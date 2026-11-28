@@ -387,7 +387,9 @@ models that share a rig (`model check` prints what each lacks), `model share …
 
 **Don't.** No joints dragged by hand in this task.
 
-### - [ ] Task 6 (M/L): an animation is seen and played in its tab
+### - [x] Task 6 (M/L): an animation is seen and played in its tab
+
+Done 2026-11-28. Particles are round (as the game draws them), not squares. Extra word: `anim loop on|off`.
 
 **Why.** Parity row *Animation editor: open*. Today an animation is only its form.
 

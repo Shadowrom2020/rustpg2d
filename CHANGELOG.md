@@ -146,6 +146,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   Place and Terrain tools; the Problems tab says what the check looks for before it ran and
   that nothing was found after; the Place tool and the World view say what to do when there
   is nothing to place or only one map.
+- **Animations are seen and played** (part 7): an animation's tab shows it on a straw target
+  dummy as the game draws it, with *Play*, *Pause*, *Loop* and a strip of time to look at any
+  moment; changes in its form show at once.
 - **The events graph** (part 7): *Events graph* in a map's bar shows the map's events as a
   graph in a tab of its own: who has events, their events in the event sheet's words, the script
   functions they run and the maps they lead to, with lines for what runs, raises, sets and leads

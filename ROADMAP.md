@@ -1569,7 +1569,17 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   flags and variables: `{name}` placeholders in texts aren't counted as reading one; of scripts: a
   function run in the Play tab, *Find in scripts*; of visual scripts: a box drawn around
   nodes to select them, *Fit all*; the
-  documents still to come: the animation editor, the quest designer.
+  documents still to come: the quest designer.
+  - **An animation is seen and played in its tab** (2026-11-28, STUDIO_PLAN.md task 6;
+    `studio/src/animshop.rs`, 0.35's `anim_editor.rs` preview): a stage of 260 x 220 with a
+    straw dummy and the animation at the playhead drawn as the game draws it at twice its size
+    (each cel's frame at its pose from `Cel::pose`, additive ones adding their light; the
+    particles as round dots; a flash of the target tints the dummy, one of the screen the
+    stage), *Play*, *Pause*, *From the start*, *Loop* (on), and a strip of time with a row a
+    kind (bars for what lasts, a mark with its name for a sound, a ruler, the playhead dragged
+    or clicked). The form below stays the editor; the stage reads the definition every
+    frame. Sounds are not played. 0.35's tint mixed egui's premultiplied colour values and
+    darkened the dummy where a white flash should brighten it: mixed unmultiplied now.
   - **The events graph's logic** (2026-11-28, STUDIO_PLAN.md task 3; `editor-core/src/graph.rs`,
     0.35's `graph.rs` without its window): `Workspace::events_graph(map, all_fns, focus)` =
     the map as it is being edited (else its file) and the saved script files, built into
@@ -1731,6 +1741,16 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     graph*. How it looks: a long column of the village's 22 map events and 60 owners, readable
     card by card; functions called by functions loop out to the right of their column, a
     bundle on busy ones (`friend_chat`).
+
+  - The animation's stage: `the_strip_shows_every_part_and_the_playhead_moves_with_the_time`
+    (sparks, a flash and a sound: the status counts them and the length; `anim time 0.2`,
+    *Play* / *Pause*, a click at the strip's end = its last moment, *From the start*). In the
+    window on a scratch copy: `slash` at 0.05 / 0.15 / 0.3 s (the arc, the dummy shining white
+    under the flash, the sparks after), `fire` and `ice` at 0.1 / 0.3 / 0.6 s; a cel's size
+    changed with `field`: the arc smaller at once. The game on the same copy (`--map house
+    --dev`, `console effect("slash", 7.5, 7.5)`, shots at the same moments): the same frames
+    at the same moments; the game draws them at its camera's zoom (the stage at 2x), and
+    additive parts over the house's floor look oranger than over the stage's green.
 
 - [~] Part 8: Workshops — `feature/studio`
 
@@ -2659,7 +2679,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   | Scripts: editor with completion, check, API help | script tabs | there |
   | Visual scripts | the canvas in their tab | there |
   | Cut-scene timeline, scrubbed on the map, played from here | the timeline in their tab | there |
-  | Animation editor (cels, emitters, flashes and sounds on a time line, played) | the form only | **open** |
+  | Animation editor (cels, emitters, flashes and sounds on a time line, played) | the stage and its strip of time over the form (2026-11-28); the sounds aren't played there | there |
   | Flags and variables | the *Flags and variables* page (new) | there |
   | **Art**: pixel editor (frames, tools, nudge, replace colours, seamless) | under a sheet's picture, a material's tab | partly (frames added / duplicated, selection) |
   | Sounds played | the sound's tab | there |

@@ -534,9 +534,13 @@ parts, each at a moment in seconds from the start:
   turn screen effects off).
 - **Sounds** at their moments.
 
-The form shows the parts as rows of a timeline next to a **preview** on a straw target dummy:
-*Play* (with *Loop*), or click the ruler or drag the slider to see a moment. Click a row to edit
-it below; *+ Cel*, *+ Particles*, *+ Flash* and *+ Sound* add one at the playhead.
+An animation's tab shows it at the top on a **stage**: a straw target dummy with the animation
+played over it the way the game draws it, twice as big (the cels' frames, the particles, a
+flash tinting the dummy or the whole stage). *Play*, *Pause*, *From the start* and *Loop*; beside
+them a **strip of time** with a row for each kind of part (pictures, particles, flashes, sounds:
+a bar for what lasts, a mark with its name for a sound); click or drag on it to look at a
+moment. The sounds aren't played there. The parts are edited in the form below (each list with
+*+ Add*); a change shows on the stage at once.
 
 Where they play:
 

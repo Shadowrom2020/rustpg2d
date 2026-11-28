@@ -14,6 +14,7 @@
 //! is a command of the editor, e.g. `map.open village` or `edit.undo`).
 
 mod agentspage;
+mod animshop;
 mod form;
 mod gallery;
 mod graphview;
@@ -183,6 +184,8 @@ impl Studio {
                 "char" => println!("[char] {}", self.shell.char_word(&cmd[1..])),
                 // (`itemshop`: `item` alone is a kind's name in other words.)
                 "itemshop" => println!("[itemshop] {}", self.shell.item_word(&cmd[1..])),
+                // The animation's tab in front: `anim [time SECS|play|pause|loop on|off]`.
+                "anim" => println!("[anim] {}", self.shell.anim_word(&cmd[1..])),
                 // A guided tour: `tour start first-map|talking-character|a-quest`, `tour skip`, `tour end`; `tour` prints
                 // `ID done/steps [x - .] now=STEP at=X,Y` (where the control it points at is).
                 "tour" => println!("[tour] {}", self.shell.tour_word(ctx, &cmd[1..])),

@@ -57,11 +57,16 @@ pub struct PixelEdit {
     place: Option<(egui::Rect, f32)>,
     /// How many points a pixel is shown as; `None`: as many as fit.
     pub zoom: Option<f32>,
+    /// The frame the sheet's picker had last: the editor follows it when it changes (a frame
+    /// added here is painted in while the picker doesn't know it yet).
+    followed: Option<u32>,
+    /// What adding a frame said last.
+    said: String,
 }
 
 impl Default for PixelEdit {
     fn default() -> PixelEdit {
-        PixelEdit { material: false, open: false, doc: None, error: None, tool: PxTool::Pencil, colors: [[0, 0, 0, 255], [255, 255, 255, 255]], stroke: None, tex: None, used: None, place: None, zoom: None }
+        PixelEdit { material: false, open: false, doc: None, error: None, tool: PxTool::Pencil, colors: [[0, 0, 0, 255], [255, 255, 255, 255]], stroke: None, tex: None, used: None, place: None, zoom: None, followed: None, said: String::new() }
     }
 }
 
@@ -177,6 +182,7 @@ impl PixelEdit {
         let Some(d) = self.doc.as_mut().filter(|_| self.open) else { return Err("the pixel editor isn't open: pixels open".into()) };
         match arg(0) {
             "frame" => d.cur = (num(1)?.max(0) as u32).min(d.count() - 1),
+            "addframe" | "dupframe" => println!("[pixels] {}", d.add_frame(arg(0) == "dupframe")?),
             "dot" => d.dot(self.tool, (num(1)?, num(2)?), colors[(arg(3) == "2") as usize]),
             "line" | "rect" => d.shape(if arg(0) == "line" { PxTool::Line } else { PxTool::Rect }, (num(1)?, num(2)?), (num(3)?, num(4)?), colors[(arg(5) == "2") as usize]),
             "fill" => d.shape(PxTool::Fill, (num(1)?, num(2)?), (0, 0), colors[(arg(3) == "2") as usize]),
@@ -199,7 +205,7 @@ impl PixelEdit {
                 let (from, to) = (parse_hex(arg(1)).ok_or("replace FROM TO [all]")?, parse_hex(arg(2)).ok_or("replace FROM TO [all]")?);
                 println!("[pixels] {} pixels", d.replace(from, to, arg(3) == "all"));
             }
-            other => return Err(format!("pixels {other}: open, close, frame, tool, color, dot, line, rect, fill, undo, redo, copy, paste, flip, clear, nudge, replace, save")),
+            other => return Err(format!("pixels {other}: open, close, frame, addframe, dupframe, tool, color, dot, line, rect, fill, undo, redo, copy, paste, flip, clear, nudge, replace, save")),
         }
         Ok(())
     }
@@ -241,8 +247,9 @@ impl PixelEdit {
         let mut save = false;
         {
             let Some(doc) = self.doc.as_mut() else { return };
-            if let Some(f) = frame {
+            if let Some(f) = frame.filter(|f| self.followed != Some(*f)) {
                 doc.cur = f.min(doc.count() - 1);
+                self.followed = Some(f);
             }
             // The tools and the two colours.
             ui.horizontal_wrapped(|ui| {
@@ -300,6 +307,15 @@ impl PixelEdit {
                 if ui.button("Clear").on_hover_text("Empties the frame").clicked() {
                     doc.clear();
                 }
+                // (A ground's texture has the frames its material says.)
+                if !self.material {
+                    ui.separator();
+                    for (label, copy, tip) in [("+ Frame", false, "An empty frame after the last (a sheet of several rows gets a row more), painted in next"), ("Duplicate", true, "A copy of this frame after the last, painted in next: the next step of an animation")] {
+                        if ui.button(label).on_hover_text(tip).clicked() {
+                            self.said = doc.add_frame(copy).unwrap_or_else(|e| format!("No frame added: {e}"));
+                        }
+                    }
+                }
                 for (label, d, tip) in [("Left", (-1, 0), "left"), ("Up", (0, -1), "up"), ("Down", (0, 1), "down"), ("Right", (1, 0), "right")] {
                     if ui.small_button(label).on_hover_text(format!("Moves what is painted a pixel {tip}")).clicked() {
                         doc.nudge(d);
@@ -319,6 +335,9 @@ impl PixelEdit {
                     ui.colored_label(ui.visuals().warn_fg_color, "changed");
                 }
             });
+            if !self.said.is_empty() {
+                ui.weak(format!("{} (the sheet above shows it once the picture is saved)", self.said));
+            }
         }
         // How large it is shown: as fits, or closer (the picture scrolls then).
         ui.horizontal(|ui| {

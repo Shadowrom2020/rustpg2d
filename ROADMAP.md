@@ -1875,7 +1875,13 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     *Left / Up / Down / Right* move the seam into the middle; an animated material's frames
     are picked there. Saved, the ground of every open map shows it at once
     (`Assets::load_material`). The picture is shown as large as fits, or closer with *+*
-    (it scrolls then).
+    (it scrolls then). **+ Frame** and **Duplicate** (2026-11-28, STUDIO_PLAN.md task 8;
+    `PixelDoc::add_frame`): an empty frame, or a copy of the one painted in, after the last
+    (a sheet of one row grows by a frame to the right, one of several rows by a row), painted
+    in next; a step of the picture's undo; refused for a ground's texture (its material counts
+    its frames) and for a picture that would be wider or taller than 2048 pixels. The editor
+    follows the sheet's frame picker only when the picked frame changes, so a new frame stays
+    the one painted in until the picture is saved and the picker knows it.
   - **The model workshop** (`studio/src/modelshop.rs` over `editor-core/src/modelcheck.rs`;
     at the top of a 3D model's tab): the model as the game draws it, turning or from one
     side, playing whichever of its animations is clicked (a piece is shown on a figure it
@@ -2082,6 +2088,12 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     filled; undo, redo, *Save picture*: the file holds it). In the window: the apple of the
     example's item icons painted with the script's pointer (a stroke dragged, the ground
     filled), saved with everything, the file changed and the sheet's picture with it.
+  - Frames added: `a_frame_is_added_or_duplicated_and_undone_in_one_step` (a copy of the
+    second frame as the third, an empty fourth, one undo each; two rows grow by a row; 2048
+    pixels refused; a ground's texture refused). In the window on a scratch copy: the
+    fireball sheet (4 x 1), its last frame picked, `pixels dupframe`: "A copy of the frame
+    added: frame 5 of 5", saved: the file is 160 x 32, the sheet's tab says `frames=5x1`,
+    and the fifth frame's pixels are the fourth's.
   - A material's texture across its seams: `a_seamless_texture_is_painted_across_its_edges`
     (a stroke out over the right edge comes back in on the left of the same frame, the
     animation's other frame untouched; a line down and one across leave one area, which a
@@ -2692,7 +2704,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   | Cut-scene timeline, scrubbed on the map, played from here | the timeline in their tab | there |
   | Animation editor (cels, emitters, flashes and sounds on a time line, played) | the stage and its strip of time over the form (2026-11-28); the sounds aren't played there | there |
   | Flags and variables | the *Flags and variables* page (new) | there |
-  | **Art**: pixel editor (frames, tools, nudge, replace colours, seamless) | under a sheet's picture, a material's tab | partly (frames added / duplicated, selection) |
+  | **Art**: pixel editor (frames, tools, nudge, replace colours, seamless) | under a sheet's picture, a material's tab; frames added and duplicated (2026-11-28) | partly (selection) |
   | Sounds played | the sound's tab | there |
   | 3D models: import, animations' clips, rig templates, check | model workshop; more clip files and clips taken from another model (2026-11-28) | partly (joints moved by hand) |
   | An item's 3D model: imported, its hold point and front set, shown in the hand, its icon rendered | the item workshop at the top of an item's tab (2026-11-28): the hero holding it, standing, walking, striking; *From a file…*, *Find where it is held*, *Other end*, *Turn the handle*, *Turn the front*, how it is held, its length, where along it the hand is, *Render its icon* | there |

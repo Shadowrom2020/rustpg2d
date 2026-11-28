@@ -49,7 +49,10 @@ prop and character forms open it.
 - Mouse wheel zooms, middle-drag pans; the pixel grid and the frame grid can be shown.
 - **Frames**: click one to select it, **Ctrl+C** copies it, **Ctrl+X** cuts it (copies and clears),
   **Ctrl+V** replaces the selected frame with the copy. Buttons do the same, plus *Paste mirrored*,
-  *Flip* and *Clear*. *Canvas … Resize* adds frames.
+  *Flip* and *Clear*. **+ Frame** adds an empty frame after the last and **Duplicate** a copy of
+  the frame being painted, which is painted in next (a sheet of one row grows to the right, one of
+  several rows by a row); each is a step of the picture's undo, and the sheet shows the new frames
+  once the picture is saved.
 - A live preview shows the selected frame and its row as an animation.
 - A **material's texture** opens as one seamless picture (and with the pencil): copies are shown
   around it and drawing wraps across its edges; *Size* resizes it in steps of 8 px. An animated

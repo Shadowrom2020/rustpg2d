@@ -38,6 +38,8 @@ impl PxTool {
 }
 
 const CLEAR: [u8; 4] = [0, 0, 0, 0];
+/// The widest and tallest picture the editor can show (egui's limit for a texture).
+pub const MAX_SIDE: u32 = 2048;
 
 /// A picture being painted.
 pub struct PixelDoc {
@@ -145,6 +147,39 @@ impl PixelDoc {
             }
         }
         out
+    }
+
+    // ---------------------------------------------------------------- frames
+
+    /// One more frame, painted in next: a sheet of one row grows by a frame to the right, one
+    /// of several rows by a row (its first frame is the new one, the others are empty too).
+    /// `copy`: the new frame starts as a copy of the one painted in (*Duplicate*). One step of
+    /// the picture's undo. Not for a ground's texture: its frames are its animation, counted
+    /// by its material.
+    pub fn add_frame(&mut self, copy: bool) -> Result<String, String> {
+        if self.seamless {
+            return Err("a ground's texture has the frames its material's Frames says: change that there".into());
+        }
+        let (fw, fh) = self.frame;
+        let (cols, rows) = (self.cols(), self.rows());
+        let (w, h, at, more) = if rows == 1 { (((cols + 1) * fw).max(self.img.w), self.img.h, cols, 1) } else { (self.img.w, ((rows + 1) * fh).max(self.img.h), rows * cols, cols) };
+        if w > MAX_SIDE || h > MAX_SIDE {
+            return Err(format!("the picture would be {w} x {h} pixels: pictures wider or taller than {MAX_SIDE} can't be shown in the editor"));
+        }
+        let pixels = self.frame_pixels();
+        self.snapshot();
+        self.img = self.img.with_canvas(w, h);
+        self.cur = at;
+        if copy {
+            for y in 0..fh as i32 {
+                for x in 0..fw as i32 {
+                    self.plot((x, y), pixels.get(x, y));
+                }
+            }
+        }
+        self.changed();
+        let what = if copy { "A copy of the frame" } else { "An empty frame" };
+        Ok(if more == 1 { format!("{what} added: frame {} of {}", at + 1, self.count()) } else { format!("{what} added in a new row: frame {} of {} ({} more empty ones in the row)", at + 1, self.count(), more - 1) })
     }
 
     // ---------------------------------------------------------------- undo
@@ -483,4 +518,38 @@ mod tests {
         assert!(plain.img.px.iter().all(|b| *b == 0));
     }
 
+
+    #[test]
+    fn a_frame_is_added_or_duplicated_and_undone_in_one_step() {
+        // A sheet of 2 frames of 4 x 4 in one row, the second with a red dot.
+        let mut d = PixelDoc::of("sprites/s.png", Rgba::new(8, 4), (4, 4));
+        d.cur = 1;
+        d.dot(PxTool::Pencil, (1, 2), RED);
+        let red_frame = d.frame_pixels();
+        // Duplicated: a third frame to the right, a copy of the second, painted in next.
+        let said = d.add_frame(true).unwrap();
+        assert_eq!((d.img.w, d.img.h, d.count(), d.cur), (12, 4, 3, 2), "{said}");
+        assert_eq!(d.frame_pixels(), red_frame);
+        assert_eq!(said, "A copy of the frame added: frame 3 of 3");
+        // An empty one: a fourth.
+        d.add_frame(false).unwrap();
+        assert_eq!((d.img.w, d.count(), d.cur), (16, 4, 3));
+        assert_eq!(d.frame_pixels(), Rgba::new(4, 4), "empty");
+        // One undo each.
+        assert!(d.undo() && d.img.w == 12 && d.count() == 3);
+        assert!(d.undo() && d.img.w == 8 && d.count() == 2);
+        // A sheet of two rows grows by a row.
+        let mut g = PixelDoc::of("sprites/g.png", Rgba::new(8, 8), (4, 4));
+        let said = g.add_frame(false).unwrap();
+        assert_eq!((g.img.w, g.img.h, g.count(), g.cur), (8, 12, 6, 4), "{said}");
+        assert!(said.contains("new row") && said.contains("1 more empty"), "{said}");
+        // Too big for the editor to show: refused, nothing changed.
+        let mut wide = PixelDoc::of("sprites/w.png", Rgba::new(2048, 16), (16, 16));
+        assert!(wide.add_frame(false).unwrap_err().contains("2064 x 16"));
+        assert_eq!((wide.img.w, wide.can_undo()), (2048, false));
+        // A ground's texture: not here.
+        let mut ground = PixelDoc::of("materials/m.png", Rgba::new(16, 16), (16, 16));
+        ground.seamless = true;
+        assert!(ground.add_frame(false).is_err());
+    }
 }

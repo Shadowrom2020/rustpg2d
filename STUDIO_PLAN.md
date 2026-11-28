@@ -455,7 +455,9 @@ line.
 **Check.** UI test of the form (a value in, the same value out of `ws.test_setup()`; use
 `config_dir_here`). In the window as above.
 
-### - [ ] Task 8 (S): the pixel editor adds and duplicates frames
+### - [x] Task 8 (S): the pixel editor adds and duplicates frames
+
+Done 2026-11-28. One function, `PixelDoc::add_frame(copy)`, for both. A sheet of several rows grows by a whole row (its other frames empty), since every cell of the grid is a frame.
 
 **Read first.** `crates/editor-core/src/pixels.rs` (`PixelDoc`), `crates/editor-core/src/frame_ops.rs`
 (0.35's sheet operations: `duplicate`), `crates/studio/src/pixeledit.rs`, `crates/studio/src/artshop.rs`

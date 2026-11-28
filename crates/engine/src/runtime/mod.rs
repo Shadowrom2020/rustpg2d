@@ -1471,7 +1471,7 @@ impl Game {
         let d = &m.decor[i];
         let Some(p) = m.decor_defs.get(d.def as usize).and_then(|id| self.project.db.prop(id)) else { return };
         let tint = Color { a: self.cover_alpha.get(), ..WHITE };
-        self.assets.draw_prop(&self.project.db, p, d.state_index(), d.facing(), 0, vec2(d.x as f32, d.y as f32), d.flip, tint, get_time(), true);
+        self.assets.draw_prop(&self.project.db, p, d.state_index(), d.facing(), 0, vec2(d.x as f32, d.y as f32), d.flip, tint);
     }
 
     /// For `status()`: the material under the player's feet ("-" = none) and how many the map
@@ -3034,7 +3034,7 @@ impl Game {
                 let here = self.loaded.entities.iter().filter(|e| e.active && e.uid >= crate::state::DROPPED_UID_BASE);
                 here.map(|e| format!("{}x{}@{},{}", e.def, e.count, (e.body.pos.x / ts).floor(), ((e.body.pos.y - 1.0) / ts).floor())).collect::<Vec<_>>()
             },
-            format!("{}|{:?}|{}", self.world.player_name, self.world.player_sex, self.player_appearance().map_or("-".to_string(), |a| a.body)),
+            format!("{}|{:?}|{}", self.world.player_name, self.world.player_sex, self.player_appearance().map_or("-".to_string(), |a| a.model)),
             self.race_status(),
             self.factions_status(),
             self.hooks_status(),
@@ -3490,9 +3490,9 @@ impl Game {
             }
         }
         for (drawn, feet, _) in &items {
-            let Some((p, state, facing, flip)) = prop_of(drawn) else { continue };
+            let Some((p, state, _, flip)) = prop_of(drawn) else { continue };
             set_camera(&iv.upright(*feet));
-            self.assets.draw_prop_shadow(p, state, facing, *feet, flip, get_time(), 1.0);
+            self.assets.draw_prop_shadow(p, state, *feet, flip, 1.0);
         }
         let prints: Vec<render::iso::Footprint> = items.iter().map(|it| it.2).collect();
         let order = render::iso::order(&prints, 0.5);
@@ -3773,7 +3773,7 @@ impl Game {
             };
             // (Walls are cut down instead; flat things lie under everyone.)
             let Some(p) = prop.filter(|p| p.block <= 0.0 && !p.flat) else { continue };
-            let r = on_screen(feet, self.assets.prop_rect(p, state, facing, feet, ts, true));
+            let r = on_screen(feet, self.assets.prop_rect(p, state, facing, feet, ts));
             let covers = watched.iter().any(|(w, b)| rank[k] > rank[*w] && {
                 let o = r.intersect(*b).map_or(0.0, |o| o.w * o.h);
                 o > b.w * b.h * 0.15
@@ -3813,7 +3813,7 @@ impl Game {
         let lying = !e.effects.is_empty() && crate::srd::conditions::rules(&e.effects).lying;
         let drawn = match e.kind {
             EntityKind::Prop => db.prop(&e.def).is_some_and(|d| {
-                let ok = self.assets.draw_prop(db, d, e.state, e.body.facing, e.frame, e.body.pos, false, Color { a: self.cover_alpha.get(), ..WHITE }, get_time(), true);
+                let ok = self.assets.draw_prop(db, d, e.state, e.body.facing, e.frame, e.body.pos, false, Color { a: self.cover_alpha.get(), ..WHITE });
                 if e.planted.is_some() {
                     self.draw_crop(i);
                 }

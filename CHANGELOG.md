@@ -336,7 +336,32 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   opens a project and serves every agent tool (map screenshots excepted) where there is no
   display. The editor's logic moved into a crate of its own, `crates/editor-core` (part 2).
 
+### Removed (Breaking)
+Old ways of drawing that only earlier versions needed are gone (the maintainer's word,
+2026-11-28: everything not needed any more leaves; held items are 3D models so the look is
+consistent; creators work in the isometric view, what you see is what the game shows).
+- **Pictures in the hand:** an item is shown in a character's hand only as its own 3D model. An
+  item without one is still held (it counts in play) but isn't drawn; the item form's *Held*
+  section (*Picture in the hand*: a picture, hold point, orientation, size, hand) is gone, and so
+  are a prop's *Carried* marks: a carried prop (*Carry prop*, `carry()`) fills both hands and
+  isn't drawn. The example's and the starter library's items all have their own models: they look
+  as before; their old `held` entries were taken out of the files. `status`'s `held=` no longer
+  ends a hand with `/back`.
+- **What was left of sprite-sheet figures and props:** a prop's *Pictures from four sides*, its
+  *Animation* (a picture cycling through frames: a 3D model, or an *Effect* with a sheet's
+  animation, does that now), the wall sets of earlier versions (`pieces`), and a look's old
+  figure (`body`: a character without a 3D model shows the mannequin). Files that still have these
+  fields load; the fields are skipped (props converted from animated tiles of 0.20 show their
+  first frame). Old figure sheets keep loading as plain sprites. `status` prints the hero's model
+  in `player=` and the chosen figure in `creator=`; `npcs=` no longer ends with `@`.
+- **The top-down view of the map tab** (*From above*, the script's `mapopt above`): maps are
+  edited in the game's isometric view only. The game's map screen and minimap are unchanged.
+- **The old Meshy pipeline for 2D figures** (`scripts/art/meshy/`, 0.16 / 0.17). The editor's
+  *Generate art* keeps its icons, portraits and pictures.
+
 ### Maintenance
+- The downloads (AppImage, Flatpak, Windows zip, macOS app) carry the new editor, `rustpg2d-studio`; on Windows it
+  needs DirectX 12 or Vulkan instead of OpenGL 3.
 - The 0.35 editor is no longer built on this branch (it needs macroquad); it stays in the tree
   until the new editor replaces it.
 

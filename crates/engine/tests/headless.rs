@@ -115,7 +115,7 @@ fn the_example_draws_without_a_window() {
         let req = PoseReq { look: &look, gear: &Gear::default(), anim: "idle", time: 0.0, once: false, facing: rustpg2d_engine::entity::Facing::Down, turn: 0, bust: false };
         gfx::begin_frame();
         models.begin_frame();
-        let cell = models.pose(&game.project.db, &game.assets.sheets, &req).expect("the hero's pose");
+        let cell = models.pose(&game.project.db, &req).expect("the hero's pose");
         let (page, uv, _) = models.cell_texture(&cell).expect("the pose's page");
         gfx::end_frame();
         let (cw, ch) = (uv.w * page.width(), uv.h * page.height());

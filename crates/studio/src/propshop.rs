@@ -123,7 +123,7 @@ impl PropStage {
         let ts = ws.ts();
         let at = feet(ts);
         let screen = vec2(size.0 as f32, size.1 as f32);
-        let frame = ws.assets.prop_rect(def, self.state, self.facing, at, ts, true);
+        let frame = ws.assets.prop_rect(def, self.state, self.facing, at, ts);
         let [w, h] = def.hitbox_facing(self.facing);
         // What has to be seen: the prop's picture and its hitbox on the ground, with room around.
         let (mut wide, mut high) = (frame.w.max((w + h) / render::iso::UPRIGHT) + 2.0 * ts, frame.h.max(ts) + 1.5 * ts);
@@ -132,7 +132,7 @@ impl PropStage {
             high = high.max(l.radius * ts * 1.5 + ts);
         }
         let zoom = (screen.x / wide).min(screen.y / high).clamp(0.4, 4.0);
-        let look = Look { center: at, zoom, screen, topdown: false };
+        let look = Look { center: at, zoom, screen };
         // (The feet a little under the middle: what stands rises above them.)
         let lift = look.pan(vec2(0.0, (frame.h * zoom * 0.5).min(screen.y * 0.3)));
         Look { center: at - lift, ..look }

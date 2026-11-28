@@ -11,7 +11,7 @@
 //!   repeated on the tile grid, so it looks as before; crisp edges without noise);
 //! - any other **upper-layer tile** becomes a decoration (Detail = `Flat`, Overhead = `Above`) of a
 //!   prop generated for the tile: a sheet over the tileset image, 32 px frames; solid, low, ladder,
-//!   light and animation carried over, a 32 x 32 hitbox.
+//!   light carried over (an animated tile shows its first frame), a 32 x 32 hitbox.
 //!
 //! Materials are shared by picture: a material whose texture has exactly the tile's pixels is
 //! used instead of making another one (projects that already have materials keep them).
@@ -23,7 +23,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 
 use crate::decor::{Decor, DecorLayer};
-use crate::defs::{Database, FrameAnim, PropDef, SheetDef, SpriteRef, StructureDef};
+use crate::defs::{Database, PropDef, SheetDef, SpriteRef, StructureDef};
 use crate::ground::{MaterialDef, Walk, CELLS};
 use crate::imageio::Rgba;
 use crate::map::Map;
@@ -303,7 +303,6 @@ impl TileConverter {
         let def = self.tileset(ts)?.clone();
         let sheet = self.sheet(db, ts)?;
         let id = crate::refactor::unique_id(&format!("{ts}_tile_{index}"), |c| db.prop(c).is_some());
-        let anim = def.animations.iter().find(|a| a.tile == index).map(|a| FrameAnim { frames: a.frames.clone(), fps: a.fps });
         let p = PropDef {
             id: id.clone(),
             name: format!("{} tile {index}", SheetDef::new(ts, "", 1, 1).label()),
@@ -314,7 +313,6 @@ impl TileConverter {
             hitbox: [TILE_SIZE as f32, TILE_SIZE as f32],
             light: def.lights.iter().find(|l| l.tile == index).map(|l| l.light.clone()),
             snap: TILE_SIZE as u16,
-            anim,
             ..PropDef::default()
         };
         db.props.push(p);

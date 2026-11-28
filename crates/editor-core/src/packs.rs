@@ -584,7 +584,7 @@ impl Workspace {
                 RefKind::Item => db.item(id).and_then(|d| sprite(&d.icon)),
                 RefKind::Prop => db.prop(id).and_then(|d| sprite(&d.sprite)),
                 RefKind::Sheet => sprite(&rustpg2d_engine::defs::SpriteRef::new(id, 0)),
-                RefKind::Character if self.gpu != crate::Gpu::No => db.character(id).and_then(|c| self.assets.models.bust_image(db, &self.assets.sheets, &c.appearance)).and_then(|img| of_image(&img, gfx::math::Rect::new(0.0, 0.0, img.width as f32, img.height as f32))),
+                RefKind::Character if self.gpu != crate::Gpu::No => db.character(id).and_then(|c| self.assets.models.bust_image(db, &c.appearance)).and_then(|img| of_image(&img, gfx::math::Rect::new(0.0, 0.0, img.width as f32, img.height as f32))),
                 _ => None,
             };
             if let Some(png) = png {

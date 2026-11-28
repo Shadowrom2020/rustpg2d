@@ -6,7 +6,6 @@
 //! [--template TEMPLATE.glb [--turn DEGREES]] [--height PIXELS] [--anims walk,idle,…] [--facing left]
 //! [--moments N] [--clip ANIM=CLIP]… [--shared CLIPS.glb]… [--stand UNITS] [--part PIECE.glb]…` (`--clip` maps an animation name to a clip by its name in the
 //! files, for clips the standard names don't find, e.g. `--clip attack_2h=Armature|Heavy_Hammer_Swing|baselayer`)
-use std::collections::HashMap;
 
 use rustpg2d_engine::gfx;
 use rustpg2d_engine::gfx::prelude::*;
@@ -84,7 +83,6 @@ async fn run() {
     let moments: usize = opt("--moments").and_then(|m| m.parse().ok()).unwrap_or(4);
     let look = Appearance { model: "m".into(), ..Default::default() };
     let gear = Gear::default();
-    let sheets = HashMap::new();
     let (cw, ch) = (96.0, 112.0);
     let mut done = 0;
     for frame in 0..60 {
@@ -95,7 +93,7 @@ async fn run() {
             for (fi, f) in facings.iter().enumerate() {
                 for m in 0..moments {
                     let req = PoseReq { look: &look, gear: &gear, anim, time: (m as f32 + 0.5) / moments as f32, once: true, facing: *f, turn: 0, bust: false };
-                    if let Some(cell) = models.pose(&db, &sheets, &req) {
+                    if let Some(cell) = models.pose(&db, &req) {
                         placed.push((cell, vec2(((fi * moments + m) as f32 + 0.5) * cw, r as f32 * ch + 16.0 + ch - 12.0)));
                     }
                 }

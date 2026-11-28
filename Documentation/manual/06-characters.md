@@ -171,12 +171,13 @@ them when defeated. **What it holds is in its hands**: the weapon, the left-hand
 lantern, a torch), a tool while it works (the fisher's rod, the farmer's hoe) and a prop it carries,
 each at the hand bone. Items with a **3D model** ([Definitions › Items](05-database.md#items)) are
 held as that model by their hold style (in the fist with the handle across it, upright, hanging or
-strapped to the forearm), others as their picture (*Held* section: hold point and orientation). Worn armour and clothing show only in the model's art.
+strapped to the forearm); an item without a 3D model isn't shown in the hand. Worn armour and clothing show only in the model's art.
 
 **Carrying props**: the *Carry prop* action and the scripts `carry(target, prop)` /
 `stop_carrying(target)` / `player_carrying()` let the player or a character carry a prop (a crate, a
 basket) in both hands. While carrying, the weapon and left-hand item aren't shown and the player
-can't attack (*Put down what you carry first.*). What the player carries is saved.
+can't attack (*Put down what you carry first.*). What the player carries is saved. The carried prop
+itself isn't drawn (since 0.36: it was a picture in the hands).
 
 ## The character workshop
 

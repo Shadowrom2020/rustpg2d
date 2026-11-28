@@ -412,7 +412,7 @@ impl MapView {
 
     fn look(&self) -> Look {
         let (center, zoom) = self.cam.unwrap_or((Vec2::ZERO, 1.0));
-        Look { center, zoom, screen: vec2(self.size.0 as f32, self.size.1 as f32), topdown: self.opts.topdown }
+        Look { center, zoom, screen: vec2(self.size.0 as f32, self.size.1 as f32) }
     }
 
     /// The window position (points) showing the middle of tile `(x, y)` (fractions allowed):
@@ -501,7 +501,6 @@ impl MapView {
                 ui.add(egui::Slider::new(&mut self.opts.hour, 0.0..=24.0).fixed_decimals(0).suffix(" h")).on_hover_text("The hour of the day shown");
             }
             ui.toggle_value(&mut self.opts.weather, "Weather").on_hover_text("The map's weather");
-            ui.toggle_value(&mut self.opts.topdown, "From above").on_hover_text("Straight from above instead of the game's view");
             ui.separator();
             let zoom = self.cam.map_or(1.0, |c| c.1);
             if ui.button("-").on_hover_text("Zoom out").clicked() {
@@ -539,7 +538,7 @@ impl MapView {
         let ts = ws.ts();
         let (w, h) = (doc.map.width as f32 * ts, doc.map.height as f32 * ts);
         let look = self.look();
-        self.cam = Some((vec2(w / 2.0, h / 2.0), Look::fit(w, h, look.screen, look.topdown).clamp(0.02, 16.0)));
+        self.cam = Some((vec2(w / 2.0, h / 2.0), Look::fit(w, h, look.screen).clamp(0.02, 16.0)));
     }
 
     // ------------------------------------------------------------ the tool's panel
@@ -2069,7 +2068,7 @@ impl MapView {
     fn build_press(&mut self, p: &mut Parts, world: Vec2, tile: (i32, i32)) {
         self.sel.clear();
         self.build.defaults(&p.ws.project.db);
-        let (ts, iso) = (p.ws.ts(), !self.opts.topdown);
+        let (ts, iso) = (p.ws.ts(), true);
         match self.build.mode {
             BuildMode::Walls => {
                 let Some(def) = p.ws.project.db.prop(&self.build.wall).filter(|d| build::is_wall(d)).cloned() else {
@@ -2111,7 +2110,7 @@ impl MapView {
 
     /// The Build tool's right button: what was built is taken away again.
     fn build_right(&mut self, p: &mut Parts, world: Vec2, tile: (i32, i32)) {
-        let iso = !self.opts.topdown;
+        let iso = true;
         let done = match self.build.mode {
             BuildMode::Walls | BuildMode::Room => p.ws.take_wall(world, iso),
             BuildMode::Doors => p.ws.take_opening(world, iso, &self.build.wall),
@@ -2695,7 +2694,7 @@ impl MapView {
                                     draw_line(a.x, a.y, b.x, b.y, 3.0 * px, YELLOW);
                                 }
                                 let facing = rustpg2d_engine::decor::turn_facing(if def.turns() { self.place_turn } else { 0 });
-                                let draw = || scene.assets.draw_prop(scene.db, def, 0, facing, 0, at, false, ghost, time, !look.topdown);
+                                let draw = || scene.assets.draw_prop(scene.db, def, 0, facing, 0, at, false, ghost);
                                 if def.flat {
                                     draw();
                                 } else {
@@ -2734,7 +2733,7 @@ impl MapView {
                         (_, BuildMode::Roof) if b.roof_draw != RoofDraw::Rectangle => draw_rectangle_lines(fx, fy, ts, ts, 2.0 * px, col),
                         (_, BuildMode::Doors) => {
                             // What a click would change.
-                            if let Some(hit) = ws.build_pick(w, !look.topdown, |d| build::is_wall(d) || build::is_house(d)) {
+                            if let Some(hit) = ws.build_pick(w, true, |d| build::is_wall(d) || build::is_house(d)) {
                                 draw_rectangle_lines(hit.rect.x, hit.rect.y, hit.rect.w, hit.rect.h, 3.0 * px, col);
                             }
                         }

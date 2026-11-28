@@ -115,7 +115,7 @@ pub fn categories(db: &Database, kind: rustpg2d_engine::refactor::RefKind) -> Ve
             .props
             .iter()
             .map(|d| {
-                let (rank, label) = if d.building.is_some() || d.block > 0.0 || !d.pieces.is_empty() {
+                let (rank, label) = if d.building.is_some() || d.block > 0.0 {
                     (0, "Walls and buildings")
                 } else if d.door {
                     (1, "Doors and gates")
@@ -131,8 +131,6 @@ pub fn categories(db: &Database, kind: rustpg2d_engine::refactor::RefKind) -> Ve
                     (6, "Traps")
                 } else if d.lock.is_some() || !d.triggers.is_empty() || d.states.len() > 1 {
                     (7, "Things that react")
-                } else if d.carry.is_some() {
-                    (8, "Things to carry")
                 } else {
                     (9, "Scenery")
                 };

@@ -116,7 +116,7 @@ impl Game {
         }
     }
 
-    /// NPC items for `Game::status()`: "name:clothing,weapon|carried@body/hair".
+    /// NPC items for `Game::status()`: "name:clothing,weapon|carried".
     pub(super) fn npc_items_status(&self) -> Vec<String> {
         self.loaded
             .entities
@@ -126,7 +126,7 @@ impl Game {
                 let worn: Vec<&str> = e.equipment.stacks().map(|s| s.item.as_str()).collect();
                 let carried: Vec<String> = e.inventory.iter().map(|s| format!("{}x{}", s.item, s.count)).collect();
                 let name = if e.name.is_empty() { &e.def } else { &e.name };
-                format!("{name}:{}|{}@{}", worn.join(","), carried.join(","), e.appearance.body)
+                format!("{name}:{}|{}", worn.join(","), carried.join(","))
             })
             .collect()
     }

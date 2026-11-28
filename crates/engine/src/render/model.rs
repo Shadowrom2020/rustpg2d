@@ -15,7 +15,7 @@ use gfx::prelude::*;
 
 use crate::defs::{Appearance, ClipMap, Database, HoldStyle, ModelDef, DEFAULT_HIT};
 use crate::entity::Facing;
-use crate::hands::{Grip, Hand, HeldLayer};
+use crate::hands::{Hand, InHand};
 use crate::model::{hold_rotation, Model};
 
 /// Image pixels per world pixel of rendered characters (as the 2x figures).
@@ -505,7 +505,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // Soft light like the pre-rendered props': a warm sun from the north-west over a cool sky.
     let sun = smoothstep(-0.3, 0.85, d);
     let light = mix(vec3<f32>(0.58, 0.62, 0.72), vec3<f32>(1.06, 1.02, 0.93), sun);
-    return vec4<f32>(c.rgb * mix(vec3<f32>(1.0), light, u.Shade), 1.0);
+    return vec4<f32>(c.rgb * light, 1.0);
 }
 "#;
 
@@ -672,7 +672,6 @@ impl Models {
         clear_background(Color::new(0.0, 0.0, 0.0, 0.0));
         gl_use_material(&mat);
         mat.set_uniform("LightDir", vec3(-0.45, 0.75, 0.55).normalize());
-        mat.set_uniform("Shade", 1.0f32);
         draw_mesh(&Mesh { vertices, indices: mesh.indices.clone(), texture: Some(texture) });
         gl_use_default_material();
         let mut cam2 = Camera2D::from_display_rect(Rect::new(0.0, 0.0, size as f32, size as f32));
@@ -709,24 +708,16 @@ impl Models {
         self.loaded.contains_key(id)
     }
 
-    /// What a look is drawn as: its model, else the model named like its (old) figure, else the
-    /// mannequin.
+    /// What a look is drawn as: its model, else the mannequin.
     pub fn look_of(&self, a: &Appearance) -> Appearance {
-        let model = if self.has(&a.model) {
-            a.model.clone()
-        } else if !a.body.is_empty() && self.has(&a.body) {
-            a.body.clone()
-        } else {
-            MANNEQUIN.to_string()
-        };
+        let model = if self.has(&a.model) { a.model.clone() } else { MANNEQUIN.to_string() };
         Appearance { model, ..a.clone() }
     }
 
     /// The facing a still picture of a look shows best (thumbnails, cards): the side of a model
     /// that is long from nose to tail (a wolf, a horse, a shark), else the front.
     pub fn portrait_facing(&self, a: &Appearance) -> Facing {
-        let id = if self.has(&a.model) { &a.model } else { &a.body };
-        if self.loaded.get(id).is_some_and(|l| l.long) {
+        if self.loaded.get(&a.model).is_some_and(|l| l.long) {
             Facing::Left
         } else {
             Facing::Down
@@ -766,16 +757,16 @@ impl Models {
     }
 
     /// The rendered pose (rendering it now when needed and the frame's budget allows).
-    pub fn pose(&self, db: &Database, sheets: &HashMap<String, super::SheetTex>, req: &PoseReq) -> Option<Cell> {
-        self.pose_with(db, sheets, req, true)
+    pub fn pose(&self, db: &Database, req: &PoseReq) -> Option<Cell> {
+        self.pose_with(db, req, true)
     }
 
     /// The head and shoulders of a look as an image ([`BUST`] pixels square, rendered now
     /// whatever the frame's budget; read back from the GPU, so call it once, e.g. when exporting).
-    pub fn bust_image(&self, db: &Database, sheets: &HashMap<String, super::SheetTex>, look: &Appearance) -> Option<Image> {
+    pub fn bust_image(&self, db: &Database, look: &Appearance) -> Option<Image> {
         let look = self.look_of(look);
         let req = PoseReq { look: &look, gear: &Gear::default(), anim: "idle", time: 0.0, once: true, facing: Facing::Down, turn: 0, bust: true };
-        let cell = self.pose_with(db, sheets, &req, false)?;
+        let cell = self.pose_with(db, &req, false)?;
         let c = self.cache.borrow();
         let page = c.pages.get(cell.page)?;
         let all = page.rt.texture.get_texture_data();
@@ -794,7 +785,7 @@ impl Models {
     /// it per facing, on `ground` (image pixels, [`PX`] per world pixel; cells of `cell` pixels
     /// with the feet at the same place in each: the middle, three quarters down). Rendered now, whatever the frame's budget.
     #[allow(clippy::too_many_arguments)]
-    pub fn sheet(&self, db: &Database, sheets: &HashMap<String, super::SheetTex>, look: &Appearance, gear: &Gear, anims: &[String], facings: &[Facing], moments: usize, ground: Color) -> Option<(Image, (u32, u32))> {
+    pub fn sheet(&self, db: &Database, look: &Appearance, gear: &Gear, anims: &[String], facings: &[Facing], moments: usize, ground: Color) -> Option<(Image, (u32, u32))> {
         let look = self.look_of(look);
         let (fw, fh) = self.loaded.get(&look.model)?.frame;
         // Room for swings and for what the figure holds.
@@ -809,7 +800,7 @@ impl Models {
             for (fi, facing) in facings.iter().enumerate() {
                 for m in 0..moments {
                     let req = PoseReq { look: &look, gear, anim, time: (m as f32 + 0.5) / moments as f32, once: true, facing: *facing, turn: 0, bust: false };
-                    let Some(cell) = self.pose_with(db, sheets, &req, false) else { continue };
+                    let Some(cell) = self.pose_with(db, &req, false) else { continue };
                     // (Read at once: a later pose may reuse the page.)
                     let c = self.cache.borrow();
                     let Some(page) = c.pages.get(cell.page) else { continue };
@@ -910,7 +901,7 @@ impl Models {
     }
 
     /// [`Self::pose`], within the frame's render budget or (`budget` false) rendering now.
-    fn pose_with(&self, db: &Database, sheets: &HashMap<String, super::SheetTex>, req: &PoseReq, budget: bool) -> Option<Cell> {
+    fn pose_with(&self, db: &Database, req: &PoseReq, budget: bool) -> Option<Cell> {
         let l = self.loaded.get(&req.look.model)?;
         // Busts use the rest pose: the head straight, facing the front.
         let (clip_name, frame, time) = if req.bust { (None, 0, 0.0) } else { clip_frame(l, req) };
@@ -933,7 +924,7 @@ impl Models {
         }
         c.renders += 1;
         c.renders_total += 1;
-        let cell = render(&mut c, l, &parts, &self.items, db, sheets, req, clip_name.as_deref(), time);
+        let cell = render(&mut c, l, &parts, &self.items, db, req, clip_name.as_deref(), time);
         c.poses.insert(key, cell.clone());
         Some(cell)
     }
@@ -1425,7 +1416,7 @@ fn material(c: &mut Cache) -> Material {
         };
         let m = load_material(
             ShaderSource::Wgsl { source: &format!("{VERTEX}{FRAGMENT}") },
-            MaterialParams { pipeline_params: pipeline, uniforms: vec![UniformDesc::new("LightDir", UniformType::Float3), UniformDesc::new("Shade", UniformType::Float1)], textures: vec![] },
+            MaterialParams { pipeline_params: pipeline, uniforms: vec![UniformDesc::new("LightDir", UniformType::Float3)], textures: vec![] },
         )
         .expect("model shader");
         c.material = Some(m);
@@ -1548,7 +1539,7 @@ fn texture_for(l: &Loaded, look: &Appearance, body: Option<&ModelDef>) -> Option
 
 /// Renders one pose into the atlas.
 #[allow(clippy::too_many_arguments)]
-fn render(c: &mut Cache, l: &Loaded, parts: &[&Loaded], items: &HashMap<String, ItemMesh>, db: &Database, sheets: &HashMap<String, super::SheetTex>, req: &PoseReq, clip: Option<&str>, time: f32) -> Cell {
+fn render(c: &mut Cache, l: &Loaded, parts: &[&Loaded], items: &HashMap<String, ItemMesh>, db: &Database, req: &PoseReq, clip: Option<&str>, time: f32) -> Cell {
     let (w, h) = if req.bust { (BUST, BUST) } else { l.frame };
     let clip_ref = clip.and_then(|n| l.model.clip(n));
     let world = l.model.pose(clip_ref, time);
@@ -1641,19 +1632,11 @@ fn render(c: &mut Cache, l: &Loaded, parts: &[&Loaded], items: &HashMap<String, 
         Some((turn.transform_point3(grip), turn.transform_vector3(axis), turn.transform_vector3(along)))
     };
     let hands3 = [hand(&l.hands[0]), hand(&l.hands[1])];
-    let grip2 = |h: Option<(Vec3, Vec3, Vec3)>| {
-        h.map(|(p, a, _)| {
-            let s = to_px0(p);
-            let d = to_px0(p + a * 0.1) - s;
-            Grip { x: s.x, y: s.y, angle: d.y.atan2(d.x).to_degrees(), scale: 1.0, front: true }
-        })
-    };
-    let (gr, gl) = (grip2(hands3[0]), grip2(hands3[1]));
     let eq = req.gear.equipment();
-    let layers = if req.bust { Vec::new() } else { crate::hands::held_with(db, (gr, gl), &eq, &req.gear.carrying, None, req.facing) };
-    // Held items and a carried prop, placed (not drawn yet): item models shaded on the hand,
-    // pictures facing the camera; with their far tips.
-    let mut held: Vec<(Mesh, bool, String, Vec3)> = Vec::new();
+    // (A carried prop has no item model: it is held, not shown.)
+    let layers: Vec<InHand> = if req.bust { Vec::new() } else { crate::hands::in_hands(db, &eq, &req.gear.carrying, None).into_iter().filter(|h| !h.carried).collect() };
+    // Held items, placed (not drawn yet): their models shaded on the hand; with their far tips.
+    let mut held: Vec<(Mesh, String, Vec3)> = Vec::new();
     // Out of combat a one-handed weapon hangs at the left hip, not in the hand.
     let hip = l.hip.zip(sheathed(db, req.gear, req.anim)).and_then(|(hb, id)| db.item(id)?.model.as_ref().and_then(|m| items.get(&m.file).map(|mesh| (hb, id, m, mesh))));
     for layer in &layers {
@@ -1669,8 +1652,9 @@ fn render(c: &mut Cache, l: &Loaded, parts: &[&Loaded], items: &HashMap<String, 
                 (a, b) => a.or(b).map(|h| h.0),
             },
         };
-        let Some(mut anchor) = anchor else { continue };
-        // An item with its own 3D model: its mesh on the hand, the handle along the grip axis.
+        let Some(anchor) = anchor else { continue };
+        // The item's own 3D model: its mesh on the hand, the handle along the grip axis (an item
+        // without a model isn't shown).
         let im = db.item(&layer.id).and_then(|d| d.model.as_ref()).and_then(|m| items.get(&m.file).map(|mesh| (m, mesh)));
         if let Some((spec, mesh)) = im {
             let one = match layer.hand {
@@ -1702,17 +1686,7 @@ fn render(c: &mut Cache, l: &Loaded, parts: &[&Loaded], items: &HashMap<String, 
                 }
             };
             let (m, far) = placed_item(spec, mesh, anchor, to_axis, to_front, spec.size * PX / l.ppu);
-            held.push((m, true, layer.id.clone(), far));
-            continue;
-        }
-        let mut layer = layer.clone();
-        if layer.id == req.gear.carrying {
-            // A carried prop is held level in front of the chest, not between the hanging hands.
-            anchor += turn.transform_vector3(Vec3::Z) * l.height * 0.14 + Vec3::Y * l.height * 0.08;
-            (layer.rotation, layer.flip) = (0.0, false);
-        }
-        if let Some((mesh, tip)) = held_quad(&layer, anchor, sheets, l.ppu, screen_right, screen_down) {
-            held.push((mesh, false, layer.id.clone(), tip));
+            held.push((m, layer.id.clone(), far));
         }
     }
     if let Some((hb, id, spec, mesh)) = hip {
@@ -1724,7 +1698,7 @@ fn render(c: &mut Cache, l: &Loaded, parts: &[&Loaded], items: &HashMap<String, 
         // (Along the thigh: no outward tilt, the leg is narrower below.)
         let axis = (down - fwd * 0.45 - out * 0.05).normalize_or(down);
         let (mesh, far) = placed_item(spec, mesh, anchor, axis, fwd, spec.size * PX / l.ppu);
-        held.push((mesh, true, id.to_string(), far));
+        held.push((mesh, id.to_string(), far));
     }
     // A backpack on the upper back: against the back's skin, its top along the spine, its front
     // facing away from the body.
@@ -1735,7 +1709,7 @@ fn render(c: &mut Cache, l: &Loaded, parts: &[&Loaded], items: &HashMap<String, 
         let up = turn.transform_vector3(m.transform_vector3(bb.up)).normalize_or(Vec3::Y);
         let out = turn.transform_vector3(m.transform_vector3(bb.out)).normalize_or(-Vec3::Z);
         let (mesh, far) = placed_item(spec, mesh, anchor, up, out, spec.size * PX / l.ppu);
-        held.push((mesh, true, req.gear.back.clone().unwrap_or_default(), far));
+        held.push((mesh, req.gear.back.clone().unwrap_or_default(), far));
     }
     // The frame: the standard one, grown by whatever sticks out of it (a spear, a swung arm),
     // in steps of 8 pixels and at most one and a half figures each way.
@@ -1783,14 +1757,12 @@ fn render(c: &mut Cache, l: &Loaded, parts: &[&Loaded], items: &HashMap<String, 
     gl_use_material(&mat);
     let light = vec3(-0.45, 0.75, 0.55).normalize();
     mat.set_uniform("LightDir", light);
-    mat.set_uniform("Shade", 1.0f32);
     draw_mesh(&Mesh { vertices, indices: l.model.indices.clone(), texture: texture_for(l, req.look, None) });
     for m in &pieces {
         draw_mesh(m);
     }
     let mut tips = Vec::new();
-    for (mesh, shaded, id, tip) in &held {
-        mat.set_uniform("Shade", if *shaded { 1.0f32 } else { 0.0 });
+    for (mesh, id, tip) in &held {
         draw_mesh(mesh);
         tips.push((id.clone(), to_px(*tip)));
     }
@@ -1901,29 +1873,6 @@ fn item_front(spec: &crate::defs::ItemModel, mesh: &ItemMesh) -> Vec3 {
     } else {
         Vec3::from(crate::model::auto_front(spec.axis, mesh.cov))
     }
-}
-
-/// A held picture as a quad facing the camera at `anchor` (the hold point), turned and mirrored
-/// as `layer` says; with the picture's far tip. `ppu`: frame pixels per model unit.
-fn held_quad(layer: &HeldLayer, anchor: Vec3, sheets: &HashMap<String, super::SheetTex>, ppu: f32, right: Vec3, down: Vec3) -> Option<(Mesh, Vec3)> {
-    let s = sheets.get(&layer.sprite.sheet)?;
-    let (cw, ch) = layer.sprite.cells();
-    let src = s.region(layer.sprite.frame, cw, ch);
-    // Frame pixels: its world size times the layer's scale, at the frame's pixel density.
-    let size = s.world_of(src) * layer.scale * PX;
-    let g = vec2(layer.grip[0] * size.x, layer.grip[1] * size.y);
-    let (sn, cs) = layer.rotation.to_radians().sin_cos();
-    let rot = |v: Vec2| vec2(v.x * cs - v.y * sn, v.x * sn + v.y * cs);
-    let to3 = |v: Vec2| anchor + right * (v.x / ppu) + down * (v.y / ppu);
-    let corners = [vec2(0.0, 0.0), vec2(size.x, 0.0), vec2(size.x, size.y), vec2(0.0, size.y)].map(|c| to3(rot(c - g)));
-    let (iw, ih) = (s.image.width as f32, s.image.height as f32);
-    let (u0, v0, u1, v1) = (src.x / iw, src.y / ih, (src.x + src.w) / iw, (src.y + src.h) / ih);
-    let (top, bottom) = if layer.flip { (v1, v0) } else { (v0, v1) };
-    let uvs = [vec2(u0, top), vec2(u1, top), vec2(u1, bottom), vec2(u0, bottom)];
-    let vertices = (0..4).map(|k| Vertex { position: corners[k], uv: uvs[k], color: [255; 4], normal: vec4(0.0, 1.0, 0.0, 0.0) }).collect();
-    // The farthest corner from the hold point stands in for the tip.
-    let far = [vec2(0.0, 0.0), vec2(size.x, 0.0), vec2(size.x, size.y), vec2(0.0, size.y)].into_iter().max_by(|a, b| (*a - g).length_squared().total_cmp(&(*b - g).length_squared())).unwrap_or(g);
-    Some((Mesh { vertices, indices: vec![0, 1, 2, 0, 2, 3], texture: Some(s.texture.clone()) }, to3(rot(far - g))))
 }
 
 #[cfg(test)]

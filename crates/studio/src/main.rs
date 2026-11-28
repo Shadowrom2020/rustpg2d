@@ -271,7 +271,7 @@ impl Studio {
                 // The view of the map being worked on. Places are tiles (fractions allowed; a whole
                 // number is the tile's middle): `mapclick X Y [ctrl|shift|right|double]`,
                 // `mapdrag X1 Y1 X2 Y2`, `maphover X Y` use the window's pointer for real;
-                // `mapview CX CY ZOOM`, `maptool NAME`, `mapopt grid|zones|collision|light|weather|above on|off`,
+                // `mapview CX CY ZOOM`, `maptool NAME`, `mapopt grid|zones|collision|light|weather|ground|scenery|things on|off`,
                 // `mapplace KIND ID|-`, `mapzone KIND`, `mapbuild MODE …` (`BuildTool::script`),
                 // `mapselect NAME…|-`, `mapact delete|duplicate|turn`.
                 "mapclick" | "maphover" | "mapdrag" | "mapview" | "maptool" | "mapopt" | "mapplace" | "mapzone" | "mapground" | "mapbuild" | "mapselect" | "mapact" => {
@@ -319,7 +319,6 @@ impl Studio {
                                     }
                                 }
                                 "weather" => view.opts.weather = on,
-                                "above" => view.opts.topdown = on,
                                 "ground" => view.layers[0] = on,
                                 "scenery" => view.layers[1] = on,
                                 "things" => view.layers[2] = on,

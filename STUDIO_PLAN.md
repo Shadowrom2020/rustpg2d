@@ -526,6 +526,10 @@ If you find another entry with one obvious fix, name it in your report; don't bu
 
 ### - [ ] Task 13 (ask first): old things leave (ROADMAP part 11)
 
+2026-11-28: the four listed removals are done (the maintainer's answer: pictures in the hand, what
+was left of sprite-sheet figures and props, the map tab's top-down view, `scripts/art/meshy/`);
+the removals "without asking" and the 0.35 to 0.36 conversion are still to do.
+
 The list for the maintainer is written (2026-11-28: ROADMAP part 11, *For the maintainer's
 word*). Nothing is removed: the rest of this task waits for the maintainer.
 

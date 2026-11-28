@@ -761,7 +761,6 @@ impl Game {
             a.colors.clear();
         }
         a.model = body;
-        a.body.clear();
         a.parts = self.creator_parts(c);
         let race = self.creator_race(c);
         for (_, name, colors, _) in self.creator_features(c) {
@@ -1400,7 +1399,7 @@ impl Game {
         let rows: Vec<String> = self.creator_rows(c).iter().map(|r| self.creator_label(c, *r)).filter(|l| !l.is_empty()).collect();
         let colors: Vec<String> = a.colors.iter().map(|(k, v)| format!("{k}:{:02x}{:02x}{:02x}", v[0], v[1], v[2])).collect();
         let parts: Vec<String> = a.parts.iter().map(|(k, v)| format!("{k}:{v}")).collect();
-        let look = format!("{} colors{{{}}} parts{{{}}} rows {}", a.body, colors.join(" "), parts.join(" "), rows.join("/"));
+        let look = format!("{} colors{{{}}} parts{{{}}} rows {}", a.model, colors.join(" "), parts.join(" "), rows.join("/"));
         let race = self.creator_race(c).map_or("-".to_string(), |r| r.id.clone());
         let hero = self.creator_hero(c);
         let picks: Vec<String> = self.creator_choices(c).iter().map(|(k, v)| format!("{k}={}", v.join("+"))).collect();
@@ -1545,11 +1544,7 @@ impl Game {
                         Row::Race => (race.as_ref().map_or(String::new(), |r| r.name.clone()), None),
                         Row::Body => {
                             let b = self.creator_body(c);
-                            let label = match (self.project.db.model(&b), self.project.db.sheet(&b)) {
-                                (Some(m), _) => m.label().to_string(),
-                                (None, Some(s)) => s.label(),
-                                _ => b.clone(),
-                            };
+                            let label = self.project.db.model(&b).map_or_else(|| b.clone(), |m| m.label().to_string());
                             (label, None)
                         }
                         Row::Feature(f) => {

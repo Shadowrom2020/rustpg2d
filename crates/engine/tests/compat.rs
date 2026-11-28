@@ -27,9 +27,9 @@ fn definitions_of_0_9_0_load() {
     // (Its skill tree, defs/skills.ron, is read only by the SRD conversion since 0.28.)
     assert!(rustpg2d_engine::srd_convert::needs_conversion(&fixture("project-0.9.0")));
     assert!(!db.quests.is_empty() && !db.sounds.is_empty() && !db.achievements.is_empty());
-    // Its layered characters (removed in 0.17) keep their body; hair, outfit and armor sheets load
-    // as plain sprites.
-    assert!(db.characters.iter().all(|c| !c.appearance.body.is_empty()), "every character has a body");
+    // Its layered characters (removed in 0.17) load without their figure (drawn as the mannequin);
+    // hair, outfit and armor sheets load as plain sprites.
+    assert!(db.characters.iter().all(|c| c.appearance.model.is_empty()), "no character has a model");
     assert!(db.sheets.iter().any(|s| s.id.starts_with("hair_") && s.kind == rustpg2d_engine::defs::SheetKind::Sprite));
     // Projects before UI skins (0.25): no skins.ron, no `skin` = the built-in look.
     assert!(db.skins.is_empty() && p.config.skin.is_empty());

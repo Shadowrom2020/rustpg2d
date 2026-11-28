@@ -85,7 +85,6 @@ pub fn set_model(a: &mut Appearance, model: &str) {
         a.parts.clear();
     }
     a.model = model.to_string();
-    a.body.clear();
 }
 
 /// A piece for a slot: `None` = the model's own, `Some(NO_PART)` = none, else a piece's id.

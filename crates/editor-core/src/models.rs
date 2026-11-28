@@ -455,7 +455,7 @@ impl Workspace {
             for m in &models {
                 let look = Appearance { model: m.clone(), ..Default::default() };
                 let gear = rustpg2d_engine::render::model::Gear::default();
-                let Some((img, (cw, ch))) = self.assets.models.sheet(&db, &self.assets.sheets, &look, &gear, &["idle".to_string()], &[Facing::Down], 1, gfx::color::Color::new(0.0, 0.0, 0.0, 0.0)) else { break };
+                let Some((img, (cw, ch))) = self.assets.models.sheet(&db, &look, &gear, &["idle".to_string()], &[Facing::Down], 1, gfx::color::Color::new(0.0, 0.0, 0.0, 0.0)) else { break };
                 let (fx, fy) = (cw / 2, ch * 3 / 4);
                 // (Its solid pixels: the half-clear ground shadow doesn't widen it. A building's front
                 // corner reaches below the feet: the picture ends where the model does.)
@@ -514,7 +514,6 @@ impl Workspace {
             }
             if let Some(d) = db.props.iter_mut().find(|d| d.id == p.id) {
                 d.sprite = SpriteRef::new(&sid, 0);
-                d.turns.clear();
                 for (k, st) in d.states.iter_mut().enumerate() {
                     st.sprite = SpriteRef::new(&sid, k as u32 + 1);
                 }

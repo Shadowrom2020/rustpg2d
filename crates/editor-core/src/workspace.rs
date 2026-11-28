@@ -42,13 +42,11 @@ pub struct ViewOpts {
     pub hour: f32,
     pub weather: bool,
     pub parallax: bool,
-    /// From straight above instead of isometric.
-    pub topdown: bool,
 }
 
 impl Default for ViewOpts {
     fn default() -> ViewOpts {
-        ViewOpts { grid: false, collision: false, zones: true, minimap: true, lighting: false, hour: 12.0, weather: false, parallax: true, topdown: false }
+        ViewOpts { grid: false, collision: false, zones: true, minimap: true, lighting: false, hour: 12.0, weather: false, parallax: true }
     }
 }
 

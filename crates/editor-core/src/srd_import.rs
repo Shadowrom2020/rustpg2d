@@ -2602,10 +2602,10 @@ impl SrdData {
             match items.iter_mut().find(|d| d.id == new.id) {
                 Some(old) => {
                     // An earlier run's item: the SRD's data, its own look kept.
-                    let (icon, model, held) = (old.icon.clone(), old.model.clone(), old.held.clone());
+                    let (icon, model) = (old.icon.clone(), old.model.clone());
                     let before = old.clone();
                     *old = new;
-                    (old.icon, old.model, old.held) = (icon, model, held);
+                    (old.icon, old.model) = (icon, model);
                     if *old != before {
                         updated += 1;
                     }

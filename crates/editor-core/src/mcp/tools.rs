@@ -206,7 +206,7 @@ pub struct EditFramesParams {
     pub op: String,
     /// duplicate / nudge / replace_color (scope "frame"): the frame (row * columns + column).
     pub frame: Option<u32>,
-    /// copy_row: the source row; clear_row / replace_color (scope "row") / swap_hands: the row.
+    /// copy_row: the source row; clear_row / replace_color (scope "row"): the row.
     pub row: Option<u32>,
     /// copy_row: the target row.
     pub to_row: Option<u32>,
@@ -218,17 +218,6 @@ pub struct EditFramesParams {
     pub to: Option<[u8; 3]>,
     /// replace_color: "frame", "row" or "sheet" (default).
     pub scope: Option<String>,
-    /// set_grip: "right" or "left"; the grip in the frame's image pixels, the direction a held
-    /// item points (degrees: 0 right, 90 down, -90 up), its size (default 1) and whether it is in
-    /// front of the figure (default true).
-    pub hand: Option<String>,
-    pub x: Option<f32>,
-    pub y: Option<f32>,
-    pub angle: Option<f32>,
-    pub size: Option<f32>,
-    pub front: Option<bool>,
-    /// estimate_hands: estimate every frame again (default: only frames without grips).
-    pub all: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
@@ -805,7 +794,7 @@ with_params {
     /// Lets a rigged model play another rigged model's animations (same bone names, e.g. clips bought for one Meshy figure): the clip files they come from become the model's shared clips, fitted to its bones when it loads, and the animations are mapped with the same clips and hit points. Typical: the weapon animations (attack_1h, attack_2h, attack_thrust, attack_bow, attack_crossbow, attack_cast, attack_unarmed, idle_1h, idle_2h, idle_bow, idle_spear, block_shield, block_weapon, block_2h) that items name (upsert_def item `anims: {attack, idle, walk, block}`, empty = estimated from the weapon). Saves.
     #[tool]
     share_model_clips: ShareModelClips(p: ShareClipsParams) => ed.mcp_share_clips(p);
-    /// Edits the frames of a sprite sheet's image and a figure's hand grips (4 columns, 16 rows: walk, idle, attack, hurt; facings down, left, right, up): mirror Left rows into Right rows, copy / clear a row, duplicate a frame into the next column, nudge a frame's pixels, replace a colour (e.g. split a shade two colour features share), fill empty idle / hurt frames with the standing frame, set_grip / clear_grips / estimate_hands (where held weapons, tools and props are drawn). Grips move with the frames. Writes the PNG and the definition and reloads the art; view_image shows the result.
+    /// Edits the frames of a sprite sheet's image: copy / clear a row, duplicate a frame into the next column, nudge a frame's pixels, replace a colour (in a frame, a row or the whole sheet). Writes the PNG and reloads the art; view_image shows the result.
     #[tool]
     edit_frames: EditFrames(p: EditFramesParams) => ed.mcp_edit_frames(p);
     /// Starts drawing art with Meshy (characters in the project's style: a walk grid, plus an attack grid; icons, props, portraits, painted images; 3D: a rigged and animated 3D character, an unrigged creature model, an existing item's 3D model from its icon): returns the job number at once. Costs credits: call without confirm_credits first to learn the price, ask the person, then call with confirm_credits = that price. Watch it with art_jobs, look at it with art_result, add it with art_apply.

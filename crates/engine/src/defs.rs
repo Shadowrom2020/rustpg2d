@@ -221,8 +221,7 @@ impl SheetKind {
     }
 }
 
-/// Look of a character: its 3D model (`ModelDef`; "" = its figure `body`, a sheet of kind Body)
-/// and the colours chosen for the colour features (feature name -> colour; a feature not listed
+/// Look of a character: its 3D model (`ModelDef`; "" = the built-in mannequin) and the colours chosen for the colour features (feature name -> colour; a feature not listed
 /// keeps the art's colours).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -230,7 +229,6 @@ impl SheetKind {
 pub struct Appearance {
     #[serde(skip_serializing_if = "String::is_empty")]
     pub model: String,
-    pub body: String,
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub colors: BTreeMap<String, [u8; 3]>,
     /// The character's size in percent of its model (0 = 100), times its race's size: the drawn
@@ -254,9 +252,9 @@ impl Appearance {
         if self.size == 0 { 1.0 } else { (self.size as f32 / 100.0).clamp(0.25, 4.0) }
     }
 
-    /// Whether it shows anything: a model or a figure.
+    /// Whether it shows anything: a model.
     pub fn has_look(&self) -> bool {
-        !self.model.is_empty() || !self.body.is_empty()
+        !self.model.is_empty()
     }
 }
 
@@ -1010,11 +1008,7 @@ pub struct ItemDef {
     /// Gives light while equipped (e.g. a lantern in the left hand) or lying on the ground.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub light: Option<LightSpec>,
-    /// How it looks in a character's hand (weapons, left-hand items, tools); None = its icon,
-    /// held at its lower-left end.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub held: Option<crate::hands::HeldSprite>,
-    /// Its 3D model, held by 3D model characters (else they hold its picture).
+    /// Its 3D model, shown in a character's hand (an item without one is held but not shown).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<ItemModel>,
     /// The piece style a 3D model character shows while it wears the item (an armour, a helmet,
@@ -1168,7 +1162,6 @@ impl Default for ItemDef {
             max_stack: default_max_stack(),
             value: 0,
             light: None,
-            held: None,
             model: None,
             wear: String::new(),
             teaches: String::new(),
@@ -1548,10 +1541,6 @@ pub struct PropDef {
     /// of) and close them behind them.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub door: bool,
-    /// How characters carry it in both hands (*Carry prop*): its hold point and orientation mark
-    /// (None: the middle of its lower half, its horizontal along the hands).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub carry: Option<crate::hands::HeldSprite>,
     /// A ladder: the player climbs it (characters keep off), placed as a decoration.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub climb: bool,
@@ -1570,23 +1559,11 @@ pub struct PropDef {
     /// Placed on a grid of this many pixels (16 or 32: wall pieces); 0 = anywhere.
     #[serde(default, skip_serializing_if = "is_zero_u16")]
     pub snap: u16,
-    /// A wall set of earlier versions: the prop for each neighbour mask (16 entries). Still read
-    /// (and renamed with its props) so old projects load; nothing uses it any more.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub pieces: Vec<String>,
-    /// An animated picture: the default state cycles through these frames of its sheet (a torch,
-    /// a flag, a water wheel).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub anim: Option<FrameAnim>,
     /// A 3D model (a [`ModelDef`] id) shown instead of the picture: rendered from the isometric
     /// angle like the figures and turned with the placed prop. Its origin is the middle of the
     /// footprint (the hitbox) on the ground. States can name their own ([`PropState::model`]).
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub model: String,
-    /// Pictures of the default state turned a quarter: facing west, north and east (the picture
-    /// itself faces south); for props drawn ahead of time from four sides.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub turns: Vec<SpriteRef>,
     /// Drawn as a block this many world pixels high (walls, counters): its hitbox raised as a box
     /// with its picture on the faces, so a row of them is one wall; blocks in front of the hero
     /// are cut down to a stub ([`crate::render::iso::draw_block`]). 0 = drawn as its picture.
@@ -1782,22 +1759,6 @@ fn chimney_rise() -> f32 {
     14.0
 }
 
-/// Frames of a sprite sheet shown one after the other (`PropDef::anim`).
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-pub struct FrameAnim {
-    pub frames: Vec<u32>,
-    pub fps: f32,
-}
-
-impl FrameAnim {
-    /// The frame shown at `time` seconds.
-    pub fn frame_at(&self, time: f64) -> Option<u32> {
-        let n = self.frames.len();
-        (n > 0).then(|| self.frames[((time * self.fps.max(0.01) as f64) as usize) % n])
-    }
-}
-
 /// The serde defaults (what an entry with only `id`, `name` and `sprite` loads as: not solid,
 /// a 24 x 16 px hitbox). The editor's "+ New" value is [`PropDef::fresh`].
 impl Default for PropDef {
@@ -1823,16 +1784,12 @@ impl Default for PropDef {
             obscures: false,
             flat: false,
             door: false,
-            carry: None,
             climb: false,
             climb_dc: 0,
             object: None,
             trap: None,
             snap: 0,
-            pieces: vec![],
-            anim: None,
             model: String::new(),
-            turns: vec![],
             block: 0.0,
             building: None,
             shadow: true,
@@ -1985,16 +1942,6 @@ impl PropDef {
     pub fn state_name(&self, index: usize) -> &str {
         if index == 0 { &self.default_state } else { self.states.get(index - 1).map_or("", |s| s.name.as_str()) }
     }
-    /// Sprite and solidity of state `index` (out of range: the default state).
-    /// The picture of state `index` at `time` seconds (the default state's `anim` cycles).
-    pub fn sprite_at(&self, index: usize, time: f64) -> std::borrow::Cow<'_, SpriteRef> {
-        let s = self.state_look(index).0;
-        match self.anim.as_ref().filter(|_| index == 0).and_then(|a| a.frame_at(time)) {
-            Some(frame) => std::borrow::Cow::Owned(SpriteRef { frame, ..s.clone() }),
-            None => std::borrow::Cow::Borrowed(s),
-        }
-    }
-
     /// The 3D model of state `index` ("" = none: the picture is drawn).
     pub fn model_at(&self, index: usize) -> std::borrow::Cow<'_, str> {
         match index.checked_sub(1).and_then(|i| self.states.get(i)).filter(|s| !s.model.is_empty()) {
@@ -2004,10 +1951,10 @@ impl PropDef {
         }
     }
 
-    /// Whether placed copies turn in quarters (a model, pictures from four sides, a block): their
-    /// facing then turns the picture and the hitbox. Others only mirror.
+    /// Whether placed copies turn in quarters (a model, a building, a block): their facing then
+    /// turns the model and the hitbox. Others only mirror.
     pub fn turns(&self) -> bool {
-        !self.model.is_empty() || !self.turns.is_empty() || self.building.is_some() || self.block > 0.0 || self.states.iter().any(|s| !s.model.is_empty())
+        !self.model.is_empty() || self.building.is_some() || self.block > 0.0 || self.states.iter().any(|s| !s.model.is_empty())
     }
 
     /// The hitbox of a copy facing `f`: width and depth swapped when it is turned a quarter.
@@ -2023,22 +1970,6 @@ impl PropDef {
         match f {
             Facing::Left | Facing::Right if self.turns() => [self.hitbox[1], self.hitbox[0]],
             _ => self.hitbox,
-        }
-    }
-
-    /// The picture of state `index` at `time` seconds facing `f` (the turned pictures of the
-    /// default state, else the state's picture).
-    pub fn picture_facing(&self, index: usize, f: crate::entity::Facing, time: f64) -> std::borrow::Cow<'_, SpriteRef> {
-        use crate::entity::Facing;
-        let k = match f {
-            Facing::Down => None,
-            Facing::Left => Some(0),
-            Facing::Up => Some(1),
-            Facing::Right => Some(2),
-        };
-        match k.filter(|_| index == 0).and_then(|k| self.turns.get(k)) {
-            Some(s) => std::borrow::Cow::Borrowed(s),
-            None => self.sprite_at(index, time),
         }
     }
 
@@ -3274,7 +3205,7 @@ mod tests {
     /// `Default` is what a file entry with only the required fields loads as (so tests and the
     /// editor can write `..Default::default()`), and `fresh` is the editor's "+ New" value.
     #[test]
-    fn props_with_a_model_or_four_pictures_turn() {
+    fn props_with_a_model_turn() {
         use crate::entity::Facing;
         let mut p = PropDef { hitbox: [64.0, 30.0], ..PropDef::fresh("cart") };
         assert!(!p.turns());
@@ -3284,11 +3215,6 @@ mod tests {
         assert_eq!((p.hitbox_facing(Facing::Left), p.hitbox_facing(Facing::Up)), ([30.0, 64.0], [64.0, 30.0]));
         p.states.push(PropState { name: "broken".into(), sprite: SpriteRef::new("s", 1), solid: false, light: None, model: "cart_broken".into() });
         assert_eq!((p.model_at(1).as_ref(), p.model_at(5).as_ref()), ("cart_broken", "cart_3d"));
-        p.model.clear();
-        p.turns = vec![SpriteRef::new("w", 0), SpriteRef::new("n", 0), SpriteRef::new("e", 0)];
-        assert_eq!(p.picture_facing(0, Facing::Up, 0.0).sheet, "n");
-        assert_eq!(p.picture_facing(0, Facing::Right, 0.0).sheet, "e");
-        assert_eq!(p.picture_facing(1, Facing::Up, 0.0).sheet, "s");
     }
 
     #[test]
@@ -3443,17 +3369,17 @@ mod tests {
         assert_eq!(e.lock.unwrap().on_unlock, OnUnlock::ToState { state: "open".into() });
     }
 
+    /// Fields of earlier versions that are gone (pictures in the hand, a carried prop's marks,
+    /// four pictures of a prop, an animated picture, wall sets, a figure's `body`) are skipped
+    /// when old files are read.
     #[test]
-    fn animated_props_cycle_their_frames() {
-        let a = FrameAnim { frames: vec![3, 40, 41], fps: 2.0 };
-        assert_eq!((a.frame_at(0.0), a.frame_at(0.6), a.frame_at(1.2), a.frame_at(1.5)), (Some(3), Some(40), Some(41), Some(3)));
-        assert_eq!(FrameAnim { frames: vec![], fps: 2.0 }.frame_at(9.0), None);
-        let mut p = PropDef { id: "torch".into(), sprite: SpriteRef::new("s", 3), anim: Some(a), ..Default::default() };
-        p.states.push(PropState { name: "out".into(), sprite: SpriteRef::new("s", 9), solid: false, light: None, model: String::new() });
-        assert_eq!(p.sprite_at(0, 0.6).frame, 40);
-        assert_eq!(p.sprite_at(1, 0.6).frame, 9, "other states don't animate");
-        // Props without one don't write it.
-        assert!(!ron::to_string(&PropDef::default()).unwrap().contains("anim"));
+    fn removed_fields_are_skipped_in_old_files() {
+        let i: ItemDef = ron::from_str(r#"(id: "i", name: "I", icon: (sheet: "s", frame: 1), held: Some((sprite: (sheet: "held", frame: 0), grip: (0.5, 0.6), points: -90.0, scale: 1.25)))"#).unwrap();
+        assert_eq!(i, ItemDef { id: "i".into(), name: "I".into(), icon: SpriteRef::new("s", 1), ..Default::default() });
+        let p: PropDef = ron::from_str(r#"(id: "p", name: "P", sprite: (sheet: "s", frame: 3), carry: Some((grip: (0.5, 0.6))), pieces: ["a", "b"], anim: Some((frames: [3, 40], fps: 2.0)), turns: [(sheet: "w", frame: 0)])"#).unwrap();
+        assert_eq!(p, PropDef { id: "p".into(), name: "P".into(), sprite: SpriteRef::new("s", 3), ..Default::default() });
+        let a: Appearance = ron::from_str(r#"(model: "hero", body: "farmer_m")"#).unwrap();
+        assert_eq!(a, Appearance { model: "hero".into(), ..Default::default() });
     }
 }
 

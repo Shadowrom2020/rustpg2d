@@ -261,7 +261,7 @@ fn template(kind: RefKind, id: &str, db: &Database) -> (Value, &'static str) {
         ),
         RefKind::Prop => (
             val(&PropDef::fresh(id)),
-            "sprite: {sheet, frame} (or {sheet, frame, w, h} for a block of frames); solid; low: true = while solid it stops walking but not shots and sight (barrels, chairs, fences; solid props that aren't low stop shots: trees, statues, stalls); hitbox [w, h] px at the feet; states: [{name, sprite, solid, light}] switched by SetState / set_state (default_state names the first); triggers (Prop owner: Interact, Enter, UseItem, Custom, Unlock, Lock…); container: {size, items: [{item, count}], conditions, locked_text, open_frame, open_state}; lock: {key, consume_key, on_unlock: Nothing|Disappear|{Open:{frame}}|{ToState:{state}}, locked_text, unlock_text, relock, pick_difficulty}; use_spot: furniture {pose: Sit|Lie|Stand, offset, facing, sleep_until}; gather: {tool, hits, loot, then_state}; regrow: {from, to, hours}; plot: a farm plot; carry: how characters carry it {grip, points, scale} (none: middle of its lower half, horizontal along the hands, 0.6).",
+            "sprite: {sheet, frame} (or {sheet, frame, w, h} for a block of frames); solid; low: true = while solid it stops walking but not shots and sight (barrels, chairs, fences; solid props that aren't low stop shots: trees, statues, stalls); hitbox [w, h] px at the feet; states: [{name, sprite, solid, light}] switched by SetState / set_state (default_state names the first); triggers (Prop owner: Interact, Enter, UseItem, Custom, Unlock, Lock…); container: {size, items: [{item, count}], conditions, locked_text, open_frame, open_state}; lock: {key, consume_key, on_unlock: Nothing|Disappear|{Open:{frame}}|{ToState:{state}}, locked_text, unlock_text, relock, pick_difficulty}; use_spot: furniture {pose: Sit|Lie|Stand, offset, facing, sleep_until}; gather: {tool, hits, loot, then_state}; regrow: {from, to, hours}; plot: a farm plot.",
         ),
         RefKind::Character => (val(&crate::defs::default_character(db, id, "New character")), "appearance: {model (a 3D model id; none: the mannequin), colors: {feature: [r,g,b]} (the model's colour features; missing = as made)}; equipment / inventory: the items it wears and carries (count in play; weapon, left hand and tools show in its hands: items' `model` or `held` picture); behavior: Static | {Wander:{radius}} | {Chase:{..}}; hostile + weapon/damage/defense/xp/loot for enemies; touch_effect: a condition its melee hits give (the shape of a weapon's effect: {condition, seconds, save, ongoing}); shop: {title, currency, items: [{item, count, unlimited, price}], sell_rate, open_on_talk}; triggers (Character owner: Interact, Defeat, HpBelow, Custom…) hold its dialogs; portrait / moods: {sheet, frame} for dialog portraits; light: carried light; stats: its SRD stat block (abilities [str,dex,con,int,wis,cha], ac, hp, hit_dice \"2d8+2\", speed_ft, darkvision_ft, proficiencies [perception, save:dex], languages, cr \"1/8\", xp; template = one of the SRD NPCs: acolyte, bandit, bandit-captain, commoner, guard, knight, mage, noble, orc, goblin, priest, scout, thug, veteran…: {template: \"guard\"} fills in the template's values, fields given beside it change them; attacks: [{name, bonus, dice \"1d6+2\", damage_type, reach_ft, range_ft, long_ft}], multiattack: attacks per Attack action; null = none). Turn-based fights use the stat block (its hp replaces max_hp when max_hp > 0); without attacks a character attacks with its weapon or damage (1 = 1d4 … 5 = 1d12)."),
         RefKind::Sound => (val(&SoundDef { id: id.into(), file: "sounds/<file>.ogg".into(), volume: 1.0, caption: String::new() }), "file: WAV or Ogg Vorbis under the project; volume 0..1; caption: what it sounds like for players with Captions on (\"Door creaks\"; music: the track's name; translated; empty = none). Used by PlaySound / PlayMusic, map music, battle music and the project's built-in sounds."),
@@ -441,7 +441,7 @@ impl Workspace {
                 };
                 format!("Replaced {} pixel(s)", f.replace_color(from, [to[0], to[1], to[2], 255], frames.as_deref()))
             }
-            other => return Err(format!("unknown op \"{other}\": mirror_rows, copy_row, clear_row, duplicate, nudge, replace_color or fill_standing")),
+            other => return Err(format!("unknown op \"{other}\": copy_row, clear_row, duplicate, nudge or replace_color")),
         };
         std::fs::write(&path, img.encode().map_err(|e| format!("{e:#}"))?).map_err(|e| e.to_string())?;
         self.reload_assets();
@@ -511,7 +511,7 @@ impl Workspace {
         let moments = p.moments.unwrap_or(4).clamp(1, 8) as usize;
         let zoom = p.zoom.unwrap_or(2).clamp(1, 4);
         let ground = gfx::color::Color::from_rgba(74, 112, 62, 255);
-        let (img, cell) = self.assets.models.sheet(db, &self.assets.sheets, &look, &gear, &anims, &facings, moments, ground).ok_or_else(|| {
+        let (img, cell) = self.assets.models.sheet(db, &look, &gear, &anims, &facings, moments, ground).ok_or_else(|| {
             let err = self.assets.models.errors.iter().find(|e| e.contains(&format!("model {}:", look.model))).cloned();
             err.unwrap_or_else(|| format!("{} isn't loaded, or the sheet would be larger than 8192 pixels (fewer animations or moments)", look.model))
         })?;

@@ -159,7 +159,7 @@ impl Thumbs {
         let models = &ws.assets.models;
         let look = models.look_of(look);
         let req = PoseReq { look: &look, gear: &Gear::default(), anim: "idle", time: 0.0, once: false, facing: Facing::Down, turn: 0, bust: false };
-        let cell = models.pose(&ws.project.db, &ws.assets.sheets, &req)?;
+        let cell = models.pose(&ws.project.db, &req)?;
         // The part of the pose the figure covers: a person and a cow both fill their box.
         let (texture, uv, _) = models.cell_texture(&cell)?;
         let (pw, ph) = (texture.width(), texture.height());
@@ -173,7 +173,7 @@ impl Thumbs {
     /// held items and swung limbs reach beyond the figure, the feet keep their place.
     pub fn pose(&mut self, ws: &Workspace, rs: &RenderState, req: &PoseReq) -> Option<Pose> {
         let models = &ws.assets.models;
-        let cell = models.pose(&ws.project.db, &ws.assets.sheets, req)?;
+        let cell = models.pose(&ws.project.db, req)?;
         let (texture, uv, _) = models.cell_texture(&cell)?;
         let (pw, ph) = (texture.width(), texture.height());
         let thumb = Thumb { texture: self.id(rs, &texture, true), uv: egui::Rect::from_min_size(egui::pos2(uv.x, uv.y), egui::vec2(uv.w, uv.h)), size: egui::vec2(uv.w * pw, uv.h * ph) };
@@ -206,8 +206,8 @@ impl Thumbs {
             let (w, h) = (def.w as f32 * ts, def.h as f32 * ts);
             let screen_size = vec2(240.0, 200.0);
             let center = vec2(ts + w / 2.0, ts + h / 2.0);
-            let zoom = crate::scene::Look::fit(w, h + 2.0 * ts, screen_size, false).min(2.0);
-            let look = crate::scene::Look { center, zoom, screen: screen_size, topdown: false };
+            let zoom = crate::scene::Look::fit(w, h + 2.0 * ts, screen_size).min(2.0);
+            let look = crate::scene::Look { center, zoom, screen: screen_size };
             // (What stands on it rises above its ground: the ground a little lower in the picture.)
             let look = crate::scene::Look { center: center - look.pan(vec2(0.0, ts * zoom * 0.6)), ..look };
             let scene = crate::scene::Scene { db: &ws.project.db, assets: &ws.assets, look };

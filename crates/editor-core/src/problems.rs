@@ -238,8 +238,6 @@ fn entity_refs(e: &rustpg2d_engine::entity::EntityInstance) -> Vec<(RefKind, Str
     }
     if let Some(a) = &e.appearance {
         c.appearance = a.clone();
-    } else {
-        c.appearance.body.clear();
     }
     if let Some(eq) = &e.equipment {
         c.equipment = eq.clone();
@@ -449,10 +447,10 @@ impl Workspace {
                     }
                 }
                 if let Some(a) = db.character(&id).filter(|_| k == RefKind::Character).map(|c| &c.appearance) {
-                    // Characters are 3D models; without one (or with an old figure's name) the mannequin stands in.
+                    // Characters are 3D models; without one the mannequin stands in.
                     if !a.model.is_empty() && db.model(&a.model).is_none() {
                         out.push(Problem { severity: Severity::Error, area: Area::Definitions, place: place.clone(), text: format!("its 3D model {} doesn't exist", a.model), target: target.clone() });
-                    } else if a.model.is_empty() && db.model(&a.body).is_none() {
+                    } else if a.model.is_empty() {
                         out.push(Problem { severity: Severity::Warning, area: Area::Definitions, place: place.clone(), text: "has no 3D model (it shows as the mannequin)".into(), target: target.clone() });
                     }
                 }

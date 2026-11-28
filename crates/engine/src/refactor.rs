@@ -347,9 +347,8 @@ impl Renamer<'_> {
         }
     }
 
-    /// The model of a look (and a look of an older version: the model named like its figure).
+    /// The model of a look.
     fn look(&mut self, a: &mut crate::defs::Appearance) {
-        self.fix(RefKind::Model, &mut a.body);
         self.fix(RefKind::Model, &mut a.model);
         // Its chosen pieces (model ids; a style name or "-" is no reference).
         for p in a.parts.values_mut().filter(|p| p.as_str() != crate::defs::NO_PART) {
@@ -674,9 +673,6 @@ fn db_pass(db: &mut Database, config: &mut ProjectConfig, kind: RefKind, old: &s
                 r.fix(RefKind::Model, &mut st.model);
             }
         }
-        for t in &mut d.turns {
-            r.fix(RefKind::Sheet, &mut t.sheet);
-        }
         for t in d.building.iter_mut().flat_map(|b| b.pictures_mut()).filter(|t| !t.is_empty()) {
             r.fix(RefKind::Sheet, &mut t.sheet);
         }
@@ -741,11 +737,6 @@ fn db_pass(db: &mut Database, config: &mut ProjectConfig, kind: RefKind, old: &s
     }
     for d in &mut db.scatter {
         for (p, _) in &mut d.props {
-            r.fix(RefKind::Prop, p);
-        }
-    }
-    for d in &mut db.props {
-        for p in &mut d.pieces {
             r.fix(RefKind::Prop, p);
         }
     }
@@ -1013,9 +1004,6 @@ pub fn refs_of_prop(d: &crate::defs::PropDef) -> Vec<(RefKind, String)> {
             r.fix(RefKind::Model, &mut st.model);
         }
     }
-    for t in &mut d.turns {
-        r.fix(RefKind::Sheet, &mut t.sheet);
-    }
     for t in d.building.iter_mut().flat_map(|b| b.pictures_mut()).filter(|t| !t.is_empty()) {
         r.fix(RefKind::Sheet, &mut t.sheet);
     }
@@ -1031,9 +1019,6 @@ pub fn refs_of_prop(d: &crate::defs::PropDef) -> Vec<(RefKind, String)> {
     r.use_spot(&mut d.use_spot);
     if let Some(g) = &mut d.gather {
         r.loot(&mut g.loot);
-    }
-    for p in d.pieces.iter_mut().filter(|p| !p.is_empty()) {
-        r.fix(RefKind::Prop, p);
     }
     r.found.unwrap_or_default()
 }
@@ -1320,12 +1305,11 @@ mod tests {
         use crate::defs::{Appearance, CharacterDef, EquipSlot};
         use crate::inventory::ItemStack;
         let mut c: CharacterDef = ron::from_str(r#"(id: "npc", name: "Npc")"#).unwrap();
-        c.appearance = Appearance { body: "farmer".into(), colors: [("hair".to_string(), [9, 9, 9])].into(), ..Default::default() };
+        c.appearance = Appearance { model: "farmer".into(), colors: [("hair".to_string(), [9, 9, 9])].into(), ..Default::default() };
         *c.equipment.slot_mut(EquipSlot::Clothing) = Some(ItemStack::new("tunic", 1));
         *c.equipment.slot_mut(EquipSlot::Weapon) = Some(ItemStack::new("sword", 1));
         c.inventory = vec![ItemStack::new("apple", 2)];
         let refs = refs_of_character(&c);
-        // (An older look's `body` names the model that replaced its figure.)
         for want in [(RefKind::Model, "farmer"), (RefKind::Item, "tunic"), (RefKind::Item, "sword"), (RefKind::Item, "apple")] {
             assert!(refs.contains(&(want.0, want.1.to_string())), "{want:?} in {refs:?}");
         }
@@ -1336,7 +1320,7 @@ mod tests {
         rename_in_db(&mut db, &mut cfg, RefKind::Item, "apple", "pear");
         rename_in_db(&mut db, &mut cfg, RefKind::Item, "tunic", "shirt");
         let c = &db.characters[0];
-        assert_eq!(c.appearance.body, "farmer_m");
+        assert_eq!(c.appearance.model, "farmer_m");
         assert_eq!(c.appearance.colors["hair"], [9, 9, 9]);
         assert_eq!(c.equipment.item(EquipSlot::Clothing), Some("shirt"));
         assert_eq!(c.inventory[0].item, "pear");

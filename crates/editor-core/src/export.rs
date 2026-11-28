@@ -190,7 +190,7 @@ impl Workspace {
             return None;
         }
         let def = self.project.db.character(&self.project.config.player)?;
-        let img = self.assets.models.bust_image(&self.project.db, &self.assets.sheets, &def.appearance)?;
+        let img = self.assets.models.bust_image(&self.project.db, &def.appearance)?;
         let rgba = rustpg2d_engine::imageio::Rgba { w: img.width as u32, h: img.height as u32, px: img.bytes };
         rustpg2d_engine::icon::fit_icon(&rgba)
     }

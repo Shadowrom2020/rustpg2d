@@ -150,8 +150,7 @@ clips), and **Add to project** writes the image and its sprite sheet, plus an it
 as the game uses them, clip files without the mesh); the new sheet's tab paints it (touch it up
 with *Paint*). Each job says what it cost. Agents can do all of this from a chat ([AI agents](13-ai-agents.md#drawing-art)).
 
-The rig templates are made by `scripts/art/rigs/templates.py` (Blender). The scripts the 2D art of
-earlier versions was drawn with are in `scripts/art/meshy/`.
+The rig templates are made by `scripts/art/rigs/templates.py` (Blender).
 
 ## Sounds and music
 

@@ -274,7 +274,7 @@ impl Workspace {
     /// only stands there is scenery.
     pub fn prop_acts(&self, prop: &str) -> bool {
         self.project.db.prop(prop).is_some_and(|p| {
-            !p.triggers.is_empty() || p.states.len() > 1 || p.container.is_some() || p.lock.is_some() || p.use_spot.is_some() || p.gather.is_some() || p.regrow.is_some() || p.plot || p.door || p.carry.is_some() || p.climb || p.object.is_some() || p.trap.is_some()
+            !p.triggers.is_empty() || p.states.len() > 1 || p.container.is_some() || p.lock.is_some() || p.use_spot.is_some() || p.gather.is_some() || p.regrow.is_some() || p.plot || p.door || p.climb || p.object.is_some() || p.trap.is_some()
         })
     }
 

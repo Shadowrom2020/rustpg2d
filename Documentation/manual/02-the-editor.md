@@ -36,7 +36,7 @@ field's label it explains that field.
 
 A map's tab shows it **isometric**, as the game does: the ground as diamonds, everything standing
 upright at its feet. Its bar holds the **tools**, what is shown (the grid, zone areas, blocked
-tiles, the light at an hour, the weather, *From above* to see it straight from above), the zoom
+tiles, the light at an hour, the weather), the zoom
 and **Events graph** ([Events › The Events graph](07-events.md#the-events-graph)). On the right the
 **Outliner** lists what is on the map (characters, objects, items, scenery, zones; searched) and
 the **Inspector** under it shows what is selected, or the map itself when nothing is. The active

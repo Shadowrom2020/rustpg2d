@@ -220,7 +220,7 @@ impl Default for CharacterCreation {
 }
 
 impl CharacterCreation {
-    /// Body sheet of a player of `sex` ("" = the player character's own body).
+    /// The model of a player of `sex` ("" = the player character's own).
     pub fn body(&self, sex: crate::state::Sex) -> &str {
         match sex {
             crate::state::Sex::Male => &self.body_male,

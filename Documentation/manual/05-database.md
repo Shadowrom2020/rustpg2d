@@ -85,7 +85,6 @@ pixel by pixel ([Art and sound › The pixel editor](10-art-and-sound.md#the-pix
 | **Magic** | **Teaches spell**: a spell scroll (consumed) or book: a wizard copies the spell, another caster whose class lists it casts it once from a scroll, nobody else can use it |
 | **Furniture** | **Places prop**: using the item in one of the player's homes puts this prop on the free tile in front; picking the prop up gives the item back ([Homes and furniture](09-gameplay.md#homes-and-furniture)) |
 | **Light** | Glows while equipped or while lying on the ground (lanterns, torches) |
-| **Held** | Weapons, left-hand items and tools without a 3D model: how their picture is held (below) |
 | **3D model** | Weapons, left-hand items, tools and backpacks: the model 3D model characters hold or wear (below) |
 | **Animations** | Weapons and left-hand items: the animations characters play attacking, standing, walking and blocking with it (`attack_2h`, `idle_bow`, `block_shield`…); empty = estimated from its kind, shown beside the field with how many models have each ([Characters › Weapon animations](06-characters.md#weapon-animations)). *Estimate animations* empties them again |
 | **On use** | Triggers that run when the player uses the item: heal, give something, run a script ([Events](07-events.md)) |
@@ -121,16 +120,9 @@ pixel by pixel ([Art and sound › The pixel editor](10-art-and-sound.md#the-pix
 
 Worn items count in play and show only in a model's art. **Held items are drawn in the hands**
 of characters: the weapon in the right hand, shields and lights in the left, bows in the left,
-two-handed weapons in both, a tool in the right hand while it is used. Items with a **3D model**
-(below) are held as that model; for the others the **Held** section says how their picture is held:
-
-- without *Own marks* the item's icon is held at its lower left corner, its blade (pointing up-right
-  in the icon) along the hand's grip axis, at half its size;
-- with **Own marks**: an own **picture** (none: the icon; long thin things such as the spear and the
-  fishing rod have their own on the starter `held` sheet), the **hold point** (click the picture),
-  the **orientation** (drag from the hold point: the direction in the picture that lies on the hand's
-  grip axis; setting it off the picture's length tilts the item, as the fishing rod held 40° up),
-  the **size** and the **hand** (*By its kind* or right, left, both).
+two-handed weapons in both, a tool in the right hand while it is used. An item is shown in the hand
+as its **3D model** (below); an item without one is held but not shown (since 0.36: pictures in
+the hand are gone, so every held thing looks the same).
 
 **On the figure › Shown as** (clothing, armour, boots, gloves, cloaks and headgear, when the
 project has pieces) names the
@@ -157,12 +149,10 @@ walking or attacking with the item's animations) and correct it:
 
 The form's *3D model* fields hold the values behind the buttons in the model's own coordinates: the
 hold point, the direction from it toward the far end, and the front (`0 0 0`: the wider side
-across the handle). Models made of plain-coloured materials without textures work too. The picture
-settings for the hand (*Held*) are used only without a model.
+across the handle). Models made of plain-coloured materials without textures work too.
 
-A hand's **grip axis** is the line a handle runs through the closed fist. Turned to the left, the
-picture is mirrored across it, so whatever is tilted up stays up in both directions. Two-handed
-things run along the line through both fists.
+A hand's **grip axis** is the line a handle runs through the closed fist. Two-handed things run
+along the line through both fists.
 
 ![An item's tab: the battle axe's 3D model and how it is held](../images/editor-item.webp)
 
@@ -172,7 +162,6 @@ things run along the line through both fists.
 |---|---|
 | **States** | Every prop has a list of named states, each with its own sprite and whether it blocks movement (an iron gate: *closed*, *open*, *destroyed*; a shrine: *dormant*, *glowing*). The first is the default. *+ Add state*, *Make default*, the arrows and ✖ organise them; renaming a state updates placed props and triggers. |
 | **3D model** | Per state: a 3D model shown instead of the picture (since 0.35). It is rendered from the isometric angle like the figures and cached; its origin is the middle of the hitbox on the ground, and the model's *Height* is its size in world pixels (a person is about 40, a cart 37). States without their own model show the default state's. A placed copy **turns** in quarters: *Facing* in the map's Inspector or **R** with it selected, and with the Place tool **R** (or *Turn*) before placing; its hitbox turns with it. It casts a shadow on the ground. Most of the starter library's furniture and village props are 3D models (`<prop>_3d`, states with their own look `<prop>_<state>_3d`): chests, chairs, beds, tables, shelves, racks, gates, stalls, the windmill, the bell tower and more. Things with flames (ovens, hearths, fireplaces, forges, braziers, campfires, candles, torches, lamps) are painted pictures with a picture per state (lit / out), like the trees and rocks; the walls and blocks, the buildings' walls, roofs, doors and windows show painted textures (`sprites/painted/painted_walls.png`). A prop shown as a model or a building has a picture rendered from it (`sprites/prop_pictures/<id>.png`, a frame per state): its icon in the editor's lists, and the size the game measures (how high a lamp's light sits, a bed's place). Editor script `propictures [PROP]` renders them again after a model changed. |
-| **Pictures from four sides** | The default state's picture as seen from the west, north and east as well (the first faces south), for props drawn ahead of time: copies then turn like props with a model. |
 | **Drawn as a block** | Walls and counters: the prop is drawn as a box on its hitbox, this many world pixels high (since 0.35; a person is about 40), with its picture on the faces and the picture's top band on the top, so a row of pieces is one wall. Blocks in front of the hero are cut down to a stub in the game ([The view](09-gameplay.md#the-view)). |
 | **Building** | *Built from walls and a roof* (since 0.35): a house, a hall, a barn built from its measurements, drawn as a 3D model the engine makes (no 3D modelling needed). The hitbox is its **footprint** (width east to west, depth north to south; a tile is 32 px, a person about 40 px tall); *Walls* sets their height to the eaves; the **roof** is *Gable* (two slopes, the walls rising to the ridge at both ends), *Hip* (four slopes), *Shed* (one slope, high at the north or west) or *Flat*, its ridge along the longer side or east-west / north-south, its *Pitch* (1 = 45 degrees) and *Overhang*. Pictures are tiled over it: *Walls*, *Roof* (its top towards the ridge), *Gables* (the walls' when empty), a *Base* band along the bottom (with a height) and the *Trim* along the roof's edges (the roof's, darker, when empty). The **plan** below shows the footprint from above, north up: pick *Window*, *Door* or *Chimney* and click on a wall (or inside, for a chimney) to add one there, like the last of its kind; right-click removes one. Each door and window has its wall, its place along it (from the west or north end), its size, its *sill* (0 = a door) and picture; each chimney its place, size and how far it rises above the roof. The preview beside the plan is the model as the game draws it (*Turn* shows it from the other sides); *Copy the look of…* takes walls, roof and pictures from another building. *Roof only* leaves the walls out: the roof alone at the walls' height, over a room of wall props (the Build tool's *Roof* mode makes these). *Joined to* lists the buildings it is joined to (the Build tool's *House* mode joins a house dragged against another): where a ridge points into the other building its roof runs on into that one's, and each hides what the other covers; the × unjoins them. Placed copies turn in quarters like props with a model, and the picture above stays the prop's icon. The starter library's and the example's houses and the chapel are buildings (their doors where the maps' portals are). A building can be about 600 px around (width plus depth). |
 | **Size and hitbox** | *Size (cells)* for props made of several frames of their sheet (a 2 × 2 double gate, a 3 × 4 oak), and the collision box (e.g. only the trunk), so the player walks behind big crowns. |
@@ -184,7 +173,6 @@ things run along the line through both fists.
 | **Low** | While solid, the prop stops walking but not shots or sight (barrels, chairs, crates, fences). Solid props that aren't low stop arrows and bolts where their hitbox is (a tree at its trunk); see [Maps › Low and high obstacles](03-maps.md#low-and-high-obstacles). |
 | **Door** | E opens it (its state named `open`, which doesn't block) and closes it (back to its first state). With a lock (*Lockable* or a placed door's own lock: its key, a lockpicking difficulty, *relock*) it stays shut until the key or a lockpick opens it; with the key, closing it locks it again. Villagers on their routes open unlocked doors, and locked ones whose key they carry (their inventory), and close them behind them ([Doors](09-gameplay.md#doors)). The starter library's *Door* (`room_door`) is one, for doorways in timber walls. |
 | **Ladder** | Placed as a decoration, the player climbs where it stands (slower, facing up); characters keep off it. With an **Athletics DC** it is a climbable wall or rope: stepping onto it takes an Athletics check against it, a failure finds no hold for two seconds ([Maps › Climbing, jumping and falling](03-maps.md#climbing-jumping-and-falling)). |
-| **Animation** | Frames of its sprite sheet shown in turn at a speed (*fps*): the default state of a torch, a flag, a water wheel; also as a decoration. Props converted from animated tiles have one. |
 | **Snap to** | Placed as a decoration it sits on a grid of 8, 16 or 32 pixels (walls, fences). |
 | **Lockable** | A default lock for every copy: the key item, whether the key is *used up* or *stays*, what happens when unlocked (disappear, or switch to a state such as *open*), the locked / unlocked messages, *Can be locked again with the key*, and a **Lockpicking** difficulty. A lock without a key item is a door that simply opens. |
 | **Object** | *Can be broken*: the SRD's object statistics (since 0.32). *Material* sets the armor class (cloth 11, glass 13, wood 15, stone 17, iron 19, mithral 21, adamantine 23), *Size* and *Resilient* the hit points (tiny 2 / 5, small 3 / 10, medium 4 / 18, large 5 / 27); *Armor class* and *Hit points* override them (0 = by the tables); a hit below the *Damage threshold* does nothing; *Force DC* lets a locked one be forced open with Strength (Athletics); *When broken* it disappears or takes a state (a door's *open*, a crate's *broken*). Objects ignore poison and psychic damage ([Gameplay › Objects](09-gameplay.md#objects)). |
@@ -194,7 +182,6 @@ things run along the line through both fists.
 | **Gathering** | Mined or picked with a tool ([Gathering and mining](09-gameplay.md#gathering-and-mining)). |
 | **Farm plot** | Takes seeds ([Farming](09-gameplay.md#farming)). |
 | **Light** | A light per state: a lamp lit in *lit* and dark in *off*. |
-| **Carried** | How characters carry it in both hands (the *Carry prop* action, `carry()`): without *Own marks* at the middle of its lower half, its horizontal along the hands, at 0.6 of its size; *Own marks* set the hold point, orientation and size like an item's *Held* section. A carried prop never turns upside down. |
 | **Triggers** | Triggers every copy of the prop runs ([Events](07-events.md)). |
 
 The *Set prop state* action and `set_state(target, "name")` switch states during the game, the

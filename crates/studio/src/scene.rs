@@ -1,6 +1,6 @@
 //! A map as the game draws it, for the map view: the painted ground, flat things on it, then
-//! everything standing in depth order (isometric, or from straight above). Drawn with the
-//! engine's renderer onto whatever is the screen (`gfx::with_screen`).
+//! everything standing in depth order, in the game's isometric view. Drawn with the engine's
+//! renderer onto whatever is the screen (`gfx::with_screen`).
 
 use gfx::prelude::*;
 use rustpg2d_engine::defs::{Appearance, Database};
@@ -18,36 +18,27 @@ pub struct Look {
     pub zoom: f32,
     /// The picture's size in pixels.
     pub screen: Vec2,
-    pub topdown: bool,
 }
 
 impl Look {
-    pub fn iso(&self) -> Option<iso::View> {
-        (!self.topdown).then_some(iso::View { target: self.center, scale: self.zoom / iso::UPRIGHT, screen: self.screen })
+    /// The isometric view (as the game's).
+    pub fn iso(&self) -> iso::View {
+        iso::View { target: self.center, scale: self.zoom / iso::UPRIGHT, screen: self.screen }
     }
 
     /// The camera for what lies on the ground.
     pub fn ground(&self) -> Camera2D {
-        match self.iso() {
-            Some(v) => v.ground(),
-            None => Camera2D { target: self.center, zoom: vec2(2.0 * self.zoom / self.screen.x, 2.0 * self.zoom / self.screen.y), ..Default::default() },
-        }
+        self.iso().ground()
     }
 
     /// The pixel of the picture showing world point `p` (on the ground).
     pub fn to_screen(self, p: Vec2) -> Vec2 {
-        match self.iso() {
-            Some(v) => v.to_screen(p),
-            None => (p - self.center) * self.zoom + self.screen / 2.0,
-        }
+        self.iso().to_screen(p)
     }
 
     /// The world point (on the ground) under pixel `s`.
     pub fn to_world(self, s: Vec2) -> Vec2 {
-        match self.iso() {
-            Some(v) => v.to_world(s),
-            None => (s - self.screen / 2.0) / self.zoom + self.center,
-        }
+        self.iso().to_world(s)
     }
 
     /// The bounding box (world) of the ground the picture shows.
@@ -64,19 +55,12 @@ impl Look {
 
     /// How far the camera's middle moves when the picture is dragged by `d` pixels.
     pub fn pan(&self, d: Vec2) -> Vec2 {
-        match self.iso() {
-            Some(v) => iso::unproject(d) / v.scale,
-            None => d / self.zoom,
-        }
+        iso::unproject(d) / self.iso().scale
     }
 
     /// The zoom at which a map of `w` × `h` world pixels fills a picture of `screen` pixels.
-    pub fn fit(w: f32, h: f32, screen: Vec2, topdown: bool) -> f32 {
-        if topdown {
-            (screen.x / w).min(screen.y / h) * 0.92
-        } else {
-            (screen.x / (w + h)).min(screen.y / ((w + h) * 0.5)) * 0.92 * iso::UPRIGHT
-        }
+    pub fn fit(w: f32, h: f32, screen: Vec2) -> f32 {
+        (screen.x / (w + h)).min(screen.y / ((w + h) * 0.5)) * 0.92 * iso::UPRIGHT
     }
 }
 
@@ -92,10 +76,10 @@ impl Scene<'_> {
         self.assets.tile_size
     }
 
-    /// Runs `f` with the camera of something standing at `feet` (isometric: upright at its
-    /// projected feet), then puts the ground's camera back.
+    /// Runs `f` with the camera of something standing at `feet` (upright at its projected feet),
+    /// then puts the ground's camera back.
     pub fn standing<R>(&self, feet: Vec2, f: impl FnOnce() -> R) -> R {
-        let Some(v) = self.look.iso() else { return f() };
+        let v = self.look.iso();
         set_camera(&v.upright(feet));
         let r = f();
         set_camera(&v.ground());
@@ -114,7 +98,7 @@ impl Scene<'_> {
     pub fn draw_char(&self, def: &str, inst: Option<&EntityInstance>, facing: Facing, feet: Vec2, tint: Color) -> bool {
         let Some((a, gear)) = self.char_look(def, inst) else { return false };
         let req = PoseReq { look: &a, gear: &gear, anim: "idle", time: 0.0, once: true, facing, turn: 0, bust: false };
-        let Some(cell) = self.assets.models.pose(self.db, &self.assets.sheets, &req) else { return false };
+        let Some(cell) = self.assets.models.pose(self.db, &req) else { return false };
         // (The race's size times the definition's own.)
         let own = self.db.character(def).map_or(1.0, |d| d.appearance.scale());
         self.assets.models.draw(&cell, feet, self.db.body_size(&a.model) * own, tint);
@@ -129,7 +113,7 @@ impl Scene<'_> {
     /// Draws a definition as it would stand at `feet` when placed (the Place tool's ghost).
     pub fn draw_def(&self, kind: EntityKind, def: &str, feet: Vec2, tint: Color) -> bool {
         match kind {
-            EntityKind::Prop => self.db.prop(def).is_some_and(|d| self.assets.draw_prop(self.db, d, 0, Facing::Down, 0, feet, false, tint, 0.0, !self.look.topdown)),
+            EntityKind::Prop => self.db.prop(def).is_some_and(|d| self.assets.draw_prop(self.db, d, 0, Facing::Down, 0, feet, false, tint)),
             EntityKind::Character => self.draw_char(def, None, Facing::Down, feet, tint),
             EntityKind::Item => self.db.item(def).is_some_and(|d| self.assets.draw_sprite(&d.icon, 0, feet, tint)),
         }
@@ -140,7 +124,7 @@ impl Scene<'_> {
         let ts = self.ts();
         let size = match e.kind {
             EntityKind::Prop => match self.db.prop(&e.def) {
-                Some(d) => return self.assets.prop_rect(d, d.state_index(&e.state).unwrap_or(0), e.facing, vec2(e.x, e.y), ts, !self.look.topdown),
+                Some(d) => return self.assets.prop_rect(d, d.state_index(&e.state).unwrap_or(0), e.facing, vec2(e.x, e.y), ts),
                 None => vec2(ts, ts),
             },
             EntityKind::Character => self.char_size(&e.def, Some(e)),
@@ -186,28 +170,25 @@ impl Scene<'_> {
         let ts = self.ts();
         let feet = vec2(d.x as f32, d.y as f32);
         match map.decor_defs.get(d.def as usize).and_then(|id| self.db.prop(id)) {
-            Some(p) => (self.assets.prop_rect(p, d.state_index(), d.facing(), feet, ts, !self.look.topdown), p.flat || d.layer == rustpg2d_engine::decor::DecorLayer::Flat),
+            Some(p) => (self.assets.prop_rect(p, d.state_index(), d.facing(), feet, ts), p.flat || d.layer == rustpg2d_engine::decor::DecorLayer::Flat),
             None => (Rect::new(feet.x - 8.0, feet.y - 16.0, 16.0, 16.0), false),
         }
     }
 
     /// A frame around feet (as [`Self::entity_rect`] gives it) in the picture's pixels.
     fn screen_rect(&self, r: Rect, feet: Vec2, flat: bool) -> Rect {
-        match self.look.iso() {
-            Some(v) if !flat => {
-                let (u, f) = (v.upright_scale(), v.to_screen(feet));
-                Rect::new(f.x + (r.x - feet.x) * u, f.y + (r.y - feet.y) * u, r.w * u, r.h * u)
-            }
-            _ => {
-                let ps = [vec2(r.x, r.y), vec2(r.x + r.w, r.y), vec2(r.x, r.y + r.h), vec2(r.x + r.w, r.y + r.h)].map(|p| self.look.to_screen(p));
-                let (mut lo, mut hi) = (ps[0], ps[0]);
-                for p in ps {
-                    lo = lo.min(p);
-                    hi = hi.max(p);
-                }
-                Rect::new(lo.x, lo.y, hi.x - lo.x, hi.y - lo.y)
-            }
+        if !flat {
+            let v = self.look.iso();
+            let (u, f) = (v.upright_scale(), v.to_screen(feet));
+            return Rect::new(f.x + (r.x - feet.x) * u, f.y + (r.y - feet.y) * u, r.w * u, r.h * u);
         }
+        let ps = [vec2(r.x, r.y), vec2(r.x + r.w, r.y), vec2(r.x, r.y + r.h), vec2(r.x + r.w, r.y + r.h)].map(|p| self.look.to_screen(p));
+        let (mut lo, mut hi) = (ps[0], ps[0]);
+        for p in ps {
+            lo = lo.min(p);
+            hi = hi.max(p);
+        }
+        Rect::new(lo.x, lo.y, hi.x - lo.x, hi.y - lo.y)
     }
 
     /// Whether pixel `at` is on something standing at `feet` with picture frame `r`. Small
@@ -217,10 +198,10 @@ impl Scene<'_> {
     /// stands beside it.
     fn covers(&self, r: Rect, feet: Vec2, flat: bool, hitbox: Option<[f32; 2]>, at: Vec2) -> bool {
         let big = self.ts() * 1.25;
-        match (self.look.iso(), hitbox) {
-            (Some(v), Some([w, h])) if !flat && (w >= big || h >= big) => {
+        match hitbox {
+            Some([w, h]) if !flat && (w >= big || h >= big) => {
                 let print = Rect::new(feet.x - w / 2.0, feet.y - h, w, h);
-                let lift = r.h * v.upright_scale();
+                let lift = r.h * self.look.iso().upright_scale();
                 (0..=12).any(|k| print.contains(self.look.to_world(at + vec2(0.0, lift * k as f32 / 12.0))))
             }
             _ => self.screen_rect(r, feet, flat).contains(at),
@@ -249,7 +230,7 @@ impl Scene<'_> {
 
     fn draw_decor(&self, map: &Map, i: usize, tint: Color) {
         let d = &map.decor[i];
-        let drawn = map.decor_defs.get(d.def as usize).and_then(|id| self.db.prop(id)).is_some_and(|p| self.assets.draw_prop(self.db, p, d.state_index(), d.facing(), 0, vec2(d.x as f32, d.y as f32), d.flip, tint, get_time(), !self.look.topdown));
+        let drawn = map.decor_defs.get(d.def as usize).and_then(|id| self.db.prop(id)).is_some_and(|p| self.assets.draw_prop(self.db, p, d.state_index(), d.facing(), 0, vec2(d.x as f32, d.y as f32), d.flip, tint));
         if !drawn {
             draw_rectangle(d.x as f32 - 8.0, d.y as f32 - 16.0, 16.0, 16.0, Color::new(1.0, 0.0, 1.0, 0.6));
         }
@@ -275,11 +256,11 @@ impl Scene<'_> {
             }
         }
         // Flat props and flat decorations lie on the ground under everyone; the rest stand, in
-        // depth order (isometric: `iso::order` with footprints, as the game draws them; from
-        // above: by y), each drawn upright where its feet are.
+        // depth order (`iso::order` with footprints, as the game draws them), each drawn upright
+        // where its feet are.
         let db = self.db;
         let iso = self.look.iso();
-        let near = if iso.is_some() { Rect::new(view.x - 6.0 * ts, view.y - 6.0 * ts, view.w + 8.0 * ts, view.h + 8.0 * ts) } else { Rect::new(view.x - 64.0, view.y - 64.0, view.w + 128.0, view.h + 128.0) };
+        let near = Rect::new(view.x - 6.0 * ts, view.y - 6.0 * ts, view.w + 8.0 * ts, view.h + 8.0 * ts);
         let ents: Vec<&EntityInstance> = map.entities.iter().filter(|e| layers.0 && near.contains(vec2(e.x, e.y))).collect();
         let flat = |e: &EntityInstance| e.kind == EntityKind::Prop && db.prop(&e.def).is_some_and(|d| d.flat);
         let big = ts * 1.25;
@@ -331,7 +312,7 @@ impl Scene<'_> {
             let col = if e.active { tint } else { Color { a: tint.a * 0.4, ..tint } };
             let pos = vec2(e.x, e.y);
             let drawn = match e.kind {
-                EntityKind::Prop => db.prop(&e.def).is_some_and(|d| self.assets.draw_prop(db, d, d.state_index(&e.state).unwrap_or(0), e.facing, e.frame, pos, false, col, 0.0, iso.is_some())),
+                EntityKind::Prop => db.prop(&e.def).is_some_and(|d| self.assets.draw_prop(db, d, d.state_index(&e.state).unwrap_or(0), e.facing, e.frame, pos, false, col)),
                 EntityKind::Character => self.draw_char(&e.def, Some(e), e.facing, pos, col),
                 EntityKind::Item => db.item(&e.def).is_some_and(|d| self.assets.draw_sprite(&d.icon, 0, pos, col)),
             };
@@ -342,16 +323,10 @@ impl Scene<'_> {
         for e in flats {
             draw_ent(e);
         }
-        let order: Vec<usize> = if iso.is_some() {
-            iso::order(&items.iter().map(|it| it.2).collect::<Vec<_>>(), 0.5)
-        } else {
-            let mut o: Vec<usize> = (0..items.len()).collect();
-            o.sort_by(|&a, &b| items[a].1.y.total_cmp(&items[b].1.y));
-            o
-        };
-        // The ground shadows of props (isometric): soft patches under 3D ones, then the shadows
-        // of those drawn as pictures, under everything standing.
-        if iso.is_some() {
+        let order: Vec<usize> = iso::order(&items.iter().map(|it| it.2).collect::<Vec<_>>(), 0.5);
+        // The ground shadows of props: soft patches under 3D ones, then the shadows of those
+        // drawn as pictures, under everything standing.
+        {
             for (what, feet, _) in &items {
                 match what {
                     Drawn::Ent(e) if e.kind == EntityKind::Prop => {
@@ -369,29 +344,31 @@ impl Scene<'_> {
                 }
             }
             for (what, feet, _) in &items {
-                let (p, state, facing, flip) = match what {
+                let (p, state, flip) = match what {
                     Drawn::Ent(e) if e.kind == EntityKind::Prop => match db.prop(&e.def) {
-                        Some(p) => (p, p.state_index(&e.state).unwrap_or(0), e.facing, false),
+                        Some(p) => (p, p.state_index(&e.state).unwrap_or(0), false),
                         None => continue,
                     },
                     Drawn::Decor(i) => {
                         let d = &map.decor[*i];
                         match map.decor_defs.get(d.def as usize).and_then(|id| db.prop(id)) {
-                            Some(p) => (p, d.state_index(), d.facing(), d.flip),
+                            Some(p) => (p, d.state_index(), d.flip),
                             None => continue,
                         }
                     }
                     _ => continue,
                 };
-                self.standing(*feet, || self.assets.draw_prop_shadow(p, state, facing, *feet, flip, 0.0, tint.a));
+                self.standing(*feet, || self.assets.draw_prop_shadow(p, state, *feet, flip, tint.a));
             }
         }
-        // Walls and counters drawn as blocks (isometric): boxes on their hitbox, at full height.
+        // Walls and counters drawn as blocks: boxes on their hitbox, at full height.
         let block = |p: &rustpg2d_engine::defs::PropDef, state: usize, facing, feet: Vec2| -> bool {
-            let Some(v) = iso.filter(|_| p.block > 0.0) else { return false };
+            if p.block <= 0.0 {
+                return false;
+            }
             set_default_camera();
-            self.assets.draw_prop_block(&v, p, state, facing, feet, p.block, tint);
-            set_camera(&v.ground());
+            self.assets.draw_prop_block(&iso, p, state, facing, feet, p.block, tint);
+            set_camera(&iso.ground());
             true
         };
         for k in order {

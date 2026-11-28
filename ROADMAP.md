@@ -2742,6 +2742,27 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     creator loses, if the three kinds go: generated icons, portraits and pictures; if only
     the old pipeline goes: nothing in the editor.
 
+  **Progress.** 2026-11-28: the maintainer answered the list above: "everything should be
+  removed if it is not needed anymore, held items should be models to make the look
+  consistent", and "the top-down view can be removed too if it's not needed for maps or minimap
+  in the game. Creators should work with the isometric view for wysiwyg". Removed the same day:
+  **pictures held in the hand** (`ItemDef.held`, `PropDef.carry`, `hands::HeldSprite`, the
+  picture path of `hands.rs` (`held_with`, `HeldLayer`, `lay`, `Grip`), `render/model.rs`'s
+  quads at the hand bones and `Assets::draw_held_sprite`; `hands::in_hands` says what is in which
+  hand; an item without a 3D model is held but not shown; a carried prop is held, not drawn: it
+  was only ever a picture) and the `held` blocks of the example's 11 and the library's 17 items
+  (all have models; the `held` sheet is now used by nothing, kept as art); **what was left of
+  sprite-sheet figures and props** (`Appearance.body`, `PropDef.pieces`, `PropDef.turns`,
+  `PropDef.anim` with `FrameAnim`; the old `SheetKind` kinds were already read as `Sprite`;
+  `Models::pose` and friends no longer take the sheets; the agent tool `edit_frames` lost its
+  figure-grip leftovers); **the map tab's top-down view** (`ViewOpts.topdown`, `Look::topdown`,
+  *From above*, `mapopt above`, the `iso` flag and the `time` of `Assets::draw_prop` /
+  `prop_rect` / `draw_prop_shadow`; the game's map screen and minimap untouched); **the 0.16 /
+  0.17 Meshy pipeline** (`scripts/art/meshy/`; its git-ignored `work/` folders, the maintainer's
+  generated art, stay). Old files with these fields load (the fields are skipped: a test in
+  `defs.rs`, the compat fixtures). The rest of the part (the conversions removed without asking,
+  `convert_035.rs`) is still to do.
+
   **Engine.** The removals above; `convert_035.rs`.
 
   **Verify.** The 0.35 example converts and plays through the smoke run; a 0.34 project is
@@ -2776,7 +2797,23 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   2026-11-28 for agents that take one task a session: the rules, how this code base does
   things, and each open row below as a task with what to read, what to do and how to check it).
 
-  **Progress.** **The parity table, first written 2026-11-28** from the 0.35 editor's menus
+  **Progress.** **CI and packages** (2026-11-28): the release builds, `xtask dist` (one
+  constant `EDITOR` = `rustpg2d-studio` until the switch-over), the AppImage / Flatpak / Windows
+  zip / macOS app and their smoke tests ship the new editor. The Packages job checks the home
+  screen, a map opened in the bundled example, the starter library read as a pack, and the agent
+  server without a window; `smoke.sh` the editor in a window opening `village` and writing the
+  project file. The Packages apt line moved to Vulkan (lavapipe) with `RUSTPG2D_ALLOW_SOFTWARE=1`.
+  Dependabot: egui's crates are one group; wgpu, winit and glow stay at egui-wgpu's versions. Run
+  locally: smoke.sh, xtask dist, the AppImage and the Flatpak. **Not run yet:** the Windows and
+  macOS builds of the studio and the workflows themselves (first release pull request or a manual
+  CI run). Found on the way, still open: started without an argument outside the repository the
+  editor opens `example_project` of the current folder (the Windows zip's example would be
+  converted in place); the Windows build has no `windows_subsystem`, no panic message box, no
+  window icon; no script word opens the bundled example; the agent server's name and version are
+  0.35's. **`architecture.md`** (2026-11-28) describes this branch. Found by it, still open: *Own
+  window* of the Play tab starts the runner without the engine-build check; the agent tool
+  `screenshot_editor` answers with an error; a carried prop (*Carry prop*) is not drawn since
+  held pictures left (part 11): it needs the prop's model in the hands. **The parity table, first written 2026-11-28** from the 0.35 editor's menus
   and its script commands (each command is a feature the tests reached). *there* = in the new
   editor; *partly* = what is missing is named; *open* = not there yet; *decide* = leaves only
   with the maintainer's word (part 11). Rows are ticked here as they close.
@@ -2793,7 +2830,8 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   | A region of tiles copied / cut / pasted with its ground | Alt+drag selects a region; Ctrl+C / X / V with its ground, one step (2026-11-28) | there |
   | Structures: captured, placed, edited as a map of their own | *Save as structure*, Place, the structure's tab | there |
   | Schedules and patrol routes edited on the map | Inspector + dragged on the map | there |
-  | View: grid, collision, zones, lighting at an hour, weather, parallax, top-down | the map's bar (*From above*) | there |
+  | View: grid, collision, zones, lighting at an hour, weather, parallax | the map's bar | there |
+  | View: top-down | — | removed (the maintainer, 2026-11-28): maps are edited in the game's isometric view |
   | View: minimap | — | removed (the maintainer, 2026-11-28): the World view shows every map |
   | **Database**: 25 tabs, search, item categories, table, sort, bulk change, undo | Project browser, kind tabs, forms from the schema | there |
   | Project settings (one long form) | the *Game* pages | there |

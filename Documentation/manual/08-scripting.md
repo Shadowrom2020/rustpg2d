@@ -427,7 +427,7 @@ fn shrine_blessing() {
 | `has_resistance(damage)` | Whether the hero resists a damage type (`"fire"`, `"poison"`…): their race's, a dragonborn's ancestry. *(since 0.28)* |
 | `background()` | The hero's background id (*Characters › Backgrounds*), `""` without one. *(since 0.28)* |
 | `race_choice(choice)` | What the hero picked for a racial choice in the creator, as an array: `race_choice("high-elf-cantrip")` = `["fire-bolt"]`, `race_choice("draconic-ancestry")` = `["draconic-ancestry-red"]`; empty when nothing was picked. *(since 0.28)* |
-| `carry(target, prop)` | A character (or `"player"`) carries a prop in both hands, e.g. `carry("player", "crate")`: drawn in the character's hands; while carrying it holds nothing else and the player can't attack. *(queued)* |
+| `carry(target, prop)` | A character (or `"player"`) carries a prop in both hands, e.g. `carry("player", "crate")` (the prop isn't drawn); while carrying it holds nothing else and the player can't attack. *(queued)* |
 | `stop_carrying(target)` | Puts down what a character carries. *(queued)* |
 | `player_carrying()` | The prop the player carries (`""` = none). |
 | `player_faction()` | The player's faction id (the *World* page's factions): their race's, else the player character's; `""` without one. |

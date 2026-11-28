@@ -113,7 +113,8 @@ fn window_conf() -> gfx::conf::Conf {
         .unwrap_or_else(|| "R(ust)PG2D".to_owned());
     // The window icon: the player character, else R(ust)PG2D's emblem. The project read here
     // is handed to `main` (it used to be loaded twice).
-    let project = Project::load(&root).ok();
+    // (A project of a version before 0.35 is refused in `game_main`, not read here.)
+    let project = if rustpg2d_engine::project::made_before_035(&root) { None } else { Project::load(&root).ok() };
     let icon = project.as_ref().and_then(rustpg2d_engine::icon::hero_icon).unwrap_or_else(rustpg2d_engine::icon::emblem);
     if let Some(p) = project {
         *PRELOADED.lock().unwrap_or_else(|e| e.into_inner()) = Some((root.clone(), p));
@@ -196,6 +197,7 @@ async fn game_main() {
         }
     }
     let project = parse_args().and_then(|(root, start)| {
+        rustpg2d_engine::project::refuse_before_035(&root)?;
         let p = match preloaded(&root) {
             Some(p) => p,
             None => Project::load(&root).with_context(|| format!("loading project {}", root.display()))?,

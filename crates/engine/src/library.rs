@@ -1075,6 +1075,8 @@ pub fn open_library(dir: &Path, starter: Option<&LibraryFiles>) -> Result<Projec
             std::fs::write(&stamp_file, s)?;
         }
     }
+    // (A library of a version before 0.35 is refused, as projects are: 0.35 converts it.)
+    crate::project::refuse_before_035(dir).with_context(|| format!("the asset library {}", dir.display()))?;
     // Libraries from before tiles were fixed at 32 px.
     crate::migrate::upgrade(dir, None)?;
     // Libraries from before painted maps: tile structures and tilesets become ground and

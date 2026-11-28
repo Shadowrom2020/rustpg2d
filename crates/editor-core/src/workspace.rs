@@ -171,9 +171,7 @@ impl Workspace {
     /// A workspace on the project folder `root` (`file`: the project file it is the working copy
     /// of). Projects of versions before 0.35 are refused: 0.35 converts them.
     pub fn new(root: PathBuf, gpu: Gpu) -> Result<Workspace> {
-        if rustpg2d_engine::migrate::stored_tile_size(&root)? != rustpg2d_engine::project::TILE_SIZE || rustpg2d_engine::convert_tiles::needs_conversion(&root) || rustpg2d_engine::srd_convert::needs_conversion(&root) {
-            bail!("{} was made with a version before 0.35: open and save it with R(ust)PG2D 0.35 first", root.display());
-        }
+        rustpg2d_engine::project::refuse_before_035(&root)?;
         let (project, warnings) = Project::load_with_warnings(&root)?;
         let mut ws = Workspace::with_project(project, true, gpu);
         ws.note_defs_warnings(warnings);

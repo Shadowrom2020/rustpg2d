@@ -57,8 +57,8 @@ pub struct ProjectConfig {
     /// The SRD 5.1 rules: what a new hero starts with, check results on screen.
     #[serde(default)]
     pub rules: crate::srd::RulesSettings,
-    /// Which conversion to the SRD rules the project has had ([`crate::srd::RULES_VERSION`]); 0 =
-    /// a project of 0.27 or older, which the editor converts on open (`srd_convert`).
+    /// Which conversion to the SRD rules the project has had ([`crate::srd::RULES_VERSION`]); a
+    /// lower one (0 = 0.27 or older) is a project of 0.30 or older, refused ([`made_before_035`]).
     #[serde(default)]
     pub rules_version: u32,
     /// Experience and levels (off by default).
@@ -264,6 +264,39 @@ pub const TILE_SIZE: u32 = 32;
 
 fn default_tile_size() -> u32 {
     TILE_SIZE
+}
+
+/// What the game and the editor answer a project of a version before 0.35: the conversions of
+/// those versions are gone, 0.35 still has them.
+pub const MADE_BEFORE_035: &str = "This project was made with a version before 0.35. Open and save it with R(ust)PG2D 0.35 first.";
+
+/// Whether the project (or library) at `root` was made before 0.35 and never opened there. 0.35
+/// converted such projects when it opened them: tiles (`defs/tilesets.ron`, 0.20 and older), a
+/// tile size other than 32 px (the 16 px projects) and rules older than the SRD's equipment
+/// (`rules_version` below [`crate::srd::RULES_VERSION`], 0.30 and older). A project of 0.31 to
+/// 0.34 needed none of these and can't be told from one of 0.35: it loads like one.
+pub fn made_before_035(root: &Path) -> bool {
+    /// The two fields of `project.ron` that say it (the rest is not read: an old file may not fit).
+    #[derive(Deserialize)]
+    struct Stamp {
+        #[serde(default = "default_tile_size")]
+        tile_size: u32,
+        #[serde(default)]
+        rules_version: u32,
+    }
+    if crate::sys::exists(&root.join("defs").join("tilesets.ron")) {
+        return true;
+    }
+    let Ok(text) = crate::sys::read_to_string(&root.join("project.ron")) else { return false };
+    ron::from_str::<Stamp>(&text).is_ok_and(|s| (s.tile_size != TILE_SIZE && s.tile_size != 0) || s.rules_version < crate::srd::RULES_VERSION)
+}
+
+/// [`made_before_035`] as an error: [`MADE_BEFORE_035`].
+pub fn refuse_before_035(root: &Path) -> Result<()> {
+    if made_before_035(root) {
+        anyhow::bail!(MADE_BEFORE_035);
+    }
+    Ok(())
 }
 
 impl ProjectConfig {
@@ -697,6 +730,32 @@ impl Project {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Projects 0.35 would have converted are refused with the one message; a new one, and one
+    /// whose `project.ron` lacks the tile size, are not.
+    #[test]
+    fn projects_before_0_35_are_refused() {
+        let root = std::env::temp_dir().join(format!("rustpg2d_before_035_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("defs")).unwrap();
+        let write = |cfg: &ProjectConfig| write_ron(&root.join("project.ron"), cfg).unwrap();
+        let mut cfg = ProjectConfig::new("x");
+        write(&cfg);
+        assert!(!made_before_035(&root));
+        refuse_before_035(&root).unwrap();
+        cfg.rules_version = crate::srd::RULES_VERSION - 1;
+        write(&cfg);
+        assert_eq!(refuse_before_035(&root).unwrap_err().to_string(), MADE_BEFORE_035);
+        cfg.rules_version = crate::srd::RULES_VERSION;
+        cfg.tile_size = 16;
+        write(&cfg);
+        assert!(made_before_035(&root));
+        std::fs::write(root.join("project.ron"), format!("(name: \"x\", start_map: \"a\", start_spawn: \"b\", rules_version: {})", crate::srd::RULES_VERSION)).unwrap();
+        assert!(!made_before_035(&root), "no tile size written: 32 px");
+        std::fs::write(root.join("defs/tilesets.ron"), "[]").unwrap();
+        assert!(made_before_035(&root), "tiles");
+        let _ = std::fs::remove_dir_all(&root);
+    }
 
     /// One entry that can't be read (an unknown enum variant, a typo) is left out with a
     /// warning; the rest of the file loads. A broken list is still an error.

@@ -2550,7 +2550,12 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     and open, scripts, as a rename writes them).
   Still open: of the problems: fixes for other kinds of entries (a map nothing leads to, a
   quest nobody gives: they lead to their place); of the Help tab: the manual's pictures
-  (they show the 0.35 editor: with the manual's rewrite, part 12), the place read last kept.
+  (they show the 0.35 editor: with the manual's rewrite, part 12).
+  - **The Help tab opens where it was left** (2026-11-28, STUDIO_PLAN.md task 11): the
+    chapter's file and the heading last gone to are kept in the editor's settings
+    (`EditorSettings::help_at`), written when they change (*What's new* isn't a place to
+    come back to); a new editor opens the tab there (`HelpView::restored`, in `Shell::open`:
+    a Help view made anywhere else, a test's, writes nothing).
 
   **Decided while building.**
   - **A Markdown reader of our own, not a crate**: the manual uses a small part of Markdown,
@@ -2630,6 +2635,11 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     *About this field* from the menu of *Consumable* (a right-click); an empty game: a
     kind without definitions, the Problems tab before and after the check, a map made
     through *New…* (typed, Enter), its empty Outliner, *Resize* and its undo.
+  - The Help tab's place: `the_help_tab_opens_where_it_was_left` (never opened: the first
+    chapter; a heading of chapter 3 written; *What's new* not; a new view there; a view
+    that isn't the window's writes nothing). In the window with a scratch config: `help open
+    07-events.md the-events-graph`, quit; the next start's Help tab shows *The Events graph*
+    (`chapter=07-events.md at=the-events-graph`), the file's `help_at` naming it.
   - Done so far: `manual` tests (Markdown cut into blocks and spans; all 21 chapters with
     their sections, every internal link leading somewhere; a search finds *Painted ground*
     by its title and lockpicking in the gameplay chapter; a topic's section, else the

@@ -472,16 +472,21 @@ fn selected_owner(maps: &std::collections::HashMap<String, crate::mapview::MapVi
 impl Shell {
     pub fn open(project: Option<PathBuf>, start: rustpg2d_engine::runtime::StartOptions) -> Shell {
         // (Started without a project: the home screen.)
-        let Some(project) = project else { return Shell::around(Workspace::empty(), start) };
-        let ws = match Workspace::open_path(project.clone(), Gpu::Yes) {
-            Ok(ws) => ws,
-            Err(e) => {
-                let mut ws = Workspace::empty();
-                ws.set_status(format!("{}: {e:#}", project.display()));
-                ws
-            }
+        let ws = match project {
+            None => Workspace::empty(),
+            Some(project) => match Workspace::open_path(project.clone(), Gpu::Yes) {
+                Ok(ws) => ws,
+                Err(e) => {
+                    let mut ws = Workspace::empty();
+                    ws.set_status(format!("{}: {e:#}", project.display()));
+                    ws
+                }
+            },
         };
-        Shell::around(ws, start)
+        let mut shell = Shell::around(ws, start);
+        // (The window's Help tab opens where it was left.)
+        shell.help = crate::helpview::HelpView::restored();
+        shell
     }
 
     /// The window's parts around a workspace (a project just opened, or none).

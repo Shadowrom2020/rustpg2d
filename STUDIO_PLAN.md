@@ -503,7 +503,9 @@ character as one step, nothing else. Word `char from ID`.
 **Check.** UI test; in the window, a villager that looks like the guard after one click, and
 one undo brings its own look back.
 
-### - [ ] Task 11 (S): the Help tab opens where it was left
+### - [x] Task 11 (S): the Help tab opens where it was left
+
+Done 2026-11-28. Only the window's Help tab writes the place (`HelpView::restored` in `Shell::open`): the studio's tests don't have editor-core's test-only settings folder, and a Help view drawn in a test would otherwise write the real settings.
 
 **Do.** `EditorSettings` gets `help_at: (String, String)` (the chapter's file, the heading's
 anchor). The Help tab writes it when the chapter changes (not every frame), and a new editor

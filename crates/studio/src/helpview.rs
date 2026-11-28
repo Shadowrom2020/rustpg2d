@@ -24,9 +24,37 @@ pub struct HelpView {
     /// The field that was asked about (F1 with the pointer on it): its label and what it is
     /// for, shown above what the manual says about it.
     pub about: Option<(String, String)>,
+    /// Where it is is kept in the editor's settings (the window's own Help tab; a view made
+    /// elsewhere, in a test, never writes them): the place last written.
+    kept: Option<(usize, String)>,
 }
 
 impl HelpView {
+    /// The window's Help tab, where it was left the last time (the editor's settings).
+    pub fn restored() -> HelpView {
+        let (file, anchor) = editor_core::files::load_settings().help_at;
+        let mut v = HelpView::default();
+        if let Some(k) = manual::chapters().iter().position(|c| c.file == file) {
+            v.open(k, &anchor);
+            v.back.clear();
+        }
+        v.kept = Some((v.chapter, v.at.clone()));
+        v
+    }
+
+    /// Writes where it is into the editor's settings when that changed (a chapter, a heading;
+    /// not *What's new*).
+    pub fn remember(&mut self) {
+        let Some(kept) = &self.kept else { return };
+        if self.news.is_some() || (kept.0 == self.chapter && kept.1 == self.at) {
+            return;
+        }
+        self.kept = Some((self.chapter, self.at.clone()));
+        let mut s = editor_core::files::load_settings();
+        s.help_at = (manual::chapters()[self.chapter].file.to_string(), self.at.clone());
+        editor_core::files::save_settings(&s);
+    }
+
     /// Opens chapter `chapter` at heading `anchor` ("" = its top).
     pub fn open(&mut self, chapter: usize, anchor: &str) {
         let chapter = chapter.min(manual::chapters().len() - 1);
@@ -120,6 +148,7 @@ impl HelpView {
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui) {
+        self.remember();
         let all = manual::chapters();
         // The chapters and the search.
         egui::Panel::left(egui::Id::unique("help chapters")).default_size(230.0).resizable(true).show(ui, |ui| {
@@ -476,5 +505,35 @@ mod ui_tests {
         h.get_by_label("Put this away").click();
         h.run();
         assert!(h.state().about.is_none());
+    }
+
+    #[test]
+    fn the_help_tab_opens_where_it_was_left() {
+        let dir = std::env::temp_dir().join(format!("rustpg2d-helpat-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        editor_core::files::config_dir_here(Some(dir.clone()));
+        // Never opened: the first chapter.
+        let mut v = HelpView::restored();
+        assert_eq!(v.chapter, 0);
+        // A chapter at a heading: written once it changed.
+        let k = manual::chapters().iter().position(|c| c.file == "03-maps.md").unwrap();
+        v.open(k, "painted-ground");
+        v.remember();
+        assert_eq!(editor_core::files::load_settings().help_at, ("03-maps.md".to_string(), "painted-ground".to_string()));
+        // What's new isn't a place to come back to.
+        v.open_news(0);
+        v.remember();
+        assert_eq!(editor_core::files::load_settings().help_at.0, "03-maps.md");
+        // A new editor: there again.
+        let again = HelpView::restored();
+        assert_eq!((again.chapter, again.at.as_str()), (k, "painted-ground"));
+        assert!(again.back.is_empty());
+        // A Help view that isn't the window's writes nothing.
+        let mut other = HelpView::default();
+        other.open(0, "");
+        other.remember();
+        assert_eq!(editor_core::files::load_settings().help_at.0, "03-maps.md");
+        editor_core::files::config_dir_here(None);
+        let _ = std::fs::remove_dir_all(dir);
     }
 }

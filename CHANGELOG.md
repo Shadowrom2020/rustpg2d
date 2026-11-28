@@ -146,6 +146,8 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   Place and Terrain tools; the Problems tab says what the check looks for before it ran and
   that nothing was found after; the Place tool and the World view say what to do when there
   is nothing to place or only one map.
+- **The Help tab opens where you left it**: the chapter and heading read last come back with
+  the next start of the editor.
 - **A character starts from another one's look** (part 8): *Start from…* in the character
   workshop lists the project's characters with their pictures; a click gives this character that
   one's model, pieces and colours, as one step.

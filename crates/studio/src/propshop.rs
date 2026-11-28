@@ -257,7 +257,7 @@ impl PropStage {
     }
 
     /// The script's words: `state NAME`, `turn`, `dark on|off`, `usual light|picture` (the
-    /// light, the picture back where the engine puts it), `add door|window` (a building's).
+    /// light, the picture back where the engine puts it), `add door|window|chimney` (a building's).
     pub fn word(&mut self, ws: &mut Workspace, id: &str, args: &[String]) {
         let Some(def) = ws.project.db.prop(id) else { return };
         let arg = |k: usize| args.get(k).map(String::as_str).unwrap_or("");
@@ -269,7 +269,8 @@ impl PropStage {
                 let said = match arg(1) {
                     "door" => ws.building_opening(id, true),
                     "window" => ws.building_opening(id, false),
-                    _ => Err("add door|window".to_string()),
+                    "chimney" => ws.building_chimney(id),
+                    _ => Err("add door|window|chimney".to_string()),
                 };
                 println!("[prop] {}", said.unwrap_or_else(|e| e));
             }
@@ -347,7 +348,8 @@ impl PropStage {
         });
         // A building: what it is, and a door or a window added like the ones it has. (Its
         // measurements and each opening's numbers are the form's, under Building.)
-        let mut add: Option<bool> = None;
+        // (A door, a window or a chimney added.)
+        let mut add: Option<&str> = None;
         if let Some(b) = &def.building {
             ui.horizontal_wrapped(|ui| {
                 let doors = b.openings.iter().filter(|o| o.sill <= 0.0).count();
@@ -367,10 +369,13 @@ impl PropStage {
                     count(b.chimneys.len(), "chimney", "chimneys")
                 ));
                 if ui.button("Add a door").on_hover_text("On the front (south) wall where it has the most room, like the last door it has: its picture and size. Where it sits is under Building, Openings, in the form below.").clicked() {
-                    add = Some(true);
+                    add = Some("door");
                 }
                 if ui.button("Add a window").on_hover_text("On the front (south) wall where it has the most room, like the last window it has: its picture, size and how high it sits. Where it sits is under Building, Openings, in the form below.").clicked() {
-                    add = Some(false);
+                    add = Some("window");
+                }
+                if ui.button("Add a chimney").on_hover_text("On the roof, along the ridge where it has the most room, like the last chimney it has: its picture, size and how far it rises. Where it sits is under Building, Chimneys, in the form below.").clicked() {
+                    add = Some("chimney");
                 }
             });
             ui.weak("Its walls, roof (kind, ridge, pitch, overhang), doors, windows and chimneys are set by numbers under Building in the form below; the picture follows at once.");
@@ -505,8 +510,8 @@ impl PropStage {
             ws.stale = true;
             changed = true;
         }
-        if let Some(door) = add {
-            let said = ws.building_opening(id, door).unwrap_or_else(|e| e);
+        if let Some(what) = add {
+            let said = if what == "chimney" { ws.building_chimney(id) } else { ws.building_opening(id, what == "door") }.unwrap_or_else(|e| e);
             ws.set_status(said);
             changed = true;
         }
@@ -755,7 +760,7 @@ mod ui_tests {
     }
 
     #[test]
-    fn a_buildings_window_is_added_and_its_ridge_turned_by_number() {
+    fn a_buildings_window_and_chimney_are_added_and_its_ridge_turned_by_number() {
         use egui_kittest::kittest::NodeT;
         use rustpg2d_engine::defs::{Ridge, WallSide};
         use rustpg2d_engine::refactor::RefKind;
@@ -777,9 +782,10 @@ mod ui_tests {
                 s.stage.show(ui, &mut s.ws, None, &mut s.thumbs, "cottage_red_small");
                 // (The form below, as the shell shows it: a change is the definition's.)
                 let mut value = s.ws.def_value(RefKind::Prop, "cottage_red_small").unwrap();
-                let mut cx = crate::form::Cx { lists: &s.lists, maps: &[], show_all: false, compact: false, pictures: None, refs: None, asks: Vec::new() };
+                let mut cx = crate::form::Cx { lists: &s.lists, maps: &[], show_all: false, compact: false, pictures: None, refs: None, asks: Vec::new(), said: Default::default() };
                 if crate::form::definition_ui(ui, &mut cx, editor_core::schema::of_kind(RefKind::Prop).unwrap(), &mut value) {
-                    s.ws.set_def_value(RefKind::Prop, "cottage_red_small", value).unwrap();
+                    let said = std::mem::take(&mut cx.said);
+                    crate::form::take(&mut s.ws, RefKind::Prop, "cottage_red_small", value, &said).unwrap();
                 }
             },
             Both { ws, stage: PropStage::default(), thumbs: Default::default(), lists },
@@ -797,6 +803,13 @@ mod ui_tests {
         assert_eq!((now.openings.len(), last.side, last.size, last.sill, &last.picture), (5, WallSide::South, like.size, like.sill, &like.picture));
         assert!(shape.openings.iter().filter(|o| o.side == WallSide::South).all(|o| (o.at - last.at).abs() >= (o.size[0] + last.size[0]) / 2.0), "{} overlaps {:?}", last.at, shape.openings);
         h.get_by_label("Gable roof, 160 x 160 pixels, 1 door, 4 windows, no chimney");
+        // A chimney: on the roof, along the ridge (the cottage has none to be like).
+        h.get_by_label("Add a chimney").click();
+        h.run();
+        h.run();
+        h.get_by_label("Gable roof, 160 x 160 pixels, 1 door, 4 windows, 1 chimney");
+        let c = h.state().ws.project.db.prop(id).unwrap().building.clone().unwrap().chimneys[0].clone();
+        assert_eq!((c.at, c.size, c.rise), ([80.0, 76.0], [14.0, 14.0], 14.0));
         // The ridge turned in the form below: its own step.
         h.get_by_role_and_label(egui::accesskit::Role::ComboBox, "Ridge").click();
         h.run();
@@ -807,9 +820,9 @@ mod ui_tests {
         // The walls are ticked: the building has them (left out of the file, read as on).
         assert_eq!(h.get_by_role_and_label(egui::accesskit::Role::CheckBox, "Walls").accesskit_node().toggled(), Some(egui::accesskit::Toggled::True));
         let labels: Vec<String> = h.state().ws.timeline.done.iter().map(|c| c.label.clone()).collect();
-        assert_eq!(labels.len(), 2, "{labels:?}");
-        assert_eq!(labels[0], "Add a window to Small red-roofed cottage");
-        // Both undone: as it was.
+        assert_eq!(labels, ["Add a window to Small red-roofed cottage", "Add a chimney to Small red-roofed cottage", "Small red-roofed cottage: Ridge changed"]);
+        // All undone: as it was.
+        h.state_mut().ws.undo();
         h.state_mut().ws.undo();
         h.state_mut().ws.undo();
         h.run();

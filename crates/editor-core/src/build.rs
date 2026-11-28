@@ -12,7 +12,7 @@ use std::collections::BTreeSet;
 
 use gfx::prelude::{vec2, Rect, Vec2};
 use rustpg2d_engine::decor::{Decor, DecorLayer, DecorLook};
-use rustpg2d_engine::defs::{BuildingShape, Database, Join, Opening, PropDef, Ridge, RoofKind, SpriteRef, WallSide};
+use rustpg2d_engine::defs::{BuildingShape, Chimney, Database, Join, Opening, PropDef, Ridge, RoofKind, SpriteRef, WallSide};
 use rustpg2d_engine::entity::{EntityInstance, EntityKind};
 use rustpg2d_engine::map::Map;
 use rustpg2d_engine::render::iso;
@@ -909,7 +909,12 @@ pub fn building_line(p: &PropDef) -> Option<String> {
 /// Where on `side` (a wall `length` pixels long) an opening `width` wide has the most room: the
 /// middle of the widest stretch the others leave free.
 fn free_place(openings: &[Opening], side: WallSide, length: f32, width: f32) -> f32 {
-    let mut taken: Vec<(f32, f32)> = openings.iter().filter(|o| o.side == side).map(|o| (o.at - o.size[0] / 2.0, o.at + o.size[0] / 2.0)).collect();
+    free_spot(openings.iter().filter(|o| o.side == side).map(|o| (o.at - o.size[0] / 2.0, o.at + o.size[0] / 2.0)).collect(), length, width)
+}
+
+/// The middle of the longest stretch of `0..length` that `taken` leaves free, for something
+/// `width` long (the middle of it all when nothing fits).
+fn free_spot(mut taken: Vec<(f32, f32)>, length: f32, width: f32) -> f32 {
     taken.sort_by(|a, b| a.0.total_cmp(&b.0));
     let mut best = (0.0f32, length / 2.0);
     let mut from = 0.0f32;
@@ -946,6 +951,43 @@ impl Workspace {
         self.set_def_value(rustpg2d_engine::refactor::RefKind::Prop, id, value)?;
         self.begin(&label);
         Ok(format!("A {what} on the south wall, {at} pixels from its west end"))
+    }
+
+    /// A chimney added to the building prop `id`: like the last one (its picture, size and how
+    /// far it rises, and as far off the ridge), else one of 14 x 14 rising 14 pixels (what the
+    /// 0.35 editor gave a new one) a little north (or west) of the ridge; along the ridge where
+    /// the most room is. One step; the building is built again with it.
+    pub fn building_chimney(&mut self, id: &str) -> Result<String, String> {
+        let p = self.project.db.prop(id).ok_or_else(|| format!("there is no prop \"{id}\""))?;
+        let name = if p.name.is_empty() { id } else { p.name.as_str() };
+        let Some(shape) = &p.building else { return Err(format!("{name} is no building")) };
+        let [w, d] = p.hitbox;
+        // The ridge's way: along x (east to west) or along y.
+        let along_x = match shape.ridge {
+            Ridge::EastWest => true,
+            Ridge::NorthSouth => false,
+            Ridge::Auto => w >= d,
+        };
+        let axis = |c: &Chimney| if along_x { (c.at[0], c.at[1], c.size[0]) } else { (c.at[1], c.at[0], c.size[1]) };
+        let (length, across) = if along_x { (w, d) } else { (d, w) };
+        let like = shape.chimneys.last().cloned();
+        let (picture, size, rise, off) = like.as_ref().map_or_else(|| (SpriteRef::default(), [14.0, 14.0], 14.0, (across / 2.0 - 4.0).round()), |c| (c.picture.clone(), c.size, c.rise, axis(c).1));
+        let width = if along_x { size[0] } else { size[1] };
+        let taken = shape.chimneys.iter().map(|c| {
+            let (at, _, len) = axis(c);
+            (at - len / 2.0, at + len / 2.0)
+        });
+        let at = free_spot(taken.collect(), length, width);
+        let point = if along_x { [at, off] } else { [off, at] };
+        let label = format!("Add a chimney to {name}");
+        let mut new = p.clone();
+        if let Some(b) = &mut new.building {
+            b.chimneys.push(Chimney { at: point, picture, size, rise });
+        }
+        let value = serde_json::to_value(&new).map_err(|e| e.to_string())?;
+        self.set_def_value(rustpg2d_engine::refactor::RefKind::Prop, id, value)?;
+        self.begin(&label);
+        Ok(format!("A chimney on the roof, {} pixels from the west and {} from the north", point[0], point[1]))
     }
 }
 
@@ -992,6 +1034,45 @@ mod tests {
     }
 
     #[test]
+    fn a_chimney_is_added_like_the_last_where_the_ridge_has_room() {
+        let dir = std::env::temp_dir().join(format!("rustpg2d-build-chimney-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        crate::files::create_project(&dir).unwrap();
+        let mut ws = Workspace::new(dir.clone(), crate::Gpu::No).unwrap();
+        ws.project.db.props.push(PropDef { name: "Cottage".into(), hitbox: [160.0, 128.0], building: Some(BuildingShape::default()), ..PropDef::fresh("cottage") });
+        ws.project.db.reindex();
+        ws.history_frame(None);
+        let chimneys = |ws: &Workspace| ws.project.db.prop("cottage").unwrap().building.clone().unwrap().chimneys;
+        // None yet: 14 x 14, rising 14, in the middle of the ridge (east to west: the longer side).
+        ws.building_chimney("cottage").unwrap();
+        ws.history_frame(None);
+        let c = chimneys(&ws)[0].clone();
+        assert_eq!((c.at, c.picture.is_empty(), c.size, c.rise), ([80.0, 60.0], true, [14.0, 14.0], 14.0));
+        // One with a picture of its own: the next is like it, where the ridge has the most room.
+        let mut value = ws.def_value(rustpg2d_engine::refactor::RefKind::Prop, "cottage").unwrap();
+        value["building"]["chimneys"][0] = serde_json::json!({"at": [140.0, 70.0], "picture": {"sheet": "walls", "frame": 25}, "size": [12.0, 16.0], "rise": 20.0});
+        ws.set_def_value(rustpg2d_engine::refactor::RefKind::Prop, "cottage", value).unwrap();
+        ws.history_frame(None);
+        ws.building_chimney("cottage").unwrap();
+        ws.history_frame(None);
+        let c = chimneys(&ws)[1].clone();
+        assert_eq!((c.at, c.picture.sheet.as_str(), c.picture.frame, c.size, c.rise), ([67.0, 70.0], "walls", 25, [12.0, 16.0], 20.0));
+        assert_eq!(ws.timeline.done.last().map(|c| c.label.as_str()), Some("Add a chimney to Cottage"));
+        // A ridge north to south: along y.
+        let mut value = ws.def_value(rustpg2d_engine::refactor::RefKind::Prop, "cottage").unwrap();
+        value["building"]["ridge"] = serde_json::json!("NorthSouth");
+        value["building"]["chimneys"] = serde_json::json!([]);
+        ws.set_def_value(rustpg2d_engine::refactor::RefKind::Prop, "cottage", value).unwrap();
+        ws.history_frame(None);
+        ws.building_chimney("cottage").unwrap();
+        assert_eq!(chimneys(&ws)[0].at, [76.0, 64.0]);
+        ws.history_frame(None);
+        ws.undo();
+        assert!(chimneys(&ws).is_empty(), "one step");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
     fn a_buildings_door_and_window_are_added_and_its_ridge_turned_one_step_each() {
         let dir = std::env::temp_dir().join(format!("rustpg2d-build-openings-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
@@ -1034,6 +1115,7 @@ mod tests {
         assert_eq!(shape(&ws).openings, vec![door]);
         // What is no building, and what isn't there, say so.
         assert_eq!(ws.building_opening("barrel", true).unwrap_err(), "Barrel is no building");
+        assert_eq!(ws.building_chimney("barrel").unwrap_err(), "Barrel is no building");
         assert!(ws.building_opening("nothing", true).is_err());
         let _ = std::fs::remove_dir_all(dir);
     }

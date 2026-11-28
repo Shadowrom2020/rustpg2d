@@ -715,6 +715,12 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   lines; imports (Tiled, Aseprite: part 11 decides); the cleanup of unused files; structures'
   capture and the clipboard.
 
+  **2026-11-28:** the file watcher no longer takes the editor's own save for another
+  program's change when a change follows the save before it looks again (`file.save_all;
+  edit.undo` in one frame showed the bar *Another program changed…*): saving the definitions
+  and maps notes the files written (`Workspace::watch_note_defs`, the map's path after
+  `save_doc`), where before only the defs being clean at the next look hid the save. Test
+  `mcp::watcher::tests::a_change_right_after_saving_is_no_change_on_disk`.
   **Decided while building.**
   - **Changes are observed, not funnelled:** forms and tools change the definitions directly
     and the history turns the difference into a step (as 0.35's did), so a widget needn't
@@ -819,6 +825,15 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   the editor's settings, `egui_kittest` tests; of a new game what the 0.35 wizard also
   asked: the hero's sex, whether players make their own character, the first map's size.
 
+  **2026-11-28:** the status line's message is cut short with an ellipsis where its right-hand
+  part (saved, the problems' counts, fps) begins, the whole message on hover (seen at 900 x
+  600). The Problems tab says *The project changed since this check.* with *Check again* and
+  dims its list once anything changed after the check (a step of the history, an undo or redo,
+  a script saved, files read again); the status bar's counts are dimmed then. The check is not
+  rerun by itself: it took 90 to 150 ms on the example (dev build; 90 to 135 in a release build), a visible
+  stall after every pause in typing. A fix from the list checks again at once and is no change
+  since (`refresh_problems` notices the steps made before it first). Test
+  `shell::ui_tests::the_problems_list_says_when_the_project_changed_since_its_check`.
   **Decided while building.**
   - The new editor grows in `crates/studio` (the old one keeps `crates/editor`, with the
     starter library's files, until the switch-over), over `editor-core` when that exists.
@@ -998,6 +1013,13 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   library is there), *From library…* in pickers (part 9), the schema as
   the agents' field descriptions and the manual's reference tables.
 
+  **2026-11-28:** a change made in a form, or by the script's `field` / `setting`, is named in
+  the History by what the form knows: *Small red-roofed cottage: Ridge changed*, *…: an entry
+  added to States* / *removed from* / *moved in*, *Game settings: It starts on changed*
+  (`form::Said`, `form::take`, `Workspace::def_step_name`, `schema::Node::label_at`); typing a
+  name letter by letter stays one step with one name, the definition's name as it was before.
+  Tests `form::ui_tests::a_change_in_a_form_is_named_in_the_history_by_its_definition_and_field`,
+  `schema::tests::labels_and_help`.
   **Decided while building.**
   - *The shape is derived, not written.* A hand-written table per kind would repeat ~300 types
     and go stale with every engine change. `schemars` reads the same serde attributes the files
@@ -1348,6 +1370,9 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   console and script errors as panels (part 7), a click in the game leading to the thing's
   place on its map (it opens its definition).
 
+  **2026-11-28:** *Test setup…*: two rows with a picker (two items, an item and a quest) no
+  longer share an egui id (the red *First use of widget ID* warnings); `testsetup` and its
+  status print the day as the window's field shows it (from 1).
   **Decided while building.**
   - **The world is drawn by the engine, the editor's marks by both.** What lies on the ground
     (zones, the grid, blocked tiles, frames) is drawn in the same pass with the ground's
@@ -1632,6 +1657,9 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     functions= search=`; `graph dump|focus entity UID|zone UID|-|functions all|map|find
     TEXT|-|click NODE|view X Y ZOOM`.
 
+  **2026-11-28:** the event sheet's and the events graph's words say a number as it was
+  typed (*Wait 0.4 s*, not the `f32` widened to 0.4000000059604645; test
+  `events::tests::lines_say_what_happens`).
   **Decided while building.**
   - **The sheet reads the values as the files hold them** (JSON, as the forms do), so it is
     one piece of code for every place a list of events can be, and a kind the summaries
@@ -2002,6 +2030,12 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   start in *New…*, a figure sheet picked to model from, a job's 3D result turned in a
   preview before it is added.
 
+  **2026-11-28:** a chimney is added in the prop workshop like a door or a window: *Add a
+  chimney* (`Workspace::building_chimney`, script `prop add chimney`) puts one like the last
+  chimney (its picture, size, rise and distance from the ridge), else 14 x 14 rising 14 as the
+  0.35 editor's, along the ridge where it has the most room; one step (tests
+  `build::tests::a_chimney_is_added_like_the_last_where_the_ridge_has_room`,
+  `propshop::ui_tests::a_buildings_window_and_chimney_are_added_and_its_ridge_turned_by_number`).
   **Decided while building.**
   - **The workshop is the top of the prop's tab, not a tab of its own**: the picture and the
     form show the same prop, so a number typed below moves the outline above and the other
@@ -2915,7 +2949,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   | 3D models: import, animations' clips, rig templates, check | model workshop; more clip files and clips taken from another model, a rig template's joints moved by numbers (2026-11-28) | there (2026-11-28) |
   | An item's 3D model: imported, its hold point and front set, shown in the hand, its icon rendered | the item workshop at the top of an item's tab (2026-11-28): the hero holding it, standing, walking, striking; *From a file…*, *Find where it is held*, *Other end*, *Turn the handle*, *Turn the front*, how it is held, its length, where along it the hand is, *Render its icon* | there |
   | Character editor: model, pieces, colours, equipment, random colours, new from a model / a file / Meshy | character workshop, *New…*, Generate art; *Start from…* another character of the project (2026-11-28) | there (a library character's look: *New…* from the library) |
-  | Props: pictures, states, hitbox, light, building shape | prop workshop + form; a building's measures and openings by numbers in the form, *Add a door* / *Add a window* in the workshop (2026-11-28) | there (2026-11-28) |
+  | Props: pictures, states, hitbox, light, building shape | prop workshop + form; a building's measures and openings by numbers in the form, *Add a door* / *Add a window* / *Add a chimney* in the workshop (2026-11-28) | there (2026-11-28) |
   | Generate art (Meshy), its settings and budget | the Generate art page | there |
   | Import… Tiled maps, Aseprite sheets | — | removed (the maintainer, 2026-11-28); their code leaves with the old editor (part 11), their sections with the manual's rewrite |
   | **Library**: browse, add to project, send to library (with its script functions), its own window | Library tab; *Send to library*; no second process | there |

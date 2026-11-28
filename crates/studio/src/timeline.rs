@@ -308,7 +308,7 @@ mod ui_tests {
         let targets = vec!["player".to_string(), "guard".to_string()];
         let mut h = Harness::builder().with_size(egui::vec2(1100.0, 700.0)).build_ui_state(
             move |ui, s: &mut State| {
-                let mut cx = Cx { lists: &[], maps: &[], show_all: false, compact: false, pictures: None, refs: None, asks: Vec::new() };
+                let mut cx = Cx { lists: &[], maps: &[], show_all: false, compact: false, pictures: None, refs: None, asks: Vec::new(), said: Default::default() };
                 if let (_, Some(Ask::Play(at))) = s.tl.show(ui, &mut cx, &mut s.def, &targets) {
                     s.asked.push(at);
                 }

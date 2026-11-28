@@ -359,6 +359,22 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   the editor and says so in the message line (rebuild it with `cargo build -p rustpg2d-game`),
   as the agents' `play_test` warns.
 - **Agents get a picture of the whole editor window** with `screenshot_editor`.
+- **Saving and then changing something at once** (an undo right after *Save all*) no longer
+  makes the editor think another program changed the files: the bar *Another program
+  changed…* stays away.
+- **The History names what a form changed:** *Small red-roofed cottage: Ridge changed*,
+  *…: an entry added to States*, *Game settings: It starts on changed*, instead of *Change
+  definitions*. Typing a name letter by letter is still one step.
+- **A long message in the status line** is cut short with "…" before *saved*, the problems'
+  counts and the fps; the whole message shows when the pointer rests on it.
+- **The Problems tab says when its list may be out of date:** after anything changed since the
+  check, *The project changed since this check.* with *Check again*, the list and the status
+  bar's counts dimmed.
+- **Add a chimney** in a building's workshop, beside *Add a door* and *Add a window*: like the
+  last chimney (its picture, size and height), on the roof along the ridge where there is room.
+- **Test setup…** no longer shows red warnings with two items (or an item and a quest), and its
+  summary says the same day as its field. The events graph's cards say *Wait 0.4 s*, not a long
+  run of digits.
 
 ### Removed (Breaking)
 Old ways of drawing that only earlier versions needed are gone (the maintainer's word,

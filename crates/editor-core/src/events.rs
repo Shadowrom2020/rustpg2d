@@ -130,8 +130,11 @@ impl Fields<'_> {
         self.data.and_then(|d| d.get(key)).and_then(Value::as_str).unwrap_or("")
     }
 
+    /// A number as the file means it: most are `f32`, whose widening shows its error
+    /// (0.4 as 0.4000000059604645); the shortest number that is the same `f32` is said.
     fn num(&self, key: &str) -> f64 {
-        self.data.and_then(|d| d.get(key)).and_then(Value::as_f64).unwrap_or(0.0)
+        let v = self.data.and_then(|d| d.get(key)).and_then(Value::as_f64).unwrap_or(0.0);
+        (v as f32).to_string().parse().unwrap_or(v)
     }
 
     fn yes(&self, key: &str) -> bool {
@@ -597,6 +600,8 @@ mod tests {
         let cond = json!({"cond": {"Flag": {"name": "met_elder"}}, "negate": true});
         assert_eq!(condition_summary(&cond, &names), "the flag met_elder is not set");
         assert_eq!(line(json!({"If": {"conditions": [cond], "then": [{"Wait": {"seconds": 1.0}}], "otherwise": []}})), "If the flag met_elder is not set: 1 action");
+        // (An f32 widened to f64 is said as written.)
+        assert_eq!(line(serde_json::to_value(rustpg2d_engine::events::Action::Wait { seconds: 0.4 }).unwrap()), "Wait 0.4 s");
         assert_eq!(condition_summary(&json!({"cond": {"Var": {"name": "visits", "op": "Ge", "value": 3}}, "negate": false}), &names), "visits is at least 3");
         assert_eq!(trigger_summary(&json!({"UseItem": {"item": "potion"}}), &names), "Healing Potion is used on it");
         assert_eq!(trigger_summary(&json!({"Hour": {"hour": 18.0}}), &names), "the clock reaches 18:00");

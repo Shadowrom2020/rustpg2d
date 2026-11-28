@@ -27,7 +27,8 @@ place, or to an edge of another tab to split the room between them. From top to 
 - **Problems** and **History** below (see [Finding things](#finding-things) and [Saving and
   undo](#saving-and-undo)).
 - **The status bar** says what was done last, whether everything is saved, how many errors and
-  warnings the last check found, and the frames a second.
+  warnings the last check found, and the frames a second. A message too long for the bar ends
+  in "…"; rest the pointer on it to read all of it.
 
 ![The Overview: the tours, the checklist to a playable game and what is in the project](../images/editor-overview.webp)
 
@@ -90,8 +91,10 @@ Undoing back to what was saved makes it clean again.
 **One history** holds every change, to maps and definitions alike: a stroke of paint, a thing
 placed, a structure, a pasted region, a field of a form, a definition made, renamed or deleted,
 a setting, and what an AI agent did. **Ctrl+Z** and **Ctrl+Y** step through it, in whatever tab
-is in front; the **History** tab lists the steps by name, newest first. What you type into one
-field is one step (until you move to another field). A text field you are typing in keeps Ctrl+Z
+is in front; the **History** tab lists the steps by name, newest first. A change in a form is
+named by the definition and the field: *Small red-roofed cottage: Ridge changed*, *…: an entry
+added to States* (or *removed from*, *moved in*), *Game settings: It starts on changed*. What
+you type into one field is one step (until you move to another field), named once. A text field you are typing in keeps Ctrl+Z
 for its own text, and a picture being painted has its own undo while the pointer is over it.
 Renaming a definition renames it in the maps and scripts too; undoing renames it back.
 
@@ -134,6 +137,11 @@ can be **Created**, **taken from the library** when the asset library has it, or
 everywhere by **another** one that exists (*Use another…*); *No player character is set* and a
 start map that doesn't exist offer the ones to **choose** from (*Choose one…*). After a fix the
 project is checked again. The status bar shows the counts of the last check.
+
+Checking everything takes a moment, so it is done when you ask. Once something changed after the
+check (a field, a map, an undo, a script saved, files another program changed), the tab says
+**The project changed since this check.** with **Check again** beside it, and its list and the
+status bar's counts are dimmed: what you mended by hand stays listed until you check again.
 
 ## Play-testing
 

@@ -169,7 +169,8 @@ struct MapFile {
 pub struct Problems {
     pub open: bool,
     pub list: Vec<Problem>,
-    /// Rebuild the list (something was saved).
+    /// The project changed since the list was made (a step of the history, an undo, files
+    /// written by agents or read again): the list may be out of date.
     pub stale: bool,
     /// Has the list been built since the project opened?
     pub built: bool,
@@ -369,6 +370,9 @@ impl Workspace {
 
     /// Checks the whole project and replaces the list.
     pub fn refresh_problems(&mut self) {
+        // What was changed before the check (a fix that checks again at once) is a step
+        // noticed now, not a change since the check.
+        self.history_frame(None);
         self.problem_maps();
         let mut out = Vec::new();
         self.definition_problems(&mut out);

@@ -49,6 +49,45 @@ pub struct Cx<'a> {
     /// The names the project uses (flags, variables, script functions…), offered where one is typed.
     pub refs: Option<&'a editor_core::refs::Refs>,
     pub asks: Vec<Ask>,
+    /// What the form's change was, in words: the name of its step in the history.
+    pub said: Said,
+}
+
+/// A definition's form changed it to `value`: the workspace takes it (when it is a definition)
+/// as a step of the history named by what changed (*Small red-roofed cottage: Ridge changed*).
+/// Err: why it isn't one yet.
+pub fn take(ws: &mut editor_core::Workspace, kind: RefKind, id: &str, value: Value, said: &Said) -> Result<(), String> {
+    // (Named as it was before: typing a new name is a change of the old one.)
+    let step = ws.def_step_name(kind, id, said.words());
+    ws.set_def_value(kind, id, value)?;
+    ws.begin(&step);
+    Ok(())
+}
+
+/// What a form's change was, in words ("Ridge changed", "an entry added to Openings"): the
+/// innermost field that changed names it, with what a list's buttons did to it.
+#[derive(Default)]
+pub struct Said {
+    words: Option<String>,
+    /// What a list's buttons did ("added to"), for the list's field to name.
+    list: Option<&'static str>,
+}
+
+impl Said {
+    /// The words for the change (none while nothing changed).
+    pub fn words(&self) -> Option<&str> {
+        self.words.as_deref()
+    }
+
+    /// A field labelled `label` changed (only the first, innermost one names the change).
+    fn field(&mut self, label: &str) {
+        if self.words.is_none() {
+            self.words = Some(match self.list.take() {
+                Some(how) => format!("an entry {how} {label}"),
+                None => format!("{label} changed"),
+            });
+        }
+    }
 }
 
 impl Cx<'_> {
@@ -650,7 +689,7 @@ pub fn cell_width(field: &Field) -> f32 {
 /// the field out). `by`: the column's header, which names the control. True when it changed.
 pub fn cell(ui: &mut egui::Ui, cx: &mut Cx, field: &Field, map: &mut serde_json::Map<String, Value>, by: egui::Id) -> bool {
     let site = field.site();
-    match map.get_mut(field.key) {
+    let changed = match map.get_mut(field.key) {
         Some(v) => inline(ui, cx, field.node, &site, v, by),
         None => {
             let mut v = field.node.blank();
@@ -660,7 +699,11 @@ pub fn cell(ui: &mut egui::Ui, cx: &mut Cx, field: &Field, map: &mut serde_json:
             }
             changed
         }
+    };
+    if changed {
+        cx.said.field(&field.label());
     }
+    changed
 }
 
 /// A value under its label: on a row when it fits there, else as a group that folds. True when
@@ -767,13 +810,17 @@ fn field_ui(ui: &mut egui::Ui, cx: &mut Cx, field: &Field, map: &mut serde_json:
     // What still holds its default is shown dimmed: what was set stands out.
     let at_default = map.get(field.key).is_none_or(|v| *v == field.node.blank());
     let row = Row { site: &site, label: &label, help: &help, reset: !at_default };
-    ui.push_id(field.key, |ui| {
+    let changed = ui.push_id(field.key, |ui| {
         if at_default {
             ui.visuals_mut().widgets.noninteractive.fg_stroke.color = ui.visuals().weak_text_color();
         }
         field_value_ui(ui, cx, field, row, map, depth)
     })
-    .inner
+    .inner;
+    if changed {
+        cx.said.field(&label);
+    }
+    changed
 }
 
 /// The field's value, or its default while the object leaves it out.
@@ -943,14 +990,17 @@ pub(crate) fn body(ui: &mut egui::Ui, cx: &mut Cx, node: Node, site: &str, v: &m
             }
             if let Some(k) = remove {
                 list.remove(k);
+                cx.said.list = Some("removed from");
                 changed = true;
             }
             if let Some(k) = up {
                 list.swap(k, k - 1);
+                cx.said.list = Some("moved in");
                 changed = true;
             }
             if let Some(k) = down {
                 list.swap(k, k + 1);
+                cx.said.list = Some("moved in");
                 changed = true;
             }
             // A new entry: of an enum, the variant picked from a list; else the plainest value.
@@ -959,6 +1009,7 @@ pub(crate) fn body(ui: &mut egui::Ui, cx: &mut Cx, node: Node, site: &str, v: &m
                     let pick = ui.menu_button("+ Add…", |ui| egui::ScrollArea::vertical().max_height(340.0).show(ui, |ui| variant_list(ui, &variants, None, variants.len() > 12)).inner).inner.flatten();
                     if let Some(k) = pick {
                         list.push(variants[k].blank());
+                        cx.said.list = Some("added to");
                         changed = true;
                     }
                 }
@@ -969,6 +1020,7 @@ pub(crate) fn body(ui: &mut egui::Ui, cx: &mut Cx, node: Node, site: &str, v: &m
                             new = blank_past_default(inner);
                         }
                         list.push(new);
+                        cx.said.list = Some("added to");
                         changed = true;
                     }
                 }
@@ -1004,6 +1056,7 @@ pub(crate) fn body(ui: &mut egui::Ui, cx: &mut Cx, node: Node, site: &str, v: &m
             }
             if let Some(key) = remove {
                 map.shift_remove(&key);
+                cx.said.list = Some("removed from");
                 changed = true;
             }
             ui.horizontal(|ui| {
@@ -1017,6 +1070,7 @@ pub(crate) fn body(ui: &mut egui::Ui, cx: &mut Cx, node: Node, site: &str, v: &m
                     }
                     map.insert(name.trim().to_string(), new);
                     name.clear();
+                    cx.said.list = Some("added to");
                     changed = true;
                 }
                 ui.data_mut(|d| d.insert_temp(id, name));
@@ -1253,7 +1307,7 @@ mod ui_tests {
         let state = State { kind, value, show_all: false, lists, asks: Vec::new() };
         Harness::builder().with_size(egui::vec2(900.0, 4000.0)).build_ui_state(
             |ui, state: &mut State| {
-                let mut cx = Cx { lists: &state.lists, maps: &[], show_all: state.show_all, compact: false, pictures: None, refs: None, asks: Vec::new() };
+                let mut cx = Cx { lists: &state.lists, maps: &[], show_all: state.show_all, compact: false, pictures: None, refs: None, asks: Vec::new(), said: Default::default() };
                 definition_ui(ui, &mut cx, schema::of_kind(state.kind).unwrap(), &mut state.value);
                 for ask in cx.asks {
                     state.asks.push(match ask {
@@ -1264,6 +1318,87 @@ mod ui_tests {
             },
             state,
         )
+    }
+
+    struct Shop {
+        ws: editor_core::Workspace,
+        lists: Vec<(RefKind, Vec<(String, String)>)>,
+        id: String,
+    }
+
+    /// A prop's form as a definition's tab shows it, on a project of its own: what changes is
+    /// taken as a step of the history once a frame.
+    fn prop_form(name: &str, value: Value) -> (Harness<'static, Shop>, std::path::PathBuf) {
+        let dir = std::env::temp_dir().join(format!("rustpg2d-form-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        editor_core::files::create_project(&dir).unwrap();
+        let mut ws = editor_core::Workspace::new(dir.clone(), editor_core::Gpu::No).unwrap();
+        ws.new_def(RefKind::Prop, "cottage").unwrap();
+        let mut v = ws.def_value(RefKind::Prop, "cottage").unwrap();
+        for (k, x) in value.as_object().unwrap() {
+            v[k] = x.clone();
+        }
+        ws.set_def_value(RefKind::Prop, "cottage", v).unwrap();
+        ws.history_frame(None);
+        let lists = vec![(RefKind::Prop, editor_core::defs::list(&ws.project.db, RefKind::Prop))];
+        let h = Harness::builder().with_size(egui::vec2(900.0, 4000.0)).build_ui_state(
+            |ui, s: &mut Shop| {
+                let mut value = s.ws.def_value(RefKind::Prop, &s.id).unwrap();
+                let mut cx = Cx { lists: &s.lists, maps: &[], show_all: false, compact: false, pictures: None, refs: None, asks: Vec::new(), said: Default::default() };
+                if definition_ui(ui, &mut cx, schema::of_kind(RefKind::Prop).unwrap(), &mut value) {
+                    let said = std::mem::take(&mut cx.said);
+                    take(&mut s.ws, RefKind::Prop, &s.id, value, &said).unwrap();
+                }
+                let focus = ui.ctx().memory(|m| m.focused()).map(|id| id.value());
+                s.ws.history_frame(focus);
+            },
+            Shop { ws, lists, id: "cottage".into() },
+        );
+        (h, dir)
+    }
+
+    fn steps(h: &Harness<Shop>) -> Vec<String> {
+        h.state().ws.timeline.done.iter().map(|c| c.label.clone()).collect()
+    }
+
+    #[test]
+    fn a_change_in_a_form_is_named_in_the_history_by_its_definition_and_field() {
+        let (mut h, dir) = prop_form("names", serde_json::json!({"name": "Small cottage", "states": [{"name": "shut", "sprite": {"sheet": "", "frame": 0}}], "building": {}}));
+        h.run();
+        let before = steps(&h).len();
+        // Typing a new name letter by letter is one step, named once (by the old name).
+        let name = h.get_by_role_and_label(egui::accesskit::Role::TextInput, "Name");
+        name.click();
+        h.run();
+        for letter in ["!", "!", "?"] {
+            h.get_by_role_and_label(egui::accesskit::Role::TextInput, "Name").type_text(letter);
+            h.run();
+        }
+        assert_eq!(h.state().ws.def_value(RefKind::Prop, "cottage").unwrap()["name"], "Small cottage!!?");
+        assert_eq!(steps(&h)[before..], ["Small cottage: Name changed"]);
+        // A list's buttons: what was done to which list (the first of each button below its label).
+        let below = |h: &Harness<Shop>, label: &str, button: &str| {
+            let top = h.get_by_role_and_label(egui::accesskit::Role::Label, label).rect().top();
+            h.query_all_by_label(button).filter(|n| n.rect().top() > top).min_by(|a, b| a.rect().top().total_cmp(&b.rect().top())).unwrap().rect().center()
+        };
+        let at = below(&h, "States", "+ Add");
+        h.get_all_by_label("+ Add").find(|n| n.rect().center() == at).unwrap().click();
+        h.run();
+        let at = below(&h, "States", "x");
+        h.get_all_by_label("x").find(|n| n.rect().center() == at).unwrap().click();
+        h.run();
+        assert_eq!(h.state().ws.def_value(RefKind::Prop, "cottage").unwrap()["states"].as_array().map(Vec::len), Some(1));
+        // A field of a group: its own label.
+        h.get_by_role_and_label(egui::accesskit::Role::ComboBox, "Ridge").click();
+        h.run();
+        h.get_by_label("North south").click();
+        h.run();
+        assert_eq!(
+            steps(&h)[before + 1..],
+            ["Small cottage!!?: an entry added to States", "Small cottage!!?: an entry removed from States", "Small cottage!!?: Ridge changed"]
+        );
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]

@@ -24,11 +24,14 @@ fn list<T: Clone>(ui: &mut egui::Ui, title: &str, help: &str, rows: &mut Vec<T>,
     });
     let mut gone = None;
     for (k, r) in rows.iter_mut().enumerate() {
-        ui.horizontal(|ui| {
-            changed |= row(ui, k, r);
-            if ui.small_button("Remove").on_hover_text(format!("{title}: this one goes")).clicked() {
-                gone = Some(k);
-            }
+        // (Each row's controls have ids of their own: two rows' pickers would share one.)
+        ui.push_id((title, k), |ui| {
+            ui.horizontal(|ui| {
+                changed |= row(ui, k, r);
+                if ui.small_button("Remove").on_hover_text(format!("{title}: this one goes")).clicked() {
+                    gone = Some(k);
+                }
+            });
         });
     }
     if let Some(k) = gone {
@@ -61,7 +64,7 @@ impl SetupWindow {
             names
         };
         let (flags, vars) = (ws.refs.all_flags.clone(), ws.refs.vars.clone());
-        let mut cx = Cx { lists, maps: &ws.maps, show_all: false, compact: false, pictures: None, refs: Some(&ws.refs), asks: Vec::new() };
+        let mut cx = Cx { lists, maps: &ws.maps, show_all: false, compact: false, pictures: None, refs: Some(&ws.refs), asks: Vec::new(), said: Default::default() };
         let s = &mut self.setup;
         egui::Window::new("Test setup").open(&mut open).collapsible(false).resizable(true).default_width(560.0).show(ctx, |ui| {
             ui.weak("What a test-play starts with: Play from here with the test setup (right-click a map) and Play's Restart. Every change is kept at once, for this project.");

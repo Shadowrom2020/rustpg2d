@@ -981,7 +981,7 @@ impl MapView {
                 let mut value = self.pending.as_ref().filter(|(s, ..)| *s == Selection::None).map_or_else(|| saved.clone(), |(_, v, _)| v.clone());
                 let mut pics = p.rs.map(|rs| crate::thumbs::Pics { thumbs: &mut *p.thumbs, ws: &*p.ws, rs });
                 let pictures = pics.as_mut().map(|x| x as &mut dyn crate::form::Pictures);
-                let mut cx = crate::form::Cx { lists: p.lists, maps: &p.ws.maps, show_all: p.show_all, compact: true, pictures, refs: Some(&p.ws.refs), asks: Vec::new() };
+                let mut cx = crate::form::Cx { lists: p.lists, maps: &p.ws.maps, show_all: p.show_all, compact: true, pictures, refs: Some(&p.ws.refs), asks: Vec::new(), said: Default::default() };
                 crate::sheet::set_tryable(ui.ctx(), true);
                 let changed = crate::form::sections_ui(ui, &mut cx, schema::map_settings(), &mut value, schema::MAP_SECTIONS);
                 crate::sheet::set_tryable(ui.ctx(), false);
@@ -1189,7 +1189,7 @@ impl MapView {
                 };
                 let mut pics = p.rs.map(|rs| crate::thumbs::Pics { thumbs: &mut *p.thumbs, ws: &*p.ws, rs });
                 let pictures = pics.as_mut().map(|x| x as &mut dyn crate::form::Pictures);
-                let mut cx = crate::form::Cx { lists: p.lists, maps: &p.ws.maps, show_all: p.show_all, compact: true, pictures, refs: Some(&p.ws.refs), asks: Vec::new() };
+                let mut cx = crate::form::Cx { lists: p.lists, maps: &p.ws.maps, show_all: p.show_all, compact: true, pictures, refs: Some(&p.ws.refs), asks: Vec::new(), said: Default::default() };
                 // (A structure is no place to play in: its events are tried where it was placed.)
                 crate::sheet::set_tryable(ui.ctx(), current && !editor_core::structdoc::is_scratch(name));
                 crate::tourpanel::set_scope(ui.ctx(), if matches!(one, Selection::Entity(_)) { "thing:" } else { "" });

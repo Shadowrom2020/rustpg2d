@@ -405,6 +405,7 @@ impl Workspace {
         let Some(doc) = self.doc.as_mut().filter(|d| !crate::structdoc::is_scratch(&d.map.name)) else { return };
         match Workspace::save_doc(&self.project, doc) {
             Ok(name) => {
+                self.watch_note(&self.project.map_path(&name));
                 if !self.maps.contains(&name) {
                     self.maps.push(name.clone());
                     self.maps.sort();
@@ -422,6 +423,9 @@ impl Workspace {
             Ok(()) => {
                 self.defs_dirty = false;
                 *self.defs_saved = (self.project.db.clone(), self.project.config.clone());
+                // The files written are the editor's own: a change made before the watcher looks
+                // again (an undo in the same frame) must not make them look changed by another program.
+                self.watch_note_defs();
                 // (What loading left out is gone now.)
                 self.defs_warnings.clear();
                 self.stale = true;
@@ -444,10 +448,15 @@ impl Workspace {
             self.save_map();
         }
         let mut failed = Vec::new();
+        let mut written = Vec::new();
         for doc in self.parked.values_mut().filter(|d| d.is_dirty() && !crate::structdoc::is_scratch(&d.map.name)) {
-            if let Err(e) = Workspace::save_doc(&self.project, doc) {
-                failed.push(format!("{}: {e:#}", doc.map.name));
+            match Workspace::save_doc(&self.project, doc) {
+                Ok(name) => written.push(self.project.map_path(&name)),
+                Err(e) => failed.push(format!("{}: {e:#}", doc.map.name)),
             }
+        }
+        for path in written {
+            self.watch_note(&path);
         }
         if !failed.is_empty() {
             self.set_status(format!("Save failed: {}", failed.join("; ")));

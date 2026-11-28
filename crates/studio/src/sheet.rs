@@ -597,7 +597,7 @@ mod ui_tests {
         let lists = vec![(RefKind::Item, vec![("potion".to_string(), "Healing Potion".to_string())])];
         Harness::builder().with_size(egui::vec2(900.0, 1400.0)).build_ui_state(
             |ui, s: &mut State| {
-                let mut cx = Cx { lists: &s.lists, maps: &[], show_all: false, compact: false, pictures: None, refs: None, asks: Vec::new() };
+                let mut cx = Cx { lists: &s.lists, maps: &[], show_all: false, compact: false, pictures: None, refs: None, asks: Vec::new(), said: Default::default() };
                 ui.push_id("elder", |ui| list(ui, &mut cx, schema::trigger(), "CharacterDef.triggers", &mut s.elder, 1));
                 ui.separator();
                 ui.push_id("well", |ui| list(ui, &mut cx, schema::trigger(), "PropDef.triggers", &mut s.well, 1));
@@ -668,7 +668,7 @@ mod ui_tests {
         h.run();
         assert_eq!(kinds(&h.state().elder[0]["actions"]), ["Dialog", "SetFlag", "SetFlag", "GiveItem"]);
         // The whole event copied to the prop.
-        let header = line(&Cx { lists: &h.state().lists, maps: &[], show_all: false, compact: false, pictures: None, refs: None, asks: Vec::new() }, Kind::Trigger, &h.state().elder[0]);
+        let header = line(&Cx { lists: &h.state().lists, maps: &[], show_all: false, compact: false, pictures: None, refs: None, asks: Vec::new(), said: Default::default() }, Kind::Trigger, &h.state().elder[0]);
         assert!(header.starts_with("When the player uses it or talks to it, if ") && header.ends_with(" · 4 actions"), "{header}");
         h.get_by_label(header.as_str()).click_secondary();
         h.run();

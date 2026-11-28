@@ -285,6 +285,31 @@ impl<'a> Node<'a> {
         Some(node)
     }
 
+    /// The label of the last field on the way to `pointer` (`/building/ridge`: "Ridge"; an entry
+    /// of a list, `/building/openings/0`, has its list's): what a change there is called in the
+    /// history. `None` when the data has no such place or the way passes no field.
+    pub fn label_at(self, pointer: &str) -> Option<String> {
+        let mut node = self;
+        let mut label = None;
+        for part in pointer.split('/').skip(1) {
+            while let Shape::Optional(inner) = node.shape() {
+                node = inner;
+            }
+            node = match node.shape() {
+                Shape::Struct(fields) => {
+                    let field = fields.into_iter().find(|f| f.key == part)?;
+                    label = Some(field.label());
+                    field.node
+                }
+                Shape::List(inner) | Shape::Map(inner) => inner,
+                Shape::Fixed(nodes) => *nodes.get(part.parse::<usize>().ok()?)?,
+                Shape::Choice(variants) => variants.into_iter().find(|v| v.name == part)?.data?,
+                _ => return None,
+            };
+        }
+        label
+    }
+
     /// The doc comment of the field (else of its type), tidied for reading; may be empty.
     pub fn help(self) -> String {
         let text = self.at.get("description").or_else(|| self.resolved().at.get("description")).and_then(Value::as_str).unwrap_or("");
@@ -1056,6 +1081,12 @@ mod tests {
         assert_eq!(label("ItemDef.max_stack", "max_stack"), "Stack size");
         assert_eq!(label("Whatever.frame_w", "frame_w"), "Frame width");
         assert_eq!(label("CharacterDef.max_hp", "max_hp"), "Hit points (old)", "a field's own label goes before the general one");
+        // What a change at a place is called: its field's label, a list's entry its list's.
+        let prop = of_kind(RefKind::Prop).unwrap();
+        assert_eq!(prop.label_at("/building/ridge").as_deref(), Some("Ridge"));
+        assert_eq!(prop.label_at("/building/openings/0").as_deref(), Some("Openings"));
+        assert_eq!(prop.label_at("/building/nothing"), None);
+        assert_eq!(project().label_at("/start_map").as_deref(), Some("It starts on"));
         assert_eq!(tidy("A seed: what grows\non a farm plot (`PropDef::plot`)."), "A seed: what grows on a farm plot (PropDef::plot).");
         assert_eq!(tidy("names that models map to clips ([`ItemAnims`])."), "names that models map to clips (ItemAnims).");
     }

@@ -34,7 +34,8 @@ pub struct TestSetup {
 }
 
 impl TestSetup {
-    /// For `status` (`testsetup=`): level/class, then counts.
+    /// For `status` (`testsetup=`): level/class, then counts (the day as the window's field
+    /// shows it: from 1).
     pub fn summary(&self) -> String {
         format!(
             "L{}{}:items{}:flags{}:vars{}:quests{}:party{}{}",
@@ -45,7 +46,7 @@ impl TestSetup {
             self.vars.len(),
             self.quests.len(),
             self.party.len(),
-            self.hour.map_or(String::new(), |h| format!("@{h:.1}h/d{}", self.day)),
+            self.hour.map_or(String::new(), |h| format!("@{h:.1}h/d{}", self.day.max(1))),
         )
     }
 }

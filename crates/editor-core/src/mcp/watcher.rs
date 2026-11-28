@@ -104,6 +104,19 @@ impl Workspace {
         }
     }
 
+    /// The editor itself wrote the definitions and the settings ([`Project::save_defs`] and
+    /// `save_config` write every file that exists, and the visual scripts' code).
+    ///
+    /// [`Project::save_defs`]: rustpg2d_engine::project::Project::save_defs
+    pub fn watch_note_defs(&mut self) {
+        let root = self.project.root.clone();
+        self.watch_note(&root.join("project.ron"));
+        for name in rustpg2d_engine::project::DEFS {
+            self.watch_note(&root.join("defs").join(format!("{name}.ron")));
+        }
+        self.watch_note(&root.join(rustpg2d_engine::visual::FILE));
+    }
+
     /// Called every frame (with a project open): checks once a second.
     pub fn watch_project(&mut self) {
         if !self.project_open || self.library_mode {
@@ -351,6 +364,39 @@ mod tests {
         look(&mut ws);
         assert_eq!((size(&ws, "cellar"), ws.watch.status().as_str()), ((5, 5), "clean"));
         assert!(ws.can_undo(), "saving doesn't cost the history");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    /// The editor's own save, and a change made before the watcher looks again (an undo in the
+    /// same frame): the files hold what the editor wrote, nothing was changed by another program.
+    #[test]
+    fn a_change_right_after_saving_is_no_change_on_disk() {
+        let dir = std::env::temp_dir().join(format!("rustpg2d-watcher-save-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        crate::files::create_project(&dir).unwrap();
+        let mut ws = Workspace::new(dir.clone(), crate::Gpu::No).unwrap();
+        ws.open_map("start");
+        ws.history_frame(None);
+        ws.watch_resnapshot();
+        // Definitions (the settings' file) and the open map, saved and changed again at once.
+        ws.project.config.name = "A game with a longer name".into();
+        ws.resize_map(9, 9).unwrap();
+        ws.history_frame(None);
+        ws.save_all();
+        ws.project.config.name = "Short".into();
+        ws.resize_map(4, 4).unwrap();
+        ws.history_frame(None);
+        assert!(ws.is_dirty());
+        look(&mut ws);
+        assert_eq!(ws.watch.status(), "clean");
+        assert_eq!((ws.project.config.name.as_str(), size(&ws, "start")), ("Short", (4, 4)), "nothing was read again");
+        // Another program's change to the same file is still seen.
+        let path = dir.join("project.ron");
+        let text = std::fs::read_to_string(&path).unwrap().replace("A game with a longer name", "Theirs");
+        std::fs::write(&path, text).unwrap();
+        look(&mut ws);
+        assert_eq!(ws.watch.status(), "changed:project.ron");
         let _ = std::fs::remove_dir_all(dir);
     }
 }

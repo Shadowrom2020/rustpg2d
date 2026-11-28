@@ -115,6 +115,8 @@ impl Workspace {
             }
             self.stale = true;
             self.search_stale = true;
+            // (The Problems list was made before this.)
+            self.problems.stale = true;
         }
     }
 
@@ -204,6 +206,7 @@ impl Workspace {
                 said.get_or_insert_with(|| format!("Undid: {} ({})", change.label, change.at.describe()));
                 self.timeline.undone.push(change);
                 self.stale = true;
+                self.problems.stale = true;
             }
             // (A change whose step is gone is passed over: the one before it is taken back.)
             if said.is_some() && !joined {
@@ -221,6 +224,7 @@ impl Workspace {
                 said.get_or_insert_with(|| format!("Redid: {} ({})", change.label, change.at.describe()));
                 self.timeline.done.push(change);
                 self.stale = true;
+                self.problems.stale = true;
             }
             if said.is_some() && !self.timeline.undone.last().is_some_and(|c| c.joined) {
                 break;
@@ -239,6 +243,7 @@ impl Workspace {
             let msg = format!("Undid: {} ({})", change.label, change.at.describe());
             self.timeline.undone.push(change);
             self.stale = true;
+            self.problems.stale = true;
             return Some(msg);
         }
         None
@@ -257,6 +262,7 @@ impl Workspace {
             let msg = format!("Redid: {} ({})", change.label, change.at.describe());
             self.timeline.done.push(change);
             self.stale = true;
+            self.problems.stale = true;
             return Some(msg);
         }
         None

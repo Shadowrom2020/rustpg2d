@@ -837,6 +837,18 @@ impl Workspace {
         Ok(())
     }
 
+    /// The name of a step that changes definition `id`: its name (else its id) and `what` was
+    /// done to it ("Ridge changed": *Small red-roofed cottage: Ridge changed*).
+    pub fn def_step_name(&self, kind: RefKind, id: &str, what: Option<&str>) -> String {
+        let value = self.def_value(kind, id);
+        // (Quests have a title instead.)
+        let name = ["name", "title"].iter().find_map(|k| value.as_ref().and_then(|v| v.get(*k)).and_then(Value::as_str).filter(|n| !n.trim().is_empty())).unwrap_or(id);
+        match what {
+            Some(what) => format!("{name}: {what}"),
+            None => format!("{name} changed"),
+        }
+    }
+
     /// The project's settings as data (the settings pages' forms).
     pub fn config_value(&self) -> Value {
         serde_json::to_value(&self.project.config).unwrap_or(Value::Null)

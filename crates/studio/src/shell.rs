@@ -803,6 +803,7 @@ impl Shell {
         if saved > 0 {
             self.ws.refresh_refs();
             self.ws.stale = true;
+            self.ws.problems.stale = true;
         }
         // A language's table that was typed into is a file too.
         if self.langs.save(&mut self.ws) {
@@ -1395,7 +1396,10 @@ impl Shell {
                 group.insert(field.to_string(), new);
             }
         }
+        let what = editor_core::schema::of_kind(kind).and_then(|n| n.label_at(pointer)).map(|l| format!("{l} changed"));
+        let step = self.ws.def_step_name(kind, id, what.as_deref());
         self.ws.set_def_value(kind, id, value)?;
+        self.ws.begin(&step);
         self.ws.history_frame(None);
         Ok(format!("{} {id}{pointer} = {text}", kind.name()))
     }
@@ -1416,6 +1420,8 @@ impl Shell {
                 group.insert(field.to_string(), new);
             }
         }
+        let what = editor_core::schema::project().label_at(pointer).map_or_else(|| "changed".to_string(), |l| format!("{l} changed"));
+        self.ws.begin(&format!("Game settings: {what}"));
         self.ws.set_config_value(value)?;
         self.ws.history_frame(None);
         Ok(format!("settings{pointer} = {text}"))
@@ -1688,16 +1694,24 @@ impl Shell {
             }
         }
         egui::Panel::bottom("status").show(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.label(&self.ws.status.0);
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.label(format!("{fps:.0} fps"));
-                    ui.separator();
-                    let (e, w) = self.ws.problems.counts();
-                    ui.label(format!("{e} errors, {w} warnings"));
-                    ui.separator();
-                    let r = ui.label(if self.unsaved() { "unsaved changes" } else { "saved" });
-                    crate::tourpanel::mark(ui, "status:saved", r.rect);
+            // The right-hand part first: the message has what is left of the line, cut short
+            // where it would run into it (the whole message on hover).
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.label(format!("{fps:.0} fps"));
+                ui.separator();
+                let (e, w) = self.ws.problems.counts();
+                let counts = format!("{e} errors, {w} warnings");
+                if self.ws.problems.built && self.ws.problems.stale {
+                    ui.weak(counts).on_hover_text("What the last check found: the project changed since (Problems, Check again)");
+                } else {
+                    ui.label(counts);
+                }
+                ui.separator();
+                let r = ui.label(if self.unsaved() { "unsaved changes" } else { "saved" });
+                crate::tourpanel::mark(ui, "status:saved", r.rect);
+                ui.add_space(12.0);
+                ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                    ui.add(egui::Label::new(&self.ws.status.0).truncate());
                 });
             });
         });
@@ -2621,7 +2635,21 @@ impl Viewer<'_> {
             let (e, w) = self.ws.problems.counts();
             ui.label(if self.ws.problems.status() == "-" { "Not checked yet".to_string() } else { format!("{e} error(s), {w} warning(s)") });
         });
+        // (Checking everything takes a moment: it is done when asked, and what changed since
+        // the last check is said, its list dimmed.)
+        let outdated = self.ws.problems.built && self.ws.problems.stale;
+        if outdated {
+            ui.horizontal(|ui| {
+                ui.label("The project changed since this check.");
+                if ui.button("Check again").clicked() {
+                    self.asks.push(Ask::Run("check.problems".into()));
+                }
+            });
+        }
         ui.separator();
+        if outdated {
+            ui.multiply_opacity(0.5);
+        }
         // Nothing listed: why, and what to do.
         if self.ws.problems.list.is_empty() {
             if self.ws.problems.status() == "-" {
@@ -2830,11 +2858,12 @@ impl Viewer<'_> {
         let mut value = self.forms.get(&key).map_or_else(|| saved.clone(), |(v, _)| v.clone());
         let mut pics = self.rs.map(|rs| crate::thumbs::Pics { thumbs: &mut *self.thumbs, ws: &*self.ws, rs });
         let pictures = pics.as_mut().map(|p| p as &mut dyn crate::form::Pictures);
-        let mut cx = crate::form::Cx { lists: self.lists, maps: &self.ws.maps, show_all: *self.show_all, compact: false, pictures, refs: Some(&self.ws.refs), asks: Vec::new() };
+        let mut cx = crate::form::Cx { lists: self.lists, maps: &self.ws.maps, show_all: *self.show_all, compact: false, pictures, refs: Some(&self.ws.refs), asks: Vec::new(), said: Default::default() };
         let changed = match editor_core::schema::of_kind(kind) {
             Some(node) => crate::form::definition_ui(ui, &mut cx, node, &mut value),
             None => crate::form::value_ui(ui, kind.label(), &mut value),
         };
+        let said = std::mem::take(&mut cx.said);
         for ask in cx.asks {
             match ask {
                 crate::form::Ask::Open(RefKind::Map, map) => self.asks.push(Ask::Open(Tab::Map(map))),
@@ -2843,7 +2872,7 @@ impl Viewer<'_> {
             }
         }
         if changed {
-            match self.ws.set_def_value(kind, id, value.clone()) {
+            match crate::form::take(self.ws, kind, id, value.clone(), &said) {
                 Ok(()) => {
                     self.forms.remove(&key);
                 }
@@ -2936,8 +2965,9 @@ impl Viewer<'_> {
         let mut value = self.ws.config_value();
         let mut pics = self.rs.map(|rs| crate::thumbs::Pics { thumbs: &mut *self.thumbs, ws: &*self.ws, rs });
         let pictures = pics.as_mut().map(|p| p as &mut dyn crate::form::Pictures);
-        let mut cx = crate::form::Cx { lists: self.lists, maps: &self.ws.maps, show_all: *self.show_all, compact: false, pictures, refs: Some(&self.ws.refs), asks: Vec::new() };
+        let mut cx = crate::form::Cx { lists: self.lists, maps: &self.ws.maps, show_all: *self.show_all, compact: false, pictures, refs: Some(&self.ws.refs), asks: Vec::new(), said: Default::default() };
         let changed = crate::form::page_ui(ui, &mut cx, editor_core::schema::project(), &mut value, fields);
+        let step = format!("Game settings: {}", cx.said.words().unwrap_or("changed"));
         for ask in cx.asks {
             match ask {
                 crate::form::Ask::Open(RefKind::Map, map) => self.asks.push(Ask::Open(Tab::Map(map))),
@@ -2946,6 +2976,7 @@ impl Viewer<'_> {
             }
         }
         if changed {
+            self.ws.begin(&step);
             if let Err(e) = self.ws.set_config_value(value) {
                 self.ws.set_status(e);
             }
@@ -3347,7 +3378,7 @@ impl Viewer<'_> {
             egui::ScrollArea::vertical().id_salt("rows").max_height(height).auto_shrink([false, false]).show_rows(ui, row_height, order.len(), |ui, range| {
                 let mut pics = self.rs.map(|rs| crate::thumbs::Pics { thumbs: &mut *self.thumbs, ws: &*self.ws, rs });
                 let pictures_for = pics.as_mut().map(|p| p as &mut dyn crate::form::Pictures);
-                let mut cx = crate::form::Cx { lists: self.lists, maps: &self.ws.maps, show_all: true, compact: true, pictures: pictures_for, refs: Some(&self.ws.refs), asks: Vec::new() };
+                let mut cx = crate::form::Cx { lists: self.lists, maps: &self.ws.maps, show_all: true, compact: true, pictures: pictures_for, refs: Some(&self.ws.refs), asks: Vec::new(), said: Default::default() };
                 for id in &order[range] {
                     let Some(mut value) = self.ws.def_value(kind, id) else { continue };
                     ui.push_id(id.as_str(), |ui| {
@@ -3534,7 +3565,7 @@ impl Viewer<'_> {
         let tl = self.timelines.entry(id.to_string()).or_default();
         let mut pics = self.rs.map(|rs| crate::thumbs::Pics { thumbs: &mut *self.thumbs, ws: &*self.ws, rs });
         let pictures = pics.as_mut().map(|p| p as &mut dyn crate::form::Pictures);
-        let mut cx = crate::form::Cx { lists: self.lists, maps: &self.ws.maps, show_all: *self.show_all, compact: false, pictures, refs: Some(&self.ws.refs), asks: Vec::new() };
+        let mut cx = crate::form::Cx { lists: self.lists, maps: &self.ws.maps, show_all: *self.show_all, compact: false, pictures, refs: Some(&self.ws.refs), asks: Vec::new(), said: Default::default() };
         let (changed, ask) = tl.show(ui, &mut cx, &mut def, &self.ws.refs.targets);
         let time = tl.time;
         if changed {
@@ -3741,6 +3772,46 @@ mod ui_tests {
         shell.ws.defs_dirty = false;
         shell.leave(Leaving::Close);
         assert!(shell.leaving.is_none() && !shell.ws.project_open, "saved: closed at once");
+        editor_core::files::config_dir_here(None);
+        let _ = std::fs::remove_dir_all(base);
+    }
+
+    #[test]
+    fn the_problems_list_says_when_the_project_changed_since_its_check() {
+        let base = std::env::temp_dir().join(format!("rustpg2d-problems-outdated-{}", std::process::id()));
+        editor_core::files::config_dir_here(Some(base.join("config")));
+        let dir = base.join("game");
+        let mut shell = changed(&dir);
+        shell.ws.project.config.start_map = "nowhere".into();
+        shell.ws.history_frame(None);
+        // (The whole window: egui_dock's splitters have no names of their own. The Problems tab
+        // is shown below the documents.)
+        let mut h = Harness::builder().with_size(egui::vec2(1200.0, 800.0)).with_accessibility_check(false).build_ui_state(|ui, s: &mut Shell| s.ui(ui, None, 60.0), shell);
+        h.run();
+        h.state_mut().run("check.problems").unwrap();
+        h.run_steps(2);
+        let start_map = |h: &Harness<Shell>| h.state().ws.problems.list.iter().any(|p| p.choice() == Some(editor_core::problems::Choice::StartMap));
+        assert!(start_map(&h), "{:?}", h.state().ws.problems.list.iter().map(|p| p.line()).collect::<Vec<_>>());
+        assert!(h.query_by_label("The project changed since this check.").is_none());
+        // Mended by hand (not with the list's buttons): the list says it may be out of date.
+        h.state_mut().set_setting("/start_map", "\"start\"").unwrap();
+        h.run();
+        h.get_by_label("The project changed since this check.");
+        assert!(start_map(&h), "listed until checked again");
+        h.get_by_label("Check again").click();
+        h.run_steps(2);
+        assert!(!start_map(&h) && h.query_by_label("The project changed since this check.").is_none());
+        // A fix from the list checks again by itself: nothing said.
+        h.state_mut().set_setting("/start_map", "\"nowhere\"").unwrap();
+        h.state_mut().run("check.problems").unwrap();
+        h.run();
+        h.state_mut().ws.choose_setting(editor_core::problems::Choice::StartMap, "start").unwrap();
+        h.run_steps(2);
+        assert!(!start_map(&h) && h.query_by_label("The project changed since this check.").is_none());
+        // An undo is a change too.
+        h.state_mut().run("edit.undo").unwrap();
+        h.run();
+        h.get_by_label("The project changed since this check.");
         editor_core::files::config_dir_here(None);
         let _ = std::fs::remove_dir_all(base);
     }

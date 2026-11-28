@@ -281,4 +281,29 @@ mod tests {
         assert!(s.files().iter().any(|(p, _)| *p == "project.ron"));
         assert!(!s.pack.history.is_empty());
     }
+
+    #[test]
+    fn starter_history_covers_the_starter() {
+        use rustpg2d_engine::starter_update::{starter_bundle, StarterHistory};
+        let s = current().expect("the starter library (the source folder)");
+        let b = starter_bundle(&s.files()).unwrap();
+        let h = StarterHistory::parse(&s.pack.history).unwrap();
+        let missing = h.missing(&b);
+        assert!(missing.is_empty(), "crates/editor/assets/starter_history.ron lacks {missing:?}: run `cargo run -p rustpg2d-editor-core --example starter_history`");
+    }
+
+    #[test]
+    fn every_file_of_the_starter_belongs_to_an_asset() {
+        // An update writes an asset's own files: a file an asset uses without owning it
+        // would never reach a library that takes the starter as a pack.
+        use rustpg2d_engine::library::{all_assets, asset_files};
+        use rustpg2d_engine::starter_update::{own_files, starter_bundle};
+        let s = current().expect("the starter library (the source folder)");
+        let b = starter_bundle(&s.files()).unwrap();
+        let owned: std::collections::BTreeSet<String> = all_assets(&b.db).iter().flat_map(|a| own_files(&b.db, a)).collect();
+        let lost: Vec<String> = asset_files(&b.db).into_iter().filter(|f| !owned.contains(f)).collect();
+        assert!(lost.is_empty(), "files no asset owns (starter_update::own_files): {lost:?}");
+        let absent: Vec<&String> = owned.iter().filter(|f| !b.files.contains_key(*f)).collect();
+        assert!(absent.is_empty(), "the starter library lacks files its assets name: {absent:?}");
+    }
 }

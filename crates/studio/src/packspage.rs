@@ -188,6 +188,11 @@ impl PacksPage {
         match arg(0) {
             "" => {}
             "file" => self.open_file(ws, Path::new(&args[1..].join(" "))),
+            // (*Take the one this editor has*: the starter library looked at as a pack.)
+            "starter" => {
+                let bytes = editor_core::starter::as_file().ok_or("no starter library was found")?.map_err(|e| format!("{e:#}"))?;
+                self.look(ws, bytes, "");
+            }
             "same" => {
                 let same = match arg(1) {
                     "keep" => SameId::Keep,

@@ -32,10 +32,13 @@ pub fn def_fingerprint(db: &Database, a: &AssetRef) -> Option<u64> {
     Some(fnv(text.as_bytes()))
 }
 
-/// The files an asset owns (a sheet's image, a material's texture, a sound's file).
+/// The files an asset owns (a sheet's image, a material's texture, a sound's file, a model's
+/// files, an item's own 3D model): together, what [`crate::library::asset_files`] lists.
 pub fn own_files(db: &Database, a: &AssetRef) -> Vec<String> {
     let f = match a.0 {
         RefKind::Sheet => db.sheet(&a.1).map(|d| d.image.clone()),
+        // (An item's 3D model is a file of the item's own, not a model definition.)
+        RefKind::Item => db.item(&a.1).and_then(|d| d.model.as_ref()).map(|m| m.file.clone()),
         RefKind::Sound => db.sound(&a.1).map(|d| d.file.clone()),
         RefKind::Material => db.material(&a.1).map(|d| d.texture.clone()),
         RefKind::Font => {
@@ -152,7 +155,8 @@ impl StarterHistory {
             return false;
         }
         own_files(db, a).iter().all(|f| {
-            let Ok(bytes) = std::fs::read(root.join(f)) else { return false };
+            // (A file that isn't there wasn't changed by anyone: the update brings it.)
+            let Ok(bytes) = std::fs::read(root.join(f)) else { return true };
             h.files.get(f).is_some_and(|hs| hs.contains(&fnv(&bytes)))
         })
     }
@@ -501,6 +505,50 @@ mod tests {
         assert!(p.added.is_empty() && p.updated.is_empty());
         assert_eq!(p.edited, [a(RefKind::Item, "gem")]);
         assert_eq!(p.retired.len(), 1);
+        let _ = std::fs::remove_dir_all(root.parent().unwrap());
+    }
+
+    #[test]
+    fn an_items_own_model_file_comes_and_goes_with_the_item() {
+        use crate::defs::ItemModel;
+        let a = |k: RefKind, id: &str| (k, id.to_string());
+        let sword = |name: &str| ItemDef { model: Some(ItemModel::new("models/sword.glb")), ..item("sword", name) };
+        let with = |name: &str, model: &[u8]| {
+            let mut b = starter([255, 0, 0, 255], vec![sword(name)], "v1");
+            b.files.insert("models/sword.glb".into(), model.to_vec());
+            b
+        };
+        let (v1, v2) = (with("Sword", b"blade"), with("Sword", b"a better blade"));
+        assert_eq!(own_files(&v1.db, &a(RefKind::Item, "sword")), ["models/sword.glb"]);
+        let mut history = StarterHistory::default();
+        history.record(&v1);
+        history.record(&v2);
+        let root = std::env::temp_dir().join(format!("rustpg2d_starter_item_model_{}", std::process::id())).join("library");
+        let _ = std::fs::remove_dir_all(root.parent().unwrap());
+        std::fs::create_dir_all(&root).unwrap();
+        let mut lib = Project { root: root.clone(), config: ProjectConfig::new("Asset library"), db: Database::default() };
+        lib.save_config().unwrap();
+        // An empty library takes the starter as an update: the sword comes with its model file.
+        let p = plan(&lib, &v1, &history);
+        assert!(p.added.contains(&a(RefKind::Item, "sword")));
+        apply(&mut lib, &v1, &p, &history, &[], &[]).unwrap();
+        assert_eq!(std::fs::read(root.join("models/sword.glb")).unwrap(), b"blade");
+        assert!(plan(&lib, &v1, &history).is_empty());
+        // The model alone changed in the starter: the item is updated, its file replaced.
+        let p = plan(&lib, &v2, &history);
+        assert_eq!(p.updated, [a(RefKind::Item, "sword")]);
+        apply(&mut lib, &v2, &p, &history, &[], &[]).unwrap();
+        assert_eq!(std::fs::read(root.join("models/sword.glb")).unwrap(), b"a better blade");
+        // A model the creator replaced is theirs: asked about, not overwritten.
+        std::fs::write(root.join("models/sword.glb"), b"my own blade").unwrap();
+        let p = plan(&lib, &v1, &history);
+        assert_eq!((p.updated.len(), p.edited.as_slice()), (0, [a(RefKind::Item, "sword")].as_slice()));
+        // A model file that is missing (libraries written before this was looked after) is brought back.
+        std::fs::remove_file(root.join("models/sword.glb")).unwrap();
+        let p = plan(&lib, &v2, &history);
+        assert_eq!(p.updated, [a(RefKind::Item, "sword")]);
+        apply(&mut lib, &v2, &p, &history, &[], &[]).unwrap();
+        assert_eq!(std::fs::read(root.join("models/sword.glb")).unwrap(), b"a better blade");
         let _ = std::fs::remove_dir_all(root.parent().unwrap());
     }
 

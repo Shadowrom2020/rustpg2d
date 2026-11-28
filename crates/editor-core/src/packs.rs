@@ -844,6 +844,36 @@ mod tests {
         let _ = std::fs::remove_dir_all(dir);
     }
     #[test]
+    fn an_empty_library_takes_the_whole_starter_as_a_pack() {
+        // The real starter library, as the editor hands it out (*Take it from the editor*).
+        let dir = std::env::temp_dir().join(format!("rustpg2d-packs-whole-starter-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        for part in ["library", "game"] {
+            std::fs::create_dir_all(dir.join(part)).unwrap();
+            crate::files::create_project(&dir.join(part)).unwrap();
+        }
+        let mut ws = Workspace::new(dir.join("game"), crate::Gpu::No).unwrap();
+        ws.lib.lib = Some(rustpg2d_engine::project::Project::load(&dir.join("library")).unwrap());
+        let bytes = crate::starter::as_file().expect("the starter library (the source folder)").unwrap();
+        let said = ws.install_pack(&bytes, SameId::Keep, "").unwrap();
+        assert!(said.starts_with("Installed Starter asset library"), "{said}");
+        // Every file an asset of the library names is there: pictures, sounds, models, and the
+        // 3D models items have of their own (they were left out until 0.36).
+        let lib = ws.lib.lib.as_ref().unwrap();
+        assert!(lib.db.items.len() > 100 && lib.db.models.len() > 50);
+        let missing: Vec<String> = rustpg2d_engine::library::asset_files(&lib.db).into_iter().filter(|f| !lib.root.join(f).is_file()).collect();
+        assert!(missing.is_empty(), "the library lacks files its assets name: {missing:?}");
+        assert!(lib.db.items.iter().any(|i| i.model.is_some()));
+        // Looked at again, there is nothing more to take.
+        let p = ws.pack_preview(&bytes).unwrap();
+        assert!(p.update.as_ref().is_some_and(|u| u.is_empty()), "{:?}", p.update.map(|u| u.counts()));
+        // And a new game gets its basics from it.
+        ws.start_with_basics("From the pack").unwrap();
+        assert!(ws.project.db.character("hero").is_some());
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
     fn the_starter_library_comes_in_as_a_pack_over_what_a_library_has_of_it() {
         use rustpg2d_engine::starter_pack::StarterPack;
         let (mut ws, dir) = scratch("starter");

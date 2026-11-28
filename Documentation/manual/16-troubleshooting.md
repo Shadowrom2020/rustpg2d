@@ -15,7 +15,7 @@ path instead. On macOS a file dialog is modal: the editor waits until it closes.
 
 **Problems says the project uses SRD 5.1 content.**
 The project has races, backgrounds or stat blocks of the SRD, whose licence (CC BY 4.0) asks for an
-attribution in the game. Tick *Database › Project › Uses SRD 5.1 content*: the Credits page then
+attribution in the game. Tick *Uses SRD 5.1 content* on the *Rules* page: the Credits page then
 carries it. See [The SRD 5.1 rules](19-srd-rules.md#the-licence-what-your-game-needs).
 
 **A banner says a file could only be read in part.**
@@ -69,5 +69,8 @@ Use Ogg Vorbis or WAV at 44.1 kHz; the engine makes the loop seamless, and a tra
 multiple of 4096 samples plays exactly as it is.
 
 **My asset library didn't get the newest starter assets.**
-The library only gains assets it doesn't have yet, so your edits are never overwritten. To start over
-from the newest starter set, back up the library folder, delete it and open the editor.
+The library only gains assets it doesn't have yet, so your edits are never overwritten. Changed
+ones come as an update: the Library tab's *Packs and sources* offers the starter library's newer
+version and shows what it would change ([The asset library › Updating the
+library](11-asset-library.md#updating-the-library)). To start over from the newest starter set,
+back up the library folder, delete it and open the editor.

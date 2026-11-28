@@ -1,7 +1,7 @@
 # 9. Gameplay systems
 
 The engine brings the systems of a classic action RPG. You switch on what your game needs and fill
-it with content; most systems are set up in the Database and driven by triggers.
+it with content; most systems are set up in definitions and the game's settings and driven by triggers.
 
 ## The view
 
@@ -221,7 +221,7 @@ stays real-time ([Player's guide › Fighting](15-players-guide.md#fighting)).
 - **Battle stance and battle music**: those in a fight take their weapon's stance with a
   one-handed weapon in the hand; out of fights it hangs at the left hip (two-handed, ranged and
   long weapons such as spears, shields and tools stay in the hands). A fight crossfades the music to the **battle
-  music** (*Database › Project › Game sounds › Battle music*; a map can choose another track or
+  music** (the *Sound* page's *Battle music*; a map can choose another track or
   none in its properties) and back when it is over, with the *Victory* fanfare when enemies were
   defeated. The example plays *Steel in the Woods* (`music_battle`, in the starter library).
 - **Sneaking** (Left Ctrl / V, gamepad left stick click): the player walks at half speed and
@@ -233,7 +233,7 @@ stays real-time ([Player's guide › Fighting](15-players-guide.md#fighting)).
   roll lets them walk right up to an enemy; within three quarters of a tile (bumping into it), or
   within its blindsight or tremorsense, it always does. An enemy that notices none of the party
   when they attack while sneaking is **surprised** (see *Surprise* above). Models play their **sneak** clip
-  while sneaking (*Database › 3D models*; every playable model of the example has a creeping walk),
+  while sneaking (*Art & sound › 3D models*; every playable model of the example has a creeping walk),
   others their walk, slowed. Scripts ask `is_sneaking()`; `status` prints
   `sneak=on|off:light…:sight10=…[:stealth=ROLL]`. In the example a sign on the way to the bandits' camp in
   Whisperwood hints at a night approach.
@@ -250,7 +250,7 @@ stays real-time ([Player's guide › Fighting](15-players-guide.md#fighting)).
 
 ## Experience and levels
 
-Optional: *Database › Project › Experience and levels*. Defeated characters give the XP set in their
+Optional: *Experience and levels* (the *Hero & party* page). Defeated characters give the XP set in their
 definition, completed quests their *Experience reward*. Levels follow the SRD's experience table, up
 to the project's *Highest level* (20 at most):
 
@@ -286,7 +286,7 @@ condition; scripts `give_xp(n)`, `xp()` and `level()`.
 ## Classes and levels
 
 The SRD's twelve **classes** (barbarian, bard, cleric, druid, fighter, monk, paladin, ranger, rogue,
-sorcerer, warlock, wizard) are definitions (*Database › Classes*,
+sorcerer, warlock, wizard) are definitions (*Characters › Classes*,
 [Characters › Classes](06-characters.md#classes)) with their subclass, hit die, saving throws,
 proficiencies, skills to choose, starting equipment and their features from level 1 to 20. The
 character creator offers them on its *Class* step (with level 1's choices and spells, and the
@@ -389,8 +389,7 @@ a class at their level, and
   die, and the class's features first in *Features and traits* (their text below the list), those
   with uses with the uses left (*Rage 2/3*).
 
-**Party members** have a class too: a character's *Class* and *level* in its form (*Database ›
-Characters*), or given when it joins (*Set class*, `set_class("finn", "ranger", level())`). A party
+**Party members** have a class too: a character's *Class* and *level* in its form, or given when it joins (*Set class*, `set_class("finn", "ranger", level())`). A party
 member with a class fights with a stat block made from it: its ability scores, the class's hit
 points at its level, armor class from its equipment or the class's unarmored defense, attacks with
 its weapon (proficiency + modifier, its fighting style, extra attacks). It gets its share of the XP,
@@ -430,7 +429,7 @@ condition off: the cave troll's blow knocks prone only when a STR save against D
 theirs with their [stat block](06-characters.md#stat-blocks) (the roll log shows them, "Guard: CON
 save").
 
-**Where they come from**: weapons **on hit**, hostile characters' melee hits (**On touch**, Database), and
+**Where they come from**: weapons **on hit**, hostile characters' melee hits (**On touch**, in their forms), and
 potions, traps and scripts with the *Apply condition* / *Remove condition* actions, or
 `apply_condition` / `remove_condition`. Applying a running condition keeps the longer duration;
 exhaustion adds a level. The status frame shows a badge per condition with the seconds left
@@ -493,7 +492,7 @@ The SRD's *Using Ability Scores* away from fights (since 0.32):
 ## Survival and travel
 
 The SRD's *Adventuring* rules for the road (since 0.32). Carrying always counts; food and water and the
-forced march are options of *Database › Project › Rules* (*Survival and travel*), off in the example.
+forced march are options of the *Rules* page (*Survival and travel*), off in the example.
 
 - **Carrying.** Everything in the bag and everything worn or held weighs what its item form says
   (*Weight*, in pounds; the SRD's items have theirs). The purse weighs nothing: it holds a value, not
@@ -559,7 +558,7 @@ with what is simplified and what the licence asks of your game.
 an SRD race (or subrace) with its ability increases, speed, size, darkvision, languages,
 resistances and traits ([Races](06-characters.md#races)), base scores by the standard array, point
 buy or 4d6, the race's choices and a [background](06-characters.md#backgrounds). Without the
-creator, the scores and proficiencies come from *Database › Project › Rules* (the standard array
+creator, the scores and proficiencies come from the *Rules* page (the standard array
 15 14 13 12 10 8 by default) and the player character's race. Players see them on the **Sheet**
 tab of the character window (K), laid out like an SRD character sheet:
 
@@ -606,8 +605,8 @@ rules › What is simplified](19-srd-rules.md#what-is-simplified).
 ### Converting a project of 0.27 or older
 
 Until 0.27 a skill tree (skill points bought levels of skills such as Lockpicking or Haggling) did
-this. The editor converts a project once when it opens it, after keeping a copy beside it
-(`<name>-backup-srd`):
+this. R(ust)PG2D 0.35 converts such a project once when it opens it (this editor opens projects
+of 0.35 and later), after keeping a copy beside it (`<name>-backup-srd`):
 
 - Each skill becomes an SRD proficiency, by its effect (*Lockpick* = Thieves' Tools, *Haggle* =
   Persuasion, *Sneak attack* = Stealth, *Gathering* = Athletics) or by its name (Arcana; Smithing =
@@ -626,12 +625,12 @@ this. The editor converts a project once when it opens it, after keeping a copy 
 
 ## Spellcasting
 
-Spells are the **SRD 5.1's** (since 0.30): *Database › Spells*, the starter library's 159 that act
+Spells are the **SRD 5.1's** (since 0.30): *Rules › Spells*, the starter library's 159 that act
 in play, with their texts ([Asset library › The SRD 5.1 data](11-asset-library.md#the-srd-51-data)). The
 casting classes (bard, cleric, druid, paladin, ranger, sorcerer, warlock, wizard) cast them with
 **spell slots** by their class level (the class's table); a spell of level 1 to 9 takes a slot of
 its level or higher, a **cantrip** (level 0) none and grows with the caster's level. Mana is gone:
-projects of 0.29 and older are converted when the editor opens them (with a backup): their spells
+projects of 0.29 and older were converted when a 0.35 editor opened them (with a backup): their spells
 become SRD spells of level 1 (a bolt a cantrip) that every casting class has.
 
 - **Knowing and preparing**: a bard, ranger, sorcerer and warlock **know** the spells their
@@ -776,7 +775,7 @@ the spell when its class lists it.
 
 Weapons, armor, tools and coins are the **SRD 5.1's** (since 0.31): the starter library has all 237
 items of its equipment list ([Asset library › The SRD 5.1 data](11-asset-library.md#the-srd-51-data))
-with their costs, weights and rules, and the item form edits them ([Database ›
+with their costs, weights and rules, and the item form edits them ([Definitions ›
 Items](05-database.md#items)).
 
 - **Weapons** are *simple* or *martial*; a hero proficient with the category (*simple-weapons*,
@@ -841,7 +840,7 @@ room for 5 sp and the stone house costs 100 gp, paid from any coins.
 
 ## Magic items
 
-The SRD 5.1's **magic items** (since 0.31) are items with a *Magic item* section ([Database ›
+The SRD 5.1's **magic items** (since 0.31) are items with a *Magic item* section ([Definitions ›
 Items](05-database.md#items)). The starter library has all of them
 ([Asset library › The SRD 5.1 data](11-asset-library.md#the-srd-51-data)); about half work by the
 rules, the others (a flying carpet, the Deck of Many Things) are **story items** whose effect is
@@ -893,7 +892,7 @@ the farm holds a **Ring of Protection**, and the hidden hoard in the mine a **+1
 
 One bar at the bottom of the screen for everything the hero does (since 0.32; it replaced the quick
 bar). **In a fight** it is the turn's bar ([Health and combat](#health-and-combat)). **Outside fights**
-it shows the project's entries (*Database › Project › Menus › Action bar*; built in:
+it shows the project's entries (the *Title & menus* page's *Action bar*; built in:
 Use, Cast, Class, Search, Rest, Sneak, Party):
 
 - **Use**: the usable items in the bag (consumables, items with *Use* triggers, scrolls, items that
@@ -908,7 +907,7 @@ Use, Cast, Class, Search, Rest, Sneak, Party):
   total). In the example a night search can still find the lost coins by the forest plaza, and the
   mine's lower chamber hides a stash (DC 15).
 - **Rest**: *Short rest* (the hit dice window) or **Make camp**: a long rest anywhere, the night's
-  sleep of 8 hours, with the **camp item** in the bag (*Database › Project › Rules › Camp item*, the
+  sleep of 8 hours, with the **camp item** in the bag (the *Rules* page's *Camp item*, the
   SRD's `bedroll` by default, by item id or SRD id; empty = nothing needed), no enemies near and no
   fight. The long rest's rules apply (one in 24 hours, food and water), and the map's *Woke up*
   triggers fire as after a bed.
@@ -925,7 +924,7 @@ the bar: Left / Right choose, Confirm opens, Cancel leaves. The quick bar of 0.3
 
 ![The character window](../images/game-character.webp)
 
-- The **inventory** has as many slots as *Database › Project › Inventory slots* says; each item has
+- The **inventory** has as many slots as *Inventory slots* on the *Hero & party* page says; each item has
   a stack size. The character window (C or I) shows it next to the character sheet: the player's
   figure in the current gear with the equipment slots around it where things are worn (head, body
   armor, right hand and tool on the left, as the figure faces you; backpack, clothing and left hand
@@ -958,7 +957,7 @@ comes along when you add the fisher or the baker from the asset library.
 
 ![The crafting window at an alchemy table](../images/game-crafting.webp)
 
-**Recipes** (*Database › Recipes*) turn ingredients into an item:
+**Recipes** (*Items › Recipes*) turn ingredients into an item:
 
 | Setting | Meaning |
 |---|---|
@@ -989,7 +988,7 @@ with three logs beside it waits by the forest path.
 
 ## Gathering and mining
 
-A prop can be **gathered** (*Database › Props › Gathering*): with a tool kind (e.g. `pickaxe`, or bare
+A prop can be **gathered** (a prop's *Gathering*): with a tool kind (e.g. `pickaxe`, or bare
 hands) the player presses E or swings at it. After its number of hits (a progress bar shows it, chips
 fly) its loot table rolls and it switches to its *used up* state. **Regrows** turns the state back after some in-game hours, also while the
 player is elsewhere, so a mined-out vein refills and a picked bush grows back.
@@ -1014,7 +1013,7 @@ drawn as map tiles can't be felled: only tree props can.
 
 ## Farming
 
-A prop marked **Farm plot** (*Database › Props*) takes seeds: items with a **Seed** section (growth
+A prop marked **Farm plot** (a prop's form) takes seeds: items with a **Seed** section (growth
 stages with a sprite and in-game hours each, the last one ripe, and the harvest). E on an empty plot
 plants the first seed the player carries (or use a seed while facing a plot); E on a growing crop
 says how long it still needs; E on a ripe one harvests it. Crops grow while the player is away too,
@@ -1022,7 +1021,7 @@ half again as fast while it rains on their map.
 
 ## Fishing
 
-A **Fishing spot** zone covers the water where the fish are. In the inspector: the item needed
+A **Fishing spot** zone covers the water where the fish are. In the Inspector: the item needed
 (e.g. a fishing rod) and the **catch** table (chances are weights; every fish landed gives one
 entry). Fish shadows glide through the zone now and then, also in the editor, so players see where to
 fish.
@@ -1033,7 +1032,7 @@ letting go before the tension turns red, or the line snaps.
 
 ## Objects
 
-Props with object statistics (*Database › Props › Object*, since 0.32: the starter library's doors,
+Props with object statistics (a prop's *Object*, since 0.32: the starter library's doors,
 chests and crates) are the SRD's objects:
 
 - **Breaking**: Attack (X) outside fights swings at the one in front: the hero's melee attack roll
@@ -1052,7 +1051,7 @@ chests and crates) are the SRD's objects:
 
 ## Traps
 
-Trap zones (*Map › Zones › Trap*) and trapped props (*Database › Props › Trap*) are the SRD's traps
+Trap zones (the Zones tool's *Trap*) and trapped props (a prop's *Trap*) are the SRD's traps
 (since 0.32):
 
 - **Noticing**: within 2 tiles the hero notices a trap when their passive Perception (10 + the
@@ -1088,7 +1087,7 @@ Trap zones (*Map › Zones › Trap*) and trapped props (*Database › Props ›
 
 ## Poisons
 
-Items with a *Poison* section (*Database › Items*, since 0.32) are the SRD's poisons; the starter
+Items with a *Poison* section (an item's form, since 0.32) are the SRD's poisons; the starter
 library has all of them (the basic vial, Assassin's Blood, Burnt Othur Fumes, Crawler Mucus, Drow
 Poison, Essence of Ether, Malice, Midnight Tears, Oil of Taggit, Pale Tincture, Purple Worm Poison,
 Serpent Venom, Torpor, Truth Serum, Wyvern Poison) and the Potion of Poison:
@@ -1221,7 +1220,7 @@ character's `orc>owl:1/1`; `-`) and `summons=` (`dire-wolf:37/37:3600s`, `owl:1/
 
 ## Diseases
 
-Diseases (*Database › Diseases*, since 0.32) are the SRD's; the starter library has Cackle Fever,
+Diseases (*Rules › Diseases*, since 0.32) are the SRD's; the starter library has Cackle Fever,
 Sewer Plague, Sight Rot and Rat-Bite Fever (the diseased giant rat's):
 
 - **Catching**: a monster's attack with a disease (a failed save against its bite), *Expose to
@@ -1250,7 +1249,7 @@ Sewer Plague, Sight Rot and Rat-Bite Fever (the diseased giant rat's):
 
 ## Lockpicking
 
-A lock with a **Pick DC** (*Database › Props › Lockable*, or a placed prop's lock) can be picked:
+A lock with a **Pick DC** (a prop's *Lockable*, or a placed prop's lock) can be picked:
 E on it without the key rolls a DEX (Thieves' Tools) check against the DC, proficiency in
 Thieves' Tools adding the bonus. On a success the lock opens (a chest then opens too); on a
 failure the same lock can be tried again after ten minutes of game time ("The lock won't give. Try
@@ -1267,7 +1266,7 @@ In the example, the **Locked Chest** by the river near the farm (DC 12) holds co
 
 ## Doors
 
-Props marked **Door** (*Database › Props*) open and close with E. A door with a lock stays shut
+Props marked **Door** (a prop's form) open and close with E. A door with a lock stays shut
 until it is opened with its key (kept, unless the lock uses it up) or picked
 ([Lockpicking](#lockpicking)); a picked door then opens and closes freely, and with the key closing it
 locks it again ("Locked with the Room Key."). Nobody can be shut in: a door doesn't close on the
@@ -1286,7 +1285,7 @@ lockpick.
 
 ## Furniture: sitting and sleeping
 
-*Database › Props › Furniture* makes a prop sittable or a bed: a pose (*Sit*, *Lie*, *Stand*), the
+a prop's *Furniture* makes a prop sittable or a bed: a pose (*Sit*, *Lie*, *Stand*), the
 spot where the user's feet go (with a preview), the way they face (a chair per direction; for beds
 the side the head is on), for beds the hour sleep lasts until, a **cover** sprite drawn over the
 user (a blanket, a chair's backrest), and optional conditions with a refusal text (a paid inn room).
@@ -1308,7 +1307,7 @@ A map can be one of the player's **homes**: a quest, a trigger or a script makes
 `set_home("stone_house", true)` (`is_home(map)` asks; [Scripting](08-scripting.md)). It is saved with
 the game.
 
-Items with **Places prop** set (*Database › Items › Furniture*) are furniture. Used from the
+Items with **Places prop** set (an item's *Furniture*) are furniture. Used from the
 inventory in a home, the item becomes its prop on the free tile in front of the player: not on
 walls, doors (portals, transitions) or arrival points, not over another entity, the player or a
 solid decoration. Props wider or deeper than a tile reach away from the player. Elsewhere the game
@@ -1320,7 +1319,7 @@ it up gives the item back; a chest with something in it has to be emptied first.
 an ordinary prop otherwise: its states, a chest's contents and its triggers work as on a prop placed
 in the editor, and it stays where it was put, in save games too.
 
-Props that **lie flat on the ground** (rugs, *Database › Props*) are drawn under everything and are
+Props that **lie flat on the ground** (rugs, a prop's form) are drawn under everything and are
 judged by their picture: a rug may go under a table, a chair or the player, but not onto another
 rug; a table or chair may then be placed on it. E takes what stands on a rug before the rug.
 
@@ -1333,7 +1332,7 @@ the sawhorse or bought from Tilda.
 
 Characters show how they feel with a small icon over their head
 ([Events › Emotions over heads](07-events.md#emotions-over-heads)). With *Automatic emotions* on
-(*Database › Project*, on by default) they also do it by themselves: an enemy shows **surprise** when
+(the *Look & feel* page, on by default) they also do it by themselves: an enemy shows **surprise** when
 it notices you, **confused** when it lost you and **fear** when it flees; villagers asleep in bed
 show **sleepy**; a companion who learns a spell shows **joy**. The emotions come from the project's
 *Emotions* sprite sheets (the starter library's `emotions`); a project without one shows none.
@@ -1342,7 +1341,7 @@ show **sleepy**; a companion who learns a spell shows **joy**. The emotions come
 
 ![Emberbrook's market at night](../images/game-night.webp)
 
-The clock runs on: *Database › Project* sets the **day length** (real minutes per in-game day,
+The clock runs on: the *World* page sets the **day length** (real minutes per in-game day,
 default 24; 0 stands still) and the hour new games start at. The clock counts days (sleeping and
 midnight move it on), and save games keep it. On outdoor maps the game shows the time. The *Set time
 of day* action, the *Time of day* condition, the *Time reached* event and the scripts `hour()`,
@@ -1402,7 +1401,7 @@ scripts use `used_item()`, `self_name()` and `is_consumable(item)`
 The **journal** (J) has four tabs:
 
 - **Quests**: active quests (newest first) and finished ones, with who gave them, the description,
-  the rewards and the objectives reached so far ([The Database › Quests](05-database.md#quests)).
+  the rewards and the objectives reached so far ([Definitions › Quests](05-database.md#quests)).
 - **Bestiary**: every kind of character the player has defeated, how many, a portrait, the
   definition's *Description*, its numbers and drops. The *Defeated count* condition and
   `defeated_count("giant-rat")` make "defeat ten giant rats" quests without a script.
@@ -1412,7 +1411,7 @@ The **journal** (J) has four tabs:
 
 ### Quest markers
 
-A quest stage that leads somewhere (*Database › Quests*, *leads to*) shows the way while it is
+A quest stage that leads somewhere (*Story › Quests*, *leads to*) shows the way while it is
 current, for every active quest:
 
 - a golden marker bobs over the target (a character's head, a prop, the middle of a zone) when it
@@ -1433,7 +1432,7 @@ the raided cart, Bram, Wren, Pip, Brom, Halvar's locket and the elven herbalist 
 
 ## Achievements
 
-*Database › Achievements*: a name, description, icon, *Hidden* (shown as "???" until unlocked) and
+*Story › Achievements*: a name, description, icon, *Hidden* (shown as "???" until unlocked) and
 the conditions that unlock it, checked twice a second while playing (quests, flags, variables,
 defeated counts, level, items, a script…). Achievements without conditions are unlocked by the
 **Unlock achievement** action or `unlock_achievement(id)`. An unlock shows a toast.

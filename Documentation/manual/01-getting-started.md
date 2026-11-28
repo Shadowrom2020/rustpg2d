@@ -80,7 +80,7 @@ and says so in the status bar.
 
 The example is a complete small game, built with the same editor you have, and the best way to see
 how things are done. Open it, press **F6** to play from the start, and then look at how it's made:
-select the villagers to see their schedules, open *Database › Quests* and *Database › Scripts*, and
+select the villagers to see their schedules, open *Story › Quests* and *Database › Scripts*, and
 switch to the *Events* view to see what each map's triggers do.
 
 What you'll find in it:

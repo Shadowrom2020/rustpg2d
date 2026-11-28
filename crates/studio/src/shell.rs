@@ -1331,6 +1331,15 @@ impl Shell {
                 Err(e) => Err(e),
             };
         }
+        // (In the window closing the project asks about what isn't saved, offers the clean-up
+        // and puts the window back to the start, as *Close this project* does.)
+        if line.trim() == "file.close_project" {
+            if !self.ws.project_open {
+                return Err("no project is open".into());
+            }
+            self.leave(Leaving::Close);
+            return Ok(if self.leaving_asks() { "Asked first: there is something to answer".into() } else { "Closed the project".into() });
+        }
         // (In the window the events graph is a tab.)
         if line.trim() == "map.graph" {
             let Some(map) = self.ws.doc.as_ref().map(|d| d.map.name.clone()).filter(|m| !m.starts_with('@')) else { return Err("no map is open".into()) };

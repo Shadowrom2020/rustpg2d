@@ -803,7 +803,8 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     wait meanwhile); on macOS the dialog is modal. A scripted run and a test never open one:
     `pickanswer PATH` (`pick::answer_next`) says what the next answers.
   - **Unsaved changes are asked about** (2026-11-28, STUDIO_PLAN.md task 1): closing the
-    window, *Close this project*, opening or making another project with something unsaved
+    window, *Close this project* (and *File › Close project*, which before closed the project
+    under the open tabs without asking), opening or making another project with something unsaved
     (definitions, maps, scripts, painted pictures, a translation table) shows *There are changes
     that aren't saved* (a modal: `Shell::leave` with a `Leaving`, `leaving_ui`): **Save and go
     on**, **Don't save** (what isn't saved is dropped, the files stay as they were), **Stay**

@@ -30,35 +30,38 @@ pick), and
 fonts: **monogram** (the example's pixel font: Latin, Cyrillic, Greek) and **Fusion Pixel** in its
 Japanese, Korean, Simplified and Traditional Chinese forms (each covers all of Chinese, Japanese and
 Korean; the forms differ in how some characters are drawn), and three UI skins: **Wood** (the
-example's), **Stone** and **Classic** (the built-in look, to copy) ([Database › UI
+example's), **Stone** and **Classic** (the built-in look, to copy) ([Definitions › UI
 skins](05-database.md#ui-skins)).
 
 When a newer starter library (installed with a newer editor) brings more assets, the library adds
-the ones it doesn't have yet the next time it's opened. Changed assets (redrawn art, new animations, better values) wait for you:
+the ones it doesn't have yet the next time it's opened. Changed assets (redrawn art, new animations,
+better values) wait for you:
 
 ### Updating the library
 
-*Assets › Update asset library…* (in the Asset Library window: *File › Update from the starter
-set…*) compares your library with the starter set of this R(ust)PG2D version. A banner offers it
-when a new version brings changes. The window lists:
+The starter library is a **pack** like any other ([Packs](#packs)): the Library tab's *Packs and
+sources* offers it while the library doesn't list it as one yet (*Take the one this editor has*, or
+*Download it*: the file of this editor's version, checked against the release's checksums), and
+afterwards a newer version of it like any newer pack. What a newer version would do is shown before
+anything is done:
 
 - **New**: assets your library doesn't have; they are added.
 - **Updated**: newer versions of assets you never changed; they are replaced (definition,
   picture or sound, and the script functions they need).
-- **Changed by you and in the starter set**: assets you edited that the new version changed too.
-  Your version stays unless you tick it.
-- **No longer in the starter set**: assets earlier versions had and this one dropped. Ticked ones
-  are deleted (with pictures nothing else uses). Assets you changed start unticked; one that
-  other assets in your library still use can't be deleted (*used by …*).
+- **Changed by you and in the pack**: assets you edited that the new version changed too. Your
+  version stays unless you tick it.
+- **No longer in the pack**: assets earlier versions had and this one dropped. Ticked ones are
+  deleted; one that other assets in your library still use isn't offered.
 
-*Update* first copies the whole library folder to `library.bak-YYYYMMDD-HHMMSS` next to it, then
-applies your choices and shows what it did. Script functions in `scripts/library.rhai` you changed
-yourself are kept. Your projects aren't touched: they keep the assets they took from the library
-until you add the new versions again (*Add from library*).
+Before anything is replaced the whole library folder is copied beside itself
+(`<folder>.bak-…`); what was done names the copy. Your projects aren't touched by it: *In this
+project* on the same side then lists the project's assets that are older than the library's and
+updates them, as one step (what you changed in the project stays unless ticked).
 
-How it tells your edits from older starter versions: the editor knows every version of every
-starter asset it ever shipped (`crates/editor/assets/starter_history.ron`); an asset that matches
-one of them was never changed by you.
+How it tells your edits from older versions: the library keeps what each version of a pack shipped
+(`packs/<id>/history.ron`; for the starter library the editor knows every version it ever shipped,
+`crates/editor/assets/starter_history.ron`); an asset that matches one of them was never changed by
+you.
 
 The library lives in `~/.local/share/rustpg2d/library` (Windows: `%LOCALAPPDATA%\rustpg2d\library`;
 macOS: `~/Library/Application Support/rustpg2d/library`). `RUSTPG2D_LIBRARY` moves it. The installed
@@ -66,56 +69,51 @@ starter asset library is the file `starter/starter-library.r2dlib` beside it.
 
 ## Taking assets into a project
 
-**Add from library…** is everywhere you need it: in every Database asset tab, next to the map's
-materials of the Ground tool, the structures palette and the entities palette, and in *Assets › Add from
-library…* (all kinds). The dialog shows the library's assets as cards with thumbnails:
+The **Library tab** (*Asset library* under *Game* in the Project browser) shows what the library
+holds, by kind with how many of each (*All*, *Characters*, *Items*…), searched, with pictures; what
+the project has already is marked (a click opens the project's one). Tick what you want and **Add N
+to the project**: they come with **everything they need** (their sprite sheets, ammunition, keys,
+sounds, models and script functions), as one step of the history. Assets already in the project
+with identical content are reused; an id or file name taken by something different gets a `_2`
+suffix, and all references follow.
 
-- Click cards to pick one or more (*Pick all shown*, search; for items also their category, as in the
-  Database: [Working with definitions](05-database.md#working-with-definitions)). Assets the project already has are
-  marked *in project*, and a line lists what the picks bring along.
-- **Add N to project** (or a double-click) copies them in, **with everything they need**: their
-  sprite sheets, ammunition, keys, sounds used by their triggers, and script
-  functions.
-- Assets already in the project with identical content are reused. An id or file name taken by
-  something different gets a `_2` suffix, and all references follow.
+A single asset also comes in from *New…* (*as one of the asset library*), and a problem about
+something missing offers *Take it from the library* when the library has it.
 
 ## Putting assets into the library
 
-In a project, the Database's **Add to library** sends the selected definition (with everything it
-needs) to the library; **Export…** writes it into a package file instead. Library assets are always
-used as last saved.
+**Send to library** in a definition's header sends it (with everything it needs) to the library;
+**Share…** writes it as a pack file instead ([Packs](#packs)). Library assets are always used as
+last saved. To work on the library's own assets, open its folder as a project (*Open a project* ›
+*A folder…*).
 
-## The Asset Library window
+## Packs
 
-![The Asset Library window with its characters](../images/editor-library.webp)
+A **pack** (`.r2dpack`) is the one way to share assets with other creators: a file with a title, a
+version, who made it, a licence and a credit line, pictures of what it holds, and its assets,
+script functions and plugins. The Library tab's **Packs and sources** side:
 
-The **Asset Library** tab (or *Assets › Asset Library window…*) opens the library in **its own
-window**, a second editor working on the library. It has three views:
+- **A pack file** (*From a file…*, or dropped on the window) or one from a source is **shown before
+  anything is installed**: what it holds, what in it runs (script functions, plugins), how much is
+  new to the library, there as it is, or there under the same id but different, and for those the
+  choice (replaced by the pack's, kept, or brought in as copies). The packs it needs that aren't
+  installed are named.
+- **Installed packs** are listed with what they brought and where from.
+- **Sources**: a web address or a folder of packs with its index (*Add source*); each pack it offers
+  can be installed or updated (downloaded, checked against its size and SHA-256, then shown as
+  above).
+- **Share…** in a definition's header (or *Packs › Share as a pack* for several) writes them as a pack,
+  with what they need, into a folder, and lists it in the folder's `index.ron`: the folder is a
+  source as it is, or uploaded anywhere.
 
-- **Browse**: every asset as a card (filter by kind, items also by category, search, click to select). *Edit* or a
-  double-click opens it in the Edit view; *New character…* and *New asset…* create assets in the
-  library; *Import package…* adds a `.r2dpack`; *Export package…* writes the selection to share;
-  *Remove from library…* asks first and refuses to remove things other library assets still use.
-- **Edit**: the Database forms (Items, Props, Characters, Materials, Scatter sets, Sprite sheets,
-  Sounds, Structures) on the library's own definitions, with *Edit pixels*, *Rename…* and *Delete…*. Save
-  with Ctrl+S.
-- **Pixel editor**: draw and fix library images in place.
-
-When the main editor puts something into the library while the window is open, the window reloads by
-itself; if it has unsaved edits, a banner offers *Reload* or *Keep mine*.
-
-## Packages
-
-A **`.r2dpack`** file is a zip with a manifest and the files of some assets: the way to share assets
-with other creators. *Export package…* (library) or *Export…* (Database) writes one; *Import
-package…* (library) or *Assets › Import asset package into project…* reads one. Packages made for
-16-pixel tiles are enlarged to 32 pixels on import.
+An asset taken from a pack remembers it, and the Publishing page lists the packs in the game with
+their licences and credit lines, to put into the game's credits ([Publishing](14-publishing.md)).
+Asset packages, plugin files and starter library files of 0.35 are read as packs too.
 
 ## Plugins
 
 The library also keeps **plugins** (its `plugins/` folder): add-ons a project uses without copying
-them in ([Plugins](18-plugins.md)). A project's *Assets › Plugins…* window adds them (*Add from
-library*) and sends its own there (*Send to library*). The starter library brings four: a calendar,
+them in ([Plugins](18-plugins.md)). The *Scripts & plugins* page adds them to a project. The starter library brings four: a calendar,
 hard mode, a minimap and damage-number styles ([The starter plugins](18-plugins.md#the-starter-plugins)).
 A newer starter set updates the library's copies of them unless you changed one without raising
 its version.
@@ -166,20 +164,16 @@ The starter library is marked *Uses SRD 5.1 content* and carries `SRD-5.1-ATTRIB
 ```sh
 git clone https://github.com/5e-bits/5e-database /tmp/5e-database
 git -C /tmp/5e-database checkout a6212beb4b278917c2cff41c2b04c4ef4f3e0d6f
-cargo run -p rustpg2d-editor --example srd_import -- /tmp/5e-database [library or project folder]
+cargo run -p rustpg2d-editor-core --example srd_import -- /tmp/5e-database [library or project folder]
 ```
 
 ## Scripted assets
 
 Spells with a *Script* effect, and items, props and characters whose triggers run scripts,
-need their script functions. *Add to library* and *Export…* then open a **Script functions** dialog:
-
-- the functions the assets need are ticked: the spell's function and everything it calls or passes on
-  (`aim("…")`, `fly(…, "…")`, `then_call("…")`), each with what needs it; hovering shows the code;
-- other functions of the project are unticked and only copied if you tick them;
-- unticking a needed function shows a warning; a call to a function no script defines is listed in
-  red;
-- sprite sheets, sounds and items the functions use by id come along.
+need their script functions. *Send to library* and *Share…* take them along: the asset's function
+and everything it calls or passes on (`aim("…")`, `fly(…, "…")`, `then_call("…")`), and the sprite
+sheets, sounds and items the functions use by id. A pack says what in it runs before it is
+installed.
 
 In the library the functions live in `scripts/library.rhai`. Adding such an asset to a project
 appends its functions to the project's `scripts/library.rhai`; functions the project already has are

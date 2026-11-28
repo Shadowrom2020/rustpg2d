@@ -1833,7 +1833,10 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     them what it wears and holds: a box per slot with the item's picture (weapon, left hand,
     head, body, clothing, backpack; *More slots* for a tool, ammunition and what is worn
     besides); a click offers the items that go there as cards, searched, and *Nothing*; the
-    figure wears and holds it at once.
+    figure wears and holds it at once. **Start from…** (2026-11-28, STUDIO_PLAN.md task 10):
+    the project's other characters as cards with their figures, searched; the one clicked
+    lends its look (model, pieces, colours: the `Appearance`) as one step, nothing else
+    (0.35's chooser also copied the equipment and offered the library's characters).
   - **A new thing can start as an asset of the library** (*New…*, the third way beside
     *blank* and *a copy*; `Workspace::make_from_library`, command `defs.make KIND library:ID
     NAME`): the library's assets of that kind are listed, searched; the one picked comes
@@ -1956,7 +1959,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   features marked on the model; a sound's volume and loop points set by ear; of structures: a house of the Build
   tool saved as one from the tool itself; of the character workshop: rules,
   day, talk, shop and loot as parts of one document (they are sections of the form below),
-  *Start from…* another character; presets that are more than
+  *Start from…* a character of the asset library; presets that are more than
   one asset (a *Merchant* with a shop and a schedule to fill in), pictures in the rows of the
   library's list in *New…* and on the Library tab (the one picked has one); of the pixel editor an area selected and
   moved, a frame added to a sheet, the wheel zooming at the pointer, a material's texture
@@ -2199,6 +2202,13 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     In the window: the guard with his spear, five slots and two colour features; without
     headwear (his helmet stays: he wears one as equipment, which takes the slot) and in
     green, striking seen from the left; the cards of the project's figures.
+  - *Start from…*: in `a_characters_pieces_colours_and_model_are_picked`, the elder's card
+    found by searching (the guard himself isn't offered), clicked: the guard's look is the
+    elder's, one step *Change the look of Town Guard*; `char from elder` the same; `char from
+    guard` refused. In the window on a scratch copy: the villager's tab, *Start from…*,
+    "guard" typed (Town Guard and its female version, with pictures), Town Guard clicked:
+    `model=guard`, its own clothes still worn; `edit.undo` "Undid: Change the look of
+    Villager": `model=villager` again.
 
 - [~] Part 9: Library and sharing — `feature/studio`
 
@@ -2723,7 +2733,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   | Sounds played | the sound's tab | there |
   | 3D models: import, animations' clips, rig templates, check | model workshop; more clip files and clips taken from another model (2026-11-28) | partly (joints moved by hand) |
   | An item's 3D model: imported, its hold point and front set, shown in the hand, its icon rendered | the item workshop at the top of an item's tab (2026-11-28): the hero holding it, standing, walking, striking; *From a file…*, *Find where it is held*, *Other end*, *Turn the handle*, *Turn the front*, how it is held, its length, where along it the hand is, *Render its icon* | there |
-  | Character editor: model, pieces, colours, equipment, random colours, new from a model / a file / Meshy | character workshop, *New…*, Generate art | partly (*Start from…* another character) |
+  | Character editor: model, pieces, colours, equipment, random colours, new from a model / a file / Meshy | character workshop, *New…*, Generate art; *Start from…* another character of the project (2026-11-28) | there (a library character's look: *New…* from the library) |
   | Props: pictures, states, hitbox, light, building shape | prop workshop + form | partly (a building's ridge and openings by numbers) |
   | Generate art (Meshy), its settings and budget | the Generate art page | there |
   | Import… Tiled maps, Aseprite sheets | — | removed (the maintainer, 2026-11-28); their code leaves with the old editor (part 11), their sections with the manual's rewrite |

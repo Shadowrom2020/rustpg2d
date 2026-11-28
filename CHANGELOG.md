@@ -146,6 +146,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   Place and Terrain tools; the Problems tab says what the check looks for before it ran and
   that nothing was found after; the Place tool and the World view say what to do when there
   is nothing to place or only one map.
+- **A character starts from another one's look** (part 8): *Start from…* in the character
+  workshop lists the project's characters with their pictures; a click gives this character that
+  one's model, pieces and colours, as one step.
 - **Regions of a map copied with their ground** (part 6): Alt+drag with the Select tool selects
   a rectangle of tiles; Ctrl+C, Ctrl+X and Ctrl+V copy, cut and paste it with its painted ground,
   scenery, blocked tiles and what stands in it, on the same map or another, as one step.

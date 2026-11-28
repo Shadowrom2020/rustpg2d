@@ -489,7 +489,9 @@ things stays as it is (no ground). `mapact copy` / `paste` are the script's word
 **Check.** Core test: paint a 3 x 3 patch, select the region, copy, paste elsewhere, the ground
 is there and undo takes it away in one step. In the window with `mapdrag` and `mapact`.
 
-### - [ ] Task 10 (S): a character starts from another one
+### - [x] Task 10 (S): a character starts from another one
+
+Done 2026-11-28. Only the project's characters are offered (0.35 also offered the library's, and copied the equipment: the plan says the look and nothing else).
 
 **Read first.** `crates/studio/src/charshop.rs` (*Change…* and the model cards),
 `crates/editor/src/models.rs` (0.35's template chooser: what it copied: model, colours, pieces).

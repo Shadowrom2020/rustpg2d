@@ -39,11 +39,14 @@ pub struct CharStage {
     item_search: String,
     /// The slots of worn magic items, tool and ammunition are shown too.
     pub more: bool,
+    /// *Start from…*: the project's other characters are shown, to take the look of one.
+    pub starting: bool,
+    from_search: String,
 }
 
 impl Default for CharStage {
     fn default() -> CharStage {
-        CharStage { facing: Facing::Down, turning: true, anim: 1, choosing: false, search: String::new(), slot: None, item_search: String::new(), more: false }
+        CharStage { facing: Facing::Down, turning: true, anim: 1, choosing: false, search: String::new(), slot: None, item_search: String::new(), more: false, starting: false, from_search: String::new() }
     }
 }
 
@@ -149,7 +152,8 @@ impl CharStage {
     }
 
     /// The script's words: `model ID`, `part SLOT ID|-|own`, `color FEATURE RRGGBB|-`, `random`,
-    /// `wear SLOT ITEM|-`, `face front|left|back|right|turn`, `anim walk|idle|attack|hurt`.
+    /// `from CHARACTER` (its look: model, pieces, colours), `wear SLOT ITEM|-`,
+    /// `face front|left|back|right|turn`, `anim walk|idle|attack|hurt`.
     /// Returns why not, if not.
     pub fn word(&mut self, ws: &mut Workspace, id: &str, args: &[String]) -> Result<(), String> {
         let arg = |k: usize| args.get(k).map(String::as_str).unwrap_or("");
@@ -202,7 +206,11 @@ impl CharStage {
                 }
             }
             "random" => looks::random_colors(&mut a, &ws.project.db, (editor_core::now() * 1000.0) as u64),
-            other => return Err(format!("char {other}: model, part, color, random, wear, face, anim")),
+            "from" => match ws.project.db.character(arg(1)).filter(|_| arg(1) != id) {
+                Some(c) => a = c.appearance.clone(),
+                None => return Err(format!("there is no other character {}", arg(1))),
+            },
+            other => return Err(format!("char {other}: model, part, color, random, from, wear, face, anim")),
         }
         CharStage::put(ws, pos, a, eq);
         Ok(())
@@ -231,7 +239,7 @@ impl CharStage {
             self.preview(ui, ws, rs, thumbs, pos);
             ui.add_space(8.0);
             ui.vertical(|ui| {
-                self.look(ui, ws, rs, thumbs, &mut a);
+                self.look(ui, ws, rs, thumbs, &mut a, id);
                 self.gear(ui, ws, rs, thumbs, &mut eq);
             });
         });
@@ -344,8 +352,8 @@ impl CharStage {
         });
     }
 
-    /// The look: model, pieces, colours.
-    fn look(&mut self, ui: &mut egui::Ui, ws: &Workspace, rs: Option<&RenderState>, thumbs: &mut crate::thumbs::Thumbs, a: &mut Appearance) {
+    /// The look: model, pieces, colours (`id`: the character's).
+    fn look(&mut self, ui: &mut egui::Ui, ws: &Workspace, rs: Option<&RenderState>, thumbs: &mut crate::thumbs::Thumbs, a: &mut Appearance, id: &str) {
         let db = &ws.project.db;
         let figures = looks::figures(db);
         // The model: its name, and cards to choose another from.
@@ -360,7 +368,28 @@ impl CharStage {
             if ui.add_enabled(features.iter().any(|f| !f.colors.is_empty()), egui::Button::new("Random colours")).on_hover_text("One of the offered colours for every feature that offers some").clicked() {
                 looks::random_colors(a, db, (ui.input(|i| i.time) * 1000.0) as u64);
             }
+            if ui.selectable_label(self.starting, "Start from…").on_hover_text("The look of another character of the project: its model, pieces and colours (what it wears and everything else stay this one's)").clicked() {
+                self.starting = !self.starting;
+                self.choosing = false;
+            }
         });
+        // Another character's look, from its picture.
+        if self.starting {
+            ui.add(egui::TextEdit::singleline(&mut self.from_search).hint_text("Search the characters").desired_width(220.0)).widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, "Search the characters"));
+            let f = self.from_search.trim().to_lowercase();
+            egui::ScrollArea::vertical().id_salt("start from").max_height(250.0).show(ui, |ui| {
+                ui.horizontal_wrapped(|ui| {
+                    for c in db.characters.iter().filter(|c| c.id != id && (f.is_empty() || c.id.to_lowercase().contains(&f) || c.name.to_lowercase().contains(&f))) {
+                        let name = if c.name.is_empty() { c.id.as_str() } else { c.name.as_str() };
+                        let r = crate::thumbs::card(ui, name, &c.id, false, None, || rs.and_then(|rs| thumbs.figure(ws, rs, &c.appearance)));
+                        if r.on_hover_text(format!("Looks like {name}: its model, pieces and colours")).clicked() {
+                            *a = c.appearance.clone();
+                            self.starting = false;
+                        }
+                    }
+                });
+            });
+        }
         if figures.is_empty() {
             ui.colored_label(ui.visuals().warn_fg_color, "This project has no 3D models yet: add figures from the asset library. Until then characters are drawn as the mannequin.");
         }
@@ -537,6 +566,29 @@ mod ui_tests {
         let s = h.state();
         assert_eq!(look(s).model, other.0);
         assert!(look(s).parts.is_empty() && look(s).colors.is_empty() && !s.stage.choosing);
+        // Another character's look, from its card: one step, model, pieces and colours with it.
+        let elder = h.state().ws.project.db.character("elder").expect("the example has an elder").clone();
+        h.get_by_label("Start from…").click();
+        h.run();
+        let search = h.get_by_role_and_label(egui::accesskit::Role::TextInput, "Search the characters");
+        search.focus();
+        search.type_text("elder");
+        h.run();
+        assert!(h.query_all_by_label("Town Guard").next().is_none(), "not itself, and searched");
+        h.get_by_role_and_label(egui::accesskit::Role::Button, elder.name.as_str()).click();
+        h.run();
+        h.run();
+        let s = h.state();
+        assert_eq!(look(s), &elder.appearance);
+        assert!(!s.stage.starting);
+        assert_eq!(s.ws.timeline.done.last().unwrap().label, "Change the look of Town Guard");
+        // (The word does the same.)
+        h.state_mut().ws.undo().unwrap();
+        let st = h.state_mut();
+        st.stage.word(&mut st.ws, "guard", &["from".into(), "elder".into()]).unwrap();
+        assert_eq!(look(h.state()), &elder.appearance);
+        let st = h.state_mut();
+        assert!(st.stage.word(&mut st.ws, "guard", &["from".into(), "guard".into()]).is_err(), "not from itself");
         // Every step undone, he looks as he did.
         while h.state().ws.timeline.done.last().is_some_and(|c| c.label == "Change the look of Town Guard") {
             h.state_mut().ws.undo().unwrap();

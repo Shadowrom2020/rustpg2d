@@ -191,9 +191,9 @@ buttons, *turn around*, and the four standing directions); on the right:
   that is *Shown as* a style changes the figure);
 - **Carried items**.
 
-**Random colours** picks an offered colour for each feature. **Start from…** copies the model and
-colours of any character in the project or the asset library (a library character's model is
-copied into the project first).
+**Random colours** picks an offered colour for each feature. **Start from…** lists the project's
+other characters with their pictures (searched); the one clicked lends its look: its model, pieces
+and colours, as one step (what this character wears, its name and everything else stay its own).
 
 **Placed characters with their own look**: select one on the map; *Look & equipment* in the
 inspector shows it. **Customize this one…** opens the character editor for that one character only

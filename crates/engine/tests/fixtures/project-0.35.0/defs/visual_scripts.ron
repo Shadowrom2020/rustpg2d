@@ -1,0 +1,413 @@
+[
+    (
+        id: "ansel_blessing",
+        name: "Brother Ansel\'s blessing",
+        description: "Brother Ansel is a cleric of the Life domain (Database > Characters > Priest: class cleric):\nonce a day he heals a hurt hero with Cure Wounds (the spell cast for the story: free).",
+        nodes: [
+            (
+                id: 1,
+                kind: Start,
+                pos: (0.0, 140.0),
+            ),
+            (
+                id: 2,
+                kind: Call(
+                    function: "player_hp",
+                ),
+                pos: (220.0, 0.0),
+            ),
+            (
+                id: 3,
+                kind: Call(
+                    function: "player_max_hp",
+                ),
+                pos: (220.0, 70.0),
+            ),
+            (
+                id: 4,
+                kind: Compare(
+                    op: Ge,
+                ),
+                pos: (470.0, 20.0),
+            ),
+            (
+                id: 5,
+                kind: If,
+                pos: (720.0, 140.0),
+            ),
+            (
+                id: 6,
+                kind: Return,
+                pos: (960.0, 40.0),
+            ),
+            (
+                id: 7,
+                kind: Call(
+                    function: "get_var",
+                ),
+                pos: (470.0, 260.0),
+                values: {
+                    "name": Text("ansel_blessing_day"),
+                },
+            ),
+            (
+                id: 8,
+                kind: Call(
+                    function: "day",
+                ),
+                pos: (220.0, 330.0),
+            ),
+            (
+                id: 9,
+                kind: Math(
+                    op: Add,
+                ),
+                pos: (470.0, 360.0),
+                values: {
+                    "b": Num(1.0),
+                },
+            ),
+            (
+                id: 10,
+                kind: Compare(
+                    op: Eq,
+                ),
+                pos: (720.0, 300.0),
+            ),
+            (
+                id: 11,
+                kind: If,
+                pos: (960.0, 180.0),
+            ),
+            (
+                id: 12,
+                kind: Return,
+                pos: (1200.0, 100.0),
+            ),
+            (
+                id: 13,
+                kind: Call(
+                    function: "set_var",
+                ),
+                pos: (1200.0, 260.0),
+                values: {
+                    "name": Text("ansel_blessing_day"),
+                },
+            ),
+            (
+                id: 14,
+                kind: Call(
+                    function: "say",
+                ),
+                pos: (1460.0, 260.0),
+                values: {
+                    "speaker": Text("Brother Ansel"),
+                    "text": Text("You are hurt, {player}. Be still - the light mends what it can."),
+                },
+            ),
+            (
+                id: 15,
+                kind: Call(
+                    function: "cast_spell",
+                ),
+                pos: (1720.0, 260.0),
+                values: {
+                    "free": Bool(true),
+                    "spell": Text("cure-wounds"),
+                    "target": Text("player"),
+                },
+            ),
+            (
+                id: 16,
+                kind: Comment(
+                    text: "Not hurt: nothing to heal. Healed today already: the day after tomorrow is kept as \'day + 1\'.",
+                ),
+                pos: (470.0, 480.0),
+            ),
+        ],
+        links: [
+            (
+                from: 2,
+                out: "result",
+                to: 4,
+                input: "a",
+            ),
+            (
+                from: 3,
+                out: "result",
+                to: 4,
+                input: "b",
+            ),
+            (
+                from: 1,
+                out: "out",
+                to: 5,
+                input: "in",
+            ),
+            (
+                from: 4,
+                out: "result",
+                to: 5,
+                input: "condition",
+            ),
+            (
+                from: 5,
+                out: "then",
+                to: 6,
+                input: "in",
+            ),
+            (
+                from: 8,
+                out: "result",
+                to: 9,
+                input: "a",
+            ),
+            (
+                from: 7,
+                out: "result",
+                to: 10,
+                input: "a",
+            ),
+            (
+                from: 9,
+                out: "result",
+                to: 10,
+                input: "b",
+            ),
+            (
+                from: 5,
+                out: "else",
+                to: 11,
+                input: "in",
+            ),
+            (
+                from: 10,
+                out: "result",
+                to: 11,
+                input: "condition",
+            ),
+            (
+                from: 11,
+                out: "then",
+                to: 12,
+                input: "in",
+            ),
+            (
+                from: 11,
+                out: "else",
+                to: 13,
+                input: "in",
+            ),
+            (
+                from: 9,
+                out: "result",
+                to: 13,
+                input: "value",
+            ),
+            (
+                from: 13,
+                out: "out",
+                to: 14,
+                input: "in",
+            ),
+            (
+                from: 14,
+                out: "out",
+                to: 15,
+                input: "in",
+            ),
+        ],
+    ),
+    (
+        id: "rat_defeated",
+        name: "A giant rat defeated",
+        description: "Called by the giant rats\' \"Defeated\" trigger (what they drop is set in their loot table).\nTilda\'s quest counts giant rats once it was accepted (its first step is done at five).",
+        nodes: [
+            (
+                id: 1,
+                kind: Start,
+                pos: (0.0, 120.0),
+            ),
+            (
+                id: 2,
+                kind: Sequence(
+                    steps: 3,
+                ),
+                pos: (220.0, 120.0),
+            ),
+            (
+                id: 3,
+                kind: Call(
+                    function: "add_var",
+                ),
+                pos: (470.0, 0.0),
+                values: {
+                    "amount": Num(1.0),
+                    "name": Text("rats_defeated"),
+                },
+            ),
+            (
+                id: 4,
+                kind: Call(
+                    function: "quest_active",
+                ),
+                pos: (220.0, 300.0),
+                values: {
+                    "quest": Text("pest_control"),
+                },
+            ),
+            (
+                id: 5,
+                kind: Call(
+                    function: "quest_stage",
+                ),
+                pos: (220.0, 380.0),
+                values: {
+                    "quest": Text("pest_control"),
+                },
+            ),
+            (
+                id: 6,
+                kind: Compare(
+                    op: Eq,
+                ),
+                pos: (470.0, 380.0),
+                values: {
+                    "b": Num(0.0),
+                },
+            ),
+            (
+                id: 7,
+                kind: Logic(
+                    op: And,
+                ),
+                pos: (720.0, 320.0),
+            ),
+            (
+                id: 8,
+                kind: If,
+                pos: (960.0, 200.0),
+            ),
+            (
+                id: 9,
+                kind: Call(
+                    function: "add_var",
+                ),
+                pos: (1200.0, 200.0),
+                values: {
+                    "amount": Num(1.0),
+                    "name": Text("pest_rats"),
+                },
+            ),
+            (
+                id: 10,
+                kind: Call(
+                    function: "get_var",
+                ),
+                pos: (720.0, 520.0),
+                values: {
+                    "name": Text("rats_defeated"),
+                },
+            ),
+            (
+                id: 11,
+                kind: Compare(
+                    op: Eq,
+                ),
+                pos: (960.0, 520.0),
+                values: {
+                    "b": Num(5.0),
+                },
+            ),
+            (
+                id: 12,
+                kind: If,
+                pos: (1200.0, 420.0),
+            ),
+            (
+                id: 13,
+                kind: Call(
+                    function: "say",
+                ),
+                pos: (1440.0, 420.0),
+                values: {
+                    "text": Text("You have defeated 5 giant rats! You feel stronger... (not really)"),
+                },
+            ),
+        ],
+        links: [
+            (
+                from: 1,
+                out: "out",
+                to: 2,
+                input: "in",
+            ),
+            (
+                from: 2,
+                out: "1",
+                to: 3,
+                input: "in",
+            ),
+            (
+                from: 4,
+                out: "result",
+                to: 7,
+                input: "a",
+            ),
+            (
+                from: 5,
+                out: "result",
+                to: 6,
+                input: "a",
+            ),
+            (
+                from: 6,
+                out: "result",
+                to: 7,
+                input: "b",
+            ),
+            (
+                from: 2,
+                out: "2",
+                to: 8,
+                input: "in",
+            ),
+            (
+                from: 7,
+                out: "result",
+                to: 8,
+                input: "condition",
+            ),
+            (
+                from: 8,
+                out: "then",
+                to: 9,
+                input: "in",
+            ),
+            (
+                from: 10,
+                out: "result",
+                to: 11,
+                input: "a",
+            ),
+            (
+                from: 2,
+                out: "3",
+                to: 12,
+                input: "in",
+            ),
+            (
+                from: 11,
+                out: "result",
+                to: 12,
+                input: "condition",
+            ),
+            (
+                from: 12,
+                out: "then",
+                to: 13,
+                input: "in",
+            ),
+        ],
+    ),
+]

@@ -1,115 +1,98 @@
-//! Files written by earlier versions keep loading: the 0.9.0 example project's definitions, maps
-//! of 0.9.0 and 0.10.0, a frozen format-version-1 map and save games, the last tile release
-//! (0.20.0) converting (see `fixtures/README.md`).
-//! Tile maps and tilesets (before 0.22) load for the converter and convert into painted maps.
+//! Files written by 0.35 keep loading: the example project's definitions and its village as of
+//! the tag v0.35.0-alpha.1, and a quick save of the 0.35 game. A project of an older version is
+//! refused with the one message (see `fixtures/README.md`).
 
 use std::path::{Path, PathBuf};
 
 use rustpg2d_engine::defs::{CharacterDef, ItemDef, PropDef, StructureDef};
 use rustpg2d_engine::map::io;
+use rustpg2d_engine::map::ZoneKind;
 use rustpg2d_engine::project::{self, Project};
+use rustpg2d_engine::skills::SpellDef;
 use rustpg2d_engine::state::{WorldState, SAVE_VERSION};
 
 fn fixture(rel: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures").join(rel)
 }
 
+/// The 0.35 example's definitions load whole: no entry is left out, and the fields this version
+/// dropped (an item's `held` picture, a spell's `effect`) are read and left out.
 #[test]
-fn definitions_of_0_9_0_load() {
-    let p = Project::load(&fixture("project-0.9.0")).expect("the 0.9.0 project loads");
+fn definitions_of_0_35_0_load() {
+    let root = fixture("project-0.35.0");
+    assert!(!project::made_before_035(&root));
+    let (p, warnings) = Project::load_with_warnings(&root).expect("the 0.35 project loads");
+    assert!(warnings.is_empty(), "{warnings:?}");
     assert_eq!(p.config.name, "R(ust)PG2D example");
+    assert_eq!(p.config.rules_version, rustpg2d_engine::srd::RULES_VERSION);
     let db = &p.db;
-    assert!(!db.items.is_empty() && !db.props.is_empty() && !db.characters.is_empty() && !db.sheets.is_empty());
-    assert!(!db.structures.is_empty() && !db.recipes.is_empty() && !db.spells.is_empty());
-    assert!(!db.quests.is_empty() && !db.sounds.is_empty() && !db.achievements.is_empty());
-    // Its layered characters (removed in 0.17) load without their figure (drawn as the mannequin);
-    // hair, outfit and armor sheets load as plain sprites.
-    assert!(db.characters.iter().all(|c| c.appearance.model.is_empty()), "no character has a model");
-    assert!(db.sheets.iter().any(|s| s.id.starts_with("hair_") && s.kind == rustpg2d_engine::defs::SheetKind::Sprite));
-    // Projects before UI skins (0.25): no skins.ron, no `skin` = the built-in look.
-    assert!(db.skins.is_empty() && p.config.skin.is_empty());
-    // … and before designed menus: the built-in title screen and pause menu.
-    assert!(p.config.title.is_default() && p.config.menu.is_default() && p.config.credits.is_empty());
+    for (what, n) in [("items", db.items.len()), ("props", db.props.len()), ("characters", db.characters.len()), ("spells", db.spells.len()), ("classes", db.classes.len()), ("races", db.races.len()), ("models", db.models.len()), ("materials", db.materials.len()), ("structures", db.structures.len()), ("quests", db.quests.len()), ("sheets", db.sheets.len())] {
+        assert!(n > 0, "no {what}");
+    }
+    let text = |f: &str| std::fs::read_to_string(root.join("defs").join(f)).unwrap();
+    assert!(text("items.ron").contains("held:") && text("spells.ron").contains("effect: Parts"), "the fixture has the fields 0.36 dropped");
+    // Weapons and armor carry their SRD categories as written (nothing is upgraded on reading).
+    assert!(db.items.iter().filter_map(|i| i.weapon.as_ref()).all(|w| w.category.is_some()));
+    assert!(db.items.iter().filter_map(|i| i.armor.as_ref()).all(|a| a.category.is_some()));
+    assert!(db.spells.iter().all(|s| s.story_only || !s.parts.is_empty()), "every spell has its parts");
 }
 
-/// Old definitions written by today's writer read back the same (nothing is lost or changed).
+/// The 0.35 definitions written by today's writer read back the same, without the dropped fields.
 #[test]
-fn definitions_of_0_9_0_round_trip() {
-    let db = Project::load(&fixture("project-0.9.0")).unwrap().db;
-    fn again<T: serde::Serialize + serde::de::DeserializeOwned + PartialEq + std::fmt::Debug>(v: &Vec<T>) {
+fn definitions_of_0_35_0_round_trip() {
+    let db = Project::load(&fixture("project-0.35.0")).unwrap().db;
+    fn again<T: serde::Serialize + serde::de::DeserializeOwned + PartialEq + std::fmt::Debug>(v: &Vec<T>) -> String {
         let text = project::ron_text(v).unwrap();
         let back: Vec<T> = ron::from_str(&text).unwrap();
         assert_eq!(&back, v);
+        text
     }
-    again::<ItemDef>(&db.items);
+    assert!(!again::<ItemDef>(&db.items).contains("held:"));
     again::<PropDef>(&db.props);
     again::<CharacterDef>(&db.characters);
+    assert!(!again::<SpellDef>(&db.spells).contains("effect: Parts"));
     again::<StructureDef>(&db.structures);
 }
 
-/// Quests of 0.21.0 (before the quest designer) load with nothing described: started and moved
-/// on by triggers and scripts as before.
+/// The 0.35 village (map format version 3) loads whole and is written again the same.
 #[test]
-fn quests_of_0_21_0_load_without_the_designer_fields() {
-    let text = std::fs::read_to_string(fixture("quests/quests-0.21.0.ron")).unwrap();
-    let quests: Vec<rustpg2d_engine::quest::QuestDef> = ron::from_str(&text).unwrap();
-    assert_eq!(quests.len(), 7);
-    let lights = quests.iter().find(|q| q.id == "strange_lights").unwrap();
-    assert_eq!((lights.stages.len(), lights.targets.len()), (3, 3));
-    for q in &quests {
-        assert!(!q.has_giver() && q.steps.is_empty() && q.rewards.is_empty() && q.offer.is_empty() && q.objects.is_empty(), "{}", q.id);
-    }
+fn map_of_0_35_0_loads() {
+    let path = fixture("maps/village-0.35.0.map");
+    let mut warnings = Vec::new();
+    let m = io::load_with(&path, &mut |w| warnings.push(w)).unwrap();
+    assert!(warnings.is_empty(), "{warnings:?}");
+    assert_eq!(m.name, "village");
+    assert!(!m.ground.is_empty() && !m.materials.is_empty() && !m.decor.is_empty() && !m.entities.is_empty());
+    assert!(m.zones.iter().any(|z| z.kind == ZoneKind::Spawn && z.name == "start"));
+    // Written again, it reads back the same (0.35 wrote an empty `body` in placed characters'
+    // looks, a field this version dropped: the file's bytes differ by that).
+    let bytes = io::encode(&m).unwrap();
+    let back = io::decode(&bytes).unwrap();
+    assert_eq!(io::Meta::of(&back), io::Meta::of(&m));
+    assert_eq!((&back.materials, &back.decor_defs, &back.decor, &back.collision), (&m.materials, &m.decor_defs, &m.decor, &m.collision));
+    assert_eq!(io::encode(&back).unwrap(), bytes, "and again byte for byte");
 }
 
+/// A project of a version before 0.35 (here 0.27's `project.ron`: no rules version) is refused
+/// with the message that sends it to 0.35.
 #[test]
-fn save_of_0_11_0_loads() {
-    let s = std::fs::read_to_string(fixture("saves/save-0.11.0.ron")).unwrap();
+fn projects_before_0_35_are_refused() {
+    let root = fixture("project-0.27.0");
+    assert!(project::made_before_035(&root));
+    assert_eq!(project::refuse_before_035(&root).unwrap_err().to_string(), project::MADE_BEFORE_035);
+}
+
+/// A quick save written by the 0.35 game loads, and today's writer writes it the same way.
+#[test]
+fn save_of_0_35_0_loads() {
+    let s = std::fs::read_to_string(fixture("saves/save-0.35.0.ron")).unwrap();
     let w = WorldState::from_ron(&s).unwrap();
-    assert_eq!(w.version, 0, "written before the version field existed");
-    assert_eq!(w.current_map, "house");
+    assert_eq!((w.version, w.current_map.as_str()), (SAVE_VERSION, "house"));
     assert!(w.flags.contains("fixture_flag"));
     assert_eq!(w.vars.get("fixture_var"), Some(&7));
-    assert_eq!((w.inventory.count("potion"), w.inventory.count("coin")), (2, 30));
-    assert!(w.quests.contains_key("lost_cat"));
-    // Written by today's code and read back: the same save, now with the version.
-    let text = w.to_ron().unwrap();
-    assert!(text.contains(&format!("version: {SAVE_VERSION}")));
-    let again = WorldState::from_ron(&text).unwrap();
-    assert_eq!(again.to_ron().unwrap(), text);
-    assert_eq!(again.version, SAVE_VERSION);
-}
-
-#[test]
-fn save_of_0_12_0_loads() {
-    // A quick save of 0.12.0 with the town guard following the player (hurt): before companions
-    // had mana and learned spells.
-    let s = std::fs::read_to_string(fixture("saves/save-0.12.0.ron")).unwrap();
-    let w = WorldState::from_ron(&s).unwrap();
-    assert_eq!(w.version, 1, "written when the save layout was 1 (before the SRD rules' 2)");
-    assert_eq!(w.current_map, "village");
-    assert_eq!(w.companions.len(), 1);
-    let c = &w.companions[0];
-    assert_eq!((c.map.as_str(), c.uid, c.name.as_str(), c.hp), ("village", 121, "guard", Some(7)));
-    assert_eq!(c.mana, None, "full mana");
-    assert!(w.npc_spells.is_empty() && w.npc_spells("village", 121).is_empty(), "no spells learned yet");
-    let text = w.to_ron().unwrap();
-    assert_eq!(WorldState::from_ron(&text).unwrap().to_ron().unwrap(), text);
-}
-
-/// 0.16.0 had no races: characters have none, the project no races file, the player no race.
-#[test]
-fn definitions_of_0_16_0_load_without_races() {
-    let p = Project::load(&fixture("project-0.16.0")).expect("the 0.16.0 project loads");
-    let db = &p.db;
-    assert!(!db.characters.is_empty() && !db.sheets.is_empty());
-    assert!(db.races.is_empty());
-    assert!(db.characters.iter().all(|c| c.race.is_empty()));
-    // (and without SRD stat blocks, 0.28)
-    assert!(db.characters.iter().all(|c| c.stats.is_none()));
-    // Its figure sheets load as plain sprites (characters are 3D models now).
-    assert!(db.sheets.iter().all(|s| s.kind != rustpg2d_engine::defs::SheetKind::Emotions || !s.tags.is_empty()));
-    let w = WorldState::from_ron(&std::fs::read_to_string(fixture("saves/save-0.12.0.ron")).unwrap()).unwrap();
-    assert!(w.player_race.is_empty());
+    assert_eq!(w.inventory.count("potion"), 2);
+    assert!(w.quests.contains_key("lost_cat") && w.player_hp.is_some());
+    assert_eq!(w.to_ron().unwrap(), s.trim_end(), "written again unchanged");
 }
 
 #[test]
@@ -119,59 +102,8 @@ fn minimal_save_loads_with_defaults() {
     assert_eq!((w.current_map.as_str(), w.player_pos), ("village", (100.0, 200.0)));
     assert_eq!(w.hour, project::default_start_hour());
     assert!(w.player_hp.is_none() && w.quests.is_empty() && w.companions.is_empty());
-}
-
-#[test]
-fn save_of_0_22_0_loads_without_homes() {
-    // A quick save of 0.22.0 in Tilda's shop at 21:00: before homes and placed furniture.
-    let s = std::fs::read_to_string(fixture("saves/save-0.22.0.ron")).unwrap();
-    let mut w = WorldState::from_ron(&s).unwrap();
-    assert_eq!(w.current_map, "shop");
-    assert!(w.homes.is_empty() && w.furniture.is_empty() && w.next_furniture == 0);
-    // With a home and a chair: saved and read back.
-    w.homes.insert("stone_house".into());
-    let uid = w.add_furniture("stone_house", "chair", "chair_item", 80.0, 112.0);
-    let back = WorldState::from_ron(&w.to_ron().unwrap()).unwrap();
-    assert!(back.homes.contains("stone_house"));
-    assert_eq!(back.furniture["stone_house"][0].uid, uid);
-    assert_eq!(back.furniture["stone_house"][0].item, "chair_item");
-}
-
-#[test]
-fn map_and_save_before_faction_membership_load() {
-    // The forest of 0.25.0: placed characters before a faction of their own.
-    let m = io::load(&fixture("maps/forest-0.25.0.map")).unwrap();
-    assert!(m.entities.iter().any(|e| e.name == "outlaw_1"));
-    assert!(m.entities.iter().all(|e| e.faction.is_empty()));
-    // A placed character's own faction is written and read back.
-    let mut m = m;
-    m.entities.iter_mut().find(|e| e.name == "outlaw_1").unwrap().faction = "humans".into();
-    let dir = std::env::temp_dir().join(format!("rustpg2d_compat_faction_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
-    let path = dir.join("forest.map");
-    io::save(&m, &path).unwrap();
-    let back = io::load(&path).unwrap();
-    assert_eq!(back.entities.iter().find(|e| e.name == "outlaw_1").unwrap().faction, "humans");
-    assert!(back.entities.iter().filter(|e| e.name != "outlaw_1").all(|e| e.faction.is_empty()));
-    let _ = std::fs::remove_dir_all(&dir);
-    // A 0.22.0 save: the player joined no faction, nobody's faction was changed.
-    let w = WorldState::from_ron(&std::fs::read_to_string(fixture("saves/save-0.22.0.ron")).unwrap()).unwrap();
-    assert!(w.player_faction.is_empty());
-    assert!(w.entities.values().flat_map(|m| m.values()).all(|s| s.faction.is_none()));
-}
-
-#[test]
-fn saves_before_classes_load_classless() {
-    // 0.22.0's save: no class, nothing waiting for the level-up window, companions without
-    // class levels; the hero keeps the d10 of before (no class).
-    let s = std::fs::read_to_string(fixture("saves/save-0.22.0.ron")).unwrap();
-    let mut w = WorldState::from_ron(&s).unwrap();
-    assert!(w.class.is_none() && w.levelups.is_empty());
-    assert!(w.companions.iter().all(|c| c.class.is_none() && c.level == 0 && c.xp == 0));
-    // A class and a waiting level-up are saved and read back.
-    w.class = Some(rustpg2d_engine::classes::HeroClass { class: "rogue".into(), subclass: "thief".into(), picks: [("rogue-expertise-1".to_string(), vec!["stealth".to_string()])].into() });
-    w.levelups.push(rustpg2d_engine::state::PendingLevel { who: "village:130".into(), level: 3 });
-    let back = WorldState::from_ron(&w.to_ron().unwrap()).unwrap();
-    assert_eq!(back.class, w.class);
-    assert_eq!(back.levelups, w.levelups);
+    // Written by today's code and read back: the same save, with the version.
+    let text = w.to_ron().unwrap();
+    assert!(text.contains(&format!("version: {SAVE_VERSION}")));
+    assert_eq!(WorldState::from_ron(&text).unwrap().to_ron().unwrap(), text);
 }

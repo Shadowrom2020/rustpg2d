@@ -1,0 +1,39 @@
+[
+    (
+        id: "quest_reward",
+        name: "Quest reward",
+        trigger: Call,
+        actions: [
+            PlaySound(
+                sound: "quest_done",
+                volume: 1.0,
+                pitch: 1.0,
+                pan: 0.0,
+            ),
+            Emote(
+                target: "player",
+                emotion: "joy",
+                seconds: 2.0,
+                wait: false,
+            ),
+            RunScript(
+                function: "quest_thanks",
+            ),
+        ],
+    ),
+    (
+        id: "night_music",
+        name: "Night music",
+        trigger: Parallel(
+            flag: "calendar_on",
+        ),
+        actions: [
+            RunScript(
+                function: "town_music",
+            ),
+            Wait(
+                seconds: 3.0,
+            ),
+        ],
+    ),
+]

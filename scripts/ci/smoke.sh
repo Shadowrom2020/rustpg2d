@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Runtime smoke test: the game and the editor really run on a scratch copy of the example project
 # (CI's "Runtime smoke" job; runs the same way on a developer machine). It checks `status` fields
-# of scripted runs: title screen, a map with the player, the clock, loading an old save game,
+# of scripted runs: title screen, a map with the player, the clock, loading a save game of 0.35,
 # quick-saving, a map change with its autosave, a turn-based fight, the agent server of the editor
 # without a window driven by its smoke client (crates/studio/examples/mcp_smoke.rs), and the editor
 # in a window opening a map.
@@ -66,15 +66,16 @@ expect "a map with the player" "$line" "map=house" "hp=Some(" "fps="
 line=$(game "wait 1; settime +20; wait 1; status; quit" --no-title --map house --spawn start)
 expect "the clock advances a day" "$line" "day=1" "time=04:0"
 
-# The fixture save (written by 0.11.0, no `version` yet) loads; quick-saving (F5) rewrites it.
+# The fixture save (written by the 0.35 game) loads; quick-saving (F5) writes it again.
 mkdir -p "$WORK/proj/saves"
-cp "$FIXTURES/saves/save-0.11.0.ron" "$WORK/proj/saves/quick.ron"
+cp "$FIXTURES/saves/save-0.35.0.ron" "$WORK/proj/saves/quick.ron"
+touch -d "2000-01-01" "$WORK/proj/saves/quick.ron"
 line=$(game "wait 1; press f9; wait 2; status; press f5; wait 1; quit" --no-title --map house --spawn start)
-expect "an old save game loads" "$line" "map=house" "fixture_flag" '"potion": 2'
-if grep -q "version: 2" "$WORK/proj/saves/quick.ron" 2>/dev/null; then echo "PASS quick save written"; else echo "FAIL quick save written: saves/quick.ron was not rewritten with version: 2"; failed=$((failed + 1)); fi
+expect "a save game of 0.35 loads" "$line" "map=house" "fixture_flag" '"potion": 2'
+if [ "$WORK/proj/saves/quick.ron" -nt "$FIXTURES/saves/save-0.35.0.ron" ] && grep -q "version: 2" "$WORK/proj/saves/quick.ron"; then echo "PASS quick save written"; else echo "FAIL quick save written: saves/quick.ron was not written again"; failed=$((failed + 1)); fi
 
 # The fixture save moved to the village's east edge: load it, step over the edge, autosave.
-sed -e 's/current_map: "house"/current_map: "village"/' -e 's/player_pos: ([^)]*)/player_pos: (2556.0, 1008.0)/' "$FIXTURES/saves/save-0.11.0.ron" > "$WORK/proj/saves/quick.ron"
+sed -e 's/current_map: "house"/current_map: "village"/' -e 's/player_pos: ([^)]*)/player_pos: (2556.0, 1008.0)/' "$FIXTURES/saves/save-0.35.0.ron" > "$WORK/proj/saves/quick.ron"
 rm -f "$WORK/proj/saves/autosave.ron"
 line=$(game "wait 1; press f9; wait 1.5; hold right 0.12; wait 3; status; quit" --no-title --map house --spawn start)
 expect "a map change with its autosave" "$line" "map=forest" "autosave=saved"

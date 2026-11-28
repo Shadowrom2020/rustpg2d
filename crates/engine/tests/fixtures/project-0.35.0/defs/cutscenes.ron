@@ -1,0 +1,222 @@
+[
+    (
+        id: "intro",
+        name: "Arrival in Emberbrook",
+        map: "village",
+        tracks: [
+            (
+                kind: Actor,
+                target: "player",
+                cues: [
+                    (
+                        at: 0.0,
+                        wait: true,
+                        action: Place(
+                            target: "player",
+                            x: 0,
+                            y: 30,
+                        ),
+                    ),
+                    (
+                        at: 0.0,
+                        wait: true,
+                        action: Face(
+                            target: "player",
+                            facing: Right,
+                        ),
+                    ),
+                    (
+                        at: 6.8,
+                        wait: true,
+                        action: WalkTo(
+                            target: "player",
+                            x: 5,
+                            y: 30,
+                        ),
+                    ),
+                ],
+            ),
+            (
+                kind: Actor,
+                target: "guard",
+                cues: [
+                    (
+                        at: 7.2,
+                        wait: true,
+                        action: Approach(
+                            target: "guard",
+                            to: "player",
+                        ),
+                    ),
+                    (
+                        at: 7.3,
+                        wait: true,
+                        action: Emote(
+                            target: "guard",
+                            emotion: "surprise",
+                            seconds: 1.2,
+                            wait: true,
+                        ),
+                    ),
+                    (
+                        at: 7.4,
+                        wait: true,
+                        action: MoveRoute(
+                            target: "guard",
+                            steps: [
+                                Jump(
+                                    dx: 0,
+                                    dy: 0,
+                                ),
+                                TurnToPlayer,
+                            ],
+                            repeat: false,
+                            skip_blocked: true,
+                            wait: true,
+                        ),
+                    ),
+                ],
+            ),
+            (
+                kind: Camera,
+                cues: [
+                    (
+                        at: 0.0,
+                        wait: false,
+                        action: Camera(
+                            aim: Tile(
+                                x: 34,
+                                y: 22,
+                            ),
+                            seconds: 4.5,
+                            easing: InOut,
+                            zoom: 1.0,
+                            wait: false,
+                        ),
+                    ),
+                    (
+                        at: 4.8,
+                        wait: false,
+                        action: Camera(
+                            aim: Player,
+                            seconds: 2.0,
+                            easing: InOut,
+                            zoom: 1.0,
+                            wait: false,
+                        ),
+                    ),
+                ],
+            ),
+            (
+                kind: Dialog,
+                cues: [
+                    (
+                        at: 7.5,
+                        wait: true,
+                        action: Dialog(
+                            speaker: "Guard",
+                            text: "Halt, traveller! ... {player}? Thank the stars, you came!",
+                        ),
+                    ),
+                    (
+                        at: 7.6,
+                        wait: true,
+                        action: Dialog(
+                            speaker: "{player}",
+                            text: "I came as fast as I could. What is going on?",
+                        ),
+                    ),
+                    (
+                        at: 7.7,
+                        wait: true,
+                        action: Dialog(
+                            speaker: "Guard",
+                            text: "Something is not right in Whisperwood, east of town. Strange lights flicker between the trees at night, and the giant rats grow bolder every day.",
+                        ),
+                    ),
+                    (
+                        at: 7.8,
+                        wait: true,
+                        action: Dialog(
+                            speaker: "Guard",
+                            text: "Please, talk to Elder Rowan at once - he is waiting by the well in the middle of town.",
+                        ),
+                    ),
+                    (
+                        at: 8.1,
+                        wait: true,
+                        action: Wait(
+                            seconds: 0.0,
+                        ),
+                    ),
+                ],
+            ),
+            (
+                kind: Screen,
+                cues: [
+                    (
+                        at: 0.0,
+                        wait: false,
+                        action: ShowPicture(
+                            layer: 1,
+                            sheet: "title_logo",
+                            frame: 0,
+                            anchor: Center,
+                            on_map: false,
+                            x: 0.0,
+                            y: -90.0,
+                            scale: 4.0,
+                            opacity: 0.0,
+                            rotation: 0.0,
+                            tint: (255, 255, 255),
+                            blend: Normal,
+                        ),
+                    ),
+                    (
+                        at: 0.0,
+                        wait: false,
+                        action: MovePicture(
+                            layer: 1,
+                            to: (
+                                x: None,
+                                y: None,
+                                scale: None,
+                                opacity: Some(1.0),
+                                rotation: None,
+                                tint: None,
+                            ),
+                            seconds: 1.5,
+                            easing: Out,
+                            wait: false,
+                        ),
+                    ),
+                    (
+                        at: 3.0,
+                        wait: false,
+                        action: MovePicture(
+                            layer: 1,
+                            to: (
+                                x: None,
+                                y: Some(-110.0),
+                                scale: None,
+                                opacity: Some(0.0),
+                                rotation: None,
+                                tint: None,
+                            ),
+                            seconds: 1.0,
+                            easing: In,
+                            wait: false,
+                        ),
+                    ),
+                    (
+                        at: 4.0,
+                        wait: false,
+                        action: ErasePicture(
+                            layer: 1,
+                        ),
+                    ),
+                ],
+            ),
+        ],
+    ),
+]

@@ -1,0 +1,64 @@
+[
+    (
+        id: "acolyte",
+        name: "Acolyte",
+        description: "You spent your life in the service of a temple, as an intermediary between the realm of the holy and the mortal world.",
+        proficiencies: [
+            "insight",
+            "religion",
+        ],
+        language_choices: 2,
+        equipment: [
+            (
+                item: "coin",
+                count: 15,
+            ),
+        ],
+        feature: "Shelter of the Faithful",
+        feature_text: "As an acolyte, you command the respect of those who share your faith, and you can perform the religious ceremonies of your deity. You and your adventuring companions can expect to receive free healing and care at a temple, shrine, or other established presence of your faith, though you must provide any material components needed for spells. Those who share your religion will support you (but only you) at a modest lifestyle. You might also have ties to a specific temple dedicated to your chosen deity or pantheon, and you have a residence there. This could be the temple where you used to serve, if you remain on good terms with it, or a temple where you have found a new home. While near your temple, you can call upon the priests for assistance, provided the assistance you ask for is not hazardous and you remain in good standing with your temple.",
+    ),
+    (
+        id: "farmhand",
+        name: "Farmhand",
+        description: "You grew up on the fields: up before the sun, hands in the soil, a cart to drive to market.",
+        proficiencies: [
+            "athletics",
+            "animal-handling",
+            "land-vehicles",
+        ],
+        equipment: [
+            (
+                item: "hoe",
+                count: 1,
+            ),
+            (
+                item: "bread",
+                count: 2,
+            ),
+        ],
+        feature: "Harvest Hands",
+        feature_text: "Farmers and villagers take you for one of their own: a farmhouse gives you a meal and a bed for a day of work.",
+    ),
+    (
+        id: "wanderer",
+        name: "Wanderer",
+        description: "Roads and rivers have been your home for years; you have slept under more trees than roofs.",
+        proficiencies: [
+            "survival",
+            "nature",
+        ],
+        language_choices: 1,
+        equipment: [
+            (
+                item: "fishing_rod",
+                count: 1,
+            ),
+            (
+                item: "torch",
+                count: 1,
+            ),
+        ],
+        feature: "Wayfinder",
+        feature_text: "You always remember the way back, and you can find food and fresh water for yourself in the wild.",
+    ),
+]

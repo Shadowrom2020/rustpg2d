@@ -776,7 +776,7 @@ mod tests {
     /// defaults, and saving the defaults leaves project.ron as it was.
     #[test]
     fn the_atlas_size_defaults_and_stays_out_of_the_file() {
-        let c: ProjectConfig = ron::from_str(include_str!("../tests/fixtures/project-0.16.0/project.ron")).unwrap();
+        let c: ProjectConfig = ron::from_str(include_str!("../tests/fixtures/project-0.35.0/project.ron")).unwrap();
         assert_eq!(c.model_atlas_mb, crate::render::model::DEFAULT_ATLAS_MB);
         assert!(!ron::to_string(&c).unwrap().contains("model_atlas_mb"));
         assert!(c.eight_facings);

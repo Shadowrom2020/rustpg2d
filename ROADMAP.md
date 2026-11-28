@@ -2548,8 +2548,15 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     exist offers the ones of its kind that do (searched); everything that named the missing
     one names the one picked (`Workspace::use_another`: definitions, settings, maps on disk
     and open, scripts, as a rename writes them).
+  - **Choose one…** (Problems, 2026-11-28, STUDIO_PLAN.md task 12): *No player character is
+    set* offers the project's characters, *The start map '…' does not exist* its maps
+    (searched); the one picked becomes the game's setting as one step
+    (`Problem::choice`, which knows the two texts of the export's pre-flight;
+    `Workspace::choose_setting`), and the check runs again.
   Still open: of the problems: fixes for other kinds of entries (a map nothing leads to, a
-  quest nobody gives: they lead to their place); of the Help tab: the manual's pictures
+  quest nobody gives: they lead to their place; one obvious step each, not built: *the start
+  map has no spawn point '…'* = one of its spawns, a plugin needing a newer script API =
+  *Switch it off*); of the Help tab: the manual's pictures
   (they show the 0.35 editor: with the manual's rewrite, part 12).
   - **The Help tab opens where it was left** (2026-11-28, STUDIO_PLAN.md task 11): the
     chapter's file and the heading last gone to are kept in the editor's settings
@@ -2635,6 +2642,12 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     *About this field* from the menu of *Consumable* (a right-click); an empty game: a
     kind without definitions, the Problems tab before and after the check, a map made
     through *New…* (typed, Enter), its empty Outliner, *Resize* and its undo.
+  - *Choose one…*: `the_player_character_and_the_start_map_are_chosen_from_the_list` (both
+    entries know what they ask for; a map that doesn't exist refused; each chosen, "The
+    start map is start now"; checked again: neither is said). In the window on a scratch
+    copy with the start map set to "nowhere": the error with *Choose one…*, "village" typed,
+    Enter: "The start map is village now", the check finds nothing, `project.ron` says
+    `start_map: "village"`; with no player: the warning, "hero" typed: `player: "hero"`.
   - The Help tab's place: `the_help_tab_opens_where_it_was_left` (never opened: the first
     chapter; a heading of chapter 3 written; *What's new* not; a new view there; a view
     that isn't the window's writes nothing). In the window with a scratch config: `help open

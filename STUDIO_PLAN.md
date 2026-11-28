@@ -511,7 +511,9 @@ Done 2026-11-28. Only the window's Help tab writes the place (`HelpView::restore
 anchor). The Help tab writes it when the chapter changes (not every frame), and a new editor
 opens the tab there. Use `config_dir_here` in the test.
 
-### - [ ] Task 12 (S): more problems can be mended from the list
+### - [x] Task 12 (S): more problems can be mended from the list
+
+Done 2026-11-28. Found with one obvious fix, not built: *the start map has no spawn point '…'* (choose one of its spawns); a plugin that needs a newer script API (*Switch it off*).
 
 **Read first.** `crates/editor-core/src/problems.rs` (what kinds of entries there are: run
 `check.problems` on the example and on an empty project and read the texts).

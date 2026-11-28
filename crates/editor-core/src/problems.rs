@@ -91,7 +91,46 @@ pub struct Problem {
     pub target: Target,
 }
 
+/// A setting of the game a problem asks to be chosen (*Choose one…* in the Problems tab).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Choice {
+    /// *No player character is set*: the character the player plays.
+    Player,
+    /// *The start map '…' does not exist*: the map the game starts on.
+    StartMap,
+}
+
+impl Choice {
+    /// What is chosen from.
+    pub fn kind(self) -> RefKind {
+        match self {
+            Choice::Player => RefKind::Character,
+            Choice::StartMap => RefKind::Map,
+        }
+    }
+
+    /// "the player character", "the start map".
+    pub fn label(self) -> &'static str {
+        match self {
+            Choice::Player => "the player character",
+            Choice::StartMap => "the start map",
+        }
+    }
+}
+
 impl Problem {
+    /// The setting this problem asks to be chosen (the texts of the export's pre-flight,
+    /// `release::check`), if it is one of those.
+    pub fn choice(&self) -> Option<Choice> {
+        if self.text.starts_with("No player character is set") {
+            Some(Choice::Player)
+        } else if self.text.starts_with("The start map '") {
+            Some(Choice::StartMap)
+        } else {
+            None
+        }
+    }
+
     /// One line for scripts and the agent server.
     pub fn line(&self) -> String {
         format!("{} [{}] {}: {}", self.severity.name(), self.area.name(), self.place, self.text)
@@ -221,6 +260,28 @@ fn entity_refs(e: &rustpg2d_engine::entity::EntityInstance) -> Vec<(RefKind, Str
 }
 
 impl Workspace {
+    /// Sets what a problem asked to be chosen (`Problem::choice`): the player character, the
+    /// start map. One step; the project is checked again.
+    pub fn choose_setting(&mut self, choice: Choice, id: &str) -> Result<String, String> {
+        let exists = match choice {
+            Choice::Player => self.project.db.character(id).is_some(),
+            Choice::StartMap => self.maps.iter().any(|m| m == id),
+        };
+        if !exists {
+            return Err(format!("there is no {} \"{id}\"", choice.kind().label().to_lowercase()));
+        }
+        let mut c = self.project.config.clone();
+        match choice {
+            Choice::Player => c.player = id.to_string(),
+            Choice::StartMap => c.start_map = id.to_string(),
+        }
+        let value = serde_json::to_value(&c).map_err(|e| e.to_string())?;
+        self.set_config_value(value)?;
+        self.problems.stale = true;
+        let label = choice.label();
+        Ok(format!("{}{} is {id} now", label[..1].to_uppercase(), &label[1..]))
+    }
+
     /// Does `id` of `kind` exist (maps included; an empty id counts as "none chosen")?
     /// *Create it*: a fresh definition under exactly the id something refers to, so the
     /// reference leads somewhere again (one step; the list is checked again).
@@ -987,4 +1048,34 @@ mod tests {
         let _ = std::fs::remove_dir_all(dir);
     }
 
+
+    #[test]
+    fn the_player_character_and_the_start_map_are_chosen_from_the_list() {
+        let dir = std::env::temp_dir().join(format!("rustpg2d-problem-choose-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        crate::files::create_project(&dir).unwrap();
+        let mut ws = Workspace::new(dir.clone(), crate::Gpu::No).unwrap();
+        ws.make_def(RefKind::Character, "Hero", None).unwrap();
+        ws.project.config.player = String::new();
+        ws.project.config.start_map = "nowhere".into();
+        ws.history_frame(None);
+        ws.refresh_refs();
+        ws.refresh_problems();
+        let lines = || ws.problems.list.iter().map(|p| p.line()).collect::<Vec<_>>();
+        let choices: Vec<Choice> = ws.problems.list.iter().filter_map(|p| p.choice()).collect();
+        assert!(choices.contains(&Choice::Player) && choices.contains(&Choice::StartMap), "{:?}", lines());
+        // Only something that exists; each a step.
+        assert!(ws.choose_setting(Choice::StartMap, "nowhere_else").is_err());
+        let steps = ws.timeline.done.len();
+        assert_eq!(ws.choose_setting(Choice::StartMap, "start").unwrap(), "The start map is start now");
+        assert_eq!(ws.choose_setting(Choice::Player, "hero").unwrap(), "The player character is hero now");
+        ws.history_frame(None);
+        assert!(ws.timeline.done.len() > steps);
+        assert_eq!((ws.project.config.start_map.as_str(), ws.project.config.player.as_str()), ("start", "hero"));
+        // Checked again: neither is said any more.
+        ws.refresh_problems();
+        assert!(!ws.problems.list.iter().any(|p| p.choice().is_some()), "{:?}", ws.problems.list.iter().map(|p| p.line()).collect::<Vec<_>>());
+        let _ = std::fs::remove_dir_all(dir);
+    }
 }

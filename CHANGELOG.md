@@ -201,6 +201,8 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   event…* and *+ Line* in the Inspector) and is never drawn around something scrolled out of
   view; when a step is done in another tab than the one in front, the tour says so and
   shows that tab. Its window can be moved.
+- **Choose one…** (part 10): the Problems tab mends *No player character is set* and a start map
+  that doesn't exist by offering the project's characters or maps to pick from.
 - **Use another…** (part 10): a problem about something that doesn't exist also offers the
   ones that do; everything that named the missing one (definitions, maps, scripts) names the
   one picked.

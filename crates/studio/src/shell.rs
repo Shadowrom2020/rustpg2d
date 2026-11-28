@@ -2625,7 +2625,7 @@ impl Viewer<'_> {
         if self.ws.problems.list.iter().any(|p| p.missing().is_some()) {
             self.ws.lib.ensure_loaded();
         }
-        let (mut go, mut fix) = (None, None);
+        let (mut go, mut fix, mut choose) = (None, None, None);
         let list = &self.ws.problems.list;
         egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
             // By where they are, each group with how many.
@@ -2664,6 +2664,19 @@ impl Viewer<'_> {
                                     }
                                 }
                             }
+                            // A setting to choose (the player character, the start map): from the
+                            // project's own.
+                            if let Some(c) = p.choice() {
+                                let known: Vec<String> = match c.kind() {
+                                    RefKind::Map => self.ws.maps.clone(),
+                                    k => self.lists.iter().find(|(l, _)| *l == k).map_or(Vec::new(), |(_, l)| l.iter().map(|(i, _)| i.clone()).collect()),
+                                };
+                                if known.is_empty() {
+                                    ui.weak(format!("(the project has no {} to choose yet)", plural(c.kind().label()).to_lowercase()));
+                                } else if let Some(to) = ui.push_id(("choose one", &p.text), |ui| name_menu(ui, "Choose one…", &format!("Search the {}", plural(c.kind().label()).to_lowercase()), &known, None)).inner {
+                                    choose = Some((c, to));
+                                }
+                            }
                         });
                     }
                 });
@@ -2671,6 +2684,12 @@ impl Viewer<'_> {
         });
         if let Some(target) = go {
             self.go(&target);
+        }
+        if let Some((c, to)) = choose {
+            match self.ws.choose_setting(c, &to) {
+                Ok(said) => self.ws.set_status(said),
+                Err(e) => self.ws.set_status(format!("Not fixed: {e}")),
+            }
         }
         if let Some((kind, id, how)) = fix {
             let (r, open) = match &how {

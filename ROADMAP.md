@@ -2195,6 +2195,10 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   of the tab: pictures of the library's assets, tags and filters, dragging onto a map, the
   starter library's installing and updating from the window.
 
+  **Decided.** Packs keep the extension `.r2dpack` (the maintainer, 2026-11-28): one name for
+  the new format and 0.35's asset packages; the file itself says which it is
+  (`packs::kind_of`).
+
   **Verify.** A source served from the scratchpad (`python3 -m http.server`): browse, install,
   a version 2 offered and applied, a changed asset kept, a wrong SHA-256 refused. A shared pack
   installed into a fresh library and used in a new project. The starter pack installed through
@@ -2474,9 +2478,10 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     `ItemDef::upgrade`, rules versions below the current one, 0.27's status effects), the legacy
     `Appearance.body`, `PropDef.pieces`, the conversion of project folders on open, the fixtures of
     versions before 0.35 and their tests.
-  - **Listed to the user before removal** (their rule of 2026-11-24 for tools): the Tiled import,
-    the Aseprite import, pictures held in the hand without a model, what is left of sprite-sheet
-    figures and props, the top-down view, Meshy's 2D kinds.
+  - **Listed to the user before removal** (their rule of 2026-11-24 for tools): pictures held in
+    the hand without a model, what is left of sprite-sheet figures and props, the top-down view,
+    Meshy's 2D kinds. **Decided already (2026-11-28): the Tiled import and the Aseprite import
+    are dropped** (they aren't in the new editor; `SheetDef.tags` stays).
   - **One conversion, 0.35 → 0.36,** run by the editor on open with a backup copy beside the
     project: everything this release reshapes (editor data, pack origins, whatever the parts
     above recorded under *Decided while building*). The game and the editor refuse older projects
@@ -2514,6 +2519,10 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   - **The merge:** the draft pull request is made ready and merged; 0.36.0 is cut when the user
     asks.
 
+  **What is left, task by task:** `STUDIO_PLAN.md` at the repository's root (written
+  2026-11-28 for agents that take one task a session: the rules, how this code base does
+  things, and each open row below as a task with what to read, what to do and how to check it).
+
   **Progress.** **The parity table, first written 2026-11-28** from the 0.35 editor's menus
   and its script commands (each command is a feature the tests reached). *there* = in the new
   editor; *partly* = what is missing is named; *open* = not there yet; *decide* = leaves only
@@ -2523,6 +2532,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   |---|---|---|
   | **Projects**: new (wizard), open file / folder, close, recent, the example copy, project files packed | Home screen, `project …`; the wizard's choices (hero's sex, creator, map size) are settings pages | there |
   | Save all, undo / redo (maps and Database apart) | `file.save_all`, one History | there |
+  | Unsaved changes asked about (save / discard / stay) when the editor or a project closes | closing a project or opening another is refused with a sentence; **closing the window drops unsaved changes without a word** (found 2026-11-28) | **open** (STUDIO_PLAN.md task 1) |
   | Files changed on disk by another program: reload or keep (`watchanswer`) | read again when nothing unsaved is in the way, else a bar asks (*Take the files' version* / *Keep mine*); `watch`. (It did nothing for a map that was open: fixed, 2026-11-28) | there |
   | **Map**: new map, resize | *New…* › Map, the Inspector's *Size* (2026-11-28) | there |
   | Open, save, fit, rename a map; several maps | tabs, World view | there |
@@ -2531,15 +2541,15 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   | Structures: captured, placed, edited as a map of their own | *Save as structure*, Place, the structure's tab | there |
   | Schedules and patrol routes edited on the map | Inspector + dragged on the map | there |
   | View: grid, collision, zones, lighting at an hour, weather, parallax, top-down | the map's bar (*From above*) | there |
-  | View: minimap | the World view shows every map; no minimap in a map's tab | decide |
+  | View: minimap | — | removed (the maintainer, 2026-11-28): the World view shows every map |
   | **Database**: 25 tabs, search, item categories, table, sort, bulk change, undo | Project browser, kind tabs, forms from the schema | there |
   | Project settings (one long form) | the *Game* pages | there |
   | *Browse…* in a form: a sheet's picture, a sound's file, a material's texture, a font's file and its licence copied in | *Browse…* beside every field that names a file (`schema::FILES`); *New…* from a file also for ground (a picture) and fonts (2026-11-28) | there |
   | Languages: translation template exported, play-test in a language | *Translations* on the Languages page: languages with how far each is, a language added, its table (every text, its translation typed beside it), *Play in it* (2026-11-28) | there |
   | Plugins window: add from a file or the library, on / off, order, parameters, export, to the library, remove | *Plugins* on the *Scripts & plugins* page: each with what it is, on / off, order, its parameters by name with the control that fits, *Remove* (its files kept aside), added from the library or a plugin file; out of the project they go as part of a pack (*Share…*) (2026-11-28) | there |
-  | Clean up unused files (definitions nothing uses, stray files; a backup first; offered on close) | *Assets › Clean up unused files* (`assets.cleanup`): the list to tick, a copy beside the project, what is kept remembered (2026-11-28). Not offered when a project closes, on purpose so far: a question at every close is in the way; an exported game leaves the unused out anyway | there (the offer on close: decide) |
+  | Clean up unused files (definitions nothing uses, stray files; a backup first; offered on close) | *Assets › Clean up unused files* (`assets.cleanup`): the list to tick, a copy beside the project, what is kept remembered (2026-11-28). The offer when a project closes comes back (the maintainer, 2026-11-28; STUDIO_PLAN.md tasks 1 and 2) | partly (the offer on close) |
   | **Events**: trigger editors | the event sheet | there |
-  | Events graph (a map's triggers, scripts and maps as a graph) | — | **open** (or decide) |
+  | Events graph (a map's triggers, scripts and maps as a graph) | — | **open**: to be built (the maintainer, 2026-11-28; STUDIO_PLAN.md tasks 3 and 4) |
   | Scripts: editor with completion, check, API help | script tabs | there |
   | Visual scripts | the canvas in their tab | there |
   | Cut-scene timeline, scrubbed on the map, played from here | the timeline in their tab | there |
@@ -2552,7 +2562,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   | Character editor: model, pieces, colours, equipment, random colours, new from a model / a file / Meshy | character workshop, *New…*, Generate art | partly (*Start from…* another character) |
   | Props: pictures, states, hitbox, light, building shape | prop workshop + form | partly (a building's ridge and openings by numbers) |
   | Generate art (Meshy), its settings and budget | the Generate art page | there |
-  | Import… Tiled maps, Aseprite sheets | — | decide (part 11) |
+  | Import… Tiled maps, Aseprite sheets | — | removed (the maintainer, 2026-11-28); their code leaves with the old editor (part 11), their sections with the manual's rewrite |
   | **Library**: browse, add to project, send to library (with its script functions), its own window | Library tab; *Send to library*; no second process | there |
   | Asset packages, plugin files, the starter library file; update asset library; starter download | packs (one format, sources, updates asset by asset) | there |
   | **Play**: here / from start / title screen, in a language, with a test setup | Play tab, own window; the language on the Languages page; the setup is made by playing | partly (the setup's own form) |

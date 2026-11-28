@@ -77,6 +77,9 @@ being rewritten on a new foundation, in twelve parts. While it lasts:
   (`gfx::material`). The game is drawn into a picture (`gfx::Screen`); `gfx::with_screen` draws
   it into any view with its own input, `gfx::init_headless` / `gfx::window::run_headless` draw
   without a window (tests, `model_sheet`).
+- **What is left of the Studio is in `STUDIO_PLAN.md`** (root): one task a session, with what to
+  read, what to do and how to check it; its sections 1 and 2 are the short form of the rules
+  and recipes below. Tick a task there when it is done.
 - **Roadmap parts, not one item per branch:** work the parts in order on this branch, push to it
   (the draft pull request #356 runs CI), and keep each part's *Progress*, *Decided while
   building* and *Verify* notes in ROADMAP.md true.

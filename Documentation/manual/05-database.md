@@ -302,7 +302,7 @@ filled with the left colour).
 
 ## Scatter sets
 
-The props the Decorations tool's **scatter brush** places at random ([Maps › Decorations](03-maps.md#decorations)):
+The props the Decorations tool's **scatter brush** places at random ([Maps › Decorations](03-maps.md#scenery)):
 
 | Setting | Meaning |
 |---|---|

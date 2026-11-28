@@ -92,7 +92,7 @@ bats and a chest".
 | `create_map {name, width, height, fill}` | A new map, its ground filled with the material `fill` (optional), saved and opened. |
 | `paint_ground {map, material, circles, lines, polygons, rects}` | The painted ground ([Maps › Painted ground](03-maps.md#painted-ground)) with a material (`""` erases): `circles` = `[x, y, radius]`, `lines` = `{points: [[x, y], …], width}` (roads, streams), `polygons` = `[[x, y], …]` filled, `rects` = `[x, y, w, h]` (floors, carpets); all in tiles, fractions allowed. One undo step. |
 | `fill_ground {map, material, x, y}` | Fills the connected area of the same material (or of no ground) at a point. |
-| `place_objects {map, prop, points, line, layer, flip}` | Decorations ([Maps › Decorations](03-maps.md#decorations)): a prop as a picture at feet `points` (`[x, y]` in tiles), and / or a `line` `[x1, y1, x2, y2]` of it on its grid; `layer` `Flat` \| `Sorted` (default) \| `Above`. One undo step. |
+| `place_objects {map, prop, points, line, layer, flip}` | Decorations ([Maps › Decorations](03-maps.md#scenery)): a prop as a picture at feet `points` (`[x, y]` in tiles), and / or a `line` `[x1, y1, x2, y2]` of it on its grid; `layer` `Flat` \| `Sorted` (default) \| `Above`. One undo step. |
 | `scatter {map, set, circles, seed}` | A scatter set's props at random inside `circles` (`[x, y, radius]` in tiles), keeping their spacing (forests, flowers, rocks). |
 | `erase_objects {map, circles, prop}` | Removes the decorations inside `circles` (all, or one prop's). |
 | `set_collision {map, cells, rect, value}` | `solid`, `walkable` or back to `auto`. |

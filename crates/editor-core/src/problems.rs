@@ -277,7 +277,8 @@ impl Workspace {
         }
         let value = serde_json::to_value(&c).map_err(|e| e.to_string())?;
         self.set_config_value(value)?;
-        self.problems.stale = true;
+        // (Checked again at once, as the other fixes do: the entry goes.)
+        self.refresh_problems();
         let label = choice.label();
         Ok(format!("{}{} is {id} now", label[..1].to_uppercase(), &label[1..]))
     }
@@ -1073,8 +1074,7 @@ mod tests {
         ws.history_frame(None);
         assert!(ws.timeline.done.len() > steps);
         assert_eq!((ws.project.config.start_map.as_str(), ws.project.config.player.as_str()), ("start", "hero"));
-        // Checked again: neither is said any more.
-        ws.refresh_problems();
+        // Checked again by itself: neither is said any more.
         assert!(!ws.problems.list.iter().any(|p| p.choice().is_some()), "{:?}", ws.problems.list.iter().map(|p| p.line()).collect::<Vec<_>>());
         let _ = std::fs::remove_dir_all(dir);
     }

@@ -2808,6 +2808,19 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
 
   **Engine.** None.
 
+  **The manual's rewrite** (STUDIO_PLAN.md task 14, a chapter at a time, in the plan's order):
+  - Chapter 2, *The editor* (2026-11-28): the window as it is now (tabs that are arranged,
+    the menus made from the commands, the command palette, the Project browser's groups, the
+    Overview, Problems and History, F1), a map's tab (its tools and keys, the Outliner and
+    Inspector, Alt+drag for a region), the window's keys, one history and the question on
+    leaving, Go to anything, *Used by*, the Problems tab with its fixes, the Play tab and its
+    bar, another project from the Overview, the clean-up as it works now (offered on leaving),
+    the bar for files changed on disk. 0.35's that the new editor doesn't have, left out:
+    the mode tabs and the ribbon, the minimap, Ctrl+M (go to a map), Ctrl+PgUp / PgDn
+    (previous / next map), the status bar's tile, zoom and map size (the map tab shows the
+    tile under the pointer in its corner), the Problems window's filter by severity and area,
+    the *Repository* badge, play-tests from the selected spawn point.
+
   **Verify.** The parity table has no open row. The example built from an empty project by an
   agent through the server reaches a play-test. `scripts/ci/smoke.sh` whole. The packages of every
   platform start (the release pull request's *Packages* check, run by hand on the branch before

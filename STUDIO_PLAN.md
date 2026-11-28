@@ -563,6 +563,8 @@ in its Help tab, and tests keep their links valid and their script table complet
    must pass (links, and every character drawable: a new sign needs a line in
    `manual::drawable`, or better, don't use it).
 
+Done: 02 (2026-11-28).
+
 Order: 02 (the editor), 03 (maps), 04 (objects and zones), 05 (the Database), 06 (characters),
 07 (events), 10 (art and sound), 11 (the asset library), 12 (languages), 13 (AI agents), 14
 (publishing), 18 (plugins), 20 (visual scripts), 01 (getting started) last. Chapters 08, 09,

@@ -138,6 +138,8 @@ enum Drag {
     Box { from: Vec2, pick: Option<Selection> },
     /// A new zone from this tile (`at`: the pixel); `pick` as for the box.
     NewZone { from: (i32, i32), at: Vec2, pick: Option<Selection> },
+    /// A region of tiles selected from this tile (Alt+drag with the Select tool).
+    Region { from: (i32, i32) },
     /// A zone's corner follows the pointer; `fixed` is the opposite corner (tile lines).
     Resize { uid: u32, fixed: (i32, i32), before: Box<MapSnap> },
     /// Collision painted tile by tile.
@@ -379,6 +381,7 @@ impl MapView {
             Selection::Entity(u) => format!("e{u}"),
             Selection::Zone(u) => format!("z{u}"),
             Selection::Scenery(d) => format!("s{},{}", d.x, d.y),
+            Selection::Region((x, y, w, h)) => format!("r{x},{y}:{w}x{h}"),
             _ => "-".into(),
         }).collect();
         let (e, z, d) = doc_of(ws, name).map_or((0, 0, 0), |d| (d.map.entities.len(), d.map.zones.len(), d.map.decor.len()));
@@ -438,6 +441,8 @@ impl MapView {
                 Selection::Entity(u) => doc.map.entity(*u).is_some(),
                 Selection::Zone(u) => doc.map.zones.iter().any(|z| z.uid == *u),
                 Selection::Scenery(d) => doc.map.decor.contains(d),
+                // (A region of tiles stays while it lies on the map: a resize may cut it off.)
+                Selection::Region((x, y, w, h)) => x + w <= doc.map.width && y + h <= doc.map.height,
                 _ => false,
             });
         }
@@ -901,6 +906,43 @@ impl MapView {
             [] if editor_core::structdoc::structure_of(name).is_some() => {
                 let id = editor_core::structdoc::structure_of(name).unwrap_or_default().to_string();
                 self.structure_facts(ui, p, &id);
+            }
+            [Selection::Region((x, y, w, h))] => {
+                let (rect, many) = ((*x, *y, *w, *h), doc.map.entities.iter().filter(|e| e.x >= *x as f32 * ts && e.x < (*x + *w) as f32 * ts && e.y >= *y as f32 * ts && e.y < (*y + *h) as f32 * ts).count());
+                ui.label(egui::RichText::new(format!("{w} x {h} tiles")).strong());
+                ui.weak(format!("From tile {x}, {y}: the painted ground, the scenery, the blocked tiles and {many} character(s), object(s) and item(s) standing there (zones aren't part of it)."));
+                let mut act = None;
+                ui.horizontal_wrapped(|ui| {
+                    if ui.button("Copy").on_hover_text("With its ground (Ctrl+C); Ctrl+V puts it down under the pointer, on this map or another, as one step").clicked() {
+                        act = Some("copy");
+                    }
+                    if ui.button("Cut").on_hover_text("Copied, then emptied (Ctrl+X)").clicked() {
+                        act = Some("cut");
+                    }
+                    if ui.button("Empty it").on_hover_text("Its ground, scenery, blocked tiles and things go (Delete); zones stay").clicked() {
+                        act = Some("delete");
+                    }
+                });
+                if let Some(act) = act {
+                    self.act(p, name, act);
+                    return;
+                }
+                ui.add_space(6.0);
+                ui.label(egui::RichText::new("Save as structure").strong());
+                ui.horizontal(|ui| {
+                    ui.add(egui::TextEdit::singleline(&mut self.structure_name).hint_text("its name").desired_width(150.0)).widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, "The structure's name"));
+                    ui.checkbox(&mut self.structure_ground, "With the ground").on_hover_text("Off for things that sit on any ground (a market stall, a camp)");
+                });
+                if ui.add_enabled(!self.structure_name.trim().is_empty(), egui::Button::new("Save as structure")).clicked() {
+                    match p.ws.save_as_structure(rect, &self.structure_name, self.structure_ground) {
+                        Ok(id) => {
+                            p.ws.set_status(format!("Saved as the structure {id}"));
+                            self.structure_name.clear();
+                            p.asks.push(Ask::OpenDef(RefKind::Structure, id));
+                        }
+                        Err(e) => p.ws.set_status(e),
+                    }
+                }
             }
             [] => {
                 let m = &doc.map;
@@ -1368,13 +1410,17 @@ impl MapView {
             }
             "copy" | "cut" => match p.ws.copy_objects(&self.sel) {
                 Some(clip) => {
-                    let n = clip.len();
+                    let (n, clip_size) = (clip.len(), clip.region_size());
                     *p.clip = Some(clip);
                     if what == "cut" {
                         p.ws.delete_objects(&self.sel);
                         self.sel.clear();
                     }
-                    p.ws.set_status(format!("{} {n}: Ctrl+V puts {} down under the pointer, on this map or another", if what == "cut" { "Cut" } else { "Copied" }, if n == 1 { "it" } else { "them" }));
+                    let done = if what == "cut" { "Cut" } else { "Copied" };
+                    p.ws.set_status(match clip_size {
+                        Some((w, h)) => format!("{done} a region of {w} x {h} tiles with its ground: Ctrl+V puts it down under the pointer, on this map or another"),
+                        None => format!("{done} {n}: Ctrl+V puts {} down under the pointer, on this map or another", if n == 1 { "it" } else { "them" }),
+                    });
                 }
                 None => p.ws.set_status("Select something to copy first"),
             },
@@ -1387,7 +1433,10 @@ impl MapView {
                     if made.is_empty() {
                         p.ws.set_status("Nothing of it fits on the map there");
                     } else {
-                        p.ws.set_status(format!("Pasted {}", made.len()));
+                        p.ws.set_status(match clip.region_size() {
+                            Some((w, h)) => format!("Pasted a region of {w} x {h} tiles with its ground"),
+                            None => format!("Pasted {}", made.len()),
+                        });
                         self.sel = made;
                     }
                 }
@@ -1606,6 +1655,11 @@ impl MapView {
                     return;
                 }
             }
+            // Alt+drag: a region of tiles, with whatever is on them (copied with its ground).
+            if self.tool == Tool::Select && mods.alt {
+                self.drag = Some(Drag::Region { from: tile });
+                return;
+            }
             match self.tool {
                 Tool::Select | Tool::Zones => {
                     let stack = if self.tool == Tool::Zones { self.zones_at(p.ws, &doc.map, at) } else { self.things_at(p.ws, &doc.map, at) };
@@ -1803,6 +1857,17 @@ impl MapView {
                                 self.sel.push(s);
                             }
                         }
+                    }
+                }
+            }
+            Some(Drag::Region { from }) if held => self.drag = Some(Drag::Region { from }),
+            Some(Drag::Region { from }) => {
+                if let Some(doc) = p.ws.doc.as_ref() {
+                    let (x, y, w, h) = rect_of(from, tile);
+                    let (x0, y0) = (x.max(0), y.max(0));
+                    let (x1, y1) = ((x + w).min(doc.map.width as i32), (y + h).min(doc.map.height as i32));
+                    if x1 > x0 && y1 > y0 {
+                        self.sel = vec![Selection::Region((x0 as u32, y0 as u32, (x1 - x0) as u32, (y1 - y0) as u32))];
                     }
                 }
             }
@@ -2497,8 +2562,14 @@ impl MapView {
             }
         }
 
-        // The selection: each thing's frame, and what blocks the way under a single one.
+        // The selection: each thing's frame, and what blocks the way under a single one; a
+        // region of tiles as a frame on the ground.
         for s in &self.sel {
+            if let Selection::Region((x, y, w, h)) = *s {
+                let (x, y, w, h) = (x as f32 * ts, y as f32 * ts, w as f32 * ts, h as f32 * ts);
+                draw_rectangle(x, y, w, h, Color::new(1.0, 0.9, 0.3, 0.12));
+                draw_rectangle_lines(x, y, w, h, 3.0 * px, YELLOW);
+            }
             if let Selection::Scenery(d) = s {
                 let (r, flat) = scene.decor_rect(map, d);
                 let frame = || draw_rectangle_lines(r.x - px, r.y - px, r.w + 2.0 * px, r.h + 2.0 * px, 2.0 * px, YELLOW);
@@ -2593,6 +2664,11 @@ impl MapView {
             let tile = ((w.x / ts).floor() as i32, (w.y / ts).floor() as i32);
             let (fx, fy) = (tile.0 as f32 * ts, tile.1 as f32 * ts);
             match (&self.drag, self.tool) {
+                (Some(Drag::Region { from }), _) => {
+                    let (rx, ry, rw, rh) = rect_of(*from, tile);
+                    draw_rectangle(rx as f32 * ts, ry as f32 * ts, rw as f32 * ts, rh as f32 * ts, Color::new(1.0, 0.9, 0.3, 0.16));
+                    draw_rectangle_lines(rx as f32 * ts, ry as f32 * ts, rw as f32 * ts, rh as f32 * ts, 2.0 * px, YELLOW);
+                }
                 (Some(Drag::NewZone { from, .. }), _) => {
                     let (rx, ry, rw, rh) = rect_of(*from, tile);
                     draw_rectangle(rx as f32 * ts, ry as f32 * ts, rw as f32 * ts, rh as f32 * ts, Color::new(0.35, 0.75, 1.0, 0.18));

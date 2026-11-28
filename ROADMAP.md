@@ -1316,7 +1316,15 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   - **Copy, cut and paste** (Ctrl+C, Ctrl+X, Ctrl+V, the map's menu): what is selected
     (characters, objects, items, scenery, zones) is put down under the pointer, on the same
     map or another one, with new numbers and names that are free there
-    (`Workspace::copy_objects`, `paste_objects`).
+    (`Workspace::copy_objects`, `paste_objects`). **A region of tiles** (2026-11-28,
+    STUDIO_PLAN.md task 9): Alt+drag with the Select tool selects one (`Selection::Region`,
+    a yellow frame on the ground; 0.35's region drag, which the new map tab had not brought
+    over); copied, it is captured as a structure is (`StructureDef::capture` with the ground:
+    painted ground, scenery, blocked tiles, the things whose feet stand in it; zones not, as
+    in 0.35) and pasted with `MapDoc::place_structure` as one step, named things under free
+    names, what falls off the map left out, the pasted region selected. Deleting a region
+    empties it (`MapDoc::clear_region`), so *Cut* works on one. Its Inspector: *Copy*, *Cut*,
+    *Empty it*, *Save as structure*. Script `mapdrag X1 Y1 X2 Y2 alt`.
   - **Replace with…** (Inspector): another definition of its kind in a thing's place, where
     it stands, with its name and events; several selected at once. **In a row / In a
     column** put several things in line with the first one selected.
@@ -1335,8 +1343,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     asked for them; an agent's `create_map` also closed the map in front, no longer.)
   Still open: a structure's ghost (its footprint is shown); hiding and locking single
   things in the Outliner; schedule stops added by clicking the map (they are added in the
-  Inspector, then dragged); a region of tiles copied with its ground (*Save as structure*
-  does that by name). Of playing: the
+  Inspector, then dragged). Of playing: the
   console and script errors as panels (part 7), a click in the game leading to the thing's
   place on its map (it opens its definition).
 
@@ -1456,6 +1463,14 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     guard's route, the right button takes the last away, one is dragged, Esc ends; the
     chest's Inspector offers its states; a card of the World view dragged lies there after
     a restart. Not done by real keys: Ctrl+C / Ctrl+V (the script calls what they call).
+  - A region copied with its ground: `a_region_is_copied_with_its_ground_and_pasted_as_one_step`
+    (a 3 x 3 patch of stone with a blocked tile and a named barrel, copied and pasted at
+    10, 10: the stone, the blocked tile and `barrel_2` there, one step, undone in one; over
+    the map's edge what fits; a region deleted is emptied in one step). In the window on a
+    scratch copy: `mapdrag 25 18 28 20 alt` selects `r25,18:4x3` (the frame on the ground,
+    the Inspector's *4 x 3 tiles*), *Copy*, the pointer at 33, 26, *Paste*: "Pasted a region
+    of 4 x 3 tiles with its ground", the grass corner of the source now on the cobbles there;
+    `edit.undo` "Undid: Paste a region of 4 x 3 tiles", the cobbles back.
   - The roof's order: `a_roof_alone_is_drawn_after_what_stands_under_it` (wall pieces in
     its southern and eastern rows and someone inside near that corner are covered; what
     stands in front of it is still in front). In the window: a room of timber walls with
@@ -2686,7 +2701,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   | **Map**: new map, resize | *New…* › Map, the Inspector's *Size* (2026-11-28) | there |
   | Open, save, fit, rename a map; several maps | tabs, World view | there |
   | Tools: select / multi-select / move / duplicate / delete, ground, collision, zones, transitions drawn and linked, place (characters, props, items, decorations, scatter, structures), build | Select, Terrain, Collision, Zones, Place, Build | there |
-  | A region of tiles copied / cut / pasted with its ground | things are copied; ground only by *Save as structure* | partly |
+  | A region of tiles copied / cut / pasted with its ground | Alt+drag selects a region; Ctrl+C / X / V with its ground, one step (2026-11-28) | there |
   | Structures: captured, placed, edited as a map of their own | *Save as structure*, Place, the structure's tab | there |
   | Schedules and patrol routes edited on the map | Inspector + dragged on the map | there |
   | View: grid, collision, zones, lighting at an hour, weather, parallax, top-down | the map's bar (*From above*) | there |

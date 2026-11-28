@@ -356,10 +356,16 @@ impl Studio {
                         }
                         _ => {
                             let a = view.window_pos(ts, num(1), num(2));
-                            let how = if arg(0) == "mapclick" { arg(3) } else { "" };
+                            // (`mapclick X Y ctrl|shift|right|double`, `mapdrag X1 Y1 X2 Y2 alt` = a region of tiles.)
+                            let how = match arg(0) {
+                                "mapclick" => arg(3),
+                                "mapdrag" => arg(5),
+                                _ => "",
+                            };
                             let modifiers = match how {
                                 "ctrl" => egui::Modifiers::COMMAND | egui::Modifiers::CTRL,
                                 "shift" => egui::Modifiers::SHIFT,
+                                "alt" => egui::Modifiers::ALT,
                                 _ => egui::Modifiers::NONE,
                             };
                             let button = if how == "right" { egui::PointerButton::Secondary } else { egui::PointerButton::Primary };
@@ -381,6 +387,7 @@ impl Studio {
                                         self.script.input.push_back(vec![egui::Event::PointerMoved(a + (b - a) * (k as f32 / 4.0))]);
                                     }
                                     self.script.input.push_back(vec![press(b, false)]);
+                                    self.script.input.push_back(vec![egui::Event::ModifiersChanged(egui::Modifiers::NONE)]);
                                     self.script.pointer = b;
                                 }
                                 _ => {}

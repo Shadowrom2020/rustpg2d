@@ -53,6 +53,9 @@ pub struct Clip {
     zones: Vec<Zone>,
     /// Scenery with its prop (each map numbers its props itself).
     decor: Vec<(String, Decor)>,
+    /// A region of tiles copied with its ground, scenery, blocked tiles and the things standing
+    /// in it (zones aren't copied), as a structure is captured.
+    region: Option<rustpg2d_engine::defs::StructureDef>,
     /// The tile the north-west one of them stood on.
     origin: (i32, i32),
     /// The map they were copied from.
@@ -60,9 +63,15 @@ pub struct Clip {
 }
 
 impl Clip {
-    /// How many things it holds.
+    /// How many things it holds (a region: the things standing in it, at least one).
     pub fn len(&self) -> usize {
-        self.entities.len() + self.zones.len() + self.decor.len()
+        let region = self.region.as_ref().map_or(0, |r| (r.entities.len() + r.decor.len()).max(1));
+        self.entities.len() + self.zones.len() + self.decor.len() + region
+    }
+
+    /// The size in tiles of a region copied with its ground.
+    pub fn region_size(&self) -> Option<(u32, u32)> {
+        self.region.as_ref().map(|r| (r.w, r.h))
     }
 
     pub fn is_empty(&self) -> bool {
@@ -740,6 +749,15 @@ impl Workspace {
 
     /// Removes placed things, scenery and zones from the map. Returns how many went.
     pub fn delete_objects(&mut self, what: &[Selection]) -> usize {
+        // A region of tiles is emptied: its ground, scenery, blocked tiles and things (as *Cut*
+        // takes them; zones stay). One step.
+        if let [Selection::Region(r)] = what {
+            let Some(doc) = &mut self.doc else { return 0 };
+            doc.clear_region(*r, &self.assets);
+            self.begin_unnamed(&format!("Clear a region of {} x {} tiles", r.2, r.3));
+            self.stale = true;
+            return 1;
+        }
         let label = match what {
             [one] => format!("Delete {}", self.describe_object(*one)),
             _ => format!("Delete {} things", what.len()),
@@ -890,6 +908,11 @@ impl Workspace {
     pub fn copy_objects(&self, what: &[Selection]) -> Option<Clip> {
         let ts = self.ts();
         let doc = self.doc.as_ref()?;
+        // A region of tiles: with its ground, as a structure is captured.
+        if let Some(Selection::Region(r)) = what.iter().find(|s| matches!(s, Selection::Region(_))) {
+            let region = rustpg2d_engine::defs::StructureDef::capture(&doc.map, "clipboard", "Clipboard", *r, true);
+            return Some(Clip { region: Some(region), origin: (r.0 as i32, r.1 as i32), from: doc.map.name.clone(), ..Default::default() });
+        }
         let mut clip = Clip::default();
         let tile = |x: f32, y: f32| ((x / ts).floor() as i32, ((y - 0.5) / ts).floor() as i32);
         let mut tiles = Vec::new();
@@ -925,6 +948,9 @@ impl Workspace {
     /// landing on `tile`: with new numbers, names that are free here, zones cut to the map; what
     /// would stand outside the map is left out. One step. Returns what was put down.
     pub fn paste_objects(&mut self, clip: &Clip, tile: (i32, i32)) -> Vec<Selection> {
+        if let Some(region) = &clip.region {
+            return self.paste_region(region, tile);
+        }
         let ts = self.ts();
         let Some(snap) = self.snap_map() else { return Vec::new() };
         let Some(doc) = &mut self.doc else { return Vec::new() };
@@ -972,6 +998,29 @@ impl Workspace {
         };
         self.commit_map(*snap, &label);
         made
+    }
+
+    /// A region copied with its ground put down with its north-west tile on `tile`: its
+    /// ground, scenery, blocked tiles and things (named ones get names free on this map), what
+    /// falls outside the map left out. One step. Returns the region where it landed.
+    fn paste_region(&mut self, region: &rustpg2d_engine::defs::StructureDef, tile: (i32, i32)) -> Vec<Selection> {
+        let Some(doc) = &mut self.doc else { return Vec::new() };
+        let (mw, mh) = (doc.map.width as i32, doc.map.height as i32);
+        let (x0, y0) = (tile.0.max(0), tile.1.max(0));
+        let (x1, y1) = ((tile.0 + region.w as i32).min(mw), (tile.1 + region.h as i32).min(mh));
+        if x1 <= x0 || y1 <= y0 {
+            return Vec::new();
+        }
+        let mut region = region.clone();
+        let mut taken: std::collections::HashSet<String> = doc.map.entities.iter().map(|e| e.name.clone()).filter(|n| !n.is_empty()).collect();
+        for e in region.entities.iter_mut().filter(|e| !e.name.is_empty()) {
+            e.name = rustpg2d_engine::refactor::unique_id(&e.name, |c| taken.contains(c));
+            taken.insert(e.name.clone());
+        }
+        doc.place_structure(&region, tile.0, tile.1, &self.assets);
+        self.begin_unnamed(&format!("Paste a region of {} x {} tiles", region.w, region.h));
+        self.stale = true;
+        vec![Selection::Region((x0 as u32, y0 as u32, (x1 - x0) as u32, (y1 - y0) as u32))]
     }
 
     /// The placed things and scenery of `what` that are of `kind` become definition `id` of
@@ -1205,6 +1254,69 @@ mod map_tests {
         assert!(ws.run_line("map.new attic wide 6").unwrap_err().contains("isn't a number"));
         ws.run_line("map.resize 10 7").unwrap();
         assert_eq!(ws.doc.as_ref().map(|d| (d.map.name.as_str(), d.map.width, d.map.height)), Some(("cellar", 10, 7)));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_region_is_copied_with_its_ground_and_pasted_as_one_step() {
+        use crate::workspace::Selection;
+        use rustpg2d_engine::entity::{EntityInstance, EntityKind};
+        use rustpg2d_engine::map::CollisionOverride;
+        let dir = std::env::temp_dir().join(format!("rustpg2d-region-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        crate::files::create_project(&dir).unwrap();
+        let mut ws = Workspace::new(dir.clone(), crate::Gpu::No).unwrap();
+        ws.project.db.materials.push(rustpg2d_engine::ground::MaterialDef { id: "stone".into(), name: "Stone".into(), ..Default::default() });
+        ws.project.db.reindex();
+        ws.open_map("start");
+        ws.history_frame(None);
+        // A 3 x 3 patch of stone at tiles 2..5, a blocked tile in it, a named barrel on it.
+        let stone = ws.ground_value("stone").unwrap();
+        let ts = ws.ts();
+        let doc = ws.doc.as_mut().unwrap();
+        doc.map.ground.paint_rect((2.0 * ts, 2.0 * ts), (5.0 * ts - 0.1, 5.0 * ts - 0.1), stone);
+        doc.map.set_collision(3, 3, CollisionOverride::Solid);
+        let uid = doc.map.alloc_uid();
+        let mut barrel = EntityInstance::new(uid, EntityKind::Prop, "barrel", 3.5 * ts, 3.9 * ts);
+        barrel.name = "barrel".into();
+        doc.map.entities.push(barrel);
+        let at = |x: f32, y: f32| gfx::math::vec2((x + 0.5) * ts, (y + 0.5) * ts);
+        assert_eq!(ws.ground_at(at(4.0, 4.0)).as_deref(), Some("stone"));
+        // Copied as a region; single things are still copied without ground.
+        let clip = ws.copy_objects(&[Selection::Region((2, 2, 3, 3))]).unwrap();
+        assert_eq!((clip.region_size(), clip.len()), (Some((3, 3)), 1));
+        assert!(ws.copy_objects(&[Selection::Entity(uid)]).unwrap().region_size().is_none());
+        // Pasted with its north-west tile on 10, 10: the ground, the blocked tile, the barrel
+        // under a name of its own; the region where it landed is what is selected.
+        ws.history_frame(None);
+        let steps = ws.timeline.done.len();
+        let made = ws.paste_objects(&clip, (10, 10));
+        assert_eq!(made, [Selection::Region((10, 10, 3, 3))]);
+        ws.history_frame(None);
+        assert_eq!(ws.timeline.done.len(), steps + 1, "one step");
+        assert_eq!(ws.ground_at(at(10.0, 10.0)).as_deref(), Some("stone"));
+        assert_eq!(ws.ground_at(at(12.0, 12.0)).as_deref(), Some("stone"));
+        assert_eq!(ws.ground_at(at(13.0, 13.0)), None, "only the region");
+        let map = &ws.doc.as_ref().unwrap().map;
+        assert_eq!(map.collision_at(11, 11), CollisionOverride::Solid);
+        assert!(map.entities.iter().any(|e| e.def == "barrel" && e.name == "barrel_2" && (e.x / ts) as i32 == 11), "{:?}", map.entities.iter().map(|e| (&e.def, &e.name, e.x, e.y)).collect::<Vec<_>>());
+        // Undone in one step: all of it gone.
+        ws.run("edit.undo", &[]).unwrap();
+        assert_eq!(ws.ground_at(at(10.0, 10.0)), None);
+        let map = &ws.doc.as_ref().unwrap().map;
+        assert!(map.collision_at(11, 11) != CollisionOverride::Solid && !map.entities.iter().any(|e| e.name == "barrel_2"));
+        // Pasted over the map's edge: what fits.
+        assert_eq!(ws.paste_objects(&clip, (38, 28)), [Selection::Region((38, 28, 2, 2))]);
+        assert!(ws.paste_objects(&clip, (60, 60)).is_empty());
+        // Deleting a region empties it (cut = copy, then this), one step.
+        ws.history_frame(None);
+        let steps = ws.timeline.done.len();
+        assert_eq!(ws.delete_objects(&[Selection::Region((2, 2, 3, 3))]), 1);
+        ws.history_frame(None);
+        assert_eq!(ws.timeline.done.len(), steps + 1);
+        assert_eq!(ws.ground_at(at(3.0, 3.0)), None);
+        assert!(!ws.doc.as_ref().unwrap().map.entities.iter().any(|e| e.uid == uid));
         let _ = std::fs::remove_dir_all(dir);
     }
 }

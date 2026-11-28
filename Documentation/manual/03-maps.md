@@ -219,19 +219,21 @@ counts as high.
 
 ## Copying, cutting and pasting regions
 
-With the **Select** tool, drag on empty space (or **Shift+drag** anywhere, also over entities) to
-select a rectangle of tiles; a dashed outline shows it.
+With the **Select** tool, **Alt+drag** selects a rectangle of tiles (anywhere, also over things);
+a yellow frame shows it, and the Inspector says how big it is and what stands in it.
 
-- **Ctrl+C** copies it: the painted ground, the decorations and entities standing in it and the
-  collision overrides (zones are not copied).
-- **Ctrl+X** copies it and empties it; **Del** only empties it.
-- **Ctrl+V** arms the copy: it follows the mouse as a transparent preview, and every click pastes it
-  as one undo step, until Esc or right-click. A pasted copy replaces everything in its rectangle,
-  so trees don't stand in a pasted house. Pasted entities keep their triggers; named ones get a
-  free name (`guard` becomes `guard_2`).
+- **Ctrl+C** (*Copy* in the Inspector) copies it with its ground: the painted ground, the scenery and
+  the characters, objects and items whose feet stand in it, and the blocked tiles (zones are not
+  copied).
+- **Ctrl+X** (*Cut*) copies it and empties it; **Delete** (*Empty it*) only empties it.
+- **Ctrl+V** puts it down with its north-west tile under the pointer (the map's right-click menu:
+  *Paste here*), as one step of the history. A pasted region replaces the scenery in its rectangle,
+  so trees don't stand in a pasted house. Pasted things keep their events; named ones get a free
+  name (`guard` becomes `guard_2`). The pasted region is selected, ready to be pasted again.
 
-The clipboard stays when you open another map, so regions move between maps. A selected entity can
-be copied on its own too. The region's inspector has the same commands plus **Save as structure…**.
+The clipboard stays when you open another map, so regions move between maps. Things selected by a
+click or a box are copied without the ground under them. The region's Inspector also has **Save as
+structure**.
 
 ## Structures
 

@@ -45,7 +45,7 @@ being rewritten on a new foundation, in twelve parts. While it lasts:
   `field KIND ID /POINTER VALUE` changes a field without the UI, `allfields on|off` = *Show all
   fields*, `setting /POINTER VALUE` changes one of the game's settings (tabs `settings:rules`,
   `settings:hero-party`…; the value is JSON: `setting /player "hero"`), the map view by tiles (a whole number is a tile's middle):
-  `mapclick X Y [ctrl|shift|right|double]`, `mapdrag X1 Y1 X2 Y2`, `maphover X Y` (real pointer
+  `mapclick X Y [ctrl|shift|right|double]`, `mapdrag X1 Y1 X2 Y2 [alt]` (alt with the Select tool: a region of tiles, copied and pasted with its ground), `maphover X Y` (real pointer
   input), `mapview CX CY ZOOM`, `maptool select|terrain|place|build|zones|collision` (a tool's panel moves the map's picture: `wait 0.5` before the next `mapclick`, or it lands beside the tile), `mapopt
   grid|zones|collision|light|weather|above|ground|scenery|things on|off [HOUR]`, `mapplace KIND ID` (character, prop, item, structure, scatter), `mapzone KIND`,
   `mapground MATERIAL|erase [brush|line|rect|fill] [WIDTH] [square] [snap]`,

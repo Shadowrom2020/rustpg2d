@@ -473,7 +473,9 @@ A sheet wider or taller than 2048 px is refused with a sentence (egui can't show
 **Check.** Core test (sizes before and after, the pixels of the copy). In the window: a sheet
 with 4 frames becomes 5; saved; the sheet's tab shows 5.
 
-### - [ ] Task 9 (M): a region of tiles is copied with its ground
+### - [x] Task 9 (M): a region of tiles is copied with its ground
+
+Done 2026-11-28. The new map tab had no way to select a region (`Selection::Region` was never made): Alt+drag with the Select tool does now, with a frame on the ground and an Inspector section; deleting a region empties it (for *Cut*). `mapdrag … alt` for scripts.
 
 **Read first.** `crates/editor-core/src/mapedit.rs`: `Clip`, `copy_objects`, `paste_objects`, and
 `save_as_structure(rect, name, ground)` (how ground and blocked tiles of a rectangle are taken:

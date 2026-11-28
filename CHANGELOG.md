@@ -146,6 +146,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   Place and Terrain tools; the Problems tab says what the check looks for before it ran and
   that nothing was found after; the Place tool and the World view say what to do when there
   is nothing to place or only one map.
+- **Regions of a map copied with their ground** (part 6): Alt+drag with the Select tool selects
+  a rectangle of tiles; Ctrl+C, Ctrl+X and Ctrl+V copy, cut and paste it with its painted ground,
+  scenery, blocked tiles and what stands in it, on the same map or another, as one step.
 - **Frames added in the pixel editor**: *+ Frame* adds an empty frame to a sprite sheet and
   *Duplicate* a copy of the frame being painted, ready for the next step of an animation.
 - **The test setup has a form** (part 6): *Test setup…* in the Play tab's bar sets what a

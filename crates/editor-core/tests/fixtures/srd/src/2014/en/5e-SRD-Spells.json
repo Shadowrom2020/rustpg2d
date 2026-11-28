@@ -1,0 +1,610 @@
+[
+  {
+    "index": "bless",
+    "name": "Bless",
+    "desc": [
+      "You bless up to three creatures of your choice within range. Whenever a target makes an attack roll or a saving throw before the spell ends, the target can roll a d4 and add the number rolled to the attack roll or saving throw."
+    ],
+    "higher_level": [
+      "When you cast this spell using a spell slot of 2nd level or higher, you can target one additional creature for each slot level above 1st."
+    ],
+    "range": "30 feet",
+    "components": [
+      "V",
+      "S",
+      "M"
+    ],
+    "material": "A sprinkling of holy water.",
+    "ritual": false,
+    "duration": "Up to 1 minute",
+    "concentration": true,
+    "casting_time": "1 action",
+    "level": 1,
+    "school": {
+      "index": "enchantment",
+      "name": "Enchantment",
+      "url": "/api/2014/magic-schools/enchantment"
+    },
+    "classes": [
+      {
+        "index": "cleric",
+        "name": "Cleric",
+        "url": "/api/2014/classes/cleric"
+      },
+      {
+        "index": "paladin",
+        "name": "Paladin",
+        "url": "/api/2014/classes/paladin"
+      }
+    ],
+    "subclasses": [
+      {
+        "index": "lore",
+        "name": "Lore",
+        "url": "/api/2014/subclasses/lore"
+      },
+      {
+        "index": "life",
+        "name": "Life",
+        "url": "/api/2014/subclasses/life"
+      }
+    ],
+    "url": "/api/2014/spells/bless"
+  },
+  {
+    "index": "cure-wounds",
+    "name": "Cure Wounds",
+    "desc": [
+      "A creature you touch regains a number of hit points equal to 1d8 + your spellcasting ability modifier. This spell has no effect on undead or constructs."
+    ],
+    "higher_level": [
+      "When you cast this spell using a spell slot of 2nd level or higher, the healing increases by 1d8 for each slot level above 1st."
+    ],
+    "range": "Touch",
+    "components": [
+      "V",
+      "S"
+    ],
+    "ritual": false,
+    "duration": "Instantaneous",
+    "concentration": false,
+    "casting_time": "1 action",
+    "level": 1,
+    "heal_at_slot_level": {
+      "1": "1d8 + MOD",
+      "2": "2d8 + MOD",
+      "3": "3d8 + MOD",
+      "4": "4d8 + MOD",
+      "5": "5d8 + MOD",
+      "6": "6d8 + MOD",
+      "7": "7d8 + MOD",
+      "8": "8d8 + MOD",
+      "9": "9d8 + MOD"
+    },
+    "school": {
+      "index": "evocation",
+      "name": "Evocation",
+      "url": "/api/2014/magic-schools/evocation"
+    },
+    "classes": [
+      {
+        "index": "bard",
+        "name": "Bard",
+        "url": "/api/2014/classes/bard"
+      },
+      {
+        "index": "cleric",
+        "name": "Cleric",
+        "url": "/api/2014/classes/cleric"
+      },
+      {
+        "index": "druid",
+        "name": "Druid",
+        "url": "/api/2014/classes/druid"
+      },
+      {
+        "index": "paladin",
+        "name": "Paladin",
+        "url": "/api/2014/classes/paladin"
+      },
+      {
+        "index": "ranger",
+        "name": "Ranger",
+        "url": "/api/2014/classes/ranger"
+      }
+    ],
+    "subclasses": [
+      {
+        "index": "lore",
+        "name": "Lore",
+        "url": "/api/2014/subclasses/lore"
+      },
+      {
+        "index": "life",
+        "name": "Life",
+        "url": "/api/2014/subclasses/life"
+      }
+    ],
+    "url": "/api/2014/spells/cure-wounds"
+  },
+  {
+    "index": "detect-magic",
+    "name": "Detect Magic",
+    "desc": [
+      "For the duration, you sense the presence of magic within 30 feet of you. If you sense magic in this way, you can use your action to see a faint aura around any visible creature or object in the area that bears magic, and you learn its school of magic, if any.",
+      "The spell can penetrate most barriers, but it is blocked by 1 foot of stone, 1 inch of common metal, a thin sheet of lead, or 3 feet of wood or dirt."
+    ],
+    "range": "Self",
+    "components": [
+      "V",
+      "S"
+    ],
+    "ritual": true,
+    "duration": "Up to 10 minutes",
+    "concentration": true,
+    "casting_time": "1 action",
+    "level": 1,
+    "area_of_effect": {
+      "type": "sphere",
+      "size": 30
+    },
+    "school": {
+      "index": "divination",
+      "name": "Divination",
+      "url": "/api/2014/magic-schools/divination"
+    },
+    "classes": [
+      {
+        "index": "bard",
+        "name": "Bard",
+        "url": "/api/2014/classes/bard"
+      },
+      {
+        "index": "cleric",
+        "name": "Cleric",
+        "url": "/api/2014/classes/cleric"
+      },
+      {
+        "index": "druid",
+        "name": "Druid",
+        "url": "/api/2014/classes/druid"
+      },
+      {
+        "index": "paladin",
+        "name": "Paladin",
+        "url": "/api/2014/classes/paladin"
+      },
+      {
+        "index": "ranger",
+        "name": "Ranger",
+        "url": "/api/2014/classes/ranger"
+      },
+      {
+        "index": "sorcerer",
+        "name": "Sorcerer",
+        "url": "/api/2014/classes/sorcerer"
+      },
+      {
+        "index": "wizard",
+        "name": "Wizard",
+        "url": "/api/2014/classes/wizard"
+      }
+    ],
+    "subclasses": [
+      {
+        "index": "lore",
+        "name": "Lore",
+        "url": "/api/2014/subclasses/lore"
+      }
+    ],
+    "url": "/api/2014/spells/detect-magic"
+  },
+  {
+    "index": "fire-bolt",
+    "name": "Fire Bolt",
+    "desc": [
+      "You hurl a mote of fire at a creature or object within range. Make a ranged spell attack against the target. On a hit, the target takes 1d10 fire damage. A flammable object hit by this spell ignites if it isn't being worn or carried.",
+      "This spell's damage increases by 1d10 when you reach 5th level (2d10), 11th level (3d10), and 17th level (4d10)."
+    ],
+    "range": "120 feet",
+    "components": [
+      "V",
+      "S"
+    ],
+    "ritual": false,
+    "duration": "Instantaneous",
+    "concentration": false,
+    "casting_time": "1 action",
+    "level": 0,
+    "attack_type": "ranged",
+    "damage": [
+      {
+        "damage_type": {
+          "index": "fire",
+          "name": "Fire",
+          "url": "/api/2014/damage-types/fire"
+        },
+        "damage_at_character_level": {
+          "1": "1d10",
+          "5": "2d10",
+          "11": "3d10",
+          "17": "4d10"
+        }
+      }
+    ],
+    "school": {
+      "index": "evocation",
+      "name": "Evocation",
+      "url": "/api/2014/magic-schools/evocation"
+    },
+    "classes": [
+      {
+        "index": "sorcerer",
+        "name": "Sorcerer",
+        "url": "/api/2014/classes/sorcerer"
+      },
+      {
+        "index": "wizard",
+        "name": "Wizard",
+        "url": "/api/2014/classes/wizard"
+      }
+    ],
+    "subclasses": [],
+    "url": "/api/2014/spells/fire-bolt"
+  },
+  {
+    "index": "fireball",
+    "name": "Fireball",
+    "desc": [
+      "A bright streak flashes from your pointing finger to a point you choose within range and then blossoms with a low roar into an explosion of flame. Each creature in a 20-foot-radius sphere centered on that point must make a dexterity saving throw. A target takes 8d6 fire damage on a failed save, or half as much damage on a successful one.",
+      "The fire spreads around corners. It ignites flammable objects in the area that aren't being worn or carried."
+    ],
+    "higher_level": [
+      "When you cast this spell using a spell slot of 4th level or higher, the damage increases by 1d6 for each slot level above 3rd."
+    ],
+    "range": "150 feet",
+    "components": [
+      "V",
+      "S",
+      "M"
+    ],
+    "material": "A tiny ball of bat guano and sulfur.",
+    "ritual": false,
+    "duration": "Instantaneous",
+    "concentration": false,
+    "casting_time": "1 action",
+    "level": 3,
+    "damage": [
+      {
+        "damage_type": {
+          "index": "fire",
+          "name": "Fire",
+          "url": "/api/2014/damage-types/fire"
+        },
+        "damage_at_slot_level": {
+          "3": "8d6",
+          "4": "9d6",
+          "5": "10d6",
+          "6": "11d6",
+          "7": "12d6",
+          "8": "13d6",
+          "9": "14d6"
+        }
+      }
+    ],
+    "dc": {
+      "dc_type": {
+        "index": "dex",
+        "name": "DEX",
+        "url": "/api/2014/ability-scores/dex"
+      },
+      "dc_success": "half"
+    },
+    "area_of_effect": {
+      "type": "sphere",
+      "size": 20
+    },
+    "school": {
+      "index": "evocation",
+      "name": "Evocation",
+      "url": "/api/2014/magic-schools/evocation"
+    },
+    "classes": [
+      {
+        "index": "sorcerer",
+        "name": "Sorcerer",
+        "url": "/api/2014/classes/sorcerer"
+      },
+      {
+        "index": "wizard",
+        "name": "Wizard",
+        "url": "/api/2014/classes/wizard"
+      }
+    ],
+    "subclasses": [
+      {
+        "index": "lore",
+        "name": "Lore",
+        "url": "/api/2014/subclasses/lore"
+      },
+      {
+        "index": "fiend",
+        "name": "Fiend",
+        "url": "/api/2014/subclasses/fiend"
+      }
+    ],
+    "url": "/api/2014/spells/fireball"
+  },
+  {
+    "index": "hold-person",
+    "name": "Hold Person",
+    "desc": [
+      "Choose a humanoid that you can see within range. The target must succeed on a wisdom saving throw or be paralyzed for the duration. At the end of each of its turns, the target can make another wisdom saving throw. On a success, the spell ends on the target."
+    ],
+    "higher_level": [
+      "When you cast this spell using a spell slot of 3rd level or higher, you can target one additional humanoid for each slot level above 2nd. The humanoids must be within 30 feet of each other when you target them."
+    ],
+    "range": "60 feet",
+    "components": [
+      "V",
+      "S",
+      "M"
+    ],
+    "material": "A small, straight piece of iron.",
+    "ritual": false,
+    "duration": "Up to 1 minute",
+    "concentration": true,
+    "casting_time": "1 action",
+    "level": 2,
+    "dc": {
+      "dc_type": {
+        "index": "wis",
+        "name": "WIS",
+        "url": "/api/2014/ability-scores/wis"
+      },
+      "dc_success": "none"
+    },
+    "school": {
+      "index": "enchantment",
+      "name": "Enchantment",
+      "url": "/api/2014/magic-schools/enchantment"
+    },
+    "classes": [
+      {
+        "index": "bard",
+        "name": "Bard",
+        "url": "/api/2014/classes/bard"
+      },
+      {
+        "index": "cleric",
+        "name": "Cleric",
+        "url": "/api/2014/classes/cleric"
+      },
+      {
+        "index": "druid",
+        "name": "Druid",
+        "url": "/api/2014/classes/druid"
+      },
+      {
+        "index": "sorcerer",
+        "name": "Sorcerer",
+        "url": "/api/2014/classes/sorcerer"
+      },
+      {
+        "index": "warlock",
+        "name": "Warlock",
+        "url": "/api/2014/classes/warlock"
+      },
+      {
+        "index": "wizard",
+        "name": "Wizard",
+        "url": "/api/2014/classes/wizard"
+      }
+    ],
+    "subclasses": [
+      {
+        "index": "lore",
+        "name": "Lore",
+        "url": "/api/2014/subclasses/lore"
+      },
+      {
+        "index": "land",
+        "name": "Land",
+        "url": "/api/2014/subclasses/land"
+      }
+    ],
+    "url": "/api/2014/spells/hold-person"
+  },
+  {
+    "index": "light",
+    "name": "Light",
+    "desc": [
+      "You touch one object that is no larger than 10 feet in any dimension. Until the spell ends, the object sheds bright light in a 20-foot radius and dim light for an additional 20 feet. The light can be colored as you like. Completely covering the object with something opaque blocks the light. The spell ends if you cast it again or dismiss it as an action.",
+      "If you target an object held or worn by a hostile creature, that creature must succeed on a dexterity saving throw to avoid the spell."
+    ],
+    "range": "Touch",
+    "components": [
+      "V",
+      "M"
+    ],
+    "material": "A firefly or phosphorescent moss.",
+    "ritual": false,
+    "duration": "1 hour",
+    "concentration": false,
+    "casting_time": "1 action",
+    "level": 0,
+    "dc": {
+      "dc_type": {
+        "index": "dex",
+        "name": "DEX",
+        "url": "/api/2014/ability-scores/dex"
+      },
+      "dc_success": "none"
+    },
+    "school": {
+      "index": "evocation",
+      "name": "Evocation",
+      "url": "/api/2014/magic-schools/evocation"
+    },
+    "classes": [
+      {
+        "index": "bard",
+        "name": "Bard",
+        "url": "/api/2014/classes/bard"
+      },
+      {
+        "index": "cleric",
+        "name": "Cleric",
+        "url": "/api/2014/classes/cleric"
+      },
+      {
+        "index": "sorcerer",
+        "name": "Sorcerer",
+        "url": "/api/2014/classes/sorcerer"
+      },
+      {
+        "index": "wizard",
+        "name": "Wizard",
+        "url": "/api/2014/classes/wizard"
+      }
+    ],
+    "subclasses": [
+      {
+        "index": "lore",
+        "name": "Lore",
+        "url": "/api/2014/subclasses/lore"
+      }
+    ],
+    "url": "/api/2014/spells/light"
+  },
+  {
+    "index": "magic-missile",
+    "name": "Magic Missile",
+    "desc": [
+      "You create three glowing darts of magical force. Each dart hits a creature of your choice that you can see within range. A dart deals 1d4 + 1 force damage to its target. The darts all strike simultaneously, and you can direct them to hit one creature or several."
+    ],
+    "higher_level": [
+      "When you cast this spell using a spell slot of 2nd level or higher, the spell creates one more dart for each slot level above 1st."
+    ],
+    "range": "120 feet",
+    "components": [
+      "V",
+      "S"
+    ],
+    "ritual": false,
+    "duration": "Instantaneous",
+    "concentration": false,
+    "casting_time": "1 action",
+    "level": 1,
+    "damage": [
+      {
+        "damage_type": {
+          "index": "force",
+          "name": "Force",
+          "url": "/api/2014/damage-types/force"
+        },
+        "damage_at_slot_level": {
+          "1": "3d4 + 3",
+          "2": "4d4 + 4",
+          "3": "5d4 + 5",
+          "4": "6d4 + 6",
+          "5": "7d4 + 7",
+          "6": "8d4 + 8",
+          "7": "9d4 + 9",
+          "8": "10d4 + 10",
+          "9": "11d4 + 11"
+        }
+      }
+    ],
+    "school": {
+      "index": "evocation",
+      "name": "Evocation",
+      "url": "/api/2014/magic-schools/evocation"
+    },
+    "classes": [
+      {
+        "index": "sorcerer",
+        "name": "Sorcerer",
+        "url": "/api/2014/classes/sorcerer"
+      },
+      {
+        "index": "wizard",
+        "name": "Wizard",
+        "url": "/api/2014/classes/wizard"
+      }
+    ],
+    "subclasses": [
+      {
+        "index": "lore",
+        "name": "Lore",
+        "url": "/api/2014/subclasses/lore"
+      }
+    ],
+    "url": "/api/2014/spells/magic-missile"
+  },
+  {
+    "index": "sleep",
+    "name": "Sleep",
+    "desc": [
+      "This spell sends creatures into a magical slumber. Roll 5d8; the total is how many hit points of creatures this spell can affect. Creatures within 20 feet of a point you choose within range are affected in ascending order of their current hit points (ignoring unconscious creatures).",
+      "Starting with the creature that has the lowest current hit points, each creature affected by this spell falls unconscious until the spell ends, the sleeper takes damage, or someone uses an action to shake or slap the sleeper awake. Subtract each creature's hit points from the total before moving on to the creature with the next lowest hit points. A creature's hit points must be equal to or less than the remaining total for that creature to be affected.",
+      "Undead and creatures immune to being charmed aren't affected by this spell."
+    ],
+    "higher_level": [
+      "When you cast this spell using a spell slot of 2nd level or higher, roll an additional 2d8 for each slot level above 1st."
+    ],
+    "range": "90 feet",
+    "components": [
+      "V",
+      "S",
+      "M"
+    ],
+    "material": "A pinch of fine sand, rose petals, or a cricket.",
+    "ritual": false,
+    "duration": "1 minute",
+    "concentration": false,
+    "casting_time": "1 action",
+    "level": 1,
+    "damage": [
+      {
+        "damage_at_slot_level": {
+          "1": "5d8"
+        }
+      }
+    ],
+    "area_of_effect": {
+      "type": "sphere",
+      "size": 20
+    },
+    "school": {
+      "index": "enchantment",
+      "name": "Enchantment",
+      "url": "/api/2014/magic-schools/enchantment"
+    },
+    "classes": [
+      {
+        "index": "bard",
+        "name": "Bard",
+        "url": "/api/2014/classes/bard"
+      },
+      {
+        "index": "sorcerer",
+        "name": "Sorcerer",
+        "url": "/api/2014/classes/sorcerer"
+      },
+      {
+        "index": "wizard",
+        "name": "Wizard",
+        "url": "/api/2014/classes/wizard"
+      }
+    ],
+    "subclasses": [
+      {
+        "index": "lore",
+        "name": "Lore",
+        "url": "/api/2014/subclasses/lore"
+      }
+    ],
+    "url": "/api/2014/spells/sleep"
+  }
+]

@@ -38,6 +38,9 @@ pub mod repo_mode;
 pub mod schema;
 pub mod scripts;
 pub mod search;
+// (The SRD 5.1 import is a tool run by hand, the `srd_import` example: here for its tests.)
+#[cfg(test)]
+mod srd_import;
 pub mod starter;
 pub mod structdoc;
 pub mod testsetup;

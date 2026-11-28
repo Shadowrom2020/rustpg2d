@@ -2528,7 +2528,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   | *Browse…* in a form: a sheet's picture, a sound's file, a material's texture, a font's file and its licence copied in | *Browse…* beside every field that names a file (`schema::FILES`); *New…* from a file also for ground (a picture) and fonts (2026-11-28) | there |
   | Languages: translation template exported, play-test in a language | *Translations* on the Languages page: languages with how far each is, a language added, its table (every text, its translation typed beside it), *Play in it* (2026-11-28) | there |
   | Plugins window: add from a file or the library, on / off, order, parameters, export, to the library, remove | *Plugins* on the *Scripts & plugins* page: each with what it is, on / off, order, its parameters by name with the control that fits, *Remove* (its files kept aside), added from the library or a plugin file; out of the project they go as part of a pack (*Share…*) (2026-11-28) | there |
-  | Clean up unused files (definitions nothing uses, stray files; a backup first; offered on close) | *Assets › Clean up unused files* (`assets.cleanup`): the list to tick, a copy beside the project, what is kept remembered (2026-11-28); it isn't offered when a project closes | partly (the offer on close) |
+  | Clean up unused files (definitions nothing uses, stray files; a backup first; offered on close) | *Assets › Clean up unused files* (`assets.cleanup`): the list to tick, a copy beside the project, what is kept remembered (2026-11-28). Not offered when a project closes, on purpose so far: a question at every close is in the way; an exported game leaves the unused out anyway | there (the offer on close: decide) |
   | **Events**: trigger editors | the event sheet | there |
   | Events graph (a map's triggers, scripts and maps as a graph) | — | **open** (or decide) |
   | Scripts: editor with completion, check, API help | script tabs | there |
@@ -2552,7 +2552,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   | **Other**: quick search, find usages, problems | Go to anything, *Used by*, Problems with fixes | there |
   | AI agent server window | the *AI agents* page; `--headless` | there |
   | Editor settings | on the pages they belong to (art, agents, packs) | there |
-  | Developer tools kept in the old crate: the SRD import (`srd_import`), UI tests, `mcp_smoke` | `mcp_smoke` and the history tool are here; the SRD import isn't | **open** |
+  | Developer tools kept in the old crate: the SRD import (`srd_import`), the starter's history tool, UI tests, `mcp_smoke` | the editor-core's examples `srd_import` and `starter_history` with their tests (2026-11-28); `mcp_smoke` is the studio's | there |
 
   **Engine.** None.
 

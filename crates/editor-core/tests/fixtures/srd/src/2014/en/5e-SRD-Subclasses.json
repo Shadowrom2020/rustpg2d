@@ -1,0 +1,47 @@
+[
+  {
+    "index": "champion",
+    "class": {
+      "index": "fighter",
+      "name": "Fighter",
+      "url": "/api/2014/classes/fighter"
+    },
+    "name": "Champion",
+    "subclass_flavor": "Martial Archetype",
+    "desc": [
+      "The archetypal Champion focuses on the development of raw physical power honed to deadly perfection. Those who model themselves on this archetype combine rigorous training with physical excellence to deal devastating blows."
+    ],
+    "subclass_levels": "/api/2014/subclasses/champion/levels",
+    "url": "/api/2014/subclasses/champion"
+  },
+  {
+    "index": "thief",
+    "class": {
+      "index": "rogue",
+      "name": "Rogue",
+      "url": "/api/2014/classes/rogue"
+    },
+    "name": "Thief",
+    "subclass_flavor": "Roguish Archetype",
+    "desc": [
+      "You hone your skills in the larcenous arts. Burglars, bandits, cutpurses, and other criminals typically follow this archetype, but so do rogues who prefer to think of themselves as professional treasure seekers, explorers, delvers, and investigators. In addition to improving your agility and stealth, you learn skills useful for delving into ancient ruins, reading unfamiliar languages, and using magic items you normally couldn't employ."
+    ],
+    "subclass_levels": "/api/2014/subclasses/thief/levels",
+    "url": "/api/2014/subclasses/thief"
+  },
+  {
+    "index": "evocation",
+    "class": {
+      "index": "wizard",
+      "name": "Wizard",
+      "url": "/api/2014/classes/wizard"
+    },
+    "name": "Evocation",
+    "subclass_flavor": "Arcane Tradition",
+    "desc": [
+      "You focus your study on magic that creates powerful elemental effects such as bitter cold, searing flame, rolling thunder, crackling lightning, and burning acid. Some evokers find employment in military forces, serving as artillery to blast enemy armies from afar. Others use their spectacular power to protect the weak, while some seek their own gain as bandits, adventurers, or aspiring tyrants."
+    ],
+    "subclass_levels": "/api/2014/subclasses/evocation/levels",
+    "url": "/api/2014/subclasses/evocation"
+  }
+]

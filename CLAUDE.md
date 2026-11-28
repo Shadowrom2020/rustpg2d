@@ -468,7 +468,7 @@ crates/editor/src/      editor binary
   nodes.rs (the Nodes tab: visual scripts on an egui Scene canvas, the palette from the API table grouped by the manual's sections,
   typed values, links, problems, the generated Rhai; engine visual.rs does the code),
     repo_mode.rs (repository mode: started in a checkout, the editor works on example_project and the starter library),
-  srd_import.rs (the SRD 5.1 import from a 5e-database checkout, pinned SRD_COMMIT: races, subraces, traits, choices,
+  srd_import.rs (on this branch the editor-core's: `crates/editor-core/src/srd_import.rs`, `cargo run -p rustpg2d-editor-core --example srd_import -- CHECKOUT`; the SRD 5.1 import from a 5e-database checkout, pinned SRD_COMMIT: races, subraces, traits, choices,
   the 334 monsters as library characters (import_monsters; update_monsters_in = the example's),
   backgrounds, the 12 classes (import_classes: feature_effects maps feature indexes to effects, starting
   equipment to library items); run by examples/srd_import.rs, compiled into the binary only for its test),

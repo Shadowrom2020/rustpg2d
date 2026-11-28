@@ -293,11 +293,15 @@ mod tests {
         ws.watch_project();
     }
 
-    /// Another program writes `name` with another size.
+    /// Another program writes `name` with another size. (Its file gets a time of its own: two
+    /// writes within one tick of the file system's clock, of files of the same length, look
+    /// alike to the watcher, and a test writes faster than any program a person waits for.)
     fn outside(ws: &Workspace, name: &str, w: u32, h: u32) {
         let mut m = ws.project.load_map(name).unwrap();
         m.resize(w, h);
         ws.project.save_map(&m).unwrap();
+        let file = std::fs::File::options().write(true).open(ws.project.map_path(name)).unwrap();
+        file.set_modified(std::time::SystemTime::now() + std::time::Duration::from_secs(60 * w as u64)).unwrap();
     }
 
     fn size(ws: &Workspace, name: &str) -> (u32, u32) {

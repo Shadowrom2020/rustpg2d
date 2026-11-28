@@ -133,12 +133,11 @@ pub async fn run(plan: PlayPlan) -> Reply {
         }
     }
     let _scratch = Scratch(dir);
-    let program = cmd.get_program().to_owned();
-    // A game built from another engine version may not read this editor's data.
-    if let Ok(out) = tokio::process::Command::new(&program).arg("--engine-build").output().await {
-        if String::from_utf8_lossy(&out.stdout).trim() != rustpg2d_engine::ENGINE_BUILD {
-            warnings.push("the game runner was built from a different engine version than the editor; if it fails, rebuild it (cargo build -p rustpg2d-game)".into());
-        }
+    let program = std::path::PathBuf::from(cmd.get_program());
+    // A game built from another engine version may not read this editor's data (the same check
+    // as the Play tab's *Own window*, which refuses it; here the run goes on with a warning).
+    if let Ok(Err(e)) = tokio::task::spawn_blocking(move || crate::export::runner_check(&program)).await {
+        warnings.push(e);
     }
     let mut cmd = tokio::process::Command::from(cmd);
     cmd.stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped()).stdin(std::process::Stdio::null()).kill_on_drop(true);

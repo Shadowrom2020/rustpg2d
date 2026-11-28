@@ -2806,13 +2806,19 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   Dependabot: egui's crates are one group; wgpu, winit and glow stay at egui-wgpu's versions. Run
   locally: smoke.sh, xtask dist, the AppImage and the Flatpak. **Not run yet:** the Windows and
   macOS builds of the studio and the workflows themselves (first release pull request or a manual
-  CI run). Found on the way, still open: started without an argument outside the repository the
-  editor opens `example_project` of the current folder (the Windows zip's example would be
-  converted in place); the Windows build has no `windows_subsystem`, no panic message box, no
-  window icon; no script word opens the bundled example; the agent server's name and version are
-  0.35's. **`architecture.md`** (2026-11-28) describes this branch. Found by it, still open: *Own
-  window* of the Play tab starts the runner without the engine-build check; the agent tool
-  `screenshot_editor` answers with an error; a carried prop (*Carry prop*) is not drawn since
+  CI run). Found on the way, **mended 2026-11-28**: started without an argument outside the
+  repository the editor opened `example_project` of the current folder (the Windows zip's
+  example would have been converted in place): now only repository mode opens the checkout's
+  example (`repo_mode::project_to_open`), else the home screen; the Windows build gets
+  `windows_subsystem`, `desktop::startup` (the console it was started from, a panic's message
+  box) and `desktop::fatal`; the window has the emblem as its icon; the script word `project
+  example` opens the bundled example's copy. The agent server's name stays `rustpg2d-editor`
+  (agents' set-ups and the CI know it) and its version was already the workspace's
+  (`CARGO_PKG_VERSION`; a test pins it). **`architecture.md`** (2026-11-28) describes this
+  branch. Found by it, **mended 2026-11-28**: *Own window* of the Play tab checks the runner's
+  engine build (`export::runner_check`, shared with `play_test`, which warns) and refuses a
+  runner of another engine; the agent tool `screenshot_editor` answers with the window's
+  picture (taken with the next frame; without a window it says so). Still open: a carried prop (*Carry prop*) is not drawn since
   held pictures left (part 11): it needs the prop's model in the hands. **The parity table, first written 2026-11-28** from the 0.35 editor's menus
   and its script commands (each command is a feature the tests reached). *there* = in the new
   editor; *partly* = what is missing is named; *open* = not there yet; *decide* = leaves only
@@ -2906,6 +2912,20 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   agent through the server reaches a play-test. `scripts/ci/smoke.sh` whole. The packages of every
   platform start (the release pull request's *Packages* check, run by hand on the branch before
   the merge).
+
+  The packaging faults mended on 2026-11-28 were checked with the tests
+  `repo_mode::tests::without_a_project_only_a_checkout_opens_its_example`,
+  `files::tests::the_example_is_copied_into_the_home_folder_once`,
+  `export::tests::a_runner_of_another_engine_is_refused` (fake runners: another build, one too old
+  to answer, none) and `mcp::server::tests::the_server_is_named_with_the_workspace_version`, and
+  in the window: started with no argument and `RUSTPG2D_REPO=0` beside an `example_project`
+  (`project=-`, the folder untouched), the editor copied next to such a folder (the Windows zip's
+  layout: the home screen; `project example` packed it into `~/rustpg2d/example_project.r2dproject`
+  and opened it), *Own window* with a fake runner of another build (refused, the sentence in the
+  message line) and with the real one (the game ran), and `mcp_smoke` against the window's agent
+  server (`screenshot_editor`: a 1500x800 picture of the window) and the headless one (it says
+  there is no window). Not seen: the Windows build (it can't be built here) and the window's icon
+  (a `shot` shows no title bar).
 
 ## 0.37.0 — Learning
 

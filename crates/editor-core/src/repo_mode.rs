@@ -50,6 +50,18 @@ pub fn example() -> Option<PathBuf> {
     root().map(|r| r.join(EXAMPLE))
 }
 
+/// What the editor opens when it starts: the project named on its command line, else the
+/// example of the checkout it was started in (repository mode), else nothing (the home screen).
+/// Never an `example_project` that merely lies beside the program or in the current folder: the
+/// Windows zip has one next to the editor, and opening it would convert the bundled example.
+pub fn project_to_open(given: Option<PathBuf>) -> Option<PathBuf> {
+    pick_project(given, root())
+}
+
+fn pick_project(given: Option<PathBuf>, root: Option<&Path>) -> Option<PathBuf> {
+    given.or_else(|| root.map(|r| r.join(EXAMPLE)))
+}
+
 /// Whether `path` is the repository's example project (opened as a folder, as it is kept in git).
 pub fn is_example(path: &Path) -> bool {
     root().is_some_and(|r| same(path, &r.join(EXAMPLE)))
@@ -85,5 +97,21 @@ mod tests {
         assert!(!is_repository(&repo.join(EXAMPLE)));
         assert!(is_starter_source(&repo.join(STARTER)));
         assert!(!is_starter_source(&repo.join(EXAMPLE)));
+    }
+
+    /// Outside repository mode no project named is the home screen, even with an
+    /// `example_project` in the current folder (the Windows zip's layout).
+    #[test]
+    fn without_a_project_only_a_checkout_opens_its_example() {
+        let dir = std::env::temp_dir().join(format!("rustpg2d-start-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join(EXAMPLE)).unwrap();
+        std::fs::write(dir.join(EXAMPLE).join("project.ron"), "()").unwrap();
+        assert_eq!(pick_project(None, None), None);
+        assert_eq!(pick_project(Some(dir.join("mine")), None), Some(dir.join("mine")));
+        assert_eq!(pick_project(None, Some(&dir)), Some(dir.join(EXAMPLE)));
+        assert_eq!(pick_project(Some(dir.join("mine")), Some(&dir)), Some(dir.join("mine")));
+        // (The tests run in the crate's folder, which is no checkout's root.)
+        assert_eq!(project_to_open(None), None);
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }

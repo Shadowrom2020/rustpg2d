@@ -2,7 +2,7 @@
 //! device, over `editor-core`'s workspace. `shell.rs` is the window, `play.rs` the game in a tab.
 //!
 //! `rustpg2d-studio [PROJECT_DIR] [--map NAME --spawn NAME]`; without a project the repository's
-//! example. `rustpg2d-studio --headless PROJECT [--mcp PORT] [--seconds N]` opens no window: the
+//! example in repository mode, else the home screen. `rustpg2d-studio --headless PROJECT [--mcp PORT] [--seconds N]` opens no window: the
 //! agent server works on the project (`editor-core`'s workspace). `RUSTPG2D_STUDIO_SCRIPT="wait 3; status; shot /path/a.png; quit"` drives it for tests
 //! (`wait SECS`, `status`, `shot PATH` = the whole window, `tab NAME`, `palette TEXT` / `goto
 //! TEXT` / `pick N`, `field KIND ID /POINTER VALUE` = a form's field, `setting /POINTER VALUE` = one
@@ -12,6 +12,9 @@
 //! `allfields on|off`, `new [KIND]` = the New… gallery; the map view by tiles: `mapclick`, `mapdrag`,
 //! `maphover`, `mapview`, `maptool`, `mapopt`, `mapplace`, `mapzone`, `mapselect`, `mapact`, `mapshot`; any other line
 //! is a command of the editor, e.g. `map.open village` or `edit.undo`).
+
+// No console window of its own on Windows (`desktop::startup` attaches to the one it was started from).
+#![cfg_attr(windows, windows_subsystem = "windows")]
 
 mod agentspage;
 mod animshop;
@@ -76,6 +79,17 @@ struct Studio {
     fps: f32,
     /// The window was told to close (once).
     closing: bool,
+    /// Agents' asks for a picture of the window, back with the picture (it arrives a frame later).
+    window_shots: (std::sync::mpsc::Sender<WindowShot>, std::sync::mpsc::Receiver<WindowShot>),
+}
+
+/// An agent's `screenshot_editor` with the window's picture.
+type WindowShot = (editor_core::mcp::ShotRequest, std::sync::Arc<egui::ColorImage>);
+
+/// The window's picture as the engine's image.
+fn rgba_of(img: &egui::ColorImage) -> rustpg2d_engine::imageio::Rgba {
+    let px: Vec<u8> = img.pixels.iter().flat_map(|c| c.to_array()).collect();
+    rustpg2d_engine::imageio::Rgba { w: img.size[0] as u32, h: img.size[1] as u32, px }
 }
 
 impl Studio {
@@ -86,7 +100,7 @@ impl Studio {
         let mut shell = shell::Shell::open(project_dir, start);
         shell.ws.looking_at = "the overview".into();
         shell.started();
-        Studio { shell, script: Script::from_env(), frames: 0, fps_time: 0.0, fps: 0.0, closing: false }
+        Studio { shell, script: Script::from_env(), frames: 0, fps_time: 0.0, fps: 0.0, closing: false, window_shots: std::sync::mpsc::channel() }
     }
 
     fn run_script(&mut self, ctx: &egui::Context, dt: f32) {
@@ -138,7 +152,7 @@ impl Studio {
                     println!("[said] {}", self.shell.ws.status.0);
                     println!("[world] {} link={}", self.shell.world_status(), self.shell.link.as_ref().map_or("-".to_string(), |(m, z)| format!("{m}:{z}")));
                 }
-                // Projects: `project new PATH`, `project open PATH`, `project close`.
+                // Projects: `project new PATH`, `project open PATH`, `project example`, `project close`.
                 "project" => {
                     let path = PathBuf::from(cmd[2.min(cmd.len())..].join(" "));
                     let r = match arg(1) {
@@ -148,7 +162,9 @@ impl Studio {
                         "empty" => self.shell.new_project(&path, "", false),
                         "open" => self.shell.switch_project(&path),
                         "close" => self.shell.close_project(),
-                        other => Err(format!("project {other}: new PATH, empty PATH, open PATH, close")),
+                        // (`project example`: the home screen's *The example game*, the user's own copy of it.)
+                        "example" => editor_core::files::example_copy().map_err(|e| format!("{e:#}")).and_then(|copy| self.shell.switch_project(&copy)),
+                        other => Err(format!("project {other}: new PATH, empty PATH, open PATH, example, close")),
                     };
                     println!("[project] {}", r.map_or_else(|e| format!("failed: {e}"), |()| if self.shell.ws.project_open { format!("{} at {}", self.shell.ws.project.config.name, self.shell.ws.project_location().display()) } else { "none".to_string() }));
                 }
@@ -397,8 +413,7 @@ impl Studio {
                 "shot" => {
                     let path = arg(1).to_string();
                     ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(egui::ScreenshotCallback::new(move |img: std::sync::Arc<egui::ColorImage>| {
-                        let px: Vec<u8> = img.pixels.iter().flat_map(|c| c.to_array()).collect();
-                        let png = rustpg2d_engine::imageio::Rgba { w: img.size[0] as u32, h: img.size[1] as u32, px }.encode();
+                        let png = rgba_of(&img).encode();
                         match png.map_err(|e| e.to_string()).and_then(|b| std::fs::write(&path, b).map_err(|e| e.to_string())) {
                             Ok(()) => println!("[shot] {path}"),
                             Err(e) => println!("[shot] {path} failed: {e}"),
@@ -582,6 +597,16 @@ impl eframe::App for Studio {
         // Agents work between frames, like script commands.
         self.shell.ws.mcp_drain();
         self.shell.ui(ui, frame.wgpu_render_state(), self.fps);
+        // A picture of the whole window comes with the next frame: its answer waits for it.
+        for ask in self.shell.ws.mcp_window_shots() {
+            let back = self.window_shots.0.clone();
+            ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(egui::ScreenshotCallback::new(move |img: std::sync::Arc<egui::ColorImage>| {
+                let _ = back.send((ask, img));
+            })));
+        }
+        while let Ok((ask, img)) = self.window_shots.1.try_recv() {
+            self.shell.ws.mcp_answer_shot(ask, Ok(rgba_of(&img)));
+        }
         self.shell.ws.mcp_answer_shots(Some(&mut |ws, spec| mapview::MapView::shot(ws, spec)));
         // The window's close button: unsaved changes and the clean-up of unused files are asked
         // about first (the window stays until they are answered).
@@ -655,6 +680,8 @@ fn headless(project: PathBuf, port: u16, seconds: Option<f64>) -> std::process::
 }
 
 fn main() -> std::process::ExitCode {
+    // (Windows: output to the console it was started from, a message box when it panics.)
+    rustpg2d_engine::desktop::startup("The R(ust)PG2D editor");
     // Started in a checkout of R(ust)PG2D: the asset library is the starter library's folder.
     editor_core::repo_mode::init();
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -665,20 +692,24 @@ fn main() -> std::process::ExitCode {
     }
     match window(&args) {
         Ok(()) => std::process::ExitCode::SUCCESS,
-        Err(e) => {
-            eprintln!("[studio] {e}");
-            std::process::ExitCode::FAILURE
-        }
+        // (No graphics adapter, no display: said in a message box on Windows too.)
+        Err(e) => rustpg2d_engine::desktop::fatal("The R(ust)PG2D editor", &e.to_string()),
     }
+}
+
+/// R(ust)PG2D's emblem (a sword on a shield), the 0.35 editor's window icon too.
+fn window_icon() -> egui::IconData {
+    let img = rustpg2d_engine::icon::emblem();
+    egui::IconData { rgba: img.px, width: img.w, height: img.h }
 }
 
 fn window(args: &[String]) -> eframe::Result {
     let opt = |name: &str| args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).cloned();
     // The project named; without one the example of a checkout started in, else the home screen.
-    let project_dir = args.first().filter(|a| !a.starts_with("--")).map(PathBuf::from).or_else(|| Some(PathBuf::from("example_project")).filter(|p| p.join("project.ron").is_file()));
+    let project_dir = editor_core::repo_mode::project_to_open(args.first().filter(|a| !a.starts_with("--")).map(PathBuf::from));
     let start = rustpg2d_engine::runtime::StartOptions { map: opt("--map"), spawn: opt("--spawn"), title: opt("--map").is_none(), dev: true, ..Default::default() };
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_title("R(ust)PG2D Studio").with_inner_size([1500.0, 800.0]),
+        viewport: egui::ViewportBuilder::default().with_title("R(ust)PG2D Studio").with_inner_size([1500.0, 800.0]).with_icon(window_icon()),
         renderer: eframe::Renderer::Wgpu,
         // An X11 window where there is an X server, as the game's (`gfx::window`): a Wayland
         // compositor hands no frames to a covered window, and scripted runs would stand still.

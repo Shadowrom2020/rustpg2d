@@ -2405,7 +2405,7 @@ impl MapView {
     /// A picture of tiles of the map being worked on, as the game shows them: what an agent's
     /// `screenshot_map` asked for. (Names are not written into it: `get_map` has them.)
     pub fn shot(ws: &mut Workspace, spec: &editor_core::mcp::exec::ShotSpec) -> Result<rustpg2d_engine::imageio::Rgba, String> {
-        let Some((x, y, w, h)) = spec.rect else { return Err("pictures of the whole window aren't taken yet: ask for a map with screenshot_map".into()) };
+        let Some((x, y, w, h)) = spec.rect else { return Err("a picture of the whole window is taken by the window, not of a map: ask for tiles".into()) };
         if ws.gpu == editor_core::Gpu::No {
             return Err("this editor has no graphics adapter: read the map with get_map instead".into());
         }

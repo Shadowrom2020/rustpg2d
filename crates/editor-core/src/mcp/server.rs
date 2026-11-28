@@ -165,3 +165,19 @@ pub fn run(listener: std::net::TcpListener, stop: tokio::sync::oneshot::Receiver
     // Connections still open (SSE streams) end with the runtime.
     rt.shutdown_timeout(std::time::Duration::from_secs(1));
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Agents' set-ups and the CI's smoke test know the server by its name; its version is the
+    /// workspace's (raised with each release), never a literal of its own.
+    #[test]
+    fn the_server_is_named_with_the_workspace_version() {
+        let info = Handler::new(mpsc::channel().0).get_info();
+        assert_eq!(info.server_info.name, "rustpg2d-editor");
+        let cargo = include_str!("../../../../Cargo.toml");
+        let version = cargo.split("[workspace.package]").nth(1).and_then(|s| s.lines().find_map(|l| l.strip_prefix("version = "))).expect("the workspace's version");
+        assert_eq!(info.server_info.version, version.trim_matches('"'));
+    }
+}

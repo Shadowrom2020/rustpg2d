@@ -208,7 +208,10 @@ mine* (saving later overwrites the file). The editor's own saves never trigger t
 - *403*: the server accepts requests addressed to `127.0.0.1` / `localhost` only (Host header).
 - *play_test: game not found*: the game runner must sit next to the editor (packaged downloads do;
   from source run `cargo build -p rustpg2d-game`). A warning about a different engine build means
-  the game was built from another checkout: rebuild it.
+  the game was built from another engine version than the editor: rebuild it (the Play tab's
+  *Own window* refuses such a game).
+- *screenshot_editor: no window*: an editor started with `--headless` has no window to take a
+  picture of; `screenshot_map` and `get_map` show maps.
 - *Flatpak*: the editor's sandbox has network access, so the port is reachable from the host;
   the game for play-tests runs inside the sandbox like F5 does.
 - *the editor did not answer within 120 s*: the editor's main thread was busy or blocked (a

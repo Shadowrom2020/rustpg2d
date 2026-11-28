@@ -140,7 +140,9 @@ it on that tile. Everything is saved first (the game reads the project's files).
 *Speed* (a quarter to four times), *Inspect* (a click on a character, prop or item opens it
 instead of playing; Alt+click does it any time), *State* (the running game's flags, variables,
 quests, party and bag, seen and changed), *Test setup…* and *Own window* (the same start in the
-game's own window, as players run it: for the last check).
+game's own window, as players run it: for the last check). *Own window* refuses a game runner
+built from another engine version than the editor (a build from source whose game wasn't
+rebuilt): the message line says so, and `cargo build -p rustpg2d-game` mends it.
 
 ### Test-play from here
 

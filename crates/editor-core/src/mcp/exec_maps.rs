@@ -403,21 +403,36 @@ impl Workspace {
             return;
         }
         for s in std::mem::take(&mut self.mcp.shots) {
-            let result = match grab.as_mut() {
-                Some(g) => g(self, &s.spec).and_then(|img| {
-                    let png = super::play::downscale(&img.encode().map_err(|e| e.to_string())?)?;
-                    Ok(Reply::TextImages(format!("{} ({}x{} px)", s.spec.text, img.w, img.h), vec![png]))
-                }),
-                None => Err("screenshots need the editor's window: this editor runs without one (read the map with read_map instead)".to_string()),
+            let img = match grab.as_mut() {
+                Some(g) => g(self, &s.spec),
+                None if s.spec.rect.is_none() => Err("this editor runs without a window (--headless), so there is no window to take a picture of".to_string()),
+                None => Err("screenshots need the editor's window: this editor runs without one (read the map with get_map instead)".to_string()),
             };
-            let ok = result.is_ok();
-            let ShotRequest { reply, started, summary, .. } = s;
-            let _ = reply.send(result);
-            self.mcp.log_call(if summary.is_empty() { "screenshot_editor" } else { "screenshot_map" }, summary, ok, started);
+            self.mcp_answer_shot(s, img);
         }
     }
 
+    /// The agents' asks for a picture of the whole window (`screenshot_editor`), taken out of the
+    /// queue: the window's picture arrives a frame after it is asked for, and is then given to
+    /// [`Self::mcp_answer_shot`]. (Pictures of a map stay for [`Self::mcp_answer_shots`].)
+    pub fn mcp_window_shots(&mut self) -> Vec<ShotRequest> {
+        let (window, maps) = std::mem::take(&mut self.mcp.shots).into_iter().partition(|s| s.spec.rect.is_none());
+        self.mcp.shots = maps;
+        window
+    }
 
+    /// Answers an agent's ask for a picture with `img` (or why there is none): the PNG, made no
+    /// larger than agents take, after a line saying what it shows and its size.
+    pub fn mcp_answer_shot(&mut self, s: ShotRequest, img: Result<rustpg2d_engine::imageio::Rgba, String>) {
+        let result = img.and_then(|img| {
+            let png = super::play::downscale(&img.encode().map_err(|e| e.to_string())?)?;
+            Ok(Reply::TextImages(format!("{} ({}x{} px)", s.spec.text, img.w, img.h), vec![png]))
+        });
+        let ok = result.is_ok();
+        let ShotRequest { reply, started, summary, spec } = s;
+        let _ = reply.send(result);
+        self.mcp.log_call(if spec.rect.is_none() { "screenshot_editor" } else { "screenshot_map" }, summary, ok, started);
+    }
 
     // ------------------------------------------------------------ writes
 

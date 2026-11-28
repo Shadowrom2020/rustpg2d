@@ -1502,6 +1502,11 @@ impl Shell {
             self.ws.set_status(format!("{runner} (the game) was not found next to the editor; from source run `cargo build -p rustpg2d-game`"));
             return;
         };
+        // (A runner of another engine might not read what this editor wrote.)
+        if let Err(e) = editor_core::export::runner_check(&exe) {
+            self.ws.set_status(e);
+            return;
+        }
         let mut cmd = std::process::Command::new(exe);
         cmd.arg(self.ws.project.root.canonicalize().unwrap_or_else(|_| self.ws.project.root.clone())).arg("--dev");
         if !self.start.title {

@@ -171,6 +171,53 @@ fn runner_tag(path: &std::path::Path) -> Option<String> {
     tag
 }
 
+/// Whether the game runner `exe` was built from this editor's engine (it prints its build when
+/// asked with `--engine-build`): a runner of another engine may not read the maps and definitions
+/// this editor writes. The Play tab's *Own window* refuses such a runner; the agents' `play_test`
+/// runs it with this sentence as a warning.
+pub fn runner_check(exe: &std::path::Path) -> Result<(), String> {
+    runner_check_within(exe, std::time::Duration::from_secs(5))
+}
+
+fn runner_check_within(exe: &std::path::Path, wait: std::time::Duration) -> Result<(), String> {
+    use std::io::Read;
+    if !exe.is_file() {
+        return Err(format!("The game runner {} was not found: build it (cargo build -p rustpg2d-game).", exe.display()));
+    }
+    // (Its name, not its whole path: the sentence goes into the editor's message line.)
+    let name = exe.file_name().map_or_else(|| exe.display().to_string(), |n| n.to_string_lossy().into_owned());
+    let differs = || format!("The game runner {name} was built from another engine version than this editor and may not read this project: rebuild it (cargo build -p rustpg2d-game).");
+    let mut child = std::process::Command::new(exe)
+        .arg("--engine-build")
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .map_err(|e| format!("The game runner {} could not be started: {e}", exe.display()))?;
+    // (A runner too old to know `--engine-build` would open its window and stay: it is stopped.)
+    let until = std::time::Instant::now() + wait;
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) => break,
+            Ok(None) if std::time::Instant::now() < until => std::thread::sleep(std::time::Duration::from_millis(10)),
+            _ => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(differs());
+            }
+        }
+    }
+    let mut out = String::new();
+    if let Some(mut o) = child.stdout.take() {
+        let _ = o.read_to_string(&mut out);
+    }
+    if out.trim() == rustpg2d_engine::ENGINE_BUILD {
+        Ok(())
+    } else {
+        Err(differs())
+    }
+}
+
 /// What the Publishing page says before an export.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Preflight {
@@ -369,4 +416,47 @@ impl Workspace {
         Ok(msg)
     }
 
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+
+    /// A stand-in for `rustpg2d-game`: a shell script that answers `--engine-build` with `body`.
+    fn fake_runner(dir: &std::path::Path, name: &str, body: &str) -> PathBuf {
+        use std::os::unix::fs::PermissionsExt;
+        let path = dir.join(name);
+        std::fs::write(&path, format!("#!/bin/sh\n{body}\n")).unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+        path
+    }
+
+    /// The check, tried again while another test thread's fork still holds the new script open
+    /// (`Text file busy`).
+    fn check(exe: &std::path::Path, wait: Duration) -> Result<(), String> {
+        for _ in 0..20 {
+            match runner_check_within(exe, wait) {
+                Err(e) if e.contains("could not be started") => std::thread::sleep(Duration::from_millis(50)),
+                r => return r,
+            }
+        }
+        runner_check_within(exe, wait)
+    }
+
+    #[test]
+    fn a_runner_of_another_engine_is_refused() {
+        let dir = std::env::temp_dir().join(format!("rustpg2d-runner-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let same = fake_runner(&dir, "same", &format!("echo {}", rustpg2d_engine::ENGINE_BUILD));
+        assert_eq!(check(&same, Duration::from_secs(5)), Ok(()));
+        let other = fake_runner(&dir, "other", "echo 0123456789abcdef");
+        let e = check(&other, Duration::from_secs(5)).unwrap_err();
+        assert!(e.contains("another engine version") && e.contains("cargo build -p rustpg2d-game"), "{e}");
+        // (Too old to know the word: it doesn't answer, and is stopped.)
+        let old = fake_runner(&dir, "old", "exec sleep 30");
+        assert!(check(&old, Duration::from_millis(300)).unwrap_err().contains("another engine version"));
+        assert!(check(&dir.join("missing"), Duration::from_secs(5)).unwrap_err().contains("was not found"));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 }

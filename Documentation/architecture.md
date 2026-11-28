@@ -834,7 +834,8 @@ speed `Game::frame`, otherwise `Game::step` as often as the speed asks (none whi
 a single step) and then `Game::draw`. Alt+click, or the inspect switch, asks
 `Game::thing_under_pointer` instead of clicking. The script's `key` and `keyhold` feed the same
 `Input`. *Own window* starts the real runner beside the editor with the same start (`--dev`,
-`--map`, `--pos`, `--load` for a test setup). Cut-scenes play from the timeline's playhead
+`--map`, `--pos`, `--load` for a test setup), after `export::runner_check` (the runner's
+`--engine-build` must be the editor's: else it refuses). Cut-scenes play from the timeline's playhead
 (`StartOptions::cutscene_at`).
 
 **Pictures of assets** (`thumbs.rs`). Nothing is drawn again for the UI: egui shows the engine's
@@ -878,10 +879,12 @@ to 40 calls or 8 ms per frame), so a tool sees the editor's state like a user ac
 one history entry named after the tool, a tool that panics answers with an error and leaves the
 editor running, and every write saves the project (`mcp_after_write`). Screenshots are answered by
 whoever draws (`mcp_answer_shots` with a callback): in the window `MapView::shot` renders the tiles
-asked for; a picture of the whole window is not taken yet. `play_test` (`play.rs`) plans the run on
+asked for. A picture of the whole window (`screenshot_editor`) is taken out of the queue
+(`mcp_window_shots`), asked of eframe as a screenshot, and answered when the picture arrives with
+the next frame (`mcp_answer_shot`); without a window it says there is none. `play_test` (`play.rs`) plans the run on
 the main thread, then runs the sibling `rustpg2d-game` binary with an autoplay script on the agent
 thread and returns its status lines and screenshots; it warns when the runner's `--engine-build`
-differs from the editor's. A file watcher (`watcher.rs`) compares the project's files once a second
+differs from the editor's (`export::runner_check`, the same check *Own window* refuses with). A file watcher (`watcher.rs`) compares the project's files once a second
 (mtime and size) and reloads what changed on disk when the editor has no unsaved edits to it,
 else asks. The 71 tools are declared once in `tools.rs` (`mcp_tools!`: description, annotations,
 parameters and the workspace function each one runs); the `Call` enum, the tool names and the

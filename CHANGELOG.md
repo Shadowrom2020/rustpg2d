@@ -335,6 +335,16 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **The agent server runs without a window:** `rustpg2d-studio --headless PROJECT --mcp PORT`
   opens a project and serves every agent tool (map screenshots excepted) where there is no
   display. The editor's logic moved into a crate of its own, `crates/editor-core` (part 2).
+- **Started without a project the editor shows its home screen,** also when an `example_project`
+  folder lies beside it (as in the Windows download): it no longer opens that folder and turns
+  it into a project file. *The example game* on the home screen opens your own copy of it.
+- **The new editor on Windows** opens without a console window beside it, writes to the
+  terminal it was started from, and says in a message box why it stopped. Its window has
+  R(ust)PG2D's emblem as its icon.
+- **The Play tab's *Own window*** refuses a game runner built from another engine version than
+  the editor and says so in the message line (rebuild it with `cargo build -p rustpg2d-game`),
+  as the agents' `play_test` warns.
+- **Agents get a picture of the whole editor window** with `screenshot_editor`.
 
 ### Removed (Breaking)
 Old ways of drawing that only earlier versions needed are gone (the maintainer's word,

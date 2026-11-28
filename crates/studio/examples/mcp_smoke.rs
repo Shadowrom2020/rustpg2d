@@ -68,6 +68,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         check("screenshot_map", images(&r) == 1, text(&r));
     }
+    let r = call("screenshot_editor", json!({})).await?;
+    if headless {
+        check("screenshot_editor says there is no window", r.is_error.unwrap_or(false) && text(&r).contains("without a window"), text(&r));
+    } else {
+        check("screenshot_editor", images(&r) == 1 && text(&r).starts_with("The editor window."), text(&r));
+        // (`RUSTPG2D_SMOKE_SHOT=PATH`: the window's picture kept, to look at.)
+        if let (Some(path), Some(ContentBlock::Image(img))) = (std::env::var_os("RUSTPG2D_SMOKE_SHOT"), r.content.iter().find(|c| matches!(c, ContentBlock::Image(_)))) {
+            if let Some(png) = rustpg2d_engine::hash::base64_decode(&img.data) {
+                std::fs::write(path, png)?;
+            }
+        }
+    }
     let r = call("get_map", json!({"map": "nowhere"})).await?;
     check("unknown map is a tool error", r.is_error.unwrap_or(false) && text(&r).contains("Known:"), text(&r));
     let res = client.read_resource(ReadResourceRequestParams::new("rustpg2d://docs/scripting")).await?;

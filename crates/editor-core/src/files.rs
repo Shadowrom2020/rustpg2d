@@ -250,8 +250,13 @@ pub fn bundled_example() -> Option<PathBuf> {
 /// the bundled folder on first use. A folder copy made by an older R(ust)PG2D (maybe edited) is
 /// returned instead: opening it converts it into that same project file.
 pub fn example_copy() -> Result<PathBuf> {
-    let src = bundled_example().context("this R(ust)PG2D has no bundled example project")?;
+    let src = bundled_example().context("This R(ust)PG2D has no bundled example game: only the downloaded editor carries one (built from source, open example_project in the checkout instead).")?;
     let home = rustpg2d_engine::paths::home().context("no home folder (HOME / USERPROFILE is not set)")?;
+    copy_example(&src, &home)
+}
+
+/// [`example_copy`] of the example in `src` for the home folder `home`.
+fn copy_example(src: &Path, home: &Path) -> Result<PathBuf> {
     let folder = home.join("rustpg2d").join("example_project");
     let file = crate::project_file::converted_name(&folder);
     if crate::project_file::is_project_file(&file) {
@@ -266,7 +271,7 @@ pub fn example_copy() -> Result<PathBuf> {
         return Ok(old);
     }
     std::fs::create_dir_all(home.join("rustpg2d"))?;
-    rustpg2d_engine::pack::pack_dir(&src, &file).with_context(|| format!("copying the example project to {}", file.display()))?;
+    rustpg2d_engine::pack::pack_dir(src, &file).with_context(|| format!("copying the example project to {}", file.display()))?;
     Ok(file)
 }
 
@@ -307,5 +312,24 @@ mod tests {
         assert_eq!(p.list_maps(), vec!["start".to_string()]);
         assert!(p.load_map("start").unwrap().spawn_point("start").is_some());
         assert!(create_project(&dir).is_err(), "must not overwrite an existing project");
+    }
+
+    /// The home screen's *The example game* (script `project example`): the bundled example
+    /// packed once into `~/rustpg2d`, the same file again after that; a build without a bundled
+    /// example says so.
+    #[test]
+    fn the_example_is_copied_into_the_home_folder_once() {
+        let src = temp_dir("example-src");
+        create_project(&src).unwrap();
+        let home = temp_dir("example-home");
+        let copy = copy_example(&src, &home).unwrap();
+        assert_eq!(copy, home.join("rustpg2d").join("example_project.r2dproject"));
+        assert!(crate::project_file::is_project_file(&copy));
+        let written = std::fs::metadata(&copy).unwrap().modified().unwrap();
+        assert_eq!(copy_example(&src, &home).unwrap(), copy);
+        assert_eq!(std::fs::metadata(&copy).unwrap().modified().unwrap(), written, "the copy is not written again");
+        // (The tests' program has no example beside it.)
+        assert!(bundled_example().is_none());
+        assert!(example_copy().unwrap_err().to_string().contains("no bundled example game"));
     }
 }

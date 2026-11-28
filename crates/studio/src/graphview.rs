@@ -19,6 +19,64 @@ const GAP: f32 = 18.0;
 /// Lines a card shows before "… and N more".
 const MAX_LINES: usize = 8;
 
+/// Text in the scene kept sharp below 100 %: the scene scales what is drawn in it, and a glyph
+/// scaled down can fall between the screen's pixels (`_` in `cart_bandit_1` was lost below
+/// 80 %). So the text is laid out at the size it has on the screen, in whole pixels, scaled back
+/// into the scene, and put on a whole pixel: the screen shows the font as it was made.
+struct Crisp {
+    /// The scene's transform (scene points to the window's).
+    t: egui::emath::TSTransform,
+    ppp: f32,
+}
+
+impl Crisp {
+    fn of(ui: &egui::Ui) -> Crisp {
+        Crisp { t: ui.ctx().layer_transform_to_global(ui.layer_id()).unwrap_or_default(), ppp: ui.ctx().pixels_per_point() }
+    }
+
+    /// Only below 100 %: above it the scene's scaling only magnifies.
+    fn on(&self) -> bool {
+        self.t.scaling < 0.999
+    }
+
+    /// `text` of `size` (scene points) laid out as it is on the screen: on one line cut to
+    /// `width` (scene points), or wrapped at it.
+    fn galley(&self, ui: &egui::Ui, text: &str, size: f32, color: Color32, width: f32, wrap: bool) -> std::sync::Arc<egui::Galley> {
+        let px = (size * self.t.scaling * self.ppp).round().max(1.0);
+        let font = egui::FontId::proportional(px / self.ppp);
+        let mut job = egui::text::LayoutJob::simple(text.to_string(), font, color, f32::INFINITY);
+        job.wrap = if wrap { egui::text::TextWrapping::wrap_at_width(width * self.t.scaling) } else { egui::text::TextWrapping::truncate_at_width(width * self.t.scaling) };
+        ui.painter().layout_job(job)
+    }
+
+    /// A galley of `galley()` drawn with its top-left corner at `at` (scene points), moved to the
+    /// screen's nearest whole pixel. Returns its size in the scene.
+    fn paint(&self, ui: &egui::Ui, at: Pos2, galley: std::sync::Arc<egui::Galley>) -> egui::Vec2 {
+        let size = galley.size() / self.t.scaling;
+        let screen = self.t * at;
+        let snapped = pos2((screen.x * self.ppp).round() / self.ppp, (screen.y * self.ppp).round() / self.ppp);
+        let mut shape = egui::epaint::TextShape::new(Pos2::ZERO, galley, Color32::WHITE);
+        shape.transform(egui::emath::TSTransform::from_scaling(1.0 / self.t.scaling));
+        shape.pos = self.t.inverse() * snapped;
+        ui.painter().add(shape);
+        size
+    }
+
+    /// A label of the card: sharp below 100 %, an ordinary label at or above it.
+    fn label(&self, ui: &mut egui::Ui, text: &str, size: f32, color: Color32, wrap: bool) -> egui::Response {
+        if !self.on() {
+            let label = egui::Label::new(egui::RichText::new(text).size(size).color(color));
+            return ui.add(if wrap { label.wrap() } else { label.truncate() });
+        }
+        let galley = self.galley(ui, text, size, color, ui.available_width(), wrap);
+        let (rect, r) = ui.allocate_exact_size(galley.size() / self.t.scaling, Sense::hover());
+        if ui.is_rect_visible(rect) {
+            self.paint(ui, rect.min, galley);
+        }
+        r
+    }
+}
+
 pub fn edge_color(kind: EdgeKind) -> Color32 {
     match kind {
         EdgeKind::Owns => Color32::from_gray(120),
@@ -248,6 +306,9 @@ impl GraphView {
         let mut new_rows = HashMap::new();
         let st = &*self;
         egui::Scene::new().zoom_range(0.15..=2.0).max_inner_size(vec2(30000.0, 30000.0)).show(ui, &mut scene_rect, |ui| {
+            let crisp = Crisp::of(ui);
+            let small = ui.style().text_styles.get(&egui::TextStyle::Small).map_or(10.0, |f| f.size);
+            let body = ui.style().text_styles.get(&egui::TextStyle::Body).map_or(14.0, |f| f.size);
             // Lines first (under the cards), from last frame's cards.
             let hover = &st.hover;
             for e in &st.graph.edges {
@@ -273,7 +334,13 @@ impl GraphView {
                 ui.painter().circle_filled(p3, 3.5, col);
                 if !e.label.is_empty() && lit {
                     let mid = if same_col { pos2(p0.x.max(p3.x) + 56.0, (p0.y + p3.y) / 2.0) } else { pos2((p0.x + p3.x) / 2.0, (p0.y + p3.y) / 2.0) };
-                    ui.painter().text(mid - vec2(0.0, 6.0), egui::Align2::CENTER_BOTTOM, &e.label, egui::FontId::proportional(12.0), col);
+                    if crisp.on() {
+                        let g = crisp.galley(ui, &e.label, 12.0, col, f32::INFINITY, false);
+                        let size = g.size() / crisp.t.scaling;
+                        crisp.paint(ui, mid - vec2(size.x / 2.0, 6.0 + size.y), g);
+                    } else {
+                        ui.painter().text(mid - vec2(0.0, 6.0), egui::Align2::CENTER_BOTTOM, &e.label, egui::FontId::proportional(12.0), col);
+                    }
                 }
             }
             // The cards.
@@ -299,15 +366,15 @@ impl GraphView {
                     egui::Frame::new().fill(fill).stroke(stroke).corner_radius(6.0).inner_margin(8.0).show(ui, |ui| {
                         ui.set_width(w - 16.0);
                         let head = ui.vertical(|ui| {
-                            ui.label(egui::RichText::new(&card.kind).small().color(text(Color32::from_gray(150))));
-                            ui.label(egui::RichText::new(&card.title).strong().color(text(accent)));
+                            crisp.label(ui, &card.kind, small, text(Color32::from_gray(150)), true);
+                            crisp.label(ui, &card.title, body, text(accent), true);
                         });
                         for (k, line) in card.lines.iter().take(MAX_LINES).enumerate() {
-                            let r = ui.add(egui::Label::new(egui::RichText::new(line).size(12.5).color(text(Color32::from_gray(210)))).truncate());
+                            let r = crisp.label(ui, line, 12.5, text(Color32::from_gray(210)), false);
                             lines_y.push((k, r.rect.center().y));
                         }
                         if card.lines.len() > MAX_LINES {
-                            let r = ui.label(egui::RichText::new(format!("… and {} more", card.lines.len() - MAX_LINES)).small().color(text(Color32::from_gray(150))));
+                            let r = crisp.label(ui, &format!("… and {} more", card.lines.len() - MAX_LINES), small, text(Color32::from_gray(150)), true);
                             // (Lines that aren't shown start at "… and N more".)
                             for k in MAX_LINES..card.lines.len() {
                                 lines_y.push((k, r.rect.center().y));

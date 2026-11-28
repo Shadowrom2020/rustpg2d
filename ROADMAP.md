@@ -834,6 +834,12 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   stall after every pause in typing. A fix from the list checks again at once and is no change
   since (`refresh_problems` notices the steps made before it first). Test
   `shell::ui_tests::the_problems_list_says_when_the_project_changed_since_its_check`.
+  **2026-11-28:** the Overview's counts in words, *1 disease*, *3 3D models*, *1 UI skin*
+  (`shell::count_of`, `lower`); the Project browser's group shows no cross that does nothing
+  (egui_dock's disabled *close all tabs* cross is drawn transparent); started without a project
+  the window has no Problems / History panel: it comes with the first project. Tests
+  `counts_of_a_kind_read_as_words`, `the_problems_and_history_panel_comes_with_a_project`.
+
   **Decided while building.**
   - The new editor grows in `crates/studio` (the old one keeps `crates/editor`, with the
     starter library's files, until the switch-over), over `editor-core` when that exists.
@@ -1014,12 +1020,19 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   the agents' field descriptions and the manual's reference tables.
 
   **2026-11-28:** a change made in a form, or by the script's `field` / `setting`, is named in
-  the History by what the form knows: *Small red-roofed cottage: Ridge changed*, *…: an entry
-  added to States* / *removed from* / *moved in*, *Game settings: It starts on changed*
+  the History by what the form knows: *Small red-roofed cottage: Ridge*, *…: States, an
+  entry added* / *removed* / *moved*, *Game settings: It starts on* (worded so since the
+  entry below)
   (`form::Said`, `form::take`, `Workspace::def_step_name`, `schema::Node::label_at`); typing a
   name letter by letter stays one step with one name, the definition's name as it was before.
   Tests `form::ui_tests::a_change_in_a_form_is_named_in_the_history_by_its_definition_and_field`,
   `schema::tests::labels_and_help`.
+  **2026-11-28:** a form's step is named by the field alone: *Small red-roofed cottage:
+  Ridge*, *…: States, an entry added* (*removed*, *moved*), *Game settings: It starts on* (a
+  label that is a phrase read badly before *changed*). Tests
+  `a_change_in_a_form_is_named_in_the_history_by_its_definition_and_field` and the prop
+  workshop's updated; `summaries` pins the stops' and patrols' titles.
+
   **Decided while building.**
   - *The shape is derived, not written.* A hand-written table per kind would repeat ~300 types
     and go stale with every engine change. `schemars` reads the same serde attributes the files
@@ -1373,6 +1386,15 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   **2026-11-28:** *Test setup…*: two rows with a picker (two items, an item and a quest) no
   longer share an egui id (the red *First use of widget ID* warnings); `testsetup` and its
   status print the day as the window's field shows it (from 1).
+  **2026-11-28:** the map's bar stays one line: short of room, *Weather*, *Blocked tiles*,
+  *Zone areas*, *Grid* and *Light* (with its hour) fold into a *Show* menu, then the events
+  graph and the zoom into *More*; only with everything folded does it wrap (`BarFit`, measured
+  on the frames before; seen at 1600, 1100 and 800 points wide with *Light* on). A
+  schedule's stops in the Inspector are titled by hour and place (*07:00 at 30, 23*, *15:00
+  at bench_west*, *20:30 at guest_bed in house*), a patrol by its waypoints (*4 waypoints ·
+  Ping pong*). The World view cuts a card's name to the card's width (whole on hover) and
+  leaves out the size below it when, zoomed out, the cards lie too close for both.
+
   **Decided while building.**
   - **The world is drawn by the engine, the editor's marks by both.** What lies on the ground
     (zones, the grid, blocked tiles, frames) is drawn in the same pass with the ground's
@@ -1660,6 +1682,13 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   **2026-11-28:** the event sheet's and the events graph's words say a number as it was
   typed (*Wait 0.4 s*, not the `f32` widened to 0.4000000059604645; test
   `events::tests::lines_say_what_happens`).
+  **2026-11-28:** a visual script's *Name* and *Description* fill the panel beside the canvas
+  (a narrow form: short labels, fields as wide as the panel); the Rhai there has a solid
+  scroll bar for its long lines (dragged in the window). The events graph keeps small text
+  sharp below 100 %: a card's text is laid out at its size on the screen, in whole pixels,
+  and scaled back into the scene (`graphview::Crisp`), so `_` and `-` no longer fall between
+  pixels (`to_house`, *cut-scene* at 80 % and 50 %).
+
   **Decided while building.**
   - **The sheet reads the values as the files hold them** (JSON, as the forms do), so it is
     one piece of code for every place a list of events can be, and a kind the summaries
@@ -2036,6 +2065,9 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   0.35 editor's, along the ridge where it has the most room; one step (tests
   `build::tests::a_chimney_is_added_like_the_last_where_the_ridge_has_room`,
   `propshop::ui_tests::a_buildings_window_and_chimney_are_added_and_its_ridge_turned_by_number`).
+  **2026-11-28:** *Add a chimney* on a building without one gives it the walls' picture (it
+  was drawn plain grey); test `a_chimney_is_added_like_the_last_where_the_ridge_has_room`.
+
   **Decided while building.**
   - **The workshop is the top of the prop's tab, not a tab of its own**: the picture and the
     form show the same prop, so a number typed below moves the outline above and the other
@@ -2676,6 +2708,11 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     (`EditorSettings::help_at`), written when they change (*What's new* isn't a place to
     come back to); a new editor opens the tab there (`HelpView::restored`, in `Shell::open`:
     a Help view made anywhere else, a test's, writes nothing).
+
+  **2026-11-28 (faults seen while the manual's pictures were taken):** chapter 18's title
+  carries its number, *18. Plugins*, as Help's list of chapters shows the others; the test
+  `every_chapter_is_there_with_its_sections_and_links_that_lead_somewhere` keeps every chapter
+  numbered.
 
   **Decided while building.**
   - **A Markdown reader of our own, not a crate**: the manual uses a small part of Markdown,

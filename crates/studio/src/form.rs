@@ -54,7 +54,7 @@ pub struct Cx<'a> {
 }
 
 /// A definition's form changed it to `value`: the workspace takes it (when it is a definition)
-/// as a step of the history named by what changed (*Small red-roofed cottage: Ridge changed*).
+/// as a step of the history named by what changed (*Small red-roofed cottage: Ridge*).
 /// Err: why it isn't one yet.
 pub fn take(ws: &mut editor_core::Workspace, kind: RefKind, id: &str, value: Value, said: &Said) -> Result<(), String> {
     // (Named as it was before: typing a new name is a change of the old one.)
@@ -64,12 +64,13 @@ pub fn take(ws: &mut editor_core::Workspace, kind: RefKind, id: &str, value: Val
     Ok(())
 }
 
-/// What a form's change was, in words ("Ridge changed", "an entry added to Openings"): the
-/// innermost field that changed names it, with what a list's buttons did to it.
+/// What a form's change was, in words ("Ridge", "Openings, an entry added"): the innermost
+/// field that changed names it, with what a list's buttons did to it. (The label alone, never
+/// "Ridge changed": a label that is a phrase, *It starts on*, reads badly with a verb after it.)
 #[derive(Default)]
 pub struct Said {
     words: Option<String>,
-    /// What a list's buttons did ("added to"), for the list's field to name.
+    /// What a list's buttons did ("added", "removed", "moved"), for the list's field to name.
     list: Option<&'static str>,
 }
 
@@ -83,8 +84,8 @@ impl Said {
     fn field(&mut self, label: &str) {
         if self.words.is_none() {
             self.words = Some(match self.list.take() {
-                Some(how) => format!("an entry {how} {label}"),
-                None => format!("{label} changed"),
+                Some(how) => format!("{label}, an entry {how}"),
+                None => label.to_string(),
             });
         }
     }
@@ -144,6 +145,26 @@ fn summary(v: &Value) -> String {
         Value::Object(m) if m.contains_key("on") && m.contains_key("actions") => {
             let n = m["actions"].as_array().map_or(0, Vec::len);
             format!("When: {} · {n} action{}", summary(&m["on"]), if n == 1 { "" } else { "s" })
+        }
+        // A stop of a daily schedule: when and where ("07:00 at 34, 22", "13:00 in tavern").
+        Value::Object(m) if m.get("hour").is_some_and(Value::is_number) && m.get("x").is_some_and(Value::is_number) && m.get("y").is_some_and(Value::is_number) => {
+            let minutes = (m["hour"].as_f64().unwrap_or(0.0) * 60.0).round().max(0.0) as u32;
+            let text = |k: &str| m.get(k).and_then(Value::as_str).filter(|s| !s.is_empty());
+            let mut s = format!("{:02}:{:02}", minutes / 60, minutes % 60);
+            match (text("prop"), text("map")) {
+                (Some(prop), map) => s += &format!(" at {prop}{}", map.map(|m| format!(" in {m}")).unwrap_or_default()),
+                (None, Some(map)) => s += &format!(" in {map}"),
+                (None, None) => s += &format!(" at {}, {}", m["x"], m["y"]),
+            }
+            if m.get("inside").and_then(Value::as_bool) == Some(true) {
+                s += ", inside";
+            }
+            s
+        }
+        // A patrol: its waypoints and how it goes round them.
+        Value::Object(m) if m.get("points").is_some_and(Value::is_array) && m.get("mode").is_some_and(Value::is_string) => {
+            let n = m["points"].as_array().map_or(0, Vec::len);
+            format!("{n} waypoint{} · {}", if n == 1 { "" } else { "s" }, schema::variant_label(m["mode"].as_str().unwrap_or("")))
         }
         Value::Object(m) => {
             let named = ["name", "id", "title", "label", "item", "def", "text", "spell", "sound", "function"].iter().find_map(|k| m.get(*k).and_then(|x| x.as_str()).filter(|s| !s.is_empty()));
@@ -229,6 +250,16 @@ fn label_width(ui: &egui::Ui) -> f32 {
 fn text_width(ui: &egui::Ui, wide: f32) -> f32 {
     if narrow(ui) {
         (wide * 0.6).min(190.0)
+    } else {
+        wide
+    }
+}
+
+/// The width of a plain text field: `wide` in a form with room; in a narrow one, what the row
+/// has left (up to `wide`), so it grows with its panel.
+fn fill_width(ui: &egui::Ui, wide: f32) -> f32 {
+    if narrow(ui) {
+        ui.available_width().min(wide).max(60.0)
     } else {
         wide
     }
@@ -408,7 +439,7 @@ pub(crate) fn picker(ui: &mut egui::Ui, cx: &mut Cx, kinds: &[RefKind], s: &mut 
         }
         ui.separator();
         for kind in kinds.iter().filter(|k| k.is_def()) {
-            if ui.button(format!("+ New {}…", kind.label().to_lowercase())).clicked() {
+            if ui.button(format!("+ New {}…", crate::shell::lower(kind.label()))).clicked() {
                 cx.asks.push(Ask::New(*kind));
                 ui.close();
             }
@@ -423,7 +454,7 @@ pub(crate) fn picker(ui: &mut egui::Ui, cx: &mut Cx, kinds: &[RefKind], s: &mut 
     });
     combo.response.labelled_by(by);
     if let Some((kind, _)) = known.filter(|(k, _)| *k != RefKind::Skill) {
-        if ui.small_button("Open").on_hover_text(format!("Open this {} in a tab", kind.label().to_lowercase())).clicked() {
+        if ui.small_button("Open").on_hover_text(format!("Open this {} in a tab", crate::shell::lower(kind.label()))).clicked() {
             cx.asks.push(Ask::Open(kind, s.clone()));
         }
     }
@@ -565,9 +596,9 @@ fn inline(ui: &mut egui::Ui, cx: &mut Cx, node: Node, site: &str, v: &mut Value,
             } else if let Some((folder, files, exts)) = schema::file_field(site).filter(|_| !cx.compact) {
                 file_field(ui, s, by, folder, files, exts)
             } else if !cx.compact && (s.contains('\n') || s.len() > 60) {
-                ui.add(egui::TextEdit::multiline(s).desired_rows(2).desired_width(text_width(ui, 460.0))).labelled_by(by).changed()
+                ui.add(egui::TextEdit::multiline(s).desired_rows(2).desired_width(fill_width(ui, 460.0))).labelled_by(by).changed()
             } else {
-                ui.add(egui::TextEdit::singleline(s).desired_width(text_width(ui, 280.0))).labelled_by(by).changed()
+                ui.add(egui::TextEdit::singleline(s).desired_width(fill_width(ui, 280.0))).labelled_by(by).changed()
             }
         }
         Shape::Color => {
@@ -990,17 +1021,17 @@ pub(crate) fn body(ui: &mut egui::Ui, cx: &mut Cx, node: Node, site: &str, v: &m
             }
             if let Some(k) = remove {
                 list.remove(k);
-                cx.said.list = Some("removed from");
+                cx.said.list = Some("removed");
                 changed = true;
             }
             if let Some(k) = up {
                 list.swap(k, k - 1);
-                cx.said.list = Some("moved in");
+                cx.said.list = Some("moved");
                 changed = true;
             }
             if let Some(k) = down {
                 list.swap(k, k + 1);
-                cx.said.list = Some("moved in");
+                cx.said.list = Some("moved");
                 changed = true;
             }
             // A new entry: of an enum, the variant picked from a list; else the plainest value.
@@ -1009,7 +1040,7 @@ pub(crate) fn body(ui: &mut egui::Ui, cx: &mut Cx, node: Node, site: &str, v: &m
                     let pick = ui.menu_button("+ Add…", |ui| egui::ScrollArea::vertical().max_height(340.0).show(ui, |ui| variant_list(ui, &variants, None, variants.len() > 12)).inner).inner.flatten();
                     if let Some(k) = pick {
                         list.push(variants[k].blank());
-                        cx.said.list = Some("added to");
+                        cx.said.list = Some("added");
                         changed = true;
                     }
                 }
@@ -1020,7 +1051,7 @@ pub(crate) fn body(ui: &mut egui::Ui, cx: &mut Cx, node: Node, site: &str, v: &m
                             new = blank_past_default(inner);
                         }
                         list.push(new);
-                        cx.said.list = Some("added to");
+                        cx.said.list = Some("added");
                         changed = true;
                     }
                 }
@@ -1056,7 +1087,7 @@ pub(crate) fn body(ui: &mut egui::Ui, cx: &mut Cx, node: Node, site: &str, v: &m
             }
             if let Some(key) = remove {
                 map.shift_remove(&key);
-                cx.said.list = Some("removed from");
+                cx.said.list = Some("removed");
                 changed = true;
             }
             ui.horizontal(|ui| {
@@ -1070,7 +1101,7 @@ pub(crate) fn body(ui: &mut egui::Ui, cx: &mut Cx, node: Node, site: &str, v: &m
                     }
                     map.insert(name.trim().to_string(), new);
                     name.clear();
-                    cx.said.list = Some("added to");
+                    cx.said.list = Some("added");
                     changed = true;
                 }
                 ui.data_mut(|d| d.insert_temp(id, name));
@@ -1170,9 +1201,9 @@ fn plain(ui: &mut egui::Ui, v: &mut Value, by: egui::Id) -> bool {
         }
         Value::String(s) => {
             if s.contains('\n') || s.len() > 60 {
-                ui.add(egui::TextEdit::multiline(s).desired_rows(2).desired_width(text_width(ui, 460.0))).labelled_by(by).changed()
+                ui.add(egui::TextEdit::multiline(s).desired_rows(2).desired_width(fill_width(ui, 460.0))).labelled_by(by).changed()
             } else {
-                ui.add(egui::TextEdit::singleline(s).desired_width(text_width(ui, 280.0))).labelled_by(by).changed()
+                ui.add(egui::TextEdit::singleline(s).desired_width(fill_width(ui, 280.0))).labelled_by(by).changed()
             }
         }
         // Nothing set: what is typed is read as data (a number, "a text", true, {…}).
@@ -1265,6 +1296,11 @@ mod tests {
         assert_eq!(summary(&serde_json::json!({"Dialog": {"speaker": "", "text": "Hello"}})), "Dialog: Hello");
         assert_eq!(summary(&serde_json::json!({"SetUiVisible": {"visible": true}})), "Set ui visible");
         assert_eq!(summary(&Value::Null), "none");
+        // A schedule's stop: its hour and place, not its facing.
+        assert_eq!(summary(&serde_json::json!({"hour": 7.0, "x": 34, "y": 22, "facing": "Up", "inside": false})), "07:00 at 34, 22");
+        assert_eq!(summary(&serde_json::json!({"hour": 13.5, "x": 4, "y": 5, "facing": null, "inside": false, "map": "tavern"})), "13:30 in tavern");
+        assert_eq!(summary(&serde_json::json!({"hour": 22.0, "x": 4, "y": 5, "inside": true, "prop": "bed"})), "22:00 at bed, inside");
+        assert_eq!(summary(&serde_json::json!({"points": [[1, 2], [3, 4]], "mode": "PingPong", "pause": 1.5, "speed": 0.0})), "2 waypoints · Ping pong");
         assert_eq!(summary(&serde_json::json!({"on": {"UseItem": {"item": "potion"}}, "conditions": [], "actions": [1, 2], "once": false})), "When: Use item: potion · 2 actions");
         assert_eq!(summary(&serde_json::json!({"on": "Interact", "conditions": [], "actions": [1], "once": false})), "When: Interact · 1 action");
     }
@@ -1376,7 +1412,7 @@ mod ui_tests {
             h.run();
         }
         assert_eq!(h.state().ws.def_value(RefKind::Prop, "cottage").unwrap()["name"], "Small cottage!!?");
-        assert_eq!(steps(&h)[before..], ["Small cottage: Name changed"]);
+        assert_eq!(steps(&h)[before..], ["Small cottage: Name"]);
         // A list's buttons: what was done to which list (the first of each button below its label).
         let below = |h: &Harness<Shop>, label: &str, button: &str| {
             let top = h.get_by_role_and_label(egui::accesskit::Role::Label, label).rect().top();
@@ -1396,7 +1432,7 @@ mod ui_tests {
         h.run();
         assert_eq!(
             steps(&h)[before + 1..],
-            ["Small cottage!!?: an entry added to States", "Small cottage!!?: an entry removed from States", "Small cottage!!?: Ridge changed"]
+            ["Small cottage!!?: States, an entry added", "Small cottage!!?: States, an entry removed", "Small cottage!!?: Ridge"]
         );
         let _ = std::fs::remove_dir_all(dir);
     }

@@ -1,4 +1,4 @@
-# Plugins
+# 18. Plugins
 
 A **plugin** is an add-on for a game: its own scripts, [script hooks](08-scripting.md#script-hooks),
 menu entries, HUD elements, settings and assets, kept in a folder of its own. Unlike assets from

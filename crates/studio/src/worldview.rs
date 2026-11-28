@@ -15,6 +15,17 @@ fn scale_of(m: &WorldMap) -> f32 {
     (220.0 / m.width.max(m.height).max(1) as f32).min(7.0)
 }
 
+/// Room between the cards of a column (the view's own points): a card's name above it, its
+/// size below the one above.
+const GAP: f32 = 56.0;
+
+/// `text` laid out on one line, cut with "…" to `width`.
+fn cut(painter: &egui::Painter, text: String, font: egui::FontId, color: egui::Color32, width: f32) -> std::sync::Arc<egui::Galley> {
+    let mut job = egui::text::LayoutJob::simple_singleline(text, font, color);
+    job.wrap = egui::text::TextWrapping::truncate_at_width(width);
+    painter.layout_job(job)
+}
+
 #[derive(Default)]
 pub struct WorldView {
     maps: Vec<WorldMap>,
@@ -78,7 +89,7 @@ impl WorldView {
             for m in column {
                 let size = egui::vec2(m.width as f32, m.height as f32) * scale_of(m);
                 self.pos.entry(m.name.clone()).or_insert(egui::pos2(x, y));
-                y += size.y + 56.0;
+                y += size.y + GAP;
                 widest = widest.max(size.x);
             }
             x += widest.max(120.0) + 110.0;
@@ -95,7 +106,7 @@ impl WorldView {
             ui.label(egui::RichText::new("The world").strong());
             let unreached = self.maps.iter().filter(|m| !m.reached).count();
             let problems = self.maps.iter().flat_map(|m| &m.links).filter(|l| !l.problem.is_empty()).count();
-            ui.weak(format!("{} maps", self.maps.len()));
+            ui.weak(crate::shell::count_of(self.maps.len(), "Map"));
             if unreached > 0 {
                 ui.colored_label(ui.visuals().warn_fg_color, format!("{unreached} nothing leads to"));
             }
@@ -179,12 +190,24 @@ impl WorldView {
             if m.name == *start {
                 title += "  (the game starts here)";
             }
-            painter.text(card.left_top() - egui::vec2(2.0, 6.0), egui::Align2::LEFT_BOTTOM, title, font.clone(), egui::Color32::from_gray(230));
-            let mut note = format!("{} x {}", m.width, m.height);
-            if !m.reached {
-                note += " · nothing leads here";
+            // The labels keep their size while the cards shrink: each is cut to its card's
+            // width, and the size below is left out when the gap to the next card is too small
+            // for it and that card's name (the cards of a column lie GAP apart).
+            let room = (card.width() + 4.0).max(36.0);
+            let name = cut(&painter, title.clone(), font.clone(), egui::Color32::from_gray(230), room);
+            // (A name cut short is there in full under the pointer.)
+            let r = if name.elided { r.on_hover_text(title) } else { r };
+            painter.galley(card.left_top() - egui::vec2(2.0, 6.0 + name.size().y), name, egui::Color32::from_gray(230));
+            let small = egui::FontId::proportional(11.0);
+            if GAP * zoom >= 12.0 + font.size + small.size + 6.0 {
+                let mut note = format!("{} x {}", m.width, m.height);
+                if !m.reached {
+                    note += " · nothing leads here";
+                }
+                let color = if m.reached { egui::Color32::from_gray(150) } else { ui.visuals().warn_fg_color };
+                let note = cut(&painter, note, small, color, room);
+                painter.galley(card.left_bottom() + egui::vec2(-2.0, 6.0), note, color);
             }
-            painter.text(card.left_bottom() + egui::vec2(-2.0, 6.0), egui::Align2::LEFT_TOP, note, egui::FontId::proportional(11.0), if m.reached { egui::Color32::from_gray(150) } else { ui.visuals().warn_fg_color });
             if !problems.is_empty() {
                 r.on_hover_text(problems.join("\n"));
             } else if !m.reached {

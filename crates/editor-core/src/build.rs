@@ -955,7 +955,7 @@ impl Workspace {
 
     /// A chimney added to the building prop `id`: like the last one (its picture, size and how
     /// far it rises, and as far off the ridge), else one of 14 x 14 rising 14 pixels (what the
-    /// 0.35 editor gave a new one) a little north (or west) of the ridge; along the ridge where
+    /// 0.35 editor gave a new one) of the walls' picture, a little north (or west) of the ridge; along the ridge where
     /// the most room is. One step; the building is built again with it.
     pub fn building_chimney(&mut self, id: &str) -> Result<String, String> {
         let p = self.project.db.prop(id).ok_or_else(|| format!("there is no prop \"{id}\""))?;
@@ -971,7 +971,8 @@ impl Workspace {
         let axis = |c: &Chimney| if along_x { (c.at[0], c.at[1], c.size[0]) } else { (c.at[1], c.at[0], c.size[1]) };
         let (length, across) = if along_x { (w, d) } else { (d, w) };
         let like = shape.chimneys.last().cloned();
-        let (picture, size, rise, off) = like.as_ref().map_or_else(|| (SpriteRef::default(), [14.0, 14.0], 14.0, (across / 2.0 - 4.0).round()), |c| (c.picture.clone(), c.size, c.rise, axis(c).1));
+        // (The first one is built of the walls' picture: without one it would be plain grey.)
+        let (picture, size, rise, off) = like.as_ref().map_or_else(|| (shape.wall.clone(), [14.0, 14.0], 14.0, (across / 2.0 - 4.0).round()), |c| (c.picture.clone(), c.size, c.rise, axis(c).1));
         let width = if along_x { size[0] } else { size[1] };
         let taken = shape.chimneys.iter().map(|c| {
             let (at, _, len) = axis(c);
@@ -1069,6 +1070,14 @@ mod tests {
         ws.history_frame(None);
         ws.undo();
         assert!(chimneys(&ws).is_empty(), "one step");
+        // The first chimney of a building with a wall picture is built of it (never plain grey).
+        let mut value = ws.def_value(rustpg2d_engine::refactor::RefKind::Prop, "cottage").unwrap();
+        value["building"]["wall"] = serde_json::json!({"sheet": "walls", "frame": 3});
+        ws.set_def_value(rustpg2d_engine::refactor::RefKind::Prop, "cottage", value).unwrap();
+        ws.history_frame(None);
+        ws.building_chimney("cottage").unwrap();
+        let c = chimneys(&ws)[0].clone();
+        assert_eq!((c.picture.sheet.as_str(), c.picture.frame, c.size), ("walls", 3, [14.0, 14.0]));
         let _ = std::fs::remove_dir_all(dir);
     }
 

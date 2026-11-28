@@ -502,6 +502,9 @@ mod tests {
         assert_eq!(all.len(), 21);
         assert_eq!((all[0].file, all[3].file, all[3].title.as_str()), ("README.md", "03-maps.md", "3. Maps"));
         assert!(all.iter().all(|c| !c.sections.is_empty() && c.blocks.len() > 5), "every chapter has a title and text");
+        // A chapter's title carries its number, as Help's list shows it ("18. Plugins").
+        let unnumbered: Vec<&str> = all.iter().filter(|c| c.file.split('-').next().and_then(|n| n.parse::<u32>().ok()).is_some_and(|n| !c.title.starts_with(&format!("{n}. ")))).map(|c| c.file).collect();
+        assert!(unnumbered.is_empty(), "chapters whose title lacks its number: {unnumbered:?}");
         // Every link to a chapter names one that is there, and its anchor a heading of it.
         let mut broken = Vec::new();
         fn links<'a>(blocks: &'a [Block], out: &mut Vec<&'a str>) {

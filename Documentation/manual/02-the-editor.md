@@ -92,8 +92,8 @@ Undoing back to what was saved makes it clean again.
 placed, a structure, a pasted region, a field of a form, a definition made, renamed or deleted,
 a setting, and what an AI agent did. **Ctrl+Z** and **Ctrl+Y** step through it, in whatever tab
 is in front; the **History** tab lists the steps by name, newest first. A change in a form is
-named by the definition and the field: *Small red-roofed cottage: Ridge changed*, *…: an entry
-added to States* (or *removed from*, *moved in*), *Game settings: It starts on changed*. What
+named by the definition and the field: *Small red-roofed cottage: Ridge*, *…: States, an entry
+added* (or *removed*, *moved*), *Game settings: It starts on*. What
 you type into one field is one step (until you move to another field), named once. A text field you are typing in keeps Ctrl+Z
 for its own text, and a picture being painted has its own undo while the pointer is over it.
 Renaming a definition renames it in the maps and scripts too; undoing renames it back.

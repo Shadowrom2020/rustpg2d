@@ -362,19 +362,28 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **Saving and then changing something at once** (an undo right after *Save all*) no longer
   makes the editor think another program changed the files: the bar *Another program
   changed…* stays away.
-- **The History names what a form changed:** *Small red-roofed cottage: Ridge changed*,
-  *…: an entry added to States*, *Game settings: It starts on changed*, instead of *Change
-  definitions*. Typing a name letter by letter is still one step.
+- **The History names what a form changed:** *Small red-roofed cottage: Ridge*, *…: States,
+  an entry added*, *Game settings: It starts on*, instead of *Change definitions*. Typing a
+  name letter by letter is still one step.
 - **A long message in the status line** is cut short with "…" before *saved*, the problems'
   counts and the fps; the whole message shows when the pointer rests on it.
 - **The Problems tab says when its list may be out of date:** after anything changed since the
   check, *The project changed since this check.* with *Check again*, the list and the status
   bar's counts dimmed.
 - **Add a chimney** in a building's workshop, beside *Add a door* and *Add a window*: like the
-  last chimney (its picture, size and height), on the roof along the ridge where there is room.
+  last chimney (its picture, size and height), on the roof along the ridge where there is room;
+  a building's first chimney is built of its walls' picture.
 - **Test setup…** no longer shows red warnings with two items (or an item and a quest), and its
   summary says the same day as its field. The events graph's cards say *Wait 0.4 s*, not a long
   run of digits.
+- **Small things that read or fit better:** the map's bar stays on one line (what doesn't fit
+  folds into its *Show* and *More* menus); a character's schedule lists its stops by hour and
+  place (*07:00 at 34, 22*, *13:00 in tavern*) and a patrol by its waypoints; the World view's
+  names no longer run into each other when zoomed out; the Overview counts *1 disease*,
+  *3D models*, *UI skins*; a visual script's *Name* and *Description* use the panel's width and
+  its Rhai scrolls sideways; the events graph keeps `_` and `-` sharp when zoomed out; the
+  Project browser shows no close cross that does nothing; the home screen has no Problems
+  panel until a project is open; Help lists *18. Plugins* with its number.
 
 ### Removed (Breaking)
 Old ways of drawing that only earlier versions needed are gone (the maintainer's word,

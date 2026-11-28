@@ -820,7 +820,7 @@ mod ui_tests {
         // The walls are ticked: the building has them (left out of the file, read as on).
         assert_eq!(h.get_by_role_and_label(egui::accesskit::Role::CheckBox, "Walls").accesskit_node().toggled(), Some(egui::accesskit::Toggled::True));
         let labels: Vec<String> = h.state().ws.timeline.done.iter().map(|c| c.label.clone()).collect();
-        assert_eq!(labels, ["Add a window to Small red-roofed cottage", "Add a chimney to Small red-roofed cottage", "Small red-roofed cottage: Ridge changed"]);
+        assert_eq!(labels, ["Add a window to Small red-roofed cottage", "Add a chimney to Small red-roofed cottage", "Small red-roofed cottage: Ridge"]);
         // All undone: as it was.
         h.state_mut().ws.undo();
         h.state_mut().ws.undo();

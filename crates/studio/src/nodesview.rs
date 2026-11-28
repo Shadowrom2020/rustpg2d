@@ -406,7 +406,9 @@ impl NodesView {
         });
         ui.weak("What the game runs (written into scripts/visual_scripts.rhai when you save).");
         egui::Frame::new().fill(Color32::from_rgb(20, 22, 26)).inner_margin(6.0).show(ui, |ui| {
-            // (Long lines scroll: the panel keeps its width.)
+            // (Long lines scroll: the panel keeps its width. A solid bar, seen without the
+            // pointer on it: the floating one hides that there is more to the right.)
+            ui.spacing_mut().scroll = egui::style::ScrollStyle::solid();
             egui::ScrollArea::horizontal().id_salt("rhai").show(ui, |ui| {
                 ui.add(egui::Label::new(egui::RichText::new(&code).monospace().size(12.0)).wrap_mode(egui::TextWrapMode::Extend));
             });

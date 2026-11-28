@@ -127,6 +127,29 @@ pub struct Picks {
     pub zones: bool,
 }
 
+/// The parts of the map's bar that fold into a menu when it runs out of room, the least used
+/// first: the switches of what is shown go into *Show*, the events graph and the zoom into *More*.
+const FOLD_WEATHER: usize = 0;
+const FOLD_BLOCKED: usize = 1;
+const FOLD_ZONES: usize = 2;
+const FOLD_GRID: usize = 3;
+const FOLD_LIGHT: usize = 4;
+const FOLD_GRAPH: usize = 5;
+const FOLD_ZOOM: usize = 6;
+const FOLDS: usize = 7;
+
+/// How the map's bar fits its width: one line, its less used parts folded into menus one by
+/// one while it is too wide (measured on the frames before), rather than wrapping.
+#[derive(Default)]
+struct BarFit {
+    /// How many parts are folded (the first `fold` of the `FOLD_*` order).
+    fold: usize,
+    /// Each part's width when it was last shown.
+    widths: [f32; FOLDS],
+    /// Folded as far as it goes and still too wide: it wraps until there is this much room.
+    wrap: Option<f32>,
+}
+
 enum Drag {
     Pan,
     /// The selection follows the pointer: each thing as it is now and where it was (entities
@@ -270,6 +293,8 @@ pub struct MapView {
     shift: bool,
     /// Milliseconds the last frame's drawing took (CPU).
     pub draw_ms: f32,
+    /// How the bar above the map fits its width.
+    bar: BarFit,
 }
 
 impl Default for MapView {
@@ -317,6 +342,7 @@ impl Default for MapView {
             cycle: None,
             shift: false,
             draw_ms: 0.0,
+            bar: BarFit::default(),
         }
     }
 }
@@ -465,72 +491,190 @@ impl MapView {
         }
     }
 
+    /// The bar above the map: one line while it fits; when it doesn't, its less used parts fold
+    /// into the *Show* and *More* menus (`BarFit`), and only with everything folded it wraps.
     fn bar(&mut self, ui: &mut egui::Ui, p: &mut Parts, name: &str) {
-        ui.horizontal_wrapped(|ui| {
-            for t in Tool::offered(name) {
-                let r = ui.selectable_label(self.tool == t, t.label()).on_hover_text(format!("{} ({})", t.help(), t.key().name()));
-                crate::tourpanel::mark(ui, &format!("tool:{}", t.label()), r.rect);
-                if r.clicked() {
-                    self.tool = t;
+        let room = ui.available_width();
+        let line = if self.bar.wrap.is_some() { ui.horizontal_wrapped(|ui| self.bar_line(ui, p, name)) } else { ui.horizontal(|ui| self.bar_line(ui, p, name)) };
+        let used = line.response.rect.width();
+        let fit = &mut self.bar;
+        let before = (fit.fold, fit.wrap);
+        match fit.wrap {
+            Some(need) => {
+                if room >= need {
+                    fit.wrap = None;
                 }
             }
-            if self.tool == Tool::Select {
-                ui.separator();
-                ui.menu_button("Picks", |ui| {
-                    ui.checkbox(&mut self.picks.things, "Characters, objects and items");
-                    ui.checkbox(&mut self.picks.scenery, "Scenery").on_hover_text("Trees, walls, buildings and everything else that only stands there");
-                    ui.checkbox(&mut self.picks.zones, "Zones").on_hover_text("Where zone areas are shown");
-                })
-                .response
-                .on_hover_text("What clicks and boxes select");
+            None if used > room + 0.5 => {
+                if fit.fold < FOLDS {
+                    fit.fold += 1;
+                } else {
+                    fit.wrap = Some(used);
+                }
             }
+            // (Unfolded when the part had room the last time it was shown, with some to spare:
+            // a menu button that goes away and comes back would otherwise flicker.)
+            None if fit.fold > 0 && used + fit.widths[fit.fold - 1] + 12.0 <= room => fit.fold -= 1,
+            None => {}
+        }
+        if (fit.fold, fit.wrap) != before {
+            ui.ctx().request_repaint();
+        }
+    }
+
+    fn bar_line(&mut self, ui: &mut egui::Ui, p: &mut Parts, name: &str) {
+        let fold = self.bar.fold;
+        let folded = |k: usize| k < fold;
+        // Each part shown in line: how wide it was.
+        let mut widths = self.bar.widths;
+        let mut part = |ui: &mut egui::Ui, k: usize, add: &mut dyn FnMut(&mut egui::Ui)| {
+            if !folded(k) {
+                let x = ui.cursor().left();
+                add(ui);
+                widths[k] = ui.cursor().left() - x;
+            }
+        };
+        for t in Tool::offered(name) {
+            let r = ui.selectable_label(self.tool == t, t.label()).on_hover_text(format!("{} ({})", t.help(), t.key().name()));
+            crate::tourpanel::mark(ui, &format!("tool:{}", t.label()), r.rect);
+            if r.clicked() {
+                self.tool = t;
+            }
+        }
+        if self.tool == Tool::Select {
             ui.separator();
-            ui.menu_button("Layers", |ui| {
-                ui.checkbox(&mut self.layers[0], "The painted ground");
-                ui.checkbox(&mut self.layers[1], "Scenery");
-                ui.checkbox(&mut self.layers[2], "Characters, objects and items");
+            ui.menu_button("Picks", |ui| {
+                ui.checkbox(&mut self.picks.things, "Characters, objects and items");
+                ui.checkbox(&mut self.picks.scenery, "Scenery").on_hover_text("Trees, walls, buildings and everything else that only stands there");
+                ui.checkbox(&mut self.picks.zones, "Zones").on_hover_text("Where zone areas are shown");
             })
             .response
-            .on_hover_text("What of the map is drawn; what is hidden can't be picked either");
+            .on_hover_text("What clicks and boxes select");
+        }
+        ui.separator();
+        ui.menu_button("Layers", |ui| {
+            ui.checkbox(&mut self.layers[0], "The painted ground");
+            ui.checkbox(&mut self.layers[1], "Scenery");
+            ui.checkbox(&mut self.layers[2], "Characters, objects and items");
+        })
+        .response
+        .on_hover_text("What of the map is drawn; what is hidden can't be picked either");
+        const GRID: &str = "The tiles' lines (G)";
+        const ZONES: &str = "Zones and their names";
+        const BLOCKED: &str = "Where nobody can walk: red = blocked, yellow = low (water), green = opened by hand";
+        const LIGHT: &str = "The map's darkness and lights at the hour beside it";
+        const WEATHER: &str = "The map's weather";
+        let opts = &mut self.opts;
+        let hour = |ui: &mut egui::Ui, hour: &mut f32| {
+            ui.add(egui::Slider::new(hour, 0.0..=24.0).fixed_decimals(0).suffix(" h")).on_hover_text("The hour of the day shown");
+        };
+        if fold == 0 {
             ui.weak("Show");
-            ui.toggle_value(&mut self.opts.grid, "Grid").on_hover_text("The tiles' lines (G)");
-            ui.toggle_value(&mut self.opts.zones, "Zone areas").on_hover_text("Zones and their names");
-            ui.toggle_value(&mut self.opts.collision, "Blocked tiles").on_hover_text("Where nobody can walk: red = blocked, yellow = low (water), green = opened by hand");
-            ui.toggle_value(&mut self.opts.lighting, "Light").on_hover_text("The map's darkness and lights at the hour beside it");
-            if self.opts.lighting {
-                ui.add(egui::Slider::new(&mut self.opts.hour, 0.0..=24.0).fixed_decimals(0).suffix(" h")).on_hover_text("The hour of the day shown");
+        } else {
+            // What doesn't fit on the line: the same switches, in a menu.
+            ui.menu_button("Show", |ui| {
+                if folded(FOLD_GRID) {
+                    ui.checkbox(&mut opts.grid, "Grid").on_hover_text(GRID);
+                }
+                if folded(FOLD_ZONES) {
+                    ui.checkbox(&mut opts.zones, "Zone areas").on_hover_text(ZONES);
+                }
+                if folded(FOLD_BLOCKED) {
+                    ui.checkbox(&mut opts.collision, "Blocked tiles").on_hover_text(BLOCKED);
+                }
+                if folded(FOLD_LIGHT) {
+                    ui.checkbox(&mut opts.lighting, "Light").on_hover_text(LIGHT);
+                    if opts.lighting {
+                        hour(ui, &mut opts.hour);
+                    }
+                }
+                if folded(FOLD_WEATHER) {
+                    ui.checkbox(&mut opts.weather, "Weather").on_hover_text(WEATHER);
+                }
+            })
+            .response
+            .on_hover_text("What is drawn over the map");
+        }
+        part(ui, FOLD_GRID, &mut |ui| {
+            ui.toggle_value(&mut opts.grid, "Grid").on_hover_text(GRID);
+        });
+        part(ui, FOLD_ZONES, &mut |ui| {
+            ui.toggle_value(&mut opts.zones, "Zone areas").on_hover_text(ZONES);
+        });
+        part(ui, FOLD_BLOCKED, &mut |ui| {
+            ui.toggle_value(&mut opts.collision, "Blocked tiles").on_hover_text(BLOCKED);
+        });
+        part(ui, FOLD_LIGHT, &mut |ui| {
+            ui.toggle_value(&mut opts.lighting, "Light").on_hover_text(LIGHT);
+            if opts.lighting {
+                hour(ui, &mut opts.hour);
             }
-            ui.toggle_value(&mut self.opts.weather, "Weather").on_hover_text("The map's weather");
-            ui.separator();
-            let zoom = self.cam.map_or(1.0, |c| c.1);
+        });
+        part(ui, FOLD_WEATHER, &mut |ui| {
+            ui.toggle_value(&mut opts.weather, "Weather").on_hover_text(WEATHER);
+        });
+        // The zoom and the events graph: on the line, else in *More*.
+        let cam = &mut self.cam;
+        let mut fit = false;
+        let mut graph = false;
+        let zoom = cam.map_or(1.0, |c| c.1);
+        let zoom_parts = |ui: &mut egui::Ui, cam: &mut Option<(Vec2, f32)>, fit: &mut bool| {
             if ui.button("-").on_hover_text("Zoom out").clicked() {
-                self.cam = self.cam.map(|(c, z)| (c, (z / 1.25).max(0.02)));
+                *cam = cam.map(|(c, z)| (c, (z / 1.25).max(0.02)));
             }
             ui.label(format!("{:.0}%", zoom * 100.0));
             if ui.button("+").on_hover_text("Zoom in").clicked() {
-                self.cam = self.cam.map(|(c, z)| (c, (z * 1.25).min(16.0)));
+                *cam = cam.map(|(c, z)| (c, (z * 1.25).min(16.0)));
             }
             if ui.button("Fit").on_hover_text("The whole map (Home)").clicked() {
-                self.fit(p.ws, name);
+                *fit = true;
             }
-            // (A structure's own map has no events of its own.)
-            if !name.starts_with('@') {
-                ui.separator();
-                if ui.button("Events graph").on_hover_text("The map's events as a graph: who has events, what they run, raise and set, where they lead").clicked() {
-                    p.asks.push(Ask::Graph);
-                }
-            }
-            if doc_of(p.ws, name).is_some_and(|d| d.is_dirty()) {
-                ui.weak("changed");
-            }
-            if let Some((map, zone)) = p.link.clone() {
-                ui.separator();
-                ui.colored_label(ui.visuals().warn_fg_color, format!("{map}: {zone} waits for its other side")).on_hover_text("Open another map and draw a Transition zone there (Zones tool): the two become each other's other side.");
-                if ui.small_button("Stop").clicked() {
-                    *p.link = None;
-                }
-            }
+        };
+        const GRAPH: &str = "The map's events as a graph: who has events, what they run, raise and set, where they lead";
+        // (A structure's own map has no events of its own.)
+        let has_graph = !name.starts_with('@');
+        part(ui, FOLD_ZOOM, &mut |ui| {
+            ui.separator();
+            zoom_parts(ui, cam, &mut fit);
         });
+        if has_graph {
+            part(ui, FOLD_GRAPH, &mut |ui| {
+                ui.separator();
+                if ui.button("Events graph").on_hover_text(GRAPH).clicked() {
+                    graph = true;
+                }
+            });
+        }
+        if folded(FOLD_GRAPH) && (has_graph || folded(FOLD_ZOOM)) {
+            ui.separator();
+            ui.menu_button("More", |ui| {
+                if folded(FOLD_ZOOM) {
+                    ui.horizontal(|ui| zoom_parts(ui, cam, &mut fit));
+                }
+                if has_graph && ui.button("Events graph").on_hover_text(GRAPH).clicked() {
+                    graph = true;
+                }
+            })
+            .response
+            .on_hover_text("What doesn't fit on the bar: the zoom, the events graph");
+        }
+        self.bar.widths = widths;
+        if fit {
+            self.fit(p.ws, name);
+        }
+        if graph {
+            p.asks.push(Ask::Graph);
+        }
+        if doc_of(p.ws, name).is_some_and(|d| d.is_dirty()) {
+            ui.weak("changed");
+        }
+        if let Some((map, zone)) = p.link.clone() {
+            ui.separator();
+            ui.colored_label(ui.visuals().warn_fg_color, format!("{map}: {zone} waits for its other side")).on_hover_text("Open another map and draw a Transition zone there (Zones tool): the two become each other's other side.");
+            if ui.small_button("Stop").clicked() {
+                *p.link = None;
+            }
+        }
     }
 
     fn fit(&mut self, ws: &Workspace, name: &str) {
@@ -688,9 +832,9 @@ impl MapView {
             let offered = |kind: RefKind| p.lists.iter().find(|(k, _)| *k == kind).map_or(0, |(_, l)| l.len());
             let there: usize = KINDS.iter().filter(|(k, _)| self.place_kind.is_none_or(|x| x == *k)).map(|(k, _)| offered(*k)).sum();
             if there == 0 {
-                let what = self.place_kind.map_or("nothing to place".to_string(), |k| format!("no {}", crate::shell::plural(k.label()).to_lowercase()));
+                let what = self.place_kind.map_or("nothing to place".to_string(), |k| format!("no {}", crate::shell::lower(&crate::shell::plural(k.label()))));
                 ui.weak(format!("This game has {what} yet."));
-                if ui.small_button(format!("New {}…", self.place_kind.unwrap_or(RefKind::Prop).label().to_lowercase())).clicked() {
+                if ui.small_button(format!("New {}…", crate::shell::lower(self.place_kind.unwrap_or(RefKind::Prop).label()))).clicked() {
                     p.asks.push(Ask::New(self.place_kind.unwrap_or(RefKind::Prop)));
                 }
                 ui.weak("The asset library (in the Project browser, under Game) has ready-made ones.");

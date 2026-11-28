@@ -170,8 +170,37 @@ fn categories_of(cats: Option<&std::collections::HashMap<String, (u32, String)>>
 pub fn plural(label: &str) -> String {
     if label.ends_with('s') {
         format!("{label}es")
+    } else if label.ends_with('y') && !label.ends_with("ay") && !label.ends_with("ey") && !label.ends_with("oy") {
+        format!("{}ies", &label[..label.len() - 1])
     } else {
         format!("{label}s")
+    }
+}
+
+/// A kind's label inside a sentence: "cut-scenes", but "3D models" and "UI skins" (a word with
+/// capitals after its first letter, or starting with a digit, keeps them).
+pub fn lower(label: &str) -> String {
+    label
+        .split(' ')
+        .map(|w| {
+            let mut chars = w.chars();
+            let first = chars.next();
+            if first.is_some_and(|c| c.is_ascii_digit()) || chars.any(char::is_uppercase) {
+                w.to_string()
+            } else {
+                w.to_lowercase()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// "1 disease", "3 3D models": how many of a kind, in a sentence.
+pub fn count_of(n: usize, label: &str) -> String {
+    if n == 1 {
+        format!("1 {}", lower(label))
+    } else {
+        format!("{n} {}", lower(&plural(label)))
     }
 }
 
@@ -500,7 +529,10 @@ impl Shell {
         let mut dock = DockState::new(vec![Tab::Overview]);
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
-        surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
+        // (Without a project there is nothing to check or undo: the panel comes with one.)
+        if ws.project_open {
+            surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
+        }
         Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, share: None, cleanup: None, lib_look: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), graphs: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), art: Default::default(), help: Default::default(), tour: Default::default(), agents: Default::default(), langs: Default::default(), plugins: Default::default(), play_lang: None, news: false, timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), model_stages: Default::default(), item_stages: Default::default(), anim_stages: Default::default(), pixels: Default::default(), sounds: Default::default(), sheets: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new(), leaving: None, quit_now: false, cleanup_passed: false, setup: None }
     }
 
@@ -1396,7 +1428,7 @@ impl Shell {
                 group.insert(field.to_string(), new);
             }
         }
-        let what = editor_core::schema::of_kind(kind).and_then(|n| n.label_at(pointer)).map(|l| format!("{l} changed"));
+        let what = editor_core::schema::of_kind(kind).and_then(|n| n.label_at(pointer));
         let step = self.ws.def_step_name(kind, id, what.as_deref());
         self.ws.set_def_value(kind, id, value)?;
         self.ws.begin(&step);
@@ -1420,8 +1452,8 @@ impl Shell {
                 group.insert(field.to_string(), new);
             }
         }
-        let what = editor_core::schema::project().label_at(pointer).map_or_else(|| "changed".to_string(), |l| format!("{l} changed"));
-        self.ws.begin(&format!("Game settings: {what}"));
+        let step = editor_core::schema::project().label_at(pointer).map_or_else(|| "Game settings changed".to_string(), |l| format!("Game settings: {l}"));
+        self.ws.begin(&step);
         self.ws.set_config_value(value)?;
         self.ws.history_frame(None);
         Ok(format!("settings{pointer} = {text}"))
@@ -1719,7 +1751,10 @@ impl Shell {
         let mut asks = Vec::new();
         {
             let mut viewer = Viewer { ws: &mut self.ws, play: &mut self.play, play_error: &mut self.play_error, start: &self.start, lists: &self.lists, cats: &self.cats, filter: &mut self.browser_filter, forms: &mut self.forms, show_all: &mut self.show_all, thumbs: &mut self.thumbs, marks: &self.marks, maps: &mut self.maps, world: &mut self.world, graphs: &mut self.graphs, link: &mut self.link, clip: &mut self.clip, scripts: &mut self.scripts, names: &mut self.names, publish: &mut self.publish, library: &mut self.library, art: &mut self.art, help: &mut self.help, tour: &mut self.tour, agents: &mut self.agents, langs: &mut self.langs, plugins: &mut self.plugins, play_lang: &self.play_lang, news: &mut self.news, home: &mut self.home, timelines: &mut self.timelines, nodes: &mut self.nodes, stages: &mut self.stages, figures: &mut self.figures, model_stages: &mut self.model_stages, item_stages: &mut self.item_stages, anim_stages: &mut self.anim_stages, pixels: &mut self.pixels, sounds: &mut self.sounds, sheets: &mut self.sheets, scrub: &mut self.scrub, try_next: &mut self.try_next, rs, asks: &mut asks };
-            DockArea::new(&mut self.dock).show_inside(ui, &mut viewer);
+            // (A group of tabs one of which can't be closed, the Project browser's, shows no cross that does nothing.)
+            let mut style = egui_dock::Style::from_egui(ui.style());
+            style.buttons.close_all_tabs_disabled_color = egui::Color32::TRANSPARENT;
+            DockArea::new(&mut self.dock).style(style).show_inside(ui, &mut viewer);
         }
         for ask in asks {
             match ask {
@@ -2343,7 +2378,7 @@ impl Viewer<'_> {
                 for (kind, rows) in &found {
                     let header = egui::CollapsingHeader::new(format!("{} ({})", plural(kind.label()), rows.len())).id_salt(("kind", kind.name())).open(filtering.then_some(rows.len() <= 40)).show(ui, |ui| {
                         ui.horizontal(|ui| {
-                            if ui.small_button(format!("+ New {}", kind.label().to_lowercase())).clicked() {
+                            if ui.small_button(format!("+ New {}", lower(kind.label()))).clicked() {
                                 self.asks.push(Ask::New(Some(*kind)));
                             }
                             if *kind != RefKind::Map && ui.small_button("Show all").on_hover_text("All of them in a tab, as pictures or a list").clicked() {
@@ -2542,10 +2577,10 @@ impl Viewer<'_> {
         });
         ui.add_space(8.0);
         ui.strong("In this project");
-        ui.label(format!("{} maps", self.ws.maps.len()));
+        ui.label(count_of(self.ws.maps.len(), RefKind::Map.label()));
         for (kind, list) in self.lists {
             if !list.is_empty() {
-                ui.label(format!("{} {}", list.len(), plural(kind.label()).to_lowercase()));
+                ui.label(count_of(list.len(), kind.label()));
             }
         }
         // Other projects: another one in this window, or none.
@@ -2690,7 +2725,7 @@ impl Viewer<'_> {
                             ui.label(&p.text);
                             // A broken reference: what is missing can be made, or taken from the library.
                             if let Some((kind, id)) = p.missing().filter(|(k, _)| k.is_def()) {
-                                let what = kind.label().to_lowercase();
+                                let what = lower(kind.label());
                                 if self.ws.lib.lib.as_ref().is_some_and(|l| l.db.has(kind, &id)) && ui.small_button("Take it from the library").on_hover_text(format!("The library has a {what} \"{id}\": it comes with what it needs")).clicked() {
                                     fix = Some((kind, id.clone(), Fix::Library));
                                 }
@@ -2700,7 +2735,7 @@ impl Viewer<'_> {
                                 // One that exists instead, everywhere the missing one is named.
                                 let known: Vec<String> = self.lists.iter().find(|(k, _)| *k == kind).map_or(Vec::new(), |(_, l)| l.iter().map(|(i, _)| i.clone()).collect());
                                 if !known.is_empty() {
-                                    let picked = ui.push_id(("use another", &p.place, &id), |ui| name_menu(ui, "Use another…", &format!("Search the {}", plural(kind.label()).to_lowercase()), &known, None)).inner;
+                                    let picked = ui.push_id(("use another", &p.place, &id), |ui| name_menu(ui, "Use another…", &format!("Search the {}", lower(&plural(kind.label()))), &known, None)).inner;
                                     if let Some(to) = picked {
                                         fix = Some((kind, id, Fix::Another(to)));
                                     }
@@ -2714,8 +2749,8 @@ impl Viewer<'_> {
                                     k => self.lists.iter().find(|(l, _)| *l == k).map_or(Vec::new(), |(_, l)| l.iter().map(|(i, _)| i.clone()).collect()),
                                 };
                                 if known.is_empty() {
-                                    ui.weak(format!("(the project has no {} to choose yet)", plural(c.kind().label()).to_lowercase()));
-                                } else if let Some(to) = ui.push_id(("choose one", &p.text), |ui| name_menu(ui, "Choose one…", &format!("Search the {}", plural(c.kind().label()).to_lowercase()), &known, None)).inner {
+                                    ui.weak(format!("(the project has no {} to choose yet)", lower(&plural(c.kind().label()))));
+                                } else if let Some(to) = ui.push_id(("choose one", &p.text), |ui| name_menu(ui, "Choose one…", &format!("Search the {}", lower(&plural(c.kind().label()))), &known, None)).inner {
                                     choose = Some((c, to));
                                 }
                             }
@@ -2967,7 +3002,7 @@ impl Viewer<'_> {
         let pictures = pics.as_mut().map(|p| p as &mut dyn crate::form::Pictures);
         let mut cx = crate::form::Cx { lists: self.lists, maps: &self.ws.maps, show_all: *self.show_all, compact: false, pictures, refs: Some(&self.ws.refs), asks: Vec::new(), said: Default::default() };
         let changed = crate::form::page_ui(ui, &mut cx, editor_core::schema::project(), &mut value, fields);
-        let step = format!("Game settings: {}", cx.said.words().unwrap_or("changed"));
+        let step = cx.said.words().map_or_else(|| "Game settings changed".to_string(), |w| format!("Game settings: {w}"));
         for ask in cx.asks {
             match ask {
                 crate::form::Ask::Open(RefKind::Map, map) => self.asks.push(Ask::Open(Tab::Map(map))),
@@ -3054,7 +3089,7 @@ impl Viewer<'_> {
             }
             ui.selectable_value(&mut view, 1, "List");
             ui.selectable_value(&mut view, 2, "Table").on_hover_text("A column per field: compare, sort and change many at once");
-            if ui.button(format!("+ New {}", kind.label().to_lowercase())).clicked() {
+            if ui.button(format!("+ New {}", lower(kind.label()))).clicked() {
                 self.asks.push(Ask::New(Some(kind)));
             }
         });
@@ -3147,7 +3182,7 @@ impl Viewer<'_> {
         } else {
             ui.horizontal_wrapped(|ui| {
                 ui.strong(format!("{} chosen", chosen.len()));
-                let what = format!("{} {}", chosen.len(), plural(kind.label()).to_lowercase());
+                let what = count_of(chosen.len(), kind.label());
                 if let Some(t) = name_menu(ui, "Tag…", "A tag of your own", &meta.tags(), None) {
                     self.ws.begin(&format!("Tag {what}"));
                     for id in &chosen {
@@ -3193,7 +3228,7 @@ impl Viewer<'_> {
         ui.separator();
         // Nothing of this kind yet: what belongs here, and the ways to the first one.
         if all.is_empty() {
-            let (one, many) = (kind.label().to_lowercase(), plural(kind.label()).to_lowercase());
+            let (one, many) = (lower(kind.label()), lower(&plural(kind.label())));
             ui.add_space(6.0);
             ui.label(format!("This game has no {many} yet."));
             ui.weak(editor_core::defs::about(kind));
@@ -3422,7 +3457,7 @@ impl Viewer<'_> {
         for (id, key, new) in edits {
             let targets: Vec<String> = if chosen.contains(&id) { chosen.iter().cloned().collect() } else { vec![id] };
             if targets.len() > 1 {
-                self.ws.begin(&format!("Change {} of {} {}", key.replace('_', " "), targets.len(), plural(kind.label()).to_lowercase()));
+                self.ws.begin(&format!("Change {} of {}", key.replace('_', " "), count_of(targets.len(), kind.label())));
             }
             for target in targets {
                 let Some(mut value) = self.ws.def_value(kind, &target) else { continue };
@@ -3620,7 +3655,10 @@ impl Viewer<'_> {
     /// A visual script's tab: what it is called and takes on the left, its nodes on the canvas.
     fn visual_script(&mut self, ui: &mut egui::Ui, id: &str) {
         egui::Panel::left(egui::Id::unique(("visual script form", id))).default_size(330.0).resizable(true).show(ui, |ui| {
+            // (A narrow panel: short labels, and fields as wide as it is.)
+            crate::form::set_narrow(ui.ctx(), true);
             egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| self.definition(ui, RefKind::VisualScript, id));
+            crate::form::set_narrow(ui.ctx(), false);
         });
         if !self.ws.project.db.has(RefKind::VisualScript, id) {
             self.nodes.remove(id);
@@ -3727,6 +3765,30 @@ mod ui_tests {
             },
             shell,
         )
+    }
+
+    #[test]
+    fn counts_of_a_kind_read_as_words() {
+        assert_eq!(count_of(1, RefKind::Disease.label()), "1 disease");
+        assert_eq!(count_of(2, RefKind::Cutscene.label()), "2 cut-scenes");
+        assert_eq!(count_of(3, RefKind::Model.label()), "3 3D models");
+        assert_eq!(count_of(1, RefKind::Skin.label()), "1 UI skin");
+        assert_eq!(count_of(12, RefKind::Class.label()), "12 classes");
+        assert_eq!(count_of(4, RefKind::Scatter.label()), "4 scatter sets");
+        assert_eq!(plural("Proficiency"), "Proficiencies");
+        assert_eq!(plural("Day"), "Days");
+    }
+
+    #[test]
+    fn the_problems_and_history_panel_comes_with_a_project() {
+        let none = Shell::around(Workspace::empty(), Default::default());
+        assert!(none.dock.find_tab(&Tab::Problems).is_none() && none.dock.find_tab(&Tab::History).is_none());
+        let dir = std::env::temp_dir().join(format!("rustpg2d-bottom-panel-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        editor_core::files::create_project(&dir).unwrap();
+        let open = Shell::around(Workspace::new(dir.clone(), Gpu::No).unwrap(), Default::default());
+        assert!(open.dock.find_tab(&Tab::Problems).is_some() && open.dock.find_tab(&Tab::History).is_some());
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]

@@ -838,7 +838,7 @@ impl Workspace {
     }
 
     /// The name of a step that changes definition `id`: its name (else its id) and `what` was
-    /// done to it ("Ridge changed": *Small red-roofed cottage: Ridge changed*).
+    /// done to it ("Ridge": *Small red-roofed cottage: Ridge*; "Openings, an entry added").
     pub fn def_step_name(&self, kind: RefKind, id: &str, what: Option<&str>) -> String {
         let value = self.def_value(kind, id);
         // (Quests have a title instead.)

@@ -1,6 +1,7 @@
 //! The pixel editor, in a sprite sheet's tab: the frame picked above painted pixel by pixel
 //! (pencil, eraser, fill, line, rectangle, colour picker; two colours on the two buttons), the
-//! frame copied, mirrored and moved, with its own undo and *Save picture*.
+//! frame or a rectangle selected in it copied, cut, pasted, mirrored and moved, with its own
+//! undo and *Save picture*.
 //!
 //! What painting does is `editor_core::pixels`; here are the canvas and its buttons.
 
@@ -49,6 +50,9 @@ pub struct PixelEdit {
     /// The first colour (left button) and the second (right button).
     pub colors: [[u8; 4]; 2],
     stroke: Option<Stroke3>,
+    /// The select tool's drag moves the selection's pixels (it began inside the selection),
+    /// else it marks a new rectangle.
+    moving: bool,
     /// The frame as egui shows it: for which version of the picture and which frame.
     tex: Option<(egui::TextureHandle, u64, u32)>,
     /// The picture's colours, for which version.
@@ -66,12 +70,22 @@ pub struct PixelEdit {
 
 impl Default for PixelEdit {
     fn default() -> PixelEdit {
-        PixelEdit { material: false, open: false, doc: None, error: None, tool: PxTool::Pencil, colors: [[0, 0, 0, 255], [255, 255, 255, 255]], stroke: None, tex: None, used: None, place: None, zoom: None, followed: None, said: String::new() }
+        PixelEdit { material: false, open: false, doc: None, error: None, tool: PxTool::Pencil, colors: [[0, 0, 0, 255], [255, 255, 255, 255]], stroke: None, moving: false, tex: None, used: None, place: None, zoom: None, followed: None, said: String::new() }
     }
 }
 
 fn hovered_id() -> egui::Id {
     egui::Id::unique("pixel canvas under the pointer")
+}
+
+/// Another tool than the select tool sets down the pixels floating on the frame.
+fn pick_tool(tool: &mut PxTool, doc: Option<&mut PixelDoc>, t: PxTool) {
+    if t != PxTool::Select {
+        if let Some(d) = doc {
+            d.set_down();
+        }
+    }
+    *tool = t;
 }
 
 /// Whether the pointer was over a pixel canvas in the last frame: Ctrl+Z and Ctrl+Y are the
@@ -139,16 +153,17 @@ impl PixelEdit {
         Ok(())
     }
 
-    /// The script's line: `ID closed` or `ID frame=K WxH tool= colors=a/b saved|changed undo=N [canvas@X,Y zoom=Z]`.
+    /// The script's line: `ID closed` or `ID frame=K WxH tool= colors=a/b saved|changed used=N [sel=X,Y+WxH [floating]] [canvas@X,Y zoom=Z]`.
     pub fn status(&self, id: &str) -> String {
         let Some(d) = self.doc.as_ref().filter(|_| self.open) else { return format!("{id} closed{}", self.error.as_ref().map(|e| format!(": {e}")).unwrap_or_default()) };
         let place = self.place.map(|(r, k)| format!(" canvas@{:.0},{:.0} zoom={k}", r.min.x, r.min.y)).unwrap_or_default();
-        format!("{id} frame={} {}x{} tool={} colors={}/{} {} used={}{place}", d.cur, d.frame.0, d.frame.1, self.tool.label().to_lowercase().replace(' ', "_"), hex(self.colors[0]), hex(self.colors[1]), if d.is_dirty() { "changed" } else { "saved" }, d.colors(64).len())
+        let sel = d.selection().map(|(x, y, w, h)| format!(" sel={x},{y}+{w}x{h}{}", if d.floating() { " floating" } else { "" })).unwrap_or_default();
+        format!("{id} frame={} {}x{} tool={} colors={}/{} {} used={}{sel}{place}", d.cur, d.frame.0, d.frame.1, self.tool.label().to_lowercase().replace(' ', "_"), hex(self.colors[0]), hex(self.colors[1]), if d.is_dirty() { "changed" } else { "saved" }, d.colors(64).len())
     }
 
     /// The script's words: `open`, `close`, `frame K`, `tool NAME`, `color RRGGBB[AA] [2]`, `zoom N|fit`,
-    /// `dot X Y [2]`, `line|rect X1 Y1 X2 Y2 [2]`, `fill X Y [2]`, `undo`, `redo`, `copy`,
-    /// `paste`, `flip`, `clear`, `nudge DX DY`, `replace FROM TO [all]`, `save`.
+    /// `dot X Y [2]`, `line|rect X1 Y1 X2 Y2 [2]`, `fill X Y [2]`, `select X1 Y1 X2 Y2|-`, `undo`,
+    /// `redo`, `copy`, `cut`, `paste`, `flip`, `clear`, `nudge DX DY`, `replace FROM TO [all]`, `save`.
     pub fn word(&mut self, ws: &mut Workspace, id: &str, args: &[String]) -> Result<(), String> {
         let arg = |i: usize| args.get(i).map(String::as_str).unwrap_or("");
         let num = |i: usize| arg(i).parse::<i32>().map_err(|_| format!("pixels {}: a whole number is missing", arg(0)));
@@ -165,7 +180,8 @@ impl PixelEdit {
             }
             "save" => return self.save(ws, id),
             "tool" => {
-                self.tool = PxTool::named(arg(1)).ok_or("tool pencil|eraser|fill|line|rectangle|pick")?;
+                let t = PxTool::named(arg(1)).ok_or("tool pencil|eraser|fill|line|rectangle|pick|select")?;
+                pick_tool(&mut self.tool, self.doc.as_mut(), t);
                 return Ok(());
             }
             "color" => {
@@ -181,7 +197,10 @@ impl PixelEdit {
         let colors = self.colors;
         let Some(d) = self.doc.as_mut().filter(|_| self.open) else { return Err("the pixel editor isn't open: pixels open".into()) };
         match arg(0) {
-            "frame" => d.cur = (num(1)?.max(0) as u32).min(d.count() - 1),
+            "frame" => {
+                d.cur = (num(1)?.max(0) as u32).min(d.count() - 1);
+                d.settle();
+            }
             "addframe" | "dupframe" => println!("[pixels] {}", d.add_frame(arg(0) == "dupframe")?),
             "dot" => d.dot(self.tool, (num(1)?, num(2)?), colors[(arg(3) == "2") as usize]),
             "line" | "rect" => d.shape(if arg(0) == "line" { PxTool::Line } else { PxTool::Rect }, (num(1)?, num(2)?), (num(3)?, num(4)?), colors[(arg(5) == "2") as usize]),
@@ -192,10 +211,21 @@ impl PixelEdit {
             "redo" => {
                 d.redo();
             }
+            "select" if arg(1) == "-" => d.deselect(),
+            "select" => {
+                if !d.select((num(1)?, num(2)?), (num(3)?, num(4)?)) {
+                    return Err("pixels select: that rectangle is outside the frame".into());
+                }
+            }
             "copy" => d.copy(),
+            "cut" => d.cut(),
             "paste" => {
                 if !d.paste() {
-                    return Err("no frame was copied".into());
+                    return Err("nothing was copied".into());
+                }
+                // (What floats is moved with the select tool; another tool would set it down.)
+                if d.floating() {
+                    self.tool = PxTool::Select;
                 }
             }
             "flip" => d.flip(),
@@ -205,7 +235,7 @@ impl PixelEdit {
                 let (from, to) = (parse_hex(arg(1)).ok_or("replace FROM TO [all]")?, parse_hex(arg(2)).ok_or("replace FROM TO [all]")?);
                 println!("[pixels] {} pixels", d.replace(from, to, arg(3) == "all"));
             }
-            other => return Err(format!("pixels {other}: open, close, frame, addframe, dupframe, tool, color, dot, line, rect, fill, undo, redo, copy, paste, flip, clear, nudge, replace, save")),
+            other => return Err(format!("pixels {other}: open, close, frame, addframe, dupframe, tool, color, dot, line, rect, fill, select, undo, redo, copy, cut, paste, flip, clear, nudge, replace, save")),
         }
         Ok(())
     }
@@ -251,11 +281,13 @@ impl PixelEdit {
                 doc.cur = f.min(doc.count() - 1);
                 self.followed = Some(f);
             }
+            // (Pixels floating on another frame than the one painted in now are set down there.)
+            doc.settle();
             // The tools and the two colours.
             ui.horizontal_wrapped(|ui| {
                 for (tool, name, key, help) in PxTool::ALL {
                     if ui.selectable_label(self.tool == tool, name).on_hover_text(format!("{help} ({key})")).clicked() {
-                        self.tool = tool;
+                        pick_tool(&mut self.tool, Some(&mut *doc), tool);
                     }
                 }
                 ui.separator();
@@ -293,18 +325,23 @@ impl PixelEdit {
                     resp.on_hover_text(format!("#{}{}", hex(*c), if k < used.len() { " (a colour of the picture)" } else { "" }));
                 }
             });
-            // The frame as a whole, undo, save.
+            // The frame as a whole (or the selection), undo, save.
+            let what = if doc.selection().is_some() { "the selection" } else { "the frame" };
             ui.horizontal_wrapped(|ui| {
-                if ui.button("Copy frame").clicked() {
+                if ui.button("Copy").on_hover_text(format!("Copies {what} (Ctrl+C over the picture)")).clicked() {
                     doc.copy();
                 }
-                if ui.add_enabled(doc.clip.is_some(), egui::Button::new("Paste")).on_hover_text("The frame copied replaces this one").clicked() {
-                    doc.paste();
+                if ui.button("Cut").on_hover_text(format!("Copies {what} and empties it (Ctrl+X over the picture)")).clicked() {
+                    doc.cut();
                 }
-                if ui.button("Mirror").on_hover_text("Left to right: a figure facing the other way").clicked() {
+                let paste = "A whole frame copied replaces this one; anything else is put down at the selection's top left corner (the frame's without one), to be dragged where it goes with the select tool (Ctrl+V over the picture)";
+                if ui.add_enabled(doc.clip.is_some(), egui::Button::new("Paste")).on_hover_text(paste).clicked() && doc.paste() && doc.floating() {
+                    self.tool = PxTool::Select;
+                }
+                if ui.button("Mirror").on_hover_text(format!("Mirrors {what} left to right: a figure facing the other way")).clicked() {
                     doc.flip();
                 }
-                if ui.button("Clear").on_hover_text("Empties the frame").clicked() {
+                if ui.button("Clear").on_hover_text(format!("Empties {what} (Delete over the picture, with a selection)")).clicked() {
                     doc.clear();
                 }
                 // (A ground's texture has the frames its material says.)
@@ -317,7 +354,7 @@ impl PixelEdit {
                     }
                 }
                 for (label, d, tip) in [("Left", (-1, 0), "left"), ("Up", (0, -1), "up"), ("Down", (0, 1), "down"), ("Right", (1, 0), "right")] {
-                    if ui.small_button(label).on_hover_text(format!("Moves what is painted a pixel {tip}")).clicked() {
+                    if ui.small_button(label).on_hover_text(format!("Moves what is painted in {what} a pixel {tip} (Shift and an arrow key over the picture)")).clicked() {
                         doc.nudge(d);
                     }
                 }
@@ -393,7 +430,7 @@ impl PixelEdit {
         }
         // The frame's picture.
         if !self.tex.as_ref().is_some_and(|(_, v, f)| (*v, *f) == (doc.version, doc.cur)) {
-            let px = doc.frame_pixels();
+            let px = doc.view();
             let image = egui::ColorImage::from_rgba_unmultiplied([px.w as usize, px.h as usize], &px.px);
             match &mut self.tex {
                 Some((t, v, f)) => {
@@ -449,7 +486,45 @@ impl PixelEdit {
                     self.colors.swap(0, 1);
                 }
                 if let Some(t) = tool {
-                    self.tool = t;
+                    pick_tool(&mut self.tool, Some(&mut *doc), t);
+                }
+                // Ctrl+C, X and V (the window turns them into events of their own; a test's keys
+                // stay keys), Delete and Escape for the selection, Shift and an arrow key moves.
+                let (clip, delete, escape, arrow) = ui.input(|i| {
+                    let c = i.modifiers.command;
+                    let clip = i.events.iter().find_map(|e| match e {
+                        egui::Event::Copy => Some("copy"),
+                        egui::Event::Cut => Some("cut"),
+                        egui::Event::Paste(_) => Some("paste"),
+                        _ => None,
+                    });
+                    let clip = clip.or_else(|| [(egui::Key::C, "copy"), (egui::Key::X, "cut"), (egui::Key::V, "paste")].into_iter().find(|(k, _)| c && i.key_pressed(*k)).map(|(_, w)| w));
+                    let arrow = [(egui::Key::ArrowLeft, (-1, 0)), (egui::Key::ArrowRight, (1, 0)), (egui::Key::ArrowUp, (0, -1)), (egui::Key::ArrowDown, (0, 1))].into_iter().find(|(k, _)| i.modifiers.shift && !c && i.key_pressed(*k)).map(|(_, d)| d);
+                    (clip, !c && (i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Backspace)), i.key_pressed(egui::Key::Escape), arrow)
+                });
+                match clip {
+                    Some("copy" | "cut") => {
+                        if clip == Some("cut") {
+                            doc.cut();
+                        } else {
+                            doc.copy();
+                        }
+                        // (Something on the system's clipboard, so that Ctrl+V arrives here afterwards.)
+                        ui.ctx().copy_text(format!("pixels of {}", doc.rel));
+                    }
+                    Some(_) if doc.paste() && doc.floating() => self.tool = PxTool::Select,
+                    _ => {}
+                }
+                if doc.selection().is_some() {
+                    if delete {
+                        doc.clear();
+                    }
+                    if escape {
+                        doc.deselect();
+                    }
+                }
+                if let Some(d) = arrow {
+                    doc.nudge(d);
                 }
             }
         }
@@ -466,6 +541,14 @@ impl PixelEdit {
                         self.stroke = Some((button, p, p));
                     }
                     PxTool::Line | PxTool::Rect => self.stroke = Some((button, p, p)),
+                    // Pressed inside the selection, the drag moves its pixels; elsewhere it marks a new one.
+                    PxTool::Select => {
+                        self.moving = doc.selection().is_some() && doc.inside(p) && doc.in_selection(p);
+                        if !self.moving {
+                            doc.select(p, p);
+                        }
+                        self.stroke = Some((button, p, p));
+                    }
                 }
             }
         } else if let Some((button, from, last)) = self.stroke {
@@ -475,10 +558,23 @@ impl PixelEdit {
                     doc.drag(self.tool, last, now, self.colors[button]);
                     doc.version += 1;
                 }
+                if self.tool == PxTool::Select && now != last {
+                    if self.moving {
+                        doc.nudge((now.0 - last.0, now.1 - last.1));
+                    } else {
+                        doc.select(from, now);
+                    }
+                }
                 self.stroke = Some((button, from, now));
             } else {
                 match self.tool {
                     PxTool::Line | PxTool::Rect => doc.shape(self.tool, from, now, self.colors[button]),
+                    // A click without a drag drops the selection (what floats is set down).
+                    PxTool::Select => {
+                        if from == now {
+                            doc.deselect();
+                        }
+                    }
                     _ => doc.changed(),
                 }
                 self.stroke = None;
@@ -491,11 +587,22 @@ impl PixelEdit {
                 painter.rect_filled(cell(p), 0.0, c32(self.colors[button]));
             }
         }
+        // The selection: a dashed frame, in the warning colour while its pixels float.
+        if let Some((x, y, w, h)) = doc.selection() {
+            let r = egui::Rect::from_min_size(rect.min + vec2(x as f32 * k, y as f32 * k), vec2(w as f32 * k, h as f32 * k));
+            let ring = [r.left_top(), r.right_top(), r.right_bottom(), r.left_bottom(), r.left_top()];
+            painter.rect_stroke(r, 0.0, Stroke::new(1.0_f32, Color32::BLACK), egui::StrokeKind::Middle);
+            let ink = if doc.floating() { ui.visuals().warn_fg_color } else { Color32::WHITE };
+            painter.extend(egui::Shape::dashed_line(&ring, Stroke::new(1.0_f32, ink), 4.0, 3.0));
+        }
         // (Over a copy beside a seamless texture: the pixel it stands for, marked where the pointer is.)
         if let Some((shown, p)) = at.filter(|_| over).and_then(|shown| doc.wrapped(shown).map(|p| (shown, p))) {
             painter.rect_stroke(cell(shown), 0.0, Stroke::new(1.0_f32, Color32::WHITE), egui::StrokeKind::Outside);
             let c = doc.get(p);
             ui.weak(format!("Frame {} · pixel {}, {} · {}", doc.cur, p.0, p.1, if c[3] == 0 { "see-through".to_string() } else { format!("#{}", hex(c)) }));
+        } else if let Some((x, y, w, h)) = doc.selection() {
+            let how = if doc.floating() { "drag it where it goes; a click, Escape or another tool puts it down" } else { "drag inside it to move its pixels; a click or Escape drops it" };
+            ui.weak(format!("Frame {} · selected {w} x {h} pixels at {x}, {y}: {how}", doc.cur));
         } else {
             ui.weak(format!("Frame {} · {} x {} pixels", doc.cur, doc.frame.0, doc.frame.1));
         }
@@ -638,4 +745,77 @@ mod ui_tests {
         let _ = std::fs::remove_dir_all(dir);
     }
 
+    /// A drag of the pointer from pixel `a` to pixel `b` of the canvas.
+    fn drag(h: &mut Harness<'static, State>, a: (i32, i32), b: (i32, i32)) {
+        let (a, b) = (at(h, a), at(h, b));
+        h.hover_at(a);
+        h.run();
+        h.drag_at(a);
+        h.run();
+        h.hover_at(b);
+        h.run();
+        h.drop_at(b);
+        h.run();
+        // (The pointer stays over the picture: its keys are the picture's.)
+        h.hover_at(b);
+        h.run();
+    }
+
+    #[test]
+    fn a_rectangle_is_selected_cut_pasted_and_dragged_with_the_pointer() {
+        let (mut h, dir) = harness("select");
+        h.run();
+        h.get_by_label("Paint").click();
+        h.run();
+        h.run();
+        // A red block of 3 x 3 pixels at 2, 2 to start from, and a blue pixel apart.
+        let (red, blue) = ([0xb7, 0x1c, 0x1c, 255], [0x3a, 0x72, 0xc8, 255]);
+        {
+            let d = h.state_mut().edit.doc.as_mut().unwrap();
+            d.shape(PxTool::Rect, (2, 2), (4, 4), red);
+            d.dot(PxTool::Pencil, (3, 3), red);
+            d.dot(PxTool::Pencil, (12, 12), blue);
+        }
+        // The select tool, and a rectangle dragged around the block.
+        h.get_by_label("Select").click();
+        h.run();
+        drag(&mut h, (2, 2), (4, 4));
+        assert!(h.state().edit.status("icons").contains(" tool=select ") && h.state().edit.status("icons").contains(" sel=2,2+3x3 canvas@"), "{}", h.state().edit.status("icons"));
+        // Ctrl+X over the picture: the block is gone, the blue pixel stays.
+        h.hover_at(at(&h, (3, 3)));
+        h.run();
+        h.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::X);
+        h.run();
+        let d = h.state().edit.doc.as_ref().unwrap();
+        assert!(d.get((3, 3)) == [0; 4] && d.get((2, 2)) == [0; 4] && d.get((12, 12)) == blue);
+        // Pasted, it floats where it was; dragged from inside it, it goes 7 right and 5 down.
+        h.get_by_label("Paste").click();
+        h.run();
+        assert!(h.state().edit.status("icons").contains(" sel=2,2+3x3 floating"));
+        drag(&mut h, (3, 3), (10, 8));
+        assert!(h.state().edit.status("icons").contains(" sel=9,7+3x3 floating"), "{}", h.state().edit.status("icons"));
+        assert_eq!(h.state().edit.doc.as_ref().unwrap().get((10, 8)), [0; 4], "not set down yet");
+        // Escape over the picture sets it down and drops the selection.
+        h.key_press(egui::Key::Escape);
+        h.run();
+        let d = h.state().edit.doc.as_ref().unwrap();
+        assert!(!h.state().edit.status("icons").contains("sel="));
+        assert!((9..12).all(|x| (7..10).all(|y| d.get((x, y)) == red)) && d.get((3, 3)) == [0; 4] && d.get((12, 12)) == blue);
+        // Undo twice: the paste with its move, then the cut.
+        h.get_by_label("Undo").click();
+        h.run();
+        h.get_by_label("Undo").click();
+        h.run();
+        let d = h.state().edit.doc.as_ref().unwrap();
+        assert!(d.get((3, 3)) == red && d.get((10, 8)) == [0; 4]);
+        // Selected again, Delete empties only the selection; a click without a drag drops it.
+        drag(&mut h, (3, 3), (4, 4));
+        h.key_press(egui::Key::Delete);
+        h.run();
+        let d = h.state().edit.doc.as_ref().unwrap();
+        assert!(d.get((3, 3)) == [0; 4] && d.get((2, 2)) == red);
+        drag(&mut h, (8, 8), (8, 8));
+        assert!(!h.state().edit.status("icons").contains("sel="));
+        let _ = std::fs::remove_dir_all(dir);
+    }
 }

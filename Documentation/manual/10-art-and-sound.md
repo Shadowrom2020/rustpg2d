@@ -46,14 +46,24 @@ ground. A ground material's tab has the same editor at its top for its texture.
 | Tool | Key |
 |---|---|
 | Pencil, eraser, fill, line, rectangle, pick colour | B, E, G, L, R, I |
+| Select | S |
 
 - The left and right mouse buttons draw with two colours (*Swap*, or X, swaps them). The palette
   shows the picture's own colours, then a few to start from.
-- What is drawn stays inside the frame. **The frame as a whole**: *Copy frame*, *Paste* (the frame
-  copied replaces this one), *Mirror* (left to right), *Clear*, and *Left* / *Up* / *Down* / *Right*
-  move what is painted a pixel. **+ Frame** adds an empty frame after the last and **Duplicate** a
+- What is drawn stays inside the frame. **The frame as a whole**: *Copy*, *Cut*, *Paste* (a whole
+  frame copied replaces this one), *Mirror* (left to right), *Clear*, and *Left* / *Up* / *Down* /
+  *Right* (or Shift and an arrow key) move what is painted a pixel. **+ Frame** adds an empty frame after the last and **Duplicate** a
   copy of the frame being painted, which is painted in next (a sheet of one row grows to the right,
   one of several rows by a row); the sheet shows the new frames once the picture is saved.
+- **A selection**: with the *Select* tool, drag a rectangle over the frame; a dashed frame shows
+  it. *Copy*, *Cut*, *Mirror*, *Clear* (or Delete), the fill, and *Left* / *Up* / *Down* /
+  *Right* then work on the selection only. Drag from inside it to move its pixels. *Paste* puts
+  what was copied at the selection's top left corner (the frame's, when nothing is selected),
+  where it floats, framed in orange: drag it where it goes. A click on the picture, Escape,
+  another tool or another frame puts it down; it then covers what was under it, see-through
+  pixels included. *Undo* takes a paste or a move back in one step. Ctrl+C, Ctrl+X and Ctrl+V
+  work with the pointer over the picture. A material's texture is selected within its frame:
+  what is moved out over the edge doesn't come back in on the other side.
 - *-*, *+* and *Fit* set how large the picture is shown (it scrolls when it is larger).
 - A **material's texture** is painted **across its seams**: it is shown with part of itself on
   every side (a little darker), a stroke that leaves on one side comes in on the other, a fill

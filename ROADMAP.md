@@ -1900,7 +1900,17 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     in next; a step of the picture's undo; refused for a ground's texture (its material counts
     its frames) and for a picture that would be wider or taller than 2048 pixels. The editor
     follows the sheet's frame picker only when the picked frame changes, so a new frame stays
-    the one painted in until the picture is saved and the picker knows it.
+    the one painted in until the picture is saved and the picker knows it. **A selection**
+    (2026-11-28; `PixelDoc::select`, the tool *Select*, key S): a rectangle of the frame
+    dragged (cut to the frame, also a seamless texture's), drawn as a dashed frame; copy, cut,
+    paste, *Mirror*, *Clear* (Delete), the fill, the colour replaced in the frame and the
+    nudge (Shift and an arrow key, as 0.35) keep to it. What is pasted, or the selection's
+    pixels moved (nudged or dragged from inside it), floats on the frame until it is set down:
+    a click, Escape, another tool, another frame, saving. Set down, it replaces the pixels
+    under it, see-through ones too (0.35's paste did the same with a frame). The paste and
+    its moves are one step of the picture's undo. A whole frame copied and pasted without a
+    selection replaces the frame as before. (0.35's "selection" was the frame a click
+    picked, which the sheet's frame picker is here; a rectangle of pixels is new.)
   - **The model workshop** (`studio/src/modelshop.rs` over `editor-core/src/modelcheck.rs`;
     at the top of a 3D model's tab): the model as the game draws it, turning or from one
     side, playing whichever of its animations is clicked (a piece is shown on a figure it
@@ -1962,8 +1972,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   day, talk, shop and loot as parts of one document (they are sections of the form below),
   *Start from…* a character of the asset library; presets that are more than
   one asset (a *Merchant* with a shop and a schedule to fill in), pictures in the rows of the
-  library's list in *New…* and on the Library tab (the one picked has one); of the pixel editor an area selected and
-  moved, a frame added to a sheet, the wheel zooming at the pointer, a material's texture
+  library's list in *New…* and on the Library tab (the one picked has one); of the pixel editor a frame added to a sheet, the wheel zooming at the pointer, a material's texture
   seen on a patch of ground while it is painted; of Generate art: *from Meshy* as a way to
   start in *New…*, a figure sheet picked to model from, a job's 3D result turned in a
   preview before it is added.
@@ -2113,6 +2122,17 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     fireball sheet (4 x 1), its last frame picked, `pixels dupframe`: "A copy of the frame
     added: frame 5 of 5", saved: the file is 160 x 32, the sheet's tab says `frames=5x1`,
     and the fifth frame's pixels are the fourth's.
+  - A selection: `a_selection_is_cut_pasted_moved_and_set_down_in_one_step` (a rectangle
+    over the edge cut to the frame; cut; pasted it floats with the frame under it unchanged,
+    moved twice, set down: one step; undo brings back the cut block; pixels moved and another
+    frame picked: set down in their own), `fill_mirror_clear_and_replace_keep_to_the_selection`
+    (also a seamless texture: moved out over its edge, nothing comes back in),
+    `a_rectangle_is_selected_cut_pasted_and_dragged_with_the_pointer` (the *Select* button, a
+    rectangle dragged, Ctrl+X, *Paste*, dragged from inside it 7 right and 5 down, Escape,
+    two undos back to the start; Delete; a click drops it). In the window on a scratch copy:
+    the key of the example's item icons, its bow selected with the script's pointer (white
+    dashed frame), *Cut* and *Paste* clicked, dragged down and right (the floating piece in an
+    orange dashed frame), Escape: set down over the key's teeth; two `pixels undo`: `saved`.
   - A material's texture across its seams: `a_seamless_texture_is_painted_across_its_edges`
     (a stroke out over the right edge comes back in on the left of the same frame, the
     animation's other frame untouched; a line down and one across leave one area, which a
@@ -2788,7 +2808,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   | Cut-scene timeline, scrubbed on the map, played from here | the timeline in their tab | there |
   | Animation editor (cels, emitters, flashes and sounds on a time line, played) | the stage and its strip of time over the form (2026-11-28); the sounds aren't played there | there |
   | Flags and variables | the *Flags and variables* page (new) | there |
-  | **Art**: pixel editor (frames, tools, nudge, replace colours, seamless) | under a sheet's picture, a material's tab; frames added and duplicated (2026-11-28) | partly (selection) |
+  | **Art**: pixel editor (frames, tools, nudge, replace colours, seamless) | under a sheet's picture, a material's tab; frames added and duplicated, a rectangle selected (2026-11-28) | there (2026-11-28) |
   | Sounds played | the sound's tab | there |
   | 3D models: import, animations' clips, rig templates, check | model workshop; more clip files and clips taken from another model (2026-11-28) | partly (joints moved by hand) |
   | An item's 3D model: imported, its hold point and front set, shown in the hand, its icon rendered | the item workshop at the top of an item's tab (2026-11-28): the hero holding it, standing, walking, striking; *From a file…*, *Find where it is held*, *Other end*, *Turn the handle*, *Turn the front*, how it is held, its length, where along it the hand is, *Render its icon* | there |

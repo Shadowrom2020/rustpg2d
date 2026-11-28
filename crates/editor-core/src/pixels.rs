@@ -14,17 +14,21 @@ pub enum PxTool {
     Line,
     Rect,
     Picker,
+    /// A rectangle of the frame to work on: what copy, cut, paste, clear, mirror, the move
+    /// and fill do stays inside it.
+    Select,
 }
 
 impl PxTool {
     /// (tool, name, key, what it does)
-    pub const ALL: [(PxTool, &'static str, &'static str, &'static str); 6] = [
+    pub const ALL: [(PxTool, &'static str, &'static str, &'static str); 7] = [
         (PxTool::Pencil, "Pencil", "B", "Click or drag to draw single pixels: the left button with the first colour, the right with the second"),
         (PxTool::Eraser, "Eraser", "E", "Click or drag to make pixels see-through"),
         (PxTool::Fill, "Fill", "G", "Click to fill the connected area of one colour"),
         (PxTool::Line, "Line", "L", "Drag a straight line"),
         (PxTool::Rect, "Rectangle", "R", "Drag a rectangle's outline"),
         (PxTool::Picker, "Pick colour", "I", "Click a pixel to make its colour the first (right button: the second) colour"),
+        (PxTool::Select, "Select", "S", "Drag a rectangle of the frame: copy, cut, paste, clear, mirror, move and fill keep to it. Drag inside it to move its pixels; a click or Escape drops it"),
     ];
 
     pub fn named(name: &str) -> Option<PxTool> {
@@ -38,6 +42,19 @@ impl PxTool {
 }
 
 const CLEAR: [u8; 4] = [0, 0, 0, 0];
+
+/// A rectangle of a frame's pixels: left, top, width, height.
+pub type PxRect = (i32, i32, i32, i32);
+
+/// Pixels lifted off the frame (moved) or pasted, not yet set down: the picture under them is
+/// as it was, and the step they make starts when they were lifted.
+struct Floating {
+    px: Rgba,
+    /// Where their top left pixel is in the frame.
+    at: (i32, i32),
+    /// The frame they belong to (set down there when another frame is painted in).
+    frame: u32,
+}
 /// The widest and tallest picture the editor can show (egui's limit for a texture).
 pub const MAX_SIDE: u32 = 2048;
 
@@ -59,8 +76,12 @@ pub struct PixelDoc {
     saved: Rgba,
     /// Counts the changes (whoever shows the picture follows it).
     pub version: u64,
-    /// A frame copied (pasted into another).
+    /// A frame or a selection copied (pasted into another place).
     pub clip: Option<Rgba>,
+    /// The selected rectangle of the frame painted in (always inside the frame).
+    sel: Option<PxRect>,
+    /// Pixels pasted or being moved, on top of the frame until they are set down.
+    float: Option<Floating>,
 }
 
 impl PixelDoc {
@@ -73,11 +94,12 @@ impl PixelDoc {
 
     pub fn of(rel: &str, img: Rgba, frame: (u32, u32)) -> PixelDoc {
         let frame = (frame.0.clamp(1, img.w.max(1)), frame.1.clamp(1, img.h.max(1)));
-        PixelDoc { rel: rel.to_string(), saved: img.clone(), img, frame, cur: 0, seamless: false, undo: Vec::new(), redo: Vec::new(), version: 0, clip: None }
+        PixelDoc { rel: rel.to_string(), saved: img.clone(), img, frame, cur: 0, seamless: false, undo: Vec::new(), redo: Vec::new(), version: 0, clip: None, sel: None, float: None }
     }
 
     /// Writes the picture to its file.
     pub fn save(&mut self, root: &Path) -> Result<(), String> {
+        self.set_down();
         let bytes = self.img.encode().map_err(|e| format!("{}: {e:#}", self.rel))?;
         std::fs::write(root.join(&self.rel), bytes).map_err(|e| format!("writing {}: {e}", self.rel))?;
         self.saved = self.img.clone();
@@ -86,7 +108,13 @@ impl PixelDoc {
 
     /// The frames are cut another way (the sheet's form changed): the picture stays.
     pub fn set_frame(&mut self, frame: (u32, u32)) {
-        self.frame = (frame.0.clamp(1, self.img.w.max(1)), frame.1.clamp(1, self.img.h.max(1)));
+        let frame = (frame.0.clamp(1, self.img.w.max(1)), frame.1.clamp(1, self.img.h.max(1)));
+        if frame != self.frame {
+            // (A selection of the old frames means nothing in the new ones.)
+            self.set_down();
+            self.sel = None;
+        }
+        self.frame = frame;
         self.cur = self.cur.min(self.count() - 1);
     }
 
@@ -160,6 +188,7 @@ impl PixelDoc {
         if self.seamless {
             return Err("a ground's texture has the frames its material's Frames says: change that there".into());
         }
+        self.set_down();
         let (fw, fh) = self.frame;
         let (cols, rows) = (self.cols(), self.rows());
         let (w, h, at, more) = if rows == 1 { (((cols + 1) * fw).max(self.img.w), self.img.h, cols, 1) } else { (self.img.w, ((rows + 1) * fh).max(self.img.h), rows * cols, cols) };
@@ -186,6 +215,8 @@ impl PixelDoc {
 
     /// Before a change: what the picture is now is a step to come back to.
     pub fn snapshot(&mut self) {
+        // (Pixels still floating are set down first: that ends their step.)
+        self.set_down();
         self.undo.push(self.img.clone());
         if self.undo.len() > 100 {
             self.undo.remove(0);
@@ -216,6 +247,7 @@ impl PixelDoc {
     }
 
     pub fn undo(&mut self) -> bool {
+        self.set_down();
         let Some(img) = self.undo.pop() else { return false };
         self.redo.push(std::mem::replace(&mut self.img, img));
         self.version += 1;
@@ -223,6 +255,7 @@ impl PixelDoc {
     }
 
     pub fn redo(&mut self) -> bool {
+        self.set_down();
         let Some(img) = self.redo.pop() else { return false };
         self.undo.push(std::mem::replace(&mut self.img, img));
         self.version += 1;
@@ -265,14 +298,14 @@ impl PixelDoc {
     fn fill(&mut self, at: (i32, i32), c: [u8; 4]) {
         let Some(at) = self.wrapped(at) else { return };
         let target = self.get(at);
-        if target == c {
+        if target == c || !self.in_selection(at) {
             return;
         }
         // (Across the edges of a seamless picture: neighbours come back in on the other side.)
         let mut stack = vec![at];
         while let Some(p) = stack.pop() {
             let Some(p) = self.wrapped(p) else { continue };
-            if self.get(p) != target {
+            if self.get(p) != target || !self.in_selection(p) {
                 continue;
             }
             self.plot(p, c);
@@ -280,7 +313,130 @@ impl PixelDoc {
         }
     }
 
-    // ---------------------------------------------------------------- the frame as a whole
+    // ---------------------------------------------------------------- the selection
+
+    /// The selected rectangle of the frame, if any.
+    pub fn selection(&self) -> Option<PxRect> {
+        self.sel
+    }
+
+    /// Whether pixels pasted or being moved float on the frame, not yet set down.
+    pub fn floating(&self) -> bool {
+        self.float.is_some()
+    }
+
+    /// Whether pixel `p` of the frame is selected (every pixel is when nothing is).
+    pub fn in_selection(&self, p: (i32, i32)) -> bool {
+        self.sel.is_none_or(|(x, y, w, h)| p.0 >= x && p.1 >= y && p.0 < x + w && p.1 < y + h)
+    }
+
+    /// The rectangle between corners `a` and `b` (both in it), cut to the frame.
+    fn clipped(&self, a: (i32, i32), b: (i32, i32)) -> Option<PxRect> {
+        let (x0, x1) = (a.0.min(b.0).max(0), a.0.max(b.0).min(self.frame.0 as i32 - 1));
+        let (y0, y1) = (a.1.min(b.1).max(0), a.1.max(b.1).min(self.frame.1 as i32 - 1));
+        (x0 <= x1 && y0 <= y1).then_some((x0, y0, x1 - x0 + 1, y1 - y0 + 1))
+    }
+
+    /// Selects the rectangle between corners `a` and `b` (pixels of the frame; what lies
+    /// outside the frame isn't selected). False when none of it is inside: nothing is selected then.
+    pub fn select(&mut self, a: (i32, i32), b: (i32, i32)) -> bool {
+        self.set_down();
+        self.sel = self.clipped(a, b);
+        self.sel.is_some()
+    }
+
+    /// Nothing is selected any more (what floats is set down).
+    pub fn deselect(&mut self) {
+        self.set_down();
+        self.sel = None;
+    }
+
+    /// The pixels of rectangle `r` of the frame, as a picture of their own.
+    fn pixels_of(&self, r: PxRect) -> Rgba {
+        let mut out = Rgba::new(r.2 as u32, r.3 as u32);
+        for y in 0..r.3 {
+            for x in 0..r.2 {
+                out.set(x, y, self.get((r.0 + x, r.1 + y)));
+            }
+        }
+        out
+    }
+
+    fn clear_rect(&mut self, r: PxRect) {
+        for y in r.1..r.1 + r.3 {
+            for x in r.0..r.0 + r.2 {
+                self.plot((x, y), CLEAR);
+            }
+        }
+    }
+
+    /// Floating pixels are set down where they are, exactly as they are (see-through ones
+    /// too), in their own frame; what lies outside it is gone. That ends the step that began
+    /// when they were lifted or pasted.
+    pub fn set_down(&mut self) {
+        let Some(f) = self.float.take() else { return };
+        let cur = std::mem::replace(&mut self.cur, f.frame);
+        for y in 0..f.px.h as i32 {
+            for x in 0..f.px.w as i32 {
+                let p = (f.at.0 + x, f.at.1 + y);
+                if self.inside(p) {
+                    self.plot(p, f.px.get(x, y));
+                }
+            }
+        }
+        self.cur = cur;
+        self.changed();
+        self.version += 1;
+    }
+
+    /// Floating pixels of another frame than the one painted in now (it was changed) are set
+    /// down in theirs.
+    pub fn settle(&mut self) {
+        if self.float.as_ref().is_some_and(|f| f.frame != self.cur) {
+            self.set_down();
+        }
+    }
+
+    /// The selection's pixels are lifted off the frame (which is see-through there now) to be
+    /// moved: one step until they are set down.
+    fn lift(&mut self) {
+        let Some(r) = self.sel.filter(|_| self.float.is_none()) else { return };
+        let px = self.pixels_of(r);
+        self.snapshot();
+        self.clear_rect(r);
+        self.float = Some(Floating { px, at: (r.0, r.1), frame: self.cur });
+        self.version += 1;
+    }
+
+    /// Floating pixels moved by `d` (at least a pixel of them stays on the frame); the
+    /// selection goes with them.
+    fn move_float(&mut self, d: (i32, i32)) {
+        let (fw, fh) = (self.frame.0 as i32, self.frame.1 as i32);
+        let Some(f) = self.float.as_mut() else { return };
+        let (w, h) = (f.px.w as i32, f.px.h as i32);
+        f.at = ((f.at.0 + d.0).clamp(1 - w, fw - 1), (f.at.1 + d.1).clamp(1 - h, fh - 1));
+        let (a, b) = (f.at, (f.at.0 + w - 1, f.at.1 + h - 1));
+        self.sel = self.clipped(a, b);
+        self.version += 1;
+    }
+
+    /// The frame painted in as it is shown: with the pixels floating on it.
+    pub fn view(&self) -> Rgba {
+        let mut out = self.frame_pixels();
+        if let Some(f) = self.float.as_ref().filter(|f| f.frame == self.cur) {
+            for y in 0..f.px.h as i32 {
+                for x in 0..f.px.w as i32 {
+                    let p = (f.at.0 + x, f.at.1 + y);
+                    if self.inside(p) {
+                        out.set(p.0, p.1, f.px.get(x, y));
+                    }
+                }
+            }
+        }
+        out
+    }
+
+    // ---------------------------------------------------------------- the frame as a whole (or the selection)
 
     fn put(&mut self, src: &Rgba, flip: bool) {
         for y in 0..self.frame.1 as i32 {
@@ -291,38 +447,109 @@ impl PixelDoc {
         }
     }
 
-    /// Copies the frame painted in.
+    /// Copies the selection (the pixels floating, when some are), else the frame painted in.
     pub fn copy(&mut self) {
-        self.clip = Some(self.frame_pixels());
+        self.settle();
+        self.clip = Some(match (&self.float, self.sel) {
+            (Some(f), _) => f.px.clone(),
+            (None, Some(r)) => self.pixels_of(r),
+            (None, None) => self.frame_pixels(),
+        });
     }
 
-    /// The frame copied replaces the one painted in. False without one.
+    /// Copies the selection, else the frame, and empties it: one step (the pixels floating
+    /// are taken away instead of being set down).
+    pub fn cut(&mut self) {
+        self.copy();
+        if self.float.take().is_some() {
+            self.changed();
+            self.version += 1;
+        } else if let Some(r) = self.sel {
+            self.snapshot();
+            self.clear_rect(r);
+            self.changed();
+        } else {
+            self.clear();
+        }
+    }
+
+    /// Pastes what was copied. A whole frame without a selection replaces the frame painted in
+    /// (one step); anything else floats on the frame at the selection's top left corner (the
+    /// frame's without one), selected, to be moved before it is set down. False when nothing
+    /// was copied.
     pub fn paste(&mut self) -> bool {
         let Some(src) = self.clip.clone() else { return false };
+        self.settle();
+        if self.sel.is_none() && (src.w, src.h) == self.frame {
+            self.snapshot();
+            self.put(&src, false);
+            self.changed();
+            return true;
+        }
         self.snapshot();
-        self.put(&src, false);
-        self.changed();
+        let at = self.sel.map_or((0, 0), |r| (r.0, r.1));
+        self.float = Some(Floating { px: src, at, frame: self.cur });
+        self.move_float((0, 0));
         true
     }
 
-    /// Mirrors the frame left to right (a figure facing the other way).
+    /// Mirrors the selection (the pixels floating), else the frame, left to right (a figure
+    /// facing the other way).
     pub fn flip(&mut self) {
-        let src = self.frame_pixels();
-        self.snapshot();
-        self.put(&src, true);
-        self.changed();
+        self.settle();
+        if let Some(f) = self.float.as_mut() {
+            let src = f.px.clone();
+            for y in 0..src.h as i32 {
+                for x in 0..src.w as i32 {
+                    f.px.set(x, y, src.get(src.w as i32 - 1 - x, y));
+                }
+            }
+            self.version += 1;
+        } else if let Some(r) = self.sel {
+            let src = self.pixels_of(r);
+            self.snapshot();
+            for y in 0..r.3 {
+                for x in 0..r.2 {
+                    self.plot((r.0 + x, r.1 + y), src.get(r.2 - 1 - x, y));
+                }
+            }
+            self.changed();
+        } else {
+            let src = self.frame_pixels();
+            self.snapshot();
+            self.put(&src, true);
+            self.changed();
+        }
     }
 
-    /// Empties the frame.
+    /// Empties the selection (the pixels floating are taken away), else the frame.
     pub fn clear(&mut self) {
-        self.snapshot();
-        self.put(&Rgba::new(self.frame.0, self.frame.1), false);
-        self.changed();
+        self.settle();
+        if self.float.take().is_some() {
+            self.changed();
+            self.version += 1;
+        } else if let Some(r) = self.sel {
+            self.snapshot();
+            self.clear_rect(r);
+            self.changed();
+        } else {
+            self.snapshot();
+            self.put(&Rgba::new(self.frame.0, self.frame.1), false);
+            self.changed();
+        }
     }
 
     /// Moves what is painted in the frame by `d` pixels (what leaves it is gone; in a seamless
-    /// picture it comes back in on the other side: the seam moves into view).
+    /// picture it comes back in on the other side: the seam moves into view). With a selection
+    /// only its pixels move, lifted off the frame and floating until they are set down (moves
+    /// one after the other are one step; a selection is cut to the frame, also a seamless one's).
     pub fn nudge(&mut self, d: (i32, i32)) {
+        self.settle();
+        if self.sel.is_some() || self.float.is_some() {
+            self.lift();
+            self.move_float(d);
+            return;
+        }
         let src = self.frame_pixels();
         self.snapshot();
         for y in 0..self.frame.1 as i32 {
@@ -338,8 +565,8 @@ impl PixelDoc {
         self.changed();
     }
 
-    /// Every pixel of colour `from` becomes `to`, in the frame or (`everywhere`) the whole
-    /// picture. Returns how many.
+    /// Every pixel of colour `from` becomes `to`, in the selection or the frame, or
+    /// (`everywhere`) the whole picture. Returns how many.
     pub fn replace(&mut self, from: [u8; 4], to: [u8; 4], everywhere: bool) -> u32 {
         self.snapshot();
         let mut n = 0;
@@ -351,7 +578,7 @@ impl PixelDoc {
         } else {
             for y in 0..self.frame.1 as i32 {
                 for x in 0..self.frame.0 as i32 {
-                    if self.get((x, y)) == from {
+                    if self.get((x, y)) == from && self.in_selection((x, y)) {
                         self.plot((x, y), to);
                         n += 1;
                     }
@@ -551,5 +778,95 @@ mod tests {
         let mut ground = PixelDoc::of("materials/m.png", Rgba::new(16, 16), (16, 16));
         ground.seamless = true;
         assert!(ground.add_frame(false).is_err());
+    }
+
+    #[test]
+    fn a_selection_is_cut_pasted_moved_and_set_down_in_one_step() {
+        let mut d = doc();
+        // A red square of 2 x 2 pixels, a blue pixel apart from it.
+        d.shape(PxTool::Rect, (1, 1), (2, 2), RED);
+        d.dot(PxTool::Pencil, (6, 6), BLUE);
+        let steps = d.undo.len();
+        // A rectangle dragged out over the frame's edge is cut to the frame; one wholly outside selects nothing.
+        assert!(d.select((2, 2), (-3, 0)));
+        assert_eq!(d.selection(), Some((0, 0, 3, 3)));
+        assert!(!d.select((9, 9), (12, 12)) && d.selection().is_none());
+        // Cut: the square is gone, the blue pixel stays; one step.
+        assert!(d.select((1, 1), (2, 2)));
+        d.cut();
+        assert_eq!((d.get((1, 1)), d.get((2, 2)), d.get((6, 6))), (CLEAR, CLEAR, BLUE));
+        assert_eq!(d.undo.len(), steps + 1);
+        // Pasted, it floats at the selection's corner: shown, but the frame under it is as it was.
+        assert!(d.paste());
+        assert!(d.floating() && d.get((1, 1)) == CLEAR && d.view().get(1, 1) == RED);
+        // Moved twice, the selection with it, then set down by dropping the selection.
+        d.nudge((3, 0));
+        d.nudge((0, 2));
+        assert_eq!(d.selection(), Some((4, 3, 2, 2)));
+        d.deselect();
+        assert!(!d.floating() && d.selection().is_none());
+        assert!((4..6).all(|x| (3..5).all(|y| d.get((x, y)) == RED)) && d.get((1, 1)) == CLEAR && d.get((6, 6)) == BLUE);
+        assert_eq!(d.undo.len(), steps + 2, "the paste and its moves are one step");
+        // Undo brings it all back: the paste with its moves, then the cut.
+        assert!(d.undo() && d.get((4, 3)) == CLEAR && d.get((1, 1)) == CLEAR);
+        assert!(d.undo() && d.get((1, 1)) == RED && d.get((2, 2)) == RED && d.undo.len() == steps);
+        // A selection's pixels moved (lifted off the frame, see-through behind them), then
+        // another frame is painted in: they are set down in their own.
+        assert!(d.select((1, 1), (2, 2)));
+        d.nudge((1, 0));
+        d.nudge((1, 0));
+        assert!(d.floating() && d.get((1, 1)) == CLEAR);
+        d.cur = 1;
+        d.settle();
+        assert!(!d.floating());
+        assert_eq!((d.img.get(1, 1), d.img.get(3, 1), d.img.get(4, 2)), (CLEAR, RED, RED));
+        assert!(d.frame_pixels().px.iter().all(|b| *b == 0), "the frame painted in now is untouched");
+        assert!(d.undo() && d.img.get(1, 1) == RED && d.img.get(4, 2) == CLEAR, "the whole move was one step");
+        // Copied without a selection then: the piece floats at the frame's corner when pasted.
+        d.cur = 0;
+        assert!(d.select((1, 1), (2, 2)));
+        d.copy();
+        d.deselect();
+        assert!(d.paste() && d.floating() && d.selection() == Some((0, 0, 2, 2)));
+        // A pencil stroke sets it down first.
+        d.dot(PxTool::Pencil, (7, 0), BLUE);
+        assert!(!d.floating() && d.get((0, 0)) == RED && d.get((7, 0)) == BLUE);
+    }
+
+    #[test]
+    fn fill_mirror_clear_and_replace_keep_to_the_selection() {
+        let mut d = doc();
+        assert!(d.select((2, 2), (5, 4)));
+        // A fill inside it stops at its edges; one started outside it fills nothing.
+        d.shape(PxTool::Fill, (3, 3), (3, 3), RED);
+        assert!((0..8).all(|y| (0..8).all(|x| d.get((x, y)) == if (2..6).contains(&x) && (2..5).contains(&y) { RED } else { CLEAR })));
+        d.shape(PxTool::Fill, (0, 0), (0, 0), BLUE);
+        assert_eq!(d.get((0, 0)), CLEAR);
+        // Mirrored inside it: its left column goes to its right; a pixel outside stays.
+        d.dot(PxTool::Pencil, (2, 3), BLUE);
+        d.dot(PxTool::Pencil, (0, 3), BLUE);
+        d.flip();
+        assert_eq!((d.get((5, 3)), d.get((2, 3)), d.get((0, 3))), (BLUE, RED, BLUE));
+        // A colour replaced in it only (the whole picture still when asked for).
+        assert_eq!(d.replace(BLUE, RED, false), 1);
+        assert_eq!(d.get((0, 3)), BLUE);
+        // Cleared: the selection empties, the rest stays.
+        d.clear();
+        assert_eq!((d.get((3, 3)), d.get((0, 3))), (CLEAR, BLUE));
+        // Without a selection everything is the frame's again.
+        d.deselect();
+        d.clear();
+        assert!(d.frame_pixels().px.iter().all(|b| *b == 0));
+        // A seamless texture: a selection is cut to the frame, and pixels moved out over its
+        // edge don't come back in on the other side.
+        let mut m = PixelDoc::of("materials/t.png", Rgba::new(8, 8), (8, 8));
+        m.seamless = true;
+        m.dot(PxTool::Pencil, (6, 1), RED);
+        m.dot(PxTool::Pencil, (7, 1), BLUE);
+        assert!(m.select((6, 0), (10, 2)) && m.selection() == Some((6, 0, 2, 3)));
+        m.nudge((1, 0));
+        m.deselect();
+        assert_eq!((m.get((7, 1)), m.get((6, 1)), m.get((0, 1))), (RED, CLEAR, CLEAR));
+        assert_eq!(PxTool::named("select"), Some(PxTool::Select));
     }
 }

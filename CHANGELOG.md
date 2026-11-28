@@ -160,6 +160,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   scenery, blocked tiles and what stands in it, on the same map or another, as one step.
 - **Frames added in the pixel editor**: *+ Frame* adds an empty frame to a sprite sheet and
   *Duplicate* a copy of the frame being painted, ready for the next step of an animation.
+- **A selection in the pixel editor**: the *Select* tool (S) drags a rectangle of the frame.
+  *Copy*, *Cut*, *Paste* (Ctrl+C, X, V over the picture), *Mirror*, *Clear* (Delete), the
+  fill, the colour replaced and *Left* / *Up* / *Down* / *Right* (Shift and an arrow key) then
+  keep to it. What is pasted or moved floats on the frame, to be dragged where it goes; a
+  click, Escape or another tool puts it down, and undo takes the whole move back in one step.
 - **The test setup has a form** (part 6): *Test setup…* in the Play tab's bar sets what a
   test-play starts with (the hero's level and class, items, flags, variables, quests, the hour,
   the party) without playing there first.

@@ -8,24 +8,23 @@ replaces the old one, keeping your settings.
 
 ## Using plugins
 
-*Assets › Plugins…* opens the **Plugins** window. It lists the project's plugins in the order the
-game loads them.
+The **Scripts & plugins** page (under *Game* in the Project browser) lists the project's plugins at
+its top, in the order the game loads them.
 
-- **Add from file…** adds a `.r2dplugin` file someone shared. **Add from library** lists the
-  plugins of your asset library (the starter library brings some). A plugin the project already
-  has is replaced when the new one has the same or a newer version; an older one is refused
-  (remove the plugin first to go back).
-- The **checkbox** switches a plugin on and off. Plugins that are off stay in the project but the
-  game doesn't load them.
-- The **arrows** change the load order: plugins load after the project's own scripts, in this
+- **Add a plugin**: *From a file…* adds a `.r2dplugin` file someone shared; below it the plugins of
+  your asset library are offered (*Add*, or *Update to …* when the library has a newer version). A
+  plugin the project already has is replaced when the new one has the same or a newer version; an
+  older one is refused (remove the plugin first to go back).
+- The **tick** switches a plugin on and off. Plugins that are off stay in the project with their
+  values, but the game doesn't load them.
+- **^** and **v** change the load order: plugins load after the project's own scripts, in this
   order; their hooks run by priority like the project's.
 - **Parameters**: the plugin's settings, each with a field that fits it (a number, a text, on /
-  off, a sprite sheet, a sound, an item, a map, a colour). *default* goes back to the plugin's
-  own value.
-- **Export…** writes a `.r2dplugin` to share; **Send to library** copies it into your asset
-  library, for your other projects; **Remove** deletes its folder from the project.
+  off, a sprite sheet, a sound, an item, a map, a colour). *Default* goes back to the plugin's own
+  value.
+- **Remove** takes it out of the project (its files are kept under `editor/backup`).
 
-Every change is saved at once. *Edit › Problems* lists plugins whose folder is missing, that
+Every change is saved at once. The project check (Problems) lists plugins whose folder is missing, that
 need a newer R(ust)PG2D (their **script API** is newer than this version's: the game leaves them
 out), and hooks or menu entries that run a function nobody has.
 
@@ -64,7 +63,7 @@ plugins/hard_mode/
 
 | Field | What it is |
 |---|---|
-| `name`, `version`, `author`, `description` | Shown in the Plugins window. `version` is dotted numbers (`1.2.0`): a higher one is an update. |
+| `name`, `version`, `author`, `description` | Shown in the plugins' list. `version` is dotted numbers (`1.2.0`): a higher one is an update. |
 | `api` | The [script API](08-scripting.md) version the plugin needs, like `0.27`; empty = any. A plugin needing a newer API than the editor's and game's isn't loaded. |
 | `parameters` | Settings the project fills in: `name` (what scripts ask for), `label`, `kind` (`Number`, `Text`, `Flag`, `Sprite`, `Sound`, `Item`, `Map`, `Color`), `default`, for numbers `min` / `max`, and a `help` sentence. |
 | `hooks` | [Script hooks](08-scripting.md#script-hooks): hook, function, priority. |
@@ -86,15 +85,15 @@ fn hard_mode_damage(m) {
 
 **Definitions**: `defs/*.ron` in the plugin's folder, in the project's format, with files named
 relative to the plugin's folder. The game adds the ones the project doesn't have; a definition the
-project has with the same id stays the project's. The editor doesn't show them in the Database:
-they belong to the plugin. Sprite sheets, sounds, materials and fonts find their files in the
+project has with the same id stays the project's. The editor doesn't list them among the project's
+definitions: they belong to the plugin. Sprite sheets, sounds, materials and fonts find their files in the
 plugin's folder; 3D models aren't supported in plugins yet.
 
 **Not covered yet**: the plugin's texts aren't part of the project's translations.
 
 ## The starter plugins
 
-The starter asset library brings four plugins (*Add from library*), each a small example of what
+The starter asset library brings four plugins (offered on the *Scripts & plugins* page), each a small example of what
 plugins can do:
 
 | Plugin | What it does | How |
@@ -108,7 +107,9 @@ The example game uses the Calendar and the Minimap.
 
 ## Sharing
 
-**Export…** in the Plugins window writes `<id>.r2dplugin` (the `data.pack` format with the folder's
-files under `<id>/`). *Send to library* puts the plugin into your asset library, where every
-project can add it with *Add from library*. Raise `version` when you change a plugin, so projects
+A plugin travels in a **pack** ([The asset library › Packs](11-asset-library.md#packs)): a pack
+holds plugins beside its assets (the command `packs.share FOLDER TITLE VERSION … plugin:ID`), and
+installing it puts them into your asset library, where every project is offered them. A
+`.r2dplugin` file (the `data.pack` format with the folder's files under `<id>/`, as 0.35 wrote
+them) is added with *From a file…*. Raise `version` when you change a plugin, so projects
 that have it can update.

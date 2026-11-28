@@ -1,7 +1,6 @@
 //! The SRD's conditions (blinded, poisoned, prone… and exhaustion with its six levels) on the
 //! hero and on characters, with their rules, and ongoing damage or healing per round (6 seconds).
-//! They replaced the status effects of 0.27 (poison per second, haste, strength…): an old effect
-//! reads as its nearest condition (`ConditionSpec`'s and `ActiveCondition`'s reprs). Weapons and
+//! They replaced the status effects of 0.27 (poison per second, haste, strength…). Weapons and
 //! touches apply them, so do the *Apply condition* / *Remove condition* actions and scripts. The
 //! hero's are in the save game (`WorldState::effects`); the runtime part is `runtime/effects.rs`.
 
@@ -13,7 +12,7 @@ use super::damage::DamageType;
 pub const ROUND: f32 = 6.0;
 
 /// The SRD's conditions. `Any` stands for "every condition" in *Has condition* / *Remove
-/// condition*, and for an effect of 0.27 that has no condition (haste, strength…).
+/// condition*, and for a name that is none of them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Condition {
@@ -26,12 +25,9 @@ pub enum Condition {
     Invisible,
     Paralyzed,
     Petrified,
-    #[serde(alias = "Poison")]
     Poisoned,
     Prone,
-    #[serde(alias = "Slow")]
     Restrained,
-    #[serde(alias = "Stun")]
     Stunned,
     Unconscious,
     /// Levels 1 to 6 ([`ActiveCondition::level`]).
@@ -280,12 +276,9 @@ impl ConditionSpec {
     }
 }
 
-/// 0.27's effect kinds, for reading old data (`None` = new data).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+/// 0.27's effect kinds, for the deprecated script function `apply_effect`.
+#[derive(Clone, Copy, Debug, PartialEq)]
 enum OldKind {
-    #[default]
-    None,
     Poison,
     Burn,
     Regen,
@@ -309,7 +302,7 @@ fn from_old(kind: OldKind, strength: f32, seconds: f32) -> ConditionSpec {
         OldKind::Regen => (None, ongoing(None)),
         OldKind::Stun => (Some(Condition::Stunned), None),
         OldKind::Slow => (Some(Condition::Restrained), None),
-        OldKind::Haste | OldKind::Strength | OldKind::Weakness | OldKind::Shield | OldKind::None => (None, None),
+        OldKind::Haste | OldKind::Strength | OldKind::Weakness | OldKind::Shield => (None, None),
     };
     ConditionSpec { condition, seconds: seconds.max(0.0), level: 0, save: None, ongoing, buff: None }
 }
@@ -342,23 +335,17 @@ struct SpecRepr {
     save: Option<SaveDc>,
     ongoing: Option<Ongoing>,
     buff: Option<Buff>,
-    /// 0.27 and older.
-    kind: OldKind,
-    strength: f32,
 }
 
 impl Default for SpecRepr {
     fn default() -> Self {
-        SpecRepr { condition: None, seconds: 0.0, level: 0, save: None, ongoing: None, buff: None, kind: OldKind::None, strength: 0.0 }
+        SpecRepr { condition: None, seconds: 0.0, level: 0, save: None, ongoing: None, buff: None }
     }
 }
 
 impl From<SpecRepr> for ConditionSpec {
     fn from(r: SpecRepr) -> Self {
-        match r.kind {
-            OldKind::None => ConditionSpec { condition: r.condition, seconds: r.seconds.max(0.0), level: r.level, save: r.save, ongoing: r.ongoing, buff: r.buff },
-            k => from_old(k, r.strength, r.seconds),
-        }
+        ConditionSpec { condition: r.condition, seconds: r.seconds.max(0.0), level: r.level, save: r.save, ongoing: r.ongoing, buff: r.buff }
     }
 }
 
@@ -630,8 +617,6 @@ fn is_zero_f32(n: &f32) -> bool {
 struct ActiveRepr {
     condition: Option<Condition>,
     level: u8,
-    /// `Some(2.0)` / `None`, or a plain `2.0` (0.27's effects).
-    #[serde(deserialize_with = "seconds_or_none")]
     remaining: Option<f32>,
     ongoing: Option<Ongoing>,
     next_round: f32,
@@ -639,56 +624,17 @@ struct ActiveRepr {
     buff: Option<Buff>,
     by: String,
     escape: i32,
-    kind: OldKind,
-    strength: f32,
 }
 
 impl Default for ActiveRepr {
     fn default() -> Self {
-        ActiveRepr { condition: None, level: 0, remaining: None, ongoing: None, next_round: 0.0, source: String::new(), buff: None, by: String::new(), escape: 0, kind: OldKind::None, strength: 0.0 }
+        ActiveRepr { condition: None, level: 0, remaining: None, ongoing: None, next_round: 0.0, source: String::new(), buff: None, by: String::new(), escape: 0 }
     }
-}
-
-/// Reads `Some(2.0)`, `None` or a plain number.
-fn seconds_or_none<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<f32>, D::Error> {
-    struct V;
-    impl<'de> serde::de::Visitor<'de> for V {
-        type Value = Option<f32>;
-        fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-            f.write_str("seconds, Some(seconds) or None")
-        }
-        fn visit_f64<E>(self, v: f64) -> Result<Self::Value, E> {
-            Ok(Some(v as f32))
-        }
-        fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E> {
-            Ok(Some(v as f32))
-        }
-        fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E> {
-            Ok(Some(v as f32))
-        }
-        fn visit_none<E>(self) -> Result<Self::Value, E> {
-            Ok(None)
-        }
-        fn visit_unit<E>(self) -> Result<Self::Value, E> {
-            Ok(None)
-        }
-        fn visit_some<D2: serde::Deserializer<'de>>(self, d: D2) -> Result<Self::Value, D2::Error> {
-            f32::deserialize(d).map(Some)
-        }
-    }
-    d.deserialize_any(V)
 }
 
 impl From<ActiveRepr> for ActiveCondition {
     fn from(r: ActiveRepr) -> Self {
-        match r.kind {
-            OldKind::None => ActiveCondition { condition: r.condition, level: r.level, remaining: r.remaining, ongoing: r.ongoing, next_round: r.next_round, source: r.source, buff: r.buff, by: r.by, escape: r.escape },
-            k => {
-                // (An old effect's `remaining` was a plain number.)
-                let s = from_old(k, r.strength, r.remaining.unwrap_or(0.0));
-                ActiveCondition { condition: s.condition, level: 0, remaining: Some(s.seconds), ongoing: s.ongoing, next_round: ROUND, source: String::new(), buff: None, by: String::new(), escape: 0 }
-            }
-        }
+        ActiveCondition { condition: r.condition, level: r.level, remaining: r.remaining, ongoing: r.ongoing, next_round: r.next_round, source: r.source, buff: r.buff, by: r.by, escape: r.escape }
     }
 }
 
@@ -894,7 +840,6 @@ pub fn tick(list: &mut Vec<ActiveCondition>, dt: f32) -> Vec<Tick> {
             }
         }
     }
-    // (An old save's haste or strength is nothing now.)
     list.retain(|a| a.remaining.is_none_or(|r| r > EPS) && (a.condition.is_some_and(|c| c != Condition::Any) || a.ongoing.is_some() || a.buff.is_some()));
     out
 }
@@ -1122,22 +1067,7 @@ mod tests {
     }
 
     #[test]
-    fn effects_of_0_27_read_as_conditions() {
-        let s: ConditionSpec = ron::from_str("(kind: Poison, strength: 0.5, seconds: 6.0)").unwrap();
-        assert_eq!(s.condition, Some(Condition::Poisoned));
-        assert_eq!(s.ongoing, Some(Ongoing { dice: "3".into(), damage_type: Some(DamageType::Poison) }));
-        let s: ConditionSpec = ron::from_str("(kind: Regen, strength: 1.0, seconds: 8.0)").unwrap();
-        assert_eq!((s.condition, s.ongoing.as_ref().map(|o| o.dice.as_str()), s.ongoing.as_ref().and_then(|o| o.damage_type)), (None, Some("6"), None));
-        let s: ConditionSpec = ron::from_str("(kind: Slow, strength: 40.0, seconds: 3.0)").unwrap();
-        assert_eq!((s.condition, s.seconds), (Some(Condition::Restrained), 3.0));
-        let s: ConditionSpec = ron::from_str("(kind: Haste, strength: 30.0, seconds: 30.0)").unwrap();
-        assert!(s.is_nothing());
-        assert_eq!(s.summary(), "nothing");
-        let a: ActiveCondition = ron::from_str("(kind: Burn, strength: 1.0, remaining: 2.0)").unwrap();
-        assert_eq!((a.condition, a.remaining, a.ongoing.and_then(|o| o.damage_type)), (None, Some(2.0), Some(DamageType::Fire)));
-        // Names in conditions and cures: old ones read as their condition, the rest as Any.
-        let c: Vec<Condition> = ron::from_str("[Poison, Stun, Burn, Haste, Prone]").unwrap();
-        assert_eq!(c, vec![Condition::Poisoned, Condition::Stunned, Condition::Any, Condition::Any, Condition::Prone]);
+    fn conditions_round_trip() {
         // The new format round-trips.
         let s = ConditionSpec { level: 2, save: Some(SaveDc { ability: "con".into(), dc: 10 }), ongoing: Some(Ongoing { dice: "1d4".into(), damage_type: Some(DamageType::Acid) }), ..ConditionSpec::new(Condition::Exhaustion, 0.0) };
         let back: ConditionSpec = ron::from_str(&ron::to_string(&s).unwrap()).unwrap();

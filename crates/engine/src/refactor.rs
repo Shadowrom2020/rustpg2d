@@ -369,9 +369,6 @@ impl Renamer<'_> {
     fn spell(&mut self, d: &mut crate::skills::SpellDef) {
         self.fix(RefKind::Sheet, &mut d.icon.sheet);
         self.fix(RefKind::Skill, &mut d.skill);
-        if let crate::skills::SpellEffect::Bolt { projectile, .. } = &mut d.effect {
-            self.fix(RefKind::Sheet, &mut projectile.sheet);
-        }
         // The look: its projectile, impact sheet and sound; the classes whose list has it.
         if let Some(p) = &mut d.visual.projectile {
             self.fix(RefKind::Sheet, &mut p.sheet);

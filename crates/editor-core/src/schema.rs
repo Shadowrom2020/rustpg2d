@@ -647,7 +647,7 @@ const SECTIONS: &[(&str, Sections)] = &[
             ("Basics", "id name description icon level school classes"),
             ("Casting", "casting range area components material costly ritual concentration duration_rounds duration"),
             ("Effect", "parts visual story_only"),
-            ("Values from before the SRD rules", "~mana ~cooldown ~skill ~effect"),
+            ("Values from before the SRD rules", "~mana ~cooldown ~skill"),
         ],
     ),
     ("RecipeDef", &[("Basics", "id result count ingredients"), ("Needs", "station station_state tools skill level"), ("Quality", "quality")]),

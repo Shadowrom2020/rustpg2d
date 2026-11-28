@@ -1238,11 +1238,11 @@ mod tests {
 
     #[test]
     fn script_functions_travel_with_spells() {
-        use crate::skills::{SpellDef, SpellEffect};
+        use crate::skills::{SpellDef, SpellPart};
         let (root, mut db) = source("scripts");
         std::fs::write(root.join("sprites/boom.png"), png(16, 16, [9, 9, 9, 255])).unwrap();
         db.sheets.push(SheetDef { id: "boom".into(), image: "sprites/boom.png".into(), frame_w: 16, frame_h: 16, ..Default::default() });
-        db.spells.push(SpellDef::new("fireball", "Fireball", "", SpriteRef::new("items", 0), 5, 1.0, SpellEffect::Script { function: "cast_fireball".into() }));
+        db.spells.push(SpellDef { parts: vec![SpellPart::Script { function: "cast_fireball".into() }], ..SpellDef::new("fireball", "Fireball", "", SpriteRef::new("items", 0), 5, 1.0) });
         std::fs::create_dir_all(root.join("scripts")).unwrap();
         let src = "// Fireball: aim first.\n// (two comment lines)\nfn cast_fireball() {\n    aim(\"fireball_at\");\n}\n\nfn fireball_at(x, y) { if x > 0 { helper(); } effect(\"boom\", x, y); }\n\n// unrelated\nfn helper() { say(\"hi\"); }\n\nfn shop_talk() { say(\"{ not a brace }\"); }\n";
         std::fs::write(root.join("scripts/main.rhai"), src).unwrap();

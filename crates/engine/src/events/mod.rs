@@ -1688,9 +1688,6 @@ mod tests {
         assert!(!met(&poisoned, &w, &mut no_script) && !met(&any, &w, &mut no_script));
         crate::srd::conditions::apply(&mut w.effects, &crate::srd::ConditionSpec::new(crate::srd::Condition::Poisoned, 3.0));
         assert!(met(&poisoned, &w, &mut no_script) && met(&any, &w, &mut no_script));
-        // A condition of 0.27 (a status effect's name) reads as the nearest condition.
-        let old: Cond = ron::from_str("HasEffect(kind: Poison)").unwrap();
-        assert_eq!(old, Cond::HasEffect { kind: crate::srd::Condition::Poisoned });
         let slimes = |count| [Condition::new(Cond::Defeated { character: "slime".into(), op: CmpOp::Ge, count })];
         assert!(met(&slimes(0), &w, &mut no_script) && !met(&slimes(1), &w, &mut no_script));
         w.bestiary.insert("slime".into(), 3);

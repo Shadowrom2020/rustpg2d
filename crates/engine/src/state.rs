@@ -433,8 +433,7 @@ pub struct WorldState {
     /// are added to it ([`WorldState::bank_coins`]); until 0.32 the coins were bag items.
     #[serde(default, skip_serializing_if = "is_zero_u32_ref")]
     pub money: u32,
-    /// The hero's conditions (poisoned, prone, exhaustion…) and ongoing damage or healing; until
-    /// 0.27 status effects, which read as their nearest condition.
+    /// The hero's conditions (poisoned, prone, exhaustion…) and ongoing damage or healing.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub effects: Vec<crate::srd::ActiveCondition>,
     /// Bestiary: character definition id -> how many the player has defeated.
@@ -1258,12 +1257,9 @@ mod tests {
         assert_eq!(w.check("wis", 1, Mode::Normal, true).unwrap().success, Some(true));
         conditions::apply(&mut w.effects, &ConditionSpec::new(Condition::Blinded, 30.0));
         assert_eq!(w.check("perception", 1, Mode::Normal, false).unwrap().success, Some(false), "blinded: sight fails");
-        // Saved and loaded again (and 0.27's effects read as conditions).
+        // Saved and loaded again.
         let back = WorldState::from_ron(&w.to_ron().unwrap()).unwrap();
         assert_eq!(back.effects, w.effects);
-        let old: WorldState = ron::from_str(r#"(flags: [], vars: {}, inventory: {}, entities: {}, fired: [], current_map: "m", player_pos: (0.0, 0.0), player_facing: Down, effects: [(kind: Poison, strength: 0.5, remaining: 4.0, accum: 0.2), (kind: Haste, strength: 30.0, remaining: 9.0)])"#).unwrap();
-        assert!(conditions::has(&old.effects, Condition::Poisoned));
-        assert_eq!(old.effects[0].remaining, Some(4.0));
     }
 
     /// Checks outside fights: light for sight, a helper, passive values, group checks, contests.

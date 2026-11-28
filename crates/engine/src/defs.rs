@@ -597,8 +597,8 @@ pub struct Weapon {
     /// What its hits do: slashing, piercing, fire… (`None` = untyped: no resistance applies).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub damage_type: Option<crate::srd::DamageType>,
-    /// The SRD's category: simple or martial (proficiency); `None` = a weapon of 0.30 or older
-    /// before its upgrade ([`ItemDef::upgrade`]).
+    /// The SRD's category: simple or martial (proficiency); `None` = none, as a character's own
+    /// weapon (always proficient).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub category: Option<WeaponCategory>,
     /// The SRD's weapon properties.
@@ -707,8 +707,8 @@ impl Weapon {
     }
 
     /// How far it reaches in fights, in tiles (0 for a ranged weapon): 2 (10 ft) with the *Reach*
-    /// property, else 1. `reach` (the swing, the look) counts only for a weapon of 0.30 and older
-    /// without a category (a character's own weapon).
+    /// property, else 1. `reach` (the swing, the look) counts only for a weapon without a
+    /// category (a character's own weapon).
     pub fn reach_tiles(&self) -> i32 {
         match () {
             _ if self.ranged.is_some() => 0,
@@ -875,8 +875,8 @@ pub struct Armor {
     /// Damage types its wearer resists (half damage): `fire`, `poison`…
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub resistances: Vec<String>,
-    /// The SRD's armor category: clothing (no AC), light, medium, heavy or a shield; `None` = an
-    /// armor of 0.30 or older before its upgrade ([`ItemDef::upgrade`]).
+    /// The SRD's armor category: clothing (no AC), light, medium, heavy or a shield; `None` =
+    /// none (no AC; an off-hand piece with defense blocks like a shield).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub category: Option<ArmorCategory>,
     /// Body armor: its armor class (+ DEX up to `dex_max`); a shield: what it adds.
@@ -1211,44 +1211,6 @@ impl ItemDef {
     /// A new item as the editor creates it.
     pub fn fresh(id: &str) -> Self {
         ItemDef { id: id.into(), name: "New item".into(), ..Default::default() }
-    }
-
-    /// An item of 0.30 or older as the SRD's equipment: a weapon gets its category (martial
-    /// from a d8 up) and properties (two-handed, heavy from a d10, ammunition, reach when its swing
-    /// reached two tiles); body armor
-    /// becomes light armor of 10 + its defense (the AC it gave), an off-hand piece with defense a
-    /// shield of its defense, everything else worn clothing without AC. Upgraded items stay.
-    pub fn upgrade(&mut self) {
-        if let Some(w) = &mut self.weapon {
-            if w.category.is_none() {
-                let sides = w.damage_dice().split_once('d').and_then(|(_, s)| s.split(['+', '-']).next()?.trim().parse::<u32>().ok()).unwrap_or(6);
-                w.category = Some(if sides >= 8 { WeaponCategory::Martial } else { WeaponCategory::Simple });
-                if w.two_handed && !w.properties.contains(&WeaponProperty::TwoHanded) {
-                    w.properties.push(WeaponProperty::TwoHanded);
-                    if sides >= 10 && w.ranged.is_none() {
-                        w.properties.push(WeaponProperty::Heavy);
-                    }
-                }
-                if w.ranged.as_ref().is_some_and(|r| !r.ammo.is_empty()) {
-                    w.properties.push(WeaponProperty::Ammunition);
-                }
-                // (A long swing reached two tiles in fights: it keeps them as the Reach property.)
-                if w.ranged.is_none() && w.reach.round() >= 2.0 {
-                    w.properties.push(WeaponProperty::Reach);
-                }
-            }
-        }
-        if let Some(a) = &mut self.armor {
-            if a.category.is_none() {
-                let (cat, ac) = match a.slot {
-                    EquipSlot::Body if a.defense > 0 => (ArmorCategory::Light, 10 + a.defense),
-                    EquipSlot::Offhand if a.defense > 0 => (ArmorCategory::Shield, a.defense),
-                    _ => (ArmorCategory::Clothing, 0),
-                };
-                a.category = Some(cat);
-                a.base_ac = ac;
-            }
-        }
     }
 
     /// Whether it is a shield (armor of the shield category).
@@ -3002,14 +2964,11 @@ mod tests {
     #[test]
     fn fights_reach_ten_feet_only_with_the_reach_property() {
         let mut w = Weapon { reach: 1.9, ..Weapon::melee(2, 0.5) };
-        assert_eq!(w.reach_tiles(), 2, "an old weapon without a category: its swing");
+        assert_eq!(w.reach_tiles(), 2, "a weapon without a category (a character's own): its swing");
         w.category = Some(WeaponCategory::Simple);
         assert!(w.long() && w.reach_tiles() == 1, "the SRD's spear (or a staff): carried long, reaches 5 ft");
         w.properties.push(WeaponProperty::Reach);
         assert_eq!(w.reach_tiles(), 2, "a glaive");
-        let mut old = ItemDef { weapon: Some(Weapon { reach: 1.9, ..Weapon::melee(2, 0.5) }), ..ItemDef::fresh("pike") };
-        old.upgrade();
-        assert_eq!(old.weapon.unwrap().reach_tiles(), 2, "an old long weapon keeps its reach");
     }
 
     #[test]

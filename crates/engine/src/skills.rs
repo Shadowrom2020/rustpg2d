@@ -1,9 +1,8 @@
 //! Magic: spell definitions (`defs/spells.ron`), the SRD 5.1's spells since 0.30: a spell's level,
 //! casting time, range, area, components, duration, concentration, the classes that have it and
 //! its mechanics as [`SpellPart`]s (attack or save, damage, healing, conditions, buffs…); the
-//! runtime casts them with spell slots (`runtime/spells.rs`). Spells of 0.29 and older (mana,
-//! cooldown, one [`SpellEffect`]) are upgraded when they are read ([`SpellDef::upgrade`]). (The
-//! skill tree that lived here until 0.27 became the SRD's skills and proficiencies.)
+//! runtime casts them with spell slots (`runtime/spells.rs`). (The skill tree that lived here
+//! until 0.27 became the SRD's skills and proficiencies.)
 
 use serde::{Deserialize, Serialize};
 
@@ -35,74 +34,6 @@ impl SkillSettings {
     }
 }
 
-/// What a spell does when cast.
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-pub enum SpellEffect {
-    /// Restores HP.
-    Heal { amount: i32 },
-    /// Shoots a projectile in the facing direction (like a ranged weapon without ammo).
-    Bolt {
-        damage: i32,
-        projectile: SpriteRef,
-        speed: f32,
-        range: f32,
-        /// What it does (force, fire…; `None` = untyped).
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        damage_type: Option<crate::srd::DamageType>,
-    },
-    /// Damages everything within `radius` tiles around the player.
-    Blast {
-        damage: i32,
-        radius: f32,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        damage_type: Option<crate::srd::DamageType>,
-    },
-    /// A light around the player for `seconds` (radius in tiles).
-    Light { radius: f32, seconds: f32 },
-    /// Calls the Rhai function (which can use the whole script API: say, heal, give_item,
-    /// damage_around, player_light, ...).
-    Script { function: String },
-    /// The SRD spell's own fields act ([`SpellDef::parts`]); every spell since 0.30.
-    #[default]
-    Parts,
-}
-
-
-impl SpellEffect {
-    pub const LABELS: [(&'static str, &'static str); 6] = [
-        ("Heal", "Restores HP"),
-        ("Bolt", "Shoots a projectile in the facing direction"),
-        ("Blast", "Damages everything around the player"),
-        ("Light", "Lights the player's surroundings for a while"),
-        ("Script", "Runs a script function"),
-        ("SRD", "The spell's parts act"),
-    ];
-    pub fn index(&self) -> usize {
-        match self {
-            SpellEffect::Heal { .. } => 0,
-            SpellEffect::Bolt { .. } => 1,
-            SpellEffect::Blast { .. } => 2,
-            SpellEffect::Light { .. } => 3,
-            SpellEffect::Script { .. } => 4,
-            SpellEffect::Parts => 5,
-        }
-    }
-    pub fn template(i: usize) -> SpellEffect {
-        match i {
-            1 => SpellEffect::Bolt { damage: 2, projectile: SpriteRef::default(), speed: 300.0, range: 6.0, damage_type: Some(crate::srd::DamageType::Force) },
-            2 => SpellEffect::Blast { damage: 3, radius: 2.0, damage_type: Some(crate::srd::DamageType::Force) },
-            3 => SpellEffect::Light { radius: 5.0, seconds: 30.0 },
-            4 => SpellEffect::Script { function: String::new() },
-            5 => SpellEffect::Parts,
-            _ => SpellEffect::Heal { amount: 4 },
-        }
-    }
-    pub fn label(&self) -> &'static str {
-        Self::LABELS[self.index()].0
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct SpellDef {
@@ -125,9 +56,6 @@ pub struct SpellDef {
     /// The SRD spell level: 0 = a cantrip, 1-9 (until 0.29 the skill tree's level, unused).
     #[serde(default)]
     pub level: u32,
-    /// Until 0.29 what the spell did; [`SpellEffect::Parts`] since (the fields below act).
-    #[serde(default)]
-    pub effect: SpellEffect,
     /// The school (`evocation`).
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub school: String,
@@ -155,7 +83,7 @@ pub struct SpellDef {
     /// The classes whose spell list has it (`wizard`, `cleric`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub classes: Vec<String>,
-    /// What it does (empty with `story_only`, or a spell of 0.29 before its upgrade).
+    /// What it does (empty with `story_only`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub parts: Vec<SpellPart>,
     /// Usable only through events and scripts (*Cast spell*, `cast_spell`): its effect is the
@@ -527,7 +455,7 @@ pub fn dice_at(by_level: &[(u32, String)], level: u32) -> Option<&str> {
 }
 
 impl SpellDef {
-    pub fn new(id: &str, name: &str, description: &str, icon: SpriteRef, mana: u32, cooldown: f32, effect: SpellEffect) -> Self {
+    pub fn new(id: &str, name: &str, description: &str, icon: SpriteRef, mana: u32, cooldown: f32) -> Self {
         SpellDef {
             id: id.into(),
             name: name.into(),
@@ -537,7 +465,6 @@ impl SpellDef {
             cooldown,
             skill: String::new(),
             level: 0,
-            effect,
             school: String::new(),
             casting: SpellCast::Action,
             range: SpellRange::default(),
@@ -558,74 +485,17 @@ impl SpellDef {
 
     /// The editor's "+ New" value: a level 1 spell of an action.
     pub fn fresh(id: &str) -> Self {
-        let mut d = SpellDef::new(id, "New spell", "", SpriteRef::default(), 0, 0.0, SpellEffect::Parts);
+        let mut d = SpellDef::new(id, "New spell", "", SpriteRef::default(), 0, 0.0);
         d.level = 1;
         d.components = "V, S".into();
         d.duration = "Instantaneous".into();
         d
     }
 
-    /// The classes that cast spells (a converted spell of 0.29 is on all their lists).
-    pub const CASTERS: [&'static str; 8] = ["bard", "cleric", "druid", "paladin", "ranger", "sorcerer", "warlock", "wizard"];
-
-    /// A spell of 0.29 or older (mana, cooldown, one effect) as an SRD spell: a heal becomes a
-    /// level 1 heal (d8s for its amount + the modifier), a bolt a cantrip spell attack with its
-    /// projectile, a blast a level 1 DEX save for half in a sphere around the caster, a light the
-    /// light cantrip, a script a level 1 spell calling it. Its mana, cooldown and skill are kept
-    /// as they were (ignored). Spells already upgraded stay as they are.
-    pub fn upgrade(&mut self) {
-        let old = std::mem::take(&mut self.effect);
-        if matches!(old, SpellEffect::Parts) {
-            return;
-        }
-        let dice = |n: i32| crate::defs::Weapon::melee(n, 1.0).damage_dice();
-        self.classes = Self::CASTERS.iter().map(|c| c.to_string()).collect();
-        self.components = "V, S".into();
-        self.duration = "Instantaneous".into();
-        match old {
-            SpellEffect::Heal { amount } => {
-                self.level = 1;
-                self.range = SpellRange::Touch;
-                let n = (amount / 5).clamp(1, 4);
-                self.parts = vec![SpellPart::Heal { by_level: (1..=9).map(|l| (l, format!("{}d8 + MOD", n + l as i32 - 1))).collect() }];
-            }
-            SpellEffect::Bolt { damage, projectile, range, damage_type, .. } => {
-                self.level = 0;
-                self.range = SpellRange::Feet((range.round().max(1.0) as u32) * 5);
-                let d = dice(damage);
-                self.parts = vec![SpellPart::Attack { ranged: true }, SpellPart::Damage { by_level: vec![(1, d.clone()), (5, format!("2{}", &d[1..])), (11, format!("3{}", &d[1..])), (17, format!("4{}", &d[1..]))], damage_type }];
-                self.visual.projectile = Some(projectile);
-            }
-            SpellEffect::Blast { damage, radius, damage_type } => {
-                self.level = 1;
-                self.range = SpellRange::Caster;
-                self.area = Some(Area { shape: Shape::Sphere, feet: (radius.round().max(1.0) as u32) * 5 });
-                let d = dice(damage);
-                let (n, sides) = d.split_once('d').map_or((1, "6".to_string()), |(a, b)| (a.parse().unwrap_or(1), b.to_string()));
-                self.parts = vec![SpellPart::Save { ability: crate::srd::Ability::Dex, half: true }, SpellPart::Damage { by_level: (1..=9).map(|l| (l, format!("{}d{sides}", n * 2 + l - 1))).collect(), damage_type }];
-            }
-            SpellEffect::Light { radius, seconds } => {
-                self.level = 0;
-                self.range = SpellRange::Touch;
-                self.duration_rounds = (seconds / 6.0).round().max(1.0) as u32;
-                self.duration = format!("{seconds:.0} seconds");
-                self.parts = vec![SpellPart::Light { radius }];
-            }
-            SpellEffect::Script { function } => {
-                self.level = 1;
-                self.parts = vec![SpellPart::Script { function }];
-            }
-            SpellEffect::Parts => {}
-        }
-    }
 
     /// The parts' script functions (the library carries them with the spell).
     pub fn scripts(&self) -> Vec<&str> {
-        let mut v: Vec<&str> = self.parts.iter().filter_map(|p| if let SpellPart::Script { function } = p { Some(function.as_str()) } else { None }).collect();
-        if let SpellEffect::Script { function } = &self.effect {
-            v.push(function);
-        }
-        v
+        self.parts.iter().filter_map(|p| if let SpellPart::Script { function } = p { Some(function.as_str()) } else { None }).collect()
     }
 
     /// Whether it heals (its parts have healing and no damage).
@@ -658,13 +528,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn effect_templates_round_trip() {
-        for i in 0..SpellEffect::LABELS.len() {
-            assert_eq!(SpellEffect::template(i).index(), i);
-        }
-    }
-
-    #[test]
     fn areas_cover_their_tiles() {
         let caster = (0, 0);
         // A 20 ft sphere: 4 tiles around the point, round.
@@ -694,7 +557,9 @@ mod tests {
         d.parts = vec![SpellPart::Save { ability: crate::srd::Ability::Wis, half: false }, SpellPart::Condition { condition: crate::srd::conditions::Condition::Frightened, on_fail: true }];
         d.area = Some(Area { shape: Shape::Cone, feet: 30 });
         let back: SpellDef = ron::from_str(&ron::to_string(&d).unwrap()).unwrap();
-        assert_eq!((back.parts, back.area, back.level, back.effect), (d.parts, d.area, d.level, d.effect));
+        assert_eq!((back.parts, back.area, back.level), (d.parts, d.area, d.level));
+        // 0.35 wrote `effect: Parts` (its old effects' marker): read and left out.
+        assert!(ron::from_str::<SpellDef>("(id: \"a\", name: \"A\", effect: Parts, level: 2)").unwrap().level == 2);
     }
 
     #[test]

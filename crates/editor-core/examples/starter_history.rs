@@ -107,7 +107,9 @@ fn main() -> Result<()> {
     revs.sort();
     revs.dedup();
     let mut blobs = Blobs::new(&repo)?;
-    let mut history = StarterHistory::default();
+    // Versions this engine can no longer read (tile packages and 16 px art, before 0.21: their
+    // converters are gone) keep the fingerprints an earlier run found: the file only grows.
+    let mut history = std::fs::read_to_string(repo.join(OUT)).ok().and_then(|t| StarterHistory::parse(&t).ok()).unwrap_or_default();
     let (mut read, mut skipped) = (0, 0);
     for rev in &revs {
         match starter_at(&repo, &mut blobs, rev) {

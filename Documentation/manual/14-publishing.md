@@ -1,16 +1,23 @@
 # 14. Publishing
 
-**File › Export game (standalone)…** saves the project and writes a game that runs without the
-editor, for **Linux**, **Windows**, **macOS** and the **Web**. Tick the platforms in the dialog; every
-editor exports for all four, also without the other systems.
+The **Publishing** page (under *Game* in the Project browser) writes a game that runs without the
+editor, for **Linux**, **Windows**, **macOS** and the **Web**. Tick the platforms; every editor
+exports for all four, also without the other systems.
 
-Before writing anything, the export checks the project: the start map must exist, and missing files
-or an unset player character are reported. An earlier export in the same place is replaced; other
-folders are never touched.
+**Before it goes out** says, as you change the page, what would stop the export (a start map that
+doesn't exist, missing files) and what is worth a look (an unset player character, credit lines
+of packs that aren't in the credits yet), and what will be written where; *Check the project* runs
+the whole project check. **Export** saves everything, then writes the game. An earlier export in
+the same place is replaced; other folders are never touched.
+
+**Packs in this game** lists the packs of the asset library the game's assets came from, with
+their licences, how many of their assets are in use and their credit lines; *Add its credit line to
+the credits* (or *Add N credit lines…*) puts the missing lines at the end of the game's credits
+([The asset library › Packs](11-asset-library.md#packs)).
 
 ## What you get
 
-The export dialog suggests a `releases` folder beside the project file.
+The page suggests a `releases` folder beside the project file (*Browse…* picks another).
 
 ```
 releases/<game-name>/                   Linux: the game, data.pack, README.txt, rustpg2d-LICENSE.txt, SRD-5.1-ATTRIBUTION.txt
@@ -22,8 +29,8 @@ releases/<game-name>-x86_64.AppImage    (optional, Linux package)
 releases/<game-name>.flatpak            (optional, Linux package)
 ```
 
-Each bundle holds only the images, sounds and fonts the game uses (the fonts of *Database › Project
-› Fonts* with their licence texts) and the folders of the [plugins](18-plugins.md) that are on,
+Each bundle holds only the images, sounds and fonts the game uses (the fonts of the *Look & feel* page
+with their licence texts) and the folders of the [plugins](18-plugins.md) that are on,
 never the project's save games. 3D models, sprite sheets, sounds, materials and fonts the project
 defines but nothing uses stay out with their definitions and files (the same list as [*Assets › Clean up
 unused files*](02-the-editor.md#cleaning-up-unused-files)), and so do rig templates no model uses. A plugin that needs a newer R(ust)PG2D stops the export until it is
@@ -40,7 +47,7 @@ game starts as fast as from a folder. The pack is scrambled: a text or image edi
 instead of your dialogs and art. That keeps casual eyes out, but it is not protection: anyone
 who knows R(ust)PG2D's format can unpack it.
 
-To ship the files loose, untick **Pack the game's files into one file** in the export dialog: the game
+To ship the files loose, untick **The game's files in one file (data.pack)**: the game
 then gets a `data` folder (in a macOS app `Contents/Resources/data`), as exports before 0.20 did.
 Players can look into it and change files, e.g. to translate the game themselves. The web export is
 always packed. A game finds either one; if both are there, the `data` folder wins.
@@ -59,7 +66,7 @@ Two optional packages, built from the bundle:
 - **Flatpak bundle**: a sandboxed single file. Players install it with
   `flatpak install --user <game>.flatpak` and start it from the app menu. Building it needs the
   `flatpak` command on your machine. Set the **app id** (default `org.rustpg2d.<game>`) and the
-  **runtime** in the dialog; keep the app id the same for updates, or players' saves stay with the
+  **runtime** on the page; keep the app id the same for updates, or players' saves stay with the
   old app. The game gets a window, sound, devices (the GPU and gamepads) and the player's Pictures
 folder (photo mode's pictures), nothing else.
 

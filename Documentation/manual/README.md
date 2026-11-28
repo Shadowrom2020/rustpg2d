@@ -20,7 +20,7 @@ interest you.
 8. [Scripting](08-scripting.md): Rhai scripts, the script editor, live reload, the console, and every script function with recipes
 9. [Gameplay systems](09-gameplay.md): combat, levels, the SRD 5.1 rules (abilities, checks), conditions, damage types, rests, magic, inventory, crafting, farming, fishing, lockpicking, furniture, time of day, achievements
 10. [Art and sound](10-art-and-sound.md): sprite sheets, the pixel editor, new assets, sounds and music
-11. [The asset library](11-asset-library.md): shared assets, the Asset Library window, packages, scripted assets
+11. [The asset library](11-asset-library.md): shared assets, the Library tab, packs and sources, scripted assets
 12. [Languages](12-languages.md): translating a game
 13. [AI agents](13-ai-agents.md): letting an AI assistant work in the editor, and every tool it gets
 14. [Publishing](14-publishing.md): exporting for Windows, macOS, Linux and the web, itch.io
@@ -46,7 +46,7 @@ change R(ust)PG2D itself.
 | **Material** | What a map's ground is painted with: grass, dirt, water… (a repeated texture) |
 | **Decoration** | A prop placed as a picture: a tree, a rock, a wall, a house |
 | **Sprite sheet** | An image of frames for characters, props, item icons and effects |
-| **Definition** | A kind of thing in the Database: an item, a prop, a character, a quest… |
+| **Definition** | A thing of the game with a form of its own: an item, a prop, a character, a quest… |
 | **Entity** | A definition placed on a map: a chest, a villager, a coin on the ground |
 | **Zone** | A rectangle on a map: a spawn point, a portal, a trigger area, a spawner… |
 | **Trigger** | *When* something happens, *if* conditions hold, *do* actions |

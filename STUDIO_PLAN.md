@@ -542,7 +542,9 @@ the code (files, the fields), what in `example_project` and the starter library 
 (grep, with counts), and what a creator loses. No removal. (The Tiled and Aseprite imports are
 decided already: dropped.)
 
-### - [ ] Task 14 (L, in pieces): the manual describes this editor (ROADMAP part 12)
+### - [x] Task 14 (L, in pieces): the manual describes this editor (ROADMAP part 12)
+
+Done 2026-11-28, every chapter (all in one go, at the maintainer's word). What the new editor lacks is listed in ROADMAP part 12; screenshots are still 0.35's (a later task); chapter 1's install table changes with the packaging.
 
 One chapter a session. The chapters are `Documentation/manual/NN-*.md`; the editor shows them
 in its Help tab, and tests keep their links valid and their script table complete.
@@ -562,8 +564,6 @@ in its Help tab, and tests keep their links valid and their script table complet
 6. `cargo test -p rustpg2d-editor-core manual` and `cargo test -p rustpg2d-studio helpview`
    must pass (links, and every character drawable: a new sign needs a line in
    `manual::drawable`, or better, don't use it).
-
-Done: 02 (2026-11-28).
 
 Order: 02 (the editor), 03 (maps), 04 (objects and zones), 05 (the Database), 06 (characters),
 07 (events), 10 (art and sound), 11 (the asset library), 12 (languages), 13 (AI agents), 14

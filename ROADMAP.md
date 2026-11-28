@@ -2820,6 +2820,29 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     (previous / next map), the status bar's tile, zoom and map size (the map tab shows the
     tile under the pointer in its corner), the Problems window's filter by severity and area,
     the *Repository* badge, play-tests from the selected spawn point.
+  - The other chapters (2026-11-28): 1, 3 to 7, 10 to 14, 18 and 20 rewritten where they name
+    the editor; 8, 9, 15, 16, 17 and 19 checked (their *Database › …* places now the settings
+    pages and the definitions' forms; old projects converted by 0.35). Chapter 5 is now
+    *Definitions* (its file and anchors kept); the Tiled and Aseprite sections are gone. What
+    0.35 had and the new editor hasn't, so the manual no longer describes it: of maps, the map
+    dropdown, Ctrl+M and Ctrl+PgUp / PgDn, the decorations' *Erase* brush (scenery is selected
+    and deleted), the Build tool's own *Save as structure*, a structure's *Done* / *Cancel* bar
+    (its tab is the structure), *Add from library…* in the palettes, a switch for parallax
+    layers; of objects, the palette's *Recent* row and [ ] stepping, *Place more like this*,
+    *Go to <map>* on a portal, a Transition tool of its own (drawn with Zones); of definitions,
+    the table's bulk edit by percent or formula, a sprite chooser that drags over cells, *Edit
+    art* and *+ New blank icon*, the UI skin's preview, the title screen's sketch and *Play title
+    screen* (F5 does it), the material's *Preview next to* / *Swap*, *Draw a new one* and *Size*,
+    the factions' *Members* list, the item preview held by any model and its *Numbers*; of
+    characters, joints of a rig template dragged by hand, *Customize this one…* (the Inspector's
+    fields instead), schedule stops added by clicking the map; of scripts, *Save & check*, *+
+    Cutscene* and *Play as cutscene* for a function, the *Play cutscene* action's *Preview*; of
+    the pixel editor, the *Select frame* tool, the frame grid, the live preview of a row, *Paste
+    mirrored*; of the library, its own window (open its folder as a project instead) and the
+    *Script functions* dialog; of plugins, *Export…* as `.r2dplugin` and *Send to library*
+    (packs carry them); of languages, the editor drawing CJK with the project's fonts. The
+    install table of chapter 1 still names 0.35's downloads (`rustpg2d-editor`): it changes with
+    the new editor's packaging (this part).
 
   **Verify.** The parity table has no open row. The example built from an empty project by an
   agent through the server reaches a play-test. `scripts/ci/smoke.sh` whole. The packages of every

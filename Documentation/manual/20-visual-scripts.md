@@ -101,8 +101,8 @@ again whenever the definitions are saved.
 
 ## Problems
 
-A visual script that can't work is listed with its problems on the right and in *Edit ›
-Problems*:
+A visual script that can't work is listed with its problems beside its canvas and in the
+project check (Problems):
 
 - a function that doesn't exist;
 - a value of the wrong kind;

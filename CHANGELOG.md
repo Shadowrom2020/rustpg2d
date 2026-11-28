@@ -146,6 +146,10 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   Place and Terrain tools; the Problems tab says what the check looks for before it ran and
   that nothing was found after; the Place tool and the World view say what to do when there
   is nothing to place or only one map.
+- **The Creator's Manual describes the new editor**: the window, maps, objects, definitions,
+  characters, events, art, the library and packs, languages, agents, publishing and plugins as
+  they are now (the screenshots follow later). The Tiled and Aseprite import sections are gone
+  with the imports.
 - **The Help tab opens where you left it**: the chapter and heading read last come back with
   the next start of the editor.
 - **A character starts from another one's look** (part 8): *Start from…* in the character

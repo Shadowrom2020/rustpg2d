@@ -604,24 +604,8 @@ rules › What is simplified](19-srd-rules.md#what-is-simplified).
 
 ### Converting a project of 0.27 or older
 
-Until 0.27 a skill tree (skill points bought levels of skills such as Lockpicking or Haggling) did
-this. R(ust)PG2D 0.35 converts such a project once when it opens it (this editor opens projects
-of 0.35 and later), after keeping a copy beside it (`<name>-backup-srd`):
-
-- Each skill becomes an SRD proficiency, by its effect (*Lockpick* = Thieves' Tools, *Haggle* =
-  Persuasion, *Sneak attack* = Stealth, *Gathering* = Athletics) or by its name (Arcana; Smithing =
-  Smith's Tools, Alchemy = Alchemist's Supplies, Cooking = Cook's Utensils…). Races, recipes,
-  spells, conditions, actions and scripts then use the proficiency. Skills nothing fits (combat and
-  magic skills, script skills) are dropped, and the message names them: classes bring those back.
-- Lock difficulties become DCs (1 = 10, 2 = 12, 3 = 15, 4 = 18, 5 = 20…), and so do recipe quality
-  levels. *Skill level* conditions now ask for proficiency, and *Give skill points* does nothing.
-- **Status effects** become conditions: poison = poisoned with poison damage every round, burning
-  = fire damage every round, regeneration = healing every round, stun = stunned, slow = restrained.
-  Haste, strength, weakness and shield have no SRD condition and are taken out (the message lists
-  the items, characters and maps that had them; spells bring them back in 0.30). A project made with
-  0.28 before conditions arrived is converted this way when it opens too.
-- Asset libraries are converted the same way when they open.
-- Saved games still load: their hero gets the project's starting scores and proficiencies.
+R(ust)PG2D 0.35 converts projects of 0.27 and older (a skill tree instead of the SRD's proficiencies), with a backup
+beside the project. This version refuses them and says so: open and save the project with 0.35 first.
 
 ## Spellcasting
 
@@ -629,9 +613,7 @@ Spells are the **SRD 5.1's** (since 0.30): *Rules › Spells*, the starter libra
 in play, with their texts ([Asset library › The SRD 5.1 data](11-asset-library.md#the-srd-51-data)). The
 casting classes (bard, cleric, druid, paladin, ranger, sorcerer, warlock, wizard) cast them with
 **spell slots** by their class level (the class's table); a spell of level 1 to 9 takes a slot of
-its level or higher, a **cantrip** (level 0) none and grows with the caster's level. Mana is gone:
-projects of 0.29 and older were converted when a 0.35 editor opened them (with a backup): their spells
-become SRD spells of level 1 (a bolt a cantrip) that every casting class has.
+its level or higher, a **cantrip** (level 0) none and grows with the caster's level. Mana is gone.
 
 - **Knowing and preparing**: a bard, ranger, sorcerer and warlock **know** the spells their
   level-ups choose; a cleric, druid and paladin **prepare** from their class's whole list (the

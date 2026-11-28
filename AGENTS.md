@@ -169,8 +169,9 @@ cargo test --workspace
   when compatibility would cost more than the feature, but only with the maintainer's agreement
   and a conversion where possible (ROADMAP.md, *Compatibility until 1.0.0*); from 1.0.0 on every
   format change comes with a migration. `crates/engine/tests/fixtures/`
-  holds files of earlier versions that the tests load; add the last release's file there when a
-  format changes.
+  holds files that the tests load; add the last release's file there when a
+  format changes. Projects older than 0.35 are refused with a message (0.35 converts them); the
+  fixtures are 0.35's files and an old `project.ron` for that refusal.
 - Tiles are always 32 px (`project::TILE_SIZE`).
 - Features are verified end to end with scripted runs: `RUSTPG2D_AUTOPLAY` for the game and
   `RUSTPG2D_EDITOR_SCRIPT` for the editor (see `crates/game/src/main.rs` and

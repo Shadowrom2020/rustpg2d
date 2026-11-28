@@ -11,12 +11,11 @@ before merging, commit messages — are in AGENTS.md and apply in full:
 `feature/studio` is the long-lived branch of ROADMAP.md, *0.36.0 — The Studio*: the editor is
 being rewritten on a new foundation, in twelve parts. While it lasts:
 
-- **There is no editor on this branch.** `crates/editor` is the 0.35 editor (macroquad + egui
-  0.31), out of the workspace and kept only to read (`exclude` in `Cargo.toml`). Everything below
-  that needs the editor (its script commands, the agent server, repository mode, *Example content*
-  through `library_send`) describes 0.35 and comes back with the new editor; until then example
-  content is edited with a 0.35 editor in a `master` worktree and merged in. `scripts/ci/smoke.sh`
-  checks the new editor: its agent server without a window and the editor in a window opening a map.
+- **The old editor is only to read.** `crates/editor` is the 0.35 editor (macroquad + egui 0.31),
+  out of the workspace (`exclude` in `Cargo.toml`) and kept only to read until it is deleted at
+  the switch-over. The sections further down that describe `RUSTPG2D_EDITOR_SCRIPT`, the 0.35
+  script commands and its UI tests describe that old editor; the new editor is `crates/studio`
+  (below). `scripts/ci/smoke.sh` checks the new editor: its agent server without a window and the editor in a window opening a map.
 - **The editor's logic is `crates/editor-core`** (no UI, no window needed): copied from the 0.35
   editor's UI-free files, with their tests. Its agent server runs without a window:
   `target/debug/rustpg2d-studio --headless <project> --mcp PORT [--seconds N]` (set
@@ -175,14 +174,14 @@ crates/engine/src/      library: everything shared by game and editor
   defs.rs               Database: sheets, items, props (+states, container, lock, anim),
                         characters (+shop), sounds, quests, structures; serde formats of defs/*.ron
   skills.rs             SkillSettings (project: magic), SpellDef (SRD 5.1 spells: level, SpellCast, SpellRange, Area/Shape,
-                        components, concentration, classes, parts: Vec<SpellPart>, story_only, SpellVisual; 0.29's
-                        SpellEffect upgraded on read: SpellDef::upgrade; RULES_VERSION 3 converts projects);
+                        components, concentration, classes, parts: Vec<SpellPart>, story_only, SpellVisual; projects
+                        below RULES_VERSION are refused);
                         runtime/spells.rs (slots by class level, known / prepared / spellbook, concentration, scrolls,
                         casting out of fights, level-up picks), runtime/turns/casting.rs (Cast in fights: targets,
                         areas, resolve_spell, buffs in AC / speed / rolls); buffs = srd::conditions::Buff on ActiveCondition
   srd/                  the SRD 5.1 rules: equipment.rs (armor_class, weapon / armor proficiency, coins: change,
                         format_cp, FOCUS; ItemDef srd / cost_cp / weight / coin_cp, Weapon category + properties,
-                        Armor category / base_ac / dex_max / str_min, ItemDef::upgrade, RULES_VERSION 4;
+                        Armor category / base_ac / dex_max / str_min, RULES_VERSION 4;
                         runtime/equipment.rs, runtime/money.rs = the purse, shops in coins), magic_items.rs (MagicItem =
                         ItemDef.magic: rarity, attunement (MAX_ATTUNED 3), bonus, effects = FeatureEffect, charges +
                         recharge at dawn (ItemStack.spent), ItemSpell, use_parts; SRD text parsers; runtime/magic_items.rs:
@@ -201,12 +200,9 @@ crates/engine/src/      library: everything shared by game and editor
                         background ids, written by srd_import; ATTRIBUTION / ATTRIBUTION_FILE, srd_content(db),
                         ProjectConfig.srd); statblock.rs (StatBlock = CharacterDef.stats / EntityInstance.stats; npcs.ron = the
                         SRD's 35 NPC templates, written by srd_import: npc_template(id)); RulesSettings (ProjectConfig.rules: the new hero's scores, proficiencies, show
-                        checks), RULES_VERSION (ProjectConfig.rules_version), old_level_dc. WorldState.abilities /
+                        checks), RULES_VERSION (ProjectConfig.rules_version). WorldState.abilities /
                         proficiencies / rolls + check() / roll_dice(); runtime/rolls.rs shows checks, the journal's
                         Rolls page, status rolls= abilities= prof= profs=
-  srd_convert.rs        a 0.27 project's skill tree -> proficiencies once (editor on open with a backup, libraries on
-                        open): skill ids renamed via refactor (RefKind::Skill = a proficiency id, no definition),
-                        refactor::srd_upgrade_db / _map (Skill conditions, SetSkill, Lockpick difficulty)
   races.rs              RaceDef (defs/races.ron): bodies per sex, creator looks, stat changes, proficiencies
                         (RaceDef.skills), size, SRD data (parent = subrace's race, merged(), ability_bonuses,
                         walk_ft, size_category, darkvision_ft, languages, resistances, traits, choices
@@ -226,14 +222,9 @@ crates/engine/src/      library: everything shared by game and editor
                         missing / craft / fits
   structure.rs          StructureDef::capture / place (ground cells + decorations + clear marks +
                         collision + entities; editor-only, placing writes ordinary ground / decor)
-  convert_tiles.rs      the one-time converter of tile projects (0.20 and older): TileConverter
-                        (ground layer -> materials by terrain masks / tile pictures, upper layers ->
-                        decor of `<tileset>_tile_N` props), convert_project (editor on open, with a
-                        backup; library on open; old .r2dpack bundles); needs_conversion
-  old_tiles.rs          the old tile types, only for reading old data: Tile, TileLayer, TilesetDef,
-                        Terrain + BLOB masks, OldTiles (a v1 / v2 map's tilesets + layers)
   project.rs            ProjectConfig (project.ron), defs loading/saving (DEFS list, parse_defs),
-                        TILE_SIZE = 32, CharacterCreation / SexChoice
+                        TILE_SIZE = 32, CharacterCreation / SexChoice, made_before_035 / refuse_before_035 (MADE_BEFORE_035:
+                        projects older than 0.35 are refused)
   settings.rs           player options (Options menu): ~/.config/rustpg2d/<game>/settings.ron,
                         RUSTPG2D_SETTINGS_DIR overrides the folder (set it to a scratch dir in tests)
   render/character.rs   Anim (what a character does: walk, idle, attack, hurt, extra clips) and the look /
@@ -330,8 +321,7 @@ crates/engine/src/      library: everything shared by game and editor
                         player name/sex/look), Sex, expand_text() placeholders
   map/                  Map (painted ground, decorations, collision, objects), zones (spawn, portal,
                         trigger, spawner, encounter, transition), io.rs = map file format (postcard ground /
-                        decor + RON `Meta`; v1 / v2 tile maps via decode_tiles for the converter,
-                        save_tiles = v2 for the 16 px upgrade)
+                        decor + RON `Meta`; versions 1 / 2 (tile maps) are refused)
   events/               GameEvent, TriggerOn, Cond, Action (mod.rs); ActionRunner (runner.rs)
   script.rs             Rhai engine and the script API
   unused.rs             unused assets: models / sheets / sounds / materials / fonts nothing names (other defs, config,
@@ -405,7 +395,7 @@ crates/engine/src/      library: everything shared by game and editor
   library.rs            asset library + .r2dpack bundles; refactor.rs = id renames / refs_of_*;
                         starter_update.rs = Update asset library (StarterHistory, plan, apply, backup);
                         starter_pack.rs = the starter library file (.r2dlib: manifest, history, files)
-  migrate.rs            converts old 16 px projects; release.rs = standalone game export (Platform:
+  release.rs            standalone game export (Platform:
                         Linux / Windows / MacOS = <Name>.app, data in Contents/Resources; export_web;
                         packed = data.pack, else a loose data folder; bundled_root mounts the pack);
                         pack.rs = the data.pack format (scrambled index + files; Pack reads by seek);
@@ -426,8 +416,6 @@ crates/engine/src/      library: everything shared by game and editor
                         portrait: Editor::model_icon)
   paths.rs              per-user folders per platform (XDG / %APPDATA%, %LOCALAPPDATA%, %USERPROFILE% /
                         ~/Library/Application Support, ~/Library/Caches)
-  legacy.rs             the old name rust2d: adopt() copies a folder / file from the old location
-                        (~/.config/rust2d, ~/.local/share/rust2d, ~/.cache/rust2d) on first use
   glibc_compat.rs       math functions newer glibc re-versioned, defined in the engine so the game
                         and editor binaries need only glibc 2.34 even when built on a rolling
                         release (check: `readelf -V target/release/rustpg2d-game`, weak needs don't count)
@@ -534,15 +522,14 @@ scripts/art/kit/        the figure kit: the starter library's voxel people built
   - New variants of `Action`, `TriggerOn`, `Cond`, `ZoneKind`, `OnUnlock` are **appended**
     at the end (map files store variant indices).
   - New fields get `#[serde(default)]` (or `default = "fn"`). New map object fields go in the
-    RON `Meta` in `map/io.rs`; never edit the frozen `EntityV1` there. The postcard part of a map
-    (`Core3`: `Ground` / `GroundChunk`, `Decor`; the old `TileLayer` / `Chunk` in `old_tiles.rs`)
+    RON `Meta` in `map/io.rs`. The postcard part of a map
+    (`Core3`: `Ground` / `GroundChunk`, `Decor`)
     is stored by position without defaults and is frozen: a new property goes into `Meta`, or the
     format version is bumped with a reader for the old one.
-  - Tile projects (0.20 and older) aren't loaded as tiles: they are converted once
-    (`convert_tiles.rs`), so readers of their data (`old_tiles.rs`, `io::decode_tiles`) stay.
+  - Projects older than 0.35 are refused (`project::made_before_035`); 0.35 is the bridge that converts them.
   - Save games are `WorldState` RON: every new field needs a serde default.
-  - `crates/engine/tests/fixtures/` holds files of earlier versions (0.9.0 defs, old maps, a v1
-    map, saves); `cargo test -p rustpg2d-engine --test compat` must keep loading them. When a format
+  - `crates/engine/tests/fixtures/` holds 0.35's files (the example's defs and village at v0.35.0-alpha.1, a 0.35 quick save)
+    and an older `project.ron` for the refusal; `cargo test -p rustpg2d-engine --test compat` must keep loading them. When a format
     changes, add the previous release's file as a fixture (its README says how); never edit one.
 - Tiles are always 32 px; sizes in code are in pixels at that size (`Game::u()` = ts/16 scales
   effects). Rhai reserves `var`, hence `get_var` / `set_var`.
@@ -779,9 +766,9 @@ copy; set `RUSTPG2D_FOLDER_PROJECTS=1` to work on the folder itself.
 - The project was called **rust2d** until 0.5.0 (technical name now `rustpg2d`; the local checkout
   may still be `~/Projects/rust2d`). The user's old folders under that name
   (`~/.config/rust2d`, `~/.local/share/rust2d`, `~/rust2d/releases`) are their data: never
-  delete or rename them; `legacy::adopt` only copies from them. Test runs must set
+  delete or rename them; nothing reads them any more. Test runs still set
   `RUSTPG2D_SETTINGS_DIR`, `RUSTPG2D_LIBRARY`, `RUSTPG2D_EDITOR_CONFIG` (and `HOME` for the
-  example copy), or the adoption copies the user's real folders.
+  example copy), or they read and write the user's real settings and library.
 - A game binary older than the engine can't read new map data (`Unexpected variant …`);
   the editor's `play_test` warns and the Play tab's *Own window* refuses when `rustpg2d-game --engine-build`
   differs (`export::runner_check`), and *Export game* refuses a

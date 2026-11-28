@@ -2813,7 +2813,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     (*Items* of chapter 5), a cut-scene (*A cut-scene* of chapter 7); a search for fishing
     opened *Fishing* in chapter 9.
 
-- [ ] Part 11: Old things leave — `feature/studio`
+- [~] Part 11: Old things leave — `feature/studio`
 
   **Goal.** Nothing remains that only older versions needed, in the code or in the UI.
 
@@ -2832,9 +2832,9 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   - **One conversion, 0.35 → 0.36,** run by the editor on open with a backup copy beside the
     project: everything this release reshapes (editor data, pack origins, whatever the parts
     above recorded under *Decided while building*). The game and the editor refuse older projects
-    with a message that names 0.35.
+    with a message that names 0.35. (Turned out: see Progress.)
   - **Save games** of 0.35 load where the fields allow it; it is not promised (**Breaking**).
-  - **Fixture:** the example project as of the 0.35.0 tag, for the conversion's test.
+  - **Fixture:** the example project as of the 0.35.0 tag, for the conversion's test. (Turned out: see Progress.)
 
   **For the maintainer's word** (written 2026-11-28, STUDIO_PLAN.md task 13; nothing is
   removed until the maintainer says so). Counts are of `example_project` and the starter
@@ -2892,10 +2892,47 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   `defs.rs`, the compat fixtures). The rest of the part (the conversions removed without asking,
   `convert_035.rs`) is still to do.
 
-  **Engine.** The removals above; `convert_035.rs`.
+  2026-11-28 (second half): the removals without asking are done (commits `ffbcec7..c52d39b`).
+  Gone: `legacy.rs` (nothing reads the `rust2d` folders any more), `migrate.rs` (the 16 px
+  migration, `Bundle::rescale`, `io::save_tiles`), `convert_tiles.rs` and `old_tiles.rs` (the
+  tile converter; map format versions 1 and 2 with `EntityV1` and `decode_tiles`;
+  `StructureDef.tilesets` / `layers`; the conversion of old libraries and packages),
+  `srd_convert.rs` (`refactor::srd_upgrade_db` / `_map`, `old_level_dc`, the lock and quality-step
+  reprs) and the definitions' upgrade steps (`SpellDef::upgrade`, `SpellEffect`, `SpellDef.effect`,
+  `ItemDef::upgrade`, 0.27's status effects in `ConditionSpec` / `ActiveCondition`, the old aliases
+  of `Condition`). In their place `project::made_before_035(root)` / `refuse_before_035(root)` with
+  `MADE_BEFORE_035` ("This project was made with a version before 0.35. Open and save it with
+  R(ust)PG2D 0.35 first."): the game, the editor and the asset library refuse a project with
+  `defs/tilesets.ron`, a tile size other than 32 (0 = not written counts as 32) or a rules version
+  below 4; maps of format version 1 or 2 are refused when loaded; packages and libraries of tiles
+  or 16 px art are refused when read. What it cannot detect: a project of 0.31 to 0.34 looks like a
+  0.35 one and loads like one. **No 0.35 to 0.36 conversion was needed**, so there is no
+  `convert_035.rs` and no version stamp: the example of v0.35.0-alpha.1 loads with nothing left
+  out; what this release reshaped loads through serde defaults (`editor/meta.ron`,
+  `LightSpec.offset`, `PropDef.picture_offset`) or is read and dropped (`held`, `carry`, `body`,
+  `pieces`, `turns`, `anim`, `effect`). Project folders are still converted into project files on
+  open (0.35's behaviour, kept). Fixtures (`crates/engine/tests/fixtures/`) are now 0.35's
+  (`project-0.35.0/`, `maps/village-0.35.0.map`, `saves/save-0.35.0.ron` written by the 0.35 game)
+  plus `project-0.27.0/project.ron` for the refusal test, `saves/minimal.ron` and
+  `model_two_bones.glb`; the compat tests are `definitions_of_0_35_0_load`,
+  `definitions_of_0_35_0_round_trip`, `map_of_0_35_0_loads`, `projects_before_0_35_are_refused`,
+  `save_of_0_35_0_loads`, `minimal_save_loads_with_defaults`, `tile_maps_are_refused` and
+  `only_32_px_packages_are_read`; `starter_history` keeps the fingerprints of versions it can no
+  longer read; `scripts/ci/smoke.sh` loads the 0.35 save. **Left for a follow-up** (not on the
+  list above): `SpellDef.mana` / `cooldown` / `skill`, `RaceDef` `max_hp` / `speed` / `defense` and
+  `SkillSettings.max_mana` / `mana_regen` (values from before the SRD rules); `upgrade_states` /
+  `upgrade_instance` and `OnUnlock::Open` (prop frame offsets turned into states); the deprecated
+  script functions `apply_effect` and `skill()`; `SAVE_VERSION` below 2, the old inventory map
+  reader and `migrate_equipment` in `state.rs`.
 
-  **Verify.** The 0.35 example converts and plays through the smoke run; a 0.34 project is
-  refused with the message; `cargo test --workspace` without the old fixtures.
+  **Engine.** The removals above (no `convert_035.rs`: see Progress).
+
+  **Verify.** Run on 2026-11-28: `cargo test --workspace` passes; `scripts/ci/smoke.sh` passes
+  (13 checks); the game reaches the village of a scratch copy of the example and the editor opens
+  it; a project with 0.27's `project.ron` is refused by the game (exit 1, the message), by the
+  headless editor (exit 1) and by the editor in a window (the message as its status, on the home
+  screen). Not tested: a release build, the Windows message box, the web game, a real old library
+  or old pack opened in the running editor.
 
 - [ ] Part 12: Tests, documentation, switch-over — `feature/studio`
 

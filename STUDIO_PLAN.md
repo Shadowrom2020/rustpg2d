@@ -530,6 +530,8 @@ If you find another entry with one obvious fix, name it in your report; don't bu
 was left of sprite-sheet figures and props, the map tab's top-down view, `scripts/art/meshy/`);
 the removals "without asking" and the 0.35 to 0.36 conversion are still to do.
 
+2026-11-28 (second half): both lists of part 11 are done (the conversions and the rust2d adoption; no 0.35 to 0.36 conversion was needed). Follow-up, not done: `SpellDef.mana` / `cooldown` / `skill`, `RaceDef` `max_hp` / `speed` / `defense`, `SkillSettings.max_mana` / `mana_regen`; `upgrade_states` / `upgrade_instance` and `OnUnlock::Open`; the deprecated script functions `apply_effect` and `skill()`; `SAVE_VERSION` below 2, the old inventory map reader, `migrate_equipment` in `state.rs`.
+
 The list for the maintainer is written (2026-11-28: ROADMAP part 11, *For the maintainer's
 word*). Nothing is removed: the rest of this task waits for the maintainer.
 

@@ -386,6 +386,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   panel until a project is open; Help lists *18. Plugins* with its number.
 
 ### Removed (Breaking)
+- **Projects made before 0.35 no longer open:** the game and the editor say "This project was made with a version before 0.35. Open and save it with R(ust)PG2D 0.35 first." 0.35 still converts tile projects (0.20 and older), 16-pixel projects and the skill tree and status effects of 0.27, each with a backup. Asset libraries and asset packages of tiles or 16-pixel art are refused the same way.
+- **Save games** of 0.35 load; older ones are not promised.
+- **Settings, the asset library and the recent list under the old name `rust2d`** are no longer copied over. The old folders stay where they are.
 Old ways of drawing that only earlier versions needed are gone (the maintainer's word,
 2026-11-28: everything not needed any more leaves; held items are 3D models so the look is
 consistent; creators work in the isometric view, what you see is what the game shows).

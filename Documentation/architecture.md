@@ -103,16 +103,9 @@ tiles painted *walkable* are taken out again). The file (`map/io.rs`) is `MAGIC`
 a postcard `Core3` (name, size, collision, a RON string `Meta` with everything else, the materials,
 the ground and the decorations).
 
-**Tile projects** (0.20 and older) had tilesets (`defs/tilesets.ron`) and maps of tile layers
-(format v2, v1 all postcard). They are still read (`old_tiles.rs`, `io::decode_tiles`), but only
-for `convert_tiles.rs`, which turns them into painted projects once: the 0.35 editor ran it when it
-opened such a project (after a backup copy), `library::open_library` runs it on an old library, and
-bundles read from old `.r2dpack`s go through it in a temporary folder. The new editor refuses every
-project older than 0.35 instead, naming 0.35 (`Workspace::new` in editor-core). The ground layer becomes ground cells (a
-terrain tile's slot mask says which of its 4 × 4 cells are the terrain), the other layers
-decorations of props made per tile over a sheet of the tileset's image; materials are shared by
-their texture's pixels. Everything else (`decode_with`, the game) sees a tile map without its
-tiles and warns. `migrate.rs` (16 px projects) runs before it and writes v2 maps (`save_tiles`).
+**Older projects.** Projects older than 0.35 (tilesets, maps of format versions 1 and 2, 16 px tiles, a rules
+version below 4) are refused with a message naming 0.35 (`project::made_before_035`, `refuse_before_035`;
+`io` refuses maps of versions 1 and 2 when it loads them); 0.35 converts them.
 
 **Save games** (`state.rs`): `WorldState` as RON in `saves/<slot>.ron` (plus `autosave`): flags,
 variables, inventory, equipment, quests, shops, containers, per-map entity states, dropped items,
@@ -196,9 +189,7 @@ reprs. Races carry their SRD data (`races.rs`: a subrace's `parent`, `RaceDef::m
 and resistances) and backgrounds are a definition kind of their own (`backgrounds.rs`); editor-core's
 `srd_import.rs` (run by its `srd_import` example) writes both from a pinned checkout of
 5e-database; the creator (`runtime/creator.rs`) has a second page for scores, choices and the
-background; darkvision lifts the ambient light (`render::lighting::darkvision`). `srd_convert.rs` turns a 0.27 project's skill tree into proficiencies once (by
-`ProjectConfig::rules_version`), renaming skill ids with the refactor machinery (`RefKind::Skill`
-is no definition any more: it names a proficiency).
+background; darkvision lifts the ambient light (`render::lighting::darkvision`). `RefKind::Skill` is no definition: it names a proficiency. A project of 0.27 (a skill tree) is refused: 0.35 converts it.
 
 Levels and the hero's hit points are SRD too (`progression.rs`): the XP table, `max_hp(level, CON,
 rolls, per_level)`. `WorldState::hp_rolls` keeps what each level's hit die gave (missing = the
@@ -244,10 +235,7 @@ HP, Relentless Rage, then `after_damage`: Dark One's Blessing, Retaliation), `wh
 Survivor) and the AI's `ai_class_step`.
 
 Spells (`skills.rs`) are the SRD's since 0.30: a `SpellDef` carries the SRD's fields and its
-mechanics as `SpellPart`s; a spell of 0.29 (mana, one `SpellEffect`) is upgraded when the defs are
-read (`SpellDef::upgrade` in `project::parse_defs`), and `srd::RULES_VERSION` 3 has
-`srd_convert::convert_project` write that conversion once with a backup (the 0.35 editor did it on
-open, libraries do it on open; the new editor refuses a project of an older rules version). A class's `Spellcasting` says how it has its spells; slots
+mechanics as `SpellPart`s; projects below `srd::RULES_VERSION` are refused (0.35 converts them). A class's `Spellcasting` says how it has its spells; slots
 come from its level table (`spellcasting.spell_slots_level_N`), spent ones live in
 `WorldState::slots_spent` / `Companion::slots_spent` (rests reset them), known spells in
 `WorldState::spells` / `Companion::spells`, prepared ones in `prepared` (empty = the first ones it
@@ -263,8 +251,7 @@ code reads buffs in `who_ac` / `armor_class`, `who_speed`, `make_attack`, `who_c
 Equipment is the SRD's since 0.31: `ItemDef` has `srd` (the SRD index it is), `cost_cp`, `weight`
 and `coin_cp`; `Weapon` a `WeaponCategory`, `WeaponProperty`s, versatile dice and a thrown range;
 `Armor` an `ArmorCategory` (Clothing gives no AC), `base_ac`, `dex_max`, `str_min` and Stealth
-disadvantage. Items of 0.30 are upgraded when read (`ItemDef::upgrade`), `RULES_VERSION` 4 writes
-it once in the same way. `srd/equipment.rs` holds the pure rules (`armor_class`, `armor_proficient`,
+disadvantage. `srd/equipment.rs` holds the pure rules (`armor_class`, `armor_proficient`,
 `weapon_proficient`, `change`, `format_cp`, the `FOCUS` list); `runtime/equipment.rs` applies them to
 the hero (AC, training, the STR minimum through `hero_speed_ft`, `Training::armor_untrained` and
 `stealth_disadvantage` that `WorldState::check` reads) and `turns/mod.rs` `weapon_spec` builds the
@@ -300,8 +287,7 @@ reprs, and `Condition`'s `#[serde(other)] Any` catches old effect names that hav
 `Defenses::apply`; hits carry their type (`combat::Blow::damage_type`, projectiles,
 `hurt_player_by`) and meet the hero's defenses (`player_defenses`: race, armor, petrified) or a
 stat block's. Rests are `runtime/rest.rs` (the short rest's window, `long_rest_effects`, which a
-night's sleep in `furniture.rs` runs). `srd_convert` (RULES_VERSION 2) takes out what 0.27's haste,
-strength, weakness and shield became (`drop_lost_effects`). `srd/rules.rs` builds in `rules.ron` (the SRD's texts and
+night's sleep in `furniture.rs` runs). `srd/rules.rs` builds in `rules.ron` (the SRD's texts and
 its race / background ids, written by `srd_import` like `npcs.ron`); `srd::ATTRIBUTION` goes into
 every export (`release.rs`, the packages) and, with `ProjectConfig::srd`, the Credits page and
 `srd_attribution()`.
@@ -633,7 +619,7 @@ image pixels, `SheetTex::region`).
 What a character does is an `Anim` (`render/character.rs`: walk, idle, attack, hurt, an extra clip);
 `paperdoll.rs` picks it (`player_anim`, `npc_anim`: attack phase, `RtEntity::hurt`, moving,
 breathing) and `Game::look` / `Models::look_of` say which model draws it: the look's model, else the
-model named like its legacy `body` (a 0.17 figure's id), else the mannequin (built into the engine,
+mannequin (built into the engine,
 `models/mannequin*.glb`, unless the project has its own). Held items (`hands.rs`): an item's
 `HeldSprite` (picture, hold point, orientation mark) is laid onto a hand's `Grip` by `lay` (mirrored
 across the axis when it points left; carried props upright), two-handed things on `both_hands`;
@@ -916,10 +902,9 @@ ones with a message naming 0.35 (ROADMAP.md, 0.36.0). What the rules mean per fo
 - **RON structs** (definitions, map `Meta`, saves, settings, project): new fields get
   `#[serde(default)]` (or `default = "fn"`); never rename a field without an alias; variants of
   enums stored by name (`Action`, `Cond`, `TriggerOn`, `ZoneKind`, `OnUnlock` in v2 maps and in
-  definitions) may be added anywhere by format, but are **appended** by convention because v1
-  maps stored them by index. A new serde type also derives `schemars::JsonSchema` under the
+  definitions) may be added anywhere by format, but are **appended** by convention. A new serde type also derives `schemars::JsonSchema` under the
   feature `schema`, or the editor's forms can't show it.
-- **postcard** (map `Core`, `TileLayer`, `Chunk`, `Ground`, `GroundChunk`): positional and without defaults. **These
+- **postcard** (map `Core3`, `Ground`, `GroundChunk`): positional and without defaults. **These
   structs are frozen**: a new layer or chunk property goes into the RON `Meta`, or the format
   version is bumped with a reader for the old one.
 - **Game packs** (`data.pack`, and project files `.r2dproject`): the 8-byte magic `R2DPAK1\0` carries the version; a game refuses

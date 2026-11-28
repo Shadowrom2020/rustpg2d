@@ -1860,6 +1860,15 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     animations come with the skeleton) and *Turn it* until it faces the front. A `.glb`
     also becomes a 3D model for characters (*New… › 3D model › from a file*, or dropped):
     copied in, made smaller, its animations guessed, its tab open on what is missing.
+    **More clips** (2026-11-28, STUDIO_PLAN.md task 5) under the animations of a model with a
+    skeleton of its own: *Add a file of clips…* (a `.glb` copied into `models/`, played by
+    the model: `Workspace::use_model_file` with clips) and *Take clips from another model…*
+    (a model with a skeleton of its own and animations, its animations ticked (all at first),
+    *Replace the ones it has* off at first, *Take them*: `Workspace::share_clips`, which
+    takes only clips whose bones the model has and says what it took, kept and couldn't).
+    Both are 0.35's and write the definitions at once with the file (said in their hover
+    texts). The list of models offers every one with a skeleton of its own, the rig templates
+    first; whether their bones fit is found out on *Take them*.
   - **A structure is worked on as a map** (`editor-core/src/structdoc.rs`; a structure's
     tab): its tab is the structure itself as a small map of its size, with every tool of a
     map: paint its ground, place and move things, build walls and roofs on it, set blocked
@@ -2072,7 +2081,16 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     its own added and removed; a creature without its rig template lacks all four animations
     and has them again with it, turned a quarter), `modelshop::ui_tests` (the missing
     animation said, its clip picked from the list, *Guess from the clips' names*; the rig
-    templates offered to a model without a skeleton). In the window, end to end: the wolf's
+    templates offered to a model without a skeleton;
+    `a_missing_animation_is_taken_from_a_model_with_the_same_skeleton`: the heroine without
+    *attack*, *Take clips from another model…*, *Human* picked from the list (the rig templates
+    offered too), all but *Attack* unticked, *Take them*: "heroine plays hero's attack", the
+    same clip as the hero's, in `models.ron` at once). In the window on a scratch copy: the
+    heroine's attack taken away (`model check`: "! no clip for the animation attack"),
+    `model share hero attack`: "heroine plays hero's attack", `ok`; `model clips` with a
+    copy of `kit_clips.glb` from outside the project: copied to `models/more.glb`, under
+    `clip_files`, "heroine plays the 14 clip(s) of models/more.glb"; the panel opened by
+    clicks, its list of models seen. In the window, end to end: the wolf's
     file as `Moor_hound.glb` made a 3D model (four things to see to, no skeleton), the
     four-legged template picked (nothing missing, it walks in the preview), a new character
     given that model, placed on the village and seen standing there in the Play tab.
@@ -2645,7 +2663,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   | Flags and variables | the *Flags and variables* page (new) | there |
   | **Art**: pixel editor (frames, tools, nudge, replace colours, seamless) | under a sheet's picture, a material's tab | partly (frames added / duplicated, selection) |
   | Sounds played | the sound's tab | there |
-  | 3D models: import, animations' clips, rig templates, check | model workshop | partly (more clip files added, clips shared between models, joints moved by hand) |
+  | 3D models: import, animations' clips, rig templates, check | model workshop; more clip files and clips taken from another model (2026-11-28) | partly (joints moved by hand) |
   | An item's 3D model: imported, its hold point and front set, shown in the hand, its icon rendered | the item workshop at the top of an item's tab (2026-11-28): the hero holding it, standing, walking, striking; *From a file…*, *Find where it is held*, *Other end*, *Turn the handle*, *Turn the front*, how it is held, its length, where along it the hand is, *Render its icon* | there |
   | Character editor: model, pieces, colours, equipment, random colours, new from a model / a file / Meshy | character workshop, *New…*, Generate art | partly (*Start from…* another character) |
   | Props: pictures, states, hitbox, light, building shape | prop workshop + form | partly (a building's ridge and openings by numbers) |

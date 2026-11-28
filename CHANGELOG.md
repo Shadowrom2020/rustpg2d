@@ -153,6 +153,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
 - **Unsaved changes are asked about**: closing the window, closing the project or opening
   another one with changes that aren't saved asks first: *Save and go on*, *Don't save* or
   *Stay*. Before, closing the window lost them without a word.
+- **More clips for a 3D model** (part 8): the model workshop adds a file of animations for the
+  model's skeleton (*Add a file of clips…*), or takes the animations of another model with the
+  same skeleton (*Take clips from another model…*, the ones to take ticked).
 - **The item workshop** (part 8): an item's tab shows its own 3D model in the hero's hand,
   standing, walking and striking. A model file is taken with *From a file…*; buttons find
   where it is held, turn its handle and its front and set how it is held and how long it is;

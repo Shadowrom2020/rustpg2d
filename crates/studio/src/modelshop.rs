@@ -20,11 +20,38 @@ pub struct ModelStage {
     pub turning: bool,
     /// The animation shown.
     pub anim: String,
+    /// *Take clips from another model…* while it is open.
+    pub share: Option<Share>,
+    /// What adding or taking clips said last.
+    pub said: String,
+}
+
+/// Clips taken from another model with the same skeleton: which model, which of its
+/// animations (all ticked at first), whether they replace the ones this model has.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Share {
+    pub source: String,
+    pub ticks: std::collections::BTreeMap<String, bool>,
+    pub replace: bool,
 }
 
 impl Default for ModelStage {
     fn default() -> ModelStage {
-        ModelStage { facing: Facing::Down, turning: true, anim: "idle".into() }
+        ModelStage { facing: Facing::Down, turning: true, anim: "idle".into(), share: None, said: String::new() }
+    }
+}
+
+/// The models clips can be taken from: with a skeleton of their own and animations, not pieces.
+fn sources(ws: &Workspace, id: &str) -> Vec<(String, String)> {
+    ws.project.db.models.iter().filter(|m| m.id != id && m.part.is_none() && m.rig.is_none() && !m.clips.is_empty()).map(|m| (m.id.clone(), if m.name.is_empty() { m.id.clone() } else { m.name.clone() })).collect()
+}
+
+/// A file of clips for model `id`: copied into `models/` when it is elsewhere, then played by
+/// the model (written at once, with the file).
+fn add_clip_file(ws: &mut Workspace, id: &str, file: &std::path::Path) -> String {
+    match editor_core::files::import_asset(&ws.project.root, file, "models") {
+        Ok(rel) => ws.use_model_file(id, true, &rel),
+        Err(e) => format!("{} can't be added: {e:#}", file.display()),
     }
 }
 
@@ -87,7 +114,9 @@ impl ModelStage {
     }
 
     /// The script's words: `play ANIM CLIP|-`, `fps ANIM N`, `guess`, `rig TEMPLATE|- [TURN]`,
-    /// `face front|left|back|right|turn`, `anim NAME`, `check` (prints the check's lines).
+    /// `face front|left|back|right|turn`, `anim NAME`, `check` (prints the check's lines),
+    /// `clips FILE` (a file of clips added), `share SOURCE [ANIM…] [replace]` (clips taken from
+    /// another model with the same skeleton; no animations named: all of them).
     pub fn word(&mut self, ws: &mut Workspace, id: &str, args: &[String]) -> Result<(), String> {
         let arg = |i: usize| args.get(i).map(String::as_str).unwrap_or("");
         match arg(0) {
@@ -108,7 +137,17 @@ impl ModelStage {
                     println!("[model] {} {line}", if *problem { "!" } else { " " });
                 }
             }
-            other => return Err(format!("model {other}: play, fps, guess, rig, face, anim, check")),
+            "clips" => {
+                self.said = add_clip_file(ws, id, std::path::Path::new(&args[1..].join(" ")));
+                println!("[model] {}", self.said);
+            }
+            "share" => {
+                let replace = args.iter().any(|a| a == "replace");
+                let anims: Vec<String> = args.iter().skip(2).filter(|a| *a != "replace").cloned().collect();
+                self.said = ws.share_clips(id, arg(1), &anims, replace)?;
+                println!("[model] {}", self.said);
+            }
+            other => return Err(format!("model {other}: play, fps, guess, rig, face, anim, check, clips, share")),
         }
         Ok(())
     }
@@ -134,6 +173,11 @@ impl ModelStage {
                 if !checked.piece {
                     ui.add_space(6.0);
                     self.animations(ui, ws, id, &def, &checked);
+                    // (A model on a rig template plays the template's clips.)
+                    if checked.rigged && def.rig.is_none() {
+                        ui.add_space(6.0);
+                        self.more_clips(ui, ws, id);
+                    }
                 }
             });
         });
@@ -222,6 +266,75 @@ impl ModelStage {
         });
     }
 
+    /// More clips: a file of them, or those of another model with the same skeleton.
+    fn more_clips(&mut self, ui: &mut egui::Ui, ws: &mut Workspace, id: &str) {
+        const AT_ONCE: &str = "written at once, with the file";
+        ui.horizontal_wrapped(|ui| {
+            ui.label(egui::RichText::new("More clips").strong());
+            let key = crate::pick::Key::FormFile(egui::Id::unique(("model clips", id)).value());
+            if let Some(picked) = crate::pick::browse(ui, key, "Add a file of clips…", &format!("A .glb with animations for this model's skeleton: copied into the project, its clips offered for the animations ({AT_ONCE})"), || crate::pick::Want::File("3D models", &["glb"]), None) {
+                self.said = add_clip_file(ws, id, &picked);
+            }
+            let open = self.share.is_some();
+            if ui.selectable_label(open, "Take clips from another model…").on_hover_text(format!("The animations of a model with the same skeleton: a figure of the same kit, the same rig ({AT_ONCE})")).clicked() {
+                self.share = if open { None } else { Some(Share::default()) };
+            }
+        });
+        if let Some(mut share) = self.share.take() {
+            let mut keep = true;
+            egui::Frame::group(ui.style()).show(ui, |ui| {
+                let list = sources(ws, id);
+                ui.horizontal(|ui| {
+                    let l = ui.label("From");
+                    let shown = list.iter().find(|m| m.0 == share.source).map_or("pick a model".to_string(), |m| m.1.clone());
+                    egui::ComboBox::from_id_salt(("clips from", id)).selected_text(shown).width(220.0).show_ui(ui, |ui| {
+                        for (mid, name) in &list {
+                            if ui.selectable_label(share.source == *mid, name).clicked() && share.source != *mid {
+                                share.source = mid.clone();
+                                // (Every animation it has, ticked.)
+                                share.ticks = ws.project.db.model(mid).map(|m| m.clips.iter().map(|c| (c.anim.clone(), true)).collect()).unwrap_or_default();
+                            }
+                        }
+                    })
+                    .response
+                    .labelled_by(l.id);
+                });
+                if list.is_empty() {
+                    ui.weak("No other model has a skeleton of its own and animations.");
+                }
+                if !share.source.is_empty() {
+                    ui.horizontal_wrapped(|ui| {
+                        for (anim, on) in share.ticks.iter_mut() {
+                            ui.checkbox(on, anim_label(anim)).on_hover_text(anim_help(anim));
+                        }
+                    });
+                    ui.checkbox(&mut share.replace, "Replace the ones it has").on_hover_text("Off: an animation this model plays already keeps its own clip");
+                }
+                ui.horizontal(|ui| {
+                    let ticked: Vec<String> = share.ticks.iter().filter(|t| *t.1).map(|t| t.0.clone()).collect();
+                    if ui.add_enabled(!share.source.is_empty() && !ticked.is_empty(), egui::Button::new("Take them")).on_hover_text(AT_ONCE).clicked() {
+                        match ws.share_clips(id, &share.source, &ticked, share.replace) {
+                            Ok(said) => {
+                                self.said = said;
+                                keep = false;
+                            }
+                            Err(e) => self.said = e,
+                        }
+                    }
+                    if ui.button("Cancel").clicked() {
+                        keep = false;
+                    }
+                });
+            });
+            if keep {
+                self.share = Some(share);
+            }
+        }
+        if !self.said.is_empty() {
+            ui.weak(&self.said);
+        }
+    }
+
     /// Rows of animations: its name (a click shows it played), the clip it plays, how fast.
     #[allow(clippy::too_many_arguments)]
     fn rows(&mut self, ui: &mut egui::Ui, id: &str, def: &rustpg2d_engine::defs::ModelDef, c: &Checked, salt: &str, anims: &[String], play: &mut Option<(String, Option<String>)>, fps: &mut Option<(String, f32)>) {
@@ -286,7 +399,7 @@ impl ModelStage {
             }
         });
         if c.clips.is_empty() {
-            ui.weak(if c.rigged { "A file with clips for its skeleton can be added under Files below (More clip files)." } else { "Without a skeleton it stands still: pick one above, its animations come with it." });
+            ui.weak(if c.rigged { "A file with clips for its skeleton can be added below (More clips), or another model's taken." } else { "Without a skeleton it stands still: pick one above, its animations come with it." });
             return;
         }
         let base: Vec<String> = BASE.iter().map(|a| a.to_string()).collect();
@@ -451,6 +564,43 @@ mod ui_tests {
         h.get_by_label(name.as_str()).click();
         h.run();
         assert_eq!(h.state().ws.project.db.model(&id).unwrap().rig.as_ref().map(|r| r.template.as_str()), Some("rig_bird"));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_missing_animation_is_taken_from_a_model_with_the_same_skeleton() {
+        let (mut h, dir) = harness("share", "heroine", &["heroine", "hero"]);
+        // The heroine has lost her blow.
+        h.state_mut().ws.model_play("heroine", "attack", None).unwrap();
+        h.run();
+        h.get_by_label("1 thing to see to");
+        h.get_by_label("Take clips from another model…").click();
+        h.run();
+        // The models with a skeleton of their own and animations are offered; the hero is picked,
+        // all of his animations ticked.
+        h.get_by_role_and_label(egui::accesskit::Role::ComboBox, "From").click();
+        h.run();
+        assert!(h.query_all_by_label("Rig template: four legs").next().is_some(), "a rig template has a skeleton of its own");
+        h.query_all_by_label("Human").next().unwrap().click();
+        h.run();
+        let share = h.state().stage.share.clone().unwrap();
+        assert_eq!(share.source, "hero");
+        assert!(share.ticks.len() >= 4 && share.ticks.values().all(|t| *t), "{share:?}");
+        // Only the blow: the rest are unticked.
+        h.get_by_label("Replace the ones it has");
+        for anim in share.ticks.keys().filter(|a| *a != "attack") {
+            h.get_by_role_and_label(egui::accesskit::Role::CheckBox, anim_label(anim).as_str()).click();
+        }
+        h.run();
+        h.get_by_label("Take them").click();
+        h.run();
+        let s = h.state();
+        assert!(s.stage.share.is_none(), "taken: the choice closes");
+        assert_eq!(s.stage.said, "heroine plays hero's attack");
+        assert_eq!(s.ws.project.db.model("heroine").unwrap().clip_of("attack").map(|c| c.clip.as_str()), s.ws.project.db.model("hero").unwrap().clip_of("attack").map(|c| c.clip.as_str()));
+        // Written at once, with the file.
+        let disk = rustpg2d_engine::project::Project::load(&dir).unwrap();
+        assert!(disk.db.model("heroine").unwrap().clip_of("attack").is_some());
         let _ = std::fs::remove_dir_all(dir);
     }
 }

@@ -357,7 +357,9 @@ default zoom. Say honestly how it looks; a graph that is a tangle is not done.
 
 **Don't.** Don't edit events in the graph. Don't store positions in the project.
 
-### - [ ] Task 5 (S/M): the model workshop takes more clips
+### - [x] Task 5 (S/M): the model workshop takes more clips
+
+Done 2026-11-28. Not done: the list of models isn't filtered by whether their bones fit (that is read from the files on *Take them*, which says what it couldn't take).
 
 **Why.** Parity row *3D models: partly*. The logic exists; the window lacks the buttons.
 

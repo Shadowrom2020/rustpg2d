@@ -93,9 +93,7 @@ impl Settings {
         }
         let base = crate::paths::config_base()?;
         let slug = crate::release::slug(game_name);
-        let dir = base.join("rustpg2d").join(&slug);
-        crate::legacy::adopt(&dir, &base.join(crate::legacy::OLD_NAME).join(&slug));
-        Some(dir)
+        Some(base.join("rustpg2d").join(slug))
     }
 
     /// The saved settings of a game (defaults if there are none or they can't be read).

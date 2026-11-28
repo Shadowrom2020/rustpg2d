@@ -114,9 +114,7 @@ pub(crate) fn config_dir() -> Option<PathBuf> {
         return None;
     }
     let base = rustpg2d_engine::paths::config_base()?;
-    let dir = base.join("rustpg2d");
-    rustpg2d_engine::legacy::adopt(&dir.join("recent.ron"), &base.join(rustpg2d_engine::legacy::OLD_NAME).join("recent.ron"));
-    Some(dir)
+    Some(base.join("rustpg2d"))
 }
 
 /// The editor's own settings (`<config dir>/editor.ron`): the AI agent server's choices and the
@@ -264,11 +262,6 @@ fn copy_example(src: &Path, home: &Path) -> Result<PathBuf> {
     }
     if folder.join("project.ron").exists() {
         return Ok(folder);
-    }
-    // A copy made before the rename (rust2d) is opened where it is: it may hold the user's edits.
-    let old = home.join(rustpg2d_engine::legacy::OLD_NAME).join("example_project");
-    if old.join("project.ron").exists() {
-        return Ok(old);
     }
     std::fs::create_dir_all(home.join("rustpg2d"))?;
     rustpg2d_engine::pack::pack_dir(src, &file).with_context(|| format!("copying the example project to {}", file.display()))?;

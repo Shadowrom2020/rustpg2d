@@ -1043,9 +1043,7 @@ pub fn library_dir() -> PathBuf {
         return PathBuf::from(p);
     }
     let data = crate::paths::data_base().unwrap_or_else(|| PathBuf::from("."));
-    let dir = data.join("rustpg2d/library");
-    crate::legacy::adopt(&dir, &data.join(crate::legacy::OLD_NAME).join("library"));
-    dir
+    data.join("rustpg2d/library")
 }
 
 /// The files of a library folder embedded in a program: paths relative to the folder (`/`

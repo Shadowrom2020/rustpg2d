@@ -9,6 +9,7 @@ pub mod commands;
 pub mod cutscene;
 pub mod defs;
 pub mod files;
+pub mod graph;
 pub mod frame_ops;
 pub mod fromfile;
 pub mod history;

@@ -269,7 +269,9 @@ by the button, `cleanup`, `cleanup keep`, `status`.
 
 **Don't.** Don't offer it on a scripted `quit`. Don't delete anything without the creator's click.
 
-### - [ ] Task 3 (M): the events graph, its logic
+### - [x] Task 3 (M): the events graph, its logic
+
+Done 2026-11-28. `events_graph` returns a `Graph` (nodes, edges, a `Card` a node, where each function is) instead of a pair: the tab needs the cards. 0.35's own summaries were not kept: the event sheet's say more.
 
 **Why.** Decision of 2026-11-28: build it. This task is the part without UI.
 

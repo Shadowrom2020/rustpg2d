@@ -1569,8 +1569,18 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   flags and variables: `{name}` placeholders in texts aren't counted as reading one; of scripts: a
   function run in the Play tab, *Find in scripts*; of visual scripts: a box drawn around
   nodes to select them, *Fit all*; the
-  documents still to come: the map's Events graph (on the visual scripts' canvas), the
+  documents still to come: the map's Events graph (its tab: STUDIO_PLAN.md task 4), the
   animation editor, the quest designer.
+  - **The events graph's logic** (2026-11-28, STUDIO_PLAN.md task 3; `editor-core/src/graph.rs`,
+    0.35's `graph.rs` without its window): `Workspace::events_graph(map, all_fns, focus)` =
+    the map as it is being edited (else its file) and the saved script files, built into
+    nodes (who has events, their events, the script functions reached, the maps led to) and
+    edges (owns, calls, event, state, travel, from the action row they start at), and a
+    `Card` a node: its heading, what it is, its lines in the event sheet's words
+    (`events::trigger_summary` / `condition_summary` / `action_summary`: 0.35's own short
+    summaries are not carried over), with `first_row` where the actions begin. `Graph::dump`
+    is its text form (`trigger entity 12 #0 | Event: When … | …`, `calls trigger entity 12
+    #0 [row 1] -> fn talk`).
 
   **Decided while building.**
   - **The sheet reads the values as the files hold them** (JSON, as the forms do), so it is
@@ -1686,6 +1696,11 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     palette and linked from Start by a drag, a link let go in empty space offering only what
     takes it, Delete and undo; three nodes grouped into a function of their own (the Rhai
     calls it), saved: `scripts/visual_scripts.rhai` holds both and the game starts with them.
+  - The events graph's logic: `the_edges_follow_the_data_and_focus_keeps_what_one_owner_leads_to`
+    (a made-up village: each of the five kinds of edges where the data says, from the right
+    row; *focus* on the elder keeps the zone and map it reaches and drops the well nothing
+    reaches; the cards' words) and `the_village_of_the_example_has_a_graph` (62 who, 330
+    lines of dump, every edge between nodes with cards; `RUSTPG2D_GRAPH_DUMP=1` prints it).
 
 - [~] Part 8: Workshops — `feature/studio`
 
@@ -2592,7 +2607,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   | Plugins window: add from a file or the library, on / off, order, parameters, export, to the library, remove | *Plugins* on the *Scripts & plugins* page: each with what it is, on / off, order, its parameters by name with the control that fits, *Remove* (its files kept aside), added from the library or a plugin file; out of the project they go as part of a pack (*Share…*) (2026-11-28) | there |
   | Clean up unused files (definitions nothing uses, stray files; a backup first; offered on close) | *Assets › Clean up unused files* (`assets.cleanup`): the list to tick, a copy beside the project, what is kept remembered (2026-11-28); offered when the project is left: quitting, closing, opening or making another (2026-11-28) | there |
   | **Events**: trigger editors | the event sheet | there |
-  | Events graph (a map's triggers, scripts and maps as a graph) | — | **open**: to be built (the maintainer, 2026-11-28; STUDIO_PLAN.md tasks 3 and 4) |
+  | Events graph (a map's triggers, scripts and maps as a graph) | its logic: `Workspace::events_graph` (2026-11-28) | partly (its tab: STUDIO_PLAN.md task 4) |
   | Scripts: editor with completion, check, API help | script tabs | there |
   | Visual scripts | the canvas in their tab | there |
   | Cut-scene timeline, scrubbed on the map, played from here | the timeline in their tab | there |

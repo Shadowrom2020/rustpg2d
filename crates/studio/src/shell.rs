@@ -403,6 +403,44 @@ pub struct Shell {
     pub try_next: Option<(rustpg2d_engine::events::TriggerOn, rustpg2d_engine::runtime::EventOwner, String)>,
     /// Answers of commands, newest last (the script prints them too).
     pub log: Vec<String>,
+    /// What the creator asked for that leaves the project, waiting for the answer to *There
+    /// are changes that aren't saved*.
+    pub leaving: Option<Leaving>,
+    /// The editor may quit now (asked and answered): the window's close goes through.
+    pub quit_now: bool,
+}
+
+/// What leaves the open project: the editor quits, the project is closed, another one is opened
+/// or made (where, its name, with the basics).
+#[derive(Clone, Debug, PartialEq)]
+pub enum Leaving {
+    Quit,
+    Close,
+    Open(PathBuf),
+    New(PathBuf, String, bool),
+}
+
+impl Leaving {
+    /// For scripts: `quit`, `close`, `open`, `new`.
+    pub fn word(&self) -> &'static str {
+        match self {
+            Leaving::Quit => "quit",
+            Leaving::Close => "close",
+            Leaving::Open(_) => "open",
+            Leaving::New(..) => "new",
+        }
+    }
+
+    /// What is done once answered, in words: "quit", "open game.r2dproject".
+    fn doing(&self) -> String {
+        let name = |p: &std::path::Path| p.file_name().map_or_else(|| p.display().to_string(), |n| n.to_string_lossy().into_owned());
+        match self {
+            Leaving::Quit => "quit".into(),
+            Leaving::Close => "close this project".into(),
+            Leaving::Open(p) => format!("open {}", name(p)),
+            Leaving::New(p, ..) => format!("make the project {}", name(p)),
+        }
+    }
 }
 
 impl Shell {
@@ -432,7 +470,7 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, share: None, cleanup: None, lib_look: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), art: Default::default(), help: Default::default(), tour: Default::default(), agents: Default::default(), langs: Default::default(), plugins: Default::default(), play_lang: None, news: false, timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), model_stages: Default::default(), item_stages: Default::default(), pixels: Default::default(), sounds: Default::default(), sheets: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new() }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, share: None, cleanup: None, lib_look: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), art: Default::default(), help: Default::default(), tour: Default::default(), agents: Default::default(), langs: Default::default(), plugins: Default::default(), play_lang: None, news: false, timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), model_stages: Default::default(), item_stages: Default::default(), pixels: Default::default(), sounds: Default::default(), sheets: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new(), leaving: None, quit_now: false }
     }
 
     /// The window around another workspace (another project, or none). What belongs to the
@@ -459,6 +497,11 @@ impl Shell {
         if self.unsaved() {
             return Err("there are unsaved changes: save first (Ctrl+S)".into());
         }
+        self.open_now(path)
+    }
+
+    /// Opens another project, whatever wasn't saved in this one (it is dropped).
+    fn open_now(&mut self, path: &std::path::Path) -> Result<(), String> {
         let ws = Workspace::open_path(path.to_path_buf(), Gpu::Yes).map_err(|e| format!("{}: {e:#}", path.display()))?;
         self.ws.finish_project_file();
         self.around_another(ws);
@@ -474,6 +517,11 @@ impl Shell {
         if self.unsaved() {
             return Err("there are unsaved changes: save first (Ctrl+S)".into());
         }
+        self.new_now(path, name, basics)
+    }
+
+    /// `new_project`, whatever wasn't saved in the project open now (it is dropped).
+    fn new_now(&mut self, path: &std::path::Path, name: &str, basics: bool) -> Result<(), String> {
         let made = if editor_core::project_file::folders_allowed() {
             editor_core::files::create_project(path).map(|()| path.to_path_buf())
         } else {
@@ -493,7 +541,7 @@ impl Shell {
             }
             new.close_project();
         }
-        self.switch_project(&made)?;
+        self.open_now(&made)?;
         if !said.is_empty() {
             self.ws.set_status(format!("Made {}: {said}", self.ws.project.config.name));
         }
@@ -505,9 +553,114 @@ impl Shell {
         if self.unsaved() {
             return Err("there are unsaved changes: save first (Ctrl+S)".into());
         }
+        self.close_now();
+        Ok(())
+    }
+
+    /// Back to no project, whatever wasn't saved (it is dropped: nothing is written but the
+    /// project file of what was saved before).
+    fn close_now(&mut self) {
         self.ws.close_project();
         self.around_another(Workspace::empty());
+    }
+
+    /// The creator asked to leave the project (to quit, close it, open or make another): done at
+    /// once when everything is saved, else *There are changes that aren't saved* asks first.
+    pub fn leave(&mut self, what: Leaving) {
+        if self.unsaved() {
+            self.leaving = Some(what);
+        } else {
+            self.leave_now(what);
+        }
+    }
+
+    /// The answer to *There are changes that aren't saved*: `Some(true)` = save, then go on;
+    /// `Some(false)` = go on, what isn't saved is dropped; `None` = stay.
+    pub fn leave_answer(&mut self, save: Option<bool>) -> Result<(), String> {
+        let Some(what) = self.leaving.take() else { return Err("nothing is asked".into()) };
+        match save {
+            None => {
+                self.ws.set_status("Stayed: nothing was saved, nothing was dropped");
+                return Ok(());
+            }
+            Some(true) => {
+                let _ = self.run("file.save_all");
+                // (Something that couldn't be written: the creator stays and reads why.)
+                if self.unsaved() {
+                    return Err(format!("not everything could be saved, so this didn't {}: {}", what.doing(), self.ws.status.0));
+                }
+            }
+            Some(false) => {}
+        }
+        self.leave_now(what);
         Ok(())
+    }
+
+    /// Does what leaves the project, without asking.
+    fn leave_now(&mut self, what: Leaving) {
+        let failed = match what {
+            Leaving::Quit => {
+                self.quit_now = true;
+                Ok(())
+            }
+            Leaving::Close => {
+                self.close_now();
+                Ok(())
+            }
+            Leaving::Open(path) => self.open_now(&path).map_err(|e| format!("Not opened: {e}")),
+            Leaving::New(path, name, basics) => self.new_now(&path, &name, basics).map_err(|e| format!("No new project: {e}")),
+        };
+        if let Err(e) = failed {
+            self.ws.set_status(e);
+        }
+    }
+
+    /// `leave`: what is asked (`-|quit|close|open|new`); `leave save|discard|stay` answers.
+    pub fn leave_word(&mut self, args: &[String]) -> String {
+        let answer = match args.first().map(String::as_str) {
+            None => return self.leaving.as_ref().map_or("-", Leaving::word).to_string(),
+            Some("save") => Some(true),
+            Some("discard") => Some(false),
+            Some("stay") => None,
+            Some(other) => return format!("leave {other}: save, discard, stay"),
+        };
+        match self.leave_answer(answer) {
+            Ok(()) => format!("{} said={}", self.leaving.as_ref().map_or("-", Leaving::word), self.ws.status.0),
+            Err(e) => format!("failed: {e}"),
+        }
+    }
+
+    /// *There are changes that aren't saved*, while leaving waits for its answer.
+    fn leaving_ui(&mut self, ctx: &egui::Context) {
+        let Some(what) = &self.leaving else { return };
+        let doing = what.doing();
+        let mut answer = None;
+        // (Nothing else is clicked meanwhile; Escape or a click beside it is *Stay*.)
+        let modal = egui::Modal::new(egui::Id::unique("unsaved changes")).show(ctx, |ui| {
+            ui.heading("Unsaved changes");
+            ui.label("There are changes that aren't saved.");
+            ui.label(format!("Save them before you {doing}?"));
+            ui.add_space(6.0);
+            ui.horizontal(|ui| {
+                if ui.button("Save and go on").on_hover_text(format!("Saves everything, then does what you asked: {doing}")).clicked() {
+                    answer = Some(Some(true));
+                }
+                if ui.button("Don't save").on_hover_text(format!("What isn't saved is lost: {doing}")).clicked() {
+                    answer = Some(Some(false));
+                }
+                if ui.button("Stay").on_hover_text("Back to work: nothing is saved, nothing is lost").clicked() {
+                    answer = Some(None);
+                }
+            });
+        });
+        if answer.is_none() && modal.should_close() {
+            answer = Some(None);
+        }
+        if let Some(save) = answer {
+            if let Err(e) = self.leave_answer(save) {
+                self.ws.set_status(e);
+            }
+        }
     }
 
     /// Shows `tab`: brings it to the front when it is open, else opens it beside the documents.
@@ -1427,23 +1580,17 @@ impl Shell {
                 Ask::Play(from) => self.play_from(from),
                 Ask::PlayWindow => self.play_window(),
                 Ask::Above(tab, beside) => self.show_above(tab, &beside),
+                // (The window may be another project's then: what else was asked was the old one's.)
                 Ask::OpenProject(path) => {
-                    if let Err(e) = self.switch_project(&path) {
-                        self.ws.set_status(format!("Not opened: {e}"));
-                    }
-                    // (The window is another project's now: what else was asked was the old one's.)
+                    self.leave(Leaving::Open(path));
                     break;
                 }
                 Ask::NewProject(path, name, basics) => {
-                    if let Err(e) = self.new_project(&path, &name, basics) {
-                        self.ws.set_status(format!("No new project: {e}"));
-                    }
+                    self.leave(Leaving::New(path, name, basics));
                     break;
                 }
                 Ask::CloseProject => {
-                    if let Err(e) = self.close_project() {
-                        self.ws.set_status(format!("Not closed: {e}"));
-                    }
+                    self.leave(Leaving::Close);
                     break;
                 }
                 Ask::Try(map, tile, what) => {
@@ -1479,6 +1626,8 @@ impl Shell {
                 self.marks.unused = None;
             }
         }
+        // Leaving the project with changes that aren't saved: asked first.
+        self.leaving_ui(&ctx);
         // The *Share…* window.
         if let Some(mut w) = self.share.take() {
             if w.show(&ctx, &mut self.ws) {
@@ -3323,4 +3472,77 @@ pub(crate) fn held_step_id() -> egui::Id {
 /// field is one step).
 pub fn hold_step(ctx: &egui::Context, key: impl std::hash::Hash + std::fmt::Debug) {
     ctx.data_mut(|d| d.insert_temp(held_step_id(), egui::Id::unique(key).value()));
+}
+
+#[cfg(test)]
+mod ui_tests {
+    use super::*;
+    use egui_kittest::kittest::Queryable;
+    use egui_kittest::Harness;
+
+    /// A window around a new project whose game's name was changed and not saved.
+    fn changed(dir: &std::path::Path) -> Shell {
+        let _ = std::fs::remove_dir_all(dir);
+        std::fs::create_dir_all(dir).unwrap();
+        editor_core::files::create_project(dir).unwrap();
+        let mut shell = Shell::around(Workspace::new(dir.to_path_buf(), Gpu::No).unwrap(), Default::default());
+        shell.ws.project.config.name = "Changed".into();
+        shell.ws.defs_dirty = true;
+        shell
+    }
+
+    fn name_on_disk(dir: &std::path::Path) -> String {
+        rustpg2d_engine::project::Project::load(dir).unwrap().config.name
+    }
+
+    fn harness(shell: Shell) -> Harness<'static, Shell> {
+        Harness::builder().with_size(egui::vec2(900.0, 600.0)).build_ui_state(|ui, s: &mut Shell| s.leaving_ui(ui.ctx()), shell)
+    }
+
+    #[test]
+    fn leaving_with_unsaved_changes_asks_and_each_answer_does_what_it_says() {
+        let base = std::env::temp_dir().join(format!("rustpg2d-leaving-{}", std::process::id()));
+        // (The editor's settings are the test's own.)
+        editor_core::files::config_dir_here(Some(base.join("config")));
+        let dir = base.join("game");
+        let mut shell = changed(&dir);
+        let before = name_on_disk(&dir);
+        // Stay: nothing saved, nothing dropped.
+        shell.leave(Leaving::Close);
+        assert_eq!(shell.leave_word(&[]), "close");
+        let mut h = harness(shell);
+        h.run();
+        h.get_by_label("There are changes that aren't saved.");
+        h.get_by_label("Stay").click();
+        h.run();
+        assert!(h.state().leaving.is_none() && h.state().ws.project_open && h.state().unsaved());
+        // Don't save: the project is closed and its files are as they were.
+        h.state_mut().leave(Leaving::Close);
+        h.run();
+        h.get_by_label("Don't save").click();
+        h.run();
+        assert!(!h.state().ws.project_open && !h.state().unsaved());
+        assert_eq!(name_on_disk(&dir), before);
+        // Save and go on: written, then closed.
+        let mut h = harness(changed(&dir));
+        h.state_mut().leave(Leaving::Close);
+        h.run();
+        h.get_by_label("Save and go on").click();
+        h.run();
+        assert!(!h.state().ws.project_open);
+        assert_eq!(name_on_disk(&dir), "Changed");
+        // Quitting: answered, the window may close; nothing is asked when all is saved.
+        let mut h = harness(changed(&dir));
+        h.state_mut().leave(Leaving::Quit);
+        h.run();
+        h.get_by_label("Don't save").click();
+        h.run();
+        assert!(h.state().quit_now && h.state().ws.project_open);
+        let mut shell = changed(&dir);
+        shell.ws.defs_dirty = false;
+        shell.leave(Leaving::Close);
+        assert!(shell.leaving.is_none() && !shell.ws.project_open, "saved: closed at once");
+        editor_core::files::config_dir_here(None);
+        let _ = std::fs::remove_dir_all(base);
+    }
 }

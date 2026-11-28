@@ -71,6 +71,8 @@ struct Studio {
     frames: u32,
     fps_time: f64,
     fps: f32,
+    /// The window was told to close (once).
+    closing: bool,
 }
 
 impl Studio {
@@ -81,7 +83,7 @@ impl Studio {
         let mut shell = shell::Shell::open(project_dir, start);
         shell.ws.looking_at = "the overview".into();
         shell.started();
-        Studio { shell, script: Script::from_env(), frames: 0, fps_time: 0.0, fps: 0.0 }
+        Studio { shell, script: Script::from_env(), frames: 0, fps_time: 0.0, fps: 0.0, closing: false }
     }
 
     fn run_script(&mut self, ctx: &egui::Context, dt: f32) {
@@ -521,7 +523,17 @@ impl Studio {
                 "allfields" => self.shell.show_all = arg(1) != "off",
                 // The *New…* gallery (Ctrl+N), with a kind picked: `new [KIND]`.
                 "new" => self.shell.new_asset = Some(gallery::NewAsset::of(rustpg2d_engine::refactor::RefKind::ALL.iter().copied().find(|k| k.name() == arg(1)))),
-                "quit" => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+                // (A script's `quit` never asks about unsaved changes: the run would wait for an
+                // answer until its timeout.)
+                "quit" => {
+                    self.shell.quit_now = true;
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                }
+                // The window's close button: asks first when something isn't saved.
+                "closewindow" => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+                // Leaving the project with unsaved changes: `leave` = what is asked, `leave
+                // save|discard|stay` answers.
+                "leave" => println!("[leave] {}", self.shell.leave_word(&cmd[1..])),
                 // Anything else is a command of the editor (`map.open village`, `edit.undo`…).
                 _ => {
                     let line = cmd.join(" ");
@@ -552,9 +564,25 @@ impl eframe::App for Studio {
         self.shell.ws.mcp_drain();
         self.shell.ui(ui, frame.wgpu_render_state(), self.fps);
         self.shell.ws.mcp_answer_shots(Some(&mut |ws, spec| mapview::MapView::shot(ws, spec)));
+        // The window's close button with changes that aren't saved: asked first.
+        if ctx.input(|i| i.viewport().close_requested()) && !self.shell.quit_now && self.shell.unsaved() {
+            ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            self.shell.leaving = Some(shell::Leaving::Quit);
+        }
+        // (Answered: now it may close.)
+        if self.shell.quit_now && !self.closing {
+            self.closing = true;
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+        }
         gfx::end_frame();
         // The game and the agents move on by themselves: a frame after every frame.
         ctx.request_repaint();
+    }
+
+    /// The project file gets what was saved last (it is otherwise written a little later, on a
+    /// thread).
+    fn on_exit(&mut self) {
+        self.shell.ws.finish_project_file();
     }
 
     /// The script's clicks and keys join what the window got.

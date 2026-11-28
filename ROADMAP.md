@@ -791,8 +791,8 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     `Workspace::start_with_basics`, the 0.35 wizard's starter assets), so Play shows a hero
     on grass at once; *Open a project* by where it is; the
     projects worked on lately; the bundled example in a packaged R(ust)PG2D. Another project
-    opens in the same window (`Shell::switch_project`); it is refused while something isn't
-    saved. *Close this project* leads back to the start. Where a new game is kept, a project
+    opens in the same window (`Shell::switch_project`). *Close this project* leads back to the
+    start. Where a new game is kept, a project
     file and a project's folder are also picked in the system's file dialog (*Browse…*, *A
     folder…*; a project picked opens at once), and so is the folder a game is published
     into. Started without a project (and not in a checkout with its example), the editor
@@ -802,6 +802,17 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     asked takes the answer by a key in a later frame; one dialog at a time (the buttons
     wait meanwhile); on macOS the dialog is modal. A scripted run and a test never open one:
     `pickanswer PATH` (`pick::answer_next`) says what the next answers.
+  - **Unsaved changes are asked about** (2026-11-28, STUDIO_PLAN.md task 1): closing the
+    window, *Close this project*, opening or making another project with something unsaved
+    (definitions, maps, scripts, painted pictures, a translation table) shows *There are changes
+    that aren't saved* (a modal: `Shell::leave` with a `Leaving`, `leaving_ui`): **Save and go
+    on**, **Don't save** (what isn't saved is dropped, the files stay as they were), **Stay**
+    (also Escape). The window's close is cancelled while it asks (`ViewportCommand::CancelClose`).
+    A script's `quit` never asks; `closewindow` is the window's close button, `leave` prints what
+    is asked and `leave save|discard|stay` answers; the script's `project …` words still refuse
+    while something is unsaved. The project file is also written when the editor ends
+    (`on_exit`: before, it was written on a thread a moment after a save, and a quit at once
+    could leave only the working copy).
   Still open: of the home screen pictures of the projects; layouts saved and presets, tearing tabs off into windows, back / forward,
   favourites, the shortcut sheet with rebinding, the theme (light, UI scale, icons), toasts,
   the editor's settings, `egui_kittest` tests; of a new game what the 0.35 wizard also
@@ -829,6 +840,16 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     they need with them). In the window: a new project, Play: the hero on grass with 12 hit
     points, walking. (Before, an empty project played a yellow box with none: found when a
     merchant in one wouldn't answer.)
+  - Unsaved changes: `leaving_with_unsaved_changes_asks_and_each_answer_does_what_it_says`
+    (the modal's three buttons on a changed project: stay keeps it open and changed, *Don't
+    save* closes it with its file as before, *Save and go on* writes then closes, quitting is let
+    through; saved, nothing is asked). In the window on a scratch copy of the example, with a
+    potion's value changed: *Close this project* clicked, the question, Escape and *Stay* stay
+    (`dirty=true`), *Don't save* closes with `defs/` equal to the example's, *Save and go on*
+    writes `value: 99` and closes; the window's close (`closewindow`) asks *before you quit*,
+    *Stay* keeps it, *Save and go on* saves and the editor ends; a recent project clicked asks,
+    *Don't save* opens the other project and leaves the first one's files alone; a scripted
+    `quit` with the change unsaved ends the run at once (4 s) and writes nothing.
 
 - [~] Part 4: The Project browser and asset editors — `feature/studio`
 
@@ -2532,7 +2553,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   |---|---|---|
   | **Projects**: new (wizard), open file / folder, close, recent, the example copy, project files packed | Home screen, `project …`; the wizard's choices (hero's sex, creator, map size) are settings pages | there |
   | Save all, undo / redo (maps and Database apart) | `file.save_all`, one History | there |
-  | Unsaved changes asked about (save / discard / stay) when the editor or a project closes | closing a project or opening another is refused with a sentence; **closing the window drops unsaved changes without a word** (found 2026-11-28) | **open** (STUDIO_PLAN.md task 1) |
+  | Unsaved changes asked about (save / discard / stay) when the editor or a project closes | *There are changes that aren't saved* when the window closes, the project is closed, another is opened or made (2026-11-28) | there |
   | Files changed on disk by another program: reload or keep (`watchanswer`) | read again when nothing unsaved is in the way, else a bar asks (*Take the files' version* / *Keep mine*); `watch`. (It did nothing for a map that was open: fixed, 2026-11-28) | there |
   | **Map**: new map, resize | *New…* › Map, the Inspector's *Size* (2026-11-28) | there |
   | Open, save, fit, rename a map; several maps | tabs, World view | there |

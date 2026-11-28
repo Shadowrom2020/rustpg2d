@@ -185,7 +185,9 @@ assert_eq!(h.state().ws.plugins_status(), "…");
 Sizes: **S** = under 150 lines, **M** = 150 to 400, **L** = more. Every task ends with the gate,
 the notes and the commit of section 1.
 
-### - [ ] Task 1 (M): unsaved changes are asked about when the window closes
+### - [x] Task 1 (M): unsaved changes are asked about when the window closes
+
+Done 2026-11-28. Also: `closewindow` (the window's close button, for scripts); the question is a modal (Escape = *Stay*); the project file is written on exit.
 
 **Why.** Closing the editor's window with unsaved changes loses them without a word. The 0.35
 editor asked. Task 2 needs the same question.

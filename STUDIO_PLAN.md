@@ -526,6 +526,9 @@ If you find another entry with one obvious fix, name it in your report; don't bu
 
 ### - [ ] Task 13 (ask first): old things leave (ROADMAP part 11)
 
+The list for the maintainer is written (2026-11-28: ROADMAP part 11, *For the maintainer's
+word*). Nothing is removed: the rest of this task waits for the maintainer.
+
 **Not for a small model on its own.** It deletes engine code that reads old projects
 (`migrate.rs`, `convert_tiles.rs`, `old_tiles.rs`, `srd_convert.rs`, `legacy.rs`, the upgrade
 chains), writes one conversion 0.35 to 0.36, and removes `crates/editor`. A mistake there is a

@@ -2686,6 +2686,41 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   - **Save games** of 0.35 load where the fields allow it; it is not promised (**Breaking**).
   - **Fixture:** the example project as of the 0.35.0 tag, for the conversion's test.
 
+  **For the maintainer's word** (written 2026-11-28, STUDIO_PLAN.md task 13; nothing is
+  removed until the maintainer says so). Counts are of `example_project` and the starter
+  library on this branch.
+  - **Pictures held in the hand without a model** (`ItemDef.held`, `PropDef.carry`: a
+    `hands::HeldSprite` = a picture, its hold point and orientation mark; `hands.rs`, 273
+    lines; `render/model.rs` draws them on quads at the hand bones and `paperdoll.rs` asks
+    for them; the schema's forms show the fields). Used: 11 items of the example and 17 of
+    the library have a held picture, **every one of them also its own 3D model**, which is
+    what is drawn (the picture is only the fall-back for an item without a model); no prop
+    has `carry`. A creator loses: an item without a 3D model shown in the hand as a flat
+    picture (it would be held invisibly, as an empty hand); a carried prop as a picture.
+  - **What is left of sprite-sheet figures and props**: `SheetKind`'s old kinds (`Body`,
+    `Hair`, `Beard`, `Outfit`, `Armor`, `Held`) read as plain sprites; `Appearance.body` (a
+    0.17 figure's id, read as the model named like it); `PropDef.pieces` (already on the list
+    removed without asking); `PropDef.turns` (four pictures of a prop from four sides) and
+    `PropDef.anim` (a prop's picture cycling through frames: a torch). Used: none of them,
+    in either (0 old sheet kinds, 0 characters with `body`, 0 props with `turns`, `anim` or
+    `pieces`). **Props drawn from a picture are not leftovers**: 103 of the example's 187
+    props and 142 of the library's 231 are painted pictures (the isometric art); 73 / 75
+    have a model, 11 / 14 are buildings. A creator loses: a prop that shows four drawn
+    sides as it is turned, and an animated picture prop (a 3D model or a sheet's animation
+    in an *Effect* does it instead).
+  - **The top-down view**: the game is always isometric (`render/iso.rs`); top-down is only
+    the map tab's *From above* switch (`ViewOpts.topdown`, `scene::Look::topdown`, and the
+    `iso` flag passed through `Assets::draw_prop` / `prop_rect`). A creator loses: placing and
+    painting seen straight from above (handy for exact rows and ground on large maps).
+  - **Meshy's 2D kinds**: in the new editor these are *Icon* (an item's 32 x 32 icon),
+    *Portrait* (a dialog portrait) and *Image* (a painted picture for *Show image*), turned
+    into game art by `art/convert.rs` (`fit`, `keep_figure`, `place`, `shrink`): **all in
+    use** (the example's item icons, portraits and the intro's pictures were made that way).
+    0.35's 2D figure sheets (walk and attack grids) were not brought over; what remains of
+    them is the Python pipeline `scripts/art/meshy/` (the 2D figures of 0.16 / 0.17). A
+    creator loses, if the three kinds go: generated icons, portraits and pictures; if only
+    the old pipeline goes: nothing in the editor.
+
   **Engine.** The removals above; `convert_035.rs`.
 
   **Verify.** The 0.35 example converts and plays through the smoke run; a 0.34 project is

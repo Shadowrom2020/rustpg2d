@@ -951,6 +951,35 @@ mod tests {
         ws.undo().unwrap();
         ws.history_frame(None);
         assert!(ws.project.db.item("moon_stew").is_none() && ws.project.db.item("apple").is_some());
+        // *Use another*: the stew is missing again; what names it names the apple instead, in
+        // the definitions, on the map and in a script.
+        ws.open_map("start");
+        let ts = ws.ts();
+        ws.place_entity(rustpg2d_engine::entity::EntityKind::Item, "moon_stew", gfx::prelude::vec2(3.5 * ts, 3.5 * ts)).unwrap_or_default();
+        if let Some(doc) = ws.doc.as_mut() {
+            // (Placed by hand where the editor refuses what doesn't exist.)
+            if !doc.map.entities.iter().any(|e| e.def == "moon_stew") {
+                let mut e: rustpg2d_engine::entity::EntityInstance = serde_json::from_value(serde_json::json!({ "uid": 900, "kind": "Item", "def": "moon_stew", "x": 112.0, "y": 112.0, "facing": "Down" })).unwrap();
+                e.uid = 900;
+                doc.map.entities.push(e);
+                doc.mark_changed();
+            }
+        }
+        ws.save_all();
+        std::fs::create_dir_all(ws.project.scripts_dir()).unwrap();
+        std::fs::write(ws.project.scripts_dir().join("main.rhai"), "fn feast() {\n    give_item(\"moon_stew\", 1);\n}\n").unwrap();
+        ws.refresh_refs();
+        ws.refresh_problems();
+        assert!(ws.problems.list.iter().filter(|p| p.missing() == Some((RefKind::Item, "moon_stew".to_string()))).count() >= 2, "{:?}", ws.problems.list.iter().map(|p| p.line()).collect::<Vec<_>>());
+        assert!(ws.use_another(RefKind::Item, "apple", "moon_stew").unwrap_err().contains("exists"), "the apple is there");
+        assert!(ws.use_another(RefKind::Item, "moon_stew", "sun_stew").unwrap_err().contains("there is no item"));
+        let said = ws.use_another(RefKind::Item, "moon_stew", "apple").unwrap();
+        assert!(said.starts_with("What named 'moon_stew' names 'apple' now") && said.contains("main.rhai"), "{said}");
+        assert_eq!(ws.def_value(RefKind::Recipe, "stew").unwrap()["result"], "apple");
+        assert!(ws.project.load_map("start").unwrap().entities.iter().any(|e| e.def == "apple"));
+        assert!(std::fs::read_to_string(ws.project.scripts_dir().join("main.rhai")).unwrap().contains("give_item(\"apple\", 1)"));
+        assert!(!ws.problems.list.iter().any(|p| p.missing().is_some()), "{:?}", ws.problems.list.iter().map(|p| p.line()).collect::<Vec<_>>());
+        assert!(ws.use_another(RefKind::Item, "moon_stew", "apple").is_err(), "nothing names it any more");
         // The two texts a missing thing is told by.
         let p = |text: String| Problem { severity: Severity::Error, area: Area::Maps, place: String::new(), text, target: Target::Project };
         assert_eq!(p(own_text(RefKind::Prop, "old chest")).missing(), Some((RefKind::Prop, "old chest".to_string())));

@@ -135,8 +135,24 @@ impl Workspace {
         } else {
             self.project.db.rename(kind, old, new);
         }
-        let mut refs = refactor::rename_in_db(&mut self.project.db, &mut self.project.config, kind, old, new);
+        let (refs, maps_changed, scripts, errors) = self.rename_references(kind, old, new);
+        let mut msg = format!("Renamed '{old}' to '{new}': {refs} reference(s) updated in {maps_changed} map file(s)");
+        if !scripts.is_empty() {
+            msg.push_str(&format!(", scripts: {}", scripts.join(", ")));
+        }
+        if !errors.is_empty() {
+            msg = format!("{msg}; errors: {}", errors.join("; "));
+        }
+        self.meta_renamed(kind, old, new);
+        self.db_hist.record(Extra::Rename { kind, old: old.to_string(), new: new.to_string() });
+        Ok(msg)
+    }
 
+    /// Everything that names `old` (definitions, settings, every map on disk and open,
+    /// scripts) names `new` instead; the definitions are saved. Returns how many references
+    /// changed, in how many map files, the scripts' changed lines, and what went wrong.
+    fn rename_references(&mut self, kind: RefKind, old: &str, new: &str) -> (usize, usize, Vec<String>, Vec<String>) {
+        let mut refs = refactor::rename_in_db(&mut self.project.db, &mut self.project.config, kind, old, new);
         // Every map on disk, then the open ones (which may have unsaved edits).
         let mut maps_changed = 0;
         let mut errors = Vec::new();
@@ -167,17 +183,35 @@ impl Workspace {
             self.reload_assets();
         }
         self.refresh_refs();
-        let mut msg = format!("Renamed '{old}' to '{new}': {refs} reference(s) updated in {maps_changed} map file(s)");
         // Ids passed to script functions (give_item("old"), teleport("old", ...), ...).
-        let changed = self.rename_in_scripts(kind, old, new, &mut errors);
-        if !changed.is_empty() {
-            msg.push_str(&format!(", scripts: {}", changed.join(", ")));
+        let scripts = self.rename_in_scripts(kind, old, new, &mut errors);
+        (refs, maps_changed, scripts, errors)
+    }
+
+    /// *Use another*: something names `missing`, which doesn't exist; every place that does
+    /// names `to` instead (definitions, settings, maps, scripts: written at once, as a rename
+    /// is). Says what changed.
+    pub fn use_another(&mut self, kind: RefKind, missing: &str, to: &str) -> Result<String, String> {
+        let there = |ws: &Workspace, id: &str| if kind == RefKind::Map { ws.maps.iter().any(|m| m == id) } else { ws.project.db.has(kind, id) };
+        if there(self, missing) {
+            return Err(format!("{} \"{missing}\" exists: nothing is wrong with what names it", kind.label().to_lowercase()));
+        }
+        if !there(self, to) {
+            return Err(format!("there is no {} \"{to}\"", kind.label().to_lowercase()));
+        }
+        self.begin(&format!("Use {to} for the missing {} {missing}", kind.label().to_lowercase()));
+        let (refs, maps_changed, scripts, errors) = self.rename_references(kind, missing, to);
+        if refs == 0 && scripts.is_empty() {
+            return Err(format!("nothing names {} \"{missing}\" in a way the editor can change: go there and pick another by hand", kind.label().to_lowercase()));
+        }
+        let mut msg = format!("What named '{missing}' names '{to}' now: {refs} reference(s), {maps_changed} map file(s)");
+        if !scripts.is_empty() {
+            msg.push_str(&format!(", scripts: {}", scripts.join(", ")));
         }
         if !errors.is_empty() {
             msg = format!("{msg}; errors: {}", errors.join("; "));
         }
-        self.meta_renamed(kind, old, new);
-        self.db_hist.record(Extra::Rename { kind, old: old.to_string(), new: new.to_string() });
+        self.refresh_problems();
         Ok(msg)
     }
 

@@ -155,7 +155,13 @@ pub fn show(ctx: &egui::Context, state: &mut NewAsset, groups: &[(&str, &[RefKin
                         }
                         ui.weak(*group);
                         for kind in kinds {
-                            if ui.selectable_label(state.kind == Some(kind), kind.label()).on_hover_text(editor_core::defs::about(kind)).clicked() && state.kind != Some(kind) {
+                            let r = ui.selectable_label(state.kind == Some(kind), kind.label()).on_hover_text(editor_core::defs::about(kind));
+                            // (A tour points at the kind to pick, until it is picked.)
+                            // (Scrolled out of view: the list it is in, to scroll.)
+                            if state.kind != Some(kind) {
+                                crate::tourpanel::mark(ui, &format!("new:{}", kind.name()), if ui.is_rect_visible(r.rect) { r.rect } else { egui::Rect::from_x_y_ranges(r.rect.x_range(), ui.clip_rect().y_range()) });
+                            }
+                            if r.clicked() && state.kind != Some(kind) {
                                 state.kind = Some(kind);
                                 state.from = None;
                                 state.error = None;

@@ -228,6 +228,16 @@ pub enum PaletteKind {
     Search,
 }
 
+/// How the Problems tab mends something that is named but doesn't exist.
+enum Fix {
+    /// An empty one under that id.
+    Create,
+    /// The asset library's one of that id.
+    Library,
+    /// Another one that exists, named instead everywhere.
+    Another(String),
+}
+
 /// What a tab's UI asked for (done after the tabs are drawn).
 enum Ask {
     Open(Tab),
@@ -1244,7 +1254,7 @@ impl Shell {
                     ui.label(format!("{e} errors, {w} warnings"));
                     ui.separator();
                     let r = ui.label(if self.unsaved() { "unsaved changes" } else { "saved" });
-                    crate::tourpanel::mark(ui.ctx(), "status:saved", r.rect);
+                    crate::tourpanel::mark(ui, "status:saved", r.rect);
                 });
             });
         });
@@ -1306,10 +1316,19 @@ impl Shell {
         }
         self.gallery_ui(&ctx, rs);
         // A tour that is followed: its steps, and a frame around the control to use.
-        if let Some(crate::tourpanel::Want::Help(file, words)) = self.tour.show(&ctx, &self.ws) {
-            let (chapter, anchor) = editor_core::manual::topic(file, words);
-            self.help.open(chapter, &anchor);
-            self.show_tab(Tab::Help);
+        match self.tour.show(&ctx, &self.ws) {
+            Some(crate::tourpanel::Want::Help(file, words)) => {
+                let (chapter, anchor) = editor_core::manual::topic(file, words);
+                self.help.open(chapter, &anchor);
+                self.show_tab(Tab::Help);
+            }
+            // (The tab the step at hand is done in.)
+            Some(crate::tourpanel::Want::Show(name)) => {
+                if let Some(tab) = self.tab_named(&name) {
+                    self.show_tab(tab);
+                }
+            }
+            None => {}
         }
         // The *Share…* window.
         if let Some(mut w) = self.share.take() {
@@ -1509,7 +1528,7 @@ impl Shell {
                 ui.close();
             }
         });
-        crate::tourpanel::mark(ui.ctx(), "menu:Play", play_menu.response.rect);
+        crate::tourpanel::mark(ui, "menu:Play", play_menu.response.rect);
     }
 
     /// The entries the palette shows for its text: (label, detail, what Enter does).
@@ -1694,6 +1713,8 @@ impl egui_dock::TabViewer for Viewer<'_> {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, tab: &mut Tab) {
+        // (A tab that is drawn is in view: a tour's step done in it needn't lead there.)
+        crate::tourpanel::mark(ui, &format!("tab:{}", tab.name()), ui.max_rect());
         match tab {
             Tab::Browser => self.browser(ui),
             Tab::Overview => self.overview(ui),
@@ -1826,7 +1847,7 @@ impl Viewer<'_> {
             if filtering && found.is_empty() {
                 continue;
             }
-            egui::CollapsingHeader::new(*group).default_open(*group == "World").open(filtering.then_some(true)).show(ui, |ui| {
+            let group_header = egui::CollapsingHeader::new(*group).default_open(*group == "World").open(filtering.then_some(true)).show(ui, |ui| {
                 if *group == "World" && !filtering && ui.selectable_label(false, "World view").on_hover_text("Every map and the ways between them").clicked() {
                     self.asks.push(Ask::Open(Tab::World));
                 }
@@ -1883,9 +1904,16 @@ impl Viewer<'_> {
                             }
                         }
                     });
-                    crate::tourpanel::mark(ui.ctx(), &format!("browser:{}", kind.name()), header.header_response.rect);
+                    crate::tourpanel::mark(ui, &format!("browser:{}", kind.name()), header.header_response.rect);
                 }
             });
+            // (A group that is folded away stands in for its kinds: a tour points at it.)
+            for kind in kinds.iter() {
+                let name = format!("browser:{}", kind.name());
+                if !crate::tourpanel::marked_now(ui.ctx(), &name) {
+                    crate::tourpanel::mark(ui, &name, group_header.header_response.rect);
+                }
+            }
         }
     }
 
@@ -2166,10 +2194,18 @@ impl Viewer<'_> {
                             if let Some((kind, id)) = p.missing().filter(|(k, _)| k.is_def()) {
                                 let what = kind.label().to_lowercase();
                                 if self.ws.lib.lib.as_ref().is_some_and(|l| l.db.has(kind, &id)) && ui.small_button("Take it from the library").on_hover_text(format!("The library has a {what} \"{id}\": it comes with what it needs")).clicked() {
-                                    fix = Some((kind, id.clone(), true));
+                                    fix = Some((kind, id.clone(), Fix::Library));
                                 }
-                                if ui.small_button("Create it").on_hover_text(format!("Makes an empty {what} \"{id}\" and opens it to fill in. (Or go there and pick another.)")).clicked() {
-                                    fix = Some((kind, id, false));
+                                if ui.small_button("Create it").on_hover_text(format!("Makes an empty {what} \"{id}\" and opens it to fill in")).clicked() {
+                                    fix = Some((kind, id.clone(), Fix::Create));
+                                }
+                                // One that exists instead, everywhere the missing one is named.
+                                let known: Vec<String> = self.lists.iter().find(|(k, _)| *k == kind).map_or(Vec::new(), |(_, l)| l.iter().map(|(i, _)| i.clone()).collect());
+                                if !known.is_empty() {
+                                    let picked = ui.push_id(("use another", &p.place, &id), |ui| name_menu(ui, "Use another…", &format!("Search the {}", plural(kind.label()).to_lowercase()), &known, None)).inner;
+                                    if let Some(to) = picked {
+                                        fix = Some((kind, id, Fix::Another(to)));
+                                    }
                                 }
                             }
                         });
@@ -2180,14 +2216,19 @@ impl Viewer<'_> {
         if let Some(target) = go {
             self.go(&target);
         }
-        if let Some((kind, id, from_library)) = fix {
-            let r = if from_library { self.ws.add_missing_from_library(kind, &id) } else { self.ws.create_missing(kind, &id) };
+        if let Some((kind, id, how)) = fix {
+            let (r, open) = match &how {
+                Fix::Library => (self.ws.add_missing_from_library(kind, &id), Some(id.clone())),
+                Fix::Create => (self.ws.create_missing(kind, &id), Some(id.clone())),
+                // (Everything that named the missing one names this one: nothing new to open.)
+                Fix::Another(to) => (self.ws.use_another(kind, &id, to), None),
+            };
             match r {
                 Ok(said) => {
                     self.ws.set_status(said);
-                    self.asks.push(Ask::Open(Tab::Def(kind, id)));
+                    self.asks.extend(open.map(|id| Ask::Open(Tab::Def(kind, id))));
                 }
-                Err(e) => self.ws.set_status(e),
+                Err(e) => self.ws.set_status(format!("Not fixed: {e}")),
             }
         }
     }

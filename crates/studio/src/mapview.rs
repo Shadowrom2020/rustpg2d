@@ -460,7 +460,7 @@ impl MapView {
         ui.horizontal_wrapped(|ui| {
             for t in Tool::offered(name) {
                 let r = ui.selectable_label(self.tool == t, t.label()).on_hover_text(format!("{} ({})", t.help(), t.key().name()));
-                crate::tourpanel::mark(ui.ctx(), &format!("tool:{}", t.label()), r.rect);
+                crate::tourpanel::mark(ui, &format!("tool:{}", t.label()), r.rect);
                 if r.clicked() {
                     self.tool = t;
                 }
@@ -617,7 +617,9 @@ impl MapView {
                 self.place_kind = None;
             }
             for (kind, label) in KINDS {
-                if ui.selectable_label(self.place_kind == Some(kind), label).clicked() {
+                let r = ui.selectable_label(self.place_kind == Some(kind), label);
+                crate::tourpanel::mark(ui, &format!("place:{}", kind.name()), r.rect);
+                if r.clicked() {
                     self.place_kind = Some(kind);
                 }
             }
@@ -823,6 +825,11 @@ impl MapView {
         }
         ui.separator();
         // (Both ways: a wide row scrolls instead of widening the panel.)
+        // (A tour points at the Inspector of a thing that is selected, when the control it
+        // means is scrolled out of view.)
+        if matches!(self.sel.as_slice(), [Selection::Entity(_)]) {
+            crate::tourpanel::mark(ui, "inspector:thing", ui.available_rect_before_wrap());
+        }
         egui::ScrollArea::both().id_salt("inspector").auto_shrink([false, false]).show(ui, |ui| {
             crate::form::set_narrow(ui.ctx(), true);
             self.inspector(ui, p, name);
@@ -1133,7 +1140,9 @@ impl MapView {
                 let mut cx = crate::form::Cx { lists: p.lists, maps: &p.ws.maps, show_all: p.show_all, compact: true, pictures, refs: Some(&p.ws.refs), asks: Vec::new() };
                 // (A structure is no place to play in: its events are tried where it was placed.)
                 crate::sheet::set_tryable(ui.ctx(), current && !editor_core::structdoc::is_scratch(name));
+                crate::tourpanel::set_scope(ui.ctx(), if matches!(one, Selection::Entity(_)) { "thing:" } else { "" });
                 let changed = crate::form::sections_ui(ui, &mut cx, node, &mut value, sections) || state_changed;
+                crate::tourpanel::set_scope(ui.ctx(), "");
                 crate::sheet::set_tryable(ui.ctx(), false);
                 let tried = crate::sheet::take_tried(ui.ctx());
                 for ask in cx.asks {

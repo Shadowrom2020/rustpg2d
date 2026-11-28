@@ -14,7 +14,7 @@ use crate::workspace::Workspace;
 /// What ticks a step.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Check {
-    /// A map is open to work on.
+    /// A map is open to work on, in a tab the creator has seen.
     MapOpen,
     /// The open map's ground was painted since the tour began.
     GroundPainted,
@@ -38,13 +38,27 @@ pub enum Check {
     QuestStarted,
 }
 
+/// Where a step is done: the tab its controls are in.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Place {
+    /// Wherever the creator is.
+    Anywhere,
+    /// The tab of the map being worked on.
+    Map,
+    /// The tab of the quest made in this tour.
+    NewQuest,
+}
+
 pub struct Step {
     /// What to do, in a few words (the list's line).
     pub title: &'static str,
     /// How, with the names of what to click.
     pub how: &'static str,
-    /// The control the editor points at (`tool:Terrain`, `browser:map`, `menu:Play`; "" = none).
-    pub anchor: &'static str,
+    /// The controls the editor points at, the nearest to the deed first: the first that is in
+    /// view gets the frame (`thing:add:event` in the Inspector once a character is selected,
+    /// else `tool:Select`). None = nothing to point at.
+    pub anchors: &'static [&'static str],
+    pub place: Place,
     pub check: Check,
     /// Where the manual says more: a chapter's file and words of the section's heading.
     pub help: (&'static str, &'static [&'static str]),
@@ -63,11 +77,11 @@ pub const TOURS: [Tour; 3] = [
         title: "Your first map",
         about: "Open a map, paint its ground, put something on it, and walk on it in the game.",
         steps: &[
-            Step { title: "Open a map", how: "In the Project browser at the left, open World, then Maps, and click a map (a new game has one called start). It opens as a tab.", anchor: "browser:map", check: Check::MapOpen, help: ("03-maps.md", &["creating"]) },
-            Step { title: "Paint some ground", how: "Click Terrain in the bar above the map (or press P), pick a material at the left (Dirt, Water, Cobblestone…) and drag over the map.", anchor: "tool:Terrain", check: Check::GroundPainted, help: ("03-maps.md", &["ground tool", "painted ground"]) },
-            Step { title: "Put something on the map", how: "Click Place (N), pick a prop at the left (a barrel, a chest, a tree), then click the map where it should stand.", anchor: "tool:Place", check: Check::ThingPlaced, help: ("04-objects-and-zones.md", &["placing"]) },
-            Step { title: "Save", how: "Press Ctrl+S: the map and everything else is written. (The status bar at the bottom says unsaved changes until then.)", anchor: "status:saved", check: Check::Saved, help: ("02-the-editor.md", &["saving"]) },
-            Step { title: "Play it", how: "Press F6 (Play here): the game starts in a tab, with the hero on the map you have open. Arrow keys or WASD walk; the tab's bar restarts and pauses it.", anchor: "menu:Play", check: Check::Played, help: ("02-the-editor.md", &["play-test", "play"]) },
+            Step { title: "Open a map", how: "In the Project browser at the left, open World, then Maps, and click a map (a new game has one called start). It opens as a tab.", anchors: &["browser:map"], place: Place::Anywhere, check: Check::MapOpen, help: ("03-maps.md", &["creating"]) },
+            Step { title: "Paint some ground", how: "Click Terrain in the bar above the map (or press P), pick a material at the left (Dirt, Water, Cobblestone…) and drag over the map.", anchors: &["tool:Terrain"], place: Place::Map, check: Check::GroundPainted, help: ("03-maps.md", &["ground tool", "painted ground"]) },
+            Step { title: "Put something on the map", how: "Click Place (N), pick a prop at the left (a barrel, a chest, a tree), then click the map where it should stand.", anchors: &["tool:Place"], place: Place::Map, check: Check::ThingPlaced, help: ("04-objects-and-zones.md", &["placing"]) },
+            Step { title: "Save", how: "Press Ctrl+S: the map and everything else is written. (The status bar at the bottom says unsaved changes until then.)", anchors: &["status:saved"], place: Place::Anywhere, check: Check::Saved, help: ("02-the-editor.md", &["saving"]) },
+            Step { title: "Play it", how: "Press F6 (Play here): the game starts in a tab, with the hero on the map you have open. Arrow keys or WASD walk; the tab's bar restarts and pauses it.", anchors: &["menu:Play"], place: Place::Anywhere, check: Check::Played, help: ("02-the-editor.md", &["play-test", "play"]) },
         ],
     },
     Tour {
@@ -75,11 +89,11 @@ pub const TOURS: [Tour; 3] = [
         title: "A character who talks",
         about: "Make a character, stand them on the map, give them something to say, and talk to them in the game.",
         steps: &[
-            Step { title: "Open a map", how: "Open the map the character will stand on (Project browser, World, Maps).", anchor: "browser:map", check: Check::MapOpen, help: ("03-maps.md", &["creating"]) },
-            Step { title: "Make a character", how: "Press Ctrl+N, pick Character, give it a name. As one of the asset library starts it from a villager, a guard or a merchant with its figure; blank starts with the mannequin.", anchor: "browser:character", check: Check::CharacterMade, help: ("06-characters.md", &[]) },
-            Step { title: "Stand them on the map", how: "On the map's tab click Place (N), pick Characters at the left and your character, then click the map.", anchor: "tool:Place", check: Check::CharacterPlaced, help: ("04-objects-and-zones.md", &["placing"]) },
-            Step { title: "Give them something to say", how: "Click Select (V) and the character. In the Inspector at the right, under its events, add an event: When Interact, Do Say, and type the line.", anchor: "tool:Select", check: Check::SomeoneTalks, help: ("07-events.md", &["triggers"]) },
-            Step { title: "Talk to them", how: "Press F6 (Play here), walk up to the character and press E.", anchor: "menu:Play", check: Check::Played, help: ("02-the-editor.md", &["play-test", "play"]) },
+            Step { title: "Open a map", how: "Open the map the character will stand on (Project browser, World, Maps).", anchors: &["browser:map"], place: Place::Anywhere, check: Check::MapOpen, help: ("03-maps.md", &["creating"]) },
+            Step { title: "Make a character", how: "Press Ctrl+N, pick Character, give it a name. As one of the asset library starts it from a villager, a guard or a merchant with its figure; blank starts with the mannequin.", anchors: &["new:character", "browser:character"], place: Place::Anywhere, check: Check::CharacterMade, help: ("06-characters.md", &[]) },
+            Step { title: "Stand them on the map", how: "On the map's tab click Place (N), pick Characters at the left and your character, then click the map.", anchors: &["place:character", "tool:Place"], place: Place::Map, check: Check::CharacterPlaced, help: ("04-objects-and-zones.md", &["placing"]) },
+            Step { title: "Give them something to say", how: "A character just placed is selected (else click Select (V) and the character). In the Inspector at the right, scroll down to Events: + Add an event…, When the player uses it or talks to it. Then + Line in that event, and type what they say.", anchors: &["thing:line", "thing:add:event", "inspector:thing", "tool:Select"], place: Place::Map, check: Check::SomeoneTalks, help: ("07-events.md", &["triggers"]) },
+            Step { title: "Talk to them", how: "Press F6 (Play here), walk up to the character and press E.", anchors: &["menu:Play"], place: Place::Anywhere, check: Check::Played, help: ("02-the-editor.md", &["play-test", "play"]) },
         ],
     },
     Tour {
@@ -87,10 +101,10 @@ pub const TOURS: [Tour; 3] = [
         title: "A quest",
         about: "Make a quest with a stage, have someone hand it out, and find it in the journal.",
         steps: &[
-            Step { title: "Make a quest", how: "Press Ctrl+N, pick Quest (under Story) and give it a title.", anchor: "browser:quest", check: Check::QuestMade, help: ("05-database.md", &["quests"]) },
-            Step { title: "Say what is to be done", how: "In the quest's tab, write its first stage in your own words: the line the journal shows for what is to be done next (Find the lost ring). A new quest starts with two stages to change.", anchor: "", check: Check::QuestHasStages, help: ("05-database.md", &["quests"]) },
-            Step { title: "Have someone hand it out", how: "Open a map, select a character (or place one), and in the Inspector add an event: When Interact, Do Quest: your quest, Start. A Say before it makes them ask.", anchor: "browser:map", check: Check::QuestStarted, help: ("07-events.md", &["quest"]) },
-            Step { title: "Take it in the game", how: "Press F6 (Play here), talk to the character with E, then press J: the journal lists the quest with its stage.", anchor: "menu:Play", check: Check::Played, help: ("15-players-guide.md", &["journal", "quest"]) },
+            Step { title: "Make a quest", how: "Press Ctrl+N, pick Quest (under Story) and give it a title.", anchors: &["new:quest", "browser:quest"], place: Place::Anywhere, check: Check::QuestMade, help: ("05-database.md", &["quests"]) },
+            Step { title: "Say what is to be done", how: "In the quest's tab, write its first stage in your own words: the line the journal shows for what is to be done next (Find the lost ring). A new quest starts with two stages to change.", anchors: &[], place: Place::NewQuest, check: Check::QuestHasStages, help: ("05-database.md", &["quests"]) },
+            Step { title: "Have someone hand it out", how: "Open a map, select a character (or place one), and in the Inspector at the right, under Events: + Add an event…, When the player uses it or talks to it; then + Add an action…, Quest: your quest, Start. A + Line before it makes them ask.", anchors: &["thing:add:action", "thing:add:event", "inspector:thing", "tool:Select", "browser:map"], place: Place::Anywhere, check: Check::QuestStarted, help: ("07-events.md", &["quest"]) },
+            Step { title: "Take it in the game", how: "Press F6 (Play here), talk to the character with E, then press J: the journal lists the quest with its stage.", anchors: &["menu:Play"], place: Place::Anywhere, check: Check::Played, help: ("15-players-guide.md", &["journal", "quest"]) },
         ],
     },
 ];
@@ -118,6 +132,9 @@ pub struct TourRun {
     start: Start,
     /// The game was started from the editor since.
     pub played: bool,
+    /// A map's tab was in view since (a project opens its start map without showing it: the
+    /// window says when one is looked at).
+    pub map_seen: bool,
     pub skipped: BTreeSet<usize>,
 }
 
@@ -146,7 +163,7 @@ impl Workspace {
         let then = run.start.map.clone().filter(|m| now.as_ref().is_some_and(|n| n.0 == m.0)).unwrap_or_default();
         let new_quest = |id: &str| !run.start.quests.contains(id) && db.quests.iter().any(|q| q.id == id);
         match check {
-            Check::MapOpen => now.is_some(),
+            Check::MapOpen => now.is_some() && run.map_seen,
             Check::GroundPainted => now.is_some_and(|n| n.1 != then.1 || (run.start.map.as_ref().is_none_or(|m| m.0 != n.0) && n.1 > 0 && self.doc.as_ref().is_some_and(|d| d.is_dirty()))),
             Check::ThingPlaced => now.is_some_and(|n| n.2 > then.2),
             Check::Saved => !self.is_dirty(),
@@ -169,7 +186,7 @@ impl TourRun {
     pub fn start(ws: &Workspace, tour: usize) -> TourRun {
         let db = &ws.project.db;
         let start = Start { map: ws.tour_map(), characters: db.characters.iter().map(|c| c.id.clone()).collect(), quests: db.quests.iter().map(|q| q.id.clone()).collect() };
-        TourRun { tour: tour.min(TOURS.len() - 1), start, played: false, skipped: BTreeSet::new() }
+        TourRun { tour: tour.min(TOURS.len() - 1), start, played: false, map_seen: false, skipped: BTreeSet::new() }
     }
 
     pub fn tour(&self) -> &'static Tour {
@@ -186,6 +203,16 @@ impl TourRun {
             so_far = done || self.skipped.contains(&k);
         }
         out
+    }
+
+    /// The tab the step at hand is done in, by its name (`map:forest`, `def:quest:ring`):
+    /// `None` when it is done anywhere, or there is no such tab to lead to yet.
+    pub fn tab(&self, ws: &Workspace) -> Option<String> {
+        match self.tour().steps[self.current(ws)?].place {
+            Place::Anywhere => None,
+            Place::Map => ws.tour_map().map(|m| format!("map:{}", m.0)),
+            Place::NewQuest => ws.project.db.quests.iter().find(|q| !self.start.quests.contains(&q.id)).map(|q| format!("def:quest:{}", q.id)),
+        }
     }
 
     /// The step to do now (`None`: the tour is through).
@@ -231,6 +258,8 @@ mod tests {
         assert_eq!(run.status(&ws), "first-map 0/5 [. . . . .] now=Open a map");
         // Each thing done ticks its step, and only in order: saving counts once the steps before it do.
         ws.open_map("start");
+        assert_eq!(run.current(&ws), Some(0), "open, but not looked at yet (a project opens its start map by itself)");
+        run.map_seen = true;
         assert_eq!(run.current(&ws), Some(1));
         let ts = ws.ts();
         let value = ws.ground_value("dirt").unwrap();
@@ -247,7 +276,8 @@ mod tests {
         assert_eq!(run.current(&ws), None);
         // A step can be skipped: the ones after it count all the same.
         let mut again = TourRun::start(&ws, 0);
-        assert_eq!(again.current(&ws), Some(1), "the map is open already");
+        again.map_seen = true;
+        assert_eq!(again.current(&ws), Some(1), "the map is open already, in view");
         again.skipped.insert(1);
         again.skipped.insert(2);
         again.played = true;
@@ -260,11 +290,14 @@ mod tests {
         let (mut ws, dir) = fresh("talk");
         let mut run = TourRun::start(&ws, tour_named("talking-character").unwrap());
         ws.open_map("start");
+        run.map_seen = true;
         assert_eq!(run.current(&ws), Some(1));
+        assert_eq!(run.tab(&ws), None, "a character is made anywhere");
         // A character from the library, placed, with a line to say.
         let id = ws.make_from_library(RefKind::Character, "villager", "Mara").unwrap();
         ws.history_frame(None);
         assert_eq!(run.current(&ws), Some(2));
+        assert_eq!(run.tab(&ws).as_deref(), Some("map:start"), "they are stood on the map in its tab");
         let ts = ws.ts();
         let uid = ws.place_entity(EntityKind::Character, &id, gfx::prelude::vec2(8.5 * ts, 8.0 * ts)).unwrap();
         ws.history_frame(None);

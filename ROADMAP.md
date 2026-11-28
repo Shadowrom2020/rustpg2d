@@ -2138,6 +2138,19 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     beside *Tag…*, *Delete*); the *Share…* window offers the project's plugins to tick (who
     installs the pack is told that it runs); a pack's preview pictures are shown where it
     is looked at and on the installed packs' cards.
+  - **An item's own 3D model is the item's file** (a bug older than this part, found by
+    following a tour on a library that had taken the starter as a pack: 20 files were not
+    there, the swords', bows' and backpacks' models, and a new game with the basics could
+    not be made). `starter_update::own_files` left an item's model out, so an update never
+    wrote it (0.35's *Update asset library* had the same gap; there new assets came another
+    way). It lists it now; a file that is missing in a library counts as untouched, so the
+    next update brings it back; the starter's history was written again with those files
+    (its tool and its test are the editor-core's now: `cargo run -p rustpg2d-editor-core
+    --example starter_history`, `starter_history_covers_the_starter`). Tests:
+    `an_items_own_model_file_comes_and_goes_with_the_item`, `every_file_of_the_starter_
+    belongs_to_an_asset`, `an_empty_library_takes_the_whole_starter_as_a_pack` (the real
+    starter library into an empty one: every file its assets name is there, and a new game
+    gets its basics from it; it fails without the fix).
   Still open: the release shipping the starter as a pack with an official index (the preset
   source), the library no longer taking the starter's assets by itself, a large pack read
   beside the editor (looking at the starter holds the window for some seconds), the old writers (`.r2dlib`, `.r2dplugin`)
@@ -2304,10 +2317,25 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     screen) with *What's new* and *Not now*. An editor that starts for the first time has
     no news. *What's new* is the last entry of the Help tab's chapters, with the versions to
     pick from.
-  Still open: of the tours: more controls that can be pointed at (the Inspector's event
-  sheet, *New…*), a tour that waits for the right tab; of the problems: *Remove the
-  reference*, fixes for other kinds of entries; of the Help tab: the manual's pictures (they
-  show the 0.35 editor: with the manual's rewrite, part 12), the place read last kept.
+  - **Tours point nearer and lead back**: a step names several controls, the nearest to the
+    deed first, and the first that is in view gets the frame (`Step::anchors`): *Character*
+    in *New…* once that is open (the list it is in while it is scrolled away), else the
+    kind in the Project browser (the group's header while the group is folded); the Place
+    tool's *Characters*; in the Inspector of the thing selected *+ Line* once it has an
+    event, else *+ Add an event…*, else (scrolled away) the Inspector itself. A control
+    that is scrolled out of view says nothing (`tourpanel::mark` asks the Ui), so the frame
+    is never drawn where nothing is. A step knows the tab it is done in (`Step::place`: the
+    map's, the new quest's): while that tab isn't in view the window says *This is done in
+    another tab* with *Show the map start*. *Open a map* is ticked once a map's tab was in
+    view (a project opens its start map without showing it). The window is moved by its
+    title and starts beside the place a map's Inspector has.
+  - **Use another…** (Problems): beside *Create it*, an entry about something that doesn't
+    exist offers the ones of its kind that do (searched); everything that named the missing
+    one names the one picked (`Workspace::use_another`: definitions, settings, maps on disk
+    and open, scripts, as a rename writes them).
+  Still open: of the problems: fixes for other kinds of entries (a map nothing leads to, a
+  quest nobody gives: they lead to their place); of the Help tab: the manual's pictures
+  (they show the 0.35 editor: with the manual's rewrite, part 12), the place read last kept.
 
   **Decided while building.**
   - **A Markdown reader of our own, not a crate**: the manual uses a small part of Markdown,
@@ -2331,6 +2359,14 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   - **A new map and a map's size were missing in the new editor** (found while writing the
     empty places: nothing could be offered for "make another map"). Both are in now: see
     part 6.
+  - **No *Remove the reference***: what removing means differs by where the name stands (an
+    entry of a list, an action of an event, a field that must name something), and a wrong
+    guess deletes more than was meant. *Use another…* and *Create it* mend the reference;
+    the entry's place is a click away for taking it out by hand.
+  - **A step is ticked by the project, pointed at by the window**: which control is in view
+    is the window's knowledge (`tourpanel`), what was done the project's (`tours.rs`); the
+    one thing the window tells a tour is that a map's tab was looked at and that the game
+    was started.
 
   **Verify.** Each tour followed on a fresh project by `egui_kittest`, ending with a play-test
   that starts. F1 from five places opens the right chapter. A broken reference fixed from the
@@ -2345,14 +2381,40 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     **In the window, the first tour followed to its end** on a new game: the Overview's
     *Learn by doing*, the frame around *Terrain*, then *Place*, the saved mark and the Play
     menu as each step was done by the script's map words, *Play here* starting the game:
-    5 of 5. The other two tours were followed in the core tests only; **the play-test of
-    a tour was started, nobody played it**.
+    5 of 5. **The second tour followed to its end by real clicks and keys** on a new game:
+    the frame around *Maps* in the browser, the map opened by a click; *New…*, the frame
+    around *Character*, a name typed, Enter; the character's tab in front, so the window
+    said *This is done in another tab*: *Show the map start* clicked; the frame around
+    *Place*, then around the tool's *Characters*; the character picked and put down by a
+    click on the map; the frame around the Inspector, after scrolling around *+ Add an
+    event…*, the event picked from its menu, the frame around *+ Line*, clicked; F6: 5 of
+    5. Of the third, in the window: the frame around *Quest* in *New…* (around the list
+    before it was scrolled there), the quest made, its tab left (*wait=def:quest:…*), its
+    stage rewritten: 2 of 4; its other steps use the second tour's controls. **The
+    play-test of a tour was started, nobody played it.**
   - A broken reference fixed from the Problems panel: `a_broken_reference_is_fixed_by_
     making_what_is_missing_or_taking_it_from_the_library` (a recipe naming two items that
     aren't there: the apple taken from the library with its icon's sheet, the stew made
     empty under its id; no entry is left; undone, the stew is missing again). In the
     window: a recipe's result set to a *ghost_pie*, the entry under *Definitions (1)*,
     *Create it* clicked: the item's tab opens, no error is left.
+    *Use another…*: the same test goes on (a recipe, an item lying on the map and a
+    script's `give_item` name a stew that isn't there: all three name the apple after it,
+    the map's file and the script's among them); in the window a recipe's result named a
+    *moon_potion*, *Use another…* clicked, *poti* typed, Enter: the recipe's file names the
+    potion, no error is left.
+  - This step's: `the_server_is_started_and_its_set_up_copied_for_each_program`,
+    `every_program_gets_a_set_up_that_names_the_address` (also against the manual's chapter
+    13); `the_changelog_is_cut_into_releases_and_the_news_counted`, `whats_new_is_a_chapter_
+    of_its_own_and_a_field_is_explained`, `every_chapter_and_every_release_is_drawn_in_
+    characters_the_font_has`; `a_fields_label_tells_the_window_what_was_asked_about`. In
+    the window: the AI agents page with the smoke client connected (17 calls listed, the
+    set-ups naming port 7811), the server still on after *Close this project* and another
+    project opened; a config folder of an older editor: the banner, *What's new*, the
+    version remembered, no banner after; a first start: no banner; F1 on *Stack size* and
+    *About this field* from the menu of *Consumable* (a right-click); an empty game: a
+    kind without definitions, the Problems tab before and after the check, a map made
+    through *New…* (typed, Enter), its empty Outliner, *Resize* and its undo.
   - Done so far: `manual` tests (Markdown cut into blocks and spans; all 21 chapters with
     their sections, every internal link leading somewhere; a search finds *Painted ground*
     by its title and lockpicking in the gameplay chapter; a topic's section, else the

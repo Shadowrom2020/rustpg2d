@@ -411,11 +411,13 @@ fn add_menu(ui: &mut egui::Ui, inner: Node, site: &str, kind: Kind, speaker: Opt
     let mut pick = None;
     ui.horizontal(|ui| {
         if let Some(speaker) = &speaker {
-            if ui.button("+ Line").on_hover_text("A line of talk, written here: who speaks and what is said").clicked() {
+            let r = ui.button("+ Line").on_hover_text("A line of talk, written here: who speaks and what is said");
+            crate::tourpanel::mark_here(ui, "line", r.rect);
+            if r.clicked() {
                 pick = Some(serde_json::json!({"Dialog": {"speaker": speaker, "text": ""}}));
             }
         }
-        ui.menu_button(format!("+ Add {} {one}…", if kind == Kind::Condition { "a" } else { "an" }), |ui| {
+        let add = ui.menu_button(format!("+ Add {} {one}…", if kind == Kind::Condition { "a" } else { "an" }), |ui| {
             ui.set_min_width(260.0);
             let fid = ui.scope_id().with("search");
             let mut filter: String = ui.data_mut(|d| d.get_temp(fid).unwrap_or_default());
@@ -474,6 +476,8 @@ fn add_menu(ui: &mut egui::Ui, inner: Node, site: &str, kind: Kind, speaker: Opt
             }
             ui.data_mut(|d| d.insert_temp(fid, filter));
         });
+        // (A tour points here: `thing:add:event` in the Inspector of a thing on a map.)
+        crate::tourpanel::mark_here(ui, &format!("add:{one}"), add.response.rect);
         if let Some(v) = copied(ui, kind) {
             if ui.small_button("Paste").on_hover_text(format!("The {one} copied last, at the end")).clicked() {
                 pick = Some(v);

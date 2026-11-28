@@ -29,6 +29,11 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   roof. A building without walls is now drawn after everything under it (it is still cut away
   around the hero).
 
+- **Fixed: an item's own 3D model is updated with the item.** *Update asset library* (and a
+  starter library taken as a pack) never wrote the model file of an item (a sword's, a bow's, a
+  backpack's): a library that got such items by an update had their definitions without their
+  models. The update writes them now and brings back the ones that are missing.
+
 ### Editor
 - **The new editor's window** (`rustpg2d-studio`, part 3 of *The Studio*), egui 0.37 on the
   engine's own renderer: tabs that can be arranged, a Project browser with fixed groups, a
@@ -141,6 +146,14 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   Place and Terrain tools; the Problems tab says what the check looks for before it ran and
   that nothing was found after; the Place tool and the World view say what to do when there
   is nothing to place or only one map.
+- **Tours point nearer and lead back** (part 10): a tour's frame goes to the control nearest
+  to what is to be done (*Character* in *New…*, the Place tool's *Characters*, *+ Add an
+  event…* and *+ Line* in the Inspector) and is never drawn around something scrolled out of
+  view; when a step is done in another tab than the one in front, the tour says so and
+  shows that tab. Its window can be moved.
+- **Use another…** (part 10): a problem about something that doesn't exist also offers the
+  ones that do; everything that named the missing one (definitions, maps, scripts) names the
+  one picked.
 - **The manual inside the editor** (part 10): the *Help* tab shows the Creator's Manual with
   its chapters, a search over all of it and links that lead on. **F1** opens it at the part
   about what you are working on: a map's tool, a kind of thing, scripts, publishing.

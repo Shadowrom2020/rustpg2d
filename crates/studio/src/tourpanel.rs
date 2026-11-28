@@ -13,12 +13,24 @@ fn marks_id() -> egui::Id {
 }
 
 /// A control a tour may point at says where it is this frame (`tool:Terrain`, `menu:Play`…).
-pub fn mark(ctx: &egui::Context, name: &str, rect: egui::Rect) {
+/// One that is scrolled out of view says nothing: there is nothing to point at.
+pub fn mark(ui: &egui::Ui, name: &str, rect: egui::Rect) {
+    if !ui.is_rect_visible(rect) {
+        return;
+    }
+    let ctx = ui.ctx();
     let frame = ctx.cumulative_frame_nr();
     ctx.data_mut(|d| {
         let marks: &mut HashMap<String, (egui::Rect, u64)> = d.get_temp_mut_or_default(marks_id());
         marks.insert(name.to_string(), (rect, frame));
     });
+}
+
+/// Whether a control said where it is in this very frame (a list that is folded away lets
+/// what holds it stand in: the group's header for a kind's).
+pub fn marked_now(ctx: &egui::Context, name: &str) -> bool {
+    let frame = ctx.cumulative_frame_nr();
+    ctx.data(|d| d.get_temp::<HashMap<String, (egui::Rect, u64)>>(marks_id())).is_some_and(|m| m.get(name).is_some_and(|(_, f)| *f == frame))
 }
 
 /// Where a marked control was in this frame or the one before.
@@ -27,10 +39,31 @@ fn marked(ctx: &egui::Context, name: &str) -> Option<egui::Rect> {
     ctx.data(|d| d.get_temp::<HashMap<String, (egui::Rect, u64)>>(marks_id())).and_then(|m| m.get(name).copied()).filter(|(_, f)| frame.saturating_sub(*f) <= 1).map(|(r, _)| r)
 }
 
+/// What is shown from here on belongs to this (`thing:` = the Inspector of a thing placed
+/// on a map; "" = nothing in particular): its controls say where they are under that name
+/// ([`mark_here`]), so a tour can point at the *Add an event* of the thing and not of the map.
+pub fn set_scope(ctx: &egui::Context, scope: &'static str) {
+    ctx.data_mut(|d| d.insert_temp(egui::Id::unique("tour scope"), scope));
+}
+
+/// [`mark`] under the scope set by [`set_scope`] (`add:event` in the scope `thing:` is
+/// `thing:add:event`).
+pub fn mark_here(ui: &egui::Ui, name: &str, rect: egui::Rect) {
+    let scope: &'static str = ui.ctx().data(|d| d.get_temp(egui::Id::unique("tour scope"))).unwrap_or("");
+    mark(ui, &format!("{scope}{name}"), rect);
+}
+
 /// What the panel asks the shell for.
 pub enum Want {
     /// The manual at this chapter's section.
     Help(&'static str, &'static [&'static str]),
+    /// This tab in front (its script name: `map:forest`).
+    Show(String),
+}
+
+/// The first of a step's controls that is in view: its name and where it is.
+fn pointed(ctx: &egui::Context, anchors: &[&'static str]) -> Option<(&'static str, egui::Rect)> {
+    anchors.iter().find_map(|a| marked(ctx, a).map(|r| (*a, r)))
 }
 
 #[derive(Default)]
@@ -54,8 +87,10 @@ impl TourPanel {
     /// control it points at is (`at=X,Y`).
     pub fn status(&self, ctx: &egui::Context, ws: &Workspace) -> String {
         let Some(run) = &self.run else { return "-".into() };
-        let at = run.current(ws).map(|k| run.tour().steps[k].anchor).and_then(|a| marked(ctx, a)).map(|r| format!(" at={:.0},{:.0}", r.center().x, r.center().y)).unwrap_or_default();
-        format!("{}{at}", run.status(ws))
+        let at = run.current(ws).and_then(|k| pointed(ctx, run.tour().steps[k].anchors)).map(|(a, r)| format!(" at={:.0},{:.0} ({a})", r.center().x, r.center().y)).unwrap_or_default();
+        // (The step's tab isn't in view: the window leads there first.)
+        let wait = run.tab(ws).filter(|t| marked(ctx, &format!("tab:{t}")).is_none()).map(|t| format!(" wait={t}")).unwrap_or_default();
+        format!("{}{at}{wait}", run.status(ws))
     }
 
     /// The script's words: `start ID`, `skip` (the step at hand), `end`.
@@ -95,10 +130,18 @@ impl TourPanel {
     pub fn show(&mut self, ctx: &egui::Context, ws: &Workspace) -> Option<Want> {
         let run = self.run.as_mut()?;
         let tour = run.tour();
+        // (A map's tab is in view: a map was opened where the creator sees it.)
+        if ws.doc.as_ref().is_some_and(|d| marked(ctx, &format!("tab:map:{}", d.map.name)).is_some()) {
+            run.map_seen = true;
+        }
         let done = run.done(ws);
         let current = run.current(ws);
+        // The tab the step is done in, when it isn't in view.
+        let away = run.tab(ws).filter(|t| marked(ctx, &format!("tab:{t}")).is_none());
         let (mut want, mut end, mut skip, mut next) = (None, false, false, None);
-        egui::Window::new(format!("Tour: {}", tour.title)).id(egui::Id::unique("tour window")).collapsible(true).resizable(false).anchor(egui::Align2::RIGHT_BOTTOM, [-14.0, -44.0]).show(ctx, |ui| {
+        // (It starts at the bottom, left of where a map's Inspector is, and is moved by its title.)
+        let corner = ctx.content_rect().right_bottom() - egui::vec2(372.0, 34.0);
+        egui::Window::new(format!("Tour: {}", tour.title)).id(egui::Id::unique("tour window")).collapsible(true).resizable(false).pivot(egui::Align2::RIGHT_BOTTOM).default_pos(corner).show(ctx, |ui| {
             ui.set_width(330.0);
             for (k, step) in tour.steps.iter().enumerate() {
                 let state = if done[k] { "[x]" } else if run.skipped.contains(&k) { "[-]" } else { "[ ]" };
@@ -108,6 +151,19 @@ impl TourPanel {
                         ui.label(RichText::new(step.title).strong());
                     });
                     ui.label(step.how);
+                    if let Some(tab) = &away {
+                        let what = match tab.split_once(':') {
+                            Some(("map", name)) => format!("the map {name}"),
+                            Some(("def", rest)) => format!("the {}", rest.replacen(':', " ", 1)),
+                            _ => tab.clone(),
+                        };
+                        ui.horizontal_wrapped(|ui| {
+                            ui.colored_label(ui.visuals().warn_fg_color, "This is done in another tab.");
+                            if ui.button(format!("Show {what}")).clicked() {
+                                want = Some(Want::Show(tab.clone()));
+                            }
+                        });
+                    }
                     ui.horizontal(|ui| {
                         if ui.small_button("Read about it").on_hover_text("Opens the manual at this (F1 does that anywhere)").clicked() {
                             want = Some(Want::Help(step.help.0, step.help.1));
@@ -140,7 +196,7 @@ impl TourPanel {
             }
         });
         // A frame around the control the step at hand uses (while it is in view).
-        if let Some(rect) = current.map(|k| tour.steps[k].anchor).filter(|a| !a.is_empty()).and_then(|a| marked(ctx, a)) {
+        if let Some((_, rect)) = current.and_then(|k| pointed(ctx, tour.steps[k].anchors)) {
             let pulse = ((ctx.input(|i| i.time) * 3.0).sin() * 0.5 + 0.5) as f32;
             let color = Color32::from_rgb(255, 210, 90).gamma_multiply(0.55 + 0.45 * pulse);
             let painter = ctx.layer_painter(egui::LayerId::new(egui::Order::Foreground, egui::Id::unique("tour pointer")));
@@ -170,7 +226,8 @@ mod ui_tests {
     struct State {
         ws: Workspace,
         panel: TourPanel,
-        asked: Vec<&'static str>,
+        asked: Vec<String>,
+        map_in_view: bool,
     }
 
     #[test]
@@ -186,15 +243,21 @@ mod ui_tests {
             |ui, s: &mut State| {
                 // (A control that says where it is, as the map's tool bar does.)
                 let r = ui.button("Terrain");
-                mark(ui.ctx(), "tool:Terrain", r.rect);
+                mark(ui, "tool:Terrain", r.rect);
                 if let Some(picked) = s.panel.offer(ui) {
                     s.panel.start(&s.ws, picked);
                 }
-                if let Some(Want::Help(file, _)) = s.panel.show(ui.ctx(), &s.ws) {
-                    s.asked.push(file);
+                // (And a tab that says it is in view, as the window's tabs do.)
+                if s.map_in_view {
+                    mark(ui, "tab:map:start", ui.max_rect());
+                }
+                match s.panel.show(ui.ctx(), &s.ws) {
+                    Some(Want::Help(file, _)) => s.asked.push(file.to_string()),
+                    Some(Want::Show(tab)) => s.asked.push(tab),
+                    None => {}
                 }
             },
-            State { ws, panel: TourPanel::default(), asked: Vec::new() },
+            State { ws, panel: TourPanel::default(), asked: Vec::new(), map_in_view: true },
         );
         h.run();
         // The three tours are offered; one is begun.
@@ -213,7 +276,19 @@ mod ui_tests {
         h.run_steps(3);
         assert!(h.query_all_by_label_contains("Click Terrain in the bar above the map").next().is_some());
         let s = h.state();
-        assert!(s.panel.status(&h.ctx, &s.ws).starts_with("first-map 1/5 [x . . . .] now=Paint some ground at="), "{}", s.panel.status(&h.ctx, &s.ws));
+        let status = s.panel.status(&h.ctx, &s.ws);
+        assert!(status.starts_with("first-map 1/5 [x . . . .] now=Paint some ground at=") && status.ends_with("(tool:Terrain)"), "{status}");
+        // The map's tab out of view: the window says so and leads back to it.
+        h.state_mut().map_in_view = false;
+        h.run_steps(3);
+        h.get_by_label("This is done in another tab.");
+        assert!(h.state().panel.status(&h.ctx, &h.state().ws).ends_with("wait=map:start"));
+        h.get_by_label("Show the map start").click();
+        h.run_steps(3);
+        assert_eq!(h.state().asked.last().map(String::as_str), Some("map:start"));
+        h.state_mut().map_in_view = true;
+        h.run_steps(3);
+        assert!(h.query_all_by_label("This is done in another tab.").next().is_none());
         // Skipped steps are marked, the tour goes on; ended, the window is gone.
         h.get_by_label("Skip this step").click();
         h.run_steps(3);

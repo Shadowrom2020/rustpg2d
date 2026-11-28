@@ -146,6 +146,9 @@ All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and edi
   Place and Terrain tools; the Problems tab says what the check looks for before it ran and
   that nothing was found after; the Place tool and the World view say what to do when there
   is nothing to place or only one map.
+- **The test setup has a form** (part 6): *Test setup…* in the Play tab's bar sets what a
+  test-play starts with (the hero's level and class, items, flags, variables, quests, the hour,
+  the party) without playing there first.
 - **Animations are seen and played** (part 7): an animation's tab shows it on a straw target
   dummy as the game draws it, with *Play*, *Pause*, *Loop* and a strip of time to look at any
   moment; changes in its form show at once.

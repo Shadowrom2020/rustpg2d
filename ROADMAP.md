@@ -1295,7 +1295,13 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     the running game holds (the hero's level and class, the bag, flags, variables, quests,
     the clock, the party); *Play from here with the test setup* loads a game in progress
     with it on the tile, so the map's *Map enter* events (an intro) don't run. Kept per
-    project in the editor's settings.
+    project in the editor's settings. **Its form** (2026-11-28, STUDIO_PLAN.md task 7;
+    `studio/src/setupwin.rs`): *Test setup…* in the Play tab's bar opens a window with the
+    level, the class (the forms' picker), the hour and day (or the project's start hour), and
+    lists of items (picker and count), flags and variables (typed, with the ones in use
+    offered), quests (picker, stage, done) and the party (placed characters' names offered),
+    each with *+ Add* / *Remove*; every change is kept at once (`set_test_setup`: not a step
+    of the history); *Forget it*. Script `testsetup` (and `open` / `close`).
   - **The Build tool** (B; `editor-core/src/build.rs`, the panel in `studio/src/buildtool.rs`):
     *Walls* painted along the tile edges (thin walls and fences) or tile by tile (thick
     ones), round corners, Shift for a straight line; a *Room* dragged as its floor, with
@@ -1330,7 +1336,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   Still open: a structure's ghost (its footprint is shown); hiding and locking single
   things in the Outliner; schedule stops added by clicking the map (they are added in the
   Inspector, then dragged); a region of tiles copied with its ground (*Save as structure*
-  does that by name). Of playing: the test setup's own form (it is made by playing), the
+  does that by name). Of playing: the
   console and script errors as panels (part 7), a click in the game leading to the thing's
   place on its map (it opens its definition).
 
@@ -1351,7 +1357,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     Its clock is the tab's: `Game::step` (new) moves the game on by hand, several times a
     frame to fast-forward; `Game::thing_under_pointer` (new) says what a click would open.
   - **A test setup is made by playing**, not by filling in a form first: play to where the
-    test starts, keep the state.
+    test starts, keep the state. (Its form came later, for changing one: 2026-11-28.)
   - **A value that may be left out is one control with a way to say "none"**, also when it
     is plain text or a number: the schema the forms read writes `Option<String>` like every
     other optional thing (`tidy_schema`). The map's fight music showed it: it was a bare
@@ -1423,7 +1429,12 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     starts without the intro; paused, the game's clock stands at 08:08 through a second and
     a half and one step, runs eight game minutes in two seconds at 4x and none to speak of
     at 1/4; the elder answers E; an *Inspect* click on a market stall opens the stall's
-    definition. `a_crafted_save_has_the_setup_and_finds_the_party` (and a running game's
+    definition. The setup's form: `what_is_set_in_the_form_is_the_test_setup` (level 3 by
+    AccessKit, a row added and the potion picked from the list, a flag typed: the same in
+    `test_setup()`; *Forget it*: nothing kept). In the window on a scratch copy: *Test
+    setup…* open, level 3, a potion and `shrine_lit` set (the window shows them),
+    `play village 20 20 setup`: the game's status has `level=3`, `shrine_lit` among its flags
+    and the potion in its bag. `a_crafted_save_has_the_setup_and_finds_the_party` (and a running game's
     state gives the setup back). Not shown: a line of dialog changing with a flag set in
     the panel (the scripted hero did not get to face the walking child whose line it is).
   - `the_world_is_surveyed_and_two_maps_are_linked` (the example: 19 maps all reached from
@@ -2691,7 +2702,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   | Import… Tiled maps, Aseprite sheets | — | removed (the maintainer, 2026-11-28); their code leaves with the old editor (part 11), their sections with the manual's rewrite |
   | **Library**: browse, add to project, send to library (with its script functions), its own window | Library tab; *Send to library*; no second process | there |
   | Asset packages, plugin files, the starter library file; update asset library; starter download | packs (one format, sources, updates asset by asset) | there |
-  | **Play**: here / from start / title screen, in a language, with a test setup | Play tab, own window; the language on the Languages page; the setup is made by playing | partly (the setup's own form) |
+  | **Play**: here / from start / title screen, in a language, with a test setup | Play tab, own window; the language on the Languages page; the setup made by playing or in its form (*Test setup…*, 2026-11-28) | there |
   | Hot reload and the developer console in a play-test | the Play tab's game runs as a developer's (F4 opens its console; seen 2026-11-28); script errors as a panel of the editor: part 7's open point | there |
   | **Export**: Linux, Windows, macOS, web, zip, data pack, AppImage, Flatpak, the game's icon | Publishing page | there |
   | **Other**: quick search, find usages, problems | Go to anything, *Used by*, Problems with fixes | there |

@@ -319,7 +319,7 @@ fn color(ui: &mut egui::Ui, s: &mut String, by: egui::Id) -> bool {
 
 /// The picker of an id of `kinds`: what it names now (missing ones in red), a searchable list,
 /// *none*, a new one, and a link to what it names.
-fn picker(ui: &mut egui::Ui, cx: &mut Cx, kinds: &[RefKind], s: &mut String, by: egui::Id) -> bool {
+pub(crate) fn picker(ui: &mut egui::Ui, cx: &mut Cx, kinds: &[RefKind], s: &mut String, by: egui::Id) -> bool {
     let known = cx.find(kinds, s);
     let text: egui::WidgetText = match (&known, s.is_empty()) {
         (_, true) => egui::RichText::new("none").weak().into(),
@@ -393,7 +393,7 @@ fn picker(ui: &mut egui::Ui, cx: &mut Cx, kinds: &[RefKind], s: &mut String, by:
 
 /// A name the project makes up (a flag, a script function): typed, or taken from the ones in
 /// use, which the button beside the field lists (those that contain what is typed first).
-fn named(ui: &mut egui::Ui, known: &[String], s: &mut String, by: egui::Id) -> bool {
+pub(crate) fn named(ui: &mut egui::Ui, known: &[String], s: &mut String, by: egui::Id) -> bool {
     let mut changed = ui.add(egui::TextEdit::singleline(s).desired_width(text_width(ui, 230.0))).labelled_by(by).changed();
     if known.is_empty() {
         return changed;

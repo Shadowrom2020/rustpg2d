@@ -168,6 +168,8 @@ pub enum Ask {
     OpenMap(String),
     /// The map's events graph.
     Graph,
+    /// *Test setup…*.
+    TestSetup,
     New(RefKind),
     /// Play the game with the hero on this tile of this map; true: with the test setup.
     PlayHere((i32, i32), bool),
@@ -2251,6 +2253,10 @@ impl MapView {
                 p.asks.push(Ask::PlayHere(tile, true));
                 ui.close();
             }
+            if playable && ui.button("Test setup…").on_hover_text("What a test-play starts with: the hero's level, class and bag, flags, variables, quests, the hour, the party").clicked() {
+                p.asks.push(Ask::TestSetup);
+                ui.close();
+            }
             if p.clip.is_some() && ui.button("Paste here").on_hover_text("What was copied, on this tile (Ctrl+V: under the pointer)").clicked() {
                 act = Some("paste here");
                 ui.close();
@@ -2870,6 +2876,7 @@ mod ui_tests {
                         Ask::OpenDef(k, id) => format!("open {} {id}", k.name()),
                         Ask::OpenMap(m) => format!("map {m}"),
                         Ask::Graph => "graph".into(),
+                        Ask::TestSetup => "test setup".into(),
                         Ask::New(k) => format!("new {}", k.name()),
                         Ask::PlayHere(t, setup) => format!("play {},{}{}", t.0, t.1, if setup { " setup" } else { "" }),
                         Ask::Usages(k, id) => format!("usages {} {id}", k.name()),

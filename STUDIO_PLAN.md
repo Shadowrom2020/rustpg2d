@@ -425,7 +425,9 @@ with the same animation in the game (`RUSTPG2D_AUTOPLAY` and a `shot`, see CLAUD
 
 **Don't.** Don't write a second form for cels: the schema's form is the editor.
 
-### - [ ] Task 7 (M): the test setup has a form
+### - [x] Task 7 (M): the test setup has a form
+
+Done 2026-11-28. Extra words: `testsetup open|close|day N|party NAME on|off`. The window's list pickers are the forms' (`form::picker`, `form::named`, now `pub(crate)`).
 
 **Why.** Parity row *Play: partly*. A test setup (the hero's level and class, items, flags,
 variables, quests, the hour, the party) can only be made by playing and pressing *Keep*.

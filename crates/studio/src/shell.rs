@@ -278,6 +278,8 @@ enum Ask {
     CloseProject,
     /// Where a search hit, a usage or a card of the events graph leads.
     GoTo(Target),
+    /// *Test setup…*.
+    TestSetup,
     /// *Try it*: the game on this map with the hero on the tile and the event raised.
     Try(String, (i32, i32), Box<(rustpg2d_engine::events::TriggerOn, rustpg2d_engine::runtime::EventOwner, String)>),
 }
@@ -420,6 +422,8 @@ pub struct Shell {
     pub quit_now: bool,
     /// The clean-up was offered for this leaving already.
     cleanup_passed: bool,
+    /// *Test setup…* while it is open.
+    pub setup: Option<crate::setupwin::SetupWindow>,
 }
 
 /// What leaves the open project: the editor quits, the project is closed, another one is opened
@@ -492,7 +496,7 @@ impl Shell {
         let surface = dock.main_surface_mut();
         let [center, _left] = surface.split_left(NodeIndex::root(), 0.2, vec![Tab::Browser]);
         surface.split_below(center, 0.72, vec![Tab::Problems, Tab::History]);
-        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, share: None, cleanup: None, lib_look: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), graphs: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), art: Default::default(), help: Default::default(), tour: Default::default(), agents: Default::default(), langs: Default::default(), plugins: Default::default(), play_lang: None, news: false, timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), model_stages: Default::default(), item_stages: Default::default(), anim_stages: Default::default(), pixels: Default::default(), sounds: Default::default(), sheets: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new(), leaving: None, quit_now: false, cleanup_passed: false }
+        Shell { ws, dock, play: None, play_error: None, start, palette: Palette::default(), lists: Vec::new(), cats: Default::default(), browser_filter: String::new(), forms: Default::default(), show_all: false, thumbs: Default::default(), new_asset: None, share: None, cleanup: None, lib_look: None, marks: Marks::default(), maps: Default::default(), world: Default::default(), graphs: Default::default(), link: None, clip: None, scripts: Default::default(), names: Default::default(), publish: Default::default(), library: Default::default(), art: Default::default(), help: Default::default(), tour: Default::default(), agents: Default::default(), langs: Default::default(), plugins: Default::default(), play_lang: None, news: false, timelines: Default::default(), nodes: Default::default(), stages: Default::default(), figures: Default::default(), model_stages: Default::default(), item_stages: Default::default(), anim_stages: Default::default(), pixels: Default::default(), sounds: Default::default(), sheets: Default::default(), scrub: None, try_next: None, home: Home::default(), log: Vec::new(), leaving: None, quit_now: false, cleanup_passed: false, setup: None }
     }
 
     /// The window around another workspace (another project, or none). What belongs to the
@@ -912,6 +916,25 @@ impl Shell {
             Ok(()) => stage.status(&self.ws, &id),
             Err(e) => format!("{id}: {e}"),
         }
+    }
+
+    /// `testsetup …` (`setupwin::word`; `open` / `close` the window): the setup's summary.
+    pub fn testsetup_word(&mut self, args: &[String]) -> String {
+        match args.first().map(String::as_str) {
+            Some("open") => self.setup = Some(crate::setupwin::SetupWindow::open(&self.ws)),
+            Some("close") => self.setup = None,
+            _ => {
+                if let Err(e) = crate::setupwin::word(&mut self.ws, args) {
+                    return format!("failed: {e}");
+                }
+            }
+        }
+        // (An open window shows what the word changed.)
+        if let Some(w) = &mut self.setup {
+            w.setup = self.ws.test_setup();
+        }
+        let s = self.ws.test_setup();
+        format!("{}{}", if s == Default::default() { "none".to_string() } else { s.summary() }, if self.setup.is_some() { " window=open" } else { "" })
     }
 
     /// The animation's tab in front: the words of `AnimStage::word`; returns its `status` line
@@ -1669,6 +1692,7 @@ impl Shell {
             match ask {
                 Ask::Open(tab) => self.show_tab(tab),
                 Ask::GoTo(target) => self.go_to(&target),
+                Ask::TestSetup => self.setup = Some(crate::setupwin::SetupWindow::open(&self.ws)),
                 Ask::Run(line) => {
                     let _ = self.run(&line);
                 }
@@ -1728,6 +1752,20 @@ impl Shell {
             None => {}
         }
         self.cleanup_ui(&ctx);
+        // *Test setup…*
+        if let Some(mut w) = self.setup.take() {
+            let mut asks = Vec::new();
+            if w.show(&ctx, &mut self.ws, &self.lists, &mut asks) {
+                self.setup = Some(w);
+            }
+            for ask in asks {
+                match ask {
+                    crate::form::Ask::Open(RefKind::Map, map) => self.show_tab(Tab::Map(map)),
+                    crate::form::Ask::Open(k, i) => self.show_tab(Tab::Def(k, i)),
+                    crate::form::Ask::New(k) => self.new_asset = Some(crate::gallery::NewAsset::of(Some(k))),
+                }
+            }
+        }
         // Leaving the project with changes that aren't saved: asked first.
         self.leaving_ui(&ctx);
         // The *Share…* window.
@@ -2543,6 +2581,7 @@ impl Viewer<'_> {
                             self.ws.set_status("The test setup is forgotten");
                             continue;
                         }
+                        PlayAsk::EditSetup => Ask::TestSetup,
                     });
                 }
             }
@@ -3557,6 +3596,7 @@ impl Viewer<'_> {
                 crate::mapview::Ask::OpenDef(k, id) => self.asks.push(Ask::Open(Tab::Def(k, id))),
                 crate::mapview::Ask::OpenMap(m) => self.asks.push(Ask::Open(Tab::Map(m))),
                 crate::mapview::Ask::Graph => self.asks.push(Ask::Open(Tab::Graph(name.to_string()))),
+                crate::mapview::Ask::TestSetup => self.asks.push(Ask::TestSetup),
                 crate::mapview::Ask::New(k) => self.asks.push(Ask::New(Some(k))),
                 crate::mapview::Ask::PlayHere(tile, setup) => self.asks.push(Ask::Play(PlayFrom::Tile(name.to_string(), tile, setup))),
                 crate::mapview::Ask::Usages(k, id) => {

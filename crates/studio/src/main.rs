@@ -40,6 +40,7 @@ mod propshop;
 mod publish;
 mod scene;
 mod scriptedit;
+mod setupwin;
 mod sheet;
 mod shell;
 mod thumbs;
@@ -184,6 +185,8 @@ impl Studio {
                 "char" => println!("[char] {}", self.shell.char_word(&cmd[1..])),
                 // (`itemshop`: `item` alone is a kind's name in other words.)
                 "itemshop" => println!("[itemshop] {}", self.shell.item_word(&cmd[1..])),
+                // The test setup: `testsetup [open|close|level N|class ID|-|item ID N|flag NAME on|off|var NAME N|-|quest ID STAGE [done]|-|hour H|-|day N|party NAME on|off|clear]`.
+                "testsetup" => println!("[testsetup] {}", self.shell.testsetup_word(&cmd[1..])),
                 // The animation's tab in front: `anim [time SECS|play|pause|loop on|off]`.
                 "anim" => println!("[anim] {}", self.shell.anim_word(&cmd[1..])),
                 // A guided tour: `tour start first-map|talking-character|a-quest`, `tour skip`, `tour end`; `tour` prints

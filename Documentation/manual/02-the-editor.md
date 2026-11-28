@@ -141,12 +141,14 @@ default player name. Close the game window to return to the editor.
 - **Play from here**: a new game on this tile.
 - **Play from here with the test setup**: on this tile with what the test setup says, to test a
   late scene without playing up to it.
-- **Test setup…** opens the window.
+- **Test setup…** opens the window (also in the Play tab's bar).
 
 The **test setup** holds the hero's **level** and **class**, **items** (into the bag), **flags**,
 **variables**, **quests** at a stage (or done), the **time** (hour and day; off = the project's
 start hour) and the **party**: placed characters by name, on any map, who join as companions.
-It is kept per project in the editor's settings (not in the project). The editor writes it as
+Every change in the window is kept at once (*Forget it* empties it); the Play tab's *State* panel
+also keeps what a running game holds as the setup (*Keep as the test setup*). It is kept per
+project in the editor's settings (not in the project). The editor writes it as
 a save game (in its own settings folder, not the project's `saves/`) and starts the game with
 it, so the map's *Map enter* triggers don't run, as when a game is loaded.
 

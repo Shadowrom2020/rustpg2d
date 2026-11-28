@@ -22,6 +22,8 @@ pub enum PlayAsk {
     /// Keep the running game's state as the project's test setup; forget the setup.
     KeepSetup(Box<editor_core::testsetup::TestSetup>),
     ForgetSetup,
+    /// *Test setup…*: the setup as a form.
+    EditSetup,
 }
 
 pub struct PlayView {
@@ -157,6 +159,9 @@ impl PlayView {
             ui.toggle_value(&mut self.inspect, "Inspect").on_hover_text("A click on a character, a prop or an item opens what it is instead of playing (Alt+click does it at any time)");
             ui.toggle_value(&mut self.show_state, "State").on_hover_text("Flags, variables, quests, the party and the bag of the running game: seen and changed");
             ui.separator();
+            if ui.button("Test setup…").on_hover_text("What a test-play starts with: the hero's level, class and bag, flags, variables, quests, the hour, the party").clicked() {
+                asks.push(PlayAsk::EditSetup);
+            }
             if ui.button("Own window").on_hover_text("The same start in the game's own window, as players run it: for the last check").clicked() {
                 asks.push(PlayAsk::OwnWindow);
             }

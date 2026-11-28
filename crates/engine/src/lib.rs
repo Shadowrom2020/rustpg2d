@@ -8,7 +8,6 @@ pub mod diseases;
 pub mod audio;
 pub mod crafting;
 #[cfg(not(target_arch = "wasm32"))]
-pub mod convert_tiles;
 pub mod decor;
 pub mod defs;
 pub mod dialog_codes;
@@ -48,7 +47,6 @@ pub mod library;
 pub mod macsign;
 pub mod map;
 #[cfg(not(target_arch = "wasm32"))]
-pub mod old_tiles;
 pub mod model;
 pub mod path;
 pub mod pack;

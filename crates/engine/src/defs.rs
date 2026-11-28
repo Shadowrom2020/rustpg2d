@@ -61,7 +61,6 @@ impl LightSpec {
     }
 }
 
-/// A tile of a tileset that gives light.
 impl ItemDef {
     /// The equipment slot this item goes into, if it can be equipped.
     /// The +N bonus of a magic weapon, ammunition, armor or shield (0 = none).
@@ -2397,9 +2396,9 @@ pub struct Database {
     pub index: DefIndex,
 }
 
-/// A multi-tile asset ("structure"): tiles on several map layers, collision overrides and
+/// A multi-tile asset ("structure"): painted ground, decorations, collision overrides and
 /// entities that the editor places on a map in one click (a house, a wall segment, a room…).
-/// Placing it writes ordinary tiles and entities, so the game never needs it.
+/// Placing it writes ordinary ground, decorations and entities, so the game never needs it.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct StructureDef {
@@ -2411,14 +2410,6 @@ pub struct StructureDef {
     /// Size in tiles.
     pub w: u32,
     pub h: u32,
-    /// Tile structures (R(ust)PG2D 0.20 and older; converted when the project is opened): the
-    /// tilesets their tiles come from.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub tilesets: Vec<String>,
-    /// Tile structures: tiles per old map layer (0 = ground, 1 = detail, 2 = overhead), row by
-    /// row (`w × h`): 0 = keep the map's tile, `StructureDef::CLEAR` = empty it, else a tile.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub layers: Vec<Vec<u32>>,
     /// Collision override per tile (`CollisionOverride` as a byte; 0 = keep the map's).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub collision: Vec<u8>,

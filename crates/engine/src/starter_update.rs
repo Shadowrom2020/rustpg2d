@@ -319,7 +319,7 @@ pub fn backup(root: &Path) -> Result<PathBuf> {
     Ok(to)
 }
 
-pub(crate) fn copy_dir(from: &Path, to: &Path) -> Result<()> {
+fn copy_dir(from: &Path, to: &Path) -> Result<()> {
     std::fs::create_dir_all(to).with_context(|| format!("creating {}", to.display()))?;
     for e in std::fs::read_dir(from)?.flatten() {
         let (src, dst) = (e.path(), to.join(e.file_name()));

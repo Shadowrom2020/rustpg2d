@@ -640,7 +640,7 @@ const SECTIONS: &[(&str, Sections)] = &[
             ("Rewards", "rewards"),
         ],
     ),
-    ("StructureDef", &[("Basics", "id name category w h"), ("Contents (edited on the map)", "~materials ~ground ~decor_defs ~decor ~clear ~collision ~entities ~tilesets ~layers")]),
+    ("StructureDef", &[("Basics", "id name category w h"), ("Contents (edited on the map)", "~materials ~ground ~decor_defs ~decor ~clear ~collision ~entities")]),
     (
         "SpellDef",
         &[

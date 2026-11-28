@@ -10,8 +10,6 @@ use crate::map::{CollisionOverride, Map};
 use crate::project::TILE_SIZE;
 
 impl StructureDef {
-    /// Old tile structures' layer value: empty the map's tile here (0 keeps it).
-    pub const CLEAR: u32 = 1;
     /// Collision value: reset the map's override to "automatic" (0 keeps it).
     pub const COLLISION_AUTO: u8 = 3;
     /// Ground cell value: no ground here (0 keeps the map's).

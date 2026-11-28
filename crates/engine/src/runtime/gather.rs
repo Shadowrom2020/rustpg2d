@@ -5,7 +5,7 @@
 //! enough in-game hours have passed since it changed (`EntityState::changed_at`), also while
 //! the player was elsewhere: checked on entering a map and every second.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::Game;
 use crate::events::runner::ActionHost;

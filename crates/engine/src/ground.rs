@@ -23,6 +23,7 @@ pub const MAX_MATERIALS: usize = 64;
 
 /// How a material's edge meets the materials under it.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Edge {
     /// A hard edge at the art's pixel size, made ragged by noise (pixel art).
     #[default]
@@ -36,6 +37,7 @@ pub enum Edge {
 
 /// What a material does to things moving over it.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Walk {
     #[default]
     Walk,
@@ -61,6 +63,7 @@ impl Walk {
 
 /// A fringe drawn just outside a material's edge (a sandy band round a pond).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Rim {
     pub color: [u8; 3],
     /// Width in pixels (1..8).
@@ -69,6 +72,7 @@ pub struct Rim {
 
 /// A ground material.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct MaterialDef {
     pub id: String,
@@ -154,6 +158,7 @@ impl MaterialDef {
 
 /// One chunk of the ground grid.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum GroundChunk {
     /// Every cell holds this value.
     Fill(u8),
@@ -163,6 +168,7 @@ pub enum GroundChunk {
 
 /// A map's painted ground: cells of `CELL` pixels, `CELLS` per tile side.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Ground {
     /// Size in cells.
     w: u32,

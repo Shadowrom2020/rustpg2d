@@ -13,6 +13,7 @@ use crate::defs::Database;
 
 /// Where a decoration is drawn relative to characters.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum DecorLayer {
     /// On the ground, under everyone (rugs, puddles, flowers lying flat).
     Flat,
@@ -39,6 +40,7 @@ impl DecorLayer {
 
 /// One decoration on a map.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Decor {
     /// Index into the map's `decor_defs` (prop ids).
     pub def: u16,
@@ -98,6 +100,7 @@ pub fn facing_turn(f: crate::entity::Facing) -> u8 {
 
 /// A scatter set: props placed at random by the scatter brush (a forest, a flower meadow).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct ScatterDef {
     pub id: String,

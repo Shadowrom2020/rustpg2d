@@ -1,6 +1,6 @@
 //! Light sources of the running game and the HUD clock.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::{Game, RtEntity};
 use crate::defs::{EquipSlot, LightSpec};
@@ -39,7 +39,7 @@ impl Game {
         let mut out = self.loaded.tile_lights.clone();
         if !self.on_title() {
             if let Some(l) = self.player_light() {
-                out.push(Light::new(self.player.pos - vec2(0.0, ts * 0.6), &l));
+                out.push(Light::of(self.player.pos, ts * 0.6, &l));
             }
         }
         for e in self.loaded.entities.iter().filter(|e| e.active) {
@@ -53,7 +53,7 @@ impl Game {
                 EntityKind::Character => ts * 0.6,
                 EntityKind::Item => ts * 0.35,
             };
-            out.push(Light::new(e.body.pos - vec2(0.0, lift), &l));
+            out.push(Light::of(e.body.pos, lift, &l));
         }
         out.extend(self.fx_lights());
         out.extend(self.animation_lights());

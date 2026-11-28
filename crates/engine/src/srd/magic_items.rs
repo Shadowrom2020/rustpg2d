@@ -13,6 +13,7 @@ pub const MAX_ATTUNED: usize = 3;
 
 /// How rare a magic item is.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Rarity {
     #[default]
     Common,
@@ -68,6 +69,7 @@ impl Rarity {
 /// A spell cast from an item (a wand's, a staff's): it spends `charges` (more for a higher slot
 /// when the item allows it: one more charge per level).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct ItemSpell {
     /// The spell's id.
@@ -89,6 +91,7 @@ pub struct ItemSpell {
 
 /// What makes an item magic.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct MagicItem {
     pub rarity: Rarity,

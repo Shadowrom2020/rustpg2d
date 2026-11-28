@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 /// The 13 damage types of the SRD. Stored by name (definitions, maps).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum DamageType {
     Acid,
     Bludgeoning,

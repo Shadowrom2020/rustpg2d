@@ -6,8 +6,8 @@
 //! [`Model::skin`] deforms the mesh. Drawing is `render/model.rs`.
 
 use anyhow::{anyhow, bail, Context, Result};
-use macroquad::math::{Mat4, Quat, Vec2, Vec3};
-use macroquad::texture::Image;
+use gfx::math::{Mat4, Quat, Vec2, Vec3};
+use gfx::texture::Image;
 
 /// One vertex of the skinned mesh in its bind pose.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -160,7 +160,7 @@ impl Model {
             bail!("the mesh has no triangles");
         }
         if untextured && !palette.is_empty() {
-            let mut im = Image::gen_image_color(n_parts as u16, 1, macroquad::color::WHITE);
+            let mut im = Image::gen_image_color(n_parts as u16, 1, gfx::color::WHITE);
             im.bytes.copy_from_slice(&palette);
             texture = Some(im);
         }
@@ -517,8 +517,8 @@ pub fn snap_dir(v: Vec3) -> Vec3 {
 }
 
 /// The spread of a set of points: their centre and covariance.
-pub fn spread(points: &[Vec3]) -> (Vec3, macroquad::math::Mat3) {
-    use macroquad::math::Mat3;
+pub fn spread(points: &[Vec3]) -> (Vec3, gfx::math::Mat3) {
+    use gfx::math::Mat3;
     if points.is_empty() {
         return (Vec3::ZERO, Mat3::IDENTITY);
     }
@@ -536,7 +536,7 @@ pub fn spread(points: &[Vec3]) -> (Vec3, macroquad::math::Mat3) {
 }
 
 /// The direction in which a covariance spreads most, square to `not` (zero: any direction).
-fn widest(cov: macroquad::math::Mat3, not: Vec3) -> Vec3 {
+fn widest(cov: gfx::math::Mat3, not: Vec3) -> Vec3 {
     let not = not.normalize_or_zero();
     let keep = |v: Vec3| v - not * v.dot(not);
     let mut best = Vec3::ZERO;
@@ -699,7 +699,7 @@ pub fn estimate_grip(points: &[Vec3], indices: &[u16]) -> ([f32; 3], [f32; 3]) {
 /// The front of an item model whose `front` isn't set: across the handle (`axis`), the way the
 /// model spreads most (a blade's edge, an axe's head; a shield's top). `cov`: [`spread`] of
 /// its points.
-pub fn auto_front(axis: [f32; 3], cov: macroquad::math::Mat3) -> [f32; 3] {
+pub fn auto_front(axis: [f32; 3], cov: gfx::math::Mat3) -> [f32; 3] {
     let a = Vec3::from(axis).normalize_or(Vec3::Y);
     let f = widest(cov, a);
     let f = if f == Vec3::ZERO { a.any_orthonormal_vector() } else { f };
@@ -710,10 +710,10 @@ pub fn auto_front(axis: [f32; 3], cov: macroquad::math::Mat3) -> [f32; 3] {
 /// and its `front` onto `to_front` (each front made square to its axis). A front along the
 /// axis is replaced by any square direction.
 pub fn hold_rotation(axis: Vec3, front: Vec3, to_axis: Vec3, to_front: Vec3) -> Quat {
-    let frame = |a: Vec3, f: Vec3| -> Option<macroquad::math::Mat3> {
+    let frame = |a: Vec3, f: Vec3| -> Option<gfx::math::Mat3> {
         let a = a.try_normalize()?;
         let f = (f - a * f.dot(a)).try_normalize().unwrap_or_else(|| a.any_orthonormal_vector());
-        Some(macroquad::math::Mat3::from_cols(a, f, a.cross(f)))
+        Some(gfx::math::Mat3::from_cols(a, f, a.cross(f)))
     };
     match (frame(axis, front), frame(to_axis, to_front)) {
         (Some(from), Some(to)) => Quat::from_mat3(&(to * from.transpose())).normalize(),
@@ -969,7 +969,7 @@ fn read_image(img: &gltf::Image, blob: Option<&[u8]>, max: u16, colors: usize) -
     let gltf::image::Source::View { view, mime_type } = img.source() else { bail!("textures in separate files aren't supported") };
     let data = blob.ok_or_else(|| anyhow!("no binary chunk"))?;
     let bytes = data.get(view.offset()..view.offset() + view.length()).ok_or_else(|| anyhow!("texture outside the file"))?;
-    let format = if mime_type.contains("jpeg") || mime_type.contains("jpg") { macroquad::prelude::ImageFormat::Jpeg } else { macroquad::prelude::ImageFormat::Png };
+    let format = if mime_type.contains("jpeg") || mime_type.contains("jpg") { gfx::prelude::ImageFormat::Jpeg } else { gfx::prelude::ImageFormat::Png };
     let im = Image::from_file_with_format(bytes, Some(format)).map_err(|e| anyhow!("texture: {e}"))?;
     let mut im = downsize(&im, max);
     quantize(&mut im, colors);
@@ -1301,7 +1301,7 @@ pub fn downsize(im: &Image, max: u16) -> Image {
         return im.clone();
     }
     let (nw, nh) = (w / k, h / k);
-    let mut out = Image::gen_image_color(nw, nh, macroquad::color::BLANK);
+    let mut out = Image::gen_image_color(nw, nh, gfx::color::BLANK);
     for y in 0..nh {
         for x in 0..nw {
             let mut acc = [0u32; 4];
@@ -1581,14 +1581,14 @@ mod tests {
         // The same file again: its clip replaces the one of the same name.
         assert_eq!(m.add_clips(&fixture()).unwrap(), 1);
         assert_eq!(m.clips.len(), 1);
-        let im = Image::gen_image_color(512, 300, macroquad::color::Color::from_rgba(255, 0, 0, 255));
+        let im = Image::gen_image_color(512, 300, gfx::color::Color::from_rgba(255, 0, 0, 255));
         let d = downsize(&im, 256);
         assert_eq!((d.width, d.height), (256, 150));
         assert_eq!(&d.bytes[..4], &[255, 0, 0, 255]);
         // A gradient of 256 greys reduced to 8 colours, still dark to light.
-        let mut g = Image::gen_image_color(256, 1, macroquad::color::BLANK);
+        let mut g = Image::gen_image_color(256, 1, gfx::color::BLANK);
         for x in 0..256u32 {
-            g.set_pixel(x, 0, macroquad::color::Color::from_rgba(x as u8, x as u8, x as u8, 255));
+            g.set_pixel(x, 0, gfx::color::Color::from_rgba(x as u8, x as u8, x as u8, 255));
         }
         quantize(&mut g, 8);
         let colors: std::collections::BTreeSet<u8> = g.bytes.chunks(4).map(|p| p[0]).collect();

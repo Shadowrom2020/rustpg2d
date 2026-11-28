@@ -10,6 +10,7 @@ use crate::inventory::{Inventory, ItemStack};
 
 /// Items worn / held by a character (the player's are not part of the inventory grid).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct Equipment {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -122,6 +123,7 @@ impl Equipment {
 
 /// Runtime changes to a placed entity, persisted across map changes and saves.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct EntityState {
     pub active: bool,
     pub frame: u32,
@@ -159,6 +161,7 @@ pub struct EntityState {
 
 /// A seed planted on a farm plot (`EntityState::planted`).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Planted {
     /// The seed item (its `crop`).
     pub seed: String,
@@ -171,6 +174,7 @@ pub struct Planted {
 
 /// Progress of a patrolling character (saved, so a loaded game continues the route).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct PatrolState {
     /// Waypoint it is heading for.
     pub index: u32,
@@ -198,6 +202,7 @@ fn save_version<S: serde::Serializer>(_: &u32, s: S) -> Result<S::Ok, S::Error> 
 /// AC, speeds, attacks, size, senses; STR, DEX and CON, all six scores with Polymorph) stands in
 /// for the hero's until it ends.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct HeroShape {
     /// The beast's character definition.
@@ -214,6 +219,7 @@ pub struct HeroShape {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct WorldState {
     /// [`SAVE_VERSION`] of the program that wrote the save (0: before 0.12).
     #[serde(default, serialize_with = "save_version")]
@@ -427,8 +433,7 @@ pub struct WorldState {
     /// are added to it ([`WorldState::bank_coins`]); until 0.32 the coins were bag items.
     #[serde(default, skip_serializing_if = "is_zero_u32_ref")]
     pub money: u32,
-    /// The hero's conditions (poisoned, prone, exhaustion…) and ongoing damage or healing; until
-    /// 0.27 status effects, which read as their nearest condition.
+    /// The hero's conditions (poisoned, prone, exhaustion…) and ongoing damage or healing.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub effects: Vec<crate::srd::ActiveCondition>,
     /// Bestiary: character definition id -> how many the player has defeated.
@@ -472,6 +477,7 @@ pub struct WorldState {
 /// A placed character that follows the player from map to map. Its look, items and triggers
 /// come from where it is placed (`map`, `uid`); dismissed, it goes back there.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Companion {
     pub map: String,
     pub uid: u32,
@@ -542,6 +548,7 @@ fn is_zero_u32_ref(n: &u32) -> bool {
 
 /// A level-up whose choices wait for the level-up window.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct PendingLevel {
     /// "player", or a companion's uid (its `Companion::uid`).
@@ -551,6 +558,7 @@ pub struct PendingLevel {
 
 /// How a companion fights (`Companion::order`); staying put is separate (`Companion::post`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Order {
     /// Fights hostile characters near the player.
     #[default]
@@ -595,6 +603,7 @@ pub const DIALOG_LOG_MAX: usize = 1000;
 
 /// One line of the dialog log: who said what, or what the player answered.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct LogLine {
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub speaker: String,
@@ -606,6 +615,7 @@ pub struct LogLine {
 
 /// Worn and carried items of an NPC (saved once they differ from the map / definition).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct NpcItems {
     pub equipment: Equipment,
@@ -623,6 +633,7 @@ const _: () = assert!(FURNITURE_UID_BASE < DROPPED_UID_BASE);
 
 /// A piece of furniture the player placed in a home: the prop and the item it was made from.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct PlacedFurniture {
     pub uid: u32,
     pub prop: String,
@@ -635,6 +646,7 @@ pub struct PlacedFurniture {
 
 /// An item stack the player dropped on a map.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct DroppedItem {
     pub uid: u32,
     pub item: String,
@@ -649,6 +661,7 @@ pub struct DroppedItem {
 
 /// The player character's sex (for dialogs, conditions and scripts).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Sex {
     #[default]
     Male,
@@ -674,6 +687,7 @@ impl Sex {
 
 /// A character a fight knocked out instead of killing it (the player's choice).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct KnockedOut {
     pub map: String,
@@ -1243,12 +1257,9 @@ mod tests {
         assert_eq!(w.check("wis", 1, Mode::Normal, true).unwrap().success, Some(true));
         conditions::apply(&mut w.effects, &ConditionSpec::new(Condition::Blinded, 30.0));
         assert_eq!(w.check("perception", 1, Mode::Normal, false).unwrap().success, Some(false), "blinded: sight fails");
-        // Saved and loaded again (and 0.27's effects read as conditions).
+        // Saved and loaded again.
         let back = WorldState::from_ron(&w.to_ron().unwrap()).unwrap();
         assert_eq!(back.effects, w.effects);
-        let old: WorldState = ron::from_str(r#"(flags: [], vars: {}, inventory: {}, entities: {}, fired: [], current_map: "m", player_pos: (0.0, 0.0), player_facing: Down, effects: [(kind: Poison, strength: 0.5, remaining: 4.0, accum: 0.2), (kind: Haste, strength: 30.0, remaining: 9.0)])"#).unwrap();
-        assert!(conditions::has(&old.effects, Condition::Poisoned));
-        assert_eq!(old.effects[0].remaining, Some(4.0));
     }
 
     /// Checks outside fights: light for sight, a helper, passive values, group checks, contests.

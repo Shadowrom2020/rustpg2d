@@ -5,7 +5,7 @@
 //! attack roll or a saving throw, damage, a condition, a fall. Its state is saved
 //! (`WorldState::traps`); *Trap sprung* / *Trap disarmed* triggers follow.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::{Game, Source};
 use crate::entity::EntityKind;

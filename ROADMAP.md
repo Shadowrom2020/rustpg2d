@@ -515,7 +515,7 @@ Read the current documentation of eframe / egui, wgpu, winit and the audio libra
 starts and pin the versions then (looked up on 2026-11-26, APIs not read: egui / eframe 0.37,
 wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses.
 
-- [ ] Part 1: The engine on wgpu — `feature/studio`
+- [~] Part 1: The engine on wgpu — `feature/studio`
 
   **Goal.** The engine draws, plays sound and reads input through a layer of its own instead of
   macroquad: the game looks and plays as in 0.35, and can be drawn into any number of views inside
@@ -552,6 +552,55 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     (no more vertical flip).
   - **Gone:** macroquad, miniquad, egui-macroquad, the `image` 0.24 pin and macroquad's own png.
 
+  **Progress.** `crates/gfx` (device, the draw list, textures and render targets, materials in
+  WGSL, cameras, shapes, text, input, the window loop on winit, sound on kira); the engine and
+  the game on it (imports and the seven shaders; nothing else of the 101 files changed); the
+  comparison set (`scripts/studio/shots.sh`, `compare.py`, `RUSTPG2D_FIXED_STEP`); the web game
+  (wasm-bindgen, WebGL 2, `cargo xtask-web`, the browser's services in `gfx::web`). Still open:
+  a real Windows machine, somebody listening to the sound. (`builds.yml` and `xtask dist` know the
+  web pair; they are run again when there is an editor to package.)
+
+  **Decided while building.**
+  - **Draw calls wait for the frame's end.** macroquad sent them to the GPU at every camera
+    change; the isometric view changes the camera per upright object. Each draw call keeps the
+    projection it was made under, and one render pass is made per run of draw calls into the
+    same picture. Clearing is an entry of the list.
+  - **Everything is drawn into a picture** (`gfx::Screen`), which the window copies to its
+    surface: the same path for the game, the editor's views and tests, and screenshots are a
+    read-back. All pictures are `Rgba8Unorm` (no sRGB conversion, as OpenGL drew).
+  - **OpenGL's conventions are kept where the engine counts on them:** render targets are drawn
+    upside down (the engine's cameras and texture coordinates expect it), clip space depth is
+    converted from -1..1, and the screen is drawn 1/128 pixel lower so that lines exactly between
+    two pixel rows land on the row OpenGL chose (the UI's box outlines). `get_screen_data` still
+    comes bottom row first and `export_png` still turns it over (so the note above about the
+    flip is not done: tidying that API is left for later).
+  - **macroquad's own code is reused** for shapes, text, the glyph atlas, cameras, colours and
+    rectangles (MIT OR Apache-2.0; `crates/gfx/LICENSE-macroquad-MIT`), so layout and glyph
+    pixels are the same. `quad-rand` stays as `gfx::rand`.
+  - **Material shaders** get their declarations (uniform block, textures, vertex input) written
+    in front by `load_material` from the declared uniforms, so a shader and its uniform layout
+    can't disagree.
+  - **X11 windows on Linux where there is an X server** (also under Wayland, through XWayland),
+    as macroquad's were; `RUSTPG2D_WAYLAND=1` asks for a Wayland window. Measured on GNOME
+    Wayland with the NVIDIA driver: a Wayland window waiting for the display misses frames (55 to
+    59 a second with 40 ms hitches), and a covered one gets none at all, so a scripted run with
+    the window behind others would stand still. Frames are drawn when the events are through;
+    presenting waits for the display.
+  - **The web game draws with WebGL 2 only,** not WebGPU: reading a picture back at once
+    (screenshots, save thumbnails, photo mode) is a `readPixels` on wgpu's WebGL context
+    (`Texture2D::get_texture_data`); wgpu's own read-back needs a turn of the browser's event
+    loop, which the engine's callers don't give. WebGPU would need those callers to wait.
+  - **32-bit indices into one vertex list:** WebGL 2 can't add a draw call's first vertex
+    itself. Meshes still come with 16-bit indices (65,535 vertices each).
+  - **The web runner is a pair** (`rustpg2d-game.wasm` + `rustpg2d-game.js`, written into
+    `target/web` by `cargo xtask-web`: wasm-bindgen's second step as a library); the export
+    copies both. The JavaScript files of `crates/engine/web` are gone: storage, the clock, the
+    query string, gamepads, downloads and fetching are Rust (`gfx::web`). On the web the sound
+    device opens with the player's first key or click (browsers allow it only then); loops
+    started before (the music) start with it.
+  - **The old editor** is out of the workspace (`exclude` in `Cargo.toml`) and stays in the tree
+    to read until its parts are rebuilt.
+
   **Engine.** This part is the engine: `crates/gfx`, every `use macroquad` (101 of the engine's
   201 files, 82 of them in `runtime/`), `crates/game/src/main.rs`, `audio.rs`, `sys.rs`, `web/`,
   `release.rs` (the web export's files), `desktop.rs`, `glibc_compat.rs` checks, `xtask`
@@ -561,14 +610,51 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   - A fixed set of autoplay screenshots (title, village by day and night, a dungeon, a fight, the
     character window, a dialog, the shop, the map screen, weather) taken with 0.35 and with the new
     renderer, compared picture by picture; differences explained or fixed.
+    *Done 2026-11-26 on Linux (Vulkan, NVIDIA): 18 pictures, both runners stepping a sixtieth
+    of a second per frame (0.35 with a patched macroquad in a scratch worktree). The UI screens
+    are identical; world scenes differ in 0.0-0.5 % of pixels, single pixels along rotated
+    edges. No dialog or shop picture in the set yet.*
   - `status` frame times on the forest map, old against new (`RUSTPG2D_PERF=1`).
+    *Done 2026-11-26 (debug builds, RTX 4060): both hold 60 frames a second with the worst
+    frame near 20 ms. The CPU's share of a forest frame went from 4.7 ms (drawing, with a flush
+    per camera change) to 0.8 ms drawing + 1.5 ms sending 1,377 draw calls in 6 passes; without
+    vsync (`RUSTPG2D_VSYNC=0`) the forest runs at about 600 frames a second, the house at 4,000.
+    `status` prints `gpu=CALLS/PASSES:MS`.*
   - `scripts/ci/smoke.sh` (the game half) passes; sound heard: music loop, a fade, footsteps.
+    *The game half passes (2026-11-26); the editor's checks are skipped while there is no
+    editor. Sound: the game opens its stream at the system's sound server and `status` shows the
+    village music as a whole loop; nobody has listened yet.*
   - Linux (AppImage on Debian 12, glibc ≤ 2.34), Windows under Wine (try this first: Wine's
     graphics were fragile on this machine), the test Mac, the browser (headless Brave, saves kept
     across runs).
+    *The browser: done 2026-11-26 (headless Brave on SwiftShader, the example exported with
+    `cargo run -p rustpg2d-engine --example export_web`): the title screen draws as on the
+    desktop, `status` and `shot` come out in the console, a changed option is still there in a
+    second run with the same profile. Not checked: sound in a browser, a real graphics card
+    (SwiftShader ran at 8 to 30 frames a second), the download size (the runner is 17 MB before
+    compression, macroquad's was smaller).
+    Linux: done 2026-11-26 in a Debian 12 container without a graphics card (release build):
+    the game needs glibc 2.34 as before (five more math functions in `glibc_compat.rs`), refuses
+    to start on the software renderer with a plain message, and runs on it with
+    `RUSTPG2D_ALLOW_SOFTWARE=1`. Not checked: the packaged AppImage (there is no editor to
+    package yet).
+    Windows: done 2026-11-26 under Wine (MinGW build from a container): the game draws through
+    Vulkan on the real graphics card, without the software-OpenGL workaround Wine needed
+    before; its picture of the house matches Linux's. Not checked: a real Windows machine
+    (DirectX 12).
+    macOS: done 2026-11-26 on the test Mac (M2, macOS 27.2, Metal; a debug build made there):
+    the game holds 60 frames a second in the house and the village, its picture of the house
+    differs from Linux's in 0.2 % of pixels, and the new editor window shows the game in its
+    panel. Handing a village frame to Metal takes about 5 ms there (0.3 ms with Vulkan on
+    Linux): worth a look before big maps. Not checked: an exported `.app` (the export needs the
+    editor), sound.*
   - Tests render without a window: one golden picture each for ground, a figure, text.
+    *Done 2026-11-26 as one picture: `crates/engine/tests/headless.rs` loads the example's
+    house, plays 90 frames without a window and compares the screen with
+    `tests/golden/house.png` (ground, figures, text, the UI's skin). Skipped without a graphics
+    adapter unless `RUSTPG2D_GPU_TESTS=1`; CI runs it on Vulkan's software renderer.*
 
-- [ ] Part 2: The editor core — `feature/studio`
+- [~] Part 2: The editor core — `feature/studio`
 
   **Goal.** Everything the editor knows and does, without any UI: one place that the windows, the
   editor script and the agent server all work through.
@@ -600,6 +686,53 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     needs (folders, tags, notes, favourites, layouts, where an asset came from). Exports leave it
     out.
 
+  **Progress.** `crates/editor-core`, from the UI-free files of the 0.35 editor:
+  - the workspace (`workspace.rs`: a project folder or file, several open maps each with its
+    history, saving, the status line, the selection and view of the map worked on; with or
+    without a graphics adapter), map documents (`doc.rs`), the definitions' undo (`history.rs`),
+    renames (`rename.rs`), the project file, the editor's settings and recent list, repository
+    mode, the starter library (`starter.rs`);
+  - reference lists (`refs.rs`), search and usages (`search.rs`), the problems list
+    (`problems.rs`), map operations tools and agents share (`mapops.rs`), 3D models
+    (`models.rs`), the asset library's transfers (`library.rs`), Generate art's jobs (`art/`);
+  - **the agent server** (`mcp/`, all 71 tools): it runs without a window, `rustpg2d-studio
+    --headless PROJECT --mcp PORT`. The smoke client passes against it (reads, painting with
+    undo, saving, pictures of sheets, writing art, definitions, placing, capturing a structure,
+    sending to the library, a play-test); only `screenshot_map` answers that it needs a window.
+    `scripts/ci/smoke.sh` and CI run it.
+  Tests on a scratch copy of the example, without a window: a change undone and saved leaves
+  every file byte for byte, two maps stay open with their changes, a rename reaches maps and
+  scripts and undoes; the 0.35 tests of the copied files (40 in all, among them "the manual
+  names every agent tool").
+  - **one history** (`timeline.rs`): the definitions' steps and each open map's in the order
+    they were made, each with a name; *Undo* takes back the latest wherever it was, a document
+    can undo its own latest change. Agents' writes are entries named after the tool.
+  - **the command registry** (`commands.rs`): `Workspace::run("edit.rename", …)` /
+    `run_line("map.open house")`; the first thirteen commands (save, undo, redo, rename, open
+    and close a map, search, usages, the project check, reload, the agent server).
+  Still open: more commands as the parts bring their features; pictures without a graphics
+  adapter (`--headless`: map screenshots are answered in the window since part 6); the editor script running command
+  lines; imports (Tiled, Aseprite: part 11 decides); the cleanup of unused files; structures'
+  capture and the clipboard.
+
+  **2026-11-28:** the file watcher no longer takes the editor's own save for another
+  program's change when a change follows the save before it looks again (`file.save_all;
+  edit.undo` in one frame showed the bar *Another program changed…*): saving the definitions
+  and maps notes the files written (`Workspace::watch_note_defs`, the map's path after
+  `save_doc`), where before only the defs being clean at the next look hid the save. Test
+  `mcp::watcher::tests::a_change_right_after_saving_is_no_change_on_disk`.
+  **Decided while building.**
+  - **Changes are observed, not funnelled:** forms and tools change the definitions directly
+    and the history turns the difference into a step (as 0.35's did), so a widget needn't
+    know about commands. Named commands wrap that for the palette, scripts and agents.
+  - **Projects older than 0.35 are refused** with a message naming 0.35 already here (the
+    converters themselves leave in part 11).
+  - **The UI-free files of the 0.35 editor are copied over and adapted,** not rewritten: their
+    tests come along. What they kept of the window is plain state on the workspace that the
+    window fills in (`looking_at`, `asking`, the open script's text).
+  - **Screenshots are answered by whoever draws** (`mcp_answer_shots` with a callback); the old
+    way (frame the canvas, grab the window two frames later) is gone.
+
   **Engine.** None beyond part 1. The crate takes over the logic of the old `app.rs`, `doc.rs`,
   `db_undo.rs`, `maps.rs`, `multisel.rs`, `clipboard.rs`, `structures.rs`, `search.rs`,
   `problems.rs`, `cleanup.rs`, `project_file.rs`, `files.rs`, `import/`, `art/` (jobs) and `mcp/`.
@@ -608,7 +741,7 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   leaves the files byte for byte as they were; `mcp_smoke` against the headless server; the test
   that `13-ai-agents.md` names every agent tool passes with the 0.35 catalogue.
 
-- [ ] Part 3: The shell — `feature/studio`
+- [~] Part 3: The shell — `feature/studio`
 
   **Goal.** The window creators work in: one workspace where everything is a tab, with the ways to
   get anywhere and do anything.
@@ -639,14 +772,108 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   - **Settings** (the editor's own): appearance, shortcuts, saving, the agent server, the Meshy
     account, pack sources.
 
-  **Engine.** None. New: `crates/editor` (the eframe application over `editor-core`), the dock,
+  **Progress.** `crates/studio` (binary `rustpg2d-studio` until it replaces the 0.35 editor), an
+  eframe window (egui 0.37) on the engine's wgpu device, over `editor-core`'s workspace:
+  - `shell.rs`: panels and documents as tabs that can be arranged (egui_dock): the Project
+    browser on the left (the fixed groups with their kinds and counts, a filter), documents in
+    the middle, Problems and History below; a menu bar made from the command list; the status
+    bar (status line, saved or not, problem counts, frames a second);
+  - the command palette (Ctrl+Shift+P; a command that takes words gets them typed after its id)
+    and *Go to anything* (Ctrl+P, the core's search); Ctrl+S, Ctrl+Z, Ctrl+Y;
+  - documents so far: the Overview with the checklist to a playable game, a definition (its
+    usages as links, and its file entry as text until part 4's forms), a map (its facts until
+    part 6's view), and **Play** (`play.rs`: the game in a tab, a `gfx::Screen` of the tab's
+    size shown as an egui texture, the tab's keys and pointer as the game's input, 60 frames a
+    second);
+  - the agent server runs in the window too (calls between frames);
+  - `RUSTPG2D_STUDIO_SCRIPT`: `wait`, `status` (`tabs=`, `focus=`, `history=`, `problems=`,
+    `palette=`), `shot` of the whole window, `tab NAME`, `palette TEXT` / `goto TEXT` / `pick N`,
+    `key`, `pause`, `resume`, `quit`, and any command line of the editor (`map.open village`).
+  - **The home screen** (the Overview while no project is open, and its *Another project*
+    section otherwise): *A new game* (its name, where it is kept: `~/rustpg2d/<name>` as a
+    project file) makes a project and opens it: with *the basics from the asset library*
+    unless that is unticked (ground to paint with, scatter sets, a wall and a fence, a hero
+    who is the player's character, a few items and props, grass on the first map:
+    `Workspace::start_with_basics`, the 0.35 wizard's starter assets), so Play shows a hero
+    on grass at once; *Open a project* by where it is; the
+    projects worked on lately; the bundled example in a packaged R(ust)PG2D. Another project
+    opens in the same window (`Shell::switch_project`). *Close this project* leads back to the
+    start. Where a new game is kept, a project
+    file and a project's folder are also picked in the system's file dialog (*Browse…*, *A
+    folder…*; a project picked opens at once), and so is the folder a game is published
+    into. Started without a project (and not in a checkout with its example), the editor
+    shows the home screen and nothing else.
+  - **File dialogs** (`studio/src/pick.rs`, the `rfd` crate through the desktop portal on
+    Linux, as the 0.35 editor's): a dialog runs beside the editor, which keeps drawing; who
+    asked takes the answer by a key in a later frame; one dialog at a time (the buttons
+    wait meanwhile); on macOS the dialog is modal. A scripted run and a test never open one:
+    `pickanswer PATH` (`pick::answer_next`) says what the next answers.
+  - **Unsaved changes are asked about** (2026-11-28, STUDIO_PLAN.md task 1): closing the
+    window, *Close this project* (and *File › Close project*, which before closed the project
+    under the open tabs without asking), opening or making another project with something unsaved
+    (definitions, maps, scripts, painted pictures, a translation table) shows *There are changes
+    that aren't saved* (a modal: `Shell::leave` with a `Leaving`, `leaving_ui`): **Save and go
+    on**, **Don't save** (what isn't saved is dropped, the files stay as they were), **Stay**
+    (also Escape). The window's close is cancelled while it asks (`ViewportCommand::CancelClose`).
+    A script's `quit` never asks; `closewindow` is the window's close button, `leave` prints what
+    is asked and `leave save|discard|stay` answers; the script's `project …` words still refuse
+    while something is unsaved. The project file is also written when the editor ends
+    (`on_exit`: before, it was written on a thread a moment after a save, and a quit at once
+    could leave only the working copy).
+  Still open: of the home screen pictures of the projects; layouts saved and presets, tearing tabs off into windows, back / forward,
+  favourites, the shortcut sheet with rebinding, the theme (light, UI scale, icons), toasts,
+  the editor's settings, `egui_kittest` tests; of a new game what the 0.35 wizard also
+  asked: the hero's sex, whether players make their own character, the first map's size.
+
+  **2026-11-28:** the status line's message is cut short with an ellipsis where its right-hand
+  part (saved, the problems' counts, fps) begins, the whole message on hover (seen at 900 x
+  600). The Problems tab says *The project changed since this check.* with *Check again* and
+  dims its list once anything changed after the check (a step of the history, an undo or redo,
+  a script saved, files read again); the status bar's counts are dimmed then. The check is not
+  rerun by itself: it took 90 to 150 ms on the example (dev build; 90 to 135 in a release build), a visible
+  stall after every pause in typing. A fix from the list checks again at once and is no change
+  since (`refresh_problems` notices the steps made before it first). Test
+  `shell::ui_tests::the_problems_list_says_when_the_project_changed_since_its_check`.
+  **2026-11-28:** the Overview's counts in words, *1 disease*, *3 3D models*, *1 UI skin*
+  (`shell::count_of`, `lower`); the Project browser's group shows no cross that does nothing
+  (egui_dock's disabled *close all tabs* cross is drawn transparent); started without a project
+  the window has no Problems / History panel: it comes with the first project. Tests
+  `counts_of_a_kind_read_as_words`, `the_problems_and_history_panel_comes_with_a_project`.
+
+  **Decided while building.**
+  - The new editor grows in `crates/studio` (the old one keeps `crates/editor`, with the
+    starter library's files, until the switch-over), over `editor-core` when that exists.
+  - Its window is X11 where there is an X server, like the game's (`RUSTPG2D_WAYLAND=1`).
+
+  **Engine.** None. New: `crates/studio` (the eframe application over `editor-core`), the dock,
   the theme, `ui.rs`' icon helpers carried over.
 
   **Verify.** `egui_kittest`: open the example, open three documents, split, tear one off, restart
   and find the layout again; Ctrl+P and the palette reach a map, an item and a command.
   Screenshots of Home, Overview and a mixed layout in both themes.
+  - The home screen, in the window: the project closed (the start with *A new game*, *Open a
+    project* and the scratch game under *Worked on lately*); a new project made in a scratch
+    folder (project.ron, defs, a start map, a script) and opened; its start map in a tab, where
+    the Build tool says that an empty project has no building to build like yet; the example
+    opened in the same window and the new project again.
+  - A new game's basics: `a_new_project_starts_with_the_basics_of_the_library` (made, filled
+    and read again from its files: called what was typed, the hero the player's character
+    with a figure and hit points, every one of the 25 basics, grass on the first map, what
+    they need with them). In the window: a new project, Play: the hero on grass with 12 hit
+    points, walking. (Before, an empty project played a yellow box with none: found when a
+    merchant in one wouldn't answer.)
+  - Unsaved changes: `leaving_with_unsaved_changes_asks_and_each_answer_does_what_it_says`
+    (the modal's three buttons on a changed project: stay keeps it open and changed, *Don't
+    save* closes it with its file as before, *Save and go on* writes then closes, quitting is let
+    through; saved, nothing is asked). In the window on a scratch copy of the example, with a
+    potion's value changed: *Close this project* clicked, the question, Escape and *Stay* stay
+    (`dirty=true`), *Don't save* closes with `defs/` equal to the example's, *Save and go on*
+    writes `value: 99` and closes; the window's close (`closewindow`) asks *before you quit*,
+    *Stay* keeps it, *Save and go on* saves and the editor ends; a recent project clicked asks,
+    *Don't save* opens the other project and leaves the first one's files alone; a scripted
+    `quit` with the change unsaved ends the run at once (4 s) and writes nothing.
 
-- [ ] Part 4: The Project browser and asset editors — `feature/studio`
+- [~] Part 4: The Project browser and asset editors — `feature/studio`
 
   **Goal.** The Database, restructured: every kind of thing has an obvious place, lists show what
   they hold, and an asset's editor shows the asset.
@@ -692,14 +919,203 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   - **New…** (Ctrl+N): pick the kind, then where it starts from (blank, a copy, the library, a
     file, Meshy), with a preview.
 
+  **Progress.** Every definition of every kind is edited in a form made from the field schema.
+  - **The schema** (`editor-core/schema.rs`) has two sources. The *shape* comes from the engine's
+    own types: with the feature `schema` every type that is written to a file derives a JSON
+    Schema (`engine/schema.rs`; `cargo run -p rustpg2d-engine --features schema --example schema
+    -- item` prints one), which gives a definition's fields in their order, what each holds, an
+    enum's variants, the value a file may leave out, and the field's doc comment as its help.
+    What only an editor knows is in three small tables there: `LABELS` (where the field's name
+    doesn't say it), `SECTIONS` (the sections of each kind's form, `~` = for advanced use) and
+    `REFERENCES` (the fields that hold an id, with the kinds they may name).
+  - **The form** (`studio/form.rs`): sections that fold; a label and help (on hover) for every
+    field; a choice for an enum, with the variant's fields under it and what fits kept when the
+    kind changes; a picker for an id (what it names, missing ones in red, a search, *none*,
+    *+ New…*, *Open*); a row for fixed-size values; nothing-or-something as *+ Add* / *Remove*;
+    lists with add (of an enum: from the searchable list of its variants), remove, move; named
+    entries; colours. Fields a file leaves out are shown with their default, so a form shows
+    everything a definition can have; what still holds its default is dimmed, so what was set
+    stands out, and a label's menu (right-click) has *Back to the default*. *Show all fields*
+    adds the advanced ones. Every control is named by its label (AccessKit).
+  - `editor-core`: `def_value` / `set_def_value` (a definition as data and back, refused with
+    the reason when it isn't one), `new_def`, `duplicate_def`, `delete_def` (refused while
+    something uses it), the commands `defs.new` (Ctrl+N), `defs.duplicate`, `defs.delete`. What
+    is typed but isn't valid yet stays in the form with the reason. Every change is a history
+    entry. A header with Rename, Duplicate, Delete, Find usages and *Used by* as links.
+  - **Pictures** (`studio/thumbs.rs`): egui shows the engine's own textures, nothing is drawn
+    or copied a second time: an item's or spell's icon and a prop's picture are their cells of
+    their sheet, a character, model or race is the pose the game's model atlas renders (the part
+    the figure covers: `Cell::drawn`, new in the engine), a material its texture. They are in
+    the browser's rows, in an asset's header, in the pickers' lists, and beside a sprite's
+    fields, where *Pick the frame…* shows the sheet's frames to click. Only what is on screen is
+    asked for, so a list of hundreds costs what it shows.
+  - **Everything of a kind** in a tab (*Show all* in the browser, script `tab kind:item`): cards
+    with pictures or a list, with a filter and *+ New*.
+  - **Categories told from what a thing is** (`editor_core::defs::categories`): items by the
+    SRD's categories (`item_category.rs`), props by what they do (walls and buildings, doors,
+    containers, furniture to use, lights, gathering and farming, traps, things that react,
+    scenery), characters by creature type, spells by level, models (playable, figures, pieces,
+    rig templates), structures by their category, sheets by kind. The browser lists a kind
+    under them; a kind's tab filters by one.
+  - **The creator's own order** (`editor-core/meta.rs`, `editor/meta.ron` in the project; the
+    game never reads it, exports leave it out): a folder (`Village/People`), tags, notes and a
+    favourite mark per definition or map. In an asset's header (*Favourite*, the folder, the
+    tags with *+ Tag*, *Notes*); in the browser (*Favourites* first, a kind's folders before
+    its categories, the filter also finds tags and folders); in a kind's tab (tags to filter
+    by, folder and tags in the list). Commands `meta.tag`, `meta.untag`, `meta.folder`,
+    `meta.favorite`, `meta.notes`. Written at once, no unsaved state; every change is a step of
+    the one history; a rename takes what was noted along, a copy starts with folder and tags.
+  - **Several at once:** in a kind's tab Ctrl+click chooses cards (a box per row in the list);
+    the chosen are tagged, untagged, moved to a folder, made favourites or deleted together
+    (one history step for the notes; a deletion is refused per asset while it is used).
+  - ***New…*** (Ctrl+N, every *+ New*, a picker's *+ New…*; `studio/gallery.rs`): the kinds as
+    the browser groups them, each with a sentence on what it is (`defs::about`); a name, from
+    which the id is made (`defs::id_from_name`, numbered when taken); it starts blank or as a
+    copy of another, picked from a list with pictures. `Workspace::make_def` and the command
+    `defs.make KIND [from:ID] NAME` do the same without the window. One history step.
+  - **What is wrong, and what nothing uses:** after the project check, an asset with a problem
+    has a mark in the browser and on its card, its header says what is wrong, and a kind's tab
+    shows *with problems* alone. *unused* (sheets, models, sounds, materials, fonts: what the
+    clean-up of unused files looks at) shows what no definition, map, setting or script names.
+  - **A kind as a table:** a row per definition, a column per field that fits into a cell (the
+    schema says which; *Columns* picks, the first section's by default), cells changed in
+    place with the forms' controls, a click on a column's head sorts by it. A change in a
+    chosen row is made in every chosen row, as one history step.
+  - **Names in use** (`schema::names`, table `NAMES`): where a flag, a variable, a script
+    function, a faction, a prop's state, a target, a crafting station or an emotion is typed,
+    a button beside the field lists the ones the project uses (`Workspace::refs`); a new one
+    is typed.
+  - The browser's fixed groups with a *+ New* per kind (part 3's shell); while something is
+    typed into its filter, what fits is shown open and the rest is out of the way.
+  - Script: `field KIND ID /POINTER VALUE` changes a field as the form does; `click X Y`,
+    `hover X Y`, `wheel DY`, `type TEXT`, `press KEY` are real input in the window (eframe's
+    input hook), `size W H`, `allfields on|off`.
+  - **Clean up unused files** (`editor-core/src/cleanup.rs`, `studio/src/cleanupwin.rs`;
+    *Assets › Clean up unused files*, `cleanup`): the project is saved, then what nothing
+    names is listed (definitions with the files only they use, and files no definition
+    names) with its size, to tick; *Delete the ticked* puts a copy beside the project
+    (`<name>-backup-cleanup`) and deletes, *Keep all* deletes nothing; what stays unticked is
+    remembered for the project and comes unticked the next time. The definitions' steps
+    leave the History with it (`forget_defs_steps`: they would bring deleted definitions
+    back without their files; the same now when definitions are read again from disk).
+    **Offered when the project is left** (2026-11-28, STUDIO_PLAN.md task 2): quitting,
+    closing the project, opening or making another (after the question about unsaved changes,
+    if any) first shows the window with *Before you go: this project has files nothing uses*
+    when the project **as it is on disk** has unused things it didn't keep
+    (`Workspace::cleanup_offer`: nothing is saved by it, and what is deleted goes from the
+    files, so changes dropped with *Don't save* stay dropped). Each way out (*Delete the
+    ticked*, *Keep all*, the window's close) goes on with leaving, once; *Keep all* remembers
+    them, so the next close asks nothing. A scripted `quit` never offers it; `cleanup` prints
+    `TICKED/ALL:leaving` while it is the offer. Looking through the example takes about two
+    seconds, in which the window stands still (only when leaving).
+  Still open: the hand-made editors (triggers as an event sheet in part 7; stat blocks,
+  buildings, class levels), a state picked among the states of the prop in question, tool
+  kinds and piece styles, units and ranges on numbers, problems at the field, live previews (an
+  item in a hand; a prop with its states and a moving character are part 8's workshops, as
+  are the pictures of structures),
+  problems at the very field, *unused* for items, props and characters (nothing
+  places or names them), folders as a tree with drag and drop,
+  where an asset came from (a pack: part 9), *New…* from a file or Meshy (part 8; from the
+  library is there), *From library…* in pickers (part 9), the schema as
+  the agents' field descriptions and the manual's reference tables.
+
+  **2026-11-28:** a change made in a form, or by the script's `field` / `setting`, is named in
+  the History by what the form knows: *Small red-roofed cottage: Ridge*, *…: States, an
+  entry added* / *removed* / *moved*, *Game settings: It starts on* (worded so since the
+  entry below)
+  (`form::Said`, `form::take`, `Workspace::def_step_name`, `schema::Node::label_at`); typing a
+  name letter by letter stays one step with one name, the definition's name as it was before.
+  Tests `form::ui_tests::a_change_in_a_form_is_named_in_the_history_by_its_definition_and_field`,
+  `schema::tests::labels_and_help`.
+  **2026-11-28:** a form's step is named by the field alone: *Small red-roofed cottage:
+  Ridge*, *…: States, an entry added* (*removed*, *moved*), *Game settings: It starts on* (a
+  label that is a phrase read badly before *changed*). Tests
+  `a_change_in_a_form_is_named_in_the_history_by_its_definition_and_field` and the prop
+  workshop's updated; `summaries` pins the stops' and patrols' titles.
+
+  **Decided while building.**
+  - *The shape is derived, not written.* A hand-written table per kind would repeat ~300 types
+    and go stale with every engine change. `schemars` reads the same serde attributes the files
+    are written with, so the form can't disagree with the format; without the feature the engine is
+    as before (the game never calls it).
+  - *The reference table is checked against the engine's renames.* The test
+    `references_agree_with_renames` makes up values with everything in them (every field, every
+    variant, every text an id), renames each kind through them with `refactor::rename_in_db` /
+    `rename_in_map`, and fails unless `REFERENCES` lists exactly the texts that changed, with
+    the lines it should have. A new id field in the engine can't be forgotten in the form.
+  - *Found on the way:* fifteen fields name a definition but aren't followed by renames (a
+    quest in *Quest* actions and conditions, an achievement, spells in *Learn spell* and class
+    features, a subrace's race, a route's sound, the camp item, a schedule's map…): the table
+    `NOT_FOLLOWED`. They get pickers; renaming those ids still leaves them behind, as in 0.35.
+    The schema walk (`schema::texts`) can replace the hand-written rename and usage passes;
+    that belongs to part 11's clean-up, with a test of its own.
+  - *Pictures are the engine's textures, not copies.* egui gets the sheet's texture and the
+    part that is the sprite, or the model atlas's page and the pose's part. One exception: egui
+    blends colours already multiplied by their alpha, the engine keeps them apart, so a sheet
+    shown in the UI gets a multiplied copy the first time (else soft edges get bright fringes).
+  - *Categories are derived first, tags come on top.* A project that was never sorted by hand
+    is sorted already; the creator's folders and tags refine it.
+  - *Notes aren't "unsaved changes".* `editor/meta.ron` is written when it changes, like the
+    editor's own settings: tagging thirty props mustn't ask to save the project. Undo still
+    covers it (a step keeps what was noted before). What was noted about something deleted is
+    kept until the file is next written, so undoing the deletion finds it again.
+  - *Help is the doc comment for now.* It was written for developers; where it reads badly for
+    creators it gets a line in the tables (or a better comment).
+
   **Engine.** The schema tables (in `editor-core`, beside the definitions' use) and
   `editor/meta.ron` (folders, tags, notes, origin per asset). Definition formats unchanged.
 
   **Verify.** The schema coverage test. `egui_kittest`: for every kind, change a field, save,
   reload (the old `ui_tests.rs` cases carried over); a picker's *+ New…*; bulk tagging. Screenshots
   of the browser, a grid, a table and three asset documents.
+  - Done so far: `every_field_has_its_section` (all 24 kinds), `references_agree_with_renames`;
+    `form.rs`'s UI tests through AccessKit (sections and advanced fields, a choice picked from
+    its list, an id picked by searching and opened, a field put back to its default from its
+    label's menu; egui_kittest also fails any control without a name).
+  - A scripted run in the window on a copy of the example, with real clicks: the Iron Sword's
+    *Used on* opened and *Ally* clicked, *Teaches* opened, "fire" typed, *Fire Bolt* clicked: two
+    history entries, saved, `items.ron` has `use_on: Ally` and `teaches: "fire-bolt"`, two undos
+    take them back. Hovering *Stack size* shows its help; the wheel scrolls the form.
+  - Pictures, looked at in the window: the cards of all items, props, characters (people and
+    creatures each filling their card) and materials; the browser filtered by "sword" with its
+    icons; the Elder's header and portrait; the Iron Sword's *Pick the frame…* with the chosen
+    frame marked; the model picker's list with figures. `tests/headless.rs` checks `Cell::drawn`
+    on the hero's pose. Categories: the browser's Props and Items under their categories, the
+    Props tab with *Containers* clicked (5 of 187); test
+    `definitions_are_put_into_categories_by_what_they_are`. Names in use: the Goblin Archer's
+    *Faction* lists the project's eight, one clicked is a history entry; test
+    `made_up_names_are_known_where_they_are_typed`.
+  - The creator's order: `tests/workspace.rs` (`tags_and_folders_are_written_follow_renames_and_undo`:
+    commands, the file, a copy, a rename, five undos, a redo) and `meta.rs`'s tests. In the
+    window: the Potion's header with its folder, tag and notes; *Favourites* in the browser;
+    three items chosen with Ctrl+click, *Tag…*, "quest" typed, Enter: one step *Tag 3 items*,
+    three entries in `editor/meta.ron`, undone and redone.
+  - Problems and unused, in the window: the Iron Sword taught a spell that doesn't exist:
+    *with problems (1)* shows it alone with a red mark, its header says "refers to spell
+    "no_such_spell", which doesn't exist"; a sheet made and named by nothing is under *unused
+    (1)*. The script's `field` now reaches fields a file leaves out and refuses a field the
+    kind doesn't have (`Node::at`).
+  - The table, in the window: the items with Name, Description, Stack size and Value; sorted by
+    Value downwards (Ring of Protection 4000 first); Gate Key and Bronze Key ticked, 77 typed
+    into one's Value: both have 77, one step *Change value of 2 items*, one undo.
+  - *New…*: `a_new_definition_is_made_from_its_name` (blank, numbered id, a copy, a quest's
+    title, undo). In the window: *Item*, "Moon Blade" typed, *as a copy of another item*, the
+    Hunting Bow clicked (its picture beside the list), *Create*: the tab of `moon_blade` opens,
+    one history step, and after saving `items.ron` has it with the bow's values.
+  - The clean-up on leaving: `what_is_offered_on_leaving_is_what_is_on_disk_and_was_not_kept`
+    (offered from the files, *Keep all* not offered again, the offer saves nothing, deleting
+    leaves the editor's unsaved copy alone) and
+    `the_clean_up_is_offered_once_on_leaving_and_keep_all_is_not_asked_again` (the window's
+    line and *Keep all* by click, then closed; opened again, closed without asking; unsaved
+    changes asked first, *Don't save*, the clean-up after, *Delete*: quit, the dropped name not
+    written). In the window on a scratch copy of the example: closed with nothing unused: no
+    window; a sound `Old bell` made and saved, *Close this project* clicked: *Clean up unused
+    files* with *Before you go…*, `1/1:leaving`, *Keep all*: closed, opened again and the
+    window closed: the editor ended without asking; another copy with a sound, the window
+    closed, *Delete the ticked*: the file in `game-backup-cleanup/sounds/`, gone from the
+    project, the editor ended.
 
-- [ ] Part 5: Game settings and rules — `feature/studio`
+- [~] Part 5: Game settings and rules — `feature/studio`
 
   **Goal.** The settings of the game and its rules have a home of their own instead of one long
   form among the Database's tabs.
@@ -723,12 +1139,74 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
       exporting (problems, missing translations, unused files, attribution).
   - They are forms of the field schema, so *Find a setting* reaches them.
 
+  **Progress.** The pages exist, as forms of the field schema.
+  - `schema::PAGES`: nine pages (Game · Hero & party · Rules · World · Look & feel · Title &
+    menus · Sound · Languages · Scripts & plugins), each the fields of the project's settings
+    it shows, with labels of their own; a test keeps every setting on exactly one page.
+  - The *Game* group of the Project browser lists them under the Overview; the browser's
+    filter finds a page by a setting's name. A page is a tab (`settings:rules` for scripts)
+    with the same controls as a definition's form: pickers for the start map, the player's
+    character, the skin, the sounds; defaults dimmed; *Show all fields*.
+  - `Workspace::config_value` / `set_config_value` (refused with the reason when it isn't
+    valid settings); a change is a step of the history (*Change the game's settings*). Script:
+    `setting /POINTER VALUE`.
+  - **Publishing** (`studio/src/publish.rs` over `editor-core/src/export.rs` and
+    `package.rs`; the *Game* group's last entry, tab `publish`): the game's name, the folder
+    it goes into (`releases` beside the project), Linux / Windows / macOS / Web, a zip of
+    each, one `data.pack` or loose files, on Linux an AppImage and a Flatpak bundle (app id,
+    runtime), the icon. Under it the pre-flight: what stands in the way (a runner that is
+    missing or was built from another engine than the editor, a project without maps, a bad
+    app id) in red, what is worth knowing (the project not checked yet, a debug runner, a
+    glibc too new for older distributions) in yellow, and what will be written where with
+    the folder the saves go to. *Export* is there once nothing stands in the way.
+  - **Translations** (`editor-core/src/langs.rs`, `studio/src/langpage.rs`; at the top of
+    the *Languages* page, `lang`): the languages the game is offered in, each with how many
+    of the game's texts it has (`Workspace::languages`); a language added by its code, or
+    by a click for the nine the engine has its own menus in (the project is saved, the
+    language's file written with every text); *Translate…* opens its table: the texts
+    players read at the left, the translation typed at the right, searched, *Only what
+    isn't translated*, the language's own name, translations of texts the game no longer has
+    taken out by a click, *Update from the game*. A table that was typed into is saved with
+    everything (Ctrl+S). *Play in it* starts the game from its title in that language, and
+    play-tests keep starting in it (*Play-tests start in*). *Take off the list* leaves the
+    file. Japanese, Chinese and Korean show as boxes in the table (the editor's font; the
+    table says so): open.
+  - **Plugins** (`editor-core/src/plugins.rs`, `studio/src/pluginspage.rs`; at the top of the
+    *Scripts & plugins* page, `plugins`): the project's plugins as cards (name, version,
+    author, what it does; on / off; up / down in the order; *Remove*, its folder kept under
+    `editor/backup`), each parameter by its label with the control its kind takes (a number
+    in its range, a switch, a text, one of the project's sheets / sounds / items / maps) and
+    *Default* when it was set; a parameter set to its default isn't kept. *Add a plugin*:
+    the asset library's that the project lacks (or has older: *Update to…*), or a plugin
+    file. The raw list of the settings is under *Show all fields*.
+  Still open: what a plain form doesn't give. The factions as a table of standings, the title
+  screen's live preview, the translation table, the hooks with their script functions and the
+  plugins' parameters by their kinds, the game's icon picked from a picture (it is a path on
+  the Publishing page), the spawn point picked among the start map's, and *Find a setting*
+  across forms and pages. Of Publishing: a folder picker (the folder is typed), the export
+  on a thread with its progress (the window waits while the game is written).
+
   **Engine.** None: `ProjectConfig` keeps its shape; the pages group its fields.
 
   **Verify.** `egui_kittest`: a change on each page saved and reloaded. Screenshots of Rules,
   Title & menus and Publishing. An export from the page runs.
+  - Done so far: `every_setting_is_on_one_page`; `settings_change_as_data_are_saved_and_undone`
+    (a setting of seven pages changed, an invalid one refused with the reason, saved, read by a
+    second workspace, one undo). In the window: the Rules and World pages looked at;
+    `setting /day_minutes 30` and `/rules/show_checks false` are two history steps, in
+    `project.ron` after saving, undone twice; `/nonsense` is refused.
+  - Publishing: `the_preflight_says_what_stands_in_the_way_of_an_export` (nothing ticked and
+    no name are stops and nothing would be written; this computer's platform with where the
+    game and its saves go; a missing runner said, and nothing written; a bad Flatpak app
+    id), the packaging glue's three tests, `publish::ui_tests` (the page filled in from the
+    project, a second platform ticked, the app id following the name, no name stopping it).
+    In the window: a release runner older than the editor refused with the reason (now a
+    stop of the pre-flight); with a current one the example exported for Linux as
+    *Emberbrook* (707 files, 99 MB: the program, `data.pack`, the licenses, a zip), and the
+    exported game started on the village. Not run here: Windows, macOS, web, AppImage and
+    Flatpak from the new page (the engine's and the packaging crate's code is 0.35's).
 
-- [ ] Part 6: The map workspace — `feature/studio`
+- [~] Part 6: The map workspace — `feature/studio`
 
   **Goal.** Building the world is direct: fewer tools that do more, everything on a map listed
   and reachable, and the game playing in the editor.
@@ -767,15 +1245,301 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     - *Play in its own window* (the real runner) stays for the last check.
   - The top-down view stays as a view option unless the user removes it in part 11.
 
+  **Progress.** A map is a tab with its view, tools, Outliner and Inspector.
+  - **The view** (`studio/src/mapview.rs` over `scene.rs`): the map drawn by the engine's
+    renderer into a picture of its own, as the game shows it (painted ground, scenery,
+    everyone standing in depth order, buildings, shadows), with the darkness and lights of an
+    hour, the weather, the grid, zones and blocked tiles as options, and *From above*. The
+    wheel zooms around the pointer; the middle button, Space with the left one, or the arrow
+    keys move it; *Fit* (Home) shows the whole map. Each open map keeps its own camera,
+    selection and tool; maps side by side each draw their own picture.
+  - **Select** (V): click, Shift / Ctrl+click for several, a box dragged over empty ground;
+    drag to move (one thing snaps as it does when placed, several move by tiles), R turns,
+    Ctrl+D duplicates, Del deletes; a click on what is selected goes on to the thing behind
+    it; a double click opens the definition (a portal: its other map); the right button has
+    the same as a menu. A zone is picked by a click, so a drag inside a big one still draws
+    a box; the selected zone has corners to drag.
+  - **Terrain** (P): the materials with their pictures; brush (round or square), line,
+    rectangle and fill, *On tiles* or on the ground's cells; Shift erases, the right button
+    picks the material under the pointer, [ and ] size the brush. A stroke is one step named
+    by its material (*Paint Cobblestone*).
+  - **Place** (N): characters, props, items, structures and scatter sets in one searched list
+    with pictures; the pick follows the pointer as a ghost and is put down by clicks (Shift:
+    off the grid, R turns it first). **A prop that only stands there is placed as scenery; one
+    that does something** (events, states, a container, a lock, something to gather…) **as an
+    object**, and the list says which. Scenery with a grid of its own (walls, fences) is
+    dragged out as a row; a scatter set is brushed on; a structure shows its footprint.
+    A character, prop, item or structure can also be dragged out of the Project browser
+    onto a map.
+  - **Scenery is a thing like any other:** selected by a click (then dragged: a house isn't
+    moved by a drag meant for something else), boxed, moved, turned, duplicated, deleted; the
+    Inspector has its layer, mirroring and shown state, and ***Make interactive*** turns it
+    into an object on the same spot (***Make scenery*** back, while the object has nothing of
+    its own). Big things (a house, a wall) are hit by their shape, not by their picture's
+    frame. The Outliner lists scenery by what it is (*Young Oak x 311*: a click selects them
+    all); *Picks* says what the Select tool takes.
+  - **Zones** (Z): every kind the engine has, listed from the field schema with its help; a
+    drag makes one, named after its kind.
+  - **Collision** (C): left blocks, Shift gives a tile back to the ground's own rule, the
+    right button opens it.
+  - **Outliner:** the map's characters, objects, items and zones, searched; a click selects
+    and brings into view.
+  - **Inspector:** the selected thing's form from the field schema, with the sections that
+    mean something for what it is (a prop has no schedule, a character no lock); what it
+    doesn't set itself is dimmed like a default; *Edit definition*, *Turn*, *Duplicate*,
+    *Delete*. Zones the same, with their place in tiles.
+  - **The core** (`editor-core/src/mapedit.rs`): placing, moving, turning, duplicating,
+    deleting, zones, scenery, the ground, scatter strokes, structures and the Inspector's
+    data, each one step of the history with a name (*Place Town Guard*, *Move elder*, *Add a
+    spawn zone*, *Scatter Forest*). `snap_map` / `commit_map` make one step of whatever
+    changed between them, objects and scenery alike.
+  - **Agents see maps again:** `screenshot_map` is answered from the same drawing, without
+    the map's tab being shown.
+  - **Layers:** the painted ground, scenery, and characters, objects and items are each
+    switched off and on (*Layers*); what is hidden can't be picked either.
+  - **Save as structure:** several things selected (a house with its fence, boxed) are
+    saved with the ground under them as a structure by the name typed (`tiles_of`,
+    `save_as_structure`); the menu's *Find usages* shows where a thing's definition is
+    placed and named.
+  - **A character's day on the map:** the selected character's patrol route (numbered
+    waypoints, arrows the way it walks) and daily schedule (dashed, each stop with its
+    hour) are drawn.
+  - **Map settings:** with nothing selected the Inspector is the map's own form (light and
+    weather, music, what lies beyond its edges, its events), from the field schema
+    (`MapSettings`, new in the engine: what a map is besides its ground and what stands on
+    it).
+  - **Transitions are drawn on both maps:** a Transition zone drawn on one map waits for its
+    other side (the bar says so); the next one drawn on another map makes the two each
+    other's (`Workspace::link_transitions`, a step of each map called *Link house and
+    village*). *Link…* on a transition's Inspector makes an existing one wait.
+  - **The World view** (`studio/src/worldview.rs`, the *World* group's first entry, tab
+    `world`): every map as a card with its picture (a pixel a tile), in columns by how many
+    maps lie between it and the start map; portals, transitions and edges as arrows from
+    where they start to where they arrive; a way that leads nowhere and a map nothing leads
+    to are marked and say why; a click opens the map, cards can be dragged
+    (`Workspace::survey_world`).
+  - **Play inside the editor** (`studio/src/play.rs`): *Play from here* in the map's menu
+    starts the game in the Play tab with the hero on that tile (everything is saved first);
+    F5 from the title screen, F6 on the map being worked on. The tab's bar: *Restart*,
+    *Pause*, *Step* (a sixtieth of a second), the clock at 1/4 to 4 times, *Inspect* (a
+    click on a character, a prop or an item in the running game opens what it is; Alt+click
+    at any time), *State*, *Own window* (the real runner, started the same way).
+  - **The State panel:** the running game's map, day and hour, flags, variables, quests,
+    party and bag, searched and changed while it runs (a flag ticked off, a variable
+    dragged, a quest's stage, an item given).
+  - **The test setup** (`editor-core/src/testsetup.rs`): *Keep as the test setup* takes what
+    the running game holds (the hero's level and class, the bag, flags, variables, quests,
+    the clock, the party); *Play from here with the test setup* loads a game in progress
+    with it on the tile, so the map's *Map enter* events (an intro) don't run. Kept per
+    project in the editor's settings. **Its form** (2026-11-28, STUDIO_PLAN.md task 7;
+    `studio/src/setupwin.rs`): *Test setup…* in the Play tab's bar opens a window with the
+    level, the class (the forms' picker), the hour and day (or the project's start hour), and
+    lists of items (picker and count), flags and variables (typed, with the ones in use
+    offered), quests (picker, stage, done) and the party (placed characters' names offered),
+    each with *+ Add* / *Remove*; every change is kept at once (`set_test_setup`: not a step
+    of the history); *Forget it*. Script `testsetup` (and `open` / `close`).
+  - **The Build tool** (B; `editor-core/src/build.rs`, the panel in `studio/src/buildtool.rs`):
+    *Walls* painted along the tile edges (thin walls and fences) or tile by tile (thick
+    ones), round corners, Shift for a straight line; a *Room* dragged as its floor, with
+    its back walls or all four and a doorway, a floor material and a roof if wanted; a
+    *House* dragged as its footprint: a new building prop in the look of a chosen one with
+    one to three storeys, its door in the front, windows along the walls, and a wing of the
+    house it is dragged against (one roof over both); a *Roof* alone as a rectangle, or over
+    tiles painted by hand or found inside walls with a click, any shape, cut into joined
+    parts; *Doors*: a door, a window or a gap clicked into a wall piece or a house's wall.
+    The right button takes a wall piece, a door or a window away again. Each is one step:
+    Ctrl+Z takes a house back with the prop that was made for it.
+  - **Copy, cut and paste** (Ctrl+C, Ctrl+X, Ctrl+V, the map's menu): what is selected
+    (characters, objects, items, scenery, zones) is put down under the pointer, on the same
+    map or another one, with new numbers and names that are free there
+    (`Workspace::copy_objects`, `paste_objects`). **A region of tiles** (2026-11-28,
+    STUDIO_PLAN.md task 9): Alt+drag with the Select tool selects one (`Selection::Region`,
+    a yellow frame on the ground; 0.35's region drag, which the new map tab had not brought
+    over); copied, it is captured as a structure is (`StructureDef::capture` with the ground:
+    painted ground, scenery, blocked tiles, the things whose feet stand in it; zones not, as
+    in 0.35) and pasted with `MapDoc::place_structure` as one step, named things under free
+    names, what falls off the map left out, the pasted region selected. Deleting a region
+    empties it (`MapDoc::clear_region`), so *Cut* works on one. Its Inspector: *Copy*, *Cut*,
+    *Empty it*, *Save as structure*. Script `mapdrag X1 Y1 X2 Y2 alt`.
+  - **Replace with…** (Inspector): another definition of its kind in a thing's place, where
+    it stands, with its name and events; several selected at once. **In a row / In a
+    column** put several things in line with the first one selected.
+  - **A placed prop's state** is picked among its definition's states.
+  - **A character's day on the map:** *Add waypoints* makes the map's clicks add to its
+    patrol route (the right button takes the last one away); waypoints and the stops of its
+    daily schedule are dragged where they are drawn.
+  - **The World view's cards lie where they were left** (noted in `editor/meta.ron` with
+    the creator's folders and tags; *Tidy* forgets the places).
+  - **A new map, a map's size** (`mapedit.rs`: `create_map`, `resize_map`; the agents'
+    `create_map` and `resize_map` tools run the same): *Map* in *New…* (name, width and
+    height in tiles, the material its ground is filled with: grass when the game has it) and
+    *+ New map* in the Project browser; the map's Inspector has *Size* with *Resize* (one
+    step; the top left stays, ground and scenery beyond the new edges go). Commands
+    `map.new NAME [W H] [GROUND]`, `map.resize W H`. (Missing until part 10's empty places
+    asked for them; an agent's `create_map` also closed the map in front, no longer.)
+  Still open: a structure's ghost (its footprint is shown); hiding and locking single
+  things in the Outliner; schedule stops added by clicking the map (they are added in the
+  Inspector, then dragged). Of playing: the
+  console and script errors as panels (part 7), a click in the game leading to the thing's
+  place on its map (it opens its definition).
+
+  **2026-11-28:** *Test setup…*: two rows with a picker (two items, an item and a quest) no
+  longer share an egui id (the red *First use of widget ID* warnings); `testsetup` and its
+  status print the day as the window's field shows it (from 1).
+  **2026-11-28:** the map's bar stays one line: short of room, *Weather*, *Blocked tiles*,
+  *Zone areas*, *Grid* and *Light* (with its hour) fold into a *Show* menu, then the events
+  graph and the zoom into *More*; only with everything folded does it wrap (`BarFit`, measured
+  on the frames before; seen at 1600, 1100 and 800 points wide with *Light* on). A
+  schedule's stops in the Inspector are titled by hour and place (*07:00 at 30, 23*, *15:00
+  at bench_west*, *20:30 at guest_bed in house*), a patrol by its waypoints (*4 waypoints ·
+  Ping pong*). The World view cuts a card's name to the card's width (whole on hover) and
+  leaves out the size below it when, zoomed out, the cards lie too close for both.
+
+  **Decided while building.**
+  - **The world is drawn by the engine, the editor's marks by both.** What lies on the ground
+    (zones, the grid, blocked tiles, frames) is drawn in the same pass with the ground's
+    camera; names and handles are egui's, so they stay sharp at any zoom.
+  - **A map's view state lives with its tab**, not in the workspace: two tabs of two maps
+    each have a camera, a tool and a selection. The map pressed on becomes the one being
+    worked on (commands and agents act on it).
+  - **The tools' and the view's switches are different words** (*Zones* the tool, *Zone
+    areas* the switch): the UI test that clicks them by name found the two *Zones* buttons.
+  - **What a prop is decides how it is placed**, not which tool was picked first:
+    `Workspace::prop_acts`. The creator can still turn either into the other.
+  - **Scenery has no number**, so a selected piece is told by what it is (`Selection::Scenery`
+    holds the decoration); moving it changes the selection with it.
+  - **The game in the tab reads the project's files**, like the runner: playing saves first.
+    Its clock is the tab's: `Game::step` (new) moves the game on by hand, several times a
+    frame to fast-forward; `Game::thing_under_pointer` (new) says what a click would open.
+  - **A test setup is made by playing**, not by filling in a form first: play to where the
+    test starts, keep the state. (Its form came later, for changing one: 2026-11-28.)
+  - **A value that may be left out is one control with a way to say "none"**, also when it
+    is plain text or a number: the schema the forms read writes `Option<String>` like every
+    other optional thing (`tidy_schema`). The map's fight music showed it: it was a bare
+    text field, it is a sound picker now, and the rename check found that renames follow it.
+
+  - **Changes one action makes in two places are one step** (`Change::joined` in the
+    timeline): a built house is a new prop and a thing on the map, two linked transitions
+    are a change of each map. Undo and redo take them together; the History panel still
+    lists both.
+  - **Building models follow their definitions** (`Workspace::sync_buildings`): a shape
+    changed in a form, or brought back by undo, is built again where it is looked at. The
+    0.35 editor did that from each place that changed one.
+  - **Undoing a change to pictures reads those pictures**, not every asset: a built house
+    comes and goes with the picture rendered of it, and reading everything took 1.8 s on
+    the example (measured). Materials and sounds still read everything.
+  - **Maps are linked where the ways are**, by drawing the two transition zones; linking by
+    dragging one card of the World view onto another was dropped: it could not say where on
+    either map the way is.
+  - **Arranging the World view is no step of the history:** a card's place is written at
+    once and changes nothing of the game.
+  - **A room of thick walls stands around the floor that was dragged**, and its roof reaches
+    over the walls. In 0.35 thick walls stood on the floor's own north and west tiles and
+    one tile past its corner. Thin walls stand on the floor's edges as before.
+  - **A door in a wall closes the room** for *Inside walls*; a doorway left open doesn't
+    (the room's own *With a roof* doesn't need the walls closed).
+  - **What was built is saved as a structure with the Select tool** (a box around it, *Save
+    as structure*): the Build tool's own *Built here* area of 0.35 is gone.
+  - **A roof alone is drawn after what stands under it** (agreed 2026-11-27): in 0.35 and in
+    the game, wall pieces in the southern and eastern rows under a roof were drawn over its
+    eaves, and someone in that corner of the room over the roof, because things with
+    overlapping footprints went by their feet. `iso::Footprint` has a `base` now (how high
+    its underside is: a building without walls rests at its *height*), and what is raised
+    comes after what stands under it. With the hero inside, the roof is cut away as before.
+
   **Engine.** `Game` embeddable (part 1). The canvas draws through the engine's renderer into a
-  texture, as the old `canvas.rs` drew on the screen.
+  texture, as the old `canvas.rs` drew on the screen. Added for the Play tab: `Game::step`
+  (devices and one update, what `frame` does before drawing) and `Game::thing_under_pointer`.
+  For the Build tool: `Assets::load_sheet` (one picture read again, a built house's, instead
+  of every asset); `iso::Footprint::raised` and `PropDef::raised_by` (the draw order of roofs).
 
   **Verify.** Editor script: each tool on a scratch copy (paint, place, turn, link two maps),
   `status` fields as today; the Play panel started from a tile, a flag set in the State panel
   changes a dialog; `egui_kittest` snapshot of the canvas with the Outliner. Frame times of the
   canvas on the largest map.
-
-- [ ] Part 7: Events, conversations and scripts — `feature/studio`
+  - Done so far: `things_are_placed_changed_and_removed_on_a_map_step_by_step` (the core:
+    placing on the grid, refusals, the Inspector's round trip, a zone cut to the map,
+    copies, six named steps undone to a clean map); `egui_kittest` on the tab without a
+    graphics adapter (`mapview::ui_tests`: the Outliner selects, the form shows a
+    character's sections and not a prop's, a typed name is a step, *Delete* and undo; the
+    tools' lists arm what is clicked). In the window on a copy of the example, by real
+    clicks at tiles (`mapclick`, `mapdrag`): a guard placed, dragged two tiles, turned,
+    duplicated, a spawn zone drawn, collision painted with both buttons, each undone by its
+    name; the village by night with its lamps, from above, the house fitted. The village
+    (80 x 60 tiles, 130 things, 475 pieces of scenery) draws in 0.4 to 1.9 ms a frame (CPU).
+    The agents' smoke client passes with `screenshot_map` answered (725 x 459 px).
+  - `scenery_ground_scatter_and_structures_are_steps_of_a_map` (a rock as scenery, made
+    interactive and back, refused while it has a name; moved scenery told by its new place;
+    a rectangle of cobblestone on tiles; two scatter dabs as one step; a structure; all
+    undone to the map as it was). `mapview::ui_tests`: the Terrain list picks a material;
+    the Outliner's *Young Oak x 311* selects them all, *Make interactive* and *Make scenery*
+    are two named steps. In the window: a cobblestone stroke, a pond as a rectangle on
+    tiles, a field as a line, a fill; an oak, a row of fence, a forest brushed on, a small
+    cottage, a chest (placed as an object); a tree picked by a click and dragged three
+    tiles; twelve steps undone by their names.
+  - Playing, in the window: started on a village tile (the intro runs, as in a new game);
+    `shrine_lit` set and `mira_talks` given a value through the State's functions, both in
+    the game's own status, the achievement that waits for the flag unlocked at once; kept
+    as the test setup (`L1:items0:flags2:vars1…`) and there again in the next game, which
+    starts without the intro; paused, the game's clock stands at 08:08 through a second and
+    a half and one step, runs eight game minutes in two seconds at 4x and none to speak of
+    at 1/4; the elder answers E; an *Inspect* click on a market stall opens the stall's
+    definition. The setup's form: `what_is_set_in_the_form_is_the_test_setup` (level 3 by
+    AccessKit, a row added and the potion picked from the list, a flag typed: the same in
+    `test_setup()`; *Forget it*: nothing kept). In the window on a scratch copy: *Test
+    setup…* open, level 3, a potion and `shrine_lit` set (the window shows them),
+    `play village 20 20 setup`: the game's status has `level=3`, `shrine_lit` among its flags
+    and the potion in its bag. `a_crafted_save_has_the_setup_and_finds_the_party` (and a running game's
+    state gives the setup back). Not shown: a line of dialog changing with a flag set in
+    the panel (the scripted hero did not get to face the walking child whose line it is).
+  - `the_world_is_surveyed_and_two_maps_are_linked` (the example: 19 maps all reached from
+    the village, no way that leads nowhere; two unlinked transitions are two problems,
+    linked they are a pair, as two steps named *Link house and village*; the map being
+    worked on stays). `references_agree_with_renames` covers the map's settings (music,
+    fight music, an edge's map, a parallax layer's sheet). In the window: a transition
+    drawn in the house and one in the village link themselves; the World view shows 19 maps
+    and 38 ways; the village's settings in the Inspector; the elder's day (07:00 by the
+    well, 13:00 on the bench) drawn on the square. `mapview::ui_tests`: 311 oaks selected
+    and saved as *Oak grove*, undone by its name. A Town Guard dragged from the Project
+    browser's row onto the village stands where it was let go.
+  - `things_are_copied_to_another_map_replaced_and_put_in_a_row`,
+    `a_characters_route_and_day_are_changed_on_the_map`,
+    `a_maps_card_place_is_noted_with_the_creators_order`; `mapview::ui_tests`: two
+    characters put in a row, copied and pasted, one replaced by a guard picked from the
+    searched list, all undone. In the window: the elder copied in the village and pasted
+    there and in the house (undone by its name); four clicks add waypoints 5 to 8 to the
+    guard's route, the right button takes the last away, one is dragged, Esc ends; the
+    chest's Inspector offers its states; a card of the World view dragged lies there after
+    a restart. Not done by real keys: Ctrl+C / Ctrl+V (the script calls what they call).
+  - A region copied with its ground: `a_region_is_copied_with_its_ground_and_pasted_as_one_step`
+    (a 3 x 3 patch of stone with a blocked tile and a named barrel, copied and pasted at
+    10, 10: the stone, the blocked tile and `barrel_2` there, one step, undone in one; over
+    the map's edge what fits; a region deleted is emptied in one step). In the window on a
+    scratch copy: `mapdrag 25 18 28 20 alt` selects `r25,18:4x3` (the frame on the ground,
+    the Inspector's *4 x 3 tiles*), *Copy*, the pointer at 33, 26, *Paste*: "Pasted a region
+    of 4 x 3 tiles with its ground", the grass corner of the source now on the cobbles there;
+    `edit.undo` "Undid: Paste a region of 4 x 3 tiles", the cobbles back.
+  - The roof's order: `a_roof_alone_is_drawn_after_what_stands_under_it` (wall pieces in
+    its southern and eastern rows and someone inside near that corner are covered; what
+    stands in front of it is still in front). In the window: a room of timber walls with
+    its roof, no wall top over the eaves; played with the hero inside, the roof and the
+    front walls are cut away around him.
+  - The Build tool: `walls_rooms_houses_and_roofs_are_built_as_one_step_each` (a thin wall
+    round a corner, a piece taken away, a room of thick walls with a floor on a free site,
+    its inside found once the doorway is walled up, a window piece and a door put in and
+    taken out, a two-storey house undone and redone as one, a wing joined to it, an L of
+    roof in two joined parts, a roof as high as the walls under it; all undone to the map and
+    the definitions as they were), the 0.35 tool's eight unit tests (`build::tests`), and
+    `mapview::ui_tests` (the panel's lists pick a wall and a look, marked tiles get their
+    roof with *Build roof*, one undo takes it and its props away). In the window by real
+    drags and clicks at tiles (`mapbuild`, `mapdrag`, `mapclick … right`): a stone wall, a
+    room of plaster panels closed by four drags, a door and a window clicked into it, its
+    12 tiles found by a click inside and roofed, the door taken out again; rooms of stone
+    and timber walls with a floor and a roof; a painted L of roof built with Enter; a
+    two-storey cottage; a stone house with a wing over one roof and a window clicked into
+    its wall. Not shown: a built house played in the game from the editor (it is the same
+    prop data 0.35's tool made).
+- [~] Part 7: Events, conversations and scripts — `feature/studio`
 
   **Goal.** What happens in the game is as easy to write and to read as it is to place a prop.
 
@@ -798,14 +1562,281 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     (`nodes.rs`) on one node canvas, the cut-scene timeline, the animation editor, the quest
     designer.
 
-  **Engine.** None; maybe an *off* mark on an action (a row switched off while testing), asked
-  for when the part starts.
+  **Progress.** The event sheet (`studio/src/sheet.rs` over `editor-core/src/events.rs`): every
+  list of triggers, conditions and actions in every form is shown by it (a placed character's
+  Inspector, a zone, the map's own events, a definition, the branches of an *If*).
+  - **An event is a line**, *When the player uses it or talks to it, if the flag met_elder is
+    not set · 3 actions*, opened as **When** (the event and what it names), **If** (its
+    conditions; none: *always*) and **Do** (its actions), with *Only once* under them.
+  - **A condition or an action is a line that says what it does** (`events::action_summary`,
+    `condition_summary`, `trigger_summary`): *Elder: "Welcome, traveller."*, *Give 2 x Healing
+    Potion*, *It changes to the state lit*, *If the flag … is not set: 2 actions, else 1*,
+    definitions by their names. Kinds without words of their own show their name and plain
+    values. A click opens the row in place with its fields (one row of a list at a time).
+  - **Rows are dragged** to another place in their list; a row's menu moves it up and down,
+    duplicates, copies, cuts, pastes above and deletes; *Paste* beside *+ Add…* puts the
+    copied row at the end of any list of its kind: another event, another character,
+    another map. Whole events are copied the same way.
+  - **+ Add an action…** is a searched palette in the manual's groups (Talking, Game state,
+    Entities and the world, Cut-scenes and effects, Rules, Magic), each kind with the engine's
+    own comment as its help and starting as the engine's template (a count of 1, not 0).
+    **+ Add an event…** offers the events that reach that owner, the likeliest first, as
+    sentences. Lists of events are open in a form also while they are empty.
+  - **Scripts in tabs** (`studio/src/scriptedit.rs` over `editor-core/src/scripts.rs`; the
+    Project browser's *Story › Scripts*, with *+ New script*): a file with its colours and
+    line numbers, its functions as an outline, suggestions while typing (the script API with
+    its documentation, the project's own functions, and inside a string argument the ids it
+    can name: items by id and name, maps, a map's spawn points, flags, states…), the
+    signature of the call being written with the current parameter marked, brackets and
+    quotes closed, new lines indented, Ctrl+click on a function to go to it (also into
+    another file). The text is checked a moment after typing stops: ids that aren't there,
+    functions named in strings that no script defines, what the compiler says, each
+    underlined and listed with its line. Scripts are saved with everything (Ctrl+S, before
+    playing); a problem of the project check that is in a script opens its tab at the
+    place; a file changed outside (a rename, an agent, another program) is taken, or asked
+    about when the tab has changes of its own.
+  - **Conversations are written in the sheet**, line after line: a *Dialog* row is who
+    speaks (typed, or picked from who has spoken here and the names that fill themselves in;
+    a character of that name shows its face) and what is said, changed where it stands;
+    *+ Line* adds the next one, spoken by the other of two people who take turns. A
+    *Choice* is a line that *asks*, with its answers under it and under each answer what it
+    leads to (lines, any actions, another question): the *If* behind the question that
+    asks for that answer, made by *+ then…* and shown there instead of as a row of its own.
+    Taking an answer away takes what it leads to with it and moves the later answers up.
+  - **Try it** on an event of a placed thing, a zone or the map (the Inspector): the game
+    starts in the Play tab with the hero beside the thing (in the zone) and the event raised
+    a moment later, with the test setup's flags and things, so what the event does is seen
+    at once; when its conditions don't hold in that game, the bar says that nothing ran.
+  - **The cut-scene timeline** (`studio/src/timeline.rs` over `editor-core/src/cutscene.rs`;
+    at the top of a cut-scene's tab): a row per track with its cues as boxes on a time axis
+    (waiting ones blue, the others green, close ones stacked in lanes); a click or a drag on
+    the axis moves the playhead; a cue is picked with a click, moved in time by dragging and
+    changed under the rows (when, whether it waits, its action's fields); a track's name
+    adds cues at the playhead from what that kind of track offers. *Show its map* puts the
+    map's tab above the timeline, looking at the moment: each actor where it is then (a
+    ring with its name, thin while walking) and the camera's frame. *Play from here* plays
+    the cut-scene in the Play tab from the playhead.
+  - **Flags and variables** (`studio/src/namespage.rs` over `editor-core/src/names.rs`;
+    *Story › Flags and variables*, tab `names`): every flag, variable and text variable with
+    how often it is set and read; one that is only ever set or only ever read is marked
+    (mostly a name typed two ways); a note for each, kept in `editor/meta.ron`. The one
+    opened lists every place it stands (a definition, a placed thing, a zone, a map's own
+    events, a script's line), each a link there, and *Rename everywhere* follows it through
+    definitions, maps and scripts as one step, undone by renaming back.
+  - **Visual scripts on a canvas** (`studio/src/nodesview.rs` over
+    `editor-core/src/visualedit.rs`; a visual script's tab): its name, parameters and result
+    as a form on the left, its nodes in the middle, and on the right what the selected node
+    does, what is wrong (a click shows the node) and the Rhai the game runs. The background
+    dragged moves the view, Ctrl+wheel zooms; a node is moved by its title (every selected
+    one with it), linked by dragging from a pin to another, and a link let go in empty space
+    opens the palette with the nodes that take it. Right-click or Space opens the palette at
+    the pointer: searched, in the manual's sections (flow, values, maths, the project's
+    visual scripts and script functions, the script API). An input without a link is typed
+    into the node (a number, a tick, a text; an id from what the project has); Delete takes
+    the selected nodes away, Ctrl+C / Ctrl+V / Ctrl+D copy them with the links between
+    them, *Group into a function* (Ctrl+G) makes them a visual script of their own, called
+    in their place; a node that calls a visual script opens it with a double click.
+  Still open: rows dragged from one list into another and several rows selected at once
+  (copy and paste does it one by one); *Try it* for a definition's events (they have no
+  place to be tried from: a placed one of them is); of conversations: the game's own dialog
+  box drawing the line being written (fonts, skin, message codes), answers side by side; of
+  flags and variables: `{name}` placeholders in texts aren't counted as reading one; of scripts: a
+  function run in the Play tab, *Find in scripts*; of visual scripts: a box drawn around
+  nodes to select them, *Fit all*; the
+  documents still to come: the quest designer.
+  - **An animation is seen and played in its tab** (2026-11-28, STUDIO_PLAN.md task 6;
+    `studio/src/animshop.rs`, 0.35's `anim_editor.rs` preview): a stage of 260 x 220 with a
+    straw dummy and the animation at the playhead drawn as the game draws it at twice its size
+    (each cel's frame at its pose from `Cel::pose`, additive ones adding their light; the
+    particles as round dots; a flash of the target tints the dummy, one of the screen the
+    stage), *Play*, *Pause*, *From the start*, *Loop* (on), and a strip of time with a row a
+    kind (bars for what lasts, a mark with its name for a sound, a ruler, the playhead dragged
+    or clicked). The form below stays the editor; the stage reads the definition every
+    frame. Sounds are not played. 0.35's tint mixed egui's premultiplied colour values and
+    darkened the dummy where a white flash should brighten it: mixed unmultiplied now.
+  - **The events graph's logic** (2026-11-28, STUDIO_PLAN.md task 3; `editor-core/src/graph.rs`,
+    0.35's `graph.rs` without its window): `Workspace::events_graph(map, all_fns, focus)` =
+    the map as it is being edited (else its file) and the saved script files, built into
+    nodes (who has events, their events, the script functions reached, the maps led to) and
+    edges (owns, calls, event, state, travel, from the action row they start at), and a
+    `Card` a node: its heading, what it is, its lines in the event sheet's words
+    (`events::trigger_summary` / `condition_summary` / `action_summary`: 0.35's own short
+    summaries are not carried over), with `first_row` where the actions begin. `Graph::dump`
+    is its text form (`trigger entity 12 #0 | Event: When … | …`, `calls trigger entity 12
+    #0 [row 1] -> fn talk`).
+  - **The events graph's tab** (2026-11-28, STUDIO_PLAN.md task 4; `studio/src/graphview.rs`):
+    *Events graph* in a map's bar, or *Map › Events graph* (`map.graph`), opens *Events:
+    village* (`Tab::Graph`). Cards in four columns (0.35's layout: an owner's events beside
+    it, functions and maps level with what leads to them) on an `egui::Scene`; lines in five
+    colours with a legend, from the action's line where they start there; the pointer on a
+    card lights its lines. A click on a card goes where it is edited (`Shell::go_to`: the map
+    with the thing selected, the script at the function, the map); **nothing is edited in the
+    graph**. *Everything on the map | Only what is selected* (the selection of the map's tab),
+    *Functions: those the map reaches | all*, *Find* (dims the cards without it), *Arrange*;
+    cards dragged keep their place for the session. Made again only when the definitions, the
+    maps' history, the scripts or the choices change. F1: chapter 7's *The Events graph*
+    (rewritten for the tab). Script `graph` (its tab in front): `MAP nodes= edges= focus=
+    functions= search=`; `graph dump|focus entity UID|zone UID|-|functions all|map|find
+    TEXT|-|click NODE|view X Y ZOOM`.
+
+  **2026-11-28:** the event sheet's and the events graph's words say a number as it was
+  typed (*Wait 0.4 s*, not the `f32` widened to 0.4000000059604645; test
+  `events::tests::lines_say_what_happens`).
+  **2026-11-28:** a visual script's *Name* and *Description* fill the panel beside the canvas
+  (a narrow form: short labels, fields as wide as the panel); the Rhai there has a solid
+  scroll bar for its long lines (dragged in the window). The events graph keeps small text
+  sharp below 100 %: a card's text is laid out at its size on the screen, in whole pixels,
+  and scaled back into the scene (`graphview::Crisp`), so `_` and `-` no longer fall between
+  pixels (`to_house`, *cut-scene* at 80 % and 50 %).
+
+  **Decided while building.**
+  - **The sheet reads the values as the files hold them** (JSON, as the forms do), so it is
+    one piece of code for every place a list of events can be, and a kind the summaries
+    don't know yet still gets a line.
+  - **The palette offers what the engine's templates offer**: *Give skill points* and *End
+    cut-scene* are not in them (old data keeps them and shows them).
+  - **The sheet's clipboard is the editor's own**, kept while it runs; it holds one row of
+    each kind (an event, a condition, an action).
+  - **A conversation is not a view of its own**: it is how the sheet shows talk, so a line,
+    a question and what follows them are written where every other action is, in every
+    place events are edited. It stays the actions it was: a branch is an *If* that asks for
+    one answer, and an *If* that asks for more is a row like any other.
+  - **A visual script is a tab like any definition**, not a mode with its own list as in
+    0.35: the Project browser's *Story › Visual scripts* lists them, *New…* makes one, and
+    its form (name, parameters, what it gives back) stands beside its canvas.
+  - **A drag is one step of the history** (`shell::hold_step`): a node moved over many
+    frames, or a cue on the timeline, is undone with one Ctrl+Z, the way typing on in one
+    field is one step.
+  - **The canvas's thinking is in the core** (what the palette offers and for which link,
+    linking with its type checks, adding, copying, grouping): tested without a window, and
+    what the script's words and the canvas both call.
+  - **A cut-scene's timeline is part of its tab, and its map is a tab beside it**, not a
+    window over the map view as in 0.35: the map's tab shows a cut-scene's moment for as
+    long as the timeline is in view, so the two are arranged like any other two tabs.
+  - **The camera's frame is drawn as the screen's**: in the game's view a rectangle on the
+    ground is a diamond on the screen, so the frame is the game's window around the
+    camera's middle at the size this view shows the world.
+  - **A field is a flag or a variable because the field schema says so** (`schema::NAMES`,
+    the table the forms' suggestions use), in scripts because the script API's argument
+    kinds say so: the page, the survey and the rename are one walk over the values as the
+    files hold them, so a new action that names a flag is found once that table knows it.
+    An action sets, a condition reads.
+  - **Renaming onto a name that exists is refused**: the two would become one, and renaming
+    back could not part them again.
+  - **A rename is written at once** (definitions, map files, scripts with a `.bak` of each
+    changed file), as the rename of an id is.
+  - **A script's text has its own undo** (the text field's, Ctrl+Z while writing): it is not
+    a step of the project's history, as in 0.35. The tab keeps what was typed until it is
+    saved or the editor closes.
+  - **The script editor's thinking is in the core** (where the cursor is, what to suggest,
+    what typing adds, how a script is painted, what is wrong in a text): tested without a
+    window, and there for agents.
+
+  - **Try it raises the event, it doesn't run one trigger's actions**: every trigger of the
+    thing that waits for that event runs if its conditions hold, as in play. It starts from
+    the test setup (a game in progress), so a map's intro doesn't play first.
+
+  **Engine.** `ScriptHost::compile_check` is no longer for tests only (a script is checked
+  before it is saved). `Game::raise(event, owner)` (with `EventOwner`): raises the event a
+  trigger waits for as if it had just happened to a thing, a zone or the map, for *Try it*. Maybe an *off* mark on an action (a row switched off while testing),
+  asked for when it is built.
 
   **Verify.** `egui_kittest`: build a trigger with a condition and three actions, reorder, copy to
   another character, undo; write a conversation with a choice and play it; rename a flag from its
   page (script and triggers follow). Screenshots.
+  - Done so far: `events::tests` (every action the engine offers is in exactly one group and
+    has a line, every event and condition has one, fifteen lines word for word);
+    `sheet::ui_tests` (an event built from the lists: a condition, three actions from the
+    grouped palette, a row closed and moved from its menu, duplicated, the event copied to
+    a prop's list and removed; rows keep their place when one is moved, pasted or removed);
+    `an_event_added_in_the_inspector_is_a_step_of_the_map` (a guard gets *When it is
+    defeated* and *Give experience* from the searched palette; undone, he is as he was). In
+    the window: the campfire's four events read as sentences, one opened with its *If* and
+    three *Do* rows, an action opened in place, the palette searched for "stat"; the guard's
+    events in the Inspector and the list of events to add.
+  - The timeline: `cutscene::tests` (0.35's: cues close together stack in lanes; the preview
+    walks actors and pans the camera); `timeline::ui_tests` (a cue picked by its box, its
+    *Waits* changed, a track added for the guard, a cue for him from the track's menu at
+    the playhead, deleted, *Play from here* asked for at 2.5 s). In the window on the
+    example's intro (5 tracks, 17 cues): at 7.6 s the hero at 3.5, 30 and the guard at 7, 30
+    walking, the camera at 0, 30, shown on the village above the timeline; a *Face* cue
+    added and undone by its name; played from 7.6 s, the Play tab shows the two meeting and
+    the hero's line.
+  - *Try it*: `an_event_of_a_placed_thing_is_tried_from_beside_it` (the Inspector's button
+    asks for the game on a free tile beside the guard with his event). In the window: the
+    guard's event tried from the map; the Play tab opens with the hero west of him and his
+    line "Halt! Oh, it's you, Alex…" in the game's dialog box.
+  - Conversations: `a_choices_answers_lead_to_their_branches` (branches found per answer,
+    a second question in the same variable keeping its own, where a new branch goes, an
+    answer taken away with its branch and the later ones moved up, speakers taking turns);
+    `a_conversation_is_written_line_by_line_with_a_question_and_its_answers` (three lines
+    typed, the third the first speaker's again, a question with two answers, *+ then…*
+    making the branch behind it with a variable made up, a line written into the branch).
+    In the window: a conversation of two lines, a question with two answers and what each
+    leads to, read as written; put on the square's signpost and tried from the map, it
+    plays in the game: the line, the question, and after the first answer "Take this
+    potion." with the speaker's portrait.
+  - Flags and variables: `names::tests` (names in a script by what each call does with
+    them; a flag renamed where it is a flag, a text of the same letters left alone);
+    `flags_and_variables_are_surveyed_and_renamed_everywhere` (the example: 55 names
+    surveyed in 0.09 s, every flag the pickers offer among them; `shrine_lit` renamed in
+    its 9 places, the event of the same name a script raises kept, a fresh look at the
+    files agreeing; a note following a second rename; all undone, the script as it was);
+    `namespage::ui_tests` (searched, opened, a place followed to the house's chest, a note
+    typed, renamed from its row). In the window: the page with 24 flags, 27 variables, 4
+    text variables, 13 marked; a rename and its undo by the script's words.
+  - Scripts: `scripts::tests` (the 0.35 editor's tests of the cursor's context and of the
+    suggestions, how a script is painted, brackets closed and lines indented, a suggestion
+    taken); `scriptedit::ui_tests` (a script's functions as its outline, an item that isn't
+    there said with its line, the text put right and saved, the project knowing its new
+    functions, a compile error at its line; a file changed outside taken, or asked about
+    and kept). In the window: the example's `main.rhai` (50 functions), `give_item("po`
+    typed after a line: six items offered by id and name, the signature with *item* marked,
+    then *count*; Enter takes the first; Ctrl+S writes the file.
+  - Visual scripts: `visualedit::tests` (the palette in the manual's sections, links that
+    replace what an input had and refuse wrong types, nodes added, linked, copied and found
+    for a dragged link); `nodesview::ui_tests` (a node added from the searched palette at
+    the pointer, linked by a drag from pin to pin, its item typed in, the Rhai saying so;
+    moved by its title as one step; Delete taking it and its link but never Start; undone).
+    In the window on the example's *Brother Ansel's blessing* (16 nodes, 15 links): read on
+    the canvas with its Rhai beside it; a node moved (one step), `give_item` added from the
+    palette and linked from Start by a drag, a link let go in empty space offering only what
+    takes it, Delete and undo; three nodes grouped into a function of their own (the Rhai
+    calls it), saved: `scripts/visual_scripts.rhai` holds both and the game starts with them.
+  - The events graph's logic: `the_edges_follow_the_data_and_focus_keeps_what_one_owner_leads_to`
+    (a made-up village: each of the five kinds of edges where the data says, from the right
+    row; *focus* on the elder keeps the zone and map it reaches and drops the well nothing
+    reaches; the cards' words) and `the_village_of_the_example_has_a_graph` (62 who, 330
+    lines of dump, every edge between nodes with cards; `RUSTPG2D_GRAPH_DUMP=1` prints it).
+  - The events graph's tab: `the_cards_are_drawn_and_a_click_goes_where_the_thing_is_edited`
+    (a guard whose event runs a function that raises an event the map listens for, which
+    leads to a map: six cards by their labels, three lines; pointer clicks on the guard, the
+    function, the map and the event give the guard on the map, the script at 0, the map; lines
+    end at cards, an action's line is known, no card lies on another). In the window on the
+    example's village: *Events graph* clicked in the map's bar: 222 cards, 108 lines; zoomed
+    out (`graph view -20 -20 0.35`, and further down) the columns are orderly, no card on
+    another, the portals' lines run straight to their maps; at 100 % the texts read clearly
+    (at 89 % thin strokes of `_` and `i` were lost: the first look is at 100 % since). A
+    click on the map's first event showed the village; `graph click owner entity 118` showed
+    the village with the elder selected; `graph click fn mira_talk` opened `main.rhai` at
+    `mira_talk`; *Only what is selected* on the elder: 11 cards (its event, its definition's
+    two, `friend_chat` and the functions it calls); *Find* "gift" dimmed all but the gift
+    event, whose lines to `give_gift` and `friend_takes_gifts` stay lit; F1 opened *The Events
+    graph*. How it looks: a long column of the village's 22 map events and 60 owners, readable
+    card by card; functions called by functions loop out to the right of their column, a
+    bundle on busy ones (`friend_chat`).
 
-- [ ] Part 8: Workshops — `feature/studio`
+  - The animation's stage: `the_strip_shows_every_part_and_the_playhead_moves_with_the_time`
+    (sparks, a flash and a sound: the status counts them and the length; `anim time 0.2`,
+    *Play* / *Pause*, a click at the strip's end = its last moment, *From the start*). In the
+    window on a scratch copy: `slash` at 0.05 / 0.15 / 0.3 s (the arc, the dummy shining white
+    under the flash, the sparks after), `fire` and `ice` at 0.1 / 0.3 / 0.6 s; a cel's size
+    changed with `field`: the arc smaller at once. The game on the same copy (`--map house
+    --dev`, `console effect("slash", 7.5, 7.5)`, shots at the same moments): the same frames
+    at the same moments; the game draws them at its camera's zoom (the stage at 2x), and
+    additive parts over the house's floor look oranger than over the stage's green.
+
+- [~] Part 8: Workshops — `feature/studio`
 
   **Goal.** Making a prop, a structure or a character is done on the thing itself, not in number
   fields.
@@ -831,13 +1862,500 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   - **Pictures:** the pixel editor as a document (icons, seamless material textures).
   - **Generate art:** a panel with the jobs, opened from each workshop's *Generate…*.
 
-  **Engine.** None. The presets are library content (*Content route*).
+  **Engine.** None planned; the presets are library content (*Content route*). Added for the
+  editor: `audio::load_one(path)` (one sound file decoded with its length, to be listened to
+  without loading every sound of the project).
+
+  **Progress.**
+  - **The prop workshop** (`studio/src/propshop.rs`; at the top of a prop's tab, above its
+    form): the prop large on a few tiles, drawn by the game's renderer as a placed one is
+    (its picture or model, its shadow, a building's walls and roof). On the picture: the
+    hitbox as its outline on the ground (red when that state is in the way, green when not)
+    with its corners to drag, the spot it is used from as a ring with the way its user
+    looks, and the light's reach as a circle with a point to drag. Its states are a strip of
+    pictures above; the one picked is the one shown, *+ State* adds one that starts as a
+    copy of the first. *Turn* shows a prop that turns a quarter further, *In the dark* shows
+    it at night, lit by its own light, from far enough away to see the whole reach. Drags
+    go in steps of four pixels (a quarter of a tile for the light), Shift pixel by pixel.
+    The light's middle (a dot in a ring) is dragged to where it sits on the ground, and the
+    foot of a prop drawn as a picture (a cross) to where the picture stands on its hitbox,
+    a pixel of the picture at a time; *Light / Picture back to its usual place* undo that.
+    **A building by numbers** (2026-11-28): the form's *Building* section already had every
+    measure of `BuildingShape` (height, roof, ridge, pitch, overhang, pictures, openings with
+    side, place, size, sill and picture, chimneys, joins), and a change already built the
+    model again for the stage (`sync_buildings` in `history_frame`); what was missing: the
+    *Walls* box showed unticked for every building (schemars writes no default for a field
+    read as `true` but not written while it is, so the form took it as off and it could never
+    be turned off; the ten such fields now get theirs from `schema::LEFT_OUT_DEFAULTS`: the
+    walls, a prop's shadow, a sheet's scale, a sprite's cells, a font's scale, a race's size, the title's
+    panel, eight facings, the pose atlas), and a door or window added with its picture: *+
+    Add* under *Openings* makes one with none, at the wall's end. The workshop now says above
+    the picture what the building is (*Gable roof, 160 x 160 pixels, 1 door, 3 windows, no
+    chimney*) with **Add a door** and **Add a window** (`Workspace::building_opening`: like
+    the last of its kind, else 0.35's sizes, on the south wall in the middle of its widest
+    free stretch; one step). 0.35's plan to click openings into, *Copy the look of…* and the
+    footprint as two numbers beside the walls are not built: the numbers are the form's, the
+    footprint the hitbox's corners.
+  - **The character workshop, the look** (`studio/src/charshop.rs` over
+    `editor-core/src/looks.rs`; at the top of a character's tab): the figure large as the
+    game draws it, with what it wears and holds, turning or seen from one side, walking,
+    standing, striking, hurt. Beside it the look as things to pick: the model from cards of
+    the project's figures (searched; another model's colours and pieces replace the old
+    one's), each slot the model can wear a piece in with the pieces that fit (*the model's
+    own*, *None*, a piece), and each colour feature of the model and its pieces as swatches
+    of the colours it offers, *As drawn*, any other colour, and *Random colours*. Under
+    them what it wears and holds: a box per slot with the item's picture (weapon, left hand,
+    head, body, clothing, backpack; *More slots* for a tool, ammunition and what is worn
+    besides); a click offers the items that go there as cards, searched, and *Nothing*; the
+    figure wears and holds it at once. **Start from…** (2026-11-28, STUDIO_PLAN.md task 10):
+    the project's other characters as cards with their figures, searched; the one clicked
+    lends its look (model, pieces, colours: the `Appearance`) as one step, nothing else
+    (0.35's chooser also copied the equipment and offered the library's characters).
+  - **A new thing can start as an asset of the library** (*New…*, the third way beside
+    *blank* and *a copy*; `Workspace::make_from_library`, command `defs.make KIND library:ID
+    NAME`): the library's assets of that kind are listed, searched; the one picked comes
+    into the project with what it needs (pictures, sounds, models, the script functions its
+    events call) under the name typed, with its own id, as one step. Without a name it is
+    added as it is. So the library's chest, door, lamp, bed, crop or merchant is the
+    template a new one is made from, and a template of one's own is an asset sent to the
+    library. The one picked is shown beside the list as the library has it: a prop's
+    picture, an item's icon, a character's figure.
+  - **A sound is heard and a sheet is cut where they are defined** (`studio/src/artshop.rs`):
+    a sound's tab starts with *Play*, *Loop* (to listen for the seam) and *Stop*, its length
+    and file, a bar while it plays, and what is wrong with a file that can't be played. A
+    sprite sheet's tab starts with its picture under the grid its frames are cut by, their
+    numbers on them: *across* and *down* cut it again (the frame's size follows; pixels
+    that belong to no frame are said), a click picks a frame, its animations are listed and
+    the one picked plays beside the picture; *+ Animation from this frame* adds one to the
+    end of its row.
+  - **A new thing starts from a file** (`editor-core/src/fromfile.rs`; *New…*, the fourth
+    way; command `defs.make KIND file:PATH NAME`): a file dropped on the editor's window
+    opens *New…* with it, named after the file. A 3D model (`.glb`) becomes a prop that
+    shows it: stood on the ground in the middle of its footprint, one tile wide and as deep
+    as the model, its pictures for lists drawn from it. A picture (`.png`) becomes a prop
+    standing on its lower edge with the sprite sheet that holds it (a large picture is
+    shown smaller, through the sheet's scale; its hitbox starts as wide as the foot of what
+    is painted: a tree's trunk, not its crown), or a sprite sheet alone. A sound (`.ogg`,
+    `.wav`) becomes a sound. The file is copied into the project; the new thing's tab
+    opens, a prop's with its workshop. *Browse…* picks the file in the system's file dialog
+    (`studio/src/pick.rs`) instead; a new thing without a name yet is named after it.
+  - **Generate art** (`studio/src/artpage.rs` over `editor-core/src/art/`; the page *Generate
+    art* of the Game group, tab `art`): what Meshy is asked for with the creator's own
+    account: an item's icon, a portrait, a painted picture, a 3D character, a creature, an
+    item's or a prop's 3D model, more clips for a model. What a kind is made for is picked
+    (the item, the prop, the model, the character a portrait is of), not typed; the kind's
+    options (attack, a woman, extra animations) follow it. The button says what the job
+    costs and asks a second time (*Ask a second time before spending*); what stands in the
+    way is said before it is tried (no key, the session's budget, what the request lacks).
+    The account (key, balance, the model that draws, the budget) folds away once a key is
+    there. Jobs are listed with their steps' progress, the result's picture, *Again* for a
+    step with its cost, and *Add to project*, which writes the files, makes the definitions
+    and opens what it became. *Generate art…* in a prop's, item's, character's or rigged
+    model's tab opens the page with that thing filled in.
+  - **The pixel editor** (`studio/src/pixeledit.rs` over `editor-core/src/pixels.rs`; *Paint*
+    under a sprite sheet's picture): the frame picked in the picture, large, on a chequered
+    ground, painted pixel by pixel: pencil, eraser, fill, line, rectangle, colour picker (keys
+    B E G L R I), the first colour on the left button and the second on the right, swapped
+    with X; the picture's own colours as swatches, then a few to start from. What is drawn
+    stays inside the frame. The frame as a whole is copied, pasted into another, mirrored,
+    emptied and moved a pixel at a time. The picture has its own undo (the buttons, or
+    Ctrl+Z with the pointer over it), as a script's text has; *Save picture*, or saving
+    everything, writes the file, and the sheet shows the new picture everywhere at once.
+    A ground material's tab has the same editor for its texture, **across its seams**: the
+    texture is shown with part of itself again on every side (a little darker), a stroke
+    that leaves on one side comes in on the other, a fill goes on through the edges, and
+    *Left / Up / Down / Right* move the seam into the middle; an animated material's frames
+    are picked there. Saved, the ground of every open map shows it at once
+    (`Assets::load_material`). The picture is shown as large as fits, or closer with *+*
+    (it scrolls then). **+ Frame** and **Duplicate** (2026-11-28, STUDIO_PLAN.md task 8;
+    `PixelDoc::add_frame`): an empty frame, or a copy of the one painted in, after the last
+    (a sheet of one row grows by a frame to the right, one of several rows by a row), painted
+    in next; a step of the picture's undo; refused for a ground's texture (its material counts
+    its frames) and for a picture that would be wider or taller than 2048 pixels. The editor
+    follows the sheet's frame picker only when the picked frame changes, so a new frame stays
+    the one painted in until the picture is saved and the picker knows it. **A selection**
+    (2026-11-28; `PixelDoc::select`, the tool *Select*, key S): a rectangle of the frame
+    dragged (cut to the frame, also a seamless texture's), drawn as a dashed frame; copy, cut,
+    paste, *Mirror*, *Clear* (Delete), the fill, the colour replaced in the frame and the
+    nudge (Shift and an arrow key, as 0.35) keep to it. What is pasted, or the selection's
+    pixels moved (nudged or dragged from inside it), floats on the frame until it is set down:
+    a click, Escape, another tool, another frame, saving. Set down, it replaces the pixels
+    under it, see-through ones too (0.35's paste did the same with a frame). The paste and
+    its moves are one step of the picture's undo. A whole frame copied and pasted without a
+    selection replaces the frame as before. (0.35's "selection" was the frame a click
+    picked, which the sheet's frame picker is here; a rectangle of pixels is new.)
+  - **The model workshop** (`studio/src/modelshop.rs` over `editor-core/src/modelcheck.rs`;
+    at the top of a 3D model's tab): the model as the game draws it, turning or from one
+    side, playing whichever of its animations is clicked (a piece is shown on a figure it
+    fits). Beside it what the check found (`Models::check`: its size against what one draw
+    takes, its palette, colour features that match no colour, a missing clip for one of the
+    four animations every figure plays, a piece's bones a body lacks), the problems first,
+    the rest folded under *What it is*. The fixes are at hand: each animation's clip is
+    picked from the clips its files hold (with their lengths) instead of typed, and how
+    fast it is drawn; *Guess from the clips' names* maps every animation without a clip
+    ("Walking" for walk, "Hit_Reaction" for hurt); *+ Animation* adds one of the kinds the
+    game knows (work, rest, weapon stances, sneaking) with its likeliest clip; a model
+    without a skeleton is offered the rig templates (four legs, a bird, a flyer…: its
+    animations come with the skeleton) and *Turn it* until it faces the front. A `.glb`
+    also becomes a 3D model for characters (*New… › 3D model › from a file*, or dropped):
+    copied in, made smaller, its animations guessed, its tab open on what is missing.
+    **More clips** (2026-11-28, STUDIO_PLAN.md task 5) under the animations of a model with a
+    skeleton of its own: *Add a file of clips…* (a `.glb` copied into `models/`, played by
+    the model: `Workspace::use_model_file` with clips) and *Take clips from another model…*
+    (a model with a skeleton of its own and animations, its animations ticked (all at first),
+    *Replace the ones it has* off at first, *Take them*: `Workspace::share_clips`, which
+    takes only clips whose bones the model has and says what it took, kept and couldn't).
+    Both are 0.35's and write the definitions at once with the file (said in their hover
+    texts). The list of models offers every one with a skeleton of its own, the rig templates
+    first; whether their bones fit is found out on *Take them*.
+    **Joints moved by hand** (2026-11-28): under the skeleton's row of a model on a rig
+    template, *Joints of the skeleton (N moved)* lists the template's joints by name, each
+    with three numbers (across, up, to the front, in parts of the model's height, as 0.35's
+    `JointNudge`), the moved ones marked, *Reset* for one and *Reset all joints*
+    (`Workspace::model_joint`, `model_joints_reset`, `rig_joints`). A change is one step (a
+    drag of a number too); the model is fitted again from what is kept (`Models::set_def`),
+    so the preview shows it as it moves, without reading files. The numbers are set, not
+    added to (0.35's `modeljoint` added). 0.35's two views of the skeleton with joints
+    dragged on them and its *Mirror left and right* are not built: the numbers do it.
+  - **A structure is worked on as a map** (`editor-core/src/structdoc.rs`; a structure's
+    tab): its tab is the structure itself as a small map of its size, with every tool of a
+    map: paint its ground, place and move things, build walls and roofs on it, set blocked
+    tiles; the Outliner lists what it holds and the Inspector changes what is selected.
+    With nothing selected the Inspector has its name, its category and its width and depth
+    in tiles (smaller cuts off what stood on the tiles that go). Every finished change is a
+    step of the editor's history under the name of what was done (*Place Chest*, *Paint
+    Dirt*); its picture, and the structure the Place tool puts down, follow at once. A new
+    structure (*New… › Structure*) starts as a few empty tiles to build on. Around its own
+    tiles (outlined) its map has a tile of room for what hangs over its edge: the example's
+    garden has a fence a pixel off its western side, which stands there and can be moved;
+    what is put there is part of the structure, ground painted and tiles blocked there are
+    not (they go again, and the editor says why). The Zones tool isn't offered: a structure
+    holds no zones.
+  - **Structures have pictures** (`thumbs.rs`): a structure is placed on a map of its own
+    and drawn as a map is (its ground, what lies and stands on it), once and again when it
+    changed, two a frame: its card in *Structures*, in the Place tool's palette and at the
+    top of its tab. (Saving a selection of a map as a structure and placing one are part 6.)
+  - **The item workshop** (`studio/src/itemshop.rs`, at the top of an item's tab; the script's
+    `itemshop`): an item's own 3D model taken from a `.glb` (*From a file…*: copied into the
+    project, the hold point found from its shape), the game's hero shown with it where its
+    kind puts it (the hand, the arm, the back), standing, walking or striking, from four
+    sides; *Find where it is held*, *Other end*, *Turn the handle*, *Turn the front*, how
+    it is held (grip, upright, hanging, strapped, on the back), its length in pixels, how
+    far along it the hand is; *Render its icon* draws the model as the inventory icon. What
+    these do is 0.35's (`models.rs`: `use_item_model`, `item_hold`, `render_item_icon`),
+    written at once with the model's file, not steps of the history.
+  Still open: a figure sitting or lying at the use spot instead of the ring, a
+  building's ridge, overhang and openings dragged on the picture (they are set by numbers), how large a prop's model
+  is shown as a handle; starting from measurements and Meshy, an item's model from a file, pictures
+  other than PNG; of a model's workshop the joints of a fitted skeleton dragged on a picture
+  of it, an attack's hit point, colour
+  features marked on the model; a sound's volume and loop points set by ear; of structures: a house of the Build
+  tool saved as one from the tool itself; of the character workshop: rules,
+  day, talk, shop and loot as parts of one document (they are sections of the form below),
+  *Start from…* a character of the asset library; presets that are more than
+  one asset (a *Merchant* with a shop and a schedule to fill in), pictures in the rows of the
+  library's list in *New…* and on the Library tab (the one picked has one); of the pixel editor a frame added to a sheet, the wheel zooming at the pointer, a material's texture
+  seen on a patch of ground while it is painted; of Generate art: *from Meshy* as a way to
+  start in *New…*, a figure sheet picked to model from, a job's 3D result turned in a
+  preview before it is added.
+
+  **2026-11-28:** a chimney is added in the prop workshop like a door or a window: *Add a
+  chimney* (`Workspace::building_chimney`, script `prop add chimney`) puts one like the last
+  chimney (its picture, size, rise and distance from the ridge), else 14 x 14 rising 14 as the
+  0.35 editor's, along the ridge where it has the most room; one step (tests
+  `build::tests::a_chimney_is_added_like_the_last_where_the_ridge_has_room`,
+  `propshop::ui_tests::a_buildings_window_and_chimney_are_added_and_its_ridge_turned_by_number`).
+  **2026-11-28:** *Add a chimney* on a building without one gives it the walls' picture (it
+  was drawn plain grey); test `a_chimney_is_added_like_the_last_where_the_ridge_has_room`.
+
+  **Decided while building.**
+  - **The workshop is the top of the prop's tab, not a tab of its own**: the picture and the
+    form show the same prop, so a number typed below moves the outline above and the other
+    way round, and there is one place a prop is made in.
+  - **The stage is a map of its own with the prop placed on it**, drawn by the map view's
+    scene code: what the workshop shows is what a map shows, also for kinds of props that
+    get their own way of being drawn later.
+  - **The camera holds still while something is dragged** and fits again when it is let go:
+    a view that zooms out as the hitbox or the light grows moves the picture under the
+    pointer (the first version did: a light dragged from 3 tiles ran away to 16).
+  - **The figure is as large as it stands tall, on its feet**: a pose's frame is roomy and
+    grows with what is held, so the preview scales by the height of the figure standing
+    still and puts its feet on one spot; a spear or a swung arm reaches as far as the box. A
+    wolf is longer than tall, and its head reaches further from its feet than its tail: the
+    preview also fits twice the further reach of the figure standing still, front and side.
+  - **The definition is what is true of a structure, its map is a way to change it**: a
+    finished change on the map is taken into the definition as a step of the definitions'
+    history, and an undo, a form or an agent changing the definition builds the map again.
+    The map's own undo history is not part of the editor's. (The first plan, the map as the
+    history and the definition following silently, can't work: the definitions' history
+    keeps whole definitions, so an older step undone would have put back a structure from
+    before changes it never saw.)
+  - **A structure's map has no file and is no map of the project**: it is not saved as one,
+    not listed, not part of the world view, not played from (*Play from here* and *Try it*
+    are not offered there); it is open for as long as its tab is.
+  - **What was done on the map is a step of its own**, whatever has the keyboard: the
+    definitions' history joins changes made while one field has it (typing), which made a
+    chest placed and a path painted right after one step. Only typing into a field of
+    something placed there joins the step before.
+  - **A structure's map is a tile larger on every side than the structure**: what a
+    structure holds may lie outside its tiles (placing one puts it there too), and a map of
+    exactly its size could neither show nor hold that. So a structure's own tiles start at
+    1, 1 on its map (`structdoc::MARGIN`, `own_tiles`), and everything standing on the map
+    is the structure's, at places counted from its own corner. What lies further out than
+    that tile is kept as it is, unseen.
+  - **A seamless texture answers for its copies**: a pixel asked for beside the frame is the
+    one it comes back in at (`PixelDoc::wrapped`), so strokes, fills, the preview of a line
+    and the pointer's mark work on the copies shown around it without knowing of them. A
+    small texture is shown with half of itself around, one over 64 pixels with a quarter:
+    it needs the room for itself.
+  - **Generate art is a page, not a window over the others**: jobs take minutes, and the
+    page with its list stays where it is while a prop or a map is worked on; a workshop's
+    *Generate art…* leads there and *Add to project* leads back to the thing.
+  - **What a job made is written at once** (its files and the definitions, as in 0.35): it
+    cost credits, and a crash before the next save shouldn't lose it. It is a step of the
+    history all the same.
+  - **A picture's undo is its own**, like a script's text: the definitions' history keeps
+    definitions, not files, and a picture isn't in the project until it is saved. Ctrl+Z is
+    the picture's while the pointer is over it (`pixeledit::has_pointer`), the project's
+    elsewhere; *unsaved changes* counts painted pictures, and saving everything writes them.
+  - **One frame at a time, and nothing leaves it**: a sheet is frames side by side, and a
+    stroke that ran into the next frame would paint a second icon by accident. The frame is
+    the one picked in the sheet's picture above, so there is one place a frame is picked.
+  - **A model's check is the engine's, its fixes are the editor's**: what a model needs is
+    asked of the loaded model (`Models::check`, the agents' `model_check`), so the workshop
+    and an agent read the same lines; the workshop adds the ways out. A model changed there
+    is taken by the loaded one as it is (`Models::set_def`); only another skeleton reads the
+    project's art again.
+  - **A dropped file opens *New…*, it doesn't make something at once**: what a file should
+    become is a guess (a picture is a prop most of the time, a sheet sometimes), and the
+    thing needs a name; the guess and the file's name are filled in, so Enter is enough.
+  - **A prop from a 3D model is a change like the others** (`Workspace::show_prop_model`):
+    its model's file and the pictures drawn from it are in the project's folder at once, its
+    definitions are saved when the project is, and undone they are gone (the files stay, for
+    *Clean up unused files*). The first version saved the definitions at once, as the 0.35
+    editor did for generated models: that also saved whatever else waited to be saved.
+  - **The library asset picked in *New…* is looked at as a small project of its own**
+    (`Workspace::library_look`: it and what it needs, read from the library's folder when it
+    is picked; `Shell::lib_look` with pictures of its own): its picture is drawn as a
+    project's is, a figure included, without loading the library's 300 models for a list.
+    The rows of the list have no pictures for the same reason.
+  - **Named like the library files it, a new thing from the library is that asset**: *Hero*
+    from the library's `hero` is `hero`, not a `hero_2` beside nothing.
+  - **Presets are the library's assets, not a list of their own**: *New… › as one of the
+    asset library* makes a prop that is a container, a door with a lock, a light or a seat
+    by starting from one that is, with its events, sounds and script functions. What was
+    planned as presets per kind (*Container*, *Door*, *Villager*, *Potion*…) is then content
+    of the starter library, which anyone can add to, instead of code in the editor.
+  - **The library's own asset doesn't stay beside the new one**: only what was asked for
+    is in the project afterwards (the new one and what it needs); one the project had
+    already is left as it is, and the new one is a copy of the project's.
+  - **Two fields the engine gained for the workshop** (agreed 2026-11-27): `LightSpec.offset`
+    (where a light sits on the ground, pixels east and south of what carries it; not set =
+    the rule it had: north of a prop by two thirds of its picture's height) and
+    `PropDef.picture_offset` (pixels right and down that a prop's picture is moved from
+    standing with its lower edge's middle on the prop's place; its shadow and its clicked
+    area move with it). Both are optional, not written when unset, and files of before
+    load as they were. Neither turns with a prop turned a quarter, as its use spot doesn't.
+    In the isometric view the old rule puts a lamp's light beside the lamp (north on the
+    ground is up and to the right on the screen): with its own place the glow lies around
+    the lamp's head.
+  - **A corner drags the width on both sides**: the hitbox stays centred on where the prop
+    stands, as the engine has it; the southern corners change the width only.
 
   **Verify.** Editor script and `egui_kittest`: a prop from a `.glb` to a placed, opened chest
   without typing a number; a house saved as a structure and placed on another map; a merchant
   from the preset trades in the Play panel. Screenshots of each workshop.
+  - Done so far: `propshop::ui_tests` (the chair's north-east corner dragged east: wider in
+    steps of four, as deep as before, one step named *Change the prop Chair*; its use spot
+    dragged south, a step of its own; *+ State* adds a copy of the first and shows it; all
+    undone, the chair as it was; the campfire's reach dragged in the dark grows by what the
+    drag is on the ground, the camera not zooming out under it). In the window: the chest
+    with its outline and shadow, the chair with its use spot, the campfire lit in the dark
+    with its light and reach; the chest's corner dragged (28 to 64 pixels wide, 16 deep as
+    before) and undone, the chair's spot dragged and the chair turned, the campfire's reach
+    dragged from 3 to 5 tiles and undone; the cottage as a building with its roof, turned.
+  - The three paths above, end to end:
+    - *A prop from a `.glb` to a placed, opened chest*: in the window `Sea_chest.glb`
+      dropped, Enter, a container with two potions given to it (by the script's `field`
+      word: in the form it is *+ Add* at *Container* and the items picked), placed on the
+      village, played from the test setup beside it: E opens the *Sea chest* with its potions.
+    - *A house saved as a structure and placed on another map*:
+      `a_house_of_the_build_tool_is_saved_as_a_structure_and_placed_on_another_map` (a 5 x 4
+      house built on an empty map, selected, saved as *Farmhouse*, placed on another map:
+      the same building stands there; opened as a map of its own it is as saved).
+    - *A merchant from the library trades in the Play panel*: in the window a new, empty
+      project; *Hero* and *Trader Joan* (the library's outfitter) made from the library, the
+      hero named on *Hero & party*, the trader placed on the map, played: walking into her
+      and E opens the *Outfitter* shop with its stock and prices (her items and their
+      pictures came along).
+  - The known limits of the steps above, seen to: `structdoc` tests (the garden's fence a
+    pixel off its edge is on its map; a chest put on the tiles around a structure's own is
+    part of it, ground painted there goes again without a step), the structure's tab without
+    a Zones tool (`a_structure_is_worked_on_as_a_map…`); in the window the garden with all
+    four sides of its fence, a barrel put beside it, undone. File dialogs: the gallery's
+    *Browse…* answered by `pick::answer_next` in `the_new_gallery_starts_from_a_dropped_file`;
+    in the window the home screen's *A folder…* answered with the scratch project opens it.
+    A scripted run never opens a real dialog; the maintainer tried them by hand on
+    2026-11-27 (the home screen's, *New…*'s): they open and answer. The library's owlbear and anvil shown in
+    *New…* when picked; a wolf's side inside the character preview; a prop from a `.glb`
+    not saved until the project is, undone and redone (`fromfile` test).
+  - The pixel editor: `pixels` tests (a stroke that runs out of the frame sets only its
+    pixels, the frame beside it untouched; rectangle, fill, eraser; undone step by step back
+    to the file's picture; a frame copied, pasted, mirrored, moved, recoloured, saved and
+    read again), `a_frame_is_painted_with_the_pointer_and_saved` (*Paint*, a colour of the
+    palette, a pencil stroke dragged along a row: one step; the second frame picked and
+    filled; undo, redo, *Save picture*: the file holds it). In the window: the apple of the
+    example's item icons painted with the script's pointer (a stroke dragged, the ground
+    filled), saved with everything, the file changed and the sheet's picture with it.
+  - Frames added: `a_frame_is_added_or_duplicated_and_undone_in_one_step` (a copy of the
+    second frame as the third, an empty fourth, one undo each; two rows grow by a row; 2048
+    pixels refused; a ground's texture refused). In the window on a scratch copy: the
+    fireball sheet (4 x 1), its last frame picked, `pixels dupframe`: "A copy of the frame
+    added: frame 5 of 5", saved: the file is 160 x 32, the sheet's tab says `frames=5x1`,
+    and the fifth frame's pixels are the fourth's.
+  - A selection: `a_selection_is_cut_pasted_moved_and_set_down_in_one_step` (a rectangle
+    over the edge cut to the frame; cut; pasted it floats with the frame under it unchanged,
+    moved twice, set down: one step; undo brings back the cut block; pixels moved and another
+    frame picked: set down in their own), `fill_mirror_clear_and_replace_keep_to_the_selection`
+    (also a seamless texture: moved out over its edge, nothing comes back in),
+    `a_rectangle_is_selected_cut_pasted_and_dragged_with_the_pointer` (the *Select* button, a
+    rectangle dragged, Ctrl+X, *Paste*, dragged from inside it 7 right and 5 down, Escape,
+    two undos back to the start; Delete; a click drops it). In the window on a scratch copy:
+    the key of the example's item icons, its bow selected with the script's pointer (white
+    dashed frame), *Cut* and *Paste* clicked, dragged down and right (the floating piece in an
+    orange dashed frame), Escape: set down over the key's teeth; two `pixels undo`: `saved`.
+  - A material's texture across its seams: `a_seamless_texture_is_painted_across_its_edges`
+    (a stroke out over the right edge comes back in on the left of the same frame, the
+    animation's other frame untouched; a line down and one across leave one area, which a
+    fill reaches all of; moved half a frame, what leaves comes in), `a_materials_texture_is_
+    painted_across_its_seam` (the second frame picked, a stroke dragged onto the copy beside
+    it, *Save picture*: the file holds both ends). In the window: a red stroke over the right
+    edge of the example's grass (128 x 128), continuous across the seam in the copies;
+    saved with everything, the village's ground shows it at once, in every repeat.
+  - Generate art, **without Meshy** (`RUSTPG2D_MESHY_FAKE`; no credits were spent and no
+    real request was sent): `a_workshop_fills_the_form_and_a_finished_job_is_added_to_the_
+    project` (opened for a prop: its kind and the prop, *Draw it: 33 credits*; for a
+    character: a portrait of it; a finished icon job listed with its result, *Add to
+    project*: the sheet and the item are there, as a step, and the item's tab is asked for;
+    the test never clicks *Draw it*). In the window with the fake folder: an icon drawn,
+    shown and added as an item; *Generate art…* clicked in the Tavern Sign's tab, the page
+    with the prop and its cost, drawn (a picture and a model), added: the prop shows the
+    model. **Not seen: a real job** (the key field, the balance, Meshy's own progress).
+  - The light's place and the picture's foot: engine tests (`a_light_sits_where_its_spec_
+    says_else_by_the_rule`, `defaults_match_the_file_format`: unset they are not written and
+    old files read), `a_lights_place_and_a_pictures_foot_are_dragged_and_put_back` (the
+    street lamp's picture moved by ten pixels of its own for a drag of ten at the zoom shown,
+    its light's middle dragged in steps of four with its reach point following, each a
+    step; both put back with their buttons: the lamp as it was). In the window: the lamp in
+    the dark with its light dragged from beside it onto its head, its picture dragged off
+    its hitbox and undone.
+  - A building by numbers:
+    `a_buildings_door_and_window_are_added_and_its_ridge_turned_one_step_each` (a cottage with one door: a window of 24 x 24 at 33 pixels, in the widest free
+    stretch of the south wall; a door like the first, at 127; the ridge turned through the
+    definition's value as the form does; three steps, undone one by one; a barrel is "no
+    building"), `defaults_left_out_of_the_schemas_are_put_back` (walls, shadow, a sprite's
+    cells, a sheet's scale, eight facings, the atlas, the title's panel: what serde reads is
+    what the form shows), `a_buildings_window_is_added_and_its_ridge_turned_by_number` (the
+    workshop over the form, as the tab has them: *Gable roof, 160 x 160 pixels, 1 door, 3
+    windows, no chimney*, `building=Gable:160x160:1/3/0`; *Add a window*: one like the others
+    where the front wall has room, four windows said; *Ridge* picked *North south* in the
+    form; *Walls* ticked; two steps, undone: as it was). In the window on a scratch copy: the
+    small red-roofed cottage, its form scrolled to *Building* (every measure there, *Openings
+    4* with each one's side, *Walls* ticked after the fix, unticked before it); `field prop
+    cottage_red_small /building/ridge "NorthSouth"`: the stage's roof turned at once; then by
+    clicks: *Add a window* (a fourth window at the front's left end, "A window on the south
+    wall, 18 pixels from its west end", `building=Gable:160x160:1/4/0`), *Ridge* opened and
+    *North south* clicked (the roof turned on the stage), History with both steps, saved
+    (`ridge: NorthSouth`, the window `at: 18.0` in `props.ron`), both undone: the cottage as
+    it was.
+  - The model workshop: `modelcheck` tests (the hero lacks nothing; walking without a clip
+    is said and guessed back from the clips' names; a clip picked by hand, an animation of
+    its own added and removed; a creature without its rig template lacks all four animations
+    and has them again with it, turned a quarter), `modelshop::ui_tests` (the missing
+    animation said, its clip picked from the list, *Guess from the clips' names*; the rig
+    templates offered to a model without a skeleton;
+    `a_missing_animation_is_taken_from_a_model_with_the_same_skeleton`: the heroine without
+    *attack*, *Take clips from another model…*, *Human* picked from the list (the rig templates
+    offered too), all but *Attack* unticked, *Take them*: "heroine plays hero's attack", the
+    same clip as the hero's, in `models.ron` at once). In the window on a scratch copy: the
+    heroine's attack taken away (`model check`: "! no clip for the animation attack"),
+    `model share hero attack`: "heroine plays hero's attack", `ok`; `model clips` with a
+    copy of `kit_clips.glb` from outside the project: copied to `models/more.glb`, under
+    `clip_files`, "heroine plays the 14 clip(s) of models/more.glb"; the panel opened by
+    clicks, its list of models seen. In the window, end to end: the wolf's
+    file as `Moor_hound.glb` made a 3D model (four things to see to, no skeleton), the
+    four-legged template picked (nothing missing, it walks in the preview), a new character
+    given that model, placed on the village and seen standing there in the Play tab.
+  - Joints moved by hand: `a_joint_of_a_rig_template_is_moved_by_hand_and_put_back` (the
+    dog's head a tenth of its height up: one step named *Dog: the joint Head moved*, the
+    fitted skeleton's head that much higher at once; set again, undone; no move takes it off
+    the list; *Antenna* refused ("the rig template rig_quadruped has no joint …"), a model
+    without a template too; all put back in one step),
+    `a_joint_of_the_rig_template_is_moved_by_numbers_and_reset` (*Joints of the skeleton (18
+    moved)* opened, *Head up* set to 0.1, `joints=18` in the status; *Reset Head*: 17 moved;
+    *Reset all joints*: no `joints=` any more). In the window on a scratch copy: the dog
+    walking seen from the left, its left front leg's three joints and its head moved by
+    `model joint` (the leg drawn bent up and forward at once); the panel opened by a click,
+    the *Up* of *FrontPaw_L* dragged 100 pixels to the right with the pointer (0.016 to
+    0.215, one step *Dog: the joint FrontPaw_L moved* in History, in `models.ron` after
+    saving); `model joint FrontPaw_L -` (17 moved), `edit.undo` (18), *Antenna* and a number
+    that is none refused in words.
+  - Sounds and sheets: `a_sheet_is_cut_into_frames_and_gets_an_animation` (a picture of
+    96 x 64 as one frame cut 3 x 2: frames of 32 x 32, one step; the fourth frame clicked,
+    an animation from it to its row's end; a cut that leaves a pixel over says so). In the
+    window: the emotions sheet with its 3 x 14 grid, a frame picked, its 14 animations
+    listed; the items sheet cut 4 x 4 and undone; the creak's tab: 0.30 s, played, looped
+    and stopped by the script's words (sound was switched off for the run: not heard).
+  - From a file: `fromfile::tests` (files told apart by their names; a picture four tiles
+    wide: a prop on a sheet at scale 2 with the copied file, one step, undone to what was;
+    a tree standing on its trunk's width; the same picture as a sheet alone; a `.glb`: a
+    prop with its model file and a depth from the model; a sound; what can't be, refused);
+    `the_new_gallery_starts_from_a_dropped_file` (a picture dropped is a prop to be, named
+    after its file; as a sound it is refused with what it can become, as a sheet made; a
+    file that isn't there said). In the window: `Smiths_anvil.glb` dropped, Enter: the
+    prop's tab with the anvil on its stage (32 x 28 hitbox), its picture in the header,
+    placed on the village; a painted tree's picture dropped: the prop with its shadow.
+  - A structure as a map: `structdoc::tests` (every structure of the example goes through a
+    map and back with the same things at the same places, also the garden's fence outside
+    its tiles; opened and looked at, nothing changes and nothing is a step; a chest placed
+    is in the definition as one step *of the definitions*, undone and redone with its map
+    following, three placed in a row three steps, saved with the definitions and without a
+    map file; a new name leaves the map, another size rebuilds it, deleted it closes);
+    `a_structure_is_worked_on_as_a_map_with_its_facts_in_the_inspector` (its facts instead
+    of a map's settings, its name typed as one step, a piece of scenery deleted from map
+    and definition, undone). In the window: the garden as a map; a chest placed and a dirt
+    path painted (two steps, each undone), saved (18 pieces of scenery still, no map file),
+    placed on the village with its chest; a new *Hut* sized 6 x 5, painted and furnished.
+  - Structures: in the window the example's 37 structures as cards with their pictures
+    (cottages with their roofs, walls and fences, furnished rooms on their floors, the
+    fishing dock on its water, the lookout tower).
+  - New from the library: `a_new_one_starts_as_a_library_asset_under_its_own_name` (the
+    library's owlbear as *Grumpy*: its own id, the model it is drawn with in the project,
+    no owlbear beside it, one step, undone to exactly what was; without a name added as it
+    is; a copy of the chest the project has; what isn't there refused);
+    `the_new_gallery_offers_the_library_and_asks_for_one_of_it` (the third way with how
+    many there are, what the project has marked, searched, picked, named, asked for). In
+    the window: *New character* offering 378 of the library; `defs.make character
+    library:owlbear Grumpy` opening Grumpy's tab with the owlbear's figure, and its undo.
+  - The character's look: `looks::tests` (a figure's slots by name with the pieces that fit
+    it, a piece bringing its colour features once each; another model dropping the old
+    one's colours and pieces; random colours being offered ones); `charshop::ui_tests` (the
+    guard: no headwear from the slot's list, his clothing in an offered colour and as drawn
+    again, seen from the left striking; his weapon's slot offering the weapons, another one
+    picked as a step *Change what Town Guard wears*, taken off, undone; another model from
+    the searched cards; all undone); `slots_offer_the_items_that_fit_them`.
+    In the window: the guard with his spear, five slots and two colour features; without
+    headwear (his helmet stays: he wears one as equipment, which takes the slot) and in
+    green, striking seen from the left; the cards of the project's figures.
+  - *Start from…*: in `a_characters_pieces_colours_and_model_are_picked`, the elder's card
+    found by searching (the guard himself isn't offered), clicked: the guard's look is the
+    elder's, one step *Change the look of Town Guard*; `char from elder` the same; `char from
+    guard` refused. In the window on a scratch copy: the villager's tab, *Start from…*,
+    "guard" typed (Town Guard and its female version, with pictures), Town Guard clicked:
+    `model=guard`, its own clothes still worn; `edit.undo` "Undid: Change the look of
+    Villager": `model=villager` again.
 
-- [ ] Part 9: Library and sharing — `feature/studio`
+- [~] Part 9: Library and sharing — `feature/studio`
 
   **Goal.** What a creator makes can be given to others, and what others made can be found,
   installed and kept up to date, from inside the editor.
@@ -877,12 +2395,206 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   `starter_update.rs`; the origin of assets in `editor/meta.ron`; `xtask` writes the starter pack
   and the official index; HTTPS with `ureq` as `art/meshy.rs` and the starter download do.
 
+  **Progress.** A first step, over the library as it is (no new format yet): the **Library
+  tab** (`studio/src/librarypage.rs`; the *Game* group's *Asset library*, tab `library`)
+  lists what the library holds by kind with how many of each, searched, with what the
+  project has already marked (a click opens the project's one); what is ticked is added to
+  the project with what it needs, as one step (`Workspace::library_to_project`). A
+  definition's tab has *Send to library* (`project_to_library`).
+  - **The pack format** (`engine/src/packs.rs`): a pack file (`.r2dpack`, a zip) is
+    `pack.ron` (`PackManifest`: format, id, title, author, version, licence, attribution,
+    description, tags, the oldest engine it fits, the packs it needs, its previews),
+    `assets/manifest.ron` with `assets/files/…` (the definitions, their files and script
+    functions, as 0.35's asset packages held them: `Bundle::manifest_text` /
+    `from_manifest`), `plugins/<id>/…`, `previews/…` and an optional `history.ron`.
+    `Pack::from_bytes` tells the file kinds apart by what is inside and reads the three of
+    0.35 as packs with a made-up manifest (`legacy`): an asset package, a plugin file
+    (`plugin.<id>`), the starter library file (`rustpg2d.starter`, with its plugins and
+    history). A pack of a newer format or for a newer engine is refused with the reason;
+    `Pack::code` lists what in it runs (script functions, plugins). A source's index
+    (`index.ron`, `SourceIndex`): each pack's manifest, file, size, SHA-256 and what it
+    holds; `IndexEntry::check` refuses a download that isn't the file named; `newest` offers
+    the newest usable version of each pack.
+  - **Packs in the editor's core** (`editor-core/src/packs.rs`, commands `packs.*`):
+    `pack_preview` says what a file is and what installing it would do (what the library
+    doesn't have, has as it is, has under the same id but different; what in it runs; the
+    packs it needs that aren't there; the version installed); `install_pack` puts its
+    assets, files and script functions into the library with the same id *kept*,
+    *replaced* or brought in as a *copy* under a new id, its plugins into the library's
+    `plugins/`, its previews under `packs/<id>/`, and records it in the library's
+    `packs.ron` (manifest, the assets it brought under the ids they have there, where it
+    came from); a pack that needs one that isn't installed is refused. `share_pack` writes
+    a selection of the project with what it needs as `<id>-<version>.r2dpack` into a folder
+    and lists it in the `index.ron` there, so the folder is a source as it is or uploaded.
+    `read_index` / `download` read a source by web address or folder; a download is checked
+    against the index's size and SHA-256. Commands: `packs.share FOLDER TITLE VERSION
+    kind:id… [author:… licence:… plugin:…]`, `packs.look FILE`, `packs.install FILE
+    [keep|replace|copy]`, `packs.source ADDRESS`, `packs.get ADDRESS ID [keep|replace|copy]`,
+    `packs.list`.
+  - **Packs in the window** (`studio/src/packspage.rs`): the Library tab has two sides,
+    *Assets* and *Packs and sources*. A pack file picked (*From a file…*) or dropped on the
+    window, or fetched from a source, is **shown before anything is installed**: its title,
+    version, author and licence, its credit line, what it holds, a warning naming what in
+    it runs (script functions, plugins), how much of it is new to the library, there as it
+    is, or there under the same id but different, and for those the choice (replaced by
+    the pack's, kept, brought in as copies; an update starts on *replaced*, a first install
+    on *kept*); a pack that needs one that isn't installed says which. The installed packs
+    are listed with what they brought and where from (*Forget* takes one off the list).
+    **Sources** are kept in the editor's settings: an address or a folder added, *See what
+    it offers* reads its index beside the editor, each pack offered with *Install…* /
+    *Update…* (downloaded beside the editor, checked, then shown as above). ***Share…***
+    in a definition's tab opens a window: title (the id follows it), version, by whom,
+    licence (the usual ones to pick, any other typed), credit line, description, the folder
+    it is written into; it says what the pack holds with what the selection needs, writes
+    the pack with pictures of what was shared and its entry in the folder's index, and
+    remembers who shares and where for the next time.
+  - **Where an asset came from, and whose work is in the game** (`editor-core/src/meta.rs`):
+    an asset added to a project from the library is noted as its pack's (`AssetMeta.origin`:
+    the pack's id and the version it came as; a copy of it keeps that), and the project
+    keeps what it needs to know of the pack itself (`Meta.packs`: title, author, licence,
+    credit line), so the library it came from may be gone by the time the game goes out.
+    The Publishing page lists *Packs in this game* with their licences, how many assets of
+    each are in use and their credit lines; one button puts the lines the game's credits
+    don't hold yet at their end (a step), and until then the pre-flight says which are
+    missing.
+  - **Updates, asset by asset** (`Workspace::update_pack`, over `starter_update::plan` /
+    `apply`, which the starter library's update was written for and which work for any
+    pack): the library keeps what each installed version of a pack shipped
+    (`packs/<id>/history.ron`: fingerprints of definitions, files and script functions), and
+    a pack written by *Share…* carries what its earlier versions in that folder shipped
+    (`<id>.history.ron` beside the index), so skipping versions is fine. A newer version
+    looked at says what it **adds**, what it **updates** (the library has those as an
+    earlier version shipped them), what was **changed here and by the pack** (kept unless
+    ticked) and what the pack **no longer has** (kept unless ticked; not offered while
+    something needs it). The library's folder is copied beside itself before anything is
+    replaced (`<folder>.bak-…`), also on a first install that replaces what the library has
+    differently; what was done names the copy.
+  - **The starter library as a pack** (`rustpg2d.starter`): *Packs and sources* offers it
+    while it isn't one in the library: *Take the one this editor has* (the checkout's
+    folder, an installed file) or *Download it* (the file of the editor's version from its
+    release, checked against the release's `SHA256SUMS`). It is shown like any pack; since a
+    library has had the starter's assets without their being a pack, its first install is
+    judged asset by asset with the starter's own history (what was changed here stays
+    unless ticked), and from then on it is listed, with its plugins, and updated like the
+    others. Nothing is copied or replaced when the library has everything as it is.
+    (The release still ships the `.r2dlib` file, read as this pack; the library still takes
+    the starter's new ids by itself when it is opened: both end with part 11 / 12.)
+  - **A project's assets follow their pack** (`Workspace::project_updates`,
+    `update_project_from`): *Packs and sources* starts with *In this project* when the
+    library has another version of a pack than the project's assets came as: which are
+    updated (the project has them as the pack shipped them), which were changed in the
+    project too (kept unless ticked), what they need that the project lacks. *Update the
+    project's* is one step of the history; pictures, sounds and models that are overwritten
+    are put into the project's `editor/backup/<time>/` first (an undo brings definitions
+    back, not files). Assets the project has exactly as the library does are just noted as
+    that version. Nothing is ever deleted from a project. When two packs brought the same
+    id into the library, an asset is the work of the one that shipped it as it is there
+    (of several, the one installed last).
+  - **More of the window**: a kind's list shares everything chosen as one pack (*Share…*
+    beside *Tag…*, *Delete*); the *Share…* window offers the project's plugins to tick (who
+    installs the pack is told that it runs); a pack's preview pictures are shown where it
+    is looked at and on the installed packs' cards.
+  - **An item's own 3D model is the item's file** (a bug older than this part, found by
+    following a tour on a library that had taken the starter as a pack: 20 files were not
+    there, the swords', bows' and backpacks' models, and a new game with the basics could
+    not be made). `starter_update::own_files` left an item's model out, so an update never
+    wrote it (0.35's *Update asset library* had the same gap; there new assets came another
+    way). It lists it now; a file that is missing in a library counts as untouched, so the
+    next update brings it back; the starter's history was written again with those files
+    (its tool and its test are the editor-core's now: `cargo run -p rustpg2d-editor-core
+    --example starter_history`, `starter_history_covers_the_starter`). Tests:
+    `an_items_own_model_file_comes_and_goes_with_the_item`, `every_file_of_the_starter_
+    belongs_to_an_asset`, `an_empty_library_takes_the_whole_starter_as_a_pack` (the real
+    starter library into an empty one: every file its assets name is there, and a new game
+    gets its basics from it; it fails without the fix).
+  Still open: the release shipping the starter as a pack with an official index (the preset
+  source), the library no longer taking the starter's assets by itself, a large pack read
+  beside the editor (looking at the starter holds the window for some seconds), the old writers (`.r2dlib`, `.r2dplugin`)
+  folded away, packs as cards with their preview pictures; and
+  of the tab: pictures of the library's assets, tags and filters, dragging onto a map, the
+  starter library's installing and updating from the window.
+
+  **Decided.** Packs keep the extension `.r2dpack` (the maintainer, 2026-11-28): one name for
+  the new format and 0.35's asset packages; the file itself says which it is
+  (`packs::kind_of`).
+
   **Verify.** A source served from the scratchpad (`python3 -m http.server`): browse, install,
   a version 2 offered and applied, a changed asset kept, a wrong SHA-256 refused. A shared pack
   installed into a fresh library and used in a new project. The starter pack installed through
   the same path. A 0.35 `.r2dpack` and `.r2dplugin` installed.
+  - The core, in tests (`editor-core` `packs`): the example's chest and guard shared (the
+    guard's model and its file come along), the folder read as a source, the pack looked at
+    (all new), installed into an empty library, listed, read again from the library's
+    files; a version 1.1 with a renamed chest: differing, kept, replaced, the first version
+    brought in as a copy under a new id; a pack that needs a missing one refused; a changed
+    file refused; a pack forgotten.
+  - **Over HTTP with the real editor** (`python3 -m http.server` on the shared folder, a new
+    empty library, a new project): `packs.source` lists *Market things 1.0* as not
+    installed, `packs.get` installs its 29 assets, a *Watchman* and a *Strongbox* are made
+    from the library's guard and chest in the new project; version 1.1 is offered
+    (*installed: 1.0*), looked at (1 differing), applied with the library's chest kept,
+    then with it replaced; with a byte of the served file changed the download is refused
+    for its SHA-256.
+  - In the window: `a_selection_is_shared_in_the_window_and_the_pack_looked_at_and_installed`
+    (the window for the chest: its title typed anew, the id following; the pack written;
+    the file looked at: by whom, the licence, *New to the library*, nothing installed yet;
+    *Install it*: the library has the chest; looked at again: installed already, *Not now*;
+    a file that is no pack says so). With the real editor on an empty library: *Share…*
+    clicked in the chest's tab, the author typed, *Write the pack*; on the Library tab the
+    file looked at (4 new), installed, listed (*Chest · version 1.0 · by Anna · CC BY 4.0*);
+    its folder added as a source, *See what it offers*: *Anna's packs* with the chest as
+    installed; the source is there again after a restart.
+  - Updates: `an_update_replaces_what_is_untouched_and_asks_about_what_was_changed_or_retired`
+    (1.0 with a chest and a barrel installed; 1.1 renames the chest, adds a sign, drops the
+    barrel: looked at, the chest is *updated*, the sign *added*, the barrel *retired*; with
+    the library's chest changed it is *changed by you* and an update keeps it, with a copy
+    of the library made first; taken after all and the barrel deleted; the barrel's picture
+    is then the only thing still offered to go). In the window test the same with the tick
+    *Take the pack's prop chest*. With the real editor: the library's chest renamed by hand,
+    1.1 shared with a barrel more, the update panel (*New in it (2)*, *Changed by you and
+    by the pack (1)*), the chest ticked, *Update it*: the library has the pack's chest and a
+    `.bak-…` copy lies beside it.
+  - The starter as a pack: `the_starter_library_comes_in_as_a_pack_over_what_a_library_has_
+    of_it` (a small starter file over a library that has its assets already: nothing to do,
+    installed without a copy of the library, on the list; the next version renames its
+    crate: updated in a library that left it alone, kept in one that changed it). With the
+    real editor: *Take the one this editor has* on a library made the old way (2,681 assets
+    all there as they are; installed, listed with its four plugins); ***Download it*** on
+    another library: the 61 MB file of 0.35.0-alpha.1 fetched from the GitHub release,
+    checked, shown (2,675 new, the chest there *changed by you and by the pack*), installed.
+  - A project's assets: in the update test another project takes the chest while the
+    library has 1.0, the library goes on to 1.1: the project is told (*1.0 -> 1.1, updates
+    chest*), nothing is touched before; updated, its chest is the pack's and noted as 1.1,
+    as one step; undone, it is the chest of 1.0 again. With the real editor: a new project
+    with the library's chest, the library updated to 1.1, *In this project* on the Library
+    tab, updated: the project's chest is *Sea chest*. (Found there: a library that also had
+    the starter as a pack noted the chest as the starter's, which ships the very same
+    chest: now the pack that came in last is taken.) Sharing: the window with *Calendar*
+    ticked writes a pack with the plugin, which says that it runs when looked at; pictures
+    on the pack looked at and on its card.
+  - Origins and credits: in the `packs` core test the chest added to another project from
+    the library is noted as *market-things 1.0*, its copy too; the credit line is missing
+    from the credits, added once, and the project still knows after saving and reading
+    again. `the_packs_in_the_game_are_listed_and_their_credit_lines_added` (the Publishing
+    page lists *Heroes · by Anna · CC BY 4.0 · 1 asset* with its credit line, the pre-flight
+    names it as missing; the button adds it to the credits as a step, and nothing is left).
+  - The format: `packs` tests in the engine (a pack with an item, its sheet and file, a
+    script function, a plugin and a preview written and read again as it was, its manifest
+    alone read without unpacking; bad ids and versions, a newer format, a newer engine and
+    a missing file refused; a 0.35 asset package and plugin file read as packs and written
+    again as packs of now; the starter library's `.r2dlib` read as `rustpg2d.starter` with
+    its 100+ props, plugins and history; an index with two versions offers 1.10 before 1.0,
+    names the file's address, and refuses another file and a changed byte).
+  - Done so far: `librarypage::ui_tests` (the owlbear searched among 2,683 assets, ticked
+    among the characters, added with its model as one step, marked as in the project and
+    opened from there, undone). In the window: the same on a scratch library, the owlbear's
+    tab with its picture afterwards. From nothing to play: a new project, a guard, the stone
+    house and grass from the library (30 assets with what they need), the ground painted, a
+    house built, the guard placed, *Play here*: the game shows them (and a placeholder for
+    the hero: an empty project has none; the Overview's checklist now leads to where each
+    missing step is done).
 
-- [ ] Part 10: Help and guidance — `feature/studio`
+- [~] Part 10: Help and guidance — `feature/studio`
 
   **Goal.** A new creator gets from an empty project to a playable game without leaving the
   editor to find out how.
@@ -904,11 +2616,204 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
 
   **Engine.** None. Tours and the manual's anchors are data in the editor crate.
 
+  **Progress.**
+  - **The manual inside** (`editor-core/src/manual.rs`, `studio/src/helpview.rs`; the tab
+    *Help*, `help`): the 21 files of `Documentation/manual` are built into the editor
+    (`include_str!`) and cut into blocks by a small Markdown reader of its own (headings
+    with their anchors, paragraphs with bold, italic, code and links, lists, tables, fenced
+    code, pictures as their captions). The tab has the chapters at the left, a search over
+    all of them (sections whose title has every word first, then lines), the chapter with
+    *In this chapter* to jump to a heading and *Back*; links between chapters lead on, web
+    links open in the browser. **F1** opens it at the part for what is in front
+    (`Shell::help_topic`: a chapter's file and words one of which the section's heading
+    has, so the mapping survives the manual being rewritten): a map by its tool (*The
+    Ground tool*, *Collision*, zones, placing), a definition or a kind's list by its kind,
+    scripts, flags and variables, Publishing, the Library, Generate art, Problems.
+  - **Problems with fixes**: the Problems tab groups its entries by where they are
+    (definitions, maps, scripts…) with how many of each. An entry that says something
+    doesn't exist (a broken reference; `Problem::missing`) offers ***Create it*** (an empty
+    definition under exactly that id, opened to fill in) and, when the asset library has
+    one of that id, ***Take it from the library*** (with what it needs); each is a step and
+    checks the list again. (A field that names something missing was marked already, and
+    its picker picks another.)
+  - **Guided tours** (`editor-core/src/tours.rs`, `studio/src/tourpanel.rs`): a tour is data:
+    its steps, each with what to do, how (the names of what to click), the control the
+    editor points at, the check that ticks it, and where the manual says more. A step is
+    ticked by what the project is like, compared with how it was when the tour began (a map
+    is open, its ground was painted, something more stands on it, nothing waits to be
+    saved, the game was started, a new character, one more on the map, someone on the map
+    has a Say or a Choice, a new quest, its first stage rewritten, an event that starts
+    it), and only once the steps before it are done or skipped: a tour is followed in
+    order, in the creator's own way (a command, a key, a click all count). The three first
+    ones: *Your first map*, *A character who talks*, *A quest*. They are offered on the
+    Overview (*Learn by doing*); a small window at the lower right lists the steps, shows
+    the one at hand with *Read about it* (the manual at that part) and *Skip this step*,
+    and a pulsing frame is drawn around the control to use: the map's tools, a kind in
+    the Project browser, the Play menu, the saved mark (`tourpanel::mark`: a control says
+    where it is). At its end a tour offers the others.
+  - **Fields explain themselves in the Help tab**: a field's label says so to the window
+    (`form::pointed_field`, `asked_field`): **F1** with the pointer on it, or *About this
+    field* in its menu (right-click; *Back to the default* is there too), opens the Help tab
+    with the field's label and what the schema says it is for above the places the manual
+    names it, the chapter about the form in front first, the best of them opened.
+  - **Empty places say what to do next**: a kind's tab with nothing in it (what the kind is,
+    *New…*, *Take some from the asset library*), a map's Outliner with nothing on the map
+    (*Place something*, *Paint its ground*: the tools), the Place tool's list when the game
+    has nothing to place, the Problems tab before the check ran (what it looks for) and
+    after it found nothing (*Play*), the World view of one map (how a second is made and
+    joined). (The Flags and variables page, History, the art jobs, packs and the agents' list
+    said theirs already.)
+  - **Agents** (`studio/src/agentspage.rs`; the tab *AI agents*, `agents`): the server
+    started and stopped with its port and *Start it with the editor* (the editor's settings:
+    now read by this editor too), the set-up for each kind of program
+    (`editor_core::mcp::Client`: Claude Code's command line, the JSON for Cursor and VS Code,
+    the JSON for Claude Desktop through `mcp-remote`) with *Copy the set-up* and where it
+    goes, a first thing to ask to copy, and the calls the agents made. A test keeps the
+    set-ups the same as the manual's chapter 13. The server belongs to the editor, not to a
+    project: it stays on when another project is opened (it was dropped with the workspace).
+  - **What's new**: the changelog is built in like the manual (`manual::releases`: its
+    newest eight versions). The editor's settings remember the version whose news were
+    looked at (`seen_version`); a newer editor says so once on the Overview (and on the home
+    screen) with *What's new* and *Not now*. An editor that starts for the first time has
+    no news. *What's new* is the last entry of the Help tab's chapters, with the versions to
+    pick from.
+  - **Tours point nearer and lead back**: a step names several controls, the nearest to the
+    deed first, and the first that is in view gets the frame (`Step::anchors`): *Character*
+    in *New…* once that is open (the list it is in while it is scrolled away), else the
+    kind in the Project browser (the group's header while the group is folded); the Place
+    tool's *Characters*; in the Inspector of the thing selected *+ Line* once it has an
+    event, else *+ Add an event…*, else (scrolled away) the Inspector itself. A control
+    that is scrolled out of view says nothing (`tourpanel::mark` asks the Ui), so the frame
+    is never drawn where nothing is. A step knows the tab it is done in (`Step::place`: the
+    map's, the new quest's): while that tab isn't in view the window says *This is done in
+    another tab* with *Show the map start*. *Open a map* is ticked once a map's tab was in
+    view (a project opens its start map without showing it). The window is moved by its
+    title and starts beside the place a map's Inspector has.
+  - **Use another…** (Problems): beside *Create it*, an entry about something that doesn't
+    exist offers the ones of its kind that do (searched); everything that named the missing
+    one names the one picked (`Workspace::use_another`: definitions, settings, maps on disk
+    and open, scripts, as a rename writes them).
+  - **Choose one…** (Problems, 2026-11-28, STUDIO_PLAN.md task 12): *No player character is
+    set* offers the project's characters, *The start map '…' does not exist* its maps
+    (searched); the one picked becomes the game's setting as one step
+    (`Problem::choice`, which knows the two texts of the export's pre-flight;
+    `Workspace::choose_setting`), and the check runs again.
+  Still open: of the problems: fixes for other kinds of entries (a map nothing leads to, a
+  quest nobody gives: they lead to their place; one obvious step each, not built: *the start
+  map has no spawn point '…'* = one of its spawns, a plugin needing a newer script API =
+  *Switch it off*); of the Help tab: the manual's pictures
+  (they show the 0.35 editor: with the manual's rewrite, part 12).
+  - **The Help tab opens where it was left** (2026-11-28, STUDIO_PLAN.md task 11): the
+    chapter's file and the heading last gone to are kept in the editor's settings
+    (`EditorSettings::help_at`), written when they change (*What's new* isn't a place to
+    come back to); a new editor opens the tab there (`HelpView::restored`, in `Shell::open`:
+    a Help view made anywhere else, a test's, writes nothing).
+
+  **2026-11-28 (faults seen while the manual's pictures were taken):** chapter 18's title
+  carries its number, *18. Plugins*, as Help's list of chapters shows the others; the test
+  `every_chapter_is_there_with_its_sections_and_links_that_lead_somewhere` keeps every chapter
+  numbered.
+
+  **Decided while building.**
+  - **A Markdown reader of our own, not a crate**: the manual uses a small part of Markdown,
+    and the editor needs what a general renderer doesn't give by itself: anchors as the
+    manual's links write them, links that lead to another chapter of the tab, a search that
+    knows the section a line is in. A test keeps every link of the manual leading to a
+    chapter and a heading that exist (it found one line of chapter 17 that Markdown read as
+    a link: now in code marks).
+  - **The manual is built in, not read from a folder**: a packaged editor has it without
+    files beside it, and it is the manual of exactly that editor.
+  - **What the editor's font can't draw is written plainly** (`manual::drawable`): the manual
+    and the changelog are written for the web; the editor's font has no arrows, no signs
+    like the square root, no Japanese or Chinese. Arrows and signs become what they mean
+    (`->`, `Up`, `>=`), a language's name in such writing becomes `…`. A test draws every
+    chapter and every version's news and stops at a character without a glyph, so what is
+    written later can't bring boxes into the Help tab.
+  - **A field's longer help is the manual's, found by its label**: the schema has one text a
+    field (the engine's doc comment, shown on hover). The Help tab shows that text and looks
+    the label up in the manual; where the manual still calls a field by its 0.35 name it
+    finds less (the rewrite of part 12 uses the forms' labels).
+  - **A new map and a map's size were missing in the new editor** (found while writing the
+    empty places: nothing could be offered for "make another map"). Both are in now: see
+    part 6.
+  - **No *Remove the reference***: what removing means differs by where the name stands (an
+    entry of a list, an action of an event, a field that must name something), and a wrong
+    guess deletes more than was meant. *Use another…* and *Create it* mend the reference;
+    the entry's place is a click away for taking it out by hand.
+  - **A step is ticked by the project, pointed at by the window**: which control is in view
+    is the window's knowledge (`tourpanel`), what was done the project's (`tours.rs`); the
+    one thing the window tells a tour is that a map's tab was looked at and that the game
+    was started.
+
   **Verify.** Each tour followed on a fresh project by `egui_kittest`, ending with a play-test
   that starts. F1 from five places opens the right chapter. A broken reference fixed from the
   Problems panel.
+  - Tours: `tours` tests (on a new project with the library's basics, *Your first map*
+    step by step: opened, painted, a barrel placed, saved, played; saving counts only once
+    the steps before it do; steps skipped. *A character who talks*: a villager from the
+    library, placed, given a line. *A quest*: made, its first stage rewritten, handed out
+    by her. Every step's help names a chapter of the manual), `a_tour_shows_its_steps_
+    points_at_the_control_and_ticks_what_is_done` (begun from the offer, the step at hand
+    with how, *Read about it*, the next step pointing at a marked control, skipped, ended).
+    **In the window, the first tour followed to its end** on a new game: the Overview's
+    *Learn by doing*, the frame around *Terrain*, then *Place*, the saved mark and the Play
+    menu as each step was done by the script's map words, *Play here* starting the game:
+    5 of 5. **The second tour followed to its end by real clicks and keys** on a new game:
+    the frame around *Maps* in the browser, the map opened by a click; *New…*, the frame
+    around *Character*, a name typed, Enter; the character's tab in front, so the window
+    said *This is done in another tab*: *Show the map start* clicked; the frame around
+    *Place*, then around the tool's *Characters*; the character picked and put down by a
+    click on the map; the frame around the Inspector, after scrolling around *+ Add an
+    event…*, the event picked from its menu, the frame around *+ Line*, clicked; F6: 5 of
+    5. Of the third, in the window: the frame around *Quest* in *New…* (around the list
+    before it was scrolled there), the quest made, its tab left (*wait=def:quest:…*), its
+    stage rewritten: 2 of 4; its other steps use the second tour's controls. **The
+    play-test of a tour was started, nobody played it.**
+  - A broken reference fixed from the Problems panel: `a_broken_reference_is_fixed_by_
+    making_what_is_missing_or_taking_it_from_the_library` (a recipe naming two items that
+    aren't there: the apple taken from the library with its icon's sheet, the stew made
+    empty under its id; no entry is left; undone, the stew is missing again). In the
+    window: a recipe's result set to a *ghost_pie*, the entry under *Definitions (1)*,
+    *Create it* clicked: the item's tab opens, no error is left.
+    *Use another…*: the same test goes on (a recipe, an item lying on the map and a
+    script's `give_item` name a stew that isn't there: all three name the apple after it,
+    the map's file and the script's among them); in the window a recipe's result named a
+    *moon_potion*, *Use another…* clicked, *poti* typed, Enter: the recipe's file names the
+    potion, no error is left.
+  - This step's: `the_server_is_started_and_its_set_up_copied_for_each_program`,
+    `every_program_gets_a_set_up_that_names_the_address` (also against the manual's chapter
+    13); `the_changelog_is_cut_into_releases_and_the_news_counted`, `whats_new_is_a_chapter_
+    of_its_own_and_a_field_is_explained`, `every_chapter_and_every_release_is_drawn_in_
+    characters_the_font_has`; `a_fields_label_tells_the_window_what_was_asked_about`. In
+    the window: the AI agents page with the smoke client connected (17 calls listed, the
+    set-ups naming port 7811), the server still on after *Close this project* and another
+    project opened; a config folder of an older editor: the banner, *What's new*, the
+    version remembered, no banner after; a first start: no banner; F1 on *Stack size* and
+    *About this field* from the menu of *Consumable* (a right-click); an empty game: a
+    kind without definitions, the Problems tab before and after the check, a map made
+    through *New…* (typed, Enter), its empty Outliner, *Resize* and its undo.
+  - *Choose one…*: `the_player_character_and_the_start_map_are_chosen_from_the_list` (both
+    entries know what they ask for; a map that doesn't exist refused; each chosen, "The
+    start map is start now"; checked again: neither is said). In the window on a scratch
+    copy with the start map set to "nowhere": the error with *Choose one…*, "village" typed,
+    Enter: "The start map is village now", the check finds nothing, `project.ron` says
+    `start_map: "village"`; with no player: the warning, "hero" typed: `player: "hero"`.
+  - The Help tab's place: `the_help_tab_opens_where_it_was_left` (never opened: the first
+    chapter; a heading of chapter 3 written; *What's new* not; a new view there; a view
+    that isn't the window's writes nothing). In the window with a scratch config: `help open
+    07-events.md the-events-graph`, quit; the next start's Help tab shows *The Events graph*
+    (`chapter=07-events.md at=the-events-graph`), the file's `help_at` naming it.
+  - Done so far: `manual` tests (Markdown cut into blocks and spans; all 21 chapters with
+    their sections, every internal link leading somewhere; a search finds *Painted ground*
+    by its title and lockpicking in the gameplay chapter; a topic's section, else the
+    chapter's top), `the_manual_is_read_searched_and_its_links_followed`. In the window, F1
+    (the script's `help topic`) from eight places: a map with the Terrain tool (*The Ground
+    tool*), with Collision (*Collision*), a character (chapter 6), a script (chapter 8, at
+    60 frames a second on the longest chapter), Publishing (14), the Library (11), an item
+    (*Items* of chapter 5), a cut-scene (*A cut-scene* of chapter 7); a search for fishing
+    opened *Fishing* in chapter 9.
 
-- [ ] Part 11: Old things leave — `feature/studio`
+- [~] Part 11: Old things leave — `feature/studio`
 
   **Goal.** Nothing remains that only older versions needed, in the code or in the UI.
 
@@ -920,20 +2825,114 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
     `ItemDef::upgrade`, rules versions below the current one, 0.27's status effects), the legacy
     `Appearance.body`, `PropDef.pieces`, the conversion of project folders on open, the fixtures of
     versions before 0.35 and their tests.
-  - **Listed to the user before removal** (their rule of 2026-11-24 for tools): the Tiled import,
-    the Aseprite import, pictures held in the hand without a model, what is left of sprite-sheet
-    figures and props, the top-down view, Meshy's 2D kinds.
+  - **Listed to the user before removal** (their rule of 2026-11-24 for tools): pictures held in
+    the hand without a model, what is left of sprite-sheet figures and props, the top-down view,
+    Meshy's 2D kinds. **Decided already (2026-11-28): the Tiled import and the Aseprite import
+    are dropped** (they aren't in the new editor; `SheetDef.tags` stays).
   - **One conversion, 0.35 → 0.36,** run by the editor on open with a backup copy beside the
     project: everything this release reshapes (editor data, pack origins, whatever the parts
     above recorded under *Decided while building*). The game and the editor refuse older projects
-    with a message that names 0.35.
+    with a message that names 0.35. (Turned out: see Progress.)
   - **Save games** of 0.35 load where the fields allow it; it is not promised (**Breaking**).
-  - **Fixture:** the example project as of the 0.35.0 tag, for the conversion's test.
+  - **Fixture:** the example project as of the 0.35.0 tag, for the conversion's test. (Turned out: see Progress.)
 
-  **Engine.** The removals above; `convert_035.rs`.
+  **For the maintainer's word** (written 2026-11-28, STUDIO_PLAN.md task 13; nothing is
+  removed until the maintainer says so). Counts are of `example_project` and the starter
+  library on this branch.
+  - **Pictures held in the hand without a model** (`ItemDef.held`, `PropDef.carry`: a
+    `hands::HeldSprite` = a picture, its hold point and orientation mark; `hands.rs`, 273
+    lines; `render/model.rs` draws them on quads at the hand bones and `paperdoll.rs` asks
+    for them; the schema's forms show the fields). Used: 11 items of the example and 17 of
+    the library have a held picture, **every one of them also its own 3D model**, which is
+    what is drawn (the picture is only the fall-back for an item without a model); no prop
+    has `carry`. A creator loses: an item without a 3D model shown in the hand as a flat
+    picture (it would be held invisibly, as an empty hand); a carried prop as a picture.
+  - **What is left of sprite-sheet figures and props**: `SheetKind`'s old kinds (`Body`,
+    `Hair`, `Beard`, `Outfit`, `Armor`, `Held`) read as plain sprites; `Appearance.body` (a
+    0.17 figure's id, read as the model named like it); `PropDef.pieces` (already on the list
+    removed without asking); `PropDef.turns` (four pictures of a prop from four sides) and
+    `PropDef.anim` (a prop's picture cycling through frames: a torch). Used: none of them,
+    in either (0 old sheet kinds, 0 characters with `body`, 0 props with `turns`, `anim` or
+    `pieces`). **Props drawn from a picture are not leftovers**: 103 of the example's 187
+    props and 142 of the library's 231 are painted pictures (the isometric art); 73 / 75
+    have a model, 11 / 14 are buildings. A creator loses: a prop that shows four drawn
+    sides as it is turned, and an animated picture prop (a 3D model or a sheet's animation
+    in an *Effect* does it instead).
+  - **The top-down view**: the game is always isometric (`render/iso.rs`); top-down is only
+    the map tab's *From above* switch (`ViewOpts.topdown`, `scene::Look::topdown`, and the
+    `iso` flag passed through `Assets::draw_prop` / `prop_rect`). A creator loses: placing and
+    painting seen straight from above (handy for exact rows and ground on large maps).
+  - **Meshy's 2D kinds**: in the new editor these are *Icon* (an item's 32 x 32 icon),
+    *Portrait* (a dialog portrait) and *Image* (a painted picture for *Show image*), turned
+    into game art by `art/convert.rs` (`fit`, `keep_figure`, `place`, `shrink`): **all in
+    use** (the example's item icons, portraits and the intro's pictures were made that way).
+    0.35's 2D figure sheets (walk and attack grids) were not brought over; what remains of
+    them is the Python pipeline `scripts/art/meshy/` (the 2D figures of 0.16 / 0.17). A
+    creator loses, if the three kinds go: generated icons, portraits and pictures; if only
+    the old pipeline goes: nothing in the editor.
 
-  **Verify.** The 0.35 example converts and plays through the smoke run; a 0.34 project is
-  refused with the message; `cargo test --workspace` without the old fixtures.
+  **Progress.** 2026-11-28: the maintainer answered the list above: "everything should be
+  removed if it is not needed anymore, held items should be models to make the look
+  consistent", and "the top-down view can be removed too if it's not needed for maps or minimap
+  in the game. Creators should work with the isometric view for wysiwyg". Removed the same day:
+  **pictures held in the hand** (`ItemDef.held`, `PropDef.carry`, `hands::HeldSprite`, the
+  picture path of `hands.rs` (`held_with`, `HeldLayer`, `lay`, `Grip`), `render/model.rs`'s
+  quads at the hand bones and `Assets::draw_held_sprite`; `hands::in_hands` says what is in which
+  hand; an item without a 3D model is held but not shown; a carried prop is held, not drawn: it
+  was only ever a picture) and the `held` blocks of the example's 11 and the library's 17 items
+  (all have models; the `held` sheet is now used by nothing, kept as art); **what was left of
+  sprite-sheet figures and props** (`Appearance.body`, `PropDef.pieces`, `PropDef.turns`,
+  `PropDef.anim` with `FrameAnim`; the old `SheetKind` kinds were already read as `Sprite`;
+  `Models::pose` and friends no longer take the sheets; the agent tool `edit_frames` lost its
+  figure-grip leftovers); **the map tab's top-down view** (`ViewOpts.topdown`, `Look::topdown`,
+  *From above*, `mapopt above`, the `iso` flag and the `time` of `Assets::draw_prop` /
+  `prop_rect` / `draw_prop_shadow`; the game's map screen and minimap untouched); **the 0.16 /
+  0.17 Meshy pipeline** (`scripts/art/meshy/`; its git-ignored `work/` folders, the maintainer's
+  generated art, stay). Old files with these fields load (the fields are skipped: a test in
+  `defs.rs`, the compat fixtures). The rest of the part (the conversions removed without asking,
+  `convert_035.rs`) is still to do.
+
+  2026-11-28 (second half): the removals without asking are done (commits `ffbcec7..c52d39b`).
+  Gone: `legacy.rs` (nothing reads the `rust2d` folders any more), `migrate.rs` (the 16 px
+  migration, `Bundle::rescale`, `io::save_tiles`), `convert_tiles.rs` and `old_tiles.rs` (the
+  tile converter; map format versions 1 and 2 with `EntityV1` and `decode_tiles`;
+  `StructureDef.tilesets` / `layers`; the conversion of old libraries and packages),
+  `srd_convert.rs` (`refactor::srd_upgrade_db` / `_map`, `old_level_dc`, the lock and quality-step
+  reprs) and the definitions' upgrade steps (`SpellDef::upgrade`, `SpellEffect`, `SpellDef.effect`,
+  `ItemDef::upgrade`, 0.27's status effects in `ConditionSpec` / `ActiveCondition`, the old aliases
+  of `Condition`). In their place `project::made_before_035(root)` / `refuse_before_035(root)` with
+  `MADE_BEFORE_035` ("This project was made with a version before 0.35. Open and save it with
+  R(ust)PG2D 0.35 first."): the game, the editor and the asset library refuse a project with
+  `defs/tilesets.ron`, a tile size other than 32 (0 = not written counts as 32) or a rules version
+  below 4; maps of format version 1 or 2 are refused when loaded; packages and libraries of tiles
+  or 16 px art are refused when read. What it cannot detect: a project of 0.31 to 0.34 looks like a
+  0.35 one and loads like one. **No 0.35 to 0.36 conversion was needed**, so there is no
+  `convert_035.rs` and no version stamp: the example of v0.35.0-alpha.1 loads with nothing left
+  out; what this release reshaped loads through serde defaults (`editor/meta.ron`,
+  `LightSpec.offset`, `PropDef.picture_offset`) or is read and dropped (`held`, `carry`, `body`,
+  `pieces`, `turns`, `anim`, `effect`). Project folders are still converted into project files on
+  open (0.35's behaviour, kept). Fixtures (`crates/engine/tests/fixtures/`) are now 0.35's
+  (`project-0.35.0/`, `maps/village-0.35.0.map`, `saves/save-0.35.0.ron` written by the 0.35 game)
+  plus `project-0.27.0/project.ron` for the refusal test, `saves/minimal.ron` and
+  `model_two_bones.glb`; the compat tests are `definitions_of_0_35_0_load`,
+  `definitions_of_0_35_0_round_trip`, `map_of_0_35_0_loads`, `projects_before_0_35_are_refused`,
+  `save_of_0_35_0_loads`, `minimal_save_loads_with_defaults`, `tile_maps_are_refused` and
+  `only_32_px_packages_are_read`; `starter_history` keeps the fingerprints of versions it can no
+  longer read; `scripts/ci/smoke.sh` loads the 0.35 save. **Left for a follow-up** (not on the
+  list above): `SpellDef.mana` / `cooldown` / `skill`, `RaceDef` `max_hp` / `speed` / `defense` and
+  `SkillSettings.max_mana` / `mana_regen` (values from before the SRD rules); `upgrade_states` /
+  `upgrade_instance` and `OnUnlock::Open` (prop frame offsets turned into states); the deprecated
+  script functions `apply_effect` and `skill()`; `SAVE_VERSION` below 2, the old inventory map
+  reader and `migrate_equipment` in `state.rs`.
+
+  **Engine.** The removals above (no `convert_035.rs`: see Progress).
+
+  **Verify.** Run on 2026-11-28: `cargo test --workspace` passes; `scripts/ci/smoke.sh` passes
+  (13 checks); the game reaches the village of a scratch copy of the example and the editor opens
+  it; a project with 0.27's `project.ron` is refused by the game (exit 1, the message), by the
+  headless editor (exit 1) and by the editor in a window (the message as its status, on the home
+  screen). Not tested: a release build, the Windows message box, the web game, a real old library
+  or old pack opened in the running editor.
 
 - [ ] Part 12: Tests, documentation, switch-over — `feature/studio`
 
@@ -960,12 +2959,139 @@ wgpu 30, winit 0.31 beta, kira 0.12). wgpu's version is the one `egui-wgpu` uses
   - **The merge:** the draft pull request is made ready and merged; 0.36.0 is cut when the user
     asks.
 
+  **What is left, task by task:** `STUDIO_PLAN.md` at the repository's root (written
+  2026-11-28 for agents that take one task a session: the rules, how this code base does
+  things, and each open row below as a task with what to read, what to do and how to check it).
+
+  **Progress.** **CI and packages** (2026-11-28): the release builds, `xtask dist` (one
+  constant `EDITOR` = `rustpg2d-studio` until the switch-over), the AppImage / Flatpak / Windows
+  zip / macOS app and their smoke tests ship the new editor. The Packages job checks the home
+  screen, a map opened in the bundled example, the starter library read as a pack, and the agent
+  server without a window; `smoke.sh` the editor in a window opening `village` and writing the
+  project file. The Packages apt line moved to Vulkan (lavapipe) with `RUSTPG2D_ALLOW_SOFTWARE=1`.
+  Dependabot: egui's crates are one group; wgpu, winit and glow stay at egui-wgpu's versions. Run
+  locally: smoke.sh, xtask dist, the AppImage and the Flatpak. **Not run yet:** the Windows and
+  macOS builds of the studio and the workflows themselves (first release pull request or a manual
+  CI run). Found on the way, **mended 2026-11-28**: started without an argument outside the
+  repository the editor opened `example_project` of the current folder (the Windows zip's
+  example would have been converted in place): now only repository mode opens the checkout's
+  example (`repo_mode::project_to_open`), else the home screen; the Windows build gets
+  `windows_subsystem`, `desktop::startup` (the console it was started from, a panic's message
+  box) and `desktop::fatal`; the window has the emblem as its icon; the script word `project
+  example` opens the bundled example's copy. The agent server's name stays `rustpg2d-editor`
+  (agents' set-ups and the CI know it) and its version was already the workspace's
+  (`CARGO_PKG_VERSION`; a test pins it). **`architecture.md`** (2026-11-28) describes this
+  branch. Found by it, **mended 2026-11-28**: *Own window* of the Play tab checks the runner's
+  engine build (`export::runner_check`, shared with `play_test`, which warns) and refuses a
+  runner of another engine; the agent tool `screenshot_editor` answers with the window's
+  picture (taken with the next frame; without a window it says so). Still open: a carried prop (*Carry prop*) is not drawn since
+  held pictures left (part 11): it needs the prop's model in the hands. **The parity table, first written 2026-11-28** from the 0.35 editor's menus
+  and its script commands (each command is a feature the tests reached). *there* = in the new
+  editor; *partly* = what is missing is named; *open* = not there yet; *decide* = leaves only
+  with the maintainer's word (part 11). Rows are ticked here as they close.
+
+  | 0.35 | In the new editor | State |
+  |---|---|---|
+  | **Projects**: new (wizard), open file / folder, close, recent, the example copy, project files packed | Home screen, `project …`; the wizard's choices (hero's sex, creator, map size) are settings pages | there |
+  | Save all, undo / redo (maps and Database apart) | `file.save_all`, one History | there |
+  | Unsaved changes asked about (save / discard / stay) when the editor or a project closes | *There are changes that aren't saved* when the window closes, the project is closed, another is opened or made (2026-11-28) | there |
+  | Files changed on disk by another program: reload or keep (`watchanswer`) | read again when nothing unsaved is in the way, else a bar asks (*Take the files' version* / *Keep mine*); `watch`. (It did nothing for a map that was open: fixed, 2026-11-28) | there |
+  | **Map**: new map, resize | *New…* › Map, the Inspector's *Size* (2026-11-28) | there |
+  | Open, save, fit, rename a map; several maps | tabs, World view | there |
+  | Tools: select / multi-select / move / duplicate / delete, ground, collision, zones, transitions drawn and linked, place (characters, props, items, decorations, scatter, structures), build | Select, Terrain, Collision, Zones, Place, Build | there |
+  | A region of tiles copied / cut / pasted with its ground | Alt+drag selects a region; Ctrl+C / X / V with its ground, one step (2026-11-28) | there |
+  | Structures: captured, placed, edited as a map of their own | *Save as structure*, Place, the structure's tab | there |
+  | Schedules and patrol routes edited on the map | Inspector + dragged on the map | there |
+  | View: grid, collision, zones, lighting at an hour, weather, parallax | the map's bar | there |
+  | View: top-down | — | removed (the maintainer, 2026-11-28): maps are edited in the game's isometric view |
+  | View: minimap | — | removed (the maintainer, 2026-11-28): the World view shows every map |
+  | **Database**: 25 tabs, search, item categories, table, sort, bulk change, undo | Project browser, kind tabs, forms from the schema | there |
+  | Project settings (one long form) | the *Game* pages | there |
+  | *Browse…* in a form: a sheet's picture, a sound's file, a material's texture, a font's file and its licence copied in | *Browse…* beside every field that names a file (`schema::FILES`); *New…* from a file also for ground (a picture) and fonts (2026-11-28) | there |
+  | Languages: translation template exported, play-test in a language | *Translations* on the Languages page: languages with how far each is, a language added, its table (every text, its translation typed beside it), *Play in it* (2026-11-28) | there |
+  | Plugins window: add from a file or the library, on / off, order, parameters, export, to the library, remove | *Plugins* on the *Scripts & plugins* page: each with what it is, on / off, order, its parameters by name with the control that fits, *Remove* (its files kept aside), added from the library or a plugin file; out of the project they go as part of a pack (*Share…*) (2026-11-28) | there |
+  | Clean up unused files (definitions nothing uses, stray files; a backup first; offered on close) | *Assets › Clean up unused files* (`assets.cleanup`): the list to tick, a copy beside the project, what is kept remembered (2026-11-28); offered when the project is left: quitting, closing, opening or making another (2026-11-28) | there |
+  | **Events**: trigger editors | the event sheet | there |
+  | Events graph (a map's triggers, scripts and maps as a graph) | *Events graph* in a map's bar: its own tab, a click leads where the thing is edited; editing inside the graph (0.35's pencil) is not built (2026-11-28) | there |
+  | Scripts: editor with completion, check, API help | script tabs | there |
+  | Visual scripts | the canvas in their tab | there |
+  | Cut-scene timeline, scrubbed on the map, played from here | the timeline in their tab | there |
+  | Animation editor (cels, emitters, flashes and sounds on a time line, played) | the stage and its strip of time over the form (2026-11-28); the sounds aren't played there | there |
+  | Flags and variables | the *Flags and variables* page (new) | there |
+  | **Art**: pixel editor (frames, tools, nudge, replace colours, seamless) | under a sheet's picture, a material's tab; frames added and duplicated, a rectangle selected (2026-11-28) | there (2026-11-28) |
+  | Sounds played | the sound's tab | there |
+  | 3D models: import, animations' clips, rig templates, check | model workshop; more clip files and clips taken from another model, a rig template's joints moved by numbers (2026-11-28) | there (2026-11-28) |
+  | An item's 3D model: imported, its hold point and front set, shown in the hand, its icon rendered | the item workshop at the top of an item's tab (2026-11-28): the hero holding it, standing, walking, striking; *From a file…*, *Find where it is held*, *Other end*, *Turn the handle*, *Turn the front*, how it is held, its length, where along it the hand is, *Render its icon* | there |
+  | Character editor: model, pieces, colours, equipment, random colours, new from a model / a file / Meshy | character workshop, *New…*, Generate art; *Start from…* another character of the project (2026-11-28) | there (a library character's look: *New…* from the library) |
+  | Props: pictures, states, hitbox, light, building shape | prop workshop + form; a building's measures and openings by numbers in the form, *Add a door* / *Add a window* / *Add a chimney* in the workshop (2026-11-28) | there (2026-11-28) |
+  | Generate art (Meshy), its settings and budget | the Generate art page | there |
+  | Import… Tiled maps, Aseprite sheets | — | removed (the maintainer, 2026-11-28); their code leaves with the old editor (part 11), their sections with the manual's rewrite |
+  | **Library**: browse, add to project, send to library (with its script functions), its own window | Library tab; *Send to library*; no second process | there |
+  | Asset packages, plugin files, the starter library file; update asset library; starter download | packs (one format, sources, updates asset by asset) | there |
+  | **Play**: here / from start / title screen, in a language, with a test setup | Play tab, own window; the language on the Languages page; the setup made by playing or in its form (*Test setup…*, 2026-11-28) | there |
+  | Hot reload and the developer console in a play-test | the Play tab's game runs as a developer's (F4 opens its console; seen 2026-11-28); script errors as a panel of the editor: part 7's open point | there |
+  | **Export**: Linux, Windows, macOS, web, zip, data pack, AppImage, Flatpak, the game's icon | Publishing page | there |
+  | **Other**: quick search, find usages, problems | Go to anything, *Used by*, Problems with fixes | there |
+  | AI agent server window | the *AI agents* page; `--headless` | there |
+  | Editor settings | on the pages they belong to (art, agents, packs) | there |
+  | Developer tools kept in the old crate: the SRD import (`srd_import`), the starter's history tool, UI tests, `mcp_smoke` | the editor-core's examples `srd_import` and `starter_history` with their tests (2026-11-28); `mcp_smoke` is the studio's | there |
+
   **Engine.** None.
+
+  **The manual's rewrite** (STUDIO_PLAN.md task 14, a chapter at a time, in the plan's order):
+  - Chapter 2, *The editor* (2026-11-28): the window as it is now (tabs that are arranged,
+    the menus made from the commands, the command palette, the Project browser's groups, the
+    Overview, Problems and History, F1), a map's tab (its tools and keys, the Outliner and
+    Inspector, Alt+drag for a region), the window's keys, one history and the question on
+    leaving, Go to anything, *Used by*, the Problems tab with its fixes, the Play tab and its
+    bar, another project from the Overview, the clean-up as it works now (offered on leaving),
+    the bar for files changed on disk. 0.35's that the new editor doesn't have, left out:
+    the mode tabs and the ribbon, the minimap, Ctrl+M (go to a map), Ctrl+PgUp / PgDn
+    (previous / next map), the status bar's tile, zoom and map size (the map tab shows the
+    tile under the pointer in its corner), the Problems window's filter by severity and area,
+    the *Repository* badge, play-tests from the selected spawn point.
+  - The other chapters (2026-11-28): 1, 3 to 7, 10 to 14, 18 and 20 rewritten where they name
+    the editor; 8, 9, 15, 16, 17 and 19 checked (their *Database › …* places now the settings
+    pages and the definitions' forms; old projects converted by 0.35). Chapter 5 is now
+    *Definitions* (its file and anchors kept); the Tiled and Aseprite sections are gone. What
+    0.35 had and the new editor hasn't, so the manual no longer describes it: of maps, the map
+    dropdown, Ctrl+M and Ctrl+PgUp / PgDn, the decorations' *Erase* brush (scenery is selected
+    and deleted), the Build tool's own *Save as structure*, a structure's *Done* / *Cancel* bar
+    (its tab is the structure), *Add from library…* in the palettes, a switch for parallax
+    layers; of objects, the palette's *Recent* row and [ ] stepping, *Place more like this*,
+    *Go to <map>* on a portal, a Transition tool of its own (drawn with Zones); of definitions,
+    the table's bulk edit by percent or formula, a sprite chooser that drags over cells, *Edit
+    art* and *+ New blank icon*, the UI skin's preview, the title screen's sketch and *Play title
+    screen* (F5 does it), the material's *Preview next to* / *Swap*, *Draw a new one* and *Size*,
+    the factions' *Members* list, the item preview held by any model and its *Numbers*; of
+    characters, joints of a rig template dragged by hand, *Customize this one…* (the Inspector's
+    fields instead), schedule stops added by clicking the map; of scripts, *Save & check*, *+
+    Cutscene* and *Play as cutscene* for a function, the *Play cutscene* action's *Preview*; of
+    the pixel editor, the *Select frame* tool, the frame grid, the live preview of a row, *Paste
+    mirrored*; of the library, its own window (open its folder as a project instead) and the
+    *Script functions* dialog; of plugins, *Export…* as `.r2dplugin` and *Send to library*
+    (packs carry them); of languages, the editor drawing CJK with the project's fonts. The
+    install table of chapter 1 still names 0.35's downloads (`rustpg2d-editor`): it changes with
+    the new editor's packaging (this part).
 
   **Verify.** The parity table has no open row. The example built from an empty project by an
   agent through the server reaches a play-test. `scripts/ci/smoke.sh` whole. The packages of every
   platform start (the release pull request's *Packages* check, run by hand on the branch before
   the merge).
+
+  The packaging faults mended on 2026-11-28 were checked with the tests
+  `repo_mode::tests::without_a_project_only_a_checkout_opens_its_example`,
+  `files::tests::the_example_is_copied_into_the_home_folder_once`,
+  `export::tests::a_runner_of_another_engine_is_refused` (fake runners: another build, one too old
+  to answer, none) and `mcp::server::tests::the_server_is_named_with_the_workspace_version`, and
+  in the window: started with no argument and `RUSTPG2D_REPO=0` beside an `example_project`
+  (`project=-`, the folder untouched), the editor copied next to such a folder (the Windows zip's
+  layout: the home screen; `project example` packed it into `~/rustpg2d/example_project.r2dproject`
+  and opened it), *Own window* with a fake runner of another build (refused, the sentence in the
+  message line) and with the real one (the game ran), and `mcp_smoke` against the window's agent
+  server (`screenshot_editor`: a 1500x800 picture of the window) and the headless one (it says
+  there is no window). Not seen: the Windows build (it can't be built here) and the window's icon
+  (a `shot` shows no title bar).
 
 ## 0.37.0 — Learning
 

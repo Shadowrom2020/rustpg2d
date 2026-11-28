@@ -7,7 +7,7 @@
 //! Positions are tiles: `walk_to("guard", 12, 8)` walks onto tile 12, 8 (feet near its bottom,
 //! like patrol points).
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::{Game, RtEntity};
 use crate::entity::Facing;

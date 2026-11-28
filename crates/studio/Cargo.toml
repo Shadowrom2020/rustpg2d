@@ -1,0 +1,31 @@
+[package]
+name = "rustpg2d-studio"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "The new R(ust)PG2D editor (ROADMAP.md, 0.36.0 — The Studio), growing part by part. It takes the name rustpg2d-editor when it replaces the 0.35 editor."
+
+[dependencies]
+rustpg2d-engine.workspace = true
+editor-core.workspace = true
+gfx.workspace = true
+anyhow.workspace = true
+# Definitions as data for the forms; fields keep the order of their definition, not the alphabet's.
+serde_json = { version = "1", features = ["preserve_order"] }
+# The shell: egui on wgpu, the same device the engine draws with (`gfx::init`).
+eframe = { version = "0.37", default-features = false, features = ["wgpu", "x11", "wayland", "default_fonts"] }
+# Panels and document tabs that can be arranged.
+egui_dock = "0.22"
+# Only to ask eframe's event loop for an X11 window (the same winit eframe uses).
+winit = "0.30"
+# The system's file dialogs (through the desktop portal on Linux, as the 0.35 editor's).
+rfd = { version = "0.18", default-features = false, features = ["xdg-portal"] }
+
+[dev-dependencies]
+# examples/mcp_smoke.rs: an MCP client driving the agent server.
+rmcp = { version = "3", features = ["client", "transport-streamable-http-client-reqwest"] }
+tokio = { version = "1", features = ["rt", "macros"] }
+serde_json = "1"
+# The forms' tests click and type through egui's AccessKit tree, without a window.
+egui_kittest = "0.37"

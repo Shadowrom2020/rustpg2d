@@ -3,7 +3,7 @@
 //! the event (or cut-scene) runs; once it is over and the last move has arrived, it glides back
 //! to the player. Not saved; a map change returns it at once.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use crate::camera::CameraAim;
 use crate::pictures::Easing;

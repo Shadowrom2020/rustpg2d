@@ -1,9 +1,9 @@
 # The macOS download: signs the app that the Packages / Release job assembled on Linux
 # (artifact rustpg2d-macos-app-unsigned, a tar that keeps the file modes) with an ad-hoc
-# signature (`codesign --deep`: the editor and the game runner next to it), verifies it, runs
-# the game runner from it once and zips it as rustpg2d-X.Y.Z-macos.zip (artifact
-# rustpg2d-macos-app). Not notarized: users allow the first start (README). Called by ci.yml and
-# release.yml.
+# signature (`codesign --deep`: the editor, Contents/MacOS/rustpg2d-studio, and the game runner
+# next to it), verifies it, runs the game runner and the editor's agent server from it once and
+# zips it as rustpg2d-X.Y.Z-macos.zip (artifact rustpg2d-macos-app). Not notarized: users allow
+# the first start (README). Called by ci.yml and release.yml.
 name: macOS app
 
 on:
@@ -31,12 +31,24 @@ jobs:
           codesign --verify --deep --strict --verbose=2 "app/R(ust)PG2D.app"
           ditto -c -k --keepParent "app/R(ust)PG2D.app" "out/rustpg2d-$v-macos.zip"
           ls -la out
-      - name: Smoke test (the game runner from the app; informative)
+      - name: Smoke test (the game runner and the editor from the app; informative)
         run: |
           export RUSTPG2D_MUTE=1 RUSTPG2D_SETTINGS_DIR="$RUNNER_TEMP/settings"
           ( RUSTPG2D_AUTOPLAY="wait 2; status; quit" perl -e 'alarm 120; exec {$ARGV[0]} @ARGV' \
               "app/R(ust)PG2D.app/Contents/MacOS/rustpg2d-game" "app/R(ust)PG2D.app/Contents/Resources/example_project" 2>&1 | tee game.log ) || true
           grep -q "menu=title" game.log || echo "::warning::the game runner didn't reach its title screen on this runner (no GPU / window server?)"
+          # The editor's agent server needs no window: it answers initialize on a copy of the example.
+          export RUSTPG2D_EDITOR_CONFIG="$RUNNER_TEMP/editor-config" RUSTPG2D_LIBRARY="$RUNNER_TEMP/library" RUSTPG2D_REPO=0 RUSTPG2D_FOLDER_PROJECTS=1
+          cp -R "app/R(ust)PG2D.app/Contents/Resources/example_project" "$RUNNER_TEMP/agent-example"
+          perl -e 'alarm 120; exec {$ARGV[0]} @ARGV' "app/R(ust)PG2D.app/Contents/MacOS/rustpg2d-studio" --headless "$RUNNER_TEMP/agent-example" --mcp 7743 --seconds 60 > editor.log 2>&1 &
+          agent=$!
+          for i in $(seq 1 60); do
+            curl -s -m 2 -o mcp-init.txt http://127.0.0.1:7743/mcp -X POST -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+              -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}' && break
+            sleep 1
+          done
+          grep -q '"serverInfo":{"name":"rustpg2d-editor"' mcp-init.txt || { echo "::warning::the editor's agent server didn't answer from the app"; cat editor.log; }
+          kill "$agent" 2>/dev/null || true
       - uses: actions/upload-artifact@v7
         with:
           name: rustpg2d-macos-app

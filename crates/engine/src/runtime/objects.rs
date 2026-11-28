@@ -4,7 +4,7 @@
 //! state; its *Defeated* triggers fire). A locked one with a `force_dc` is forced open with
 //! Strength (Athletics) when neither key nor picking opens it.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::{Game, Source};
 use crate::defs::LockSpec;

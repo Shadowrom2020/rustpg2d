@@ -2,7 +2,7 @@
 //! drawn every frame with the HUD) and the script window (`window_open`: a modal panel of text,
 //! pictures and buttons that run functions). Both use the skin (`runtime/skin.rs`).
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::input::{self, Act};
 use super::skin;

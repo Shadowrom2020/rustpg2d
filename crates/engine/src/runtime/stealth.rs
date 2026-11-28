@@ -6,7 +6,7 @@
 //! reaches the Stealth roll. Within [`NEAR_NOTICE`] they always do (bumping into them). A hit on an enemy that hasn't noticed the player is a sneak
 //! attack: double damage, more with *Sneak attack* skills, shown like a critical hit.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::input::{self, Act};
 use super::text::draw_text;

@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 
 /// A font file of the project.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct FontDef {
     pub id: String,
     /// Name shown in the editor.
@@ -104,6 +105,7 @@ impl Role {
 /// Which fonts the game uses (`ProjectConfig::fonts`): font ids; empty = the built-in font for
 /// `ui`, and `ui`'s font for the others.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct FontRoles {
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub ui: String,

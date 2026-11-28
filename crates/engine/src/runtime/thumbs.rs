@@ -3,7 +3,7 @@
 //! and Save pages. A save only asks for it ([`Game::request_thumbnail`]); the next frame's
 //! drawing grabs the screen right after the world is drawn.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::Game;
 use crate::imageio::Rgba;

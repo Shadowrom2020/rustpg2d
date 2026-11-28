@@ -21,13 +21,13 @@ To build it yourself instead, see *Building from source* in the [README](../../R
 
 The ready-made assets (ground materials, props, characters with their 3D models, items, sounds,
 music, structures and fonts: everything the example game is made of, and more) are a download of
-their own, `rustpg2d-starter-library-X.Y.Z.r2dlib` on the same releases page, about 40 MB. The first
-time the editor starts without it, the *Starter asset library* window offers **Download for
-R(ust)PG2D X.Y.Z** (it fetches the file of the editor's own version, checks it against the release's
-`SHA256SUMS` and installs it) or **Load from file…** (a file you downloaded, e.g. for a computer
-without internet). *Not now* closes the window; *Assets › Starter asset library…* brings it back.
-The editor reads only a starter library made for its own version line: an editor refuses one of
-another format and says which version it is for. Its assets go into your
+their own, `rustpg2d-starter-library-X.Y.Z.r2dlib` on the same releases page, about 40 MB. The
+editor installs it as a [pack](11-asset-library.md#packs): the Library tab's *Packs and sources*
+offers **Download it** (it fetches the file of the editor's own version, checks it against the
+release's `SHA256SUMS` and shows what it brings before installing) or **Take the one this editor
+has** (one found beside the editor, or a file you downloaded, e.g. for a computer without
+internet). The editor reads only a starter library made for its own version line: an editor
+refuses one of another format and says which version it is for. Its assets go into your
 [asset library](11-asset-library.md).
 
 ### Where your things are kept
@@ -42,21 +42,20 @@ another format and says which version it is for. Its assets go into your
 The asset library folder can be moved by setting the environment variable `RUSTPG2D_LIBRARY`; the
 starter asset library then lives in a `starter` folder beside it.
 
-## The welcome screen
+## The home screen
 
-Started without a project, the editor shows its welcome screen:
+Started without a project, the editor shows its home screen (with a project open, the same is the
+**Another project** section at the end of the Overview):
 
-- **New project…** starts the new-project wizard (below).
-- **Open project…** opens a project file (`.r2dproject`).
-- **Open project folder…** opens a project folder made by R(ust)PG2D before 0.20 and converts it
-  (see *Projects are one file* below).
-- **Recent projects** reopens one with a click.
-- **Example project** copies the bundled example game to `~/rustpg2d/example_project.r2dproject`
-  (Windows: `%USERPROFILE%\rustpg2d\example_project.r2dproject`) and opens it. Your copy is yours
-  to change; choosing *Example project* again later opens it.
+- **A new game** makes a project (below).
+- **Open a project** by where it is: a project file (`.r2dproject`, *Browse…*) or a project's
+  folder (*A folder…*).
+- **Worked on lately** reopens one with a click.
+- **The example game** (in a packaged R(ust)PG2D) copies the bundled example game to
+  `~/rustpg2d/example_project.r2dproject` (Windows: `%USERPROFILE%\rustpg2d\example_project.r2dproject`)
+  and opens it. Your copy is yours to change; choosing it again later opens it.
 
-You can also start the editor with a project file (or folder) as its argument:
-`rustpg2d-editor path/to/my-game.r2dproject`.
+You can also start the editor with a project file (or folder) as its argument.
 
 ## Projects are one file
 
@@ -68,20 +67,21 @@ and before the project closes or the editor quits. The file is replaced in one s
 never leaves half a file, and work saved shortly before a crash is recovered the next time the
 project opens.
 
-A project folder from an older R(ust)PG2D is converted when you open it: the editor writes
+A project folder is turned into a project file when you open it: the editor writes
 `<folder>.r2dproject` beside it and opens that. The folder itself is left as it was; delete it once
 you no longer need it. Opening the folder again opens the project file made from it.
 
 If the project file is changed by something else while it is open (another editor, a sync tool),
 the editor doesn't overwrite it: it saves your work as `<name> (changed 1).r2dproject` beside it
-and says so in the status bar.
+and says so in the status line.
 
 ## The example project: Emberbrook
 
 The example is a complete small game, built with the same editor you have, and the best way to see
-how things are done. Open it, press **F6** to play from the start, and then look at how it's made:
-select the villagers to see their schedules, open *Database › Quests* and *Database › Scripts*, and
-switch to the *Events* view to see what each map's triggers do.
+how things are done. Open it, press **F5** to play it from its title screen, and then look at how
+it's made: select the villagers on the village's map to see their schedules, open *Story › Quests*
+and *Story › Scripts* in the Project browser, and a map's **Events graph** to see what its triggers
+do.
 
 What you'll find in it:
 
@@ -110,48 +110,44 @@ structures in your own games.
 
 ## A new project
 
-**File › New project…** (or *New project…* on the welcome screen) opens the wizard:
+**A new game** on the home screen (or under *Another project* on the Overview):
 
 | Setting | What it does |
 |---|---|
-| **Game name** | The game's name, shown in its window title. The project file's name follows it (e.g. `knight-tales.r2dproject`) and can be changed. |
-| **Where** | The folder the project file is created in (*Browse…*). |
-| **Player character's sex** | *Player chooses*, *Always male* or *Always female*. |
-| **Character creator** | Whether players create their character (name and look) when a new game starts, and the default name. |
-| **Starter assets** | Copies a starter set from your asset library: ground materials (grass, meadow, dirt, sand, water, cobblestone, flagstones, wooden floor), the *Forest* and *Rocks* scatter sets, a stone wall and a wooden fence, the hero's and heroine's 3D models (with skin, hair and clothing colours), a coin, an apple, a potion, a sword, a key, a chest, a sign, a barrel, a well and a boulder. |
-| **First map** | Name and size of the first map. It is filled with grass and has a start point in the middle. |
-| **Pixel scale** | How large the game draws its pixels (1.5 means each pixel of art is 1.5 screen pixels). Tiles are always 32 × 32 pixels of art. |
-| **Inventory slots** | How many stacks the player can carry. |
+| **Its name** | The game's name, shown in its window title. The project file's name follows it (e.g. `knight-tales.r2dproject`). |
+| **Kept in** | The folder the project file is made in (*Browse…*); `~/rustpg2d` at first. |
+| **Start with the basics from the asset library** | Ground to paint with (grass, meadow, dirt, sand, water, cobblestone, flagstones, wooden floor), the *Forest* and *Rocks* scatter sets, a stone wall and a wooden fence, a hero who is the player's character, a few items (a coin, an apple, a potion, a sword, a key) and props (a chest, a sign, a barrel, a well, a boulder), and grass on the first map. Unticked, the project starts empty. |
 
-The project opens right away, ready to play with **F5**. Everything can be changed later in
-*Database › Project*.
+**Make it** makes the project and opens it, ready to play with **F5**: a hero on grass. What the
+0.35 wizard also asked (the player character's sex, whether players create their character, the
+pixel scale, the inventory's size, the first map's size) are settings: the *Game* and *Hero &
+party* pages, and the map's *Size* in its Inspector.
 
 ## Your first ten minutes
 
 A small walk through the most important tools. Each step links to the chapter with the details.
 
-1. **Paint the ground.** Choose **Ground** (P) in the ribbon, pick *Dirt* in the left panel, switch
-   to *Line* and drag across the grass: a path with natural edges. Choose **Decorations** (O),
-   *Scatter*, the *Forest* set, and brush a wood beside it. [Maps](03-maps.md)
-2. **Place a house.** Choose **Structures** (H), pick a house from the palette (*Add from library…*
-   brings more), and click on the map. [Maps › Structures](03-maps.md#structures)
-3. **Add a villager.** Choose **Entities** (N), switch the palette to *Character*, pick a villager
-   and click on the map. Right-click to stop placing. [Objects and zones](04-objects-and-zones.md)
-4. **Make it talk.** With the **Select** tool (V), click the villager. In the inspector on the
-   right, add a trigger: *On Interact*, action *Dialog*, text `Welcome, {player}!`.
-   [Events](07-events.md)
-5. **Play.** Press **F5** to play from where the camera looks, walk to the villager and press E.
-   Close the game window to return to the editor.
-6. **Give the player something.** Add a second action to the trigger: *Give item*, `coin`, 10, and
+1. **Paint the ground.** Open the first map (*World › Maps* in the Project browser). Choose
+   **Terrain** (P) in the map's bar, pick *Dirt* in the panel on the left, switch to *Line* and
+   drag across the grass: a path with natural edges. Choose **Place** (N), *Scatter sets*, the
+   *Forest* set, and brush a wood beside it. [Maps](03-maps.md)
+2. **Place a house.** With **Place**, pick *Structures* and a house (the Library tab brings more),
+   and click on the map. [Maps › Structures](03-maps.md#structures)
+3. **Add a villager.** With **Place**, pick *Characters* and a villager, and click on the map. Esc
+   or the right button stops placing. [Objects and zones](04-objects-and-zones.md)
+4. **Make it talk.** With the **Select** tool (V), click the villager. In the Inspector on the
+   right, under *Events*: **+ Add an event…** › *When the player uses it or talks to it*, then
+   **+ Add an action…** › *Dialog*, text `Welcome, {player}!`. [Events](07-events.md)
+5. **Play.** Press **F6** to play on this map where the view looks (or *Try it* in the Inspector),
+   walk to the villager and press E. The game runs in the Play tab.
+6. **Give the player something.** Add a second action to the event: *Give item*, `coin`, 10, and
    tick *once* so it happens only the first time.
-7. **Save.** **Ctrl+S** saves the map and the definitions.
+7. **Save.** **Ctrl+S** saves everything.
 
 From here, read [The editor](02-the-editor.md) for the whole window, then whatever your game needs.
 
 ## Older projects
 
-Projects made with early versions of R(ust)PG2D used 16-pixel tiles. When the editor opens one, it first makes a full
-backup (`<project>-backup-16px`), then converts it to 32-pixel tiles: images that are smaller copies
-of library art are replaced by the originals, other images are enlarged without loss, and frame
-sizes, hitboxes, speeds, positions and save games are scaled. The game refuses unconverted projects
-with a hint to open them in the editor first.
+This editor opens projects of R(ust)PG2D 0.35 and later. A project of an earlier version is refused
+with a message: open and save it with R(ust)PG2D 0.35 first, which converts it (16-pixel tiles,
+tile maps, the skill tree of 0.27, each with a backup beside the project).

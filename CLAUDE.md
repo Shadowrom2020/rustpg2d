@@ -1,10 +1,95 @@
 # CLAUDE.md
 
 Instructions for Claude Code sessions on **R(ust)PG2D**, a 2D top-down RPG engine with an editor
-(Rust, macroquad + egui; Linux, Windows and macOS). The shared rules for everyone — branching concept, checks
+(Rust; wgpu, winit and egui; Linux, Windows, macOS and the web). The shared rules for everyone — branching concept, checks
 before merging, commit messages — are in AGENTS.md and apply in full:
 
 @AGENTS.md
+
+## The Studio branch (0.36.0)
+
+`feature/studio` is the long-lived branch of ROADMAP.md, *0.36.0 — The Studio*: the editor is
+being rewritten on a new foundation, in twelve parts. While it lasts:
+
+- **The old editor is only to read.** `crates/editor` is the 0.35 editor (macroquad + egui 0.31),
+  out of the workspace (`exclude` in `Cargo.toml`) and kept only to read until it is deleted at
+  the switch-over. The sections further down that describe `RUSTPG2D_EDITOR_SCRIPT`, the 0.35
+  script commands and its UI tests describe that old editor; the new editor is `crates/studio`
+  (below). `scripts/ci/smoke.sh` checks the new editor: its agent server without a window and the editor in a window opening a map.
+- **The editor's logic is `crates/editor-core`** (no UI, no window needed): copied from the 0.35
+  editor's UI-free files, with their tests. Its agent server runs without a window:
+  `target/debug/rustpg2d-studio --headless <project> --mcp PORT [--seconds N]` (set
+  `RUSTPG2D_FOLDER_PROJECTS=1 RUSTPG2D_REPO=0` and the scratch `RUSTPG2D_EDITOR_CONFIG` /
+  `RUSTPG2D_LIBRARY` for tests), driven by `target/debug/examples/mcp_smoke PORT headless` or any
+  MCP client. Map screenshots need a window (not there yet). Started in the repository's root
+  without `RUSTPG2D_REPO=0` it is in repository mode: `--headless example_project` edits the real
+  example and `library_send` the real starter library, so example content can be edited on this
+  branch again through agents.
+- **The new editor is `crates/studio`** (binary `rustpg2d-studio`): the shell (`shell.rs`: dock,
+  Project browser, command palette, Go to anything, Problems, History, Overview) and the game in
+  a tab (`play.rs`). Definitions have forms made from the field schema (`form.rs` over
+  `editor-core/src/schema.rs`); pictures of assets are the engine's own textures shown by egui
+  (`thumbs.rs`: `Thumbs::of(kind, id)`, `sprite`, `figure`; ask through `thumbs::boxed` so only
+  what is on screen is fetched); `Tab::Kind` (script `tab kind:item`) is everything of a kind
+  as cards or a list. A map is a tab (`mapview.rs`: `MapView` per map with camera, tool,
+  selection; `scene.rs` draws it with the engine's renderer into a `gfx::Screen`, the Outliner
+  and the Inspector's form beside it); what changes a map is in `editor-core/src/mapedit.rs` (also `create_map` / `resize_map`: commands `map.new NAME [W H] [GROUND]`, `map.resize W H`; `new map` opens *New…* on a map).
+  `RUSTPG2D_STUDIO_SCRIPT="wait 2; status; tab def:item:potion; goto elder; pick 0; palette
+  rename; map.open house; edit.undo; tab play; shot /path/a.png; quit" target/debug/rustpg2d-studio
+  <project> [--map M --spawn S]` drives it: `shot` = the whole window, a line that is no script
+  word is a command of the editor (`crates/editor-core/src/commands.rs`); set the scratch
+  `RUSTPG2D_EDITOR_CONFIG` / `RUSTPG2D_LIBRARY` / `RUSTPG2D_SETTINGS_DIR`, `RUSTPG2D_REPO=0` and
+  `RUSTPG2D_FOLDER_PROJECTS=1` for test runs. The script can use the window for real: `click X Y`,
+  `click X Y ctrl`, `click X Y right` (menus), `hover X Y`, `drag X1 Y1 X2 Y2`, `wheel DY` (at the pointer), `type TEXT`, `press Enter|Escape|Tab|…`, `size W H`;
+  `field KIND ID /POINTER VALUE` changes a field without the UI, `allfields on|off` = *Show all
+  fields*, `setting /POINTER VALUE` changes one of the game's settings (tabs `settings:rules`,
+  `settings:hero-party`…; the value is JSON: `setting /player "hero"`), the map view by tiles (a whole number is a tile's middle):
+  `mapclick X Y [ctrl|shift|right|double]`, `mapdrag X1 Y1 X2 Y2 [alt]` (alt with the Select tool: a region of tiles, copied and pasted with its ground), `maphover X Y` (real pointer
+  input), `mapview CX CY ZOOM`, `maptool select|terrain|place|build|zones|collision` (a tool's panel moves the map's picture: `wait 0.5` before the next `mapclick`, or it lands beside the tile), `mapopt
+  grid|zones|collision|light|weather|ground|scenery|things on|off [HOUR]`, `mapplace KIND ID` (character, prop, item, structure, scatter), `mapzone KIND`,
+  `mapground MATERIAL|erase [brush|line|rect|fill] [WIDTH] [square] [snap]`,
+  `mapbuild walls [WALL] | room [WALL|-] [FLOOR|-] [all] [roof] | house [LOOK|-] [STOREYS] | roof [LOOK|-] [gable|hip|shed|flat] [paint|fill] | doors door|window|gap [PROP] | make | clear`
+  (the Build tool's choices; then `mapdrag` / `mapclick [right]` build: walls follow the pointer, so drag them along one axis),
+  `mapselect NAME`, `mapact delete|duplicate|turn|interactive|scenery|copy|cut|paste|row|column|route|try K` (`try K`: event K of the selected thing played at once; prints `[try] …`) (`route`: the map's clicks add waypoints to the selected character's patrol), `mapshot X Y W H PATH [ZOOM]` (a picture of
+  tiles as agents get it; `status` adds a `[mapview]` line and `[said]`, the editor's last message), a script's tab `script:main.rhai` (`click` into the text, `type`, `press`; `status` adds `[script] file:saved|changed:problemsN:functionsN[:suggestions …]`), the Flags and variables page `names` (`names open flag|variable|text NAME`, `names rename KIND OLD NEW`; `status` adds `[names]`), the Publishing page `publish` (`publish name|out VALUE`, `publish linux|windows|macos|web|zip|pack|appimage|flatpak on|off`, `publish check` = the pre-flight, `publish go` exports; test on a scratch `out`), a cut-scene's timeline (its tab `def:cutscene:ID` in front: `timeline` prints `ID@secs/length Nt Nc [actor@x,y~ …] cam=`, `timeline time SECS`, `timeline cue TRACK CUE`, `timeline add TRACK ACTION LABEL`, `timeline map` = its map above, `timeline play`), a structure's tab `def:structure:ID` (the structure as a map of its own, named `@structure:ID`: showing the tab makes it the map in front, so `maptool`, `mapplace`, `mapclick`, `mapdrag`, `mapground`… work on it: its own tiles start at 1, 1, the tiles around them are room for what hangs over its edge, and there is no Zones tool; what is done there is a step of the definitions), a sound's tab `def:sound:ID` (`sound play|loop|stop`; `sound` prints `ID file= length= playing|looping|stopped[ muted]`), a sprite sheet's tab `def:sheet:ID` (`sheet cut ACROSS DOWN`, `sheet frame K`; `sheet` prints `ID picture=WxH frames=AxD each=WxH frame= tags=[…]`), a prop's workshop (its tab `def:prop:ID` in front: `prop` prints `ID state= facing= dark= hitbox=WxH [spot=X,Y] [light=R] [building=Roof:WxD:doors/windows/chimneys]` and where each handle is in the window, `nw@X,Y ne@ se@ sw@ spot@ reach@`, for `drag`; `prop state NAME`, `prop turn`, `prop dark on|off`, `prop usual light|picture`, `prop add door|window|chimney` (a building's *Add a door* / *Add a window* / *Add a chimney*; its measures and openings by number: `field prop ID /building/ridge "NorthSouth"`, `/building/openings/K/at`…); the status adds `lightat=X,Y` / `picture=X,Y` when moved and the handles `lightat@` and `picture@`), the pixel editor of a sheet's tab, and of a ground material's `def:material:ID` (its texture, seamless: pixels beside the frame are its own again) (`pixels` prints `ID closed` or `ID frame=K WxH tool= colors=a/b saved|changed used=N [sel=X,Y+WxH [floating]] canvas@X,Y zoom=Z`: pixel (px, py) is at window X + (px + 0.5) * Z, Y + (py + 0.5) * Z for `click` / `drag`; `pixels open|close|frame K|addframe|dupframe|tool pencil|eraser|fill|line|rectangle|pick|select|color RRGGBB[AA] [2]|dot X Y [2]|line|rect X1 Y1 X2 Y2 [2]|fill X Y [2]|select X1 Y1 X2 Y2|select -|undo|redo|copy|cut|paste|flip|clear|nudge DX DY|replace FROM TO [all]|zoom N|fit|save`; with a selection copy, cut, flip, clear, fill and replace keep to it, `paste` floats (at the selection's corner, the frame's without one; `nudge` or a `drag` from inside it moves it; `select -`, a click or another tool sets it down); `file.save_all` saves painted pictures too), a 3D model's workshop (its tab `def:model:ID` in front: `model` prints `ID ok|problemsN|not loaded clips=N rig=own|TEMPLATE@TURN|none [joints=N] anims=[walk=Clip@fps …] missing=[…] shown=ANIM` (`joints=` = the rig template's joints moved by hand); `model play ANIM CLIP|-`, `model fps ANIM N`, `model guess`, `model rig TEMPLATE|- [TURN]`, `model joint JOINT DX DY DZ` (a joint of the rig template moved: across, up, to the front in parts of the model's height; set, not added) / `model joint JOINT -` (put back), `model face front|left|back|right|turn`, `model anim NAME`, `model check` = the check's lines, `!` before a problem, `model clips FILE` = a file of clips added, `model share SOURCE [ANIM…] [replace]` = another model's clips taken), an animation's stage (its tab `def:animation:ID` in front: `anim` prints `ID length=S at=S playing|paused[ loop] cels=N emitters=N flashes=N sounds=N`; `anim time SECS|play|pause|loop on|off`), an item's workshop (its tab `def:item:ID` in front: `itemshop` prints `ID model=FILE|- hold= size= at= icon=SHEET:FRAME anim= said=`; `itemshop model FILE.glb`, `itemshop hold estimate|turnhandle|turnfront|flip|at FRACTION|style NAME|size PX`, `itemshop icon`, `itemshop anim idle|walk|attack`, `itemshop face front|left|back|right|turn`), a character's workshop (its tab `def:character:ID` in front: `char` prints `ID model= facing= anim= parts=[slot:piece …] colors=[feature:rrggbb …] slots=N features=N`; `char model ID`, `char part SLOT ID|-|own`, `char color FEATURE RRGGBB|-`, `char random`, `char from CHARACTER` (*Start from…*: its model, pieces and colours), `char wear SLOT ITEM|-` (status adds `wears=[slot:item …]`), `char face front|left|back|right|turn`, `char anim walk|idle|attack|hurt`), a visual script's canvas (its tab `def:visual_script:ID` in front: `nodes` prints `ID:nodes/links:problems[:palette] sel={…}`, `nodes add KIND X Y` (0.35's kinds: `if`, `value:num`, `math:add`, `call:FUNCTION`…; prints the node's id), `nodes link FROM OUT TO IN`, `nodes value NODE INPUT VALUE`, `nodes select N…`, `nodes delete|group|copy|paste [X Y]`, `nodes code` = the Rhai with its problems), packs on the Library tab (`packs` prints `installed=N sources=N pending=TITLE VERSION new/same/differing SAME|- said=…`; `packs file PATH` = a pack file looked at, `packs starter` = the starter library this editor has, looked at as a pack, `packs same keep|replace|copy`, `packs take KIND ID` / `packs delete KIND ID` (an update: the pack's version of what was changed here, what the pack dropped), `packs install`, `packs cancel`, `packs project` (prints the project's assets older than the library's packs) / `packs project PACK [kind:id…]` (takes the library's version), `packs add ADDRESS` / `packs remove ADDRESS` = a source; the commands `packs.share FOLDER TITLE VERSION kind:id… [author:… licence:…]`, `packs.look FILE`, `packs.install FILE [keep|replace|copy]`, `packs.source ADDRESS`, `packs.get ADDRESS ID [keep|replace|copy]`, `packs.list` do the same without the page; `dropfile` takes a pack too; sources and what *Share…* remembers are in the editor's settings: a scratch `RUSTPG2D_EDITOR_CONFIG`), translations on the Languages page (its tab `settings:languages`: `lang add CODE`, `lang open CODE`, `lang set K TRANSLATION…` = the K-th text without a translation, `lang update|clean|save|close`, `lang remove CODE`, `lang play CODE|-`; `lang` prints `own= langs=[de:done/total …] table=CODE:missing=N/M:saved|changed said= play=`), plugins on the Scripts & plugins page (`plugins add ID` = from the library, `plugins file PATH`, `plugins remove ID`, `plugins on|off|up|down ID`, `plugins set ID NAME VALUE…|-`; `plugins` prints `[id:on|off:version …] said=`), the clean-up of unused files (`cleanup open`, `cleanup pick KEY on|off` (keys `sound:ID`, `file:PATH`), `cleanup delete|keep|cancel`; prints `closed` or `TICKED/ALL[:leaving]` and a line an entry; `:leaving` = offered when the project is left, and any answer goes on leaving; the copy goes beside the project: a scratch one), a map's events graph (`map.graph` opens its tab; `graph` with it in front prints `MAP nodes= edges= focus= functions= search=`; `graph dump`, `graph focus entity UID|zone UID|-`, `graph functions all|map`, `graph find TEXT|-`, `graph click NODE` (a node as the dump names it: `owner entity 118`, `fn talk`), `graph view X Y ZOOM`), leaving with unsaved changes (`closewindow` = the window's close button, which asks; `quit` never asks; `leave` prints `-|quit|close|open|new`, `leave save|discard|stay` answers; the `project …` words refuse while something is unsaved), files another program changed (`watch` prints `clean|changed:FILES`, `watch reload|keep` answers the bar), the AI agents page `agents` (`agents start [PORT]`, `agents stop`, `agents autostart on|off`, `agents copy claude|cursor|desktop|ask`; `agents` prints `off|ADDRESS calls=N autostart= copied=`), guided tours (`tour start first-map|talking-character|a-quest`, `tour skip`, `tour end`; `tour` prints `ID done/steps [x - .] now=STEP at=X,Y (CONTROL) [wait=TAB]`: the place and name of the control it points at (`click` it), the tab the step is done in while that isn't in view), the Help tab `help` (the manual; `help topic` = F1: the part for the tab in front, `help open FILE [ANCHOR]`, `help search TEXT…`, `help hit K`, `help back`, `help news [K]` = *What's new* (alone: as its button, the news then count as seen in the scratch `RUSTPG2D_EDITOR_CONFIG`); prints `chapter=FILE|news:VERSION at=ANCHOR hits=N [field=LABEL]`; F1 with the pointer on a field's label (`hover X Y; press F1`) is about that field), the Generate art page `art` (`art` prints `kind= id= cost= left= key=yes|no jobs=N` and a line a job; `art kind icon|portrait|image|model|creature|gear|prop|clips`, `art id ID`, `art describe TEXT…`, `art for CHARACTER`, `art attack NAME`, `art extras A,B`, `art draw` = the job started with its cost confirmed, `art redo JOB PICTURE`, `art add JOB [ID]`; **only with `RUSTPG2D_MESHY_FAKE=<dir>`** (`picture.png`, 3D: `views.png`, `model.glb`, `rig.glb`, `clips.glb`), or a real key spends credits), the Library tab `library` (`library tick KIND ID`, `library add`, `library` prints `[library] assets=N ticked=N said=…`; set `RUSTPG2D_LIBRARY` to a scratch folder), projects (`project new PATH` = with the basics from the asset library as the home screen makes one, `project empty PATH`, `project open PATH`, `project example` = the home screen's *The example game*: the bundled example's copy in `~/rustpg2d` (a build from source has none: it says so), `project close`; set `HOME` to a scratch folder: new projects default to `~/rustpg2d`), the Play tab: `play
+  title|start|here|again|window|MAP X Y [setup]` (a word with a tile after it is a map, also a map called `start`; without `setup` the map's *Map enter* events run and may move the hero), `key NAME` (a tap: one frame), `keyhold NAME SECS` (walking; keys move along the screen, so `down` goes to the tile at x+1, y+1), `pause` / `resume`, `playstep`,
+  `playspeed N`, `playflag NAME on|off`, `playvar NAME VALUE`, `playstate on|off`, `playinspect
+  on|off`, `playkeep [-]` (the running game's state as the test setup; `testsetup` prints it, `testsetup open|close` = its window (*Test setup…*), `testsetup level N|class ID|-|item ID N|flag NAME on|off|var NAME N|-|quest ID STAGE [done]|-|hour H|-|day N|party NAME on|off|clear` changes it; `status` adds the game's
+  own line in full as `[game]`), `new [KIND]` opens the *New…* gallery (`defs.make KIND [from:ID|library:ID|file:PATH] NAME` makes one
+  without it; `library:ID` = starting as that asset of the library, with what it needs; `file:PATH` = from a `.glb` (a prop, or a 3D model for characters) / `.png` (a prop, a sheet, ground) / `.ogg` / `.ttf` (a font); `dropfile PATH` = a file dropped on the window: *New…* with it; `pickanswer PATH` = what the next *Browse…* file dialog answers: a scripted run never opens a real one, `click` the button after it). Form behaviour is tested in `form.rs` (`ui_tests`: egui_kittest clicks and types
+  through AccessKit; every control must have a name, so pass a row's label id on with
+  `labelled_by`).
+- **The field schema** (`crates/editor-core/src/schema.rs`): shapes come from the engine's types
+  (feature `schema` of the engine: every serde type also derives `schemars::JsonSchema` through
+  `#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]`; give a new serde type that
+  line too, a type with a hand-written serde impl gets its schema in `engine/src/schema.rs`).
+  Doc comments on fields and variants are the forms' help texts: write them so a creator can
+  read them. The editor's tables are in `schema.rs`: `LABELS`, `SECTIONS` (a new field of a
+  definition needs its section: test `every_field_has_its_section`), `REFERENCES` (a new field
+  holding an id: test `references_agree_with_renames` prints the line to add; it must also be
+  followed in `refactor.rs`, or go to `NOT_FOLLOWED`), `FILES` (the fields that name a file of the project: a form puts *Browse…* beside them), `NAMES` (flags, variables, script
+  functions… offered where typed; a field naming a flag or variable must be there: the Flags and
+  variables page and its rename find them through it), `PAGES` (the settings' pages: a new field of `ProjectConfig`
+  needs its page, test `every_setting_is_on_one_page`).
+- **The engine draws through `crates/gfx`** (wgpu, winit, kira), which keeps macroquad's drawing
+  names: `use gfx::prelude::*` where `macroquad::prelude` was. Shaders are WGSL
+  (`gfx::material`). The game is drawn into a picture (`gfx::Screen`); `gfx::with_screen` draws
+  it into any view with its own input, `gfx::init_headless` / `gfx::window::run_headless` draw
+  without a window (tests, `model_sheet`).
+- **What is left of the Studio is in `STUDIO_PLAN.md`** (root): one task a session, with what to
+  read, what to do and how to check it; its sections 1 and 2 are the short form of the rules
+  and recipes below. Tick a task there when it is done.
+- **Roadmap parts, not one item per branch:** work the parts in order on this branch, push to it
+  (the draft pull request #356 runs CI), and keep each part's *Progress*, *Decided while
+  building* and *Verify* notes in ROADMAP.md true.
+- **Checks that draw:** `cargo test` runs `crates/engine/tests/headless.rs` (the example's house
+  off screen against `tests/golden/house.png`; `RUSTPG2D_BLESS=1` rewrites the picture, look at
+  it first). Comparing with 0.35: `scripts/studio/shots.sh GAME OUT` with both runners, then
+  `scripts/studio/compare.py BASE NEW SHEET.png` (`RUSTPG2D_FIXED_STEP` makes the frames equal;
+  the 0.35 runner needs a macroquad patched for it, see ROADMAP part 1).
+- **Environment:** `RUSTPG2D_ALLOW_SOFTWARE=1` lets the game draw on a software renderer (Xvfb,
+  containers); `RUSTPG2D_GFX_INFO=1` prints the adapter; `RUSTPG2D_VSYNC=0`;
+  `RUSTPG2D_WAYLAND=1` (windows are X11 by default on Linux).
 
 ## Working with the user
 
@@ -63,18 +148,40 @@ the data model, formats and compatibility rules, caveats); keep it current when 
 changes. The modules:
 
 ```
+crates/gfx/src/         the platform layer (0.36): lib.rs (the context, begin / end frame, with_screen), batch.rs
+                        (the draw list: draw calls with their projection, one render pass per run into the same
+                        picture), texture.rs (Image, Texture2D, RenderTarget, Screen, read-backs), material.rs
+                        (WGSL materials, declarations generated), camera.rs, shapes.rs, text.rs (+ atlas; macroquad's
+                        code), input.rs (Input: fed by the window or an embedder), window.rs (winit: desktop and
+                        the web's canvas), audio.rs (kira), web.rs (the browser's services), time.rs, gpu.rs
+crates/editor-core/src/ the editor without its UI (0.36): workspace.rs (Workspace: project, open maps, selection, view,
+                        status), doc.rs (MapDoc + undo), history.rs (definitions' undo: history_frame), timeline.rs (the one history over definitions and maps: `Workspace::begin` names a step), meta.rs (the
+                        creator's folders, tags, notes, favourites, and the pack an asset came from with what the project keeps of that pack: editor/meta.ron, `Workspace::meta_edit`, `packs_used`, `add_pack_credits`), schema.rs (the
+                        field schema: shapes from the engine's types + labels, sections, id fields), rename.rs,
+                        refs.rs, search.rs, problems.rs, mapops.rs, mapedit.rs (what changes the open map, a step each), events.rs (triggers, conditions and actions in words; the actions' groups), scripts.rs (a script editor's logic: context, suggestions, typing, painting, issues), names.rs (flags, variables, text variables: where each is set and read, rename everywhere), export.rs + package.rs (the game's export with its pre-flight; AppImage / Flatpak), cutscene.rs (a cut-scene at a moment: where its actors are, the camera), fromfile.rs (new definitions from files: a .glb or .png as a prop, a .png as a sheet or as ground, a sound file as a sound, a .ttf / .otf as a font), plugins.rs (a project's plugins: rows with their plugin.ron, added from the library or a file, removed with the folder kept aside, on / off, parameters, order), cleanup.rs (clean up unused files over the engine's unused.rs: Cleanup with its picks, cleanup_find / cleanup_apply, what is kept remembered in the editor's settings; `files::config_dir_here` gives a test settings of its own: the core's tests never touch the real ones), langs.rs (translations: Workspace::languages = how far each is, LangTable = a language's texts being translated, written as lang/<code>.ron), structdoc.rs (a structure worked on as a map of its own, MARGIN tiles larger on every side (own_tiles): open_structure, sync_structures = finished changes into the definition and the map rebuilt when the definition changed, resize_structure), packs.rs (packs in the editor: pack_preview, install_pack into the library with SameId::Keep / Replace / Copy and the record `packs.ron`, update_pack = a newer version asset by asset over starter_update::plan / apply with the pack's history `packs/<id>/history.ron` and a backup of the library first, share_pack = a selection as a pack file + its index entry, read_index / download = sources by web address or folder; commands `packs.share|look|install|source|get|list`), pixels.rs (a picture painted a frame at a time: PixelDoc with its tools, frame operations and own undo; `seamless` = a material's texture, wrapped at the frame's edges), tours.rs (guided tours as data: TOURS, each Step with its Check of the project's state, its anchors (the controls to point at, the nearest first) and its Place (the tab it is done in); TourRun::done / current / tab), manual.rs (the Creator's Manual built in: chapters() from Documentation/manual, parse = Markdown into blocks, search, topic = a chapter's section by words; a test keeps the manual's links valid; releases() = the changelog's newest versions for *What's new*; drawable = what the editor's font lacks written plainly: a studio test draws every chapter, so a new sign in the manual needs its line there), modelcheck.rs (a 3D model looked over: Workspace::model_checked = the engine's check with the clips its files hold and what is missing, model_play / model_guess / model_rig = the fixes), looks.rs (a character's look: the colour features and piece slots of its model, what another model changes), graph.rs (a map's events graph: who has events, their events, script functions, maps; edges owns / calls / event / state / travel; `Workspace::events_graph`, a `Card` a node in the event sheet's words, `Graph::dump`), visualedit.rs (a visual script's canvas without its UI: the palette's entries, linking, adding, copying, grouping), build.rs (the Build tool: walls, rooms, houses, roofs, openings; sync_buildings),
+                        testsetup.rs (what a test-play starts with: kept per project, written as a save),
+                        world.rs (the maps and the ways between them: survey_world, link_transitions), models.rs, library.rs (the asset library as the workspace uses it: library_to_project, make_from_library, start_with_basics, library_look = one library asset with what it needs as a workspace to draw pictures from), starter.rs, art/ (Meshy
+                        jobs), project_file.rs, files.rs (settings, recent), repo_mode.rs, mcp/ (the agent server:
+                        tools.rs = the catalogue, exec*.rs, play.rs, watcher.rs, server.rs)
+crates/studio/src/      the new editor (0.36): main.rs (the eframe window; `--headless PROJECT --mcp PORT` = the agent
+                        server without a window), shell.rs (dock, browser, palettes, tabs), form.rs (forms from the
+                        field schema), thumbs.rs (pictures of assets from the engine's textures), gallery.rs (New…),
+                        sheet.rs (the event sheet: every list of triggers / conditions / actions in a form as When / If / Do rows), scriptedit.rs (a script's tab), namespage.rs (Flags and variables), publish.rs (Publishing), timeline.rs (a cut-scene's timeline, in its tab), nodesview.rs (a visual script's canvas, in its tab), artshop.rs (a sound played and a sprite sheet cut into frames, at the top of their tabs), pixeledit.rs (the pixel editor under a sprite sheet's picture and at the top of a ground material's tab: the canvas, tools, colours), modelshop.rs (the model workshop at the top of a 3D model's tab: the model playing its animations, the check's problems, each animation's clip picked, rig templates), animshop.rs (an animation's stage at the top of its tab: a straw dummy with the animation drawn as the game draws it, a strip of time), itemshop.rs (the item workshop at the top of an item's tab: its 3D model in the hero's hand, where and how it is held, its icon rendered), charshop.rs (the character workshop at the top of a character's tab: the figure animated, its model, pieces and colours picked), propshop.rs (the prop workshop at the top of a prop's tab: the prop on a stage, its hitbox, use spot and light dragged), librarypage.rs (the Library tab), tourpanel.rs (a tour being followed: its window, the frame around the control to use; a control a tour points at calls `tourpanel::mark(ui, "tool:Terrain", rect)` (one scrolled out of view says nothing), in a form `mark_here` under the scope the Inspector sets (`thing:add:event`); every tab marks `tab:NAME` while it is drawn), helpview.rs (the Help tab: the manual's chapters, search, links, *What's new*, a field asked about; `Shell::help_topic` = what F1 opens), pluginspage.rs (plugins at the top of the Scripts & plugins page), cleanupwin.rs (the *Clean up unused files* window), setupwin.rs (*Test setup…*: what a test-play starts with, as a form), langpage.rs (translations at the top of the Languages page: the languages, a language's table, the language play-tests start in), agentspage.rs (the AI agents page: the agent server started and stopped, the set-up for an agent's program copied, the calls), packspage.rs (packs on the Library tab: a pack shown before it is installed, the installed ones, sources read beside the editor; the *Share…* window), artpage.rs (the Generate art page: the form, the account, the jobs; a UI test must never click *Draw it*), pick.rs (the system's file dialogs: `pick::browse` = a *Browse…* button, the answer taken by its `Key` in a later frame; `answer_next` for tests),
+                        mapview.rs (a map's tab: view, tools, Outliner, Inspector; buildtool.rs = the Build tool's panel) over scene.rs (a map drawn as the game does),
+                        worldview.rs (every map and the ways between them), graphview.rs (a map's events graph in its tab `graph:MAP`: cards on an egui Scene, a click = `Ask::GoTo`; `on_screen` maps a card's place to the window for tests),
+                        play.rs (the game in a panel: its bar, the State panel); examples/mcp_smoke.rs
 crates/engine/src/      library: everything shared by game and editor
   defs.rs               Database: sheets, items, props (+states, container, lock, anim),
                         characters (+shop), sounds, quests, structures; serde formats of defs/*.ron
   skills.rs             SkillSettings (project: magic), SpellDef (SRD 5.1 spells: level, SpellCast, SpellRange, Area/Shape,
-                        components, concentration, classes, parts: Vec<SpellPart>, story_only, SpellVisual; 0.29's
-                        SpellEffect upgraded on read: SpellDef::upgrade; RULES_VERSION 3 converts projects);
+                        components, concentration, classes, parts: Vec<SpellPart>, story_only, SpellVisual; projects
+                        below RULES_VERSION are refused);
                         runtime/spells.rs (slots by class level, known / prepared / spellbook, concentration, scrolls,
                         casting out of fights, level-up picks), runtime/turns/casting.rs (Cast in fights: targets,
                         areas, resolve_spell, buffs in AC / speed / rolls); buffs = srd::conditions::Buff on ActiveCondition
   srd/                  the SRD 5.1 rules: equipment.rs (armor_class, weapon / armor proficiency, coins: change,
                         format_cp, FOCUS; ItemDef srd / cost_cp / weight / coin_cp, Weapon category + properties,
-                        Armor category / base_ac / dex_max / str_min, ItemDef::upgrade, RULES_VERSION 4;
+                        Armor category / base_ac / dex_max / str_min, RULES_VERSION 4;
                         runtime/equipment.rs, runtime/money.rs = the purse, shops in coins), magic_items.rs (MagicItem =
                         ItemDef.magic: rarity, attunement (MAX_ATTUNED 3), bonus, effects = FeatureEffect, charges +
                         recharge at dawn (ItemStack.spent), ItemSpell, use_parts; SRD text parsers; runtime/magic_items.rs:
@@ -93,12 +200,9 @@ crates/engine/src/      library: everything shared by game and editor
                         background ids, written by srd_import; ATTRIBUTION / ATTRIBUTION_FILE, srd_content(db),
                         ProjectConfig.srd); statblock.rs (StatBlock = CharacterDef.stats / EntityInstance.stats; npcs.ron = the
                         SRD's 35 NPC templates, written by srd_import: npc_template(id)); RulesSettings (ProjectConfig.rules: the new hero's scores, proficiencies, show
-                        checks), RULES_VERSION (ProjectConfig.rules_version), old_level_dc. WorldState.abilities /
+                        checks), RULES_VERSION (ProjectConfig.rules_version). WorldState.abilities /
                         proficiencies / rolls + check() / roll_dice(); runtime/rolls.rs shows checks, the journal's
                         Rolls page, status rolls= abilities= prof= profs=
-  srd_convert.rs        a 0.27 project's skill tree -> proficiencies once (editor on open with a backup, libraries on
-                        open): skill ids renamed via refactor (RefKind::Skill = a proficiency id, no definition),
-                        refactor::srd_upgrade_db / _map (Skill conditions, SetSkill, Lockpick difficulty)
   races.rs              RaceDef (defs/races.ron): bodies per sex, creator looks, stat changes, proficiencies
                         (RaceDef.skills), size, SRD data (parent = subrace's race, merged(), ability_bonuses,
                         walk_ft, size_category, darkvision_ft, languages, resistances, traits, choices
@@ -118,29 +222,21 @@ crates/engine/src/      library: everything shared by game and editor
                         missing / craft / fits
   structure.rs          StructureDef::capture / place (ground cells + decorations + clear marks +
                         collision + entities; editor-only, placing writes ordinary ground / decor)
-  convert_tiles.rs      the one-time converter of tile projects (0.20 and older): TileConverter
-                        (ground layer -> materials by terrain masks / tile pictures, upper layers ->
-                        decor of `<tileset>_tile_N` props), convert_project (editor on open, with a
-                        backup; library on open; old .r2dpack bundles); needs_conversion
-  old_tiles.rs          the old tile types, only for reading old data: Tile, TileLayer, TilesetDef,
-                        Terrain + BLOB masks, OldTiles (a v1 / v2 map's tilesets + layers)
   project.rs            ProjectConfig (project.ron), defs loading/saving (DEFS list, parse_defs),
-                        TILE_SIZE = 32, CharacterCreation / SexChoice
+                        TILE_SIZE = 32, CharacterCreation / SexChoice, made_before_035 / refuse_before_035 (MADE_BEFORE_035:
+                        projects older than 0.35 are refused)
   settings.rs           player options (Options menu): ~/.config/rustpg2d/<game>/settings.ron,
                         RUSTPG2D_SETTINGS_DIR overrides the folder (set it to a scratch dir in tests)
   render/character.rs   Anim (what a character does: walk, idle, attack, hurt, extra clips) and the look /
                         equipment of a placed character. Characters are 3D models: an Appearance =
-                        model (+ the legacy `body`, a 0.17 figure's id = the model that replaced it) +
-                        colors (feature name -> colour); Models::look_of resolves it (model, else the
-                        model named like the body, else the built-in mannequin, models/mannequin*.glb
-                        embedded in the engine); render/recolor.rs maps a model's feature shades onto
+                        model + colors (feature name -> colour); Models::look_of resolves it (model, else
+                        the built-in mannequin, models/mannequin*.glb embedded in the engine); render/recolor.rs maps a model's feature shades onto
                         the chosen colour by brightness. ModelDef.playable / female = offered by the
                         creator. Old figure sheets (`kind: Body`) load as plain sprites.
-  hands.rs              held items: a hand's Grip (position, grip axis across the fist, size, front),
-                        ItemDef.held / PropDef.carry (HeldSprite: picture, hold point, orientation
-                        mark), held_with() = the HeldLayers at given grips (lay(): mark onto axis,
-                        mirrored when the axis points left; both_hands: the line through both fists);
-                        render/model.rs puts them on the hand bones, held_tip = a held item's far end
+  hands.rs              held items: in_hands() = what is in which Hand (the weapon or a tool in use, the left
+                        hand's item, by their kind; a carried prop fills both, not drawn); render/model.rs
+                        puts their 3D models (ItemDef.model) on the hand bones (an item without one isn't
+                        shown), held_tip = a held item's far end
   (pieces)              figures from pieces: ModelDef.part (ModelPart: slot, style, fits, hides, offer) = a model worn
                         by others, ModelDef.parts = a figure's own pieces, ModelDef.stand = the figure's height when
                         its file is only its head, Appearance.parts (slot -> piece id or style, NO_PART), ItemDef.wear
@@ -225,8 +321,7 @@ crates/engine/src/      library: everything shared by game and editor
                         player name/sex/look), Sex, expand_text() placeholders
   map/                  Map (painted ground, decorations, collision, objects), zones (spawn, portal,
                         trigger, spawner, encounter, transition), io.rs = map file format (postcard ground /
-                        decor + RON `Meta`; v1 / v2 tile maps via decode_tiles for the converter,
-                        save_tiles = v2 for the 16 px upgrade)
+                        decor + RON `Meta`; versions 1 / 2 (tile maps) are refused)
   events/               GameEvent, TriggerOn, Cond, Action (mod.rs); ActionRunner (runner.rs)
   script.rs             Rhai engine and the script API
   unused.rs             unused assets: models / sheets / sounds / materials / fonts nothing names (other defs, config,
@@ -293,10 +388,14 @@ crates/engine/src/      library: everything shared by game and editor
                         feet, big footprints box to box), border_fade; Game::view / camera / upright; model.rs
                         ELEVATION 30° + ISO_TURN; keys move along the screen (screen_dir_to_world); draw_block = PropDef.block
                         walls as boxes, hides = the cut-away in front of the hero; status view= … walls=)
+  packs.rs              packs (0.36): the one file format (`.r2dpack`, a zip: pack.ron = PackManifest, assets/ = a
+                        Bundle, plugins/, previews/, history.ron); Pack::from_bytes also reads 0.35's asset
+                        packages, plugin files and the starter library file as packs; SourceIndex / IndexEntry =
+                        what a source offers (size and SHA-256 checked)
   library.rs            asset library + .r2dpack bundles; refactor.rs = id renames / refs_of_*;
                         starter_update.rs = Update asset library (StarterHistory, plan, apply, backup);
                         starter_pack.rs = the starter library file (.r2dlib: manifest, history, files)
-  migrate.rs            converts old 16 px projects; release.rs = standalone game export (Platform:
+  release.rs            standalone game export (Platform:
                         Linux / Windows / MacOS = <Name>.app, data in Contents/Resources; export_web;
                         packed = data.pack, else a loose data folder; bundled_root mounts the pack);
                         pack.rs = the data.pack format (scrambled index + files; Pack reads by seek);
@@ -309,7 +408,7 @@ crates/engine/src/      library: everything shared by game and editor
   sys.rs                the game's file / clock access: native std::fs (+ a mounted data.pack), web =
                         in-memory files from data.pack + localStorage (web/rustpg2d.js plugin); use it,
                         not std::fs, in game code
-  web/                  index.html, mq_js_bundle.js (macroquad's loader, vendored), rustpg2d.js (plugin)
+  web/                  index.html of exported web games (the runner pair comes from `cargo xtask-web`)
   desktop.rs            Windows start-up of game and editor (attach console, panic message box);
                         icon.rs = window icons, hero_icon (icon.png, else the player portrait) /
                         fit_icon / emblem (also the packages' icons; exports write the icon as
@@ -317,8 +416,6 @@ crates/engine/src/      library: everything shared by game and editor
                         portrait: Editor::model_icon)
   paths.rs              per-user folders per platform (XDG / %APPDATA%, %LOCALAPPDATA%, %USERPROFILE% /
                         ~/Library/Application Support, ~/Library/Caches)
-  legacy.rs             the old name rust2d: adopt() copies a folder / file from the old location
-                        (~/.config/rust2d, ~/.local/share/rust2d, ~/.cache/rust2d) on first use
   glibc_compat.rs       math functions newer glibc re-versioned, defined in the engine so the game
                         and editor binaries need only glibc 2.34 even when built on a rolling
                         release (check: `readelf -V target/release/rustpg2d-game`, weak needs don't count)
@@ -359,7 +456,7 @@ crates/editor/src/      editor binary
   nodes.rs (the Nodes tab: visual scripts on an egui Scene canvas, the palette from the API table grouped by the manual's sections,
   typed values, links, problems, the generated Rhai; engine visual.rs does the code),
     repo_mode.rs (repository mode: started in a checkout, the editor works on example_project and the starter library),
-  srd_import.rs (the SRD 5.1 import from a 5e-database checkout, pinned SRD_COMMIT: races, subraces, traits, choices,
+  srd_import.rs (on this branch the editor-core's: `crates/editor-core/src/srd_import.rs`, `cargo run -p rustpg2d-editor-core --example srd_import -- CHECKOUT`; the SRD 5.1 import from a 5e-database checkout, pinned SRD_COMMIT: races, subraces, traits, choices,
   the 334 monsters as library characters (import_monsters; update_monsters_in = the example's),
   backgrounds, the 12 classes (import_classes: feature_effects maps feature indexes to effects, starting
   equipment to library items); run by examples/srd_import.rs, compiled into the binary only for its test),
@@ -404,8 +501,6 @@ scripts/art/kit/        the figure kit: the starter library's voxel people built
                         for the example). After a change:
                         build, apply to the example (repository mode) and to the starter library (opened as a project),
                         then the starter_history example.
-scripts/art/meshy/      the Meshy pipeline that drew the 2D figures of 0.16 / 0.17 (README there;
-                        key in ~/.config/meshy/api_key, work/ is git-ignored)
 ```
 
 ## Coding guide
@@ -414,12 +509,12 @@ scripts/art/meshy/      the Meshy pipeline that drew the 2D figures of 0.16 / 0.
   items, short comments that explain *why*. Rust 2021; clippy must pass with `-D warnings`.
 - Errors: `anyhow::Result` with `.context(...)` in IO code; the game never panics on bad
   data — log with `eprintln!` (prefix like `[game]`, `[events]`) and carry on.
-- Don't add dependencies without a good reason. Pinned stack: macroquad 0.4.16 (with
-  `features = ["audio"]`), egui-macroquad 0.17.3 (egui 0.31) and with it egui-phosphor 0.9 (each
-  later egui-phosphor needs a newer egui; Dependabot ignores all four, and egui_kittest 0.31.1, the
-  editor's UI tests, with them), image 0.24 and lewton 0.9
-  (macroquad's versions: `image` only turns on the JPEG decoder of macroquad's copy; ignored too), postcard + lz4_flex, ron,
-  rhai, rfd, zip 9, png 0.18 (`imageio.rs`; macroquad keeps its own png 0.17 internally).
+- Don't add dependencies without a good reason. The stack: wgpu 30 (the version egui-wgpu uses:
+  the editor will hand its device to `gfx`), winit 0.30, kira 0.12 (without its default
+  features), fontdue 0.9, glam 0.30 (`scalar-math`: the vertex layout needs unaligned `Vec4`),
+  image 0.25 (PNG, JPEG), wasm-bindgen (xtask's `wasm-bindgen-cli-support` must be the same
+  version: a test), lewton 0.9, postcard + lz4_flex, ron, rhai, zip 9, png 0.18 (`imageio.rs`); the editor's file dialogs are
+  `rfd` 0.18 (`xdg-portal`), as the 0.35 editor's.
 - **Compatibility** (maps, defs and save games of older versions load). Until 1.0.0 this is the default, not an
   absolute: a break is allowed only when keeping compatibility costs more than the feature, or makes it impossible.
   The user must agree to the break, and it comes with a conversion where possible (ROADMAP.md, *Compatibility until
@@ -427,24 +522,23 @@ scripts/art/meshy/      the Meshy pipeline that drew the 2D figures of 0.16 / 0.
   - New variants of `Action`, `TriggerOn`, `Cond`, `ZoneKind`, `OnUnlock` are **appended**
     at the end (map files store variant indices).
   - New fields get `#[serde(default)]` (or `default = "fn"`). New map object fields go in the
-    RON `Meta` in `map/io.rs`; never edit the frozen `EntityV1` there. The postcard part of a map
-    (`Core3`: `Ground` / `GroundChunk`, `Decor`; the old `TileLayer` / `Chunk` in `old_tiles.rs`)
+    RON `Meta` in `map/io.rs`. The postcard part of a map
+    (`Core3`: `Ground` / `GroundChunk`, `Decor`)
     is stored by position without defaults and is frozen: a new property goes into `Meta`, or the
     format version is bumped with a reader for the old one.
-  - Tile projects (0.20 and older) aren't loaded as tiles: they are converted once
-    (`convert_tiles.rs`), so readers of their data (`old_tiles.rs`, `io::decode_tiles`) stay.
+  - Projects older than 0.35 are refused (`project::made_before_035`); 0.35 is the bridge that converts them.
   - Save games are `WorldState` RON: every new field needs a serde default.
-  - `crates/engine/tests/fixtures/` holds files of earlier versions (0.9.0 defs, old maps, a v1
-    map, saves); `cargo test -p rustpg2d-engine --test compat` must keep loading them. When a format
+  - `crates/engine/tests/fixtures/` holds 0.35's files (the example's defs and village at v0.35.0-alpha.1, a 0.35 quick save)
+    and an older `project.ron` for the refusal; `cargo test -p rustpg2d-engine --test compat` must keep loading them. When a format
     changes, add the previous release's file as a fixture (its README says how); never edit one.
 - Tiles are always 32 px; sizes in code are in pixels at that size (`Game::u()` = ts/16 scales
   effects). Rhai reserves `var`, hence `get_var` / `set_var`.
-- Game UI (macroquad's default font, ProggyClean) has Latin-1 only (ä, ö, ü, ß, é, · work): no `∞`, `▲`, `✔`, `–`, `“` in `draw_text`.
+- Game UI (the built-in font, ProggyClean) has Latin-1 only (ä, ö, ü, ß, é, · work): no `∞`, `▲`, `✔`, `–`, `“` in `draw_text`.
   New runtime texts: draw them with the runtime's `draw_text` (`runtime/text.rs`, already imported in
   the runtime files) and add a line to every built-in language file, `engine/lang/de.ron` and the eight others (whole
   English string, `{}` for values; a test fails until each file has it).
   Content that is already translated (dialog lines, names) goes through `text::draw_plain` / `measure_plain`;
-  never call macroquad's text functions in the runtime (they skip the project's fonts). A new HUD / dialog
+  never call `gfx`'s text functions directly in the runtime (they skip the project's fonts). A new HUD / dialog
   drawing function starts with `let _font = text::role(Role::Hud | Role::Dialog);`. Window chrome
   (panels, buttons, tabs, selection, toasts, HUD frame and bars) and window text colours go through
   `runtime/skin.rs` (`skin::panel`, `skin::button_picture` / `button_fill`, `skin::cursor`,
@@ -484,7 +578,9 @@ itself is still built as content on top of it. The checklist below is for that c
 ### Where a new feature usually has to touch (approved engine changes)
 
 - **New `Action` / `Cond` variant:** `events/mod.rs` (variant at the end, `label()`,
-  `templates()`), execution in `runtime/mod.rs` (`execute`) or `Condition::eval` /
+  `templates()`), the action's group in `editor-core/src/events.rs` (`ACTION_GROUPS`: a test fails
+  until it is in one) and, when it deserves words of its own, its line in `action_summary` /
+  `condition_summary` there (the event sheet's rows), execution in `runtime/mod.rs` (`execute`) or `Condition::eval` /
   `runner::conditions_met`, editor fields in `widgets.rs` (action fields / `conditions_ui`),
   `refactor.rs` if it references ids, and a Rhai function in `script.rs` if useful.
 - **New script function:** register it in `script.rs` and add it to the `API` table in
@@ -546,12 +642,12 @@ there and test on the copy. Set `RUSTPG2D_MUTE=1` and `RUSTPG2D_SETTINGS_DIR=<sc
 `<scratch>/cfg/work`). The editor converts a project folder it opens into `<folder>.r2dproject` beside it: fine for a scratch
 copy; set `RUSTPG2D_FOLDER_PROJECTS=1` to work on the folder itself.
 
-- **Smoke run:** `scripts/ci/smoke.sh` (after `cargo build -p rustpg2d-game -p rustpg2d-editor`
-  and `cargo build -p rustpg2d-editor --example mcp_smoke`) runs the game and the editor on a scratch
+- **Smoke run:** `scripts/ci/smoke.sh` (after `cargo build -p rustpg2d-game -p rustpg2d-studio`
+  and `cargo build -p rustpg2d-studio --example mcp_smoke`) runs the game and the editor on a scratch
   copy of the example project and checks `status` fields; CI runs it under Xvfb on every pull
   request (*Runtime smoke*). `WORK=<dir>` keeps its logs, `PORT=` picks the agent server's port.
 - **Game:** `RUSTPG2D_AUTOPLAY="wait 1; press e; hold right 0.5; rclick 6 3; type Name; shop buy 0; close; status; shot /path/a.png; quit" target/debug/rustpg2d-game <project> [--no-title] [--map M --spawn S | --pos X,Y]` (`--pos` is in pixels: tile × 32 + 16).
-  Commands: `wait`, `press` (`press shift+g` holds Shift), `hold`, `keydown KEY` / `keyup [KEY]` (held across commands), `turn move X Y|attack NAME|action dash|…|end|ai NAME on|off|fast|start` (play a fight's turn; `status` prints `combat=` round:who:moved/speed:A|B…[order] and `death_saves=`), `levelup [FEATURE VALUE[,V] …]` (the first waiting level-up's choices; alone = first options; `status` prints `class=` hero[member=class…] and `levelup=` who:level…(open)), `pad BUTTON[+BUTTON]` / `padhold BUTTON SECS` (gamepad: `a b x y lb rb lt rt select start ls rs up down left right`; `status` prints `pad=` and `shake=` (seconds left, `off` when disabled); `weather=` kind:intensity(map|set), particles, rain sound volume); `schedule=` name:stop-time[>map](walking|inside|elsewhere|stopped)[:sit|:lie]@x,y per scheduled character; `pose=` sit|lie|stand#uid while on furniture; `climbing=` on a ladder; `gather=` def:hits/needed, `crops=` seed:stage/stages|ripe@x,y, `activities=` name:kind@x,y (characters at work now), `held=` who:item@R|L|B[/back] or who:item@back (what the player and nearby characters hold or wear on the back), `parts=` who:style+style (the pieces their figures show: hair, outfit, headwear; worn items that are *Shown as* a style take the slot), `bag=` used/slots (the player's inventory), `anims=` who:walk|idle|strike|windup|swing|block|… (`walk@se` etc. for a diagonal walker; `>attack_thrust` etc. when the equipment chose a weapon animation), `barks=` who:line (speech bubbles showing), `ambience=` sound:loudness (ambience zones heard, also muted; footsteps are in `sounds=`), `markers=` quest@x,y or quest>map@x,y (quest markers; empty when the option is off), `offers=` quest@name (characters on the map with a quest to offer now: the quest designer's givers), `captions=` [text, <left, right>] (Options › Accessibility › Captions; settings live in `$RUSTPG2D_SETTINGS_DIR/<game-slug>/settings.ron`, e.g. `(text_size: 2, captions: true, high_contrast: true, hold_repeat: true)`), `battle=` off|on:secs[characters in combat] and `music_fade=` gain[>next] (battle stance, battle music; `held=` shows `@hip` for a sheathed weapon), `photo=` off|on:zoom:hour[:hidden]@x,y and `photo_last=` (photo mode: `press p`, `press e` takes a picture, `press lbracket`/`rbracket` the hour, `wheel` zooms; set `RUSTPG2D_PHOTOS_DIR=<scratch>` or pictures land in the real Pictures folder), `sneak=` on|off:light0..1:sight10=tiles[:stealth=ROLL] (sneaking, the light at the player, how far a 10-tile enemy sees them, the Stealth roll its passive Perception must reach; toggle with `press v` / `pad ls`), `friends=` Name:points (`friend_<name>` variables; journal People page: `press j; wintab people`), `models=` poses/pages/most p/renders r/total/evictions e (3D characters; `RUSTPG2D_MODEL_DEBUG=1` shows the atlas; `model_atlas_mb` in project.ron sets its size), `parallax=` NbehindMabove (layers drawn), `ground=` material/count (the painted ground under the feet), `lang=` the current language code (start with `--lang CODE`; the project must offer it), `fonts=` role:font|builtin and `missing_glyphs=` (characters no font had), `music_loop=` whole|stretched|plain|- (gapless music), `sounds=` the last six sound effects started (also when muted), `props=` def:state@x,y (props not in their first state), `day=`; `hooks=` hook:calls (script hooks run), `plugins=` the loaded plugins (editor status: id:on|off:version), `factions=` playerfaction[faction:standing …]{name=faction[*] …} (`-` without factions; the braces list characters with a faction other than their definition's, `*` = set in play; `foes=` = characters hostile to the player); `aim=heal:<name>` while choosing whom to heal (`-` otherwise); `achievements=` unlocked ids (menu page `achievements`); `companions=` name:hp/max[:down][:defend|:passive][:stay][:fighting]@x,y, `orders=` who:choice while the orders menu (G) is open, `compwin=` name[bag] while a companion window is open (`slot` / `slotdrag` then take `gear`, `bag`, `player`), `click`/`rclick X Y` (tiles), `rhold X Y SECS` (right button held), `clickenemy`, `talkto NAME` (right-click a named character where it stands), `slot`,
+  Commands: `wait`, `press` (`press shift+g` holds Shift), `hold`, `keydown KEY` / `keyup [KEY]` (held across commands), `turn move X Y|attack NAME|action dash|…|end|ai NAME on|off|fast|start` (play a fight's turn; `status` prints `combat=` round:who:moved/speed:A|B…[order] and `death_saves=`), `levelup [FEATURE VALUE[,V] …]` (the first waiting level-up's choices; alone = first options; `status` prints `class=` hero[member=class…] and `levelup=` who:level…(open)), `pad BUTTON[+BUTTON]` / `padhold BUTTON SECS` (gamepad: `a b x y lb rb lt rt select start ls rs up down left right`; `status` prints `pad=` and `shake=` (seconds left, `off` when disabled); `weather=` kind:intensity(map|set), particles, rain sound volume); `schedule=` name:stop-time[>map](walking|inside|elsewhere|stopped)[:sit|:lie]@x,y per scheduled character; `pose=` sit|lie|stand#uid while on furniture; `climbing=` on a ladder; `gather=` def:hits/needed, `crops=` seed:stage/stages|ripe@x,y, `activities=` name:kind@x,y (characters at work now), `held=` who:item@R|L|B or who:item@back (what the player and nearby characters hold or wear on the back), `parts=` who:style+style (the pieces their figures show: hair, outfit, headwear; worn items that are *Shown as* a style take the slot), `bag=` used/slots (the player's inventory), `anims=` who:walk|idle|strike|windup|swing|block|… (`walk@se` etc. for a diagonal walker; `>attack_thrust` etc. when the equipment chose a weapon animation), `barks=` who:line (speech bubbles showing), `ambience=` sound:loudness (ambience zones heard, also muted; footsteps are in `sounds=`), `markers=` quest@x,y or quest>map@x,y (quest markers; empty when the option is off), `offers=` quest@name (characters on the map with a quest to offer now: the quest designer's givers), `captions=` [text, <left, right>] (Options › Accessibility › Captions; settings live in `$RUSTPG2D_SETTINGS_DIR/<game-slug>/settings.ron`, e.g. `(text_size: 2, captions: true, high_contrast: true, hold_repeat: true)`), `battle=` off|on:secs[characters in combat] and `music_fade=` gain[>next] (battle stance, battle music; `held=` shows `@hip` for a sheathed weapon), `photo=` off|on:zoom:hour[:hidden]@x,y and `photo_last=` (photo mode: `press p`, `press e` takes a picture, `press lbracket`/`rbracket` the hour, `wheel` zooms; set `RUSTPG2D_PHOTOS_DIR=<scratch>` or pictures land in the real Pictures folder), `sneak=` on|off:light0..1:sight10=tiles[:stealth=ROLL] (sneaking, the light at the player, how far a 10-tile enemy sees them, the Stealth roll its passive Perception must reach; toggle with `press v` / `pad ls`), `friends=` Name:points (`friend_<name>` variables; journal People page: `press j; wintab people`), `models=` poses/pages/most p/renders r/total/evictions e (3D characters; `RUSTPG2D_MODEL_DEBUG=1` shows the atlas; `model_atlas_mb` in project.ron sets its size), `parallax=` NbehindMabove (layers drawn), `ground=` material/count (the painted ground under the feet), `lang=` the current language code (start with `--lang CODE`; the project must offer it), `fonts=` role:font|builtin and `missing_glyphs=` (characters no font had), `music_loop=` whole|stretched|plain|- (gapless music), `sounds=` the last six sound effects started (also when muted), `props=` def:state@x,y (props not in their first state), `day=`; `hooks=` hook:calls (script hooks run), `plugins=` the loaded plugins (editor status: id:on|off:version), `factions=` playerfaction[faction:standing …]{name=faction[*] …} (`-` without factions; the braces list characters with a faction other than their definition's, `*` = set in play; `foes=` = characters hostile to the player); `aim=heal:<name>` while choosing whom to heal (`-` otherwise); `achievements=` unlocked ids (menu page `achievements`); `companions=` name:hp/max[:down][:defend|:passive][:stay][:fighting]@x,y, `orders=` who:choice while the orders menu (G) is open, `compwin=` name[bag] while a companion window is open (`slot` / `slotdrag` then take `gear`, `bag`, `player`), `click`/`rclick X Y` (tiles), `rhold X Y SECS` (right button held), `clickenemy`, `talkto NAME` (right-click a named character where it stands), `slot`,
   `slotdrag` (`slotdrag player 1 out` drags a stack out of the window), `shop buy|sell N`, `type`, `close` (the game window's close button: asks to exit, and an E then saves and quits; leave a shop with `press escape`), `settime H` / `settime +H` (H hours later: days pass, props regrow), `seed N` (the SRD dice repeat; `RUSTPG2D_SEED=N`; autoplay starts at seed 1), `learn|cast|call ID` (call runs a script function), `console LINE` (a developer console line; the game needs `--dev`, which editor play-tests pass: hot reload + F4 console; `status` starts with `dev=off` or `dev=on console=open|closed reloads=N reload_error=B`), `opt ROW prev|next|row` (Options page arrows), `hud window|map` (the character window button / map), `wintab character|sheet|spells` (click a tab of the open character window, or `graphics|sound|gameplay|accessibility` of Options (`menu=options:TAB`); keys `c`, `i`, `k`, `l`, `tab` too), `press h` (hide / show the HUD; status prints `ui_hidden=`; `menu=` the open menu page, e.g. `defeated` after a death, and `autosave=` none / pending / saved; `cutscene=` the playing cut-scene; start with `--cutscene FN` to preview one without the map's Map enter triggers), `minigame bite` (press E when a fish bites; `status` prints `minigame=`; locks are DEX checks), `waitturn [SECS]` (until the hero's turn in a fight; `turn menu` / `turn pick K` answer the Kill / Knock out window; `status` prints `knocked_out=`), `rolls=` the last six SRD rolls (`persuasion:16/12:ok`, `2d6:7`), `abilities=` / `prof=` / `profs=` (the hero's scores, proficiency bonus, proficiencies), `statblocks=` name:template:hp/ac (characters within 8 tiles with an SRD stat block), `effects=` / `npc_effects=` conditions (`poisoned:11.2`, `exhaustion2`), `rest=` closed|short:left/level (R on the sheet opens the short rest), `craft K` (Make button of recipe row K in the open crafting window; `status` prints `crafting=`), `mapbtn close|zoomin|zoomout|center`, `drag X1 Y1 X2 Y2` / `wheel DY` (screen pixels), `status`,
   `spawners`, `shot`, `quit`. `status` prints player, creator, quests, shop, map, tile, hp,
   vars, inventory, flags; it starts with `dev=…` and `fps= frame_ms=avg/worst update_ms= draw_ms=
@@ -610,7 +706,9 @@ copy; set `RUSTPG2D_FOLDER_PROJECTS=1` to work on the folder itself.
   a Ctrl combination send a Ctrl key-up, or egui keeps ignoring typed text. There is no xdotool / Xvfb on this machine, and XTest on XWayland may prompt the
   user, so don't use it.
 - **Web game:** `rustup target add wasm32-unknown-unknown`, `cargo build --release --target
-  wasm32-unknown-unknown -p rustpg2d-game`, export with `exportweb`, serve the folder with
+  wasm32-unknown-unknown -p rustpg2d-game`, then `cargo xtask-web` (wasm-bindgen's step: writes
+  `target/web/rustpg2d-game.wasm` + `.js`), export with `exportweb` (without an editor: `cargo run
+  -p rustpg2d-engine --example export_web -- PROJECT OUT`), serve the folder with
   `python3 -m http.server PORT --bind 127.0.0.1` (background) and open it headless with a
   scratch profile: `brave --headless=new --user-data-dir=<scratch> --use-angle=swiftshader
   --enable-unsafe-swiftshader --enable-logging=stderr --v=0 "http://127.0.0.1:PORT/index.html?autoplay=<url-encoded script>"`
@@ -668,11 +766,12 @@ copy; set `RUSTPG2D_FOLDER_PROJECTS=1` to work on the folder itself.
 - The project was called **rust2d** until 0.5.0 (technical name now `rustpg2d`; the local checkout
   may still be `~/Projects/rust2d`). The user's old folders under that name
   (`~/.config/rust2d`, `~/.local/share/rust2d`, `~/rust2d/releases`) are their data: never
-  delete or rename them; `legacy::adopt` only copies from them. Test runs must set
+  delete or rename them; nothing reads them any more. Test runs still set
   `RUSTPG2D_SETTINGS_DIR`, `RUSTPG2D_LIBRARY`, `RUSTPG2D_EDITOR_CONFIG` (and `HOME` for the
-  example copy), or the adoption copies the user's real folders.
+  example copy), or they read and write the user's real settings and library.
 - A game binary older than the engine can't read new map data (`Unexpected variant …`);
-  the editor warns when `rustpg2d-game --engine-build` differs, and *Export game* refuses a
+  the editor's `play_test` warns and the Play tab's *Own window* refuses when `rustpg2d-game --engine-build`
+  differs (`export::runner_check`), and *Export game* refuses a
   runner whose `ENGINE_BUILD_TAG` (in the binary's bytes, `release::runner_build`) differs. Rebuild
   the workspace, and the web runner (`cargo build --release --target wasm32-unknown-unknown -p
   rustpg2d-game`) before web exports.
@@ -685,9 +784,10 @@ copy; set `RUSTPG2D_FOLDER_PROJECTS=1` to work on the folder itself.
   changes, so existing libraries rerun it. Opening the starter folder itself as the library
   writes a `starter.stamp` there (git-ignored). Changed assets reach libraries through *Update
   asset library*, which needs `crates/editor/assets/starter_history.ron` to know every shipped
-  version: after changing the starter library run `cargo run -p rustpg2d-editor --example
-  starter_history` (the test `starter_history_covers_the_starter` fails until then).
-- macroquad `Image::export_png` flips vertically.
+  version: after changing the starter library run `cargo run -p rustpg2d-editor-core --example
+  starter_history` (the test `starter_history_covers_the_starter` fails until then; on this
+  branch the tool and the test are the editor-core's).
+- `gfx`'s `Image::export_png` flips vertically (as macroquad's did: right for `get_screen_data`, whose rows come bottom first).
 - Characters are 3D models (figures were removed in 0.18; their sheets load as plain sprites). Colour
   features match exact colours of a model's 32-colour texture: `model_info` tells where each colour
   sits on the model (0 = feet, 1 = top) to keep the hair's browns apart from the boots'. Meshy files

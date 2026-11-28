@@ -175,11 +175,6 @@
         armor: None,
         max_stack: 1,
         value: 40,
-        held: Some((
-            grip: (0.45, 0.5),
-            points: -45.0,
-            scale: 0.9,
-        )),
         model: Some((
             file: "models/bow.glb",
             grip: (8.0, 30.0, 0.0),
@@ -232,11 +227,6 @@
         armor: None,
         max_stack: 1,
         value: 70,
-        held: Some((
-            grip: (0.3, 0.55),
-            points: 0.0,
-            scale: 0.7,
-        )),
         model: Some((
             file: "models/crossbow.glb",
             grip: (0.0, 12.0, 0.0),
@@ -471,15 +461,6 @@
         armor: None,
         max_stack: 1,
         value: 35,
-        held: Some((
-            sprite: (
-                sheet: "held",
-                frame: 0,
-            ),
-            grip: (0.5, 0.6),
-            points: -90.0,
-            scale: 1.25,
-        )),
         model: Some((
             file: "models/spear.glb",
             grip: (0.0, 26.0, 0.0),
@@ -663,11 +644,6 @@
             intensity: 1.0,
             flicker: false,
         )),
-        held: Some((
-            grip: (0.5, 0.12),
-            points: 0.0,
-            scale: 0.5,
-        )),
         model: Some((
             file: "models/lantern.glb",
             grip: (0.0, 23.0, 0.0),
@@ -707,11 +683,6 @@
             color: (255, 190, 120),
             intensity: 1.0,
             flicker: true,
-        )),
-        held: Some((
-            grip: (0.25, 0.75),
-            points: 0.0,
-            scale: 0.6,
         )),
         model: Some((
             file: "models/torch.glb",
@@ -936,15 +907,6 @@
         armor: None,
         max_stack: 1,
         value: 0,
-        held: Some((
-            sprite: (
-                sheet: "held",
-                frame: 1,
-            ),
-            grip: (0.5, 0.88),
-            points: -50.0,
-            scale: 1.0,
-        )),
         model: Some((
             file: "models/fishing_rod.glb",
             grip: (0.0, 5.0, 0.0),
@@ -1001,11 +963,6 @@
         armor: None,
         max_stack: 1,
         value: 25,
-        held: Some((
-            grip: (0.78, 0.82),
-            points: -135.0,
-            scale: 0.7,
-        )),
         model: Some((
             file: "models/pickaxe.glb",
             grip: (0.0, 10.0, 0.0),
@@ -1702,11 +1659,6 @@
         )),
         max_stack: 1,
         value: 18,
-        held: Some((
-            grip: (0.5, 0.5),
-            points: 90.0,
-            scale: 0.5,
-        )),
         model: Some((
             file: "models/wooden_shield.glb",
             grip: (0.0, 0.0, 0.0),
@@ -2052,11 +2004,6 @@
         armor: None,
         max_stack: 1,
         value: 5,
-        held: Some((
-            grip: (0.7, 0.3),
-            points: 135.0,
-            scale: 1.0,
-        )),
         model: Some((
             file: "models/broom.glb",
             grip: (0.0, 18.0, 0.0),
@@ -2081,11 +2028,6 @@
         armor: None,
         max_stack: 1,
         value: 12,
-        held: Some((
-            grip: (0.22, 0.78),
-            points: -45.0,
-            scale: 0.7,
-        )),
         model: Some((
             file: "models/hoe.glb",
             grip: (0.0, 20.0, 0.0),
@@ -2591,11 +2533,6 @@
         armor: None,
         max_stack: 1,
         value: 2,
-        held: Some((
-            grip: (0.45, 0.5),
-            points: -45.0,
-            scale: 0.9,
-        )),
         model: Some((
             file: "models/crude_bow.glb",
             grip: (6.0, 28.0, 0.0),

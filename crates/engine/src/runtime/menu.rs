@@ -2,7 +2,7 @@
 //! quit to the title screen; options (graphics, sound, text); and the title screen (main menu).
 
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::input::{self, Act, Pad};
 use super::{skin, ui::panel, Arrival, Fade, Game, FADE_TIME};

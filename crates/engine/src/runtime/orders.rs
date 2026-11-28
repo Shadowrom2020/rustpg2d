@@ -3,7 +3,7 @@
 //! turns in fights (AI fights / I command), Stay here, Follow me, Gear. A click on an order gives it at once;
 //! keys: Up / Down between the rows, Left / Right in a row, E gives the order, Esc / G close.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::skin;
 

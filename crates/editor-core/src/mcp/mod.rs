@@ -1,0 +1,267 @@
+//! AI agent server: the Model Context Protocol (MCP) served from inside the running editor, so
+//! agents (Claude Code, Cursor, Claude Desktop through `mcp-remote`, …) read and build the open
+//! project live — their edits show in the editor at once and are undoable (Ctrl+Z).
+//!
+//! Transport: Streamable HTTP on `127.0.0.1:<port>/mcp` (`rmcp` on an axum listener) on its own
+//! tokio thread (`server.rs`). Every tool call travels to the main thread as an [`AgentRequest`],
+//! is executed against the `Workspace` between two frames (`exec*.rs`, [`Workspace::mcp_drain`]) and
+//! answered through a oneshot; only long operations (running the game for a play-test) finish on
+//! the tokio side (`play.rs`), and screenshots are taken after the next frame was drawn
+//! ([`Workspace::mcp_answer_shots`]). `tools.rs` is the catalogue the agent sees, `watcher.rs`
+//! reloads project files other programs (an agent's own file tools) change on disk, `ui.rs` the
+//! *Assets › AI agent server…* window.
+
+pub mod exec;
+pub mod exec_defs;
+pub mod exec_maps;
+pub mod grid;
+pub mod patch;
+pub mod play;
+pub mod server;
+pub mod tools;
+pub mod watcher;
+
+use std::collections::VecDeque;
+use std::net::SocketAddr;
+use std::sync::mpsc;
+use std::time::Instant;
+
+use crate::workspace::Workspace;
+
+/// The port the server listens on unless the settings say otherwise.
+pub const DEFAULT_PORT: u16 = 7743;
+/// What is asked of an agent first, to paste into its chat: it finds its way from there.
+pub const FIRST_ASK: &str = "Use the rustpg2d tools: read the project's overview, then show me the map the game starts on and tell me what you could build there.";
+
+/// The programs an agent is connected from, each with its own way to be told where the server is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Client {
+    /// Claude Code: one line in a terminal.
+    ClaudeCode,
+    /// Cursor, VS Code: a file in the project the agent works in.
+    Cursor,
+    /// Claude Desktop and others that only start programs: through `mcp-remote` (Node.js).
+    Desktop,
+}
+
+impl Client {
+    pub const ALL: [Client; 3] = [Client::ClaudeCode, Client::Cursor, Client::Desktop];
+
+    /// How the script names it.
+    pub fn name(self) -> &'static str {
+        match self {
+            Client::ClaudeCode => "claude",
+            Client::Cursor => "cursor",
+            Client::Desktop => "desktop",
+        }
+    }
+
+    pub fn title(self) -> &'static str {
+        match self {
+            Client::ClaudeCode => "Claude Code",
+            Client::Cursor => "Cursor, VS Code",
+            Client::Desktop => "Claude Desktop and others",
+        }
+    }
+
+    /// Where its set-up goes.
+    pub fn place(self) -> &'static str {
+        match self {
+            Client::ClaudeCode => "Paste it into a terminal and press Enter. Claude Code then knows the editor in every session.",
+            Client::Cursor => "Save it as .cursor/mcp.json (Cursor) or .vscode/mcp.json (VS Code) in the folder the agent works in.",
+            Client::Desktop => "Put it into the program's MCP settings (Claude Desktop: Settings, Developer, Edit Config). It needs Node.js: the program reaches the editor through mcp-remote.",
+        }
+    }
+
+    /// The set-up itself for a server at `url`: a command line, or the settings as JSON.
+    pub fn setup(self, url: &str) -> String {
+        match self {
+            Client::ClaudeCode => format!("claude mcp add --transport http rustpg2d {url}"),
+            Client::Cursor => format!("{{\"mcpServers\": {{\"rustpg2d\": {{\"url\": \"{url}\"}}}}}}"),
+            Client::Desktop => format!("{{\"mcpServers\": {{\"rustpg2d\": {{\"command\": \"npx\", \"args\": [\"-y\", \"mcp-remote\", \"{url}\"]}}}}}}"),
+        }
+    }
+
+    pub fn named(name: &str) -> Option<Client> {
+        Client::ALL.into_iter().find(|c| c.name() == name)
+    }
+}
+
+/// Requests executed per frame at most, and the time budget for them.
+const DRAIN_MAX: usize = 40;
+const DRAIN_MS: f64 = 8.0;
+const LOG_MAX: usize = 100;
+
+/// A tool call waiting for the main thread.
+pub struct AgentRequest {
+    pub call: exec::Call,
+    /// The parameters, abbreviated, for the call log.
+    pub summary: String,
+    pub reply: tokio::sync::oneshot::Sender<Result<exec::Reply, String>>,
+    pub started: Instant,
+}
+
+/// One line of the window's call log.
+pub struct LogEntry {
+    pub at: f64,
+    pub tool: &'static str,
+    pub summary: String,
+    pub ok: bool,
+    pub ms: u32,
+}
+
+/// The listening server.
+pub struct Running {
+    pub addr: SocketAddr,
+    rx: mpsc::Receiver<AgentRequest>,
+    stop: Option<tokio::sync::oneshot::Sender<()>>,
+    thread: Option<std::thread::JoinHandle<()>>,
+}
+
+/// A screenshot an agent asked for: answered by whoever draws ([`Workspace::mcp_answer_shots`]).
+pub struct ShotRequest {
+    pub spec: exec::ShotSpec,
+    pub reply: tokio::sync::oneshot::Sender<Result<exec::Reply, String>>,
+    pub started: Instant,
+    pub summary: String,
+}
+
+/// The editor's side of the agent server (kept across project switches).
+pub struct McpState {
+    pub running: Option<Running>,
+    pub port: u16,
+    /// Start the server when the editor starts (saved in the editor settings).
+    pub autostart: bool,
+    pub window_open: bool,
+    pub log: VecDeque<LogEntry>,
+    pub calls: usize,
+    pub last_error: Option<String>,
+    pub shots: Vec<ShotRequest>,
+}
+
+impl Default for McpState {
+    fn default() -> Self {
+        McpState { running: None, port: DEFAULT_PORT, autostart: false, window_open: false, log: VecDeque::new(), calls: 0, last_error: None, shots: Vec::new() }
+    }
+}
+
+impl McpState {
+    /// Starts listening on `127.0.0.1:port` (0 = any free port); the server runs on its own thread.
+    pub fn start(&mut self, port: u16) -> Result<SocketAddr, String> {
+        if let Some(r) = &self.running {
+            return Err(format!("the agent server is already listening on http://{}/mcp", r.addr));
+        }
+        let listener = std::net::TcpListener::bind(("127.0.0.1", port)).map_err(|e| format!("cannot listen on 127.0.0.1:{port}: {e}"))?;
+        listener.set_nonblocking(true).map_err(|e| e.to_string())?;
+        let addr = listener.local_addr().map_err(|e| e.to_string())?;
+        let (tx, rx) = mpsc::channel();
+        let (stop_tx, stop_rx) = tokio::sync::oneshot::channel();
+        let thread = std::thread::Builder::new().name("rustpg2d-mcp".into()).spawn(move || server::run(listener, stop_rx, tx)).map_err(|e| e.to_string())?;
+        self.running = Some(Running { addr, rx, stop: Some(stop_tx), thread: Some(thread) });
+        self.port = addr.port();
+        self.last_error = None;
+        println!("[mcp] listening on http://{addr}/mcp");
+        Ok(addr)
+    }
+
+    /// Stops the server (open connections are dropped; the port is free again when this returns).
+    pub fn stop(&mut self) {
+        let Some(mut r) = self.running.take() else { return };
+        if let Some(s) = r.stop.take() {
+            let _ = s.send(());
+        }
+        if let Some(t) = r.thread.take() {
+            let _ = t.join();
+        }
+        // Agents waiting for a reply get "the editor stopped the server" (their oneshots drop).
+        self.shots.clear();
+        println!("[mcp] stopped");
+    }
+
+    pub fn url(&self) -> Option<String> {
+        self.running.as_ref().map(|r| format!("http://{}/mcp", r.addr))
+    }
+
+    /// The address agents are told: where the server listens, or would with its port.
+    pub fn address(&self) -> String {
+        self.url().unwrap_or_else(|| format!("http://127.0.0.1:{}/mcp", self.port))
+    }
+
+    fn log_call(&mut self, tool: &'static str, summary: String, ok: bool, started: Instant) {
+        self.calls += 1;
+        if self.log.len() >= LOG_MAX {
+            self.log.pop_front();
+        }
+        self.log.push_back(LogEntry { at: crate::now(), tool, summary, ok, ms: started.elapsed().as_millis().min(u32::MAX as u128) as u32 });
+    }
+
+    /// `mcp=` for the editor script's `status` line.
+    pub fn status(&self) -> String {
+        match &self.running {
+            Some(r) => format!("{} calls={}", r.addr, self.calls),
+            None => format!("off calls={}", self.calls),
+        }
+    }
+}
+
+impl Workspace {
+    /// Runs the agents' pending tool calls (before the frame is drawn, like script commands).
+    pub fn mcp_drain(&mut self) {
+        let start = Instant::now();
+        let mut n = 0;
+        loop {
+            if n >= DRAIN_MAX || start.elapsed().as_secs_f64() * 1000.0 > DRAIN_MS {
+                break;
+            }
+            let Some(running) = &self.mcp.running else { break };
+            let req = match running.rx.try_recv() {
+                Ok(r) => r,
+                Err(mpsc::TryRecvError::Empty) => break,
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    self.mcp.last_error = Some("the agent server thread ended".into());
+                    self.mcp.running = None;
+                    break;
+                }
+            };
+            n += 1;
+            let tool = req.call.name();
+            // A tool that panics (a bug, or data it didn't expect) answers with an error; the
+            // editor keeps running with its project as it was before the call's undo step.
+            // What the tool changes is one named entry of the history.
+            self.history_frame(None);
+            self.begin(&format!("Agent: {tool}"));
+            let result = match rustpg2d_engine::desktop::catch_panic(|| self.mcp_exec(req.call)) {
+                Ok(r) => r,
+                Err(msg) => {
+                    eprintln!("[mcp] {tool} panicked: {msg}");
+                    self.mcp.last_error = Some(format!("{tool} panicked: {msg}"));
+                    if let Some(d) = &mut self.doc {
+                        d.end_stroke();
+                    }
+                    Err(format!("internal error in {tool}: {msg} (the editor kept running; read the map or definition again before going on)"))
+                }
+            };
+            self.history_frame(None);
+            match result {
+                Ok(exec::Reply::Shot(spec)) => {
+                    self.mcp.shots.push(ShotRequest { spec, reply: req.reply, started: req.started, summary: req.summary });
+                }
+                result => {
+                    let ok = result.is_ok();
+                    let _ = req.reply.send(result);
+                    self.mcp.log_call(tool, req.summary, ok, req.started);
+                }
+            }
+        }
+    }
+
+    /// Applies the editor settings' choice: starts the server if asked to.
+    pub fn mcp_autostart(&mut self) {
+        if self.mcp.autostart && self.mcp.running.is_none() {
+            if let Err(e) = self.mcp.start(self.mcp.port) {
+                self.mcp.last_error = Some(e.clone());
+                self.set_status(format!("AI agent server: {e}"));
+            }
+        }
+    }
+}

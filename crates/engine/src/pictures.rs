@@ -13,6 +13,7 @@ pub const MAX_LAYER: u32 = 100;
 
 /// How a move speeds up and slows down.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Easing {
     #[default]
     Linear,
@@ -61,6 +62,7 @@ impl Easing {
 
 /// How a picture mixes with what is under it.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Blend {
     #[default]
     Normal,
@@ -71,6 +73,7 @@ pub enum Blend {
 /// What a move changes: the place (screen pixels from the anchor, or map tiles), size, opacity
 /// (0 to 1), rotation (degrees, clockwise) and tint.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct PictureLook {
     pub x: f32,
     pub y: f32,
@@ -104,6 +107,7 @@ impl PictureLook {
 
 /// A move in progress.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct PictureMove {
     pub from: PictureLook,
     pub to: PictureLook,
@@ -115,6 +119,7 @@ pub struct PictureMove {
 
 /// A picture on a layer.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Picture {
     pub sheet: String,
     #[serde(default)]
@@ -158,6 +163,7 @@ impl Picture {
 
 /// The targets of *Move picture*: each `None` keeps the current value.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct PictureTargets {
     #[serde(default)]
     pub x: Option<f32>,

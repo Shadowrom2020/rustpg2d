@@ -73,6 +73,7 @@ mod soundscape;
 mod stealth;
 mod emotions;
 mod mouse;
+pub use mouse::Pointed;
 mod movement;
 mod survival;
 mod actionbar;
@@ -94,7 +95,7 @@ mod worldmap;
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use anyhow::{anyhow, Context, Result};
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use crate::audio::Audio;
 use crate::defs::{Behavior, Weapon};
@@ -425,22 +426,36 @@ impl Perf {
         self.log_secs += real;
     }
 
-    /// `fps=N frame_ms=avg/worst update_ms=N draw_ms=N astar=searches/nodes` since the last
-    /// report, which starts the next window.
+    /// `fps=N frame_ms=avg/worst update_ms=N draw_ms=N gpu=calls/passes:ms astar=searches/nodes`
+    /// since the last report, which starts the next window (`gpu=`: the last frame's draw calls
+    /// and render passes, and the milliseconds sending them took).
     fn report(&mut self) -> String {
         let n = self.frames.max(1) as f32;
         let (calls, nodes) = crate::path::take_stats();
+        let gpu = gfx::window::frame_stats();
         let s = format!(
-            "fps={:.0} frame_ms={:.1}/{:.1} update_ms={:.1} draw_ms={:.1} astar={calls}/{nodes}",
+            "fps={:.0} frame_ms={:.1}/{:.1} update_ms={:.1} draw_ms={:.1} gpu={}/{}:{:.1} astar={calls}/{nodes}",
             n / self.secs.max(1e-6),
             self.secs * 1000.0 / n,
             self.worst * 1000.0,
             self.update * 1000.0 / n,
-            self.draw * 1000.0 / n
+            self.draw * 1000.0 / n,
+            gpu.draw_calls,
+            gpu.passes,
+            gpu.flush_ms
         );
         *self = Perf { log: self.log, ..Perf::default() };
         s
     }
+}
+
+/// Whose event an editor raises ([`Game::raise`]): the map being played, or a thing or a zone
+/// on it by its number.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EventOwner {
+    Map,
+    Entity(u32),
+    Zone(u32),
 }
 
 /// Which owner's triggers an event is delivered to.
@@ -1232,7 +1247,7 @@ impl Game {
             if let Some(p) = self.project.db.prop(&map.decor_defs[d.def as usize]) {
                 if let Some(l) = p.state_light(d.state_index()) {
                     let lift = self.assets.sprite_size(p.state_look(d.state_index()).0, ts).y * 0.65;
-                    tile_lights.push(render::lighting::Light::new(vec2(d.x as f32, d.y as f32 - lift), l));
+                    tile_lights.push(render::lighting::Light::of(vec2(d.x as f32, d.y as f32), lift, l));
                 }
             }
         }
@@ -1456,7 +1471,7 @@ impl Game {
         let d = &m.decor[i];
         let Some(p) = m.decor_defs.get(d.def as usize).and_then(|id| self.project.db.prop(id)) else { return };
         let tint = Color { a: self.cover_alpha.get(), ..WHITE };
-        self.assets.draw_prop(&self.project.db, p, d.state_index(), d.facing(), 0, vec2(d.x as f32, d.y as f32), d.flip, tint, get_time(), true);
+        self.assets.draw_prop(&self.project.db, p, d.state_index(), d.facing(), 0, vec2(d.x as f32, d.y as f32), d.flip, tint);
     }
 
     /// For `status()`: the material under the player's feet ("-" = none) and how many the map
@@ -1820,6 +1835,41 @@ impl Game {
         self.project.db.def_triggers(e.kind, &e.def).iter().chain(placed).any(|t| on(&t.on))
     }
 
+    /// Raises the event a trigger waits for as if it had just happened to `owner` (an editor's
+    /// *Try it*): every trigger of the owner that waits for it runs, when its conditions hold.
+    /// False when none ran.
+    pub fn raise(&mut self, on: &crate::events::TriggerOn, owner: EventOwner) -> bool {
+        use crate::events::TriggerOn as T;
+        let ev = match on {
+            T::Interact => GameEvent::Interact,
+            T::Enter => GameEvent::Enter,
+            T::Leave => GameEvent::Leave,
+            T::UseItem { item } => GameEvent::UseItem { item: item.clone() },
+            T::MapEnter => GameEvent::MapEnter,
+            T::Custom { name } => GameEvent::Custom { name: name.clone() },
+            T::Defeat => GameEvent::Defeat,
+            T::Unlock => GameEvent::Unlock,
+            T::Lock => GameEvent::Lock,
+            // (Just across the line the trigger watches.)
+            T::HpBelow { percent } => GameEvent::HpBelow { from: 1.0, to: (*percent as f32 / 100.0 - 0.01).max(0.0) },
+            T::Sleep => GameEvent::Sleep,
+            T::Hour { hour } => GameEvent::Hour { from: hour.rem_euclid(24.0) - 0.01, to: hour.rem_euclid(24.0) },
+            T::CombatStart => GameEvent::CombatStart,
+            T::CombatEnd => GameEvent::CombatEnd,
+            T::Search => GameEvent::Search,
+            T::TrapSprung => GameEvent::TrapSprung,
+            T::TrapDisarmed => GameEvent::TrapDisarmed,
+        };
+        let source = match (owner, on) {
+            // (A raised event reaches the map, its zones and everything on it.)
+            (_, T::Custom { .. }) => Source::Broadcast,
+            (EventOwner::Map, _) => Source::Map,
+            (EventOwner::Entity(uid), _) => Source::Entity(uid),
+            (EventOwner::Zone(uid), _) => Source::Zone(uid),
+        };
+        self.fire(ev, source)
+    }
+
     fn fire(&mut self, ev: GameEvent, source: Source) -> bool {
         // Entering a zone may be where a quest step leads.
         if let (GameEvent::Enter, Source::Zone(uid)) = (&ev, &source) {
@@ -1925,16 +1975,23 @@ impl Game {
 
     /// Runs one frame: update and draw.
     pub fn frame(&mut self) {
-        input::poll_pad();
-        input::update_device();
         let real = get_frame_time();
-        let dt = real.min(0.05);
         let t0 = get_time();
-        self.update(dt);
+        self.step(real);
         let t1 = get_time();
         self.draw();
         let t2 = get_time();
         self.perf_sample(real, (t1 - t0) as f32, (t2 - t1) as f32);
+    }
+
+    /// Looks at the devices and moves the game on by `real` seconds (at most a twentieth of a
+    /// second at once): what [`Game::frame`] does before it draws. Whoever shows the game
+    /// itself (an editor's Play panel) calls it by hand: more than once a frame to fast-forward,
+    /// with a part of the time for slow motion, once for a single step.
+    pub fn step(&mut self, real: f32) {
+        input::poll_pad();
+        input::update_device();
+        self.update(real.min(0.05));
     }
 
     fn perf_sample(&self, real: f32, update: f32, draw: f32) {
@@ -2977,7 +3034,7 @@ impl Game {
                 let here = self.loaded.entities.iter().filter(|e| e.active && e.uid >= crate::state::DROPPED_UID_BASE);
                 here.map(|e| format!("{}x{}@{},{}", e.def, e.count, (e.body.pos.x / ts).floor(), ((e.body.pos.y - 1.0) / ts).floor())).collect::<Vec<_>>()
             },
-            format!("{}|{:?}|{}", self.world.player_name, self.world.player_sex, self.player_appearance().map_or("-".to_string(), |a| a.body)),
+            format!("{}|{:?}|{}", self.world.player_name, self.world.player_sex, self.player_appearance().map_or("-".to_string(), |a| a.model)),
             self.race_status(),
             self.factions_status(),
             self.hooks_status(),
@@ -3362,6 +3419,7 @@ impl Game {
                 (Some(d), Some(hb)) if d.block > 0.0 => block_print(feet, hb),
                 _ => footprint(feet, hitbox),
             };
+            let print = print.raised(prop.map_or(0.0, |d| d.raised_by()));
             items.push((Drawn::Entity(i), p, print));
         }
         if !self.photo.hide_player || !self.photo_on() {
@@ -3391,6 +3449,8 @@ impl Game {
                 (Some(p), Some(hb)) if p.block > 0.0 => block_print(feet, hb),
                 _ => footprint(feet, hitbox),
             };
+            // (A roof alone covers what stands under it.)
+            let print = print.raised(prop.map_or(0.0, |p| p.raised_by()));
             items.push((Drawn::Decor(i as usize), feet, print));
         }
         flats.sort_by(|a, b| a.0.total_cmp(&b.0));
@@ -3430,9 +3490,9 @@ impl Game {
             }
         }
         for (drawn, feet, _) in &items {
-            let Some((p, state, facing, flip)) = prop_of(drawn) else { continue };
+            let Some((p, state, _, flip)) = prop_of(drawn) else { continue };
             set_camera(&iv.upright(*feet));
-            self.assets.draw_prop_shadow(p, state, facing, *feet, flip, get_time(), 1.0);
+            self.assets.draw_prop_shadow(p, state, *feet, flip, 1.0);
         }
         let prints: Vec<render::iso::Footprint> = items.iter().map(|it| it.2).collect();
         let order = render::iso::order(&prints, 0.5);
@@ -3713,7 +3773,7 @@ impl Game {
             };
             // (Walls are cut down instead; flat things lie under everyone.)
             let Some(p) = prop.filter(|p| p.block <= 0.0 && !p.flat) else { continue };
-            let r = on_screen(feet, self.assets.prop_rect(p, state, facing, feet, ts, true));
+            let r = on_screen(feet, self.assets.prop_rect(p, state, facing, feet, ts));
             let covers = watched.iter().any(|(w, b)| rank[k] > rank[*w] && {
                 let o = r.intersect(*b).map_or(0.0, |o| o.w * o.h);
                 o > b.w * b.h * 0.15
@@ -3753,7 +3813,7 @@ impl Game {
         let lying = !e.effects.is_empty() && crate::srd::conditions::rules(&e.effects).lying;
         let drawn = match e.kind {
             EntityKind::Prop => db.prop(&e.def).is_some_and(|d| {
-                let ok = self.assets.draw_prop(db, d, e.state, e.body.facing, e.frame, e.body.pos, false, Color { a: self.cover_alpha.get(), ..WHITE }, get_time(), true);
+                let ok = self.assets.draw_prop(db, d, e.state, e.body.facing, e.frame, e.body.pos, false, Color { a: self.cover_alpha.get(), ..WHITE });
                 if e.planted.is_some() {
                     self.draw_crop(i);
                 }

@@ -7,7 +7,9 @@ runs:
       shell: bash
       run: |
         sudo apt-get update -qq
-        sudo apt-get install -y -qq --no-install-recommends libasound2 libudev1 flatpak xvfb xauth libgl1-mesa-dri libglx-mesa0 libxi6 libxcursor1 libxkbcommon-x11-0
+        # The binaries link ALSA and udev; wgpu loads Vulkan (lavapipe, the software driver, draws
+        # under Xvfb) and winit the X11 / xkbcommon libraries at run time.
+        sudo apt-get install -y -qq --no-install-recommends libasound2 libudev1 flatpak xvfb xauth mesa-vulkan-drivers libvulkan1 libxi6 libxcursor1 libxrandr2 libxkbcommon-x11-0
     - name: Linux build and the packaging tool
       uses: actions/download-artifact@v8
       with:
@@ -17,7 +19,7 @@ runs:
       uses: actions/download-artifact@v8
       with:
         name: rustpg2d-web-build
-        path: target/wasm32-unknown-unknown/release
+        path: target/web
     - name: Windows build
       uses: actions/download-artifact@v8
       with:
@@ -37,14 +39,14 @@ runs:
       shell: bash
       run: |
         # Artifacts don't keep file modes.
-        chmod +x target/release/rustpg2d-editor target/release/rustpg2d-game target/release/xtask
+        chmod +x target/release/rustpg2d-studio target/release/rustpg2d-game target/release/xtask
         lipo=$(command -v llvm-lipo llvm-lipo-15 llvm-lipo-14 /usr/lib/llvm-*/bin/llvm-lipo 2>/dev/null | head -1 || true)
         if [ -z "$lipo" ]; then
           sudo apt-get install -y -qq --no-install-recommends llvm
           lipo=$(command -v llvm-lipo)
         fi
         mkdir -p target/macos
-        for b in rustpg2d-editor rustpg2d-game; do
+        for b in rustpg2d-studio rustpg2d-game; do
           "$lipo" -create -output "target/macos/$b" "target/macos-aarch64/$b" "target/macos-x86_64/$b"
           chmod +x "target/macos/$b"
           "$lipo" -info "target/macos/$b"
@@ -63,28 +65,39 @@ runs:
       run: |
         cd "$RUNNER_TEMP"
         "$GITHUB_WORKSPACE"/dist/rustpg2d-*-x86_64.AppImage --appimage-extract > /dev/null
-        export RUSTPG2D_MUTE=1 RUSTPG2D_SETTINGS_DIR="$RUNNER_TEMP/settings" XDG_DATA_HOME="$RUNNER_TEMP/data"
-        export RUSTPG2D_EDITOR_CONFIG="$RUNNER_TEMP/editor-config" RUSTPG2D_LIBRARY="$RUNNER_TEMP/library"
+        # No GPU under Xvfb: the software renderer (lavapipe) is allowed for the test.
+        export RUSTPG2D_MUTE=1 RUSTPG2D_ALLOW_SOFTWARE=1 RUSTPG2D_SETTINGS_DIR="$RUNNER_TEMP/settings" XDG_DATA_HOME="$RUNNER_TEMP/data" HOME="$RUNNER_TEMP/home"
+        export RUSTPG2D_EDITOR_CONFIG="$RUNNER_TEMP/editor-config" RUSTPG2D_LIBRARY="$RUNNER_TEMP/library" RUSTPG2D_REPO=0
+        mkdir -p "$HOME"
         RUSTPG2D_AUTOPLAY="wait 2; status; quit" timeout 120 xvfb-run -a -s "-screen 0 1280x720x24" \
           squashfs-root/usr/bin/rustpg2d-game squashfs-root/usr/share/rustpg2d/example_project 2>&1 | tee game.log
         grep -q "menu=title" game.log
         test "$(head -c 4 squashfs-root/usr/lib/rustpg2d/rustpg2d-game.wasm | od -An -c | tr -d ' ')" = '\0asm'
         test "$(head -c 2 squashfs-root/usr/lib/rustpg2d/rustpg2d-game.exe)" = "MZ"
         test "$(head -c 4 squashfs-root/usr/lib/rustpg2d/rustpg2d-game-macos | od -An -tx1 | tr -d ' ')" = "cafebabe"
-        test "$(unzip -l "$GITHUB_WORKSPACE"/dist/rustpg2d-*-windows-x86_64.zip | grep -cE '/(rustpg2d-editor\.exe|rustpg2d-game\.exe|rustpg2d-game-linux|rustpg2d-game-macos|rustpg2d-game\.wasm|example_project/project\.ron)$')" -eq 6
-        test "$(tar -tf "$GITHUB_WORKSPACE/dist/macos/macos-app.tar" | grep -cE 'Contents/(MacOS/rustpg2d-editor|MacOS/rustpg2d-game|Info\.plist|Resources/rustpg2d-game-linux|Resources/rustpg2d-game\.exe|Resources/example_project/project\.ron)$')" -eq 6
-        RUSTPG2D_EDITOR_SCRIPT="wait 2; status; quit" timeout 120 xvfb-run -a -s "-screen 0 1280x720x24" \
+        test "$(unzip -l "$GITHUB_WORKSPACE"/dist/rustpg2d-*-windows-x86_64.zip | grep -cE '/(rustpg2d-studio\.exe|rustpg2d-game\.exe|rustpg2d-game-linux|rustpg2d-game-macos|rustpg2d-game\.wasm|example_project/project\.ron)$')" -eq 6
+        test "$(tar -tf "$GITHUB_WORKSPACE/dist/macos/macos-app.tar" | grep -cE 'Contents/(MacOS/rustpg2d-studio|MacOS/rustpg2d-game|Info\.plist|Resources/rustpg2d-game-linux|Resources/rustpg2d-game\.exe|Resources/example_project/project\.ron)$')" -eq 6
+        # The editor (rustpg2d-studio, the AppImage's command): its home screen, then a copy of the
+        # bundled example with a map open.
+        RUSTPG2D_STUDIO_SCRIPT="wait 2; status; quit" timeout 120 xvfb-run -a -s "-screen 0 1280x720x24" \
           squashfs-root/AppRun 2>&1 | tee editor.log
-        grep -q "open=false" editor.log
-        # The starter asset library: a download of its own, which the packaged editor installs.
+        grep -q '^\[status\] .* project=- ' editor.log
+        cp -r squashfs-root/usr/share/rustpg2d/example_project example
+        RUSTPG2D_FOLDER_PROJECTS=1 RUSTPG2D_STUDIO_SCRIPT="wait 2; map.open village; wait 1; status; quit" timeout 120 xvfb-run -a -s "-screen 0 1280x720x24" \
+          squashfs-root/AppRun "$RUNNER_TEMP/example" 2>&1 | tee editor-map.log
+        grep -q '^\[status\] .* focus=map:village map=village ' editor-map.log
+        # The starter asset library: a download of its own, which the packaged editor reads as a pack.
         starter=$(ls "$GITHUB_WORKSPACE"/dist/rustpg2d-starter-library-*.r2dlib)
-        unzip -l "$starter" | grep -q ' starter.ron$'
-        RUSTPG2D_EDITOR_SCRIPT="wait 2; starterinstall $starter; status; quit" timeout 180 xvfb-run -a -s "-screen 0 1280x720x24" \
+        # (Through a file: grep -q stops reading early, and pipefail fails on unzip's broken pipe.)
+        unzip -l "$starter" > starter-files.txt
+        grep -q ' starter.ron$' starter-files.txt
+        RUSTPG2D_STUDIO_SCRIPT="wait 2; packs file $starter; quit" timeout 180 xvfb-run -a -s "-screen 0 1280x720x24" \
           squashfs-root/AppRun 2>&1 | tee starter.log
-        grep -qE 'starter=[0-9A-Za-z.+-]+\(installed\)/installed' starter.log
-        # The AI agent server (MCP over Streamable HTTP) answers initialize and lists its tools.
-        RUSTPG2D_EDITOR_SCRIPT="mcp on 7743; wait 90; quit" timeout 150 xvfb-run -a -s "-screen 0 1280x720x24" \
-          squashfs-root/AppRun squashfs-root/usr/share/rustpg2d/example_project > mcp-editor.log 2>&1 &
+        grep -qE '^\[packs\] .*pending=Starter_asset_library [0-9A-Za-z.+-]+ [0-9]+/[0-9]+/[0-9]+ ' starter.log
+        # The AI agent server without a window (MCP over Streamable HTTP) answers initialize and lists its tools.
+        cp -r squashfs-root/usr/share/rustpg2d/example_project agent-example
+        RUSTPG2D_FOLDER_PROJECTS=1 timeout 150 squashfs-root/AppRun --headless "$RUNNER_TEMP/agent-example" --mcp 7743 --seconds 90 > mcp-editor.log 2>&1 &
+        agent=$!
         for i in $(seq 1 60); do
           curl -s -m 2 -D mcp-headers.txt -o mcp-init.txt http://127.0.0.1:7743/mcp -X POST -H 'Content-Type: application/json' \
             -H 'Accept: application/json, text/event-stream' \
@@ -98,4 +111,4 @@ runs:
         curl -s -m 5 http://127.0.0.1:7743/mcp -X POST -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
           -H "Mcp-Session-Id: $sid" -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' > mcp-tools.txt
         grep -q '"name":"get_map"' mcp-tools.txt
-        kill %1 2>/dev/null || true
+        kill "$agent" 2>/dev/null || true

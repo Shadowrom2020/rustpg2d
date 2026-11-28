@@ -5,7 +5,7 @@
 //! player closes it; one without waiting stays under the following dialogs until *Hide image* or
 //! until the event is over.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::input::{self, Act};
 use super::Game;

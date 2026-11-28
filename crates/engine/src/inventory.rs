@@ -11,6 +11,7 @@ pub const DEFAULT_STACK: u32 = 99;
 pub const DEFAULT_CAPACITY: usize = 24;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ItemStack {
     pub item: String,
     pub count: u32,
@@ -32,6 +33,7 @@ impl ItemStack {
 
 /// Fixed number of slots, each empty or holding one stack.
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(from = "InventoryRepr")]
 pub struct Inventory {
     pub slots: Vec<Option<ItemStack>>,
@@ -42,6 +44,7 @@ pub struct Inventory {
 
 /// Accepts the current format and the old `{ item: count }` map from earlier saves.
 #[derive(Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 enum InventoryRepr {
     Slots { slots: Vec<Option<ItemStack>> },

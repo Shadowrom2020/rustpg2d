@@ -6,17 +6,21 @@ language when the game offers it.
 
 ## Translating a game
 
-1. *Database › Project › Languages*: set the language the game is **written in** (a code like `en`).
-2. **Export translation template** with a language code (`de`, `fr`, `pt-br`…). It writes
-   `lang/<code>.ron` into the project with every text players see, each with an empty translation:
-   names and descriptions of items, props, characters, quests and their stages, spells and
-   achievements, the game's name, the maps' titles, the menus' own entries and the credits text
-   (*Database › Project › Title screen*), the lines and choices of every trigger, the
-   lock, container and furniture messages, and the texts scripts pass to `say` and `choice`.
-   A script text is found only as one string: write `say("You have {coins} coins.")` after
-   `set_var("coins", item_count("coin"))`, not `say("You have " + n + " coins.")`, whose pieces
-   can't be translated.
-3. Fill in the translations with any text editor:
+1. On the **Languages** page (under *Game* in the Project browser), set the language the game is
+   **written in** (a code like `en`).
+2. **Add a language** by its code (`de`, `fr`, `pt-br`…) and *Add*. It writes `lang/<code>.ron` into
+   the project with every text players see, each with an empty translation: names and descriptions
+   of items, props, characters, quests and their stages, spells and achievements, the game's name,
+   the maps' titles, the menus' own entries and the credits text, the lines and choices of every
+   trigger, the lock, container and furniture messages, and the texts scripts pass to `say` and
+   `choice`. A script text is found only as one string: write `say("You have {coins} coins.")`
+   after `set_var("coins", item_count("coin"))`, not `say("You have " + n + " coins.")`, whose
+   pieces can't be translated. The page lists the languages with how far each is translated; the
+   engine's own languages are offered with a click.
+3. **Translate…** opens the language's **table**: every text beside its translation, typed in
+   place; *Only what isn't translated* and a search narrow it; the language's own name is at the
+   top. *Save* (or *Save all*, Ctrl+S) writes the file. The file is plain text
+   too, for any text editor:
 
    ```
    (
@@ -33,10 +37,11 @@ language when the game offers it.
    Keep a dialog's [message codes](07-events.md#message-codes) too, around the words they belong to
    in the new language (`{c:gold}Schlüssel{/c}`); *Problems* lists translations that lost one.
    An empty or missing translation shows the original text.
-4. After changing the game, **Update template** adds new texts, keeps every translation already
-   made, and reports texts no longer used (they stay until you delete them). The list shows how many
-   texts each language has translated.
-5. **Play-test in** starts play-tests in a chosen language.
+4. After changing the game, **Update from the game** adds new texts and keeps every translation
+   already made; texts no longer used are listed (*Take them out*).
+5. **Play in it** starts the game from its title screen in that language; *Play-tests start in*
+   picks the language play-tests keep starting in. *Take off the list* stops offering a language
+   (its file stays).
 
 Exported games carry the translation files.
 
@@ -51,7 +56,7 @@ speakers are welcome (the files are `crates/engine/lang/<code>.ron` in the repos
 
 Polish, Russian, Japanese and Chinese need a project font with their letters (below): monogram,
 the example's font, covers Polish and Russian; the starter library's Fusion Pixel fonts cover
-Japanese and Chinese. *Edit › Problems* checks the built-in texts of each language the project
+Japanese and Chinese. The project check (Problems) checks the built-in texts of each language the project
 offers along with its own.
 
 A project's `lang/<code>.ron` can add or replace the engine's texts in a `ui` section, where `{}`
@@ -66,11 +71,11 @@ ui: {
 ## Fonts for other scripts
 
 The built-in font covers Latin-1 (ä, ö, ü, ß, é, ñ…), not other scripts. For Russian, Greek,
-Japanese, Chinese, Korean and the like, add a font that has them ([Database › Fonts](05-database.md#fonts))
-and choose it under *Database › Project › Fonts*, as the font of a role or as a **fallback**: each
+Japanese, Chinese, Korean and the like, add a font that has them ([Definitions › Fonts](05-database.md#fonts))
+and choose it on the *Look & feel* page, as the font of a role or as a **fallback**: each
 character comes from the first font that has it (the role's font, then the fallbacks, then the
 built-in font), so one line can mix a pixel font's Latin letters with a CJK font's characters.
-*Edit › Problems* lists the characters of each language that no font covers. Fusion Pixel Font,
+The project check lists the characters of each language that no font covers. Fusion Pixel Font,
 Ark Pixel Font (both SIL Open Font License) and the Noto fonts cover Chinese, Japanese and Korean.
 
 Lines wrap at spaces and, in Chinese and Japanese, between characters, following the usual rules
@@ -84,7 +89,8 @@ from the `name` of its `lang/<code>.ron` or a built-in list. Players can type na
 script the fonts have (the character creator), but not through an input method (IME): letters
 typed directly arrive, composed Japanese or Chinese input does not.
 
-The editor draws its forms with its own font, plus the fonts the project uses as fallbacks: once a
-Japanese font is a fallback under *Project › Fonts*, the editor shows Japanese text too.
+The editor draws with its own font, which has no Chinese, Japanese or Korean characters: such texts
+show as boxes in its forms and in a language's table (the game draws them with the project's
+fonts).
 
 The example project offers German for all of its texts.

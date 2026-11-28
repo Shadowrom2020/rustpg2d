@@ -4,7 +4,7 @@
 //! cancels and nothing is spent). Also the companions' rows under the player's HUD panel and
 //! healing characters by name (`Action::HealCharacter`, `heal_npc`).
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::skin;
 

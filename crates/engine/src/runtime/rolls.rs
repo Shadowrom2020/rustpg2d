@@ -1,7 +1,7 @@
 //! The SRD rolls on screen: a short line for every new ability check and saving throw ("Persuasion:
 //! 16 vs DC 12 - success"), the journal's *Rolls* page and the `rolls=` status.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::text::{draw_text, measure_text};
 use super::{skin, Game};

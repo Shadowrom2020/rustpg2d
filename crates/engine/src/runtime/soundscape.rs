@@ -8,7 +8,7 @@
 
 use std::collections::HashMap;
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::{Body, Game};
 use crate::map::{Map, ZoneKind};

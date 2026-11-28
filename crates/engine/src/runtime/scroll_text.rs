@@ -3,7 +3,7 @@
 //! starting with `# ` are headings. It runs over the title screen too (the Credits of a custom
 //! title entry).
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::input::{self, Act};
 use super::skin;

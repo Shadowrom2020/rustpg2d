@@ -305,7 +305,7 @@ pub fn check(project: &Project) -> (Vec<String>, Check) {
     if maps.is_empty() {
         c.errors.push("The project has no maps.".into());
     } else if !maps.contains(&cfg.start_map) {
-        c.errors.push(format!("The start map '{}' does not exist (Database → Project).", cfg.start_map));
+        c.errors.push(format!("The start map '{}' does not exist: pick the map the game starts on (the game's settings, Game).", cfg.start_map));
     } else if let Ok(m) = project.load_map(&cfg.start_map) {
         if !m.zones.iter().any(|z| z.name == cfg.start_spawn) {
             c.warnings.push(format!("The start map has no spawn point '{}'; the player starts in the map's center.", cfg.start_spawn));
@@ -315,7 +315,7 @@ pub fn check(project: &Project) -> (Vec<String>, Check) {
         c.errors.push(format!("The project uses {}px tiles; open it in the editor to convert it to 32px.", cfg.tile_size));
     }
     if cfg.player.is_empty() || project.db.character(&cfg.player).is_none() {
-        c.warnings.push("No player character is set (Database → Project); a placeholder will be used.".into());
+        c.warnings.push("No player character is set (the game's settings, Hero & party); a placeholder will be used.".into());
     }
     let mut files: BTreeSet<String> = BTreeSet::new();
     files.insert("project.ron".into());
@@ -570,16 +570,16 @@ pub fn export(project: &Project, name: &str, platform: Platform, game_binary: &P
     Ok(Exported { folder, archive, files: files.len() + extra, bytes, warnings: check.warnings })
 }
 
-/// The web game's page, loader and storage plugin (`crates/engine/web/`).
+/// The web game's page (`crates/engine/web/`).
 pub const WEB_INDEX: &str = include_str!("../web/index.html");
-pub const WEB_LOADER: &str = include_str!("../web/mq_js_bundle.js");
-pub const WEB_PLUGIN: &str = include_str!("../web/rustpg2d.js");
-/// The game compiled to WebAssembly, as the page loads it.
+/// The game compiled to WebAssembly, as the page loads it, and its loader (wasm-bindgen's
+/// JavaScript, written beside the module by `cargo xtask-web`).
 pub const WEB_WASM: &str = "rustpg2d-game.wasm";
+pub const WEB_JS: &str = "rustpg2d-game.js";
 
 /// Writes the web version of `project` named `name` into `out_dir/<slug>-web/`: `index.html`,
-/// macroquad's loader, R(ust)PG2D's plugin, `game_wasm` (R(ust)PG2D's game runner compiled for
-/// `wasm32-unknown-unknown`) and `data.pack` with the game's files; with `zip`, also
+/// `game_wasm` (R(ust)PG2D's game runner for browsers, as `cargo xtask-web` writes it) with its
+/// loader (the `.js` file beside it) and `data.pack` with the game's files; with `zip`, also
 /// `out_dir/<slug>-web.zip` with those files at its root (as itch.io wants HTML games). An
 /// earlier web export in the same place is replaced; any other folder of that name is left alone.
 #[cfg(not(target_arch = "wasm32"))]
@@ -592,7 +592,10 @@ pub fn export_web(project: &Project, name: &str, game_wasm: &Path, out_dir: &Pat
     if !wasm.starts_with(b"\0asm") {
         bail!("{} is not a WebAssembly file", game_wasm.display());
     }
-    check_runner(&wasm, game_wasm, "`cargo build --release --target wasm32-unknown-unknown -p rustpg2d-game`")?;
+    const HOW: &str = "`cargo build --release --target wasm32-unknown-unknown -p rustpg2d-game && cargo xtask-web`";
+    check_runner(&wasm, game_wasm, HOW)?;
+    let loader_path = game_wasm.with_extension("js");
+    let loader = std::fs::read(&loader_path).with_context(|| format!("the web game runner's loader {} (written by {HOW})", loader_path.display()))?;
     let slug = slug(name);
     let folder = out_dir.join(format!("{slug}-web"));
     let project_root = project.root.canonicalize().unwrap_or_else(|_| project.root.clone());
@@ -620,13 +623,12 @@ pub fn export_web(project: &Project, name: &str, game_wasm: &Path, out_dir: &Pat
     packed.push(("project.ron".into(), crate::project::ron_text(&cfg)?.into_bytes()));
     let title = name.trim().replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;");
     let readme = format!(
-        "{name}\n\nThe web version: open index.html through a web server (browsers don't run WebAssembly from file:// pages), e.g. `python3 -m http.server` in this folder and http://localhost:8000, or upload {slug}-web.zip to itch.io as an HTML game.\nSave games and settings stay in the player's browser (local storage of the page's site).\n\nMade with R(ust)PG2D. The game ({WEB_WASM}) is R(ust)PG2D's game runner, licensed under the MIT License: see {ENGINE_LICENSE_FILE}; mq_js_bundle.js is macroquad's loader (MIT OR Apache-2.0). Its rules include material of the System Reference Document 5.1 (CC BY 4.0): see SRD-5.1-ATTRIBUTION.txt.\n",
+        "{name}\n\nThe web version: open index.html through a web server (browsers don't run WebAssembly from file:// pages), e.g. `python3 -m http.server` in this folder and http://localhost:8000, or upload {slug}-web.zip to itch.io as an HTML game.\nSave games and settings stay in the player's browser (local storage of the page's site).\n\nMade with R(ust)PG2D. The game ({WEB_WASM}) is R(ust)PG2D's game runner, licensed under the MIT License: see {ENGINE_LICENSE_FILE}. Its rules include material of the System Reference Document 5.1 (CC BY 4.0): see SRD-5.1-ATTRIBUTION.txt.\n",
         name = name.trim()
     );
     let out: Vec<(&str, Vec<u8>)> = vec![
         ("index.html", WEB_INDEX.replace("{title}", &title).into_bytes()),
-        ("mq_js_bundle.js", WEB_LOADER.as_bytes().to_vec()),
-        ("rustpg2d.js", WEB_PLUGIN.as_bytes().to_vec()),
+        (WEB_JS, loader),
         (WEB_WASM, wasm),
         ("data.pack", web_pack(&packed)?),
         ("README.txt", readme.into_bytes()),
@@ -828,13 +830,15 @@ mod tests {
         let wasm = tmp.join("rustpg2d-game.wasm");
         std::fs::write(&wasm, tagged(b"\0asm\x01\0\0\0")).unwrap();
         assert!(export_web(&p, "Test Quest", &bin, &out, false).is_err(), "not WebAssembly");
+        assert!(export_web(&p, "Test Quest", &wasm, &out, false).is_err(), "no loader beside the module");
+        std::fs::write(tmp.join("rustpg2d-game.js"), "export default function init() {}").unwrap();
         let r = export_web(&p, "Test Quest", &wasm, &out, true).unwrap();
         let w = out.join("test-quest-web");
         assert_eq!(r.folder, w);
         let html = std::fs::read_to_string(w.join("index.html")).unwrap();
-        assert!(html.contains("<title>Test Quest</title>") && html.contains("load(\"rustpg2d-game.wasm\")"));
+        assert!(html.contains("<title>Test Quest</title>") && html.contains("\"rustpg2d-game.wasm\"") && html.contains("./rustpg2d-game.js"));
         assert!(html.contains("oncontextmenu=\"return false\"") && html.contains("\"contextmenu\""), "right-click is game input, not the browser's menu");
-        assert!(w.join("mq_js_bundle.js").is_file() && w.join("rustpg2d.js").is_file() && w.join(WEB_WASM).is_file());
+        assert!(w.join(WEB_JS).is_file() && w.join(WEB_WASM).is_file());
         let packed = read_web_pack(&std::fs::read(w.join("data.pack")).unwrap()).unwrap();
         let names: Vec<&str> = packed.iter().map(|(n, _)| n.as_str()).collect();
         assert!(names.contains(&"maps/start.map") && names.contains(&"sprites/a.png") && names.contains(&"project.ron") && names.contains(&"lang/de.ron"));

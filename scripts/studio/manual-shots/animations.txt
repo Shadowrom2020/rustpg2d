@@ -1,0 +1,9 @@
+#head headc.txt
+tab def:animation:fire
+wait 1
+anim time 0.45
+wait 2
+hover 1000 880
+anim
+shot $S/out/animations.png
+quit

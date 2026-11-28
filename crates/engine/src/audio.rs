@@ -17,7 +17,7 @@ use std::pin::pin;
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll, Waker};
 
-use macroquad::audio::{load_sound_from_bytes, play_sound, set_sound_volume, stop_sound, PlaySoundParams, Sound};
+use gfx::audio::{load_sound_from_bytes, play_sound, set_sound_volume, stop_sound, PlaySoundParams, Sound};
 
 use crate::project::Project;
 
@@ -28,6 +28,21 @@ fn poll_now<F: Future>(f: F) -> Option<F::Output> {
         Poll::Ready(v) => Some(v),
         Poll::Pending => None,
     }
+}
+
+/// One sound file decoded to be listened to (an editor's preview of a sound, without loading
+/// every sound of the project): the sound and its length in seconds (0 when the file doesn't
+/// say). The error says what is wrong with the file.
+pub fn load_one(path: &std::path::Path) -> Result<(Sound, f32), String> {
+    let bytes = crate::sys::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    check_format(&bytes)?;
+    // (The decoder panics on some malformed files.)
+    let sound = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| poll_now(load_sound_from_bytes(&bytes))))
+        .map_err(|_| "could not be decoded".to_string())?
+        .ok_or("loading did not complete".to_string())?
+        .map_err(|e| e.to_string())?;
+    let seconds = header_frames(&bytes).map_or(0.0, |(rate, _, frames)| if rate == 0 { 0.0 } else { frames as f32 / rate as f32 });
+    Ok((sound, seconds))
 }
 
 /// Checks that the bytes are a format the mixer decodes (WAV or Ogg Vorbis); the error names

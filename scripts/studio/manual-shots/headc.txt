@@ -1,0 +1,4 @@
+size 1600 900
+wait 2
+click 1587 650
+wait 0.5

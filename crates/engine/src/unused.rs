@@ -202,8 +202,6 @@ impl<'a> Sources<'a> {
     /// Reads a project's maps, scripts and plugin files. Fails when a map can't be read (then
     /// nothing can be called unused).
     pub fn of(project: &'a Project) -> Result<Sources<'a>> {
-        // An old tile project's maps name their tilesets in ways this doesn't read.
-        anyhow::ensure!(!crate::convert_tiles::needs_conversion(&project.root), "the project still has tiles: open it in the editor to convert it first");
         let mut maps = Vec::new();
         for m in project.list_maps() {
             let map = project.load_map(&m).with_context(|| format!("reading the map '{m}'"))?;

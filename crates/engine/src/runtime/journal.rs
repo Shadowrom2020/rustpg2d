@@ -7,7 +7,7 @@
 //! at the bottom, scrollable (`rolls.rs`).
 //! Up/Down or click select, Tab / Left / Right or a click on a tab switch, J / Esc close.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::input::{self, Act};
 use super::{skin, ui::panel, Game};

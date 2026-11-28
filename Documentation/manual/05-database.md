@@ -1,80 +1,74 @@
-# 5. The Database
+# 5. Definitions
 
-The **Database** tab holds every kind of thing in your game. A map places copies of them; the
-Database says what they are.
+Every kind of thing in your game is a **definition**: an item, a prop, a character, a sound, a
+quest… A map places copies of them; the definition says what they are. They are listed in the
+**Project browser** by what they are (*Objects*, *Characters*, *Items*, *Rules*, *Story*, *Art &
+sound*, and under *World* the materials, scatter sets and structures), and each opens in a tab of
+its own.
 
-![The Database: the villager's character form](../images/editor-character.webp)
+![A definition's tab: the villager's character form](../images/editor-character.webp)
 
 ## Working with definitions
 
-The tabs along the top are *Items, Props, Characters, Races, Factions, 3D models, Materials, Scatter sets,
-Sprite sheets, Sounds, Fonts, UI skins, Structures, Spells, Recipes, Backgrounds, Classes, Diseases, Quests, Achievements, Common events,
-Cut-scenes, Animations, Project* and *Scripts*. Each asset tab has a list on
-the left and the selected definition's form on the right; *Items*, *Characters*, *Spells* and
-*Recipes* also have a [table](#the-table-view).
+A definition's tab has a **header**: its picture, name, kind and id, and the buttons **Rename…**
+(changes the id everywhere: maps, also those not open, events, other definitions, the settings and
+the scripts, only the exact arguments of script functions; changed script files keep a
+`.rhai.bak` backup), **Duplicate…**, **Delete** (refused while something uses it), **Share…** (as a
+pack, [The asset library](11-asset-library.md)), **Send to library**, **Find usages** and, where
+Meshy can draw it, **Generate art…** ([Art and sound](10-art-and-sound.md#generate-art-with-meshy)); then the
+creator's own order: **Favourite**, a **Folder**, **Tags** (*+ Tag*) and **Notes**, kept in the
+project for you (the game never reads them). After a project check, what is wrong with it is said
+there too. **Used by** lists every place that names it, each a link.
 
-- The **search** field above the list shows only the definitions whose name or id contains the
-  text (the selection jumps to the first match; another tab clears it). On *Items* a **category**
-  picker narrows the list by the SRD's categories, worked out from what each item is: weapons
-  (simple / martial, melee / ranged), armor (light, medium, heavy, shields), ammunition,
-  adventuring gear, tools, mounts and vehicles, money, magic items (weapons and ammunition, armor
-  and shields, potions, rings, rods, scrolls and spell books, staffs, wands, wondrous items) and
-  *Other* (the project's own things: food, ores, keys, furniture). Each entry tells how many items
-  it has; *Weapons*, *Armor* and *Magic items* take all of theirs.
-- **+ New**, **Duplicate** and **Delete** manage the list, **Usages** lists every place the
-  selected definition is used ([Finding things](02-the-editor.md#finding-things)); **New asset…** starts a wizard that also
-  draws the art ([Art and sound](10-art-and-sound.md#new-assets)), **New character…** makes a
-  character from an existing 3D model, an imported one or AI generation
-  ([Characters › New characters](06-characters.md#new-characters)).
-- Every definition has an **id** (used by the files, triggers and scripts) and a **name** (shown to
-  players). **Rename…** next to the id changes the id everywhere: maps (also those not open),
-  triggers, other definitions, the project settings and the scripts (only the exact arguments of
-  script functions; changed script files keep a `.rhai.bak` backup). It saves at once.
-- **Add from library…** copies assets from your asset library into the project; **Add to library**
-  and **Export…** send the selected definition to the library or into a package
-  ([The asset library](11-asset-library.md)).
-- **Undo** / **Redo** (Ctrl+Z / Ctrl+Y) step back and forth through the changes to definitions,
-  renames included ([The editor › Saving and undo](02-the-editor.md#saving-and-undo)).
-- **Save definitions** (or Ctrl+S) writes the files; **Reload assets** reads images and sounds again
-  after you changed them in another program.
+Under the header, some kinds have a **workshop**: a prop's stage, a character's figure, a 3D
+model's animations, an item in the hero's hand, an animation played, a sound, a sheet cut into
+frames, a cut-scene's timeline, a visual script's canvas ([Art and sound](10-art-and-sound.md),
+[Characters](06-characters.md)). Then the **form**:
+
+- Its fields come in **sections** that fold; every field has a label, and its help on hover
+  (**F1** with the pointer on the label, or *About this field* in the label's menu, opens it in the
+  Help tab). *Show all fields* adds the ones for advanced use.
+- A field the file leaves out shows its **default, dimmed**, so what was set stands out; *Back to
+  the default* in a label's menu (right-click) sets it back.
+- A field that names another definition is a **picker**: what it names (in red when it doesn't
+  exist), a searchable list with pictures, *none*, **+ New…** (makes one and comes back) and
+  **Open**. A field that names a file has **Browse…**; a flag, a variable, a script function, a
+  faction or a prop's state is typed, with the ones **in use** listed beside it.
+- Lists have *+ Add*, *Remove* and a menu to move or copy an entry; a list of events is an
+  [event sheet](07-events.md).
+- Every change is a step of the one history (Ctrl+Z), and is written with *Save all* (Ctrl+S).
+  What is typed but isn't valid yet stays in the form with the reason, until it is.
+
+**New ones**: **Ctrl+N**, *+ New* beside a kind in the Project browser, or *+ New…* in a picker,
+opens **New…**: the kinds as the browser groups them, each with a sentence on what it is; a name
+(the id is made from it); and how it starts: *blank*, *as a copy* of another (picked from a list
+with pictures), *as one of the asset library* (it comes with what it needs: pictures, sounds,
+models, script functions), or *from a file* (a `.glb` model, a `.png` picture, a sound, a font).
+
+### A kind's tab
+
+*Show all* beside a kind in the Project browser opens **everything of that kind** in a tab: **cards**
+with pictures, a **list**, or a **table**. A filter (name, id, tag, folder), its **categories**
+(items by the SRD's categories: weapons, armor, ammunition, gear, tools, magic items, *Other*; props
+by what they do; characters by creature type; spells by level…), *Favourites*, tags to filter by,
+**with problems** (after a project check) and **unused** (what nothing names). **Ctrl+click**
+chooses several cards (a box per row in the list): the chosen are tagged, moved to a folder, made
+favourites or deleted together.
 
 ### The table view
 
 ![Items in the table view, sorted by cost](../images/editor-db-table.webp)
 
-**Table** (next to the tabs, on *Items*, *Characters*, *Spells* and *Recipes*) shows one row per
-definition with its main fields instead of the list and the form, to balance many at once:
-
-| Tab | Columns |
-|---|---|
-| Items | Name, Cost (cp), Value, Weight (lb), Stack, Damage (a weapon's dice), Base AC (armor) |
-| Characters | Name, Max HP, Block HP / AC / CR (the stat block's), XP, Speed, Hostile, Faction |
-| Spells | Name, Level, School, Mana, Cooldown, Concentration, Ritual |
-| Recipes | Result, Count, Station, Level |
-
-- The search field (and on *Items* the category picker) narrows the rows.
-- Click a column's title to **sort** by it, again to reverse, a third time for the file's order.
-  Cells a definition doesn't have (no stat block, not a weapon) show `-` and sort last.
-- Cells are edited in place. A double-click on an id opens that definition's form (the table
-  switches off).
-- **Select rows** with a click, Ctrl+click (add or remove one) and Shift+click (a range); *All*
-  selects every row shown.
-- **Bulk edit:** choose a column and what to do, type the value and press **Apply**. *Set to*
-  writes the value, *Add %* adds a percentage (`-25` takes a quarter off), *Formula* computes a
-  Rhai expression of `x`, the cell's value (`x * 1.5 + 2`, `(x / 10.0).round() * 10.0`).
-  Whole-number columns are rounded; text and tick columns can only be set. Rows without the
-  field are left alone. A bulk edit is **one undo step**.
+The **table** shows one row per definition and a column per field that fits in a cell (*Columns*
+picks them; the first section's at first). Cells are changed in place with the forms' controls; a
+click on a column's title **sorts** by it. **Chosen rows** (a click, Ctrl+click) are changed
+together: a change in one of them is made in all of them, as one step.
 
 ### Choosing sprites
 
-Item icons and prop states show a large preview and a **Choose…** button. The chooser lists every
-sprite sheet as a thumbnail (with a search) and the chosen sheet's frames, as numbered thumbnails or
-as the sheet's grid, where you drag over several cells for a big prop. Frames other definitions
-already use are marked (hover shows by whom). Click to pick, double-click to pick and close.
-
-**Edit art** opens the pixel editor under the form at the definition's sprite. **+ New blank icon**
-(or *frame for this state*) finds an empty frame on the sheet, or adds a row of frames when the sheet
-is full, assigns it and opens it for drawing.
+A field that holds a picture of a sprite sheet (an item's icon, a prop's state) shows the picture
+beside it; **Pick the frame…** shows the sheet's frames to click. The sheet's own tab paints it
+pixel by pixel ([Art and sound › The pixel editor](10-art-and-sound.md#the-pixel-editor)).
 
 ## Items
 
@@ -91,7 +85,6 @@ is full, assigns it and opens it for drawing.
 | **Magic** | **Teaches spell**: a spell scroll (consumed) or book: a wizard copies the spell, another caster whose class lists it casts it once from a scroll, nobody else can use it |
 | **Furniture** | **Places prop**: using the item in one of the player's homes puts this prop on the free tile in front; picking the prop up gives the item back ([Homes and furniture](09-gameplay.md#homes-and-furniture)) |
 | **Light** | Glows while equipped or while lying on the ground (lanterns, torches) |
-| **Held** | Weapons, left-hand items and tools without a 3D model: how their picture is held (below) |
 | **3D model** | Weapons, left-hand items, tools and backpacks: the model 3D model characters hold or wear (below) |
 | **Animations** | Weapons and left-hand items: the animations characters play attacking, standing, walking and blocking with it (`attack_2h`, `idle_bow`, `block_shield`…); empty = estimated from its kind, shown beside the field with how many models have each ([Characters › Weapon animations](06-characters.md#weapon-animations)). *Estimate animations* empties them again |
 | **On use** | Triggers that run when the player uses the item: heal, give something, run a script ([Events](07-events.md)) |
@@ -127,16 +120,9 @@ is full, assigns it and opens it for drawing.
 
 Worn items count in play and show only in a model's art. **Held items are drawn in the hands**
 of characters: the weapon in the right hand, shields and lights in the left, bows in the left,
-two-handed weapons in both, a tool in the right hand while it is used. Items with a **3D model**
-(below) are held as that model; for the others the **Held** section says how their picture is held:
-
-- without *Own marks* the item's icon is held at its lower left corner, its blade (pointing up-right
-  in the icon) along the hand's grip axis, at half its size;
-- with **Own marks**: an own **picture** (none: the icon; long thin things such as the spear and the
-  fishing rod have their own on the starter `held` sheet), the **hold point** (click the picture),
-  the **orientation** (drag from the hold point: the direction in the picture that lies on the hand's
-  grip axis; setting it off the picture's length tilts the item, as the fishing rod held 40° up),
-  the **size** and the **hand** (*By its kind* or right, left, both).
+two-handed weapons in both, a tool in the right hand while it is used. An item is shown in the hand
+as its **3D model** (below); an item without one is held but not shown (since 0.36: pictures in
+the hand are gone, so every held thing looks the same).
 
 **On the figure › Shown as** (clothing, armour, boots, gloves, cloaks and headgear, when the
 project has pieces) names the
@@ -144,53 +130,49 @@ project has pieces) names the
 figure wears its own piece of that style ([Characters › Pieces](06-characters.md#pieces-hair-outfits-and-shown-equipment));
 figures without one look as before.
 
-The **3D model** section gives the item a model (a `.glb`, copied into `models/`) for characters
-made of 3D models ([Characters › 3D models](06-characters.md#how-characters-look)). Choosing one
-sets everything from the item's kind and the model's shape; then check the big **preview** (four
-facings, *Standing*, *Walking*, *Attacking* or *Blocking* with the item's animations, *Play* to animate it, *held by* any character model)
-and correct it with the buttons:
+The **item workshop** at the top of an item's tab gives it a 3D model (*From a file…*: a `.glb` of
+the item alone, copied into `models/`) for characters made of 3D models ([Characters › 3D
+models](06-characters.md#how-characters-look)). Choosing one sets everything from the item's kind and
+the model's shape; then look at the hero holding it (seen from four sides or turning, standing,
+walking or attacking with the item's animations) and correct it:
 
 | Setting | What it does |
 |---|---|
-| **Held as** | *On the back* (backpacks): on the upper back, against the back of the body, its top up and its front (pockets, a bedroll) facing away; *Estimate* puts the hold point at the middle of its flatter side. *Grip*: in the fist, the handle through it and the item's front (a blade's edge, an axe's head, a bow's back) where the knuckles point; swords, axes, tools, bows. Two-handed items lie along both fists when they are together, else in the right hand. *Upright*: held up, the handle pointing up whatever the arm does (torches, staffs). *Hang*: hanging from the hand by its top (lanterns, buckets). *Strap*: on the forearm, its face turned out and forward, its top up (shields). Changing it estimates the item again. |
-| **Length** | The whole model's length in world pixels (a character is about 40 tall: a sword 24, a spear 44). |
-| **Hold at** | Where along its length the hand holds it, from the handle's end to the far end. |
-| **Estimate** | Hold point, handle and front guessed from the shape again: along the model's length (also when it lies diagonally, like an icon) a thin stretch at one end is the handle (when both ends are thin, the shorter: a sword's grip rather than its blade), held 40 % along it; the front is where its head sticks out, else its wider side. By kind, bows are held upright at their middle, shields at the middle of their back, lanterns at their top. |
-| **Turn handle** | The handle runs along the model's next main direction (its length, width, thickness, both ways): press until it lies in the hand. |
-| **Turn front** | A quarter turn about the handle: the edge, the head or the shield's face points another way. |
-| **Flip ends** | The other end is the handle. |
-| **Render icon** | Draws the model into a 32 x 32 inventory icon (on the `icons_3d` sheet) and makes it the item's icon: weapons and tools point up-right with their face to the viewer, shields and lanterns show their front. |
+| **Held** | *On the back* (backpacks): on the upper back, against the back of the body, its top up and its front (pockets, a bedroll) facing away; *Estimate* puts the hold point at the middle of its flatter side. *Grip*: in the fist, the handle through it and the item's front (a blade's edge, an axe's head, a bow's back) where the knuckles point; swords, axes, tools, bows. Two-handed items lie along both fists when they are together, else in the right hand. *Upright*: held up, the handle pointing up whatever the arm does (torches, staffs). *Hang*: hanging from the hand by its top (lanterns, buckets). *Strap*: on the forearm, its face turned out and forward, its top up (shields). Changing it estimates the item again. |
+| **Its length** | The whole model's length in world pixels (a character is about 40 tall: a sword 24, a spear 44). |
+| **The hand is** | Where along its length the hand holds it, from the handle's end to the far end. |
+| **Find where it is held** | Hold point, handle and front guessed from the shape again: along the model's length (also when it lies diagonally, like an icon) a thin stretch at one end is the handle (when both ends are thin, the shorter: a sword's grip rather than its blade), held 40 % along it; the front is where its head sticks out, else its wider side. By kind, bows are held upright at their middle, shields at the middle of their back, lanterns at their top. |
+| **Turn the handle** | The handle runs along the model's next main direction (its length, width, thickness, both ways): press until it lies in the hand. |
+| **Turn the front** | A quarter turn about the handle: the edge, the head or the shield's face points another way. |
+| **Other end** | The other end is the handle. |
+| **Render its icon** | Draws the model into a 32 x 32 inventory icon (on the `icons_3d` sheet) and makes it the item's icon: weapons and tools point up-right with their face to the viewer, shields and lanterns show their front. |
 
-**Numbers** shows the values behind the buttons in the model's own coordinates: the hold point, the
-direction from it toward the far end, and the front (`0 0 0`: the wider side across the handle).
-Models made of plain-coloured materials without textures work too. While an item has a model, the
-picture settings below are folded away as **Picture in the hand** (they are used only without a
-model).
+The form's *3D model* fields hold the values behind the buttons in the model's own coordinates: the
+hold point, the direction from it toward the far end, and the front (`0 0 0`: the wider side
+across the handle). Models made of plain-coloured materials without textures work too.
 
-A hand's **grip axis** is the line a handle runs through the closed fist. Turned to the left, the
-picture is mirrored across it, so whatever is tilted up stays up in both directions. Two-handed
-things run along the line through both fists.
+A hand's **grip axis** is the line a handle runs through the closed fist. Two-handed things run
+along the line through both fists.
 
-![An item form: the battle axe's 3D model, how it is held, and the preview](../images/editor-item.webp)
+![An item's tab: the battle axe's 3D model and how it is held](../images/editor-item.webp)
 
 ## Props
 
 | Section | Settings |
 |---|---|
 | **States** | Every prop has a list of named states, each with its own sprite and whether it blocks movement (an iron gate: *closed*, *open*, *destroyed*; a shrine: *dormant*, *glowing*). The first is the default. *+ Add state*, *Make default*, the arrows and ✖ organise them; renaming a state updates placed props and triggers. |
-| **3D model** | Per state: a model from *Database › 3D models* shown instead of the picture (since 0.35). It is rendered from the isometric angle like the figures and cached; its origin is the middle of the hitbox on the ground, and the model's *Height* is its size in world pixels (a person is about 40, a cart 37). States without their own model show the default state's. A placed copy **turns** in quarters: *Facing* in the map inspector or **R** with it selected, and in the Decorations tool **R** (or *Turn*) before placing; its hitbox turns with it. It casts a shadow on the ground. Most of the starter library's furniture and village props are 3D models (`<prop>_3d`, states with their own look `<prop>_<state>_3d`): chests, chairs, beds, tables, shelves, racks, gates, stalls, the windmill, the bell tower and more. Things with flames (ovens, hearths, fireplaces, forges, braziers, campfires, candles, torches, lamps) are painted pictures with a picture per state (lit / out), like the trees and rocks; the walls and blocks, the buildings' walls, roofs, doors and windows show painted textures (`sprites/painted/painted_walls.png`). A prop shown as a model or a building has a picture rendered from it (`sprites/prop_pictures/<id>.png`, a frame per state): its icon in the editor's lists, and the size the game measures (how high a lamp's light sits, a bed's place). Editor script `propictures [PROP]` renders them again after a model changed. |
-| **Pictures from four sides** | The default state's picture as seen from the west, north and east as well (the first faces south), for props drawn ahead of time: copies then turn like props with a model. |
+| **3D model** | Per state: a 3D model shown instead of the picture (since 0.35). It is rendered from the isometric angle like the figures and cached; its origin is the middle of the hitbox on the ground, and the model's *Height* is its size in world pixels (a person is about 40, a cart 37). States without their own model show the default state's. A placed copy **turns** in quarters: *Facing* in the map's Inspector or **R** with it selected, and with the Place tool **R** (or *Turn*) before placing; its hitbox turns with it. It casts a shadow on the ground. Most of the starter library's furniture and village props are 3D models (`<prop>_3d`, states with their own look `<prop>_<state>_3d`): chests, chairs, beds, tables, shelves, racks, gates, stalls, the windmill, the bell tower and more. Things with flames (ovens, hearths, fireplaces, forges, braziers, campfires, candles, torches, lamps) are painted pictures with a picture per state (lit / out), like the trees and rocks; the walls and blocks, the buildings' walls, roofs, doors and windows show painted textures (`sprites/painted/painted_walls.png`). A prop shown as a model or a building has a picture rendered from it (`sprites/prop_pictures/<id>.png`, a frame per state): its icon in the editor's lists, and the size the game measures (how high a lamp's light sits, a bed's place). Editor script `propictures [PROP]` renders them again after a model changed. |
 | **Drawn as a block** | Walls and counters: the prop is drawn as a box on its hitbox, this many world pixels high (since 0.35; a person is about 40), with its picture on the faces and the picture's top band on the top, so a row of pieces is one wall. Blocks in front of the hero are cut down to a stub in the game ([The view](09-gameplay.md#the-view)). |
-| **Building** | *Built from walls and a roof* (since 0.35): a house, a hall, a barn built from its measurements, drawn as a 3D model the engine makes (no 3D modelling needed). The hitbox is its **footprint** (width east to west, depth north to south; a tile is 32 px, a person about 40 px tall); *Walls* sets their height to the eaves; the **roof** is *Gable* (two slopes, the walls rising to the ridge at both ends), *Hip* (four slopes), *Shed* (one slope, high at the north or west) or *Flat*, its ridge along the longer side or east-west / north-south, its *Pitch* (1 = 45 degrees) and *Overhang*. Pictures are tiled over it: *Walls*, *Roof* (its top towards the ridge), *Gables* (the walls' when empty), a *Base* band along the bottom (with a height) and the *Trim* along the roof's edges (the roof's, darker, when empty). The **plan** below shows the footprint from above, north up: pick *Window*, *Door* or *Chimney* and click on a wall (or inside, for a chimney) to add one there, like the last of its kind; right-click removes one. Each door and window has its wall, its place along it (from the west or north end), its size, its *sill* (0 = a door) and picture; each chimney its place, size and how far it rises above the roof. The preview beside the plan is the model as the game draws it (*Turn* shows it from the other sides); *Copy the look of…* takes walls, roof and pictures from another building. *Roof only* leaves the walls out: the roof alone at the walls' height, over a room of wall props (the Build tool's *Roof* mode makes these). *Joined to* lists the buildings it is joined to (the Build tool's *House* mode joins a house dragged against another): where a ridge points into the other building its roof runs on into that one's, and each hides what the other covers; the × unjoins them. Placed copies turn in quarters like props with a model, and the picture above stays the prop's icon. The starter library's and the example's houses and the chapel are buildings (their doors where the maps' portals are). A building can be about 600 px around (width plus depth). |
+| **Building** | *Built from walls and a roof* (since 0.35): a house, a hall, a barn built from its measurements, drawn as a 3D model the engine makes (no 3D modelling needed). The hitbox is its **footprint** (width east to west, depth north to south; a tile is 32 px, a person about 40 px tall); *Height* is the walls' height to the eaves; the **roof** is *Gable* (two slopes, the walls rising to the ridge at both ends), *Hip* (four slopes), *Shed* (one slope, high at the north or west) or *Flat*, its ridge along the longer side or east-west / north-south, its *Pitch* (1 = 45 degrees) and *Overhang*. Pictures are tiled over it: *Walls*, *Roof* (its top towards the ridge), *Gables* (the walls' when empty), a *Base* band along the bottom (with a height) and the *Trim* along the roof's edges (the roof's, darker, when empty). All of it is set by numbers in the form's *Building* section, and the workshop at the top of the prop's tab shows the building as the game draws it as soon as a number changes (*Turn* shows it from the other sides). Above the picture the workshop says what it is (its roof, its footprint, how many doors, windows and chimneys) and has **Add a door** and **Add a window**: one goes on the front (south) wall where it has the most room, like the last of its kind (its picture, size and sill), else a door of 26 × 40 or a window of 24 × 24, 24 px up; each is a step of the history. **Add a chimney** puts one on the roof along the ridge where it has the most room, like the last chimney (its picture, size, how far it rises and how far off the ridge), else one of 14 × 14 rising 14 px just north (or west) of the ridge. Under *Openings* in the form each door and window has its wall (*Side*), its place along it (*At*: from the west or north end), its size, its *sill* (0 = a door) and picture, with *+ Add*, the arrows and × to remove one; under *Chimneys* each chimney its place, size and how far it rises above the roof. *Walls* unticked leaves the walls out: the roof alone at the walls' height, over a room of wall props (the Build tool's *Roof* mode makes these). *Joins* lists the buildings it is joined to (the Build tool's *House* mode joins a house dragged against another): where a ridge points into the other building its roof runs on into that one's, and each hides what the other covers; the × unjoins them. Placed copies turn in quarters like props with a model, and the picture above stays the prop's icon. The starter library's and the example's houses and the chapel are buildings (their doors where the maps' portals are). A building can be about 600 px around (width plus depth). |
 | **Size and hitbox** | *Size (cells)* for props made of several frames of their sheet (a 2 × 2 double gate, a 3 × 4 oak), and the collision box (e.g. only the trunk), so the player walks behind big crowns. |
 | **Counter (a market stall)** | Using it (E, right-click) talks to whoever keeps it, from its front, across it: a merchant (a character with a shop) right beside it or up to two tiles straight in front of or behind it, or anyone standing in it. Its own triggers run only when nobody keeps it: the starter library's stalls (*Fish Stall*, *Bread Stall*, *Produce Stall*, *Market Stall*) have an *Interact* trigger with a dialog such as "No one is tending the fish stall right now." A prop that does nothing itself acts like a counter anyway. |
 | **Casts a shadow** | For props drawn as pictures (since 0.35, on by default): the picture throws a shadow on the ground in the isometric view, as 3D props do. Off for glows and light-only props (the library's *Window glow*). |
-| **Lies flat on the ground** | Rugs, mats, puddles: drawn under everyone, like a *Flat* decoration, instead of sorted with characters by its feet (a table placed on a rug stands on it). Picking it in the Decorations tool switches to the *Flat* layer; as furniture it may lie under other things ([Homes and furniture](09-gameplay.md#homes-and-furniture)). The starter library's rugs and carpet runners have it. |
+| **Picture moved by** | For props drawn as pictures (since 0.36): pixels to the right and down that the picture is moved from standing with the middle of its lower edge on the prop's place (the middle of the hitbox's front edge). For a picture whose foot is elsewhere: a leaning tree, a sign hanging beside its post, room painted under a base. Its shadow moves with it. |
+| **Lies flat on the ground** | Rugs, mats, puddles: drawn under everyone, like *Flat* scenery, instead of sorted with characters by its feet (a table placed on a rug stands on it). Picking it in the Decorations tool switches to the *Flat* layer; as furniture it may lie under other things ([Homes and furniture](09-gameplay.md#homes-and-furniture)). The starter library's rugs and carpet runners have it. |
 | **Difficult terrain** / **Obscures** | In fights its tiles (as a decoration or placed) cost double movement (undergrowth, rubble) / are lightly obscured: fighters there are seen dimly and can hide (bushes, tall grass, reeds). See [Gameplay › Health and combat](09-gameplay.md#health-and-combat). |
 | **Low** | While solid, the prop stops walking but not shots or sight (barrels, chairs, crates, fences). Solid props that aren't low stop arrows and bolts where their hitbox is (a tree at its trunk); see [Maps › Low and high obstacles](03-maps.md#low-and-high-obstacles). |
 | **Door** | E opens it (its state named `open`, which doesn't block) and closes it (back to its first state). With a lock (*Lockable* or a placed door's own lock: its key, a lockpicking difficulty, *relock*) it stays shut until the key or a lockpick opens it; with the key, closing it locks it again. Villagers on their routes open unlocked doors, and locked ones whose key they carry (their inventory), and close them behind them ([Doors](09-gameplay.md#doors)). The starter library's *Door* (`room_door`) is one, for doorways in timber walls. |
 | **Ladder** | Placed as a decoration, the player climbs where it stands (slower, facing up); characters keep off it. With an **Athletics DC** it is a climbable wall or rope: stepping onto it takes an Athletics check against it, a failure finds no hold for two seconds ([Maps › Climbing, jumping and falling](03-maps.md#climbing-jumping-and-falling)). |
-| **Animation** | Frames of its sprite sheet shown in turn at a speed (*fps*): the default state of a torch, a flag, a water wheel; also as a decoration. Props converted from animated tiles have one. |
 | **Snap to** | Placed as a decoration it sits on a grid of 8, 16 or 32 pixels (walls, fences). |
 | **Lockable** | A default lock for every copy: the key item, whether the key is *used up* or *stays*, what happens when unlocked (disappear, or switch to a state such as *open*), the locked / unlocked messages, *Can be locked again with the key*, and a **Lockpicking** difficulty. A lock without a key item is a door that simply opens. |
 | **Object** | *Can be broken*: the SRD's object statistics (since 0.32). *Material* sets the armor class (cloth 11, glass 13, wood 15, stone 17, iron 19, mithral 21, adamantine 23), *Size* and *Resilient* the hit points (tiny 2 / 5, small 3 / 10, medium 4 / 18, large 5 / 27); *Armor class* and *Hit points* override them (0 = by the tables); a hit below the *Damage threshold* does nothing; *Force DC* lets a locked one be forced open with Strength (Athletics); *When broken* it disappears or takes a state (a door's *open*, a crate's *broken*). Objects ignore poison and psychic damage ([Gameplay › Objects](09-gameplay.md#objects)). |
@@ -200,7 +182,6 @@ things run along the line through both fists.
 | **Gathering** | Mined or picked with a tool ([Gathering and mining](09-gameplay.md#gathering-and-mining)). |
 | **Farm plot** | Takes seeds ([Farming](09-gameplay.md#farming)). |
 | **Light** | A light per state: a lamp lit in *lit* and dark in *off*. |
-| **Carried** | How characters carry it in both hands (the *Carry prop* action, `carry()`): without *Own marks* at the middle of its lower half, its horizontal along the hands, at 0.6 of its size; *Own marks* set the hold point, orientation and size like an item's *Held* section. A carried prop never turns upside down. |
 | **Triggers** | Triggers every copy of the prop runs ([Events](07-events.md)). |
 
 The *Set prop state* action and `set_state(target, "name")` switch states during the game, the
@@ -243,7 +224,7 @@ characters have one as party members. See [Characters › Classes](06-characters
 
 ## Diseases
 
-The SRD's diseases (since 0.32; *Database › Diseases*, `defs/diseases.ron`): the **save against
+The SRD's diseases (since 0.32; *Rules › Diseases* in the Project browser, `defs/diseases.ron`): the **save against
 catching it** (ability and DC; 0 = caught without one), **symptoms after** dice of hours or days,
 then what it does while the hero is sick: **exhaustion** levels (*rests don't lower it*),
 **healing** (*only by magic*, *none from long rests*, *half from hit dice*), a **hit point maximum**
@@ -257,12 +238,10 @@ giant rat's Rat-Bite Fever. See [Gameplay › Diseases](09-gameplay.md#diseases)
 
 ## Factions
 
-Who fights whom: the factions (an id and a name), the **attitude table** between them, and a
-**Members** list per faction with its races, its character definitions (their own *Faction*, or
-their race's) and the placed characters that have it as their own (click one to show it on its
-map). *Add a race…* and *Add a character…* put one into the faction, the ✕ on a member takes it
-out again; the *Faction* fields of the Characters and Races forms and of the map's inspector do the
-same from the other side (their *New faction…* entry opens this tab). See
+Who fights whom: the factions (an id and a name) and the **attitudes** between them, on the
+**World** page of the game's settings. A race, a character definition or a placed character joins
+one by its *Faction* field (a placed one's in the map's Inspector), which offers the factions in
+use. See
 [Characters › Factions](06-characters.md#factions).
 
 ## Materials
@@ -282,26 +261,17 @@ Ground materials painted on maps ([Maps › Painted ground](03-maps.md#painted-g
 | **Flow** | The texture drifts this many pixels per second (flowing water) |
 | **Animation** | How many **frames** the texture holds side by side (each one seamless; together up to 256 × 256 px) and how many are shown **per second**: rippling water, bubbling lava. Works together with *Flow* |
 
-Beside the settings a **preview** draws the material as on a map: a round and a square patch of it on
-a neighbour material (*Preview next to*; grass by default), with its edge, raggedness, rim, priority
-and flow. *Swap* puts the neighbour inside it instead, to see both sides of the edge. The preview
-follows every change at once, also strokes in the texture not saved yet.
-
-**Drawing the texture**: the pixel editor sits under the form with the texture open as one seamless
-picture. Copies of it are drawn around it (*Show copies around it*), and the pencil, line, rectangle
-and fill wrap across its edges, so a stroke leaving the picture on one side comes back on the other
-and the seams can be painted away where you see them. *Size* resizes it in steps of 8 px (growing
-repeats the picture). *Save* (Ctrl+S) writes the PNG and the maps show it. An **animated** material
-shows one frame at a time, with its copies: the strip of frames beside the tools picks the frame to
-draw (Copy / Paste carries one over to start the next), and a small preview plays them tiled.
-Raising *Animation* adds copies of the last frame to the texture (lowering it removes frames at
-the end): draw the differences, then save. A material without a
-texture gets one with **Draw a new one** (`materials/<id>.png`) and a size to start from (16 to 128 px,
-filled with the left colour).
+**Painting the texture**: a material's tab has the pixel editor at its top (*Paint*), with the
+texture as one seamless picture shown with part of itself again on every side: a stroke that leaves
+it on one side comes back on the other, so the seams can be painted away where you see them; *Left* /
+*Up* / *Down* / *Right* move a seam into the middle. An **animated** material shows one frame at a
+time: the frame painted is picked above the canvas. Saved (*Save picture*, or Ctrl+S), the ground of
+every open map shows it at once. A new material with its texture: *New…* › Ground material ›
+*from a file* (a `.png`) ([Art and sound › The pixel editor](10-art-and-sound.md#the-pixel-editor)).
 
 ## Scatter sets
 
-The props the Decorations tool's **scatter brush** places at random ([Maps › Decorations](03-maps.md#decorations)):
+The props a scatter set brushes on at random with the Place tool ([Maps › Scenery](03-maps.md#scenery)):
 
 | Setting | Meaning |
 |---|---|
@@ -325,19 +295,19 @@ portraits and parallax images all come from sprite sheets.
 |---|---|
 | **Image**, **Frame size** | The picture and the size of one frame (in image pixels) |
 | **Scale** | 1× normally; 2× (3×, 4×) for high-resolution art: the frames are drawn at half (a third, a quarter) of their pixel size, so 64 × 96 frames fill a 32 × 48 place ([Art and sound › High-resolution sprites](10-art-and-sound.md#high-resolution-sprites)) |
-| **Kind** | *Emotions* (every animation is an emotion shown over heads, [Events › Emotions over heads](07-events.md#emotions-over-heads)) or plain *Sprite* (characters are 3D models: *Database › 3D models*) |
-| **Animations** | Named frame ranges (imported from Aseprite tags, or made here) for the *Effect* and *Fly* actions |
+| **Kind** | *Emotions* (every animation is an emotion shown over heads, [Events › Emotions over heads](07-events.md#emotions-over-heads)) or plain *Sprite* (characters are 3D models) |
+| **Animations** | Named frame ranges (*+ Animation from this frame* at the top of the sheet's tab, or made here) for the *Effect* and *Fly* actions |
 | **Used by** | Which items, props and characters use the sheet |
 
-The pixel editor sits right below the form ([Art and sound](10-art-and-sound.md)).
+A sheet's tab paints it with *Paint* ([Art and sound](10-art-and-sound.md#the-pixel-editor)).
 
 ## Sounds
 
 Each sound has an id, a file (WAV or Ogg Vorbis, copied into `sounds/` by *Browse…*) and a volume.
-*Play* and *Stop* preview it. **Caption**: what it sounds like (*Door creaks*, *Dog barks*; for music
+Its tab plays it (*Play*, *Loop*, *Stop*). **Caption**: what it sounds like (*Door creaks*, *Dog barks*; for music
 the track's name), shown to players who turn on *Captions* (Options › Accessibility) while it plays,
 translated like dialogs; empty for sounds that need none (footsteps, menu blips). Sounds are used by the *Play sound* and *Play music* actions, a map's
-music, the game's built-in sounds (*Database › Project › Game sounds*) and scripts. See
+music, the game's built-in sounds (the *Sound* page) and scripts. See
 [Art and sound › Sounds and music](10-art-and-sound.md#sounds-and-music).
 
 ## Fonts
@@ -345,7 +315,7 @@ music, the game's built-in sounds (*Database › Project › Game sounds*) and s
 Fonts the game can draw its texts with (TTF or OTF, copied into `fonts/` by *Browse…*). Without
 one, the game uses its built-in pixel font, which has only Latin letters (with accents and
 umlauts, Latin-1); a font of your own brings every script it has glyphs for: Cyrillic, Greek,
-Japanese, Chinese, Korean. Choose which texts use which font under *Database › Project › Fonts*.
+Japanese, Chinese, Korean. Choose which texts use which font on the *Look & feel* page.
 
 | Field | Meaning |
 |---|---|
@@ -358,13 +328,13 @@ Japanese, Chinese, Korean. Choose which texts use which font under *Database ›
 
 Below the form a sample shows the font with Latin, Cyrillic, Greek, Japanese, Chinese and Korean
 text, and how many characters it has. The fonts the project uses also become fallbacks of the
-editor's own font, so its forms show those scripts too. *Edit › Problems* warns when a text of the game or of one of
+editor's own font, so its forms show those scripts too. The project check (Problems) warns when a text of the game or of one of
 its translations has characters no font of the project covers (players would see empty boxes).
 
 ## UI skins
 
 A UI skin restyles the game's windows and menus, the dialog box, the HUD and the toasts without
-code. Pick the one the game uses under *Database › Project › Look*; without one the game has its
+code. Pick the one the game uses on the *Look & feel* page; without one the game has its
 built-in dark blue look. The example uses the **Wood** skin, and the starter library adds **Stone**
 and **Classic** (the built-in look as a skin, to copy and change).
 
@@ -398,15 +368,14 @@ bars. **Colour names for dialogs** add names to the dialog colour codes ([Events
 codes](07-events.md#message-codes)): a skin that defines *ember* lets dialogs write
 `{c:ember}…{/c}`, and a built-in name (*gold*, *red*…) can get another shade.
 
-At the top of the form, a preview shows a menu, the HUD, a toast and a dialog box with a name
-drawn by the game itself with this skin and the project's fonts. *Edit › Problems* warns about a
-picture without a sprite sheet, a corner larger than half its picture, and a project skin that
-doesn't exist.
+Play (F5) shows it on the game's own windows. The project check (Problems) warns about a picture
+without a sprite sheet, a corner larger than half its picture, and a project skin that doesn't
+exist.
 
 ## Title screen and menus
 
-*Database › Project › Title screen* designs the screen players see first, *Pause menu* the menu
-Esc opens. Without settings both are the built-in ones.
+The **Title & menus** page designs the screen players see first (*Title*) and the menu Esc opens
+(*Menu*). Without settings both are the built-in ones.
 
 - **Background**: *A map* (empty = the start map) with the tile the **camera** looks at, the
   **hour** it shows (the clock stands still there) and **Drift** (the camera wanders slowly), or *A
@@ -416,8 +385,8 @@ Esc opens. Without settings both are the built-in ones.
 - **Music**: empty = the background map's music. **Darken**: how much the background is darkened
   behind the menu (built in: 55 % over a map, 20 % over a picture).
 - **Menu**: left, centre or right, on a panel or floating over the background.
-- **Entries**: *Change…* starts from the built-in ones; then move them up and down, remove them, and
-  *Add entry* adds *New game*, *Continue*, *Load game*, *Options*, *Achievements* (shown only when the
+- **Entries**: a list (empty = the built-in ones); move them up and down, remove them, and
+  *+ Add* adds *New game*, *Continue*, *Load game*, *Options*, *Achievements* (shown only when the
   game has achievements), *Credits* and *Exit* (left out of web games) to the title screen;
   *Resume*, *Photo mode*, *Save game*, *Load game*, *Options*, *Achievements*, *Credits*, *Save and
   quit* and *Quit* to the pause menu. A **custom entry** has a label (translated like dialogs), a
@@ -427,15 +396,14 @@ Esc opens. Without settings both are the built-in ones.
   cut-scene) runs once the game starts; *Scroll text* is the exception: it rolls over the title
   screen at once. The example's title screen has a custom *Credits* entry that runs
   `roll_credits()`, which rolls its credits up the screen with `scroll_text`.
-- **Credits**: the text of the Credits page, which a menu with a *Credits* entry shows (scrolling
+- **Credits** (on the *Game* page): the text of the Credits page, which a menu with a *Credits* entry shows (scrolling
   with Up / Down or the wheel). It is translated like dialogs.
 - **Uses SRD 5.1 content**: the game uses SRD races, backgrounds or stat blocks; the Credits page
   then ends with the SRD's attribution and `srd_attribution()` returns it (the example's
-  `roll_credits` shows it through a `{credits_srd}` text variable). *Edit › Problems* asks for it
+  `roll_credits` shows it through a `{credits_srd}` text variable). The project check asks for it
   when the project has SRD content ([The SRD 5.1 rules](19-srd-rules.md#the-licence-what-your-game-needs)).
 
-A sketch at the top shows the background, the logo and the entries in their place; **Play title
-screen** play-tests the game from its real title screen. *Edit › Problems* reports a missing map,
+**F5** plays the game from its real title screen. The project check (Problems) reports a missing map,
 picture, logo, music or script function, a title screen without *New game*, and a *Credits* entry
 without credits text.
 
@@ -479,7 +447,7 @@ active*… After the last step the quest is completed.
 **Quest objects**: placed items, props and characters that only exist for the quest (a map and
 their name there), e.g. the raided cart and its flour sacks, or a lost locket. They are hidden
 until the quest is started, then there once while it is active: taken items stay taken. One the
-player never saw stays hidden once the quest is over. *Edit › Problems* reports an object that
+player never saw stays hidden once the quest is over. The project check reports an object that
 isn't placed under that name.
 
 **Rewards**, given when the quest is completed, whatever completes it: items with counts,
@@ -490,8 +458,8 @@ more: it runs with the giver as `self`, as do the steps' actions while the giver
 journal shows the giver and the rewards.
 
 A character offers its quests **after** its own *Interact* triggers (a first greeting, a shop's
-welcome), not while it lies in bed; one with a quest to offer has a **!** over its head. Its form
-in *Database › Characters* lists the quests it gives.
+welcome), not while it lies in bed; one with a quest to offer has a **!** over its head. The
+character's *Used by* lists the quests it gives.
 
 Triggers and scripts still drive quests too: the **Quest** action (*start*, *advance to the next
 stage*, *set stage*, *complete*, *fail*), the **Quest** condition (*not started*, *active*,
@@ -501,7 +469,7 @@ steps' actions and the rewards run whichever way a quest moves on. See
 
 ## Spells, recipes and achievements
 
-A **spell** (*Database › Spells*) has a level (0 = a cantrip), school, casting time (action, bonus
+A **spell** has a level (0 = a cantrip), school, casting time (action, bonus
 action, reaction or minutes), range (self, touch, feet, sight), an **area** (sphere, cylinder, cube,
 cone or line and its size), components, a duration in rounds with **concentration** and **ritual**,
 the **classes** whose list has it, **story only** (only events and scripts cast it), its **parts**
@@ -516,10 +484,10 @@ and achievements belong to the game systems they drive: [Spellcasting](09-gamepl
 
 ## Animations
 
-![The Fire animation in its form](../images/editor-animations.webp)
+![The Fire animation on its stage, above its form](../images/editor-animations.webp)
 
 An animation is what shows where something lands: a sword's hit, a spell's impact, a potion
-drunk, a class action. The *Animations* tab (`defs/animations.ron`) builds them from four kinds of
+drunk, a class action. An animation (`defs/animations.ron`) is built from four kinds of
 parts, each at a moment in seconds from the start:
 
 - **Cels:** frames of a sprite sheet (all, or first to last) at a speed, played once or more,
@@ -533,9 +501,13 @@ parts, each at a moment in seconds from the start:
   turn screen effects off).
 - **Sounds** at their moments.
 
-The form shows the parts as rows of a timeline next to a **preview** on a straw target dummy:
-*Play* (with *Loop*), or click the ruler or drag the slider to see a moment. Click a row to edit
-it below; *+ Cel*, *+ Particles*, *+ Flash* and *+ Sound* add one at the playhead.
+An animation's tab shows it at the top on a **stage**: a straw target dummy with the animation
+played over it the way the game draws it, twice as big (the cels' frames, the particles, a
+flash tinting the dummy or the whole stage). *Play*, *Pause*, *From the start* and *Loop*; beside
+them a **strip of time** with a row for each kind of part (pictures, particles, flashes, sounds:
+a bar for what lasts, a mark with its name for a sound); click or drag on it to look at a
+moment. The sounds aren't played there. The parts are edited in the form below (each list with
+*+ Add*); a change shows on the stage at once.
 
 Where they play:
 
@@ -578,17 +550,25 @@ quests.
 
 ## Cut-scenes
 
-The *Cut-scenes* tab holds cut-scenes made on a timeline: tracks for actors, the camera, dialogs,
-sound and the screen, each with actions at moments in seconds. *Edit timeline on the map* opens
-the timeline under the map view, *Play* play-tests it. [Events › Cut-scene
+A cut-scene is made on a timeline: tracks for actors, the camera, dialogs, sound and the screen,
+each with actions at moments in seconds. Its tab shows the timeline above its form; its map is
+shown beside it with everyone where they are at the playhead, and *Play from here* plays it in
+the Play tab from the playhead. [Events › Cut-scene
 timelines](07-events.md#cut-scene-timelines) describes them. Cut-scenes belong to the project's
 story: they aren't sent to the asset library.
 
-## Project
+## The game's settings
 
-*Database › Project* holds the game's own settings:
+The game's own settings are pages under *Game* in the Project browser, each a tab: **Game** (its
+name, start map and spawn, pixel scale, credits), **Hero & party** (the player's character and
+portrait, the character creator, the bag, companions, levels), **Rules** (the SRD's options,
+magic), **World** (the day's length, the hour new games start at, factions, the maps' titles),
+**Look & feel** (the UI skin, fonts, dialog portraits, emotions, facings), **Title & menus** (the
+title screen, the pause menu, the action bar), **Sound** (the game's own sounds, battle music),
+**Languages** ([Languages](12-languages.md)), **Scripts & plugins** (hooks and plugins) and
+**Publishing** ([Publishing](14-publishing.md)). What they hold:
 
-| Section | Settings |
+| Setting | |
 |---|---|
 | **Project** | Name; start map and start spawn; pixel scale; inventory slots; the clock's **day length** (real minutes per in-game day, default 24; 0 = time stands still) and the hour **new games start at** |
 | **Player character** | The character definition the player is, and the **player portrait** |

@@ -4,7 +4,7 @@
 //! Enter / E) to buy or sell one; hold Shift for up to ten. Up/Down select, Left/Right or
 //! Tab switch sides, the mouse wheel moves the selection up / down, Esc closes.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::input::{self, Act};
 use super::ui::{panel, ListClick, ScrollList, PAD};

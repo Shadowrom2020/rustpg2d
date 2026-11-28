@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 /// A colour over the screen, on its way from one colour to another (RGBA, 0 to 1).
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Overlay {
     pub from: [f32; 4],
     pub to: [f32; 4],
@@ -38,6 +39,7 @@ impl Overlay {
 
 /// The saved screen colours.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ScreenFx {
     /// *Tint screen*: over the lit world and the pictures, under the HUD.
     #[serde(default, skip_serializing_if = "Option::is_none")]

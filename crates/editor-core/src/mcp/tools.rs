@@ -1,0 +1,1056 @@
+//! The tool catalogue agents see: one thin `#[tool]` per tool that turns its parameters into a
+//! [`Call`] for the main thread. The parameter structs' doc comments become the JSON schema
+//! descriptions, so they are written for the agent. Also the prompts.
+//!
+//! Conventions (also in `Documentation/manual/13-ai-agents.md`): coordinates are tiles (origin top-left, x right,
+//! y down; an entity stands on the tile of its feet); rects are `x, y, w, h`; `map` omitted means
+//! the map open in the editor; definitions, entities, zones and triggers are JSON in the serde
+//! form of the engine's types (externally tagged enums), so what `get_*` returns is valid input.
+
+use std::collections::BTreeMap;
+
+use rmcp::handler::server::wrapper::Parameters;
+use rmcp::model::{CallToolResult, Prompt, PromptArgument};
+use rmcp::{tool, tool_router, ErrorData};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+
+use super::exec::{Reply, ShotSpec};
+use super::server::Handler;
+
+/// The parameters abbreviated for the call log.
+fn summary<T: Serialize>(p: &T) -> String {
+    let mut v = serde_json::to_value(p).unwrap_or(Value::Null);
+    if let Value::Object(m) = &mut v {
+        m.retain(|_, v| !v.is_null());
+    }
+    let s = serde_json::to_string(&v).unwrap_or_default();
+    if s.chars().count() > 80 {
+        format!("{}…", s.chars().take(79).collect::<String>())
+    } else {
+        s
+    }
+}
+
+// ---------------------------------------------------------------- parameter structs
+
+#[derive(Debug, Default, Serialize, Deserialize, JsonSchema)]
+pub struct UndoParams {
+    /// Steps to undo / redo (default 1, at most 50).
+    pub steps: Option<u32>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct PatchParams {
+    /// A JSON merge patch (RFC 7396): fields to change; `null` removes a field.
+    pub patch: Value,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize, JsonSchema)]
+pub struct GetMapParams {
+    /// Map name; omitted = the map open in the editor.
+    pub map: Option<String>,
+    /// Region (tiles). Omitted = the whole map when it has at most 80x50 tiles.
+    pub x: Option<u32>,
+    pub y: Option<u32>,
+    pub w: Option<u32>,
+    pub h: Option<u32>,
+    /// Print the collision grid (default true).
+    pub collision: Option<bool>,
+    /// List the entities and zones in the region (default true).
+    pub objects: Option<bool>,
+    /// Print the painted ground: the material in the middle of each tile (default true).
+    pub ground: Option<bool>,
+    /// Print the map's own triggers as JSON (what set_triggers with owner {"map":true} replaces; default false).
+    pub triggers: Option<bool>,
+}
+
+/// A stroke of the Ground tool: points in tiles (fractions allowed; 0.5 = a tile's middle).
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct GroundLine {
+    pub points: Vec<[f32; 2]>,
+    /// Width in tiles (default 1).
+    pub width: Option<f32>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct PaintGroundParams {
+    pub map: Option<String>,
+    /// Material id (list_defs materials); "" or "-" erases (no ground).
+    pub material: String,
+    /// Round dabs [x, y, radius] in tiles.
+    pub circles: Option<Vec<[f32; 3]>>,
+    /// Strokes through points (roads, streams).
+    pub lines: Option<Vec<GroundLine>>,
+    /// Filled polygons, each a list of [x, y] points in tiles (fields, plazas, lakes).
+    pub polygons: Option<Vec<Vec<[f32; 2]>>>,
+    /// Filled rectangles [x, y, w, h] in tiles (floors, carpets, fields; fractions allowed down to
+    /// the 8 px cells).
+    pub rects: Option<Vec<[f32; 4]>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct PlaceObjectsParams {
+    pub map: Option<String>,
+    /// Prop id (list_defs props).
+    pub prop: String,
+    /// Feet positions [x, y] in tiles (fractions allowed; [3.5, 4] = the middle of tile 3's bottom edge… of row 3).
+    pub points: Option<Vec<[f32; 2]>>,
+    /// A straight line [x1, y1, x2, y2] (tiles) of the prop on its grid (walls, fences).
+    pub line: Option<[f32; 4]>,
+    /// "Flat" (under characters), "Sorted" (default: by its feet) or "Above" (over everyone).
+    pub layer: Option<String>,
+    /// Mirror them (default false).
+    pub flip: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ScatterParams {
+    pub map: Option<String>,
+    /// Scatter set id (list_defs scatter).
+    pub set: String,
+    /// Brush dabs [x, y, radius] in tiles.
+    pub circles: Vec<[f32; 3]>,
+    /// Random seed (the same seed scatters the same way).
+    pub seed: Option<u64>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct EraseObjectsParams {
+    pub map: Option<String>,
+    /// Areas [x, y, radius] in tiles: the decorations whose feet lie inside go.
+    pub circles: Vec<[f32; 3]>,
+    /// Only decorations of this prop (default: all).
+    pub prop: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct FillGroundParams {
+    pub map: Option<String>,
+    /// Material id; "" or "-" erases.
+    pub material: String,
+    /// Where to start (tiles, fractions allowed): the connected area of the same material there.
+    pub x: f32,
+    pub y: f32,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ObjectParams {
+    /// Map name; omitted = the open map.
+    pub map: Option<String>,
+    /// The entity's or zone's uid (from get_map).
+    pub uid: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct GenerateArtParams {
+    /// "model" (a rigged, animated 3D character: a person), "creature" (an unrigged 3D model of an animal or creature; animate it with fit_rig) "gear" (the 3D model of the existing item `id`: with a description from a clean picture drawn first, its icon as the reference; without one from the icon) "clips" (more animations, `extras`, for the existing rigged 3D model `id`: its file rigged again, the clips fitted to its skeleton; no description needed) or "prop" (the 3D model of the existing prop `id`: a concept from its picture and the description, then a model stood on the ground and sized to its hitbox); pictures: "icon", "portrait" or "image".
+    pub kind: String,
+    /// Id the asset will get (letters, digits, _).
+    pub id: String,
+    /// What it looks like: build, colours, clothes, what it holds (characters), the object (icons).
+    pub description: String,
+    /// 3D characters: "none", "slash", "chop", "thrust", "bow", "club" or "cast" (default none).
+    pub attack: Option<String>,
+    /// Portraits: the character id whose dialog portrait it becomes when applied.
+    pub portrait_for: Option<String>,
+    /// 3D characters ("model"): a woman (her sitting clip; the model is marked as a woman's).
+    pub female: Option<bool>,
+    /// 3D characters ("model"): extra animations, 3 credits each: "craft" (working at an anvil), "farm" (bending to pick crops), "chop" (chopping wood), "sleep" (lying in a bed). "clips": the animations to add, these or the weapon animations "attack_1h", "attack_2h", "attack_thrust", "attack_bow", "attack_cast", "attack_unarmed", "idle_1h", "idle_2h", "block_shield", "block_weapon" and "sneak".
+    pub extras: Option<Vec<String>>,
+    /// 3D characters and creatures ("model", "creature"): a figure sheet id whose standing frames (front, side, back) are modelled, instead of drawing a turnaround picture first.
+    pub from: Option<String>,
+    /// Must equal the cost in credits that art_settings / a refused call names: the creator's money.
+    pub confirm_credits: Option<u32>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ArtJobParams {
+    /// The job number (art_jobs lists them).
+    pub job: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ArtApplyParams {
+    pub job: u32,
+    /// Id of the new asset (default: the job's id).
+    pub id: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ArtRedoParams {
+    pub job: u32,
+    /// "walk", "attack" or "picture"; in 3D jobs "views", "model", "rig" or "clips" (the steps after it are made again too).
+    pub picture: String,
+    /// Must equal the cost a refused call names (one picture; in 3D jobs the step and the steps after it).
+    pub confirm_credits: Option<u32>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ViewImageParams {
+    /// "sheet" or "material".
+    pub kind: String,
+    /// The sprite sheet's or material's id.
+    pub id: String,
+    /// Draw cell borders and frame indices over a sheet's image (default true).
+    pub grid: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct EditFramesParams {
+    /// The sprite sheet's id.
+    pub sheet: String,
+    /// "copy_row", "clear_row", "duplicate" (a frame into the next column), "nudge" (move a
+    /// frame's pixels), "replace_color".
+    pub op: String,
+    /// duplicate / nudge / replace_color (scope "frame"): the frame (row * columns + column).
+    pub frame: Option<u32>,
+    /// copy_row: the source row; clear_row / replace_color (scope "row"): the row.
+    pub row: Option<u32>,
+    /// copy_row: the target row.
+    pub to_row: Option<u32>,
+    /// nudge: pixels right / down (negative: left / up).
+    pub dx: Option<i32>,
+    pub dy: Option<i32>,
+    /// replace_color: the colour to replace and the new one, [r, g, b].
+    pub from: Option<[u8; 3]>,
+    pub to: Option<[u8; 3]>,
+    /// replace_color: "frame", "row" or "sheet" (default).
+    pub scope: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ImportModelParams {
+    /// A `.glb` file on this computer (absolute path): copied into the project's models/.
+    pub path: String,
+    /// Add its clips to this existing model instead of making a new one.
+    #[serde(default)]
+    pub clips_for: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ModelInfoParams {
+    /// The 3D model's id.
+    pub model: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ModelSheetParams {
+    /// The 3D model's id: a figure, or a piece (shown on the first figure it fits).
+    pub model: String,
+    /// Animations, a row each (default: idle, walk, attack).
+    pub anims: Option<Vec<String>>,
+    /// Facings in column order: down, left, right, up (default: all four).
+    pub facings: Option<Vec<String>>,
+    /// Moments of each animation per facing, 1-8 (default 4).
+    pub moments: Option<u32>,
+    /// Pieces to wear: slot -> a piece's id or style ("-" = none). Other slots keep the figure's own.
+    pub parts: Option<std::collections::BTreeMap<String, String>>,
+    /// Worn items (ids): those with a "Shown as" style change the figure.
+    pub worn: Option<Vec<String>>,
+    /// The weapon it holds (an item id).
+    pub weapon: Option<String>,
+    /// Its left-hand item (an item id).
+    pub offhand: Option<String>,
+    /// The backpack on its back (an item id).
+    pub back: Option<String>,
+    /// Colours per colour feature: name -> "RRGGBB".
+    pub colors: Option<std::collections::BTreeMap<String, String>>,
+    /// Enlargement, 1-4 (default 2).
+    pub zoom: Option<u32>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ModelCheckParams {
+    /// The 3D model's id.
+    pub model: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct KitBuildParams {
+    /// The kit models to build (their ids); none = the whole kit.
+    pub ids: Option<Vec<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct FitRigParams {
+    /// The unrigged 3D model (an animal, a monster).
+    pub model: String,
+    /// A rigged model whose skeleton and clips it takes: the starter library's rig_quadruped, rig_bird, rig_flyer, rig_blob, rig_floating, or any rigged model; "-" removes the template. Omit to keep it.
+    #[serde(default)]
+    pub template: Option<String>,
+    /// Turns the model about its up axis first (degrees) so it faces the front like the template. Omit to keep.
+    #[serde(default)]
+    pub turn: Option<f32>,
+    /// Joints moved after the fit (replaces the list): offsets in parts of the model's height, x right, y up, z front. Omit to keep.
+    #[serde(default)]
+    pub joints: Option<Vec<JointNudgeParam>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ShareClipsParams {
+    /// The rigged model that gets the animations.
+    pub model: String,
+    /// The rigged model whose animations it takes (same bone names, e.g. both rigged by Meshy).
+    pub from: String,
+    /// The animations to copy (e.g. "attack_2h", "block_shield"); omit for every animation whose clip is in one of `from`'s clip files.
+    #[serde(default)]
+    pub anims: Vec<String>,
+    /// Also replace animations `model` maps already (default: they keep their clips).
+    #[serde(default)]
+    pub replace: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct JointNudgeParam {
+    pub joint: String,
+    pub offset: [f32; 3],
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct SheetColorsParams {
+    /// The sprite sheet's id.
+    pub sheet: String,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize, JsonSchema)]
+pub struct ScreenshotParams {
+    /// Map name; omitted = the open map.
+    pub map: Option<String>,
+    /// Region (tiles) to frame; omitted = the whole map.
+    pub x: Option<u32>,
+    pub y: Option<u32>,
+    pub w: Option<u32>,
+    pub h: Option<u32>,
+    /// Zoom (1 = 32 px per tile); omitted = fit the region into the canvas.
+    pub zoom: Option<f32>,
+    /// Show the tile grid / collision overlay / zones and edges (defaults: as the person set them).
+    pub grid: Option<bool>,
+    pub collision: Option<bool>,
+    pub zones: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct CreateMapParams {
+    /// Map name: letters, digits, '_' and '-'.
+    pub name: String,
+    pub width: u32,
+    pub height: u32,
+    /// Fill the ground with this material (list_defs materials).
+    pub fill: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct SetCollisionParams {
+    pub map: Option<String>,
+    pub cells: Option<Vec<[i32; 2]>>,
+    pub rect: Option<[u32; 4]>,
+    /// "auto" (from the tiles), "solid" or "walkable".
+    pub value: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct RectParams {
+    pub map: Option<String>,
+    pub x: u32,
+    pub y: u32,
+    pub w: u32,
+    pub h: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ResizeParams {
+    pub map: Option<String>,
+    pub width: u32,
+    pub height: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct PlaceEntityParams {
+    pub map: Option<String>,
+    /// "prop", "character" or "item".
+    pub kind: String,
+    /// Definition id.
+    pub def: String,
+    /// Tile the entity stands on.
+    pub x: i32,
+    pub y: i32,
+    /// Name scripts and triggers refer to (optional).
+    pub name: Option<String>,
+    /// "down", "left", "right" or "up".
+    pub facing: Option<String>,
+    /// A prop's state (default: the definition's).
+    pub state: Option<String>,
+    /// Stack size of an item pickup.
+    pub count: Option<u32>,
+    /// Further fields as a merge patch on the entity JSON (triggers, container, shop, schedule, …).
+    pub patch: Option<Value>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct UpdateParams {
+    pub map: Option<String>,
+    pub uid: u32,
+    /// JSON merge patch on the object as get_object returns it (`uid` can't change; entities take `tile_x` / `tile_y`).
+    pub patch: Value,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct AddZoneParams {
+    pub map: Option<String>,
+    pub name: String,
+    /// ZoneKind JSON: "Spawn", "Trigger", {"Portal":{"target_map":..,"target_spawn":..}}, {"Spawner":{"character":..,"count":..,"respawn":"Never"|"OnEnter"|{"After":{"seconds":..}}}}, {"Transition":{"target_map":..,"target_zone":..}}, {"FishingSpot":{"rod":..}}, {"Ambience":{"sound":..,"volume":0.6,"fade":4.0}} (a looping sound, full inside, fading out over `fade` tiles), {"Encounter":{"monsters":[{"character":..,"count":..}],"difficulty":"Fixed"|"Easy"|"Medium"|"Hard"|"Deadly","respawn":..}} (the listed group, or with a difficulty a group picked from the list within the party's XP budget; the SRD's monsters are library characters: library_add them first), {"Drop":{"height_ft":20,"target_map":"","target_spawn":"bottom"}} (a pit or ledge: the hero falls 1d6 per 10 ft and lands on the nearest spawn of that name, "" map = this one, "" spawn = the tile past the zone; a running hero jumps a narrow one; set its tiles walkable with set_collision). {"Trap":{"trap":{"detect_dc":15,"detect":"Perception","disarm_dc":0,"fall_ft":10,"text":"The floor gives way!"}}} (a hidden trap, here the SRD's hidden pit; fields: detect_dc (0 = never found), detect "Perception"|"Investigation", disarm_dc (DEX with Thieves' Tools, 0 = can't be), attack (a bonus against the hero's AC), save {"ability":"Dex","dc":15,"half":true}, damage "4d10", damage_type, then_save / then_damage / then_type (a second roll after a hit: poison), condition, fall_ft, text, reset "Once"|{"After":{"hours":24.0}}; `preset` only names the SRD sample the editor filled it from; props carry the same as `trap`).
+    pub kind: Value,
+    pub x: u32,
+    pub y: u32,
+    pub w: u32,
+    pub h: u32,
+    /// Triggers (JSON array, see events_reference).
+    pub triggers: Option<Value>,
+    /// Loot table of a spawner / fishing spot (JSON array of {item, chance, min, max}).
+    pub loot: Option<Value>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct LinkMapsParams {
+    pub map: Option<String>,
+    /// Transition rect on `map` [x, y, w, h].
+    pub rect: [u32; 4],
+    pub to_map: String,
+    /// Transition rect on `to_map`.
+    pub to_rect: [u32; 4],
+    /// Zone name on both sides (default: made from the map names).
+    pub name: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct TriggersParams {
+    pub map: Option<String>,
+    /// Who owns the triggers: {"map":true}, {"entity":UID}, {"zone":UID} or {"def":{"kind":"item"|"prop"|"character","id":..}}.
+    pub owner: Value,
+    /// The complete trigger list (JSON, see events_reference).
+    pub triggers: Vec<Value>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct AddTriggerParams {
+    pub map: Option<String>,
+    /// See set_triggers.
+    pub owner: Value,
+    /// One trigger (JSON).
+    pub trigger: Value,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct MapSettingsParams {
+    pub map: Option<String>,
+    /// Merge patch over {background: [r,g,b], music: sound id, battle_music: null (the project's battle music) | "" (none) | sound id, lighting: {mode: "Bright"|"Outdoor"|"Dark", darkness}, fog: bool, weather: {kind: "None"|"Rain"|"Snow"|"Fog", intensity}, parallax: [..], edges: {north|south|east|west: {target_map, offset, depth} | null}}.
+    pub patch: Value,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct PlaceStructureParams {
+    pub map: Option<String>,
+    /// Structure id (list_defs structures).
+    pub structure: String,
+    /// Top-left tile.
+    pub x: i32,
+    pub y: i32,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct RenameParams {
+    /// "sheet", "item", "prop", "character", "sound", "map", "structure", "skill", "spell", "recipe", "material", "scatter" or "font".
+    pub kind: String,
+    pub old: String,
+    pub new: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ListDefsParams {
+    /// "sheets", "items", "props", "characters", "sounds", "quests", "structures", "skills", "spells", "recipes", "achievements", "races", "models", "materials", "scatter" or "fonts".
+    pub kind: String,
+    /// Only ids / names containing this text.
+    pub filter: Option<String>,
+    /// First row of the page (pages have 200 rows).
+    pub offset: Option<usize>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct DefParams {
+    /// Definition kind (see list_defs).
+    pub kind: String,
+    pub id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct DefTemplateParams {
+    pub kind: String,
+    /// Id of the new definition (default "new_<kind>").
+    pub id: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct UpsertDefParams {
+    pub kind: String,
+    /// The definition as JSON (get_def / def_template shape). With `merge`, only the fields to change (plus `id`).
+    pub def: Value,
+    /// Merge into the existing definition instead of replacing it (default false).
+    pub merge: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct DeleteDefParams {
+    pub kind: String,
+    pub id: String,
+    /// Delete even when maps, scripts or other definitions still use it (default false).
+    pub force: Option<bool>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize, JsonSchema)]
+pub struct EventsRefParams {
+    /// "events", "conditions" or "actions" (default: all three).
+    pub what: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ReadScriptParams {
+    /// File name in scripts/ (e.g. "main.rhai").
+    pub file: String,
+    /// Line range (1-based, inclusive); default: the whole file.
+    pub from_line: Option<usize>,
+    pub to_line: Option<usize>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct WriteScriptParams {
+    /// File name in scripts/ ("*.rhai"; created if new).
+    pub file: String,
+    /// The whole file's text.
+    pub text: String,
+    /// Overwrite even if the person has unsaved edits to this file open in the editor (default false).
+    pub force: Option<bool>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize, JsonSchema)]
+pub struct CheckScriptParams {
+    /// One file; default: all scripts.
+    pub file: Option<String>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize, JsonSchema)]
+pub struct ProblemsParams {
+    /// Only "error" or "warning" entries; default: both.
+    pub severity: Option<String>,
+    /// Only one area: "project", "definitions", "maps", "scripts" or "translations"; default: all.
+    pub area: Option<String>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize, JsonSchema)]
+pub struct FilterParams {
+    /// Only entries containing this text.
+    pub filter: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct LangParams {
+    /// Language code like "de", "fr", "pt-br".
+    pub code: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ReadTranslationParams {
+    pub code: String,
+    /// Only texts without a translation yet (default false).
+    pub missing_only: Option<bool>,
+    pub offset: Option<usize>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct WriteTranslationParams {
+    pub code: String,
+    /// Original text to translation (merged into the file; other entries stay).
+    pub texts: BTreeMap<String, String>,
+    /// Translations of the game runner's own texts ("English text": "translation"; `{}` keeps a value).
+    pub ui: Option<BTreeMap<String, String>>,
+    /// The language's name in its own language (e.g. "Deutsch").
+    pub name: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct PlayParams {
+    /// Autoplay commands separated by ';' (see the autoplay resource), e.g. "wait 2; press e; wait 2; status; shot a". `quit` is appended.
+    pub script: String,
+    /// Start on this map (default: the open map).
+    pub map: Option<String>,
+    /// Spawn zone to start at; else `pos`; else the map's "start" spawn or its centre.
+    pub spawn: Option<String>,
+    /// Tile to start at [x, y].
+    pub pos: Option<[i32; 2]>,
+    /// Start a new game from the project's start map instead (default false).
+    pub from_start: Option<bool>,
+    /// Show the title screen first (default false: the game starts right away).
+    pub title: Option<bool>,
+    /// Language code for the run.
+    pub lang: Option<String>,
+    /// Seconds before the game is stopped (default 60, at most 300).
+    pub timeout_secs: Option<u32>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize, JsonSchema)]
+pub struct LibraryListParams {
+    /// "sheet", "item", "prop", "character", "sound", "structure", "skill", "spell", "recipe", "material", "scatter" or "font"; default all.
+    pub kind: Option<String>,
+    pub filter: Option<String>,
+    pub offset: Option<usize>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct AssetId {
+    pub kind: String,
+    pub id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct LibraryAddParams {
+    /// Library assets to copy into the project (with everything they need).
+    pub assets: Vec<AssetId>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct LibrarySendParams {
+    /// Project assets to send to the asset library (with everything they need).
+    pub assets: Vec<AssetId>,
+    /// Replace the library's version of assets it already has (same id: definition, files, script functions) instead of adding the project's version under a new id. Default false.
+    pub replace: Option<bool>,
+    /// Leave the triggers of items, props and characters that run the project's script functions behind (story scripts stay with the game); skills' and spells' functions still travel. Default false.
+    pub drop_script_triggers: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct WriteAssetParams {
+    /// Project-relative path of the file: under sprites/, materials/ or sounds/, ending in .png, .wav or .ogg, or under fonts/ ending in .ttf / .otf (a font) or .txt (its licence). An existing file is replaced.
+    pub path: String,
+    /// The file's contents in Base64 …
+    pub base64: Option<String>,
+    /// … or the absolute path of a file on this computer to copy.
+    pub source: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct CaptureStructureParams {
+    /// Map to capture from (default: the open map).
+    pub map: Option<String>,
+    /// Top-left tile and size of the region.
+    pub x: u32,
+    pub y: u32,
+    pub w: u32,
+    pub h: u32,
+    /// Id of the new structure.
+    pub id: String,
+    pub name: Option<String>,
+    /// Category in the editor's Structures palette (e.g. "Buildings").
+    pub category: Option<String>,
+    /// Include the ground (default true; false for things that sit on any ground, e.g. a market stall).
+    pub ground: Option<bool>,
+}
+
+// ---------------------------------------------------------------- the tools
+
+type R = Result<CallToolResult, ErrorData>;
+
+/// The tool catalogue, once: each tool's description (its doc comment) and annotations, its
+/// name, its [`Call`] variant with the parameter type, the expression the editor's main thread
+/// runs for it (`ed` is the [`Workspace`](crate::workspace::Workspace), `p` the parameters) and, where the
+/// generic one won't do, the summary for the call log. This generates the `#[tool]` methods of
+/// [`Handler`], the [`Call`] enum, [`Call::name`] and `Workspace::mcp_exec`, so a new tool is one
+/// entry here plus its `mcp_*` function.
+macro_rules! mcp_tools {
+    (@summary $p:ident) => {
+        summary(&$p)
+    };
+    (@summary $p:ident, $s:expr) => {
+        $s
+    };
+    (
+        plain ( $ed:ident ) { $( $(#[$pa:meta])* $pname:ident : $pvar:ident => $pexec:expr ; )* }
+        with_params { $( $(#[$wa:meta])* $wname:ident : $wvar:ident ( $pb:ident : $wparams:ty ) => $wexec:expr $(, summary = $wsum:expr)? ; )* }
+    ) => {
+        /// A tool call (the parameter structs are those above), executed on the main thread.
+        pub enum Call {
+            $( $pvar, )*
+            $( $wvar($wparams), )*
+        }
+
+        impl Call {
+            /// The tool's name (the call log).
+            pub fn name(&self) -> &'static str {
+                match self {
+                    $( Call::$pvar => stringify!($pname), )*
+                    $( Call::$wvar(_) => stringify!($wname), )*
+                }
+            }
+        }
+
+        #[tool_router(vis = "pub(crate)")]
+        impl Handler {
+            $(
+                $(#[$pa])*
+                async fn $pname(&self) -> R {
+                    self.run(Call::$pvar, String::new()).await
+                }
+            )*
+            $(
+                $(#[$wa])*
+                async fn $wname(&self, Parameters($pb): Parameters<$wparams>) -> R {
+                    let s = mcp_tools!(@summary $pb $(, $wsum)?);
+                    self.run(Call::$wvar($pb), s).await
+                }
+            )*
+        }
+
+        impl crate::workspace::Workspace {
+            /// Runs a tool call on the main thread (between frames, from `mcp_drain`).
+            pub fn mcp_exec(&mut self, call: Call) -> Result<Reply, String> {
+                let $ed = self;
+                match call {
+                    $( Call::$pvar => $pexec, )*
+                    $( Call::$wvar($pb) => $wexec, )*
+                }
+            }
+        }
+    };
+}
+
+mcp_tools! {
+plain(ed) {
+    /// The open project at a glance: name, start map, player, languages, every map with its size
+    /// and spawns, definition counts, scripts, the editor's state and the project check. Start here.
+    #[tool(annotations(read_only_hint = true))]
+    project_info: ProjectInfo => ed.mcp_project_info();
+    /// The editor's state: open map and selection, unsaved changes, undo / redo, open script, last status message.
+    #[tool(annotations(read_only_hint = true))]
+    editor_state: EditorState => ed.mcp_editor_state();
+    /// Saves the open map, the definitions and pixel art (write tools already save; use after undo / redo).
+    #[tool(annotations(idempotent_hint = true))]
+    save: Save => ed.mcp_save();
+    /// Every map: size, materials, decoration, entity and zone counts, spawn zones and transitions to other maps.
+    #[tool(annotations(read_only_hint = true))]
+    list_maps: ListMaps => ed.mcp_list_maps();
+    /// A picture (PNG) of the whole editor window as the person sees it.
+    #[tool(annotations(read_only_hint = true))]
+    screenshot_editor: ScreenshotEditor => Ok(Reply::Shot(ShotSpec { rect: None, zoom: None, grid: None, collision: None, zones: None, text: "The editor window.".into() }));
+    /// The project's script files with the functions each defines.
+    #[tool(annotations(read_only_hint = true))]
+    list_scripts: ListScripts => ed.mcp_list_scripts();
+    /// Generate art with the creator's Meshy account: whether a key is set (never the key), the model and its price per picture, the session's budget and what is left, the sizes and attacks for characters, the prices of 3D steps.
+    #[tool(annotations(read_only_hint = true))]
+    art_settings: ArtSettings => ed.mcp_art_settings();
+    /// Every art job of this session: pictures and their progress, credits spent, finished or failed, added as which asset.
+    #[tool(annotations(read_only_hint = true))]
+    art_jobs: ArtJobs => ed.mcp_art_jobs();
+}
+with_params {
+    /// Undoes the last edit(s) of the open map (yours or the person's). The map is then unsaved: call save.
+    #[tool]
+    undo: Undo(p: UndoParams) => ed.mcp_undo(p, false), summary = String::new();
+    /// Redoes undone edit(s) of the open map.
+    #[tool]
+    redo: Redo(p: UndoParams) => ed.mcp_undo(p, true), summary = String::new();
+    /// Changes project settings (project.ron) with a merge patch: name, start_map, start_spawn, player, language, languages, day_minutes, start_hour, inventory_size, creation, sfx, battle_music (a sound id: the music while the player fights; maps may override it in set_map_settings), skills, progression, dialog_portraits, model_atlas_mb (MB of GPU memory for rendered character poses, 8 to 128), skin (a UI skin id from defs/skins.ron; empty = the built-in look), title (the title screen: background = {"Map": {map (empty = start map), at: [x, y] tile, hour, drift}} or {"Picture": {sheet}}, logo {sheet, x, y (parts of the window: its middle), scale}, music (sound id), entries [NewGame, Continue, Load, Options, Achievements, Credits, Exit, {"Custom": {label, function, detail}}] (empty = built in), align Left|Center|Right, panel), menu (the pause menu: entries [Resume, Photo, Save, Load, Options, Achievements, Credits, SaveAndQuit, QuitToTitle, {"Custom": …}], align), credits (the Credits page's text), …
+    #[tool(annotations(idempotent_hint = true))]
+    set_project_config: SetProjectConfig(p: PatchParams) => ed.mcp_set_project_config(p);
+    /// A map region as text: the painted ground (the material in the middle of each tile, with a legend), the collision grid (ground, decorations, overrides), the decorations by prop, and the entities and zones there with their uids. At most 80x50 tiles per call.
+    #[tool(annotations(read_only_hint = true))]
+    get_map: GetMap(p: GetMapParams) => ed.mcp_get_map(p);
+    /// One entity or zone as JSON (the shape update_entity / update_zone patch).
+    #[tool(annotations(read_only_hint = true))]
+    get_object: GetObject(p: ObjectParams) => ed.mcp_get_object(p);
+    /// The image of a sprite sheet (PNG, with cell borders and frame indices drawn in by default) or a material's texture.
+    #[tool(annotations(read_only_hint = true))]
+    view_image: ViewImage(p: ViewImageParams) => ed.mcp_view_image(p);
+    /// The exact colours of a sprite sheet's image, most used first, with their pixel counts, the animation rows they appear in (figures) and the colour feature they belong to: pick a part's shades for a figure's colour features (upsert_def sheet `features: [{name, shades, colors}]`).
+    #[tool(annotations(read_only_hint = true))]
+    sheet_colors: SheetColors(p: SheetColorsParams) => ed.mcp_sheet_colors(p);
+    /// Imports a rigged 3D character model (a .glb from Meshy, Blender, Mixamo…) as a new model (its clips matched to the animations walk / idle / attack / hurt / sit / … by name), or with clips_for adds the file's clips to that model. Characters use a model with upsert_def `appearance: {model}`; model_info shows what it has. Saves.
+    #[tool]
+    import_model: ImportModel(p: ImportModelParams) => ed.mcp_import_model(p);
+    /// A 3D model: triangles, bones, hands, its clips with their length, which clip each animation plays, and its texture's colours (most used first, the shades for colour features: upsert_def model `features: [{name, shades, colors, default}]`; `default` = the colour a look without one gets).
+    #[tool(annotations(read_only_hint = true))]
+    model_info: ModelInfo(p: ModelInfoParams) => ed.mcp_model_info(p);
+    /// A picture of a 3D model as the game draws it: a contact sheet with a row per animation and the chosen moments of it per facing, with the pieces it wears, what worn items show, what it holds and its colours. Look at it after building or changing a model.
+    #[tool(annotations(read_only_hint = true))]
+    model_sheet: ModelSheet(p: ModelSheetParams) => ed.mcp_model_sheet(p);
+    /// Checks a 3D model before it is used: its vertices and triangles against what the engine draws in one piece, its colours and colour features, its bones, hands and animations, its finest detail against a pixel of the drawn figure, and for a piece the bones the figures it fits lack. Lines starting with "!" are problems.
+    #[tool(annotations(read_only_hint = true))]
+    model_check: ModelCheck(p: ModelCheckParams) => ed.mcp_model_check(p);
+    /// Builds models of the figure kit (the scripted figures, sculpted in voxels and smoothed: bodies, outfits, hair, headwear; sources in scripts/art/kit of the R(ust)PG2D repository) and puts them into the project: the files under models/ and their definitions. Needs the kit's sources (the editor started in the repository, or RUSTPG2D_KIT), python3 with numpy and Blender for the smoothing (about eight seconds a model: name the ids you changed). Saves.
+    #[tool]
+    kit_build: KitBuild(p: KitBuildParams) => ed.mcp_kit_build(p);
+    /// Animates an unrigged model (an animal, a monster: Meshy rigs only people) with a rig template: the template's skeleton is stretched over the model and its walk, idle, attack and hurt clips play. Also turns the model to face the front and moves single joints. Returns the fitted joints; check the result with a play test or the Models tab. Saves.
+    #[tool]
+    fit_rig: FitRig(p: FitRigParams) => ed.mcp_fit_rig(p);
+    /// Lets a rigged model play another rigged model's animations (same bone names, e.g. clips bought for one Meshy figure): the clip files they come from become the model's shared clips, fitted to its bones when it loads, and the animations are mapped with the same clips and hit points. Typical: the weapon animations (attack_1h, attack_2h, attack_thrust, attack_bow, attack_crossbow, attack_cast, attack_unarmed, idle_1h, idle_2h, idle_bow, idle_spear, block_shield, block_weapon, block_2h) that items name (upsert_def item `anims: {attack, idle, walk, block}`, empty = estimated from the weapon). Saves.
+    #[tool]
+    share_model_clips: ShareModelClips(p: ShareClipsParams) => ed.mcp_share_clips(p);
+    /// Edits the frames of a sprite sheet's image: copy / clear a row, duplicate a frame into the next column, nudge a frame's pixels, replace a colour (in a frame, a row or the whole sheet). Writes the PNG and reloads the art; view_image shows the result.
+    #[tool]
+    edit_frames: EditFrames(p: EditFramesParams) => ed.mcp_edit_frames(p);
+    /// Starts drawing art with Meshy (characters in the project's style: a walk grid, plus an attack grid; icons, props, portraits, painted images; 3D: a rigged and animated 3D character, an unrigged creature model, an existing item's 3D model from its icon): returns the job number at once. Costs credits: call without confirm_credits first to learn the price, ask the person, then call with confirm_credits = that price. Watch it with art_jobs, look at it with art_result, add it with art_apply.
+    #[tool]
+    generate_art: GenerateArt(p: GenerateArtParams) => ed.mcp_generate_art(p);
+    /// A finished art job's result as an image (characters: the 16-row sheet; walk / idle / attack / hurt rows) to judge before adding it; the raw Meshy pictures too.
+    #[tool(annotations(read_only_hint = true))]
+    art_result: ArtResult(p: ArtJobParams) => ed.mcp_art_result(p);
+    /// Adds a finished art job to the project: the image and its sprite sheet, and a character / item / prop using it (if none has that id); 3D jobs: the model files (models/), the 3D model and a character using it, or the item's 3D model. Saves.
+    #[tool]
+    art_apply: ArtApply(p: ArtApplyParams) => ed.mcp_art_apply(p);
+    /// Draws one picture of a finished job again (a bad frame, the wrong look) and converts it again; costs one picture (confirm_credits). In 3D jobs it makes a step again with the steps after it.
+    #[tool]
+    art_redo: ArtRedo(p: ArtRedoParams) => ed.mcp_art_redo(p);
+    /// A rendered picture (PNG) of a map region as the editor draws it, optionally with grid, collision overlay and zones.
+    #[tool(annotations(read_only_hint = true))]
+    screenshot_map: ScreenshotMap(p: ScreenshotParams) => ed.mcp_screenshot_map(p).map(Reply::Shot);
+    /// Creates a map (optionally its ground filled with a material), saves it and opens it in the editor.
+    #[tool]
+    create_map: CreateMap(p: CreateMapParams) => ed.mcp_create_map(p);
+    /// Paints the map's ground with a material (8 px cells; natural edges where materials meet, straight ones for materials with a Straight edge): round dabs, strokes through points with a width (roads, streams), filled polygons and rectangles, in tiles. One undo step.
+    #[tool]
+    paint_ground: PaintGround(p: PaintGroundParams) => ed.mcp_paint_ground(p);
+    /// Fills the connected area of the same ground material (or of no ground) at a point with a material. One undo step.
+    #[tool]
+    fill_ground: FillGround(p: FillGroundParams) => ed.mcp_fill_ground(p);
+    /// Places decorations: a prop as a picture at feet points, or a line of it on its grid. Cheap in great numbers; props that do something (doors, chests, trees to chop) go in with add_entity. One undo step.
+    #[tool]
+    place_objects: PlaceObjects(p: PlaceObjectsParams) => ed.mcp_place_objects(p);
+    /// Scatters a scatter set's props at random inside circles (forests, flowers, rocks), keeping their spacing. One undo step.
+    #[tool]
+    scatter: Scatter(p: ScatterParams) => ed.mcp_scatter(p);
+    /// Removes the decorations inside circles (all, or one prop's). One undo step.
+    #[tool]
+    erase_objects: EraseObjects(p: EraseObjectsParams) => ed.mcp_erase_objects(p);
+    /// Overrides collision for cells / a rect: "solid", "walkable" or back to "auto" (the ground and decorations decide).
+    #[tool]
+    set_collision: SetCollision(p: SetCollisionParams) => ed.mcp_set_collision(p);
+    /// Clears a rectangle: the painted ground, the decorations and entities standing there and the collision overrides.
+    #[tool(annotations(destructive_hint = true))]
+    clear_region: ClearRegion(p: RectParams) => ed.mcp_clear_region(p);
+    /// Resizes a map (the top-left area is kept).
+    #[tool]
+    resize_map: ResizeMap(p: ResizeParams) => ed.mcp_resize_map(p);
+    /// Places a prop, character or item pickup on a tile; returns its uid and JSON.
+    #[tool]
+    place_entity: PlaceEntity(p: PlaceEntityParams) => ed.mcp_place_entity(p);
+    /// Changes a placed entity with a merge patch (name, tile_x / tile_y, facing, state, triggers, container, lock, shop, schedule, patrol, equipment, …).
+    #[tool(annotations(idempotent_hint = true))]
+    update_entity: UpdateEntity(p: UpdateParams) => ed.mcp_update_entity(p);
+    /// Removes a placed entity.
+    #[tool(annotations(destructive_hint = true))]
+    remove_entity: RemoveEntity(p: ObjectParams) => ed.mcp_remove_entity(p);
+    /// Adds a zone (spawn point, portal, trigger area, spawner, transition, fishing spot) with optional triggers; returns its uid.
+    #[tool]
+    add_zone: AddZone(p: AddZoneParams) => ed.mcp_add_zone(p);
+    /// Changes a zone with a merge patch (name, x, y, w, h, kind, triggers, loot).
+    #[tool(annotations(idempotent_hint = true))]
+    update_zone: UpdateZone(p: UpdateParams) => ed.mcp_update_zone(p);
+    /// Removes a zone.
+    #[tool(annotations(destructive_hint = true))]
+    remove_zone: RemoveZone(p: ObjectParams) => ed.mcp_remove_zone(p);
+    /// Connects two maps with a pair of transition zones (walking into one arrives at the other, keeping the position along it).
+    #[tool]
+    link_maps: LinkMaps(p: LinkMapsParams) => ed.mcp_link_maps(p);
+    /// Replaces the triggers of a map, a placed entity, a zone or a definition (dialogs, choices, quests, scripts…; events_reference has the shapes).
+    #[tool(annotations(idempotent_hint = true))]
+    set_triggers: SetTriggers(p: TriggersParams) => ed.mcp_set_triggers(p);
+    /// Appends one trigger to a map, entity, zone or definition.
+    #[tool]
+    add_trigger: AddTrigger(p: AddTriggerParams) => ed.mcp_add_trigger(p);
+    /// Changes a map's settings with a merge patch: background colour, music, lighting, fog of war, weather, parallax layers, edge links.
+    #[tool(annotations(idempotent_hint = true))]
+    set_map_settings: SetMapSettings(p: MapSettingsParams) => ed.mcp_set_map_settings(p);
+    /// Stamps a structure (a ready-made piece of ground, decorations and props: a house, a well, a camp…) onto a map at a top-left tile.
+    #[tool]
+    place_structure: PlaceStructure(p: PlaceStructureParams) => ed.mcp_place_structure(p);
+    /// Makes a new structure from a map region: its ground, decorations, collision and entities, ready for place_structure.
+    #[tool]
+    capture_structure: CaptureStructure(p: CaptureStructureParams) => ed.mcp_capture_structure(p);
+    /// Renames a definition or map and every reference to it (maps, definitions, scripts).
+    #[tool]
+    rename: Rename(p: RenameParams) => ed.mcp_rename(p);
+    /// Lists the definitions of one kind: id, name and key facts, one per line (paged).
+    #[tool(annotations(read_only_hint = true))]
+    list_defs: ListDefs(p: ListDefsParams) => ed.mcp_list_defs(p);
+    /// One definition as JSON (the shape upsert_def takes).
+    #[tool(annotations(read_only_hint = true))]
+    get_def: GetDef(p: DefParams) => ed.mcp_get_def(p);
+    /// A complete, valid definition of a kind to fill in and pass to upsert_def, with notes on its fields.
+    #[tool(annotations(read_only_hint = true))]
+    def_template: DefTemplate(p: DefTemplateParams) => ed.mcp_def_template(p);
+    /// Creates or replaces a definition (or merges fields into it); checks the ids and files it refers to, then saves.
+    #[tool(annotations(idempotent_hint = true))]
+    upsert_def: UpsertDef(p: UpsertDefParams) => ed.mcp_upsert_def(p);
+    /// Every place a definition (kind: items, props, …) or a map (kind: map) is used: placed entities and spawners, map / zone / entity triggers, other definitions, script lines, the project settings; each with where to find it.
+    #[tool(annotations(read_only_hint = true))]
+    find_usages: FindUsages(p: DefParams) => ed.mcp_find_usages(p);
+    /// Deletes a definition unless something still uses it (then it lists the users; `force` deletes anyway). Files are kept.
+    #[tool(annotations(destructive_hint = true))]
+    delete_def: DeleteDef(p: DeleteDefParams) => ed.mcp_delete_def(p);
+    /// The event system's JSON shapes: trigger events per owner, every condition and every action with example values.
+    #[tool(annotations(read_only_hint = true))]
+    events_reference: EventsReference(p: EventsRefParams) => ed.mcp_events_reference(p);
+    /// A script file's text (or a line range).
+    #[tool(annotations(read_only_hint = true))]
+    read_script: ReadScript(p: ReadScriptParams) => ed.mcp_read_script(p);
+    /// Writes a whole script file (Rhai), then checks it: compile errors and unknown ids are reported.
+    #[tool(annotations(destructive_hint = true))]
+    write_script: WriteScript(p: WriteScriptParams) => ed.mcp_write_script(p);
+    /// Checks the scripts: compile errors, unknown item / map / quest / … ids, duplicate functions.
+    #[tool(annotations(read_only_hint = true))]
+    check_script: CheckScript(p: CheckScriptParams) => ed.mcp_check_script(p);
+    /// Everything broken in the project (the editor's Problems panel): unknown ids in definitions, maps and scripts, missing image / sound files, portals and transitions to missing maps / spawns / zones, script errors, maps nothing leads to, characters without a body, untranslated texts, objects a file had to leave out; errors and warnings, each with where it is.
+    #[tool(annotations(read_only_hint = true))]
+    problems: Problems(p: ProblemsParams) => ed.mcp_problems(p);
+    /// The scripting API: every engine function with its parameters and a description, plus the project's own functions.
+    #[tool(annotations(read_only_hint = true))]
+    scripting_api: ScriptingApi(p: FilterParams) => ed.mcp_scripting_api(p);
+    /// Adds a language to the project and writes lang/<code>.ron with every text to translate (existing translations are kept).
+    #[tool]
+    translation_template: TranslationTemplate(p: LangParams) => ed.mcp_translation_template(p);
+    /// The texts of a translation file (original → translation), optionally only the untranslated ones.
+    #[tool(annotations(read_only_hint = true))]
+    read_translation: ReadTranslation(p: ReadTranslationParams) => ed.mcp_read_translation(p);
+    /// Writes translations into lang/<code>.ron (merged; the language is added to the project if new).
+    #[tool(annotations(idempotent_hint = true))]
+    write_translation: WriteTranslation(p: WriteTranslationParams) => ed.mcp_write_translation(p);
+    /// Saves everything and runs the game with an autoplay script (keys, clicks, `status`, `shot NAME` screenshots); returns the game's output lines and the screenshots. The game opens a window on the person's screen.
+    #[tool]
+    play_test: PlayTest(p: PlayParams) => super::play::plan(ed, p).map(|pl| Reply::PlayPlan(Box::new(pl)));
+    /// Assets in the shared library (ready-made tiles, props, characters, items, sounds, structures…) with what each needs.
+    #[tool(annotations(read_only_hint = true))]
+    library_list: LibraryList(p: LibraryListParams) => ed.mcp_library_list(p);
+    /// One library asset as JSON with its dependencies.
+    #[tool(annotations(read_only_hint = true))]
+    library_info: LibraryInfo(p: DefParams) => ed.mcp_library_info(p);
+    /// Copies library assets (and everything they need: sheets, sounds, script functions) into the project.
+    #[tool]
+    library_add: LibraryAdd(p: LibraryAddParams) => ed.mcp_library_add(p);
+    /// Sends project assets (and everything they need) to the shared asset library; with replace, the library's versions of the same ids are updated.
+    #[tool]
+    library_send: LibrarySend(p: LibrarySendParams) => ed.mcp_library_send(p);
+    /// Writes an image (PNG) or sound (WAV / Ogg Vorbis) file into the project (sprites/, materials/, sounds/), a 3D model or clip file (.glb, under models/) or a font, and reloads the art; then point a definition at it with upsert_def.
+    #[tool]
+    write_asset: WriteAsset(p: WriteAssetParams) => ed.mcp_write_asset(p), summary = format!("{} ({})", p.path, if p.base64.is_some() { "base64" } else { "copy" });
+}
+}
+
+
+// ---------------------------------------------------------------- prompts
+
+/// The prompts offered to agents.
+pub fn prompts() -> Vec<Prompt> {
+    vec![
+        Prompt::new(
+            "design_quest",
+            Some("Design and build a quest: definitions, dialogs, triggers, scripts, then a play-test"),
+            Some(vec![
+                PromptArgument::new("theme").with_description("What the quest is about").with_required(true),
+                PromptArgument::new("giver").with_description("The character who gives it (id or name; optional)"),
+                PromptArgument::new("reward").with_description("Items, xp or skills the player earns (optional)"),
+            ]),
+        ),
+        Prompt::new(
+            "build_map",
+            Some("Build a new map: terrain, structures, props, a spawn, links to other maps, then a screenshot"),
+            Some(vec![
+                PromptArgument::new("name").with_description("Map name (letters, digits, _ -)").with_required(true),
+                PromptArgument::new("setting").with_description("What the place is: a forest clearing, a harbour town, a cave…").with_required(true),
+                PromptArgument::new("width").with_description("Tiles (default 40)"),
+                PromptArgument::new("height").with_description("Tiles (default 30)"),
+                PromptArgument::new("connect_to").with_description("An existing map to link with a transition (optional)"),
+            ]),
+        ),
+    ]
+}
+
+/// The text of prompt `name` with the arguments filled in.
+pub fn prompt_text(name: &str, arg: &dyn Fn(&str) -> String) -> Option<String> {
+    match name {
+        "design_quest" => Some(format!(
+            "Design and build a quest for this R(ust)PG2D project.\nTheme: {theme}\nQuest giver: {giver}\nReward: {reward}\n\n\
+Work in these steps, reading before writing:\n\
+1. `project_info`, then `list_defs characters`, `list_defs items`, `list_defs quests` to see what exists and the naming style.\n\
+2. `def_template quests`, then `upsert_def quests` with the whole quest described in it: title, description, 2-4 stages (the journal lines), xp; `giver` (the placed character's name, or a character definition) and `giver_name` (its name in the dialogs); `requires` (conditions for the offer, e.g. another quest completed for a follow-up); `offer` (lines, question, accept / decline, the lines after each answer); `steps` (per stage how it is done: {{Talk:{{character, lines, when, speaker}}}} (\"\" = back to the giver; `when` e.g. HasItem for a hand-in, then TakeItem in `on_done`), {{Conditions:[..]}} (has items, defeated count, a variable, a flag), \"Reach\" (the stage's target), \"Manual\"; `giver_line`, `on_start` / `on_done` actions, e.g. {{RunScript:{{function}}}}); `rewards` (items, skill_points, actions); `targets` for the quest markers. The game plays all of it: no triggers on the giver are needed.\n\
+3. Anything the steps need on the maps: items to find (`place_entity`), a named zone or prop for a Reach step (`add_zone`), an enemy to defeat (a Spawner zone + Defeated condition).\n\
+4. Script logic the steps call (`on_start` / `on_done` / reward actions Run script): `write_script` into scripts/<quest>.rhai and `check_script`. `problems` checks the quest (unknown characters, empty conditions, a Reach step without a target).\n\
+5. `play_test` with a script that talks to the giver (`talkto NAME`, then `press e` twice per dialog page, `wait 2.5` between) and ends with `status` to confirm `offers=` / `quests=` show the quest; take a `shot`.\n\
+Keep every id lowercase with underscores; use {{player}} in dialog texts for the player's name.",
+            theme = arg("theme"),
+            giver = if arg("giver").is_empty() { "choose a fitting character from the project".to_string() } else { arg("giver") },
+            reward = if arg("reward").is_empty() { "something modest that fits the theme".to_string() } else { arg("reward") },
+        )),
+        "build_map" => Some(format!(
+            "Build a new map in this R(ust)PG2D project.\nName: {name}\nSetting: {setting}\nSize: {w} x {h} tiles\nConnect to: {connect}\n\n\
+Steps:\n\
+1. `project_info` and `list_maps`; `list_defs materials`, `list_defs scatter`, `list_defs structures` and `list_defs props`.\n\
+2. `create_map` with a base material as `fill`, then the painted ground: `paint_ground` lines for roads and streams, polygons for fields, plazas and lakes, circles for patches (natural edges; water blocks walking).\n\
+3. Decorations: `scatter` forests, flowers and rocks inside circles; `place_objects` single trees, rocks and furniture, and `line`s of wall and fence sets (layer Above for what should draw over characters); `place_structure` for buildings; `place_entity` for props that do something and characters (give important ones names); `set_collision` where nothing else blocks.\n\
+4. `add_zone` a Spawn named \"start\" (and others for arrivals), then `link_maps` to the map to connect, with matching rects on both edges.\n\
+5. `set_map_settings` for music, lighting (Outdoor / Dark) and weather.\n\
+6. `screenshot_map` to look at the result and fix what looks off; `play_test` with `wait 1; status; shot a` to see it in the game.",
+            name = arg("name"),
+            setting = arg("setting"),
+            w = if arg("width").is_empty() { "40".to_string() } else { arg("width") },
+            h = if arg("height").is_empty() { "30".to_string() } else { arg("height") },
+            connect = if arg("connect_to").is_empty() { "nothing yet".to_string() } else { arg("connect_to") },
+        )),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Documentation/manual/13-ai-agents.md names every tool, and every tool has a description.
+    #[test]
+    fn docs_list_every_tool() {
+        let doc = include_str!("../../../../Documentation/manual/13-ai-agents.md");
+        let tools = Handler::tool_router().list_all();
+        assert!(tools.len() >= 50, "{} tools", tools.len());
+        for t in &tools {
+            assert!(t.description.as_deref().is_some_and(|d| !d.is_empty()), "{} has no description", t.name);
+            assert!(doc.contains(&format!("`{}", t.name)), "Documentation/manual/13-ai-agents.md doesn't mention `{}`", t.name);
+        }
+        for p in prompts() {
+            assert!(doc.contains(&p.name), "Documentation/manual/13-ai-agents.md doesn't mention the prompt {}", p.name);
+            assert!(prompt_text(&p.name, &|_| String::new()).is_some());
+        }
+    }
+
+    /// Documentation/manual/17-testing.md names every autoplay command of the game runner.
+    #[test]
+    fn autoplay_docs_are_complete() {
+        let src = include_str!("../../../game/src/main.rs");
+        let doc = include_str!("../../../../Documentation/manual/17-testing.md");
+        let start = src.find("while let Some(cmd) = self.cmds.pop_front()").expect("the autoplay loop");
+        let body = &src[start..];
+        let end = body.find("\n        }\n").unwrap_or(body.len());
+        let mut names = Vec::new();
+        for line in body[..end].lines() {
+            let t = line.trim();
+            if t.starts_with('"') && t.contains("=>") {
+                for part in t.split("=>").next().unwrap_or("").split('|') {
+                    let n = part.trim().trim_matches('"');
+                    if !n.is_empty() {
+                        names.push(n.to_string());
+                    }
+                }
+            }
+        }
+        assert!(names.len() > 20, "{names:?}");
+        for n in names {
+            assert!(doc.contains(&format!("`{n}")) || doc.contains(&format!(" {n} ")) || doc.contains(&format!("`{n} ")) || doc.contains(&format!("{n}\\|")) || doc.contains(&format!("\\|{n}")), "Documentation/manual/17-testing.md doesn't mention `{n}`");
+        }
+    }
+}

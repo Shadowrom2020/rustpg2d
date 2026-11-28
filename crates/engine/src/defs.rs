@@ -9,6 +9,7 @@ use crate::inventory::ItemStack;
 
 /// A light source: a soft circle of light around a tile, prop, character or carried item.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct LightSpec {
     /// Radius in tiles.
     #[serde(default = "default_light_radius")]
@@ -21,6 +22,12 @@ pub struct LightSpec {
     /// Flickers like a flame (torches, campfires).
     #[serde(default)]
     pub flicker: bool,
+    /// Where the light sits on the ground, from the place of what carries it: pixels to the
+    /// east and to the south (a lantern on a post's arm, a hearth at the back of a kitchen
+    /// range). Not set: where the engine puts it (a prop's light north of where it stands by
+    /// two thirds of its picture's height, a character's a little north of its feet).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub offset: Option<[f32; 2]>,
 }
 
 fn default_light_radius() -> f32 {
@@ -35,13 +42,18 @@ fn default_intensity() -> f32 {
 
 impl Default for LightSpec {
     fn default() -> Self {
-        LightSpec { radius: default_light_radius(), color: default_light_color(), intensity: default_intensity(), flicker: false }
+        LightSpec { radius: default_light_radius(), color: default_light_color(), intensity: default_intensity(), flicker: false, offset: None }
     }
 }
 
 impl LightSpec {
     pub fn new(radius: f32, color: [u8; 3], flicker: bool) -> Self {
-        LightSpec { radius, color, intensity: 1.0, flicker }
+        LightSpec { radius, color, intensity: 1.0, flicker, offset: None }
+    }
+    /// The offset from the place of what carries it: its own, else `lift` pixels to the north
+    /// (the engine's rule for that kind of thing).
+    pub fn offset_or(&self, lift: f32) -> [f32; 2] {
+        self.offset.unwrap_or([0.0, -lift])
     }
     /// A flickering warm torch light.
     pub fn torch(radius: f32) -> Self {
@@ -49,7 +61,6 @@ impl LightSpec {
     }
 }
 
-/// A tile of a tileset that gives light.
 impl ItemDef {
     /// The equipment slot this item goes into, if it can be equipped.
     /// The +N bonus of a magic weapon, ammunition, armor or shield (0 = none).
@@ -80,6 +91,7 @@ impl ItemDef {
 
 /// A sound effect or music track (WAV or OGG).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct SoundDef {
     pub id: String,
     /// Path relative to the project root.
@@ -99,6 +111,7 @@ fn full_volume() -> f32 {
 
 /// A sprite sheet: an image cut into equally sized frames.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct SheetDef {
     pub id: String,
     pub image: String,
@@ -120,6 +133,7 @@ pub struct SheetDef {
 
 /// A named animation of a sprite sheet: frames `first..=last` at `fps`.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct SheetTag {
     pub name: String,
     pub first: u32,
@@ -156,6 +170,7 @@ impl SheetDef {
 /// darkest to lightest or in any order) are replaced by the chosen colour, each as much darker or
 /// lighter as it was than the feature's middle shade.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ColorFeature {
     /// "skin", "hair", "clothing"...: characters and the creator name the feature.
     pub name: String,
@@ -180,6 +195,7 @@ impl ColorFeature {
 
 /// Role of a sprite sheet.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum SheetKind {
     /// Anything else: props, items, effects. (Sheets of the characters of earlier versions,
     /// layered parts and the 0.17 figures, load as plain sprites: characters are 3D models.)
@@ -204,15 +220,14 @@ impl SheetKind {
     }
 }
 
-/// Look of a character: its 3D model (`ModelDef`; "" = its figure `body`, a sheet of kind Body)
-/// and the colours chosen for the colour features (feature name -> colour; a feature not listed
+/// Look of a character: its 3D model (`ModelDef`; "" = the built-in mannequin) and the colours chosen for the colour features (feature name -> colour; a feature not listed
 /// keeps the art's colours).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct Appearance {
     #[serde(skip_serializing_if = "String::is_empty")]
     pub model: String,
-    pub body: String,
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub colors: BTreeMap<String, [u8; 3]>,
     /// The character's size in percent of its model (0 = 100), times its race's size: the drawn
@@ -236,9 +251,9 @@ impl Appearance {
         if self.size == 0 { 1.0 } else { (self.size as f32 / 100.0).clamp(0.25, 4.0) }
     }
 
-    /// Whether it shows anything: a model or a figure.
+    /// Whether it shows anything: a model.
     pub fn has_look(&self) -> bool {
-        !self.model.is_empty() || !self.body.is_empty()
+        !self.model.is_empty()
     }
 }
 
@@ -246,6 +261,7 @@ impl Appearance {
 /// handle runs and which side is its front (the model's own units and axes), how it is held and
 /// how long it is in the world.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ItemModel {
     pub file: String,
     /// The hold point.
@@ -270,6 +286,7 @@ pub struct ItemModel {
 
 /// How a held item model sits in the hand.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum HoldStyle {
     /// In the fist, its handle along the grip axis and its front where the knuckles point
     /// (swords, axes, tools, bows; two-handed: along the line through both fists).
@@ -323,6 +340,7 @@ impl ItemModel {
 /// of the same rig, the clip each animation plays, its standing height and its colour features
 /// (shades of its texture).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ModelDef {
     pub id: String,
     #[serde(default)]
@@ -369,6 +387,7 @@ pub struct ModelDef {
 /// What makes a model a piece ([`ModelDef::part`]): its bones are the body's (matched by name),
 /// so it moves with every clip the body plays.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ModelPart {
     /// Where it goes ("outfit", "hair", "beard", "headwear", "cloak", "ears", "tail"…): a figure
     /// has one piece per slot.
@@ -406,6 +425,7 @@ pub const NO_PART: &str = "-";
 /// A rig template fitted to an unrigged model ([`crate::model::Model::fit_rig`]): the template's
 /// skeleton is stretched over the model's bounds, then single joints are moved.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct RigFit {
     /// The rigged model (an id) whose skeleton and clips it takes.
     pub template: String,
@@ -420,6 +440,7 @@ pub struct RigFit {
 
 /// A joint of a fitted rig template moved by hand.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct JointNudge {
     /// The joint's name in the template.
     pub joint: String,
@@ -437,6 +458,7 @@ fn model_height() -> f32 {
 
 /// The clip an animation of a model plays.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ClipMap {
     /// "walk", "idle", "attack", "hurt" or an extra ("sit", "sleep", "fish", "hammer", "farm"…).
     pub anim: String,
@@ -497,6 +519,7 @@ impl ModelDef {
 /// A sprite: a block of `w × h` frames (cells) of a sheet, starting at `frame`
 /// (its top-left cell). Multi-cell sprites make props bigger than one frame.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct SpriteRef {
     pub sheet: String,
     pub frame: u32,
@@ -538,6 +561,7 @@ impl SpriteRef {
 
 /// Makes an item (or a character) a weapon.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Weapon {
     /// Real-time damage of 0.28 and older; turn-based combat rolls `dice` (empty = dice from this:
     /// 1 = 1d4, 2 = 1d6, 3 = 1d8, 4 = 1d10, 5+ = 1d12).
@@ -573,8 +597,8 @@ pub struct Weapon {
     /// What its hits do: slashing, piercing, fire… (`None` = untyped: no resistance applies).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub damage_type: Option<crate::srd::DamageType>,
-    /// The SRD's category: simple or martial (proficiency); `None` = a weapon of 0.30 or older
-    /// before its upgrade ([`ItemDef::upgrade`]).
+    /// The SRD's category: simple or martial (proficiency); `None` = none, as a character's own
+    /// weapon (always proficient).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub category: Option<WeaponCategory>,
     /// The SRD's weapon properties.
@@ -594,6 +618,7 @@ pub struct Weapon {
 
 /// A weapon's SRD category.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum WeaponCategory {
     Simple,
     Martial,
@@ -601,6 +626,7 @@ pub enum WeaponCategory {
 
 /// The SRD's weapon properties. New variants are appended.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum WeaponProperty {
     /// Shoots its ammunition (`Ranged::ammo`).
     Ammunition,
@@ -681,8 +707,8 @@ impl Weapon {
     }
 
     /// How far it reaches in fights, in tiles (0 for a ranged weapon): 2 (10 ft) with the *Reach*
-    /// property, else 1. `reach` (the swing, the look) counts only for a weapon of 0.30 and older
-    /// without a category (a character's own weapon).
+    /// property, else 1. `reach` (the swing, the look) counts only for a weapon without a
+    /// category (a character's own weapon).
     pub fn reach_tiles(&self) -> i32 {
         match () {
             _ if self.ranged.is_some() => 0,
@@ -735,6 +761,7 @@ impl Weapon {
 
 /// Equipment slots of the character sheet.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum EquipSlot {
     Head,
     Body,
@@ -835,6 +862,7 @@ impl EquipSlot {
 
 /// Clothing, helmets, body armor and left-hand items (shields, lanterns, torches).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Armor {
     /// `Clothing`, `Head`, `Body`, `Offhand` or `Back` (backpacks).
     pub slot: EquipSlot,
@@ -847,8 +875,8 @@ pub struct Armor {
     /// Damage types its wearer resists (half damage): `fire`, `poison`…
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub resistances: Vec<String>,
-    /// The SRD's armor category: clothing (no AC), light, medium, heavy or a shield; `None` = an
-    /// armor of 0.30 or older before its upgrade ([`ItemDef::upgrade`]).
+    /// The SRD's armor category: clothing (no AC), light, medium, heavy or a shield; `None` =
+    /// none (no AC; an off-hand piece with defense blocks like a shield).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub category: Option<ArmorCategory>,
     /// Body armor: its armor class (+ DEX up to `dex_max`); a shield: what it adds.
@@ -867,6 +895,7 @@ pub struct Armor {
 
 /// An armor's SRD category.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum ArmorCategory {
     /// No armor class: clothes, helmets, backpacks, lights.
     Clothing,
@@ -920,6 +949,7 @@ impl Armor {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Ranged {
     /// Projectile sprite, drawn pointing right and rotated to the flight direction.
     pub projectile: SpriteRef,
@@ -949,6 +979,7 @@ fn default_range() -> f32 {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ItemDef {
     pub id: String,
     pub name: String,
@@ -976,11 +1007,7 @@ pub struct ItemDef {
     /// Gives light while equipped (e.g. a lantern in the left hand) or lying on the ground.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub light: Option<LightSpec>,
-    /// How it looks in a character's hand (weapons, left-hand items, tools); None = its icon,
-    /// held at its lower-left end.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub held: Option<crate::hands::HeldSprite>,
-    /// Its 3D model, held by 3D model characters (else they hold its picture).
+    /// Its 3D model, shown in a character's hand (an item without one is held but not shown).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<ItemModel>,
     /// The piece style a 3D model character shows while it wears the item (an armour, a helmet,
@@ -1052,6 +1079,7 @@ pub struct ItemDef {
 /// Animation names of an item (`ItemDef::anims`); "" = by its kind ([`ItemAnims::estimate`]),
 /// and a model without the named clip plays its plain one (`attack`, `idle`, `walk`).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct ItemAnims {
     #[serde(skip_serializing_if = "String::is_empty")]
@@ -1133,7 +1161,6 @@ impl Default for ItemDef {
             max_stack: default_max_stack(),
             value: 0,
             light: None,
-            held: None,
             model: None,
             wear: String::new(),
             teaches: String::new(),
@@ -1186,44 +1213,6 @@ impl ItemDef {
         ItemDef { id: id.into(), name: "New item".into(), ..Default::default() }
     }
 
-    /// An item of 0.30 or older as the SRD's equipment: a weapon gets its category (martial
-    /// from a d8 up) and properties (two-handed, heavy from a d10, ammunition, reach when its swing
-    /// reached two tiles); body armor
-    /// becomes light armor of 10 + its defense (the AC it gave), an off-hand piece with defense a
-    /// shield of its defense, everything else worn clothing without AC. Upgraded items stay.
-    pub fn upgrade(&mut self) {
-        if let Some(w) = &mut self.weapon {
-            if w.category.is_none() {
-                let sides = w.damage_dice().split_once('d').and_then(|(_, s)| s.split(['+', '-']).next()?.trim().parse::<u32>().ok()).unwrap_or(6);
-                w.category = Some(if sides >= 8 { WeaponCategory::Martial } else { WeaponCategory::Simple });
-                if w.two_handed && !w.properties.contains(&WeaponProperty::TwoHanded) {
-                    w.properties.push(WeaponProperty::TwoHanded);
-                    if sides >= 10 && w.ranged.is_none() {
-                        w.properties.push(WeaponProperty::Heavy);
-                    }
-                }
-                if w.ranged.as_ref().is_some_and(|r| !r.ammo.is_empty()) {
-                    w.properties.push(WeaponProperty::Ammunition);
-                }
-                // (A long swing reached two tiles in fights: it keeps them as the Reach property.)
-                if w.ranged.is_none() && w.reach.round() >= 2.0 {
-                    w.properties.push(WeaponProperty::Reach);
-                }
-            }
-        }
-        if let Some(a) = &mut self.armor {
-            if a.category.is_none() {
-                let (cat, ac) = match a.slot {
-                    EquipSlot::Body if a.defense > 0 => (ArmorCategory::Light, 10 + a.defense),
-                    EquipSlot::Offhand if a.defense > 0 => (ArmorCategory::Shield, a.defense),
-                    _ => (ArmorCategory::Clothing, 0),
-                };
-                a.category = Some(cat);
-                a.base_ac = ac;
-            }
-        }
-    }
-
     /// Whether it is a shield (armor of the shield category).
     pub fn is_shield(&self) -> bool {
         self.armor.as_ref().is_some_and(|a| a.category == Some(ArmorCategory::Shield))
@@ -1233,6 +1222,7 @@ impl ItemDef {
 /// What grows from a seed (`ItemDef::crop`): its stages one after another, the last one is the
 /// ripe crop, harvested with E for `harvest` (the plot is then empty again).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Crop {
     #[serde(default)]
     pub stages: Vec<CropStage>,
@@ -1243,6 +1233,7 @@ pub struct Crop {
 /// One look of a growing crop and how many in-game hours it lasts (the last, ripe stage's
 /// hours don't count).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct CropStage {
     pub sprite: SpriteRef,
     #[serde(default)]
@@ -1278,6 +1269,7 @@ impl Crop {
 
 /// Whom a healing item is used on (`ItemDef::use_on`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum UseTarget {
     /// Always the player (as before).
     #[default]
@@ -1310,6 +1302,7 @@ fn default_max_stack() -> u32 {
 
 /// What happens to a prop when its lock is opened.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum OnUnlock {
     /// Stays as it is (containers then simply open).
     Nothing,
@@ -1324,7 +1317,7 @@ pub enum OnUnlock {
 
 /// A lock that needs a key item, or can be picked.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(from = "LockSpecRepr")]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct LockSpec {
     /// Item id of the key.
     pub key: String,
@@ -1350,36 +1343,6 @@ pub struct LockSpec {
     /// be picked).
     #[serde(default)]
     pub pick_dc: u32,
-}
-
-/// A lock as files have it: `pick_dc` since 0.28; until then `pick_difficulty`, a lockpicking
-/// skill level, converted with [`crate::srd::old_level_dc`].
-#[derive(Deserialize)]
-struct LockSpecRepr {
-    key: String,
-    #[serde(default = "yes")]
-    consume_key: bool,
-    #[serde(default = "on_unlock_default")]
-    on_unlock: OnUnlock,
-    #[serde(default)]
-    locked_text: String,
-    #[serde(default)]
-    unlock_text: String,
-    #[serde(default)]
-    relock: bool,
-    #[serde(default)]
-    lock_text: String,
-    #[serde(default)]
-    pick_dc: u32,
-    #[serde(default)]
-    pick_difficulty: u32,
-}
-
-impl From<LockSpecRepr> for LockSpec {
-    fn from(r: LockSpecRepr) -> Self {
-        let pick_dc = if r.pick_dc > 0 { r.pick_dc } else { crate::srd::old_level_dc(r.pick_difficulty) };
-        LockSpec { key: r.key, consume_key: r.consume_key, on_unlock: r.on_unlock, locked_text: r.locked_text, unlock_text: r.unlock_text, relock: r.relock, lock_text: r.lock_text, pick_dc }
-    }
 }
 
 fn yes() -> bool {
@@ -1416,6 +1379,7 @@ impl Default for LockSpec {
 
 /// A lootable container (chest, barrel, ...): its size, starting contents and lock.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ContainerSpec {
     /// Number of slots.
     pub size: u32,
@@ -1443,6 +1407,7 @@ impl Default for ContainerSpec {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct PropDef {
     pub id: String,
     pub name: String,
@@ -1505,10 +1470,6 @@ pub struct PropDef {
     /// of) and close them behind them.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub door: bool,
-    /// How characters carry it in both hands (*Carry prop*): its hold point and orientation mark
-    /// (None: the middle of its lower half, its horizontal along the hands).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub carry: Option<crate::hands::HeldSprite>,
     /// A ladder: the player climbs it (characters keep off), placed as a decoration.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub climb: bool,
@@ -1527,23 +1488,11 @@ pub struct PropDef {
     /// Placed on a grid of this many pixels (16 or 32: wall pieces); 0 = anywhere.
     #[serde(default, skip_serializing_if = "is_zero_u16")]
     pub snap: u16,
-    /// A wall set of earlier versions: the prop for each neighbour mask (16 entries). Still read
-    /// (and renamed with its props) so old projects load; nothing uses it any more.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub pieces: Vec<String>,
-    /// An animated picture: the default state cycles through these frames of its sheet (a torch,
-    /// a flag, a water wheel).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub anim: Option<FrameAnim>,
     /// A 3D model (a [`ModelDef`] id) shown instead of the picture: rendered from the isometric
     /// angle like the figures and turned with the placed prop. Its origin is the middle of the
     /// footprint (the hitbox) on the ground. States can name their own ([`PropState::model`]).
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub model: String,
-    /// Pictures of the default state turned a quarter: facing west, north and east (the picture
-    /// itself faces south); for props drawn ahead of time from four sides.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub turns: Vec<SpriteRef>,
     /// Drawn as a block this many world pixels high (walls, counters): its hitbox raised as a box
     /// with its picture on the faces, so a row of them is one wall; blocks in front of the hero
     /// are cut down to a stub ([`crate::render::iso::draw_block`]). 0 = drawn as its picture.
@@ -1558,6 +1507,13 @@ pub struct PropDef {
     /// off for glows and light-only props.
     #[serde(default = "yes", skip_serializing_if = "is_true")]
     pub shadow: bool,
+    /// Where its picture stands: pixels to the right and down from the prop's place (the
+    /// middle of its hitbox's front edge). 0, 0 puts the middle of the picture's lower edge
+    /// there; a picture whose foot is elsewhere (a leaning tree, room painted under a base,
+    /// a sign hanging beside its post) is moved until it stands right. Pictures only: a 3D
+    /// model stands on the middle of the hitbox.
+    #[serde(default, skip_serializing_if = "is_origin")]
+    pub picture_offset: [f32; 2],
     /// A counter (a market stall): using it talks to whoever keeps it (stands in, behind or in
     /// front of it), from its front; its own triggers run only when nobody does ("No one is
     /// here."). Props that do nothing themselves act like this anyway.
@@ -1568,6 +1524,7 @@ pub struct PropDef {
 /// A building's shape ([`PropDef::building`]): its footprint is the prop's hitbox (width east to
 /// west, depth north to south), measures in world pixels, pictures tiled over walls and roof.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct BuildingShape {
     /// The walls' height up to the eaves.
     #[serde(default = "wall_height")]
@@ -1616,6 +1573,7 @@ pub struct BuildingShape {
 
 /// Another building prop a building is joined to ([`BuildingShape::joins`]).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Join {
     pub prop: String,
     /// Where its footprint's north-west corner is, from this one's (world pixels, both unturned).
@@ -1651,6 +1609,7 @@ fn roof_overhang() -> f32 {
 
 /// The kind of a building's roof.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum RoofKind {
     /// Two slopes meeting at the ridge, the walls rising to it at both ends.
     #[default]
@@ -1665,6 +1624,7 @@ pub enum RoofKind {
 
 /// Which way a roof's ridge runs.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Ridge {
     /// Along the building's longer side.
     #[default]
@@ -1675,6 +1635,7 @@ pub enum Ridge {
 
 /// A side of a building.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum WallSide {
     #[default]
     South,
@@ -1685,6 +1646,7 @@ pub enum WallSide {
 
 /// A door or window in a building's wall ([`BuildingShape::openings`]).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Opening {
     pub side: WallSide,
     /// Where its middle is along the wall: world pixels from the wall's west end (south and north
@@ -1705,6 +1667,7 @@ fn opening_size() -> [f32; 2] {
 
 /// A chimney on a building's roof ([`BuildingShape::chimneys`]).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Chimney {
     /// Its middle: world pixels from the footprint's west and north edges.
     pub at: [f32; 2],
@@ -1723,21 +1686,6 @@ fn chimney_size() -> [f32; 2] {
 }
 fn chimney_rise() -> f32 {
     14.0
-}
-
-/// Frames of a sprite sheet shown one after the other (`PropDef::anim`).
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct FrameAnim {
-    pub frames: Vec<u32>,
-    pub fps: f32,
-}
-
-impl FrameAnim {
-    /// The frame shown at `time` seconds.
-    pub fn frame_at(&self, time: f64) -> Option<u32> {
-        let n = self.frames.len();
-        (n > 0).then(|| self.frames[((time * self.fps.max(0.01) as f64) as usize) % n])
-    }
 }
 
 /// The serde defaults (what an entry with only `id`, `name` and `sprite` loads as: not solid,
@@ -1765,20 +1713,17 @@ impl Default for PropDef {
             obscures: false,
             flat: false,
             door: false,
-            carry: None,
             climb: false,
             climb_dc: 0,
             object: None,
             trap: None,
             snap: 0,
-            pieces: vec![],
-            anim: None,
             model: String::new(),
-            turns: vec![],
             block: 0.0,
             building: None,
             shadow: true,
             counter: false,
+            picture_offset: [0.0, 0.0],
         }
     }
 }
@@ -1794,6 +1739,7 @@ impl PropDef {
 /// (equipped or carried; "" = bare hands) roll `loot`, then the prop switches to `then_state`
 /// (it can't be gathered in that state).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Gather {
     #[serde(default)]
     pub tool: String,
@@ -1812,6 +1758,7 @@ fn three() -> u32 {
 /// A prop state that turns into another one after `hours` in-game hours (`PropDef::regrow`),
 /// also while the player is on another map.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Regrow {
     pub from: String,
     #[serde(default)]
@@ -1821,6 +1768,7 @@ pub struct Regrow {
 
 /// How a character uses a piece of furniture.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Pose {
     /// Chairs, benches: a short rest.
     #[default]
@@ -1845,6 +1793,7 @@ impl Pose {
 /// The spot of a piece of furniture: where the user's feet go (relative to the prop's feet,
 /// pixels) and how they are posed.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct UseSpot {
     #[serde(default)]
     pub pose: Pose,
@@ -1880,6 +1829,7 @@ impl Default for UseSpot {
 
 /// A named look of a prop: its sprite and whether it blocks movement.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct PropState {
     pub name: String,
     pub sprite: SpriteRef,
@@ -1921,16 +1871,6 @@ impl PropDef {
     pub fn state_name(&self, index: usize) -> &str {
         if index == 0 { &self.default_state } else { self.states.get(index - 1).map_or("", |s| s.name.as_str()) }
     }
-    /// Sprite and solidity of state `index` (out of range: the default state).
-    /// The picture of state `index` at `time` seconds (the default state's `anim` cycles).
-    pub fn sprite_at(&self, index: usize, time: f64) -> std::borrow::Cow<'_, SpriteRef> {
-        let s = self.state_look(index).0;
-        match self.anim.as_ref().filter(|_| index == 0).and_then(|a| a.frame_at(time)) {
-            Some(frame) => std::borrow::Cow::Owned(SpriteRef { frame, ..s.clone() }),
-            None => std::borrow::Cow::Borrowed(s),
-        }
-    }
-
     /// The 3D model of state `index` ("" = none: the picture is drawn).
     pub fn model_at(&self, index: usize) -> std::borrow::Cow<'_, str> {
         match index.checked_sub(1).and_then(|i| self.states.get(i)).filter(|s| !s.model.is_empty()) {
@@ -1940,13 +1880,20 @@ impl PropDef {
         }
     }
 
-    /// Whether placed copies turn in quarters (a model, pictures from four sides, a block): their
-    /// facing then turns the picture and the hitbox. Others only mirror.
+    /// Whether placed copies turn in quarters (a model, a building, a block): their facing then
+    /// turns the model and the hitbox. Others only mirror.
     pub fn turns(&self) -> bool {
-        !self.model.is_empty() || !self.turns.is_empty() || self.building.is_some() || self.block > 0.0 || self.states.iter().any(|s| !s.model.is_empty())
+        !self.model.is_empty() || self.building.is_some() || self.block > 0.0 || self.states.iter().any(|s| !s.model.is_empty())
     }
 
     /// The hitbox of a copy facing `f`: width and depth swapped when it is turned a quarter.
+    /// How high above the ground the prop's underside is (world pixels): a roof alone (a
+    /// building without walls) rests on walls of its *height*; everything else stands on
+    /// the ground (0). What is raised is drawn after what stands under it.
+    pub fn raised_by(&self) -> f32 {
+        self.building.as_ref().filter(|b| !b.walls).map_or(0.0, |b| b.height.max(0.0))
+    }
+
     pub fn hitbox_facing(&self, f: crate::entity::Facing) -> [f32; 2] {
         use crate::entity::Facing;
         match f {
@@ -1955,20 +1902,11 @@ impl PropDef {
         }
     }
 
-    /// The picture of state `index` at `time` seconds facing `f` (the turned pictures of the
-    /// default state, else the state's picture).
-    pub fn picture_facing(&self, index: usize, f: crate::entity::Facing, time: f64) -> std::borrow::Cow<'_, SpriteRef> {
-        use crate::entity::Facing;
-        let k = match f {
-            Facing::Down => None,
-            Facing::Left => Some(0),
-            Facing::Up => Some(1),
-            Facing::Right => Some(2),
-        };
-        match k.filter(|_| index == 0).and_then(|k| self.turns.get(k)) {
-            Some(s) => std::borrow::Cow::Borrowed(s),
-            None => self.sprite_at(index, time),
-        }
+    /// Where the picture stands for a prop at `feet` ([`PropDef::picture_offset`]; mirrored
+    /// with the picture when `flip`).
+    pub fn picture_feet(&self, feet: [f32; 2], flip: bool) -> [f32; 2] {
+        let [x, y] = self.picture_offset;
+        [feet[0] + if flip { -x } else { x }, feet[1] + y]
     }
 
     pub fn state_look(&self, index: usize) -> (&SpriteRef, bool) {
@@ -2032,6 +1970,7 @@ impl PropDef {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Behavior {
     Static,
     /// Walks randomly within `radius` tiles of its start position.
@@ -2076,6 +2015,7 @@ impl Behavior {
 /// show in figures with hand marks, `hands.rs`),
 /// behavior and combat values.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct CharacterDef {
     pub id: String,
     pub name: String,
@@ -2169,6 +2109,10 @@ pub struct CharacterDef {
     pub level: u32,
 }
 
+fn is_origin(v: &[f32; 2]) -> bool {
+    *v == [0.0, 0.0]
+}
+
 fn is_zero_f32(v: &f32) -> bool {
     *v == 0.0
 }
@@ -2222,6 +2166,7 @@ impl CharacterDef {
 
 /// One line of a loot table: `item` drops with `chance` percent, `min..=max` of them.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct LootEntry {
     pub item: String,
     /// Drop chance in percent (0-100).
@@ -2260,6 +2205,7 @@ pub fn roll_loot(table: &[LootEntry], mut rand01: impl FnMut() -> f32, mut range
 
 /// One line of a merchant's stock.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ShopEntry {
     pub item: String,
     /// How many the merchant has (ignored when `unlimited`).
@@ -2288,6 +2234,7 @@ fn one() -> u32 {
 
 /// A merchant: what they sell, for what, and what they pay for the player's items.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ShopSpec {
     /// Trade window title ("" = the character's name).
     #[serde(default)]
@@ -2411,10 +2358,11 @@ pub struct Database {
     pub index: DefIndex,
 }
 
-/// A multi-tile asset ("structure"): tiles on several map layers, collision overrides and
+/// A multi-tile asset ("structure"): painted ground, decorations, collision overrides and
 /// entities that the editor places on a map in one click (a house, a wall segment, a room…).
-/// Placing it writes ordinary tiles and entities, so the game never needs it.
+/// Placing it writes ordinary ground, decorations and entities, so the game never needs it.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct StructureDef {
     pub id: String,
     pub name: String,
@@ -2424,14 +2372,6 @@ pub struct StructureDef {
     /// Size in tiles.
     pub w: u32,
     pub h: u32,
-    /// Tile structures (R(ust)PG2D 0.20 and older; converted when the project is opened): the
-    /// tilesets their tiles come from.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub tilesets: Vec<String>,
-    /// Tile structures: tiles per old map layer (0 = ground, 1 = detail, 2 = overhead), row by
-    /// row (`w × h`): 0 = keep the map's tile, `StructureDef::CLEAR` = empty it, else a tile.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub layers: Vec<Vec<u32>>,
     /// Collision override per tile (`CollisionOverride` as a byte; 0 = keep the map's).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub collision: Vec<u8>,
@@ -3024,14 +2964,11 @@ mod tests {
     #[test]
     fn fights_reach_ten_feet_only_with_the_reach_property() {
         let mut w = Weapon { reach: 1.9, ..Weapon::melee(2, 0.5) };
-        assert_eq!(w.reach_tiles(), 2, "an old weapon without a category: its swing");
+        assert_eq!(w.reach_tiles(), 2, "a weapon without a category (a character's own): its swing");
         w.category = Some(WeaponCategory::Simple);
         assert!(w.long() && w.reach_tiles() == 1, "the SRD's spear (or a staff): carried long, reaches 5 ft");
         w.properties.push(WeaponProperty::Reach);
         assert_eq!(w.reach_tiles(), 2, "a glaive");
-        let mut old = ItemDef { weapon: Some(Weapon { reach: 1.9, ..Weapon::melee(2, 0.5) }), ..ItemDef::fresh("pike") };
-        old.upgrade();
-        assert_eq!(old.weapon.unwrap().reach_tiles(), 2, "an old long weapon keeps its reach");
     }
 
     #[test]
@@ -3186,7 +3123,7 @@ mod tests {
     /// `Default` is what a file entry with only the required fields loads as (so tests and the
     /// editor can write `..Default::default()`), and `fresh` is the editor's "+ New" value.
     #[test]
-    fn props_with_a_model_or_four_pictures_turn() {
+    fn props_with_a_model_turn() {
         use crate::entity::Facing;
         let mut p = PropDef { hitbox: [64.0, 30.0], ..PropDef::fresh("cart") };
         assert!(!p.turns());
@@ -3196,11 +3133,6 @@ mod tests {
         assert_eq!((p.hitbox_facing(Facing::Left), p.hitbox_facing(Facing::Up)), ([30.0, 64.0], [64.0, 30.0]));
         p.states.push(PropState { name: "broken".into(), sprite: SpriteRef::new("s", 1), solid: false, light: None, model: "cart_broken".into() });
         assert_eq!((p.model_at(1).as_ref(), p.model_at(5).as_ref()), ("cart_broken", "cart_3d"));
-        p.model.clear();
-        p.turns = vec![SpriteRef::new("w", 0), SpriteRef::new("n", 0), SpriteRef::new("e", 0)];
-        assert_eq!(p.picture_facing(0, Facing::Up, 0.0).sheet, "n");
-        assert_eq!(p.picture_facing(0, Facing::Right, 0.0).sheet, "e");
-        assert_eq!(p.picture_facing(1, Facing::Up, 0.0).sheet, "s");
     }
 
     #[test]
@@ -3214,6 +3146,13 @@ mod tests {
         let p: PropDef = ron::from_str(r#"(id: "p", name: "P", sprite: (sheet: "s", frame: 2))"#).unwrap();
         assert_eq!(p, PropDef { id: "p".into(), name: "P".into(), sprite: SpriteRef::new("s", 2), ..Default::default() });
         assert!(!p.solid && p.hitbox == [24.0, 16.0] && p.default_state == "default");
+        // A picture stands on the prop's place unless it is moved (mirrored with the picture),
+        // and only a moved one is written.
+        assert_eq!(p.picture_feet([100.0, 50.0], true), [100.0, 50.0]);
+        assert!(!ron::to_string(&p).unwrap().contains("picture_offset"));
+        let moved = PropDef { picture_offset: [3.0, -2.0], ..p.clone() };
+        assert_eq!((moved.picture_feet([100.0, 50.0], false), moved.picture_feet([100.0, 50.0], true)), ([103.0, 48.0], [97.0, 48.0]));
+        assert_eq!(ron::from_str::<PropDef>(&ron::to_string(&moved).unwrap()).unwrap(), moved);
         let c: CharacterDef = ron::from_str(r#"(id: "c", name: "C")"#).unwrap();
         assert_eq!(c, CharacterDef { id: "c".into(), name: "C".into(), ..Default::default() });
         assert!(c.speed == 120.0 && c.behavior == Behavior::Static && c.hitbox == [24.0, 16.0]);
@@ -3348,17 +3287,17 @@ mod tests {
         assert_eq!(e.lock.unwrap().on_unlock, OnUnlock::ToState { state: "open".into() });
     }
 
+    /// Fields of earlier versions that are gone (pictures in the hand, a carried prop's marks,
+    /// four pictures of a prop, an animated picture, wall sets, a figure's `body`) are skipped
+    /// when old files are read.
     #[test]
-    fn animated_props_cycle_their_frames() {
-        let a = FrameAnim { frames: vec![3, 40, 41], fps: 2.0 };
-        assert_eq!((a.frame_at(0.0), a.frame_at(0.6), a.frame_at(1.2), a.frame_at(1.5)), (Some(3), Some(40), Some(41), Some(3)));
-        assert_eq!(FrameAnim { frames: vec![], fps: 2.0 }.frame_at(9.0), None);
-        let mut p = PropDef { id: "torch".into(), sprite: SpriteRef::new("s", 3), anim: Some(a), ..Default::default() };
-        p.states.push(PropState { name: "out".into(), sprite: SpriteRef::new("s", 9), solid: false, light: None, model: String::new() });
-        assert_eq!(p.sprite_at(0, 0.6).frame, 40);
-        assert_eq!(p.sprite_at(1, 0.6).frame, 9, "other states don't animate");
-        // Props without one don't write it.
-        assert!(!ron::to_string(&PropDef::default()).unwrap().contains("anim"));
+    fn removed_fields_are_skipped_in_old_files() {
+        let i: ItemDef = ron::from_str(r#"(id: "i", name: "I", icon: (sheet: "s", frame: 1), held: Some((sprite: (sheet: "held", frame: 0), grip: (0.5, 0.6), points: -90.0, scale: 1.25)))"#).unwrap();
+        assert_eq!(i, ItemDef { id: "i".into(), name: "I".into(), icon: SpriteRef::new("s", 1), ..Default::default() });
+        let p: PropDef = ron::from_str(r#"(id: "p", name: "P", sprite: (sheet: "s", frame: 3), carry: Some((grip: (0.5, 0.6))), pieces: ["a", "b"], anim: Some((frames: [3, 40], fps: 2.0)), turns: [(sheet: "w", frame: 0)])"#).unwrap();
+        assert_eq!(p, PropDef { id: "p".into(), name: "P".into(), sprite: SpriteRef::new("s", 3), ..Default::default() });
+        let a: Appearance = ron::from_str(r#"(model: "hero", body: "farmer_m")"#).unwrap();
+        assert_eq!(a, Appearance { model: "hero".into(), ..Default::default() });
     }
 }
 

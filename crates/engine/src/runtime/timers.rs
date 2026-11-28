@@ -1,7 +1,7 @@
 //! Timers (`crate::timers`): counted down while no menu or dialog is open, drawn at the top of
 //! the screen when shown, and what they run when they run out.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::skin;
 use super::text::{draw_plain, measure_plain, role, Role};

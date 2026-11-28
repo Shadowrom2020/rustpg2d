@@ -9,6 +9,7 @@ use crate::events::Action;
 
 /// When a common event runs by itself.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum CommonTrigger {
     /// Only when called.
     #[default]
@@ -40,6 +41,7 @@ impl CommonTrigger {
 
 /// A common event.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct CommonEventDef {
     pub id: String,
     /// Name shown in the editor.

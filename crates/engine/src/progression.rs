@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 /// How the hero's hit points grow per level.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum HitPoints {
     /// The hit die's average (6 for a d10), plus CON.
     #[default]
@@ -19,6 +20,7 @@ pub enum HitPoints {
 /// Project settings for experience and levels (`project.ron`; the XP curve of 0.27 and older,
 /// `base_xp`, `growth` and `hp_per_level`, is ignored: the SRD table replaced it).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct Progression {
     /// Off: XP isn't counted, nothing is shown, characters and quests give none.

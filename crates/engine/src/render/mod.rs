@@ -16,7 +16,7 @@ pub mod weather;
 
 use std::collections::HashMap;
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use crate::defs::SpriteRef;
 use crate::map::Map;
@@ -56,6 +56,15 @@ impl SheetTex {
         let r = self.src_rect(frame);
         Rect::new(r.x, r.y, self.frame_w * w.max(1) as f32, self.frame_h * h.max(1) as f32)
     }
+}
+
+/// A sheet's image read and cut into frames as its definition says.
+fn sheet_tex(project: &Project, def: &crate::defs::SheetDef, errors: &mut Vec<String>) -> SheetTex {
+    let image = load_image(project, &def.image, errors);
+    let (fw, fh) = (def.frame_w.max(1), def.frame_h.max(1));
+    let columns = (image.width as u32 / fw).max(1);
+    let rows = (image.height as u32 / fh).max(1);
+    SheetTex { texture: texture(&image), image, frame_w: fw as f32, frame_h: fh as f32, columns, count: columns * rows, scale: def.scale.clamp(1, 4) as f32 }
 }
 
 pub struct Assets {
@@ -154,22 +163,7 @@ impl Assets {
         let mut errors = Vec::new();
         let mut sheets = HashMap::new();
         for def in &project.db.sheets {
-            let image = load_image(project, &def.image, &mut errors);
-            let (fw, fh) = (def.frame_w.max(1), def.frame_h.max(1));
-            let columns = (image.width as u32 / fw).max(1);
-            let rows = (image.height as u32 / fh).max(1);
-            sheets.insert(
-                def.id.clone(),
-                SheetTex {
-                    texture: texture(&image),
-                    image,
-                    frame_w: fw as f32,
-                    frame_h: fh as f32,
-                    columns,
-                    count: columns * rows,
-                    scale: def.scale.clamp(1, 4) as f32,
-                },
-            );
+            sheets.insert(def.id.clone(), sheet_tex(project, def, &mut errors));
         }
         let mut materials = HashMap::new();
         let mut material_colors = HashMap::new();
@@ -187,12 +181,42 @@ impl Assets {
         for e in &errors {
             eprintln!("[assets] {e}");
         }
-        static GENERATION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
-        let generation = GENERATION.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let generation = next_generation();
         let models = model::Models::load(&project.db, &|rel| crate::sys::read(&project.path(rel)));
         models.set_atlas_mb(project.config.model_atlas_mb);
         errors.extend(models.errors.iter().cloned());
         Assets { tile_size: ts, sheets, materials, material_colors, material_frames, generation, errors, models }
+    }
+
+    /// Reads one sheet's image again (or for the first time: a picture the editor just wrote),
+    /// leaving everything else as it is.
+    pub fn load_sheet(&mut self, project: &Project, def: &crate::defs::SheetDef) {
+        let mut errors = Vec::new();
+        self.sheets.insert(def.id.clone(), sheet_tex(project, def, &mut errors));
+        for e in &errors {
+            eprintln!("[assets] {e}");
+        }
+        self.errors.extend(errors);
+    }
+
+    /// Reads one ground material's texture again (a picture the editor just wrote), leaving
+    /// everything else as it is; whoever draws the ground builds its atlas anew.
+    pub fn load_material(&mut self, project: &Project, def: &crate::ground::MaterialDef) {
+        let mut errors = Vec::new();
+        if def.texture.is_empty() {
+            self.materials.remove(&def.id);
+        } else {
+            let image = load_image(project, &def.texture, &mut errors);
+            let (fw, fh) = def.frame_size(image.width as u32, image.height as u32);
+            self.material_colors.insert(def.id.clone(), average_color(&image, Rect::new(0.0, 0.0, fw.max(1) as f32, fh.max(1) as f32)));
+            self.material_frames.insert(def.id.clone(), def.frames.max(1) as u32);
+            self.materials.insert(def.id.clone(), image);
+        }
+        self.generation = next_generation();
+        for e in &errors {
+            eprintln!("[assets] {e}");
+        }
+        self.errors.extend(errors);
     }
 
     /// The picture sprite `sp` shows and its size in world pixels (buildings' textures).
@@ -266,30 +290,29 @@ impl Assets {
         true
     }
 
-    /// Draws prop `p` in state `state` facing `facing` (props that turn: a 3D model or pictures
-    /// from four sides) standing at `feet` (the hitbox's bottom middle), mirrored when `flip`;
-    /// `frame` frames further into its sheet (pictures). A model stands on the middle of its
-    /// hitbox: `iso` (drawn through an upright camera at `feet`) puts that ground offset where
-    /// the isometric view shows it. False when nothing could be drawn (a model not rendered yet,
-    /// a missing sheet).
+    /// Draws prop `p` in state `state` facing `facing` (props that turn: a 3D model) standing at
+    /// `feet` (the hitbox's bottom middle), mirrored when `flip`; `frame` frames further into its
+    /// sheet (pictures). A model stands on the middle of its hitbox: drawn through an upright
+    /// camera at `feet`, that ground offset goes where the isometric view shows it. False when
+    /// nothing could be drawn (a model not rendered yet, a missing sheet).
     #[allow(clippy::too_many_arguments)]
-    pub fn draw_prop(&self, db: &crate::defs::Database, p: &crate::defs::PropDef, state: usize, facing: crate::entity::Facing, frame: u32, feet: Vec2, flip: bool, tint: Color, time: f64, iso: bool) -> bool {
+    pub fn draw_prop(&self, db: &crate::defs::Database, p: &crate::defs::PropDef, state: usize, facing: crate::entity::Facing, frame: u32, feet: Vec2, flip: bool, tint: Color) -> bool {
         let model = p.model_at(state);
         if !model.is_empty() && self.models.has(&model) {
             let look = crate::defs::Appearance { model: model.to_string(), ..Default::default() };
             let gear = model::Gear::default();
             let req = model::PoseReq { look: &look, gear: &gear, anim: "idle", time: 0.0, once: false, facing, turn: 0, bust: false };
-            let Some(cell) = self.models.pose(db, &self.sheets, &req) else { return false };
+            let Some(cell) = self.models.pose(db, &req) else { return false };
             let off = vec2(0.0, -p.hitbox_facing(facing)[1] / 2.0);
-            let at = feet + if iso { iso::lay(off) } else { off };
-            self.models.draw_flipped(&cell, at, 1.0, tint, flip);
+            self.models.draw_flipped(&cell, feet + iso::lay(off), 1.0, tint, flip);
             return true;
         }
-        let sp = p.picture_facing(state, facing, time);
+        let sp = p.state_look(state).0;
+        let feet = Vec2::from(p.picture_feet(feet.into(), flip));
         if frame == 0 {
-            self.draw_sprite_flipped(&sp, feet, tint, flip)
+            self.draw_sprite_flipped(sp, feet, tint, flip)
         } else {
-            self.draw_sprite_flipped(&SpriteRef { frame: sp.frame + frame, ..sp.into_owned() }, feet, tint, flip)
+            self.draw_sprite_flipped(&SpriteRef { frame: sp.frame + frame, ..sp.clone() }, feet, tint, flip)
         }
     }
 
@@ -307,17 +330,16 @@ impl Assets {
         iso::contact_shadow(Rect::new(origin.x + g.x, origin.y + g.y, g.w, g.h), alpha * CONTACT_SHADOW);
     }
 
-    /// Draws the ground shadow of prop `p` (state `state`, facing `facing`) standing at `feet`,
+    /// Draws the ground shadow of prop `p` (state `state`) standing at `feet`,
     /// when it is drawn as a picture (models and blocks have their own; flat ones and those
     /// without [`crate::defs::PropDef::shadow`] cast none): its picture sheared along the sun
     /// like a 3D prop's shadow, dark and half clear. In the coordinates of its upright drawing
     /// (the caller sets that camera); before the things standing there are drawn.
-    #[allow(clippy::too_many_arguments)]
-    pub fn draw_prop_shadow(&self, p: &crate::defs::PropDef, state: usize, facing: crate::entity::Facing, feet: Vec2, flip: bool, time: f64, alpha: f32) {
+    pub fn draw_prop_shadow(&self, p: &crate::defs::PropDef, state: usize, feet: Vec2, flip: bool, alpha: f32) {
         if !p.shadow || p.flat || p.block > 0.0 || p.building.is_some() || (!p.model_at(state).is_empty() && self.models.has(&p.model_at(state))) {
             return;
         }
-        let sp = p.picture_facing(state, facing, time);
+        let sp = p.state_look(state).0;
         let Some(s) = self.sheets.get(&sp.sheet) else { return };
         let (cw, ch) = sp.cells();
         let src = inset(s.region(sp.frame, cw, ch));
@@ -330,7 +352,7 @@ impl Assets {
         // of its width, so the shadow starts there, under it (else it lies in front, the thing
         // seeming to float above it).
         let (w, h) = (size.x, size.y);
-        let feet = feet - vec2(0.0, (w * 0.25).min(h * 0.35));
+        let feet = Vec2::from(p.picture_feet(feet.into(), flip)) - vec2(0.0, (w * 0.25).min(h * 0.35));
         let top = feet + vec2(model::SHADOW_SHEAR.x * h, model::SHADOW_SHEAR.y * h);
         let c = Color::new(0.0, 0.0, 0.0, alpha * PICTURE_SHADOW);
         let v = |pos: Vec2, u: f32, vv: f32| Vertex::new(pos.x, pos.y, 0.0, u, vv, c);
@@ -349,7 +371,7 @@ impl Assets {
     pub fn draw_prop_block(&self, v: &iso::View, p: &crate::defs::PropDef, state: usize, facing: crate::entity::Facing, feet: Vec2, height: f32, tint: Color) {
         let [w, h] = p.hitbox_facing(facing);
         let r = Rect::new(feet.x - w / 2.0, feet.y - h, w, h);
-        let sp = p.picture_facing(state, facing, 0.0);
+        let sp = p.state_look(state).0;
         let tex = self.sheets.get(&sp.sheet).map(|s| {
             let (cw, ch) = sp.cells();
             (&s.texture, inset(s.region(sp.frame, cw, ch)))
@@ -358,11 +380,11 @@ impl Assets {
     }
 
     /// Where prop `p` (state `state`, facing `facing`) standing at `feet` is drawn, in the
-    /// coordinates of its upright drawing (a picture: its frame above the feet; a model in the
-    /// isometric view: the box its footprint and height take on the screen): for clicking on it.
-    pub fn prop_rect(&self, p: &crate::defs::PropDef, state: usize, facing: crate::entity::Facing, feet: Vec2, ts: f32, iso: bool) -> Rect {
+    /// coordinates of its upright drawing (a picture: its frame above the feet; a model: the box
+    /// its footprint and height take on the screen in the isometric view): for clicking on it.
+    pub fn prop_rect(&self, p: &crate::defs::PropDef, state: usize, facing: crate::entity::Facing, feet: Vec2, ts: f32) -> Rect {
         let model = p.model_at(state);
-        if iso && !model.is_empty() && self.models.has(&model) {
+        if !model.is_empty() && self.models.has(&model) {
             let [w, h] = p.hitbox_facing(facing);
             let height = self.models.def(&model).map_or(ts, |d| d.height);
             let c = feet + iso::lay(vec2(0.0, -h / 2.0));
@@ -370,21 +392,9 @@ impl Assets {
             let above = height * 30f32.to_radians().cos() + below;
             return Rect::new(c.x - half, c.y - above, 2.0 * half, above + below);
         }
-        let size = self.sprite_size(&p.picture_facing(state, facing, 0.0), ts);
+        let size = self.sprite_size(p.state_look(state).0, ts);
+        let feet = Vec2::from(p.picture_feet(feet.into(), false));
         Rect::new(feet.x - size.x / 2.0, feet.y - size.y, size.x, size.y)
-    }
-
-    /// Draws something held in a hand (`l`: its sprite, its grip point put at `at`, turned by its
-    /// rotation, mirrored top to bottom first when `flip`); `scale` times its world size.
-    pub fn draw_held_sprite(&self, l: &crate::hands::HeldLayer, at: Vec2, scale: f32, tint: Color) -> bool {
-        let Some(s) = self.sheets.get(&l.sprite.sheet) else { return false };
-        let (w, h) = l.sprite.cells();
-        let src = s.region(l.sprite.frame, w, h);
-        let size = s.world_of(src) * scale;
-        let pos = at - vec2(l.grip[0] * size.x, l.grip[1] * size.y);
-        let params = DrawTextureParams { source: Some(inset(src)), dest_size: Some(size), rotation: l.rotation.to_radians(), pivot: Some(at), flip_y: l.flip, ..Default::default() };
-        draw_texture_ex(&s.texture, pos.x, pos.y, tint, params);
-        true
     }
 
     /// World size of a sprite (one frame if the sheet is unknown: `fallback`).
@@ -440,6 +450,12 @@ impl Assets {
         );
         true
     }
+}
+
+/// A number no loaded set of art had yet ([`Assets::generation`]).
+fn next_generation() -> u64 {
+    static GENERATION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+    GENERATION.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
 }
 
 /// Draws `src` of a sheet's texture at its world size, bottom-center at `feet` (pixel-snapped).

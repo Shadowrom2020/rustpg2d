@@ -1,0 +1,63 @@
+//! The editor without its UI (ROADMAP.md, *0.36.0 — The Studio*, part 2): the workspace (a
+//! project, its open maps, what changed), undo, the project file. The window (`crates/studio`),
+//! the editor script and the agent server work through it.
+
+pub mod doc;
+pub mod art;
+pub mod cleanup;
+pub mod commands;
+pub mod cutscene;
+pub mod defs;
+pub mod files;
+pub mod graph;
+pub mod frame_ops;
+pub mod fromfile;
+pub mod history;
+pub mod langs;
+pub mod library;
+pub mod looks;
+pub mod build;
+pub mod events;
+pub mod export;
+pub mod manual;
+pub mod mapedit;
+pub mod mapops;
+pub mod mcp;
+pub mod meta;
+pub mod modelcheck;
+pub mod models;
+pub mod names;
+pub mod package;
+pub mod packs;
+pub mod pixels;
+pub mod plugins;
+pub mod problems;
+pub mod project_file;
+pub mod refs;
+pub mod rename;
+pub mod repo_mode;
+pub mod schema;
+pub mod scripts;
+pub mod search;
+// (The SRD 5.1 import is a tool run by hand, the `srd_import` example: here for its tests.)
+#[cfg(test)]
+mod srd_import;
+pub mod starter;
+pub mod structdoc;
+pub mod testsetup;
+pub mod timeline;
+pub mod tours;
+pub mod visualedit;
+pub mod workspace;
+pub mod world;
+
+pub use workspace::{Gpu, Workspace};
+
+/// The agent server's port unless another is chosen.
+pub const DEFAULT_PORT: u16 = 7743;
+
+/// Seconds since the program started (for "a moment ago": merged typing, status messages).
+pub fn now() -> f64 {
+    static START: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
+    START.get_or_init(std::time::Instant::now).elapsed().as_secs_f64()
+}

@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 /// Where an element sits on the screen; its offset counts from there (inwards from an edge).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Anchor {
     #[default]
     TopLeft,
@@ -91,6 +92,7 @@ impl Source {
 
 /// What a HUD element shows.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum HudKind {
     /// A line; placeholders (`{coins}`, `{item:coin}`, `{player}`) are filled in every frame.
     Text { text: String },
@@ -118,6 +120,7 @@ pub enum HudKind {
 
 /// A HUD element set by a script (`WorldState::hud`, by id).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct HudElement {
     pub kind: HudKind,
     #[serde(default)]

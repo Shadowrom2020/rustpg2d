@@ -23,7 +23,7 @@ for how to use it all.
 <table>
   <tr>
     <td><img src="Documentation/images/game-dialog.webp" alt="Elder Rowan greets the hero in Emberbrook's market square, with his drawn portrait in the dialog box"></td>
-    <td><img src="Documentation/images/editor-map.webp" alt="The map editor with the market square, the tile palette, layers and map settings"></td>
+    <td><img src="Documentation/images/editor-map.webp" alt="The village map in its tab: the tools above it, the Outliner and the Inspector beside it, the Project browser on the left"></td>
   </tr>
   <tr>
     <td align="center"><em>A living village: about twenty villagers follow their own daily routines</em></td>
@@ -31,7 +31,7 @@ for how to use it all.
   </tr>
   <tr>
     <td><img src="Documentation/images/game-character.webp" alt="The character window with the hero's gear, stats and inventory"></td>
-    <td><img src="Documentation/images/editor-builder.webp" alt="The character editor: the cards of the 3D models to choose from and a walking preview"></td>
+    <td><img src="Documentation/images/editor-builder.webp" alt="The character workshop: the town guard walking with his spear, his pieces, colours and what he wears"></td>
   </tr>
   <tr>
     <td align="center"><em>Equipment, stats and inventory</em></td>
@@ -39,7 +39,7 @@ for how to use it all.
   </tr>
   <tr>
     <td><img src="Documentation/images/game-fishing.webp" alt="The fisher on the jetty with his rod and line, the hero with sword and shield on the shore"></td>
-    <td><img src="Documentation/images/editor-item.webp" alt="The item form: the battle axe's 3D model, held in the fist, with a big preview of the hero walking with it"></td>
+    <td><img src="Documentation/images/editor-item.webp" alt="The item workshop: the battle axe in the hero's hand as he walks, how it is held, and the item's form"></td>
   </tr>
   <tr>
     <td align="center"><em>Villagers at work, with the tools in their hands</em></td>
@@ -47,7 +47,7 @@ for how to use it all.
   </tr>
   <tr>
     <td><img src="Documentation/images/game-night.webp" alt="Emberbrook's market at night: the hero with a lantern, the street lamps"></td>
-    <td><img src="Documentation/images/editor-events.webp" alt="The Events view: a forest map's triggers, scripts and map links as a graph"></td>
+    <td><img src="Documentation/images/editor-events.webp" alt="The events graph: a forest map's events, script functions and the maps it leads to"></td>
   </tr>
   <tr>
     <td align="center"><em>Day and night, dynamic lights, weather</em></td>

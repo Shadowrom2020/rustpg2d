@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 /// An entry of the title screen or the pause menu.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum MenuEntry {
     /// Title: start a new game (the character creator first, when it is on).
     NewGame,
@@ -79,6 +80,7 @@ impl MenuEntry {
 
 /// Where a menu sits on the screen.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum MenuAlign {
     Left,
     #[default]
@@ -100,6 +102,7 @@ impl MenuAlign {
 
 /// What the title screen shows behind its menu.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum TitleBackground {
     /// A map: the camera on tile `x`, `y` (`None` = the start spawn), the clock held at `hour`
     /// (`None` = the project's start hour), slowly drifting with `drift`. An empty `map` = the
@@ -126,6 +129,7 @@ impl Default for TitleBackground {
 
 /// A logo picture on the title screen.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct TitleLogo {
     /// Sprite sheet id (drawn whole).
     pub sheet: String,
@@ -147,6 +151,7 @@ impl TitleLogo {
 
 /// The title screen (`ProjectConfig::title`).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct TitleScreen {
     #[serde(default, skip_serializing_if = "is_default_bg")]
     pub background: TitleBackground,
@@ -197,6 +202,7 @@ impl TitleScreen {
 /// An entry of the action bar outside fights (`ProjectConfig::action_bar`): each opens a list or
 /// acts at once.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum BarEntry {
     /// The usable items in the bag: potions, food, scrolls, items with *Use* triggers.
     Use,
@@ -257,6 +263,7 @@ impl BarEntry {
 
 /// The pause menu (`ProjectConfig::menu`).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct PauseMenu {
     /// The entries in order; empty = the built-in ones ([`PauseMenu::DEFAULT`]).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

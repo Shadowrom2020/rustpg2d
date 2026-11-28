@@ -1,0 +1,716 @@
+//! The model workshop, at the top of a 3D model's tab: the model as the game draws it, playing
+//! any of its animations, and beside it what the check found with the fixes at hand: each
+//! animation's clip picked from the clips its files hold, the clips guessed from their names,
+//! a rig template for a model without a skeleton.
+//!
+//! What a model needs and how it is fixed is worked out in `editor_core::modelcheck`.
+
+use eframe::egui::{self, Color32, Sense};
+use eframe::egui_wgpu::RenderState;
+use editor_core::modelcheck::{self, Checked, BASE, EXTRAS};
+use editor_core::Workspace;
+use rustpg2d_engine::defs::Appearance;
+use rustpg2d_engine::entity::Facing;
+use rustpg2d_engine::render::model::Gear;
+
+use crate::charshop::{PREVIEW, SIDES};
+
+pub struct ModelStage {
+    pub facing: Facing,
+    pub turning: bool,
+    /// The animation shown.
+    pub anim: String,
+    /// *Take clips from another model…* while it is open.
+    pub share: Option<Share>,
+    /// What adding or taking clips said last.
+    pub said: String,
+}
+
+/// Clips taken from another model with the same skeleton: which model, which of its
+/// animations (all ticked at first), whether they replace the ones this model has.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Share {
+    pub source: String,
+    pub ticks: std::collections::BTreeMap<String, bool>,
+    pub replace: bool,
+}
+
+impl Default for ModelStage {
+    fn default() -> ModelStage {
+        ModelStage { facing: Facing::Down, turning: true, anim: "idle".into(), share: None, said: String::new() }
+    }
+}
+
+/// The models clips can be taken from: with a skeleton of their own and animations, not pieces.
+fn sources(ws: &Workspace, id: &str) -> Vec<(String, String)> {
+    ws.project.db.models.iter().filter(|m| m.id != id && m.part.is_none() && m.rig.is_none() && !m.clips.is_empty()).map(|m| (m.id.clone(), if m.name.is_empty() { m.id.clone() } else { m.name.clone() })).collect()
+}
+
+/// A file of clips for model `id`: copied into `models/` when it is elsewhere, then played by
+/// the model (written at once, with the file).
+fn add_clip_file(ws: &mut Workspace, id: &str, file: &std::path::Path) -> String {
+    match editor_core::files::import_asset(&ws.project.root, file, "models") {
+        Ok(rel) => ws.use_model_file(id, true, &rel),
+        Err(e) => format!("{} can't be added: {e:#}", file.display()),
+    }
+}
+
+/// "attack_2h" -> "Attack 2h".
+fn anim_label(anim: &str) -> String {
+    let mut c = anim.replace('_', " ");
+    if let Some(f) = c.get_mut(0..1) {
+        f.make_ascii_uppercase();
+    }
+    c
+}
+
+/// What an animation is played for.
+fn anim_help(anim: &str) -> &'static str {
+    match anim {
+        "walk" => "Walking: every figure needs it",
+        "idle" => "Standing still: every figure needs it",
+        "attack" => "A blow, a shot, a spell: every figure needs it",
+        "hurt" => "Just hit: every figure needs it",
+        "sit" => "On a chair or a bench",
+        "sleep" => "Lying in a bed",
+        "fish" | "farm" | "craft" | "chop" | "mine" | "sweep" | "read" => "At work: characters seen doing it at their spot, the player gathering",
+        "attack_1h" | "attack_2h" | "attack_thrust" | "attack_bow" | "attack_cast" | "attack_unarmed" => "The blow with a weapon of that kind (an item's Attack animation names it)",
+        "idle_1h" | "idle_2h" => "The battle stance with a weapon of that kind",
+        "block_shield" | "block_weapon" => "A blow blocked or parried",
+        "sneak" => "Sneaking",
+        _ => "An animation of its own: scripts and routes play it by this name",
+    }
+}
+
+impl ModelStage {
+    /// The look the model is shown as: itself, or for a piece the first figure it fits, wearing it.
+    fn look(ws: &Workspace, id: &str) -> Appearance {
+        let db = &ws.project.db;
+        match db.model(id).and_then(|m| m.part.as_ref()) {
+            Some(part) => {
+                let body = part.fits.iter().find(|b| ws.assets.models.has(b)).cloned().or_else(|| db.models.iter().find(|m| m.playable && m.part.is_none()).map(|m| m.id.clone())).unwrap_or_default();
+                let mut a = Appearance { model: body, ..Default::default() };
+                a.parts.insert(part.slot.clone(), id.to_string());
+                ws.assets.models.look_of(&a)
+            }
+            None => Appearance { model: id.to_string(), ..Default::default() },
+        }
+    }
+
+    /// The script's line: `ID ok|problemsN|not loaded clips=N rig=own|TEMPLATE@TURN|none [joints=N] anims=[walk=Clip …] missing=[…] shown=ANIM`
+    /// (`joints=` the rig template's joints moved by hand).
+    pub fn status(&self, ws: &Workspace, id: &str) -> String {
+        let Some(def) = ws.project.db.model(id) else { return "-".into() };
+        let c = ws.model_checked(id);
+        if let Some(e) = &c.error {
+            return format!("{id} not loaded: {e}");
+        }
+        let rig = match &def.rig {
+            Some(r) => format!("{}@{}", r.template, r.turn),
+            None if c.rigged => "own".to_string(),
+            None => "none".to_string(),
+        };
+        let anims: Vec<String> = def.clips.iter().map(|m| format!("{}={}@{}", m.anim, m.clip, m.fps)).collect();
+        let joints = def.rig.as_ref().map_or(0, |r| r.joints.len());
+        let joints = if joints > 0 { format!(" joints={joints}") } else { String::new() };
+        format!("{id} {} clips={} rig={rig}{joints} anims=[{}] missing=[{}] shown={}", if c.problems() == 0 { "ok".to_string() } else { format!("problems{}", c.problems()) }, c.clips.len(), anims.join(" "), c.missing.join(" "), self.anim)
+    }
+
+    /// The script's words: `play ANIM CLIP|-`, `fps ANIM N`, `guess`, `rig TEMPLATE|- [TURN]`,
+    /// `joint JOINT DX DY DZ` (a joint of the rig template moved, in parts of the height) or
+    /// `joint JOINT -` (put back),
+    /// `face front|left|back|right|turn`, `anim NAME`, `check` (prints the check's lines),
+    /// `clips FILE` (a file of clips added), `share SOURCE [ANIM…] [replace]` (clips taken from
+    /// another model with the same skeleton; no animations named: all of them).
+    pub fn word(&mut self, ws: &mut Workspace, id: &str, args: &[String]) -> Result<(), String> {
+        let arg = |i: usize| args.get(i).map(String::as_str).unwrap_or("");
+        match arg(0) {
+            "" => {}
+            "play" => ws.model_play(id, arg(1), Some(arg(2)).filter(|c| !c.is_empty() && *c != "-"))?,
+            "fps" => ws.model_fps(id, arg(1), arg(2).parse().map_err(|_| "fps ANIM NUMBER")?)?,
+            "guess" => println!("[model] guessed: {}", ws.model_guess(id)?.join(" ")),
+            "rig" => ws.model_rig(id, arg(1), arg(2).parse().ok())?,
+            "joint" if arg(2) == "-" => ws.model_joint(id, arg(1), None)?,
+            "joint" => {
+                let n = |i: usize| arg(i).parse::<f32>().map_err(|_| "joint JOINT DX DY DZ | joint JOINT -".to_string());
+                ws.model_joint(id, arg(1), Some([n(2)?, n(3)?, n(4)?]))?
+            }
+            "face" => match SIDES.iter().find(|(_, l)| l.eq_ignore_ascii_case(arg(1))) {
+                Some((f, _)) => (self.facing, self.turning) = (*f, false),
+                None if arg(1) == "turn" => self.turning = true,
+                None => return Err("face front|left|back|right|turn".into()),
+            },
+            "anim" => self.anim = arg(1).to_string(),
+            "check" => {
+                let c = ws.model_checked(id);
+                for (problem, line) in &c.lines {
+                    println!("[model] {} {line}", if *problem { "!" } else { " " });
+                }
+            }
+            "clips" => {
+                self.said = add_clip_file(ws, id, std::path::Path::new(&args[1..].join(" ")));
+                println!("[model] {}", self.said);
+            }
+            "share" => {
+                let replace = args.iter().any(|a| a == "replace");
+                let anims: Vec<String> = args.iter().skip(2).filter(|a| *a != "replace").cloned().collect();
+                self.said = ws.share_clips(id, arg(1), &anims, replace)?;
+                println!("[model] {}", self.said);
+            }
+            other => return Err(format!("model {other}: play, fps, guess, rig, joint, face, anim, check, clips, share")),
+        }
+        Ok(())
+    }
+
+    pub fn show(&mut self, ui: &mut egui::Ui, ws: &mut Workspace, rs: Option<&RenderState>, thumbs: &mut crate::thumbs::Thumbs, id: &str) {
+        let Some(def) = ws.project.db.model(id).cloned() else { return };
+        let checked = ws.model_checked(id);
+        ui.horizontal_top(|ui| {
+            self.preview(ui, ws, rs, thumbs, id, &def);
+            ui.separator();
+            ui.vertical(|ui| {
+                if let Some(e) = &checked.error {
+                    ui.label(egui::RichText::new("Workshop").strong());
+                    if rs.is_some() {
+                        ui.colored_label(ui.visuals().error_fg_color, e);
+                        ui.weak("Its file is named under Files below. Reload art (Assets menu) reads it again once it is there.");
+                    } else {
+                        ui.weak("Models are looked over where the editor can draw them.");
+                    }
+                    return;
+                }
+                self.check(ui, ws, id, &def, &checked);
+                if !checked.piece {
+                    ui.add_space(6.0);
+                    self.animations(ui, ws, id, &def, &checked);
+                    // (A model on a rig template plays the template's clips.)
+                    if checked.rigged && def.rig.is_none() {
+                        ui.add_space(6.0);
+                        self.more_clips(ui, ws, id);
+                    }
+                }
+            });
+        });
+    }
+
+    fn preview(&mut self, ui: &mut egui::Ui, ws: &Workspace, rs: Option<&RenderState>, thumbs: &mut crate::thumbs::Thumbs, id: &str, def: &rustpg2d_engine::defs::ModelDef) {
+        let t = ui.input(|i| i.time);
+        let facing = if self.turning { SIDES[(t / 1.5) as usize % 4].0 } else { self.facing };
+        ui.vertical(|ui| {
+            let (rect, _) = ui.allocate_exact_size(PREVIEW, Sense::hover());
+            ui.painter().rect_filled(rect, 4.0, Color32::from_rgb(32, 34, 40));
+            if let Some(rs) = rs.filter(|_| ws.assets.models.has(id)) {
+                let look = Self::look(ws, id);
+                // (An animation it has no clip for is shown standing.)
+                let anim = if def.part.is_some() || def.clip_of(&self.anim).is_some() { self.anim.as_str() } else { "idle" };
+                crate::charshop::draw_figure(ui, rect, ws, rs, thumbs, &look, &Gear::default(), (anim, t as f32, false), facing);
+            }
+            ui.horizontal(|ui| {
+                for (f, label) in SIDES {
+                    if ui.selectable_label(!self.turning && self.facing == f, label).on_hover_text("Seen from this side").clicked() {
+                        (self.facing, self.turning) = (f, false);
+                    }
+                }
+                ui.toggle_value(&mut self.turning, "Turning").on_hover_text("Turns around, a side at a time");
+            });
+            if def.part.is_some() {
+                ui.weak("A piece, shown on a figure it fits.");
+            }
+        });
+    }
+
+    /// What the check found, problems first, each with its fix where there is one.
+    fn check(&mut self, ui: &mut egui::Ui, ws: &mut Workspace, id: &str, def: &rustpg2d_engine::defs::ModelDef, c: &Checked) {
+        ui.horizontal(|ui| {
+            ui.label(egui::RichText::new("Workshop").strong());
+            match c.problems() {
+                0 => ui.weak("Nothing is missing."),
+                1 => ui.colored_label(ui.visuals().warn_fg_color, "1 thing to see to"),
+                n => ui.colored_label(ui.visuals().warn_fg_color, format!("{n} things to see to")),
+            };
+        });
+        for (_, line) in c.lines.iter().filter(|l| l.0) {
+            ui.colored_label(ui.visuals().warn_fg_color, format!("• {line}"));
+        }
+        // No skeleton and no rig template: it can't move. The templates are offered.
+        if !c.piece && !c.rigged {
+            let templates = ws.rig_templates();
+            ui.horizontal(|ui| {
+                let l = ui.label("Skeleton").on_hover_text("This model has no bones of its own. A rig template lends it a skeleton and that skeleton's animations: four legs for an animal, wings for a bird…");
+                let current = def.rig.as_ref().map(|r| r.template.clone()).unwrap_or_default();
+                let shown = templates.iter().find(|t| t.0 == current).map_or_else(|| if current.is_empty() { "none: it stands still".to_string() } else { current.clone() }, |t| t.1.clone());
+                let mut pick = None;
+                egui::ComboBox::from_id_salt(("rig template", id)).selected_text(shown).width(200.0).show_ui(ui, |ui| {
+                    if ui.selectable_label(current.is_empty(), "none: it stands still").clicked() {
+                        pick = Some(String::new());
+                    }
+                    for (tid, name) in &templates {
+                        if ui.selectable_label(*tid == current, name).clicked() {
+                            pick = Some(tid.clone());
+                        }
+                    }
+                })
+                .response
+                .labelled_by(l.id);
+                if let Some(t) = pick.filter(|t| *t != current) {
+                    if let Err(e) = ws.model_rig(id, &t, None) {
+                        ws.set_status(e);
+                    }
+                }
+                if let Some(rig) = &def.rig {
+                    if ui.button("Turn it").on_hover_text(format!("A quarter further (now {}°): it must face the viewer in the front view for the skeleton to sit right", rig.turn)).clicked() {
+                        if let Err(e) = ws.model_rig(id, &rig.template, Some(rig.turn + 90.0)) {
+                            ws.set_status(e);
+                        }
+                    }
+                }
+            });
+            if templates.is_empty() {
+                ui.weak("The project has no rig templates: the asset library has them (3D models named \"Rig: …\").");
+            }
+            if def.rig.is_some() {
+                Self::joints(ui, ws, id, def);
+            }
+        }
+        egui::CollapsingHeader::new("What it is").id_salt(("model facts", id)).show(ui, |ui| {
+            for (_, line) in c.lines.iter().filter(|l| !l.0) {
+                ui.weak(line);
+            }
+        });
+    }
+
+    /// The rig template's joints, each moved by hand from where the fit puts it (in parts of
+    /// the model's height): three numbers a joint, the moved ones marked, each put back alone or
+    /// all at once.
+    fn joints(ui: &mut egui::Ui, ws: &mut Workspace, id: &str, def: &rustpg2d_engine::defs::ModelDef) {
+        let Some(rig) = &def.rig else { return };
+        let names = ws.rig_joints(id);
+        let moved = rig.joints.len();
+        let title = match moved {
+            0 => "Joints of the skeleton".to_string(),
+            1 => "Joints of the skeleton (1 moved)".to_string(),
+            n => format!("Joints of the skeleton ({n} moved)"),
+        };
+        egui::CollapsingHeader::new(title).id_salt(("rig joints", id)).show(ui, |ui| {
+            ui.weak("The template's skeleton is stretched over the model. A joint that sits wrong (a knee too high, a head too far back) is moved here: across, up, to the front, in parts of the model's height. The preview shows it at once, as it moves.");
+            if names.is_empty() {
+                ui.weak("The template isn't loaded: its joints are shown once it is.");
+                return;
+            }
+            let mut set: Option<(String, Option<[f32; 3]>)> = None;
+            egui::Grid::new(("rig joints grid", id)).num_columns(5).spacing([6.0, 3.0]).show(ui, |ui| {
+                ui.weak("Joint");
+                ui.weak("Across");
+                ui.weak("Up");
+                ui.weak("To the front");
+                ui.label("");
+                ui.end_row();
+                for name in &names {
+                    let was = rig.joints.iter().find(|j| j.joint == *name).map(|j| j.offset);
+                    let mut v = was.unwrap_or_default();
+                    let text = if was.is_some() { egui::RichText::new(format!("{name} (moved)")).strong() } else { egui::RichText::new(name) };
+                    ui.label(text);
+                    let mut changed = false;
+                    for (k, axis) in ["across", "up", "to the front"].iter().enumerate() {
+                        let r = ui.add(egui::DragValue::new(&mut v[k]).range(-1.0..=1.0).speed(0.002).fixed_decimals(3)).on_hover_text("Parts of the model's height: 0.1 is a tenth of it");
+                        r.widget_info(|| egui::WidgetInfo::labeled(egui::Role::SpinButton, true, format!("{name} {axis}")));
+                        changed |= r.changed();
+                    }
+                    if changed {
+                        crate::shell::hold_step(ui.ctx(), ("rig joint", id, name.as_str()));
+                        set = Some((name.clone(), Some(v)));
+                    }
+                    let reset = ui.add_enabled(was.is_some(), egui::Button::new("Reset").small()).on_hover_text("Where the fit puts it");
+                    reset.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, was.is_some(), format!("Reset {name}")));
+                    if reset.clicked() {
+                        set = Some((name.clone(), None));
+                    }
+                    ui.end_row();
+                }
+            });
+            if ui.add_enabled(moved > 0, egui::Button::new("Reset all joints")).on_hover_text("Every joint where the fit puts it").clicked() {
+                if let Err(e) = ws.model_joints_reset(id) {
+                    ws.set_status(e);
+                }
+            }
+            if let Some((name, offset)) = set {
+                if let Err(e) = ws.model_joint(id, &name, offset) {
+                    ws.set_status(e);
+                }
+            }
+        });
+    }
+
+    /// More clips: a file of them, or those of another model with the same skeleton.
+    fn more_clips(&mut self, ui: &mut egui::Ui, ws: &mut Workspace, id: &str) {
+        const AT_ONCE: &str = "written at once, with the file";
+        ui.horizontal_wrapped(|ui| {
+            ui.label(egui::RichText::new("More clips").strong());
+            let key = crate::pick::Key::FormFile(egui::Id::unique(("model clips", id)).value());
+            if let Some(picked) = crate::pick::browse(ui, key, "Add a file of clips…", &format!("A .glb with animations for this model's skeleton: copied into the project, its clips offered for the animations ({AT_ONCE})"), || crate::pick::Want::File("3D models", &["glb"]), None) {
+                self.said = add_clip_file(ws, id, &picked);
+            }
+            let open = self.share.is_some();
+            if ui.selectable_label(open, "Take clips from another model…").on_hover_text(format!("The animations of a model with the same skeleton: a figure of the same kit, the same rig ({AT_ONCE})")).clicked() {
+                self.share = if open { None } else { Some(Share::default()) };
+            }
+        });
+        if let Some(mut share) = self.share.take() {
+            let mut keep = true;
+            egui::Frame::group(ui.style()).show(ui, |ui| {
+                let list = sources(ws, id);
+                ui.horizontal(|ui| {
+                    let l = ui.label("From");
+                    let shown = list.iter().find(|m| m.0 == share.source).map_or("pick a model".to_string(), |m| m.1.clone());
+                    egui::ComboBox::from_id_salt(("clips from", id)).selected_text(shown).width(220.0).show_ui(ui, |ui| {
+                        for (mid, name) in &list {
+                            if ui.selectable_label(share.source == *mid, name).clicked() && share.source != *mid {
+                                share.source = mid.clone();
+                                // (Every animation it has, ticked.)
+                                share.ticks = ws.project.db.model(mid).map(|m| m.clips.iter().map(|c| (c.anim.clone(), true)).collect()).unwrap_or_default();
+                            }
+                        }
+                    })
+                    .response
+                    .labelled_by(l.id);
+                });
+                if list.is_empty() {
+                    ui.weak("No other model has a skeleton of its own and animations.");
+                }
+                if !share.source.is_empty() {
+                    ui.horizontal_wrapped(|ui| {
+                        for (anim, on) in share.ticks.iter_mut() {
+                            ui.checkbox(on, anim_label(anim)).on_hover_text(anim_help(anim));
+                        }
+                    });
+                    ui.checkbox(&mut share.replace, "Replace the ones it has").on_hover_text("Off: an animation this model plays already keeps its own clip");
+                }
+                ui.horizontal(|ui| {
+                    let ticked: Vec<String> = share.ticks.iter().filter(|t| *t.1).map(|t| t.0.clone()).collect();
+                    if ui.add_enabled(!share.source.is_empty() && !ticked.is_empty(), egui::Button::new("Take them")).on_hover_text(AT_ONCE).clicked() {
+                        match ws.share_clips(id, &share.source, &ticked, share.replace) {
+                            Ok(said) => {
+                                self.said = said;
+                                keep = false;
+                            }
+                            Err(e) => self.said = e,
+                        }
+                    }
+                    if ui.button("Cancel").clicked() {
+                        keep = false;
+                    }
+                });
+            });
+            if keep {
+                self.share = Some(share);
+            }
+        }
+        if !self.said.is_empty() {
+            ui.weak(&self.said);
+        }
+    }
+
+    /// Rows of animations: its name (a click shows it played), the clip it plays, how fast.
+    #[allow(clippy::too_many_arguments)]
+    fn rows(&mut self, ui: &mut egui::Ui, id: &str, def: &rustpg2d_engine::defs::ModelDef, c: &Checked, salt: &str, anims: &[String], play: &mut Option<(String, Option<String>)>, fps: &mut Option<(String, f32)>) {
+        egui::Grid::new(("model animations", id, salt)).num_columns(4).spacing([8.0, 3.0]).show(ui, |ui| {
+            for anim in anims {
+                let map = def.clip_of(anim);
+                let there = map.is_some_and(|m| c.clips.iter().any(|k| k.0 == m.clip));
+                let shown = ui.selectable_label(self.anim == *anim, anim_label(anim)).on_hover_text(format!("{}. Click to see it played.", anim_help(anim)));
+                if shown.clicked() {
+                    self.anim = anim.clone();
+                }
+                let text = match map {
+                    Some(m) if there => m.clip.clone(),
+                    Some(m) => format!("{} (not in its files)", m.clip),
+                    None => "no clip".to_string(),
+                };
+                let text = if there { egui::RichText::new(text) } else { egui::RichText::new(text).color(ui.visuals().warn_fg_color) };
+                egui::ComboBox::from_id_salt(("clip of", id, anim)).selected_text(text).width(230.0).show_ui(ui, |ui| {
+                    for (clip, secs) in &c.clips {
+                        if ui.selectable_label(map.is_some_and(|m| m.clip == *clip), format!("{clip}  ·  {secs:.1} s")).clicked() {
+                            *play = Some((anim.clone(), Some(clip.clone())));
+                        }
+                    }
+                })
+                .response
+                .labelled_by(shown.id);
+                match map {
+                    Some(m) => {
+                        let mut f = m.fps;
+                        if ui.add(egui::DragValue::new(&mut f).range(1.0..=60.0).speed(0.25).suffix(" a second")).on_hover_text("Frames a second it is drawn with: stepped, like pixel animation").changed() {
+                            crate::shell::hold_step(ui.ctx(), ("model fps", id, anim.as_str()));
+                            *fps = Some((anim.clone(), f));
+                        }
+                        if !BASE.contains(&anim.as_str()) && ui.small_button("Remove").on_hover_text("The model doesn't play this animation any more").clicked() {
+                            *play = Some((anim.clone(), None));
+                        }
+                    }
+                    None => {
+                        ui.label("");
+                    }
+                }
+                ui.end_row();
+            }
+        });
+    }
+
+    /// Each animation with the clip it plays, picked from the clips the model's files hold.
+    fn animations(&mut self, ui: &mut egui::Ui, ws: &mut Workspace, id: &str, def: &rustpg2d_engine::defs::ModelDef, c: &Checked) {
+        ui.horizontal(|ui| {
+            ui.label(egui::RichText::new("Animations").strong());
+            ui.weak(match c.clips.len() {
+                0 => "its files hold no clips".to_string(),
+                1 => "1 clip in its files".to_string(),
+                n => format!("{n} clips in its files"),
+            });
+            let guessable = BASE.iter().chain(EXTRAS.iter()).any(|a| def.clip_of(a).is_none() && modelcheck::guess_for(a, &c.clips).is_some());
+            if guessable && ui.button("Guess from the clips' names").on_hover_text("Every animation without a clip takes the clip whose name says it: \"Walking\" for walk, \"Hit_Reaction\" for hurt…").clicked() {
+                match ws.model_guess(id) {
+                    Ok(mapped) => ws.set_status(if mapped.is_empty() { "No clip's name says what it is for".to_string() } else { format!("Mapped {}", mapped.join(", ")) }),
+                    Err(e) => ws.set_status(e),
+                }
+            }
+        });
+        if c.clips.is_empty() {
+            ui.weak(if c.rigged { "A file with clips for its skeleton can be added below (More clips), or another model's taken." } else { "Without a skeleton it stands still: pick one above, its animations come with it." });
+            return;
+        }
+        let base: Vec<String> = BASE.iter().map(|a| a.to_string()).collect();
+        let others: Vec<String> = def.clips.iter().map(|m| m.anim.clone()).filter(|a| !BASE.contains(&a.as_str())).collect();
+        let mut play: Option<(String, Option<String>)> = None;
+        let mut fps: Option<(String, f32)> = None;
+        self.rows(ui, id, def, c, "base", &base, &mut play, &mut fps);
+        // (What every figure plays is always in view; a long list of the others folds away.)
+        if !others.is_empty() {
+            egui::CollapsingHeader::new(format!("Its other animations ({})", others.len())).id_salt(("other animations", id)).default_open(others.len() <= 6).show(ui, |ui| {
+                self.rows(ui, id, def, c, "others", &others, &mut play, &mut fps);
+            });
+        }
+        // One more animation: the kinds the game knows that it has none for yet.
+        let free: Vec<&str> = EXTRAS.iter().copied().filter(|a| def.clip_of(a).is_none()).collect();
+        if !free.is_empty() {
+            egui::ComboBox::from_id_salt(("add animation", id)).selected_text("+ Animation").width(150.0).show_ui(ui, |ui| {
+                for a in free {
+                    if ui.selectable_label(false, anim_label(a)).on_hover_text(anim_help(a)).clicked() {
+                        // (It starts with the clip its name suggests, else the first.)
+                        let clip = modelcheck::guess_for(a, &c.clips).map(|g| g.clip).or_else(|| c.clips.first().map(|k| k.0.clone()));
+                        play = Some((a.to_string(), clip));
+                    }
+                }
+            })
+            .response
+            .widget_info(|| egui::WidgetInfo::labeled(egui::Role::ComboBox, true, "Add an animation"));
+        }
+        if let Some((anim, clip)) = play {
+            match ws.model_play(id, &anim, clip.as_deref()) {
+                Ok(()) if clip.is_some() => self.anim = anim,
+                Ok(()) => self.anim = "idle".into(),
+                Err(e) => ws.set_status(e),
+            }
+        }
+        if let Some((anim, f)) = fps {
+            if let Err(e) = ws.model_fps(id, &anim, f) {
+                ws.set_status(e);
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod ui_tests {
+    use super::*;
+    use egui_kittest::kittest::Queryable;
+    use egui_kittest::Harness;
+
+    fn copy(from: &std::path::Path, to: &std::path::Path) {
+        std::fs::create_dir_all(to).unwrap();
+        for e in std::fs::read_dir(from).unwrap().flatten() {
+            let (src, dst) = (e.path(), to.join(e.file_name()));
+            if src.is_dir() {
+                if e.file_name() != "saves" {
+                    copy(&src, &dst);
+                }
+            } else {
+                std::fs::copy(&src, &dst).unwrap();
+            }
+        }
+    }
+
+    struct State {
+        ws: Workspace,
+        stage: ModelStage,
+        thumbs: crate::thumbs::Thumbs,
+        id: String,
+    }
+
+    /// The example with a few of its models read (reading needs no graphics adapter).
+    fn harness(tag: &str, id: &str, ids: &[&str]) -> (Harness<'static, State>, std::path::PathBuf) {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let dir = std::env::temp_dir().join(format!("rustpg2d-modelshop-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        copy(&root.join("example_project"), &dir);
+        let mut ws = Workspace::new(dir.clone(), editor_core::Gpu::No).unwrap();
+        ws.history_frame(None);
+        let mut few = rustpg2d_engine::defs::Database { models: ws.project.db.models.iter().filter(|m| ids.contains(&m.id.as_str())).cloned().collect(), ..Default::default() };
+        few.reindex();
+        let project = &ws.project;
+        ws.assets.models = rustpg2d_engine::render::model::Models::load(&few, &|rel| std::fs::read(project.path(rel)));
+        let state = State { ws, stage: ModelStage::default(), thumbs: Default::default(), id: id.to_string() };
+        let h = Harness::builder().with_size(egui::vec2(1100.0, 800.0)).build_ui_state(
+            |ui, s: &mut State| {
+                let held = ui.ctx().data_mut(|d| d.remove_temp::<u64>(crate::shell::held_step_id()));
+                s.ws.history_frame(held.or(ui.ctx().memory(|m| m.focused()).map(|id| id.value())));
+                let id = s.id.clone();
+                s.stage.show(ui, &mut s.ws, None, &mut s.thumbs, &id);
+            },
+            state,
+        );
+        (h, dir)
+    }
+
+    #[test]
+    fn a_missing_animation_is_said_and_given_a_clip_from_the_list() {
+        let (mut h, dir) = harness("clips", "hero", &["hero"]);
+        h.run();
+        // The hero lacks nothing; what every figure plays is listed with its clip.
+        h.get_by_label("Nothing is missing.");
+        assert!(h.query_all_by_label_contains("clips in its files").next().is_some());
+        // Being hurt plays nothing any more: said as the one thing to see to.
+        h.state_mut().ws.model_play("hero", "hurt", None).unwrap();
+        h.run();
+        h.get_by_label("1 thing to see to");
+        assert!(h.query_all_by_label_contains("no clip for the animation hurt").next().is_some());
+        // The clip is picked from those its files hold.
+        h.get_by_role_and_label(egui::accesskit::Role::ComboBox, "Hurt").click();
+        h.run();
+        h.get_by_label_contains("Running  ·").click();
+        h.run();
+        h.run();
+        assert_eq!(h.state().ws.project.db.model("hero").unwrap().clip_of("hurt").map(|c| c.clip.as_str()), Some("Running"));
+        h.get_by_label("Nothing is missing.");
+        assert_eq!(h.state().stage.anim, "hurt", "what was picked is what is shown played");
+        // Taken away again, the names of the clips say which one it is: one click.
+        h.state_mut().ws.model_play("hero", "hurt", None).unwrap();
+        h.run();
+        h.get_by_label("Guess from the clips' names").click();
+        h.run();
+        h.run();
+        assert_eq!(h.state().ws.project.db.model("hero").unwrap().clip_of("hurt").map(|c| c.clip.as_str()), Some("Hit_Reaction"));
+        h.get_by_label("Nothing is missing.");
+        // Each of these was a step of its own.
+        assert!(h.state().ws.timeline.done.iter().any(|c| c.label.contains("hurt plays Running")), "{:?}", h.state().ws.timeline.done.iter().map(|c| &c.label).collect::<Vec<_>>());
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_model_without_a_skeleton_is_offered_the_rig_templates() {
+        // A creature of the example that stands on the four-legged template's skeleton.
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let example = rustpg2d_engine::project::Project::load(&root.join("example_project")).unwrap();
+        let id = example.db.models.iter().find(|m| m.rig.as_ref().is_some_and(|r| r.template == "rig_quadruped")).expect("a four-legged creature").id.clone();
+        let (mut h, dir) = harness("rig", &id, &[&id, "rig_quadruped", "rig_bird"]);
+        h.run();
+        h.get_by_label("Nothing is missing.");
+        h.get_by_label("Turn it");
+        // Without the template: no skeleton, nothing to play, and the editor says what to do.
+        h.get_by_role_and_label(egui::accesskit::Role::ComboBox, "Skeleton").click();
+        h.run();
+        h.get_by_label("none: it stands still").click();
+        h.run();
+        assert!(h.state().ws.project.db.model(&id).unwrap().rig.is_none());
+        // (Here nothing reads the model again: the editor with a graphics adapter does.)
+        let few = {
+            let ws = &h.state().ws;
+            let mut few = rustpg2d_engine::defs::Database { models: ws.project.db.models.iter().filter(|m| [id.as_str(), "rig_quadruped", "rig_bird"].contains(&m.id.as_str())).cloned().collect(), ..Default::default() };
+            few.reindex();
+            rustpg2d_engine::render::model::Models::load(&few, &|rel| std::fs::read(ws.project.path(rel)))
+        };
+        h.state_mut().ws.assets.models = few;
+        h.run();
+        h.get_by_label("4 things to see to");
+        assert!(h.query_all_by_label_contains("pick one above").next().is_some());
+        // The templates are offered by name.
+        h.get_by_role_and_label(egui::accesskit::Role::ComboBox, "Skeleton").click();
+        h.run();
+        let offered = h.state().ws.rig_templates();
+        let name = offered.iter().find(|t| t.0 == "rig_bird").expect("the bird template is offered").1.clone();
+        h.get_by_label(name.as_str()).click();
+        h.run();
+        assert_eq!(h.state().ws.project.db.model(&id).unwrap().rig.as_ref().map(|r| r.template.as_str()), Some("rig_bird"));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_joint_of_the_rig_template_is_moved_by_numbers_and_reset() {
+        let (mut h, dir) = harness("joints", "dog", &["dog", "rig_quadruped"]);
+        let moved = h.state().ws.project.db.model("dog").unwrap().rig.as_ref().unwrap().joints.len();
+        assert!(moved > 2);
+        h.run();
+        // Under the skeleton's row: its joints, how many moved.
+        h.get_by_label(format!("Joints of the skeleton ({moved} moved)").as_str()).click();
+        h.run();
+        h.get_by_label("Head (moved)");
+        // The head a tenth of the height up: one step.
+        h.get_by_role_and_label(egui::accesskit::Role::SpinButton, "Head up").set_value_accesskit(0.1);
+        h.run();
+        h.run();
+        let head = |h: &Harness<'static, State>| h.state().ws.project.db.model("dog").unwrap().rig.as_ref().unwrap().joints.iter().find(|j| j.joint == "Head").map(|j| j.offset[1]);
+        assert_eq!(head(&h), Some(0.1));
+        assert!(h.state().ws.timeline.done.iter().any(|c| c.label.contains("the joint Head moved")), "{:?}", h.state().ws.timeline.done.iter().map(|c| &c.label).collect::<Vec<_>>());
+        assert!(h.state().stage.status(&h.state().ws, "dog").contains(&format!(" joints={moved} ")));
+        // Put back alone: no longer marked.
+        h.get_by_label("Reset Head").click();
+        h.run();
+        h.run();
+        assert_eq!(head(&h), None);
+        h.get_by_label("Head");
+        h.get_by_label(format!("Joints of the skeleton ({} moved)", moved - 1).as_str());
+        // All of them: the line leaves the status.
+        h.get_by_label("Reset all joints").click();
+        h.run();
+        h.run();
+        assert!(h.state().ws.project.db.model("dog").unwrap().rig.as_ref().unwrap().joints.is_empty());
+        h.get_by_label("Joints of the skeleton");
+        assert!(!h.state().stage.status(&h.state().ws, "dog").contains("joints="));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_missing_animation_is_taken_from_a_model_with_the_same_skeleton() {
+        let (mut h, dir) = harness("share", "heroine", &["heroine", "hero"]);
+        // The heroine has lost her blow.
+        h.state_mut().ws.model_play("heroine", "attack", None).unwrap();
+        h.run();
+        h.get_by_label("1 thing to see to");
+        h.get_by_label("Take clips from another model…").click();
+        h.run();
+        // The models with a skeleton of their own and animations are offered; the hero is picked,
+        // all of his animations ticked.
+        h.get_by_role_and_label(egui::accesskit::Role::ComboBox, "From").click();
+        h.run();
+        assert!(h.query_all_by_label("Rig template: four legs").next().is_some(), "a rig template has a skeleton of its own");
+        h.query_all_by_label("Human").next().unwrap().click();
+        h.run();
+        let share = h.state().stage.share.clone().unwrap();
+        assert_eq!(share.source, "hero");
+        assert!(share.ticks.len() >= 4 && share.ticks.values().all(|t| *t), "{share:?}");
+        // Only the blow: the rest are unticked.
+        h.get_by_label("Replace the ones it has");
+        for anim in share.ticks.keys().filter(|a| *a != "attack") {
+            h.get_by_role_and_label(egui::accesskit::Role::CheckBox, anim_label(anim).as_str()).click();
+        }
+        h.run();
+        h.get_by_label("Take them").click();
+        h.run();
+        let s = h.state();
+        assert!(s.stage.share.is_none(), "taken: the choice closes");
+        assert_eq!(s.stage.said, "heroine plays hero's attack");
+        assert_eq!(s.ws.project.db.model("heroine").unwrap().clip_of("attack").map(|c| c.clip.as_str()), s.ws.project.db.model("hero").unwrap().clip_of("attack").map(|c| c.clip.as_str()));
+        // Written at once, with the file.
+        let disk = rustpg2d_engine::project::Project::load(&dir).unwrap();
+        assert!(disk.db.model("heroine").unwrap().clip_of("attack").is_some());
+        let _ = std::fs::remove_dir_all(dir);
+    }
+}

@@ -5,7 +5,7 @@
 //! The editor writes every placed entity at `feet_spot` (or [`snap_feet`] for wide props), so
 //! these functions give exactly the tile the editor shows.
 
-use macroquad::prelude::{vec2, Rect, Vec2};
+use gfx::prelude::{vec2, Rect, Vec2};
 
 pub use crate::path::TilePos;
 

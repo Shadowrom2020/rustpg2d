@@ -1,0 +1,10 @@
+#head headc.txt
+tab def:character:guard
+wait 2
+char anim walk
+char face turn
+wait 3
+hover 1000 860
+char
+shot $S/out/builder.png
+quit

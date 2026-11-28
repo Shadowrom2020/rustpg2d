@@ -16,6 +16,7 @@ use crate::state::Sex;
 
 /// A proficiency of a race (`skill`: a proficiency id; `level` from the skill tree of 0.27, 1 now).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct RaceSkill {
     pub skill: String,
     pub level: u32,
@@ -23,6 +24,7 @@ pub struct RaceSkill {
 
 /// A trait of a race (Darkvision, Dwarven Resilience…): shown in the creator and on the sheet.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct RaceTrait {
     pub id: String,
     pub name: String,
@@ -36,6 +38,7 @@ pub struct RaceTrait {
 
 /// What a racial choice picks.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum ChoiceKind {
     /// +1 to an ability (each pick a different one).
     #[default]
@@ -66,6 +69,7 @@ impl ChoiceKind {
 /// A choice a hero of the race makes in the creator (the half-elf's two +1s, the dragonborn's
 /// ancestry, the high elf's cantrip…).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct RaceChoice {
     /// Where the pick is kept (`WorldState::choices`), e.g. `draconic-ancestry`.
     pub id: String,
@@ -127,6 +131,7 @@ fn is_zero_f(v: &f32) -> bool {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct RaceDef {
     pub id: String,
     pub name: String,

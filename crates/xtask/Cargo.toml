@@ -9,6 +9,9 @@ publish = false
 [features]
 # `dist` (packaging the toolkit) needs the engine; the checks CI runs on every pull request don't.
 dist = ["dep:rustpg2d-engine", "dep:rustpg2d-packaging", "dep:zip"]
+# `web` turns the game compiled for browsers into the pair a page loads (wasm-bindgen's step, as a
+# library: no tool to install).
+web = ["dep:wasm-bindgen-cli-support"]
 
 [dependencies]
 anyhow.workspace = true
@@ -16,3 +19,5 @@ rustpg2d-engine = { workspace = true, optional = true }
 rustpg2d-packaging = { workspace = true, optional = true }
 # The Windows download (a zip of the editor, the game runners and the example).
 zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs"], optional = true }
+# Must be the version of the `wasm-bindgen` crate the game is built with (Cargo.lock; a test checks).
+wasm-bindgen-cli-support = { version = "=0.2.130", optional = true }

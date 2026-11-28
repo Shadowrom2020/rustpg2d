@@ -256,8 +256,6 @@ struct Renamer<'a> {
     count: usize,
     /// Collecting mode: records every non-empty reference instead of renaming.
     found: Option<Vec<(RefKind, String)>>,
-    /// Also converts 0.27's skill levels in events to the SRD rules ([`srd_upgrade_db`]).
-    srd: bool,
 }
 
 impl Renamer<'_> {
@@ -347,9 +345,8 @@ impl Renamer<'_> {
         }
     }
 
-    /// The model of a look (and a look of an older version: the model named like its figure).
+    /// The model of a look.
     fn look(&mut self, a: &mut crate::defs::Appearance) {
-        self.fix(RefKind::Model, &mut a.body);
         self.fix(RefKind::Model, &mut a.model);
         // Its chosen pieces (model ids; a style name or "-" is no reference).
         for p in a.parts.values_mut().filter(|p| p.as_str() != crate::defs::NO_PART) {
@@ -372,9 +369,6 @@ impl Renamer<'_> {
     fn spell(&mut self, d: &mut crate::skills::SpellDef) {
         self.fix(RefKind::Sheet, &mut d.icon.sheet);
         self.fix(RefKind::Skill, &mut d.skill);
-        if let crate::skills::SpellEffect::Bolt { projectile, .. } = &mut d.effect {
-            self.fix(RefKind::Sheet, &mut projectile.sheet);
-        }
         // The look: its projectile, impact sheet and sound; the classes whose list has it.
         if let Some(p) = &mut d.visual.projectile {
             self.fix(RefKind::Sheet, &mut p.sheet);
@@ -557,17 +551,7 @@ impl Renamer<'_> {
     fn conditions(&mut self, cs: &mut [Condition]) {
         for c in cs {
             match &mut c.cond {
-                Cond::Skill { skill, op, level } => {
-                    self.fix(RefKind::Skill, skill);
-                    if self.srd {
-                        if let Some((o, l)) = srd_skill_compare(*op, *level) {
-                            if (o, l) != (*op, *level) {
-                                (*op, *level) = (o, l);
-                                self.count += 1;
-                            }
-                        }
-                    }
-                }
+                Cond::Skill { skill, .. } => self.fix(RefKind::Skill, skill),
                 Cond::HasItem { item, .. } | Cond::Attuned { item } => self.fix(RefKind::Item, item),
                 Cond::HasDisease { disease } => self.fix(RefKind::Disease, disease),
                 // (A definition id there follows its renames; a name stays.)
@@ -599,17 +583,7 @@ impl Renamer<'_> {
             Action::ShowImage { sheet, .. } | Action::ShowPicture { sheet, .. } => self.fix(RefKind::Sheet, sheet),
             Action::TeachSpell { spell, .. } | Action::CastSpell { spell, .. } => self.fix(RefKind::Spell, spell),
             Action::If { conditions, .. } => self.conditions(conditions),
-            Action::SetSkill { skill, level } => {
-                self.fix(RefKind::Skill, skill);
-                if self.srd && *level > 1 {
-                    *level = 1;
-                    self.count += 1;
-                }
-            }
-            Action::Lockpick { difficulty, .. } if self.srd && (1..10).contains(difficulty) => {
-                *difficulty = crate::srd::old_level_dc(*difficulty);
-                self.count += 1;
-            }
+            Action::SetSkill { skill, .. } => self.fix(RefKind::Skill, skill),
             _ => {}
         });
     }
@@ -618,37 +592,11 @@ impl Renamer<'_> {
 /// Updates references inside definitions and the project config. Returns the number changed.
 /// (The definition's own `id` must be renamed by the caller.)
 pub fn rename_in_db(db: &mut Database, config: &mut ProjectConfig, kind: RefKind, old: &str, new: &str) -> usize {
-    db_pass(db, config, kind, old, new, false)
+    db_pass(db, config, kind, old, new)
 }
 
-/// Converts the events of a 0.27 project's definitions to the SRD rules: *Skill* conditions
-/// compare proficiency (1 / 0) instead of a level, *Set skill* sets a proficiency, the
-/// *Lockpick* action's difficulty becomes a DC. Returns the number changed.
-pub fn srd_upgrade_db(db: &mut Database, config: &mut ProjectConfig) -> usize {
-    db_pass(db, config, RefKind::Skill, "\u{0}", "\u{0}", true)
-}
-
-/// [`srd_upgrade_db`] for a map.
-pub fn srd_upgrade_map(map: &mut Map) -> usize {
-    map_pass(map, RefKind::Skill, "\u{0}", "\u{0}", true)
-}
-
-/// A 0.27 *Skill level* comparison as a proficiency comparison (proficiency counts as level 1
-/// or more): "≥ 2" = proficient, "= 0" = not; `None` = it can't hold for any level.
-fn srd_skill_compare(op: crate::events::CmpOp, level: i64) -> Option<(crate::events::CmpOp, i64)> {
-    use crate::events::CmpOp;
-    let none = op.apply(0, level);
-    let some = (1..=20).any(|l| op.apply(l, level));
-    match (none, some) {
-        (false, true) => Some((CmpOp::Ge, 1)),
-        (true, false) => Some((CmpOp::Eq, 0)),
-        (true, true) => Some((CmpOp::Ge, 0)),
-        (false, false) => None,
-    }
-}
-
-fn db_pass(db: &mut Database, config: &mut ProjectConfig, kind: RefKind, old: &str, new: &str, srd: bool) -> usize {
-    let mut r = Renamer { kind, old, new, count: 0, found: None, srd };
+fn db_pass(db: &mut Database, config: &mut ProjectConfig, kind: RefKind, old: &str, new: &str) -> usize {
+    let mut r = Renamer { kind, old, new, count: 0, found: None };
     // A renamed map keeps its title.
     if kind == RefKind::Map {
         if let Some(t) = config.map_titles.remove(old) {
@@ -673,9 +621,6 @@ fn db_pass(db: &mut Database, config: &mut ProjectConfig, kind: RefKind, old: &s
             if !st.model.is_empty() {
                 r.fix(RefKind::Model, &mut st.model);
             }
-        }
-        for t in &mut d.turns {
-            r.fix(RefKind::Sheet, &mut t.sheet);
         }
         for t in d.building.iter_mut().flat_map(|b| b.pictures_mut()).filter(|t| !t.is_empty()) {
             r.fix(RefKind::Sheet, &mut t.sheet);
@@ -744,11 +689,6 @@ fn db_pass(db: &mut Database, config: &mut ProjectConfig, kind: RefKind, old: &s
             r.fix(RefKind::Prop, p);
         }
     }
-    for d in &mut db.props {
-        for p in &mut d.pieces {
-            r.fix(RefKind::Prop, p);
-        }
-    }
     r.fix(RefKind::Character, &mut config.player);
     r.fix(RefKind::Character, &mut config.creation.store);
     r.fix(RefKind::Sheet, &mut config.player_portrait.sheet);
@@ -814,11 +754,11 @@ fn db_pass(db: &mut Database, config: &mut ProjectConfig, kind: RefKind, old: &s
 
 /// Updates references inside a map. Returns the number changed.
 pub fn rename_in_map(map: &mut Map, kind: RefKind, old: &str, new: &str) -> usize {
-    map_pass(map, kind, old, new, false)
+    map_pass(map, kind, old, new)
 }
 
-fn map_pass(map: &mut Map, kind: RefKind, old: &str, new: &str, srd: bool) -> usize {
-    let mut r = Renamer { kind, old, new, count: 0, found: None, srd };
+fn map_pass(map: &mut Map, kind: RefKind, old: &str, new: &str) -> usize {
+    let mut r = Renamer { kind, old, new, count: 0, found: None };
     for m in &mut map.materials {
         r.fix(RefKind::Material, m);
     }
@@ -889,7 +829,7 @@ pub fn refs_of_visual_script(d: &crate::visual::VisualScript) -> Vec<(RefKind, S
 }
 
 fn collector() -> Renamer<'static> {
-    Renamer { kind: RefKind::Map, old: "", new: "", count: 0, found: Some(Vec::new()), srd: false }
+    Renamer { kind: RefKind::Map, old: "", new: "", count: 0, found: Some(Vec::new()) }
 }
 
 /// The items a background starts the hero with.
@@ -1013,9 +953,6 @@ pub fn refs_of_prop(d: &crate::defs::PropDef) -> Vec<(RefKind, String)> {
             r.fix(RefKind::Model, &mut st.model);
         }
     }
-    for t in &mut d.turns {
-        r.fix(RefKind::Sheet, &mut t.sheet);
-    }
     for t in d.building.iter_mut().flat_map(|b| b.pictures_mut()).filter(|t| !t.is_empty()) {
         r.fix(RefKind::Sheet, &mut t.sheet);
     }
@@ -1031,9 +968,6 @@ pub fn refs_of_prop(d: &crate::defs::PropDef) -> Vec<(RefKind, String)> {
     r.use_spot(&mut d.use_spot);
     if let Some(g) = &mut d.gather {
         r.loot(&mut g.loot);
-    }
-    for p in d.pieces.iter_mut().filter(|p| !p.is_empty()) {
-        r.fix(RefKind::Prop, p);
     }
     r.found.unwrap_or_default()
 }
@@ -1320,12 +1254,11 @@ mod tests {
         use crate::defs::{Appearance, CharacterDef, EquipSlot};
         use crate::inventory::ItemStack;
         let mut c: CharacterDef = ron::from_str(r#"(id: "npc", name: "Npc")"#).unwrap();
-        c.appearance = Appearance { body: "farmer".into(), colors: [("hair".to_string(), [9, 9, 9])].into(), ..Default::default() };
+        c.appearance = Appearance { model: "farmer".into(), colors: [("hair".to_string(), [9, 9, 9])].into(), ..Default::default() };
         *c.equipment.slot_mut(EquipSlot::Clothing) = Some(ItemStack::new("tunic", 1));
         *c.equipment.slot_mut(EquipSlot::Weapon) = Some(ItemStack::new("sword", 1));
         c.inventory = vec![ItemStack::new("apple", 2)];
         let refs = refs_of_character(&c);
-        // (An older look's `body` names the model that replaced its figure.)
         for want in [(RefKind::Model, "farmer"), (RefKind::Item, "tunic"), (RefKind::Item, "sword"), (RefKind::Item, "apple")] {
             assert!(refs.contains(&(want.0, want.1.to_string())), "{want:?} in {refs:?}");
         }
@@ -1336,7 +1269,7 @@ mod tests {
         rename_in_db(&mut db, &mut cfg, RefKind::Item, "apple", "pear");
         rename_in_db(&mut db, &mut cfg, RefKind::Item, "tunic", "shirt");
         let c = &db.characters[0];
-        assert_eq!(c.appearance.body, "farmer_m");
+        assert_eq!(c.appearance.model, "farmer_m");
         assert_eq!(c.appearance.colors["hair"], [9, 9, 9]);
         assert_eq!(c.equipment.item(EquipSlot::Clothing), Some("shirt"));
         assert_eq!(c.inventory[0].item, "pear");

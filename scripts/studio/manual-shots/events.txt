@@ -1,0 +1,10 @@
+#head headc.txt
+map.open forest
+wait 1
+map.graph
+wait 2
+wait 2
+graph
+hover 1000 880
+shot $S/out/events.png
+quit

@@ -1,0 +1,9 @@
+map.open village
+wait 1
+mapopt light on 22
+mapopt zones off
+mapview 36 22 1.0
+wait 3
+hover 1000 860
+shot $S/out/lighting.png
+quit

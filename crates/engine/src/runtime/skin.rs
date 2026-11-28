@@ -11,7 +11,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use crate::skin::{NineSlice, SkinColor, SkinDef};
 

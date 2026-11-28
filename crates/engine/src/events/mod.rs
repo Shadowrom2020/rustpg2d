@@ -51,6 +51,7 @@ pub enum GameEvent {
 
 /// Which events a trigger reacts to.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum TriggerOn {
     Interact,
     Enter,
@@ -243,6 +244,7 @@ impl TriggerOn {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Trigger {
     pub on: TriggerOn,
     #[serde(default)]
@@ -261,6 +263,7 @@ impl Trigger {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum CmpOp {
     Eq,
     Ne,
@@ -295,6 +298,7 @@ impl CmpOp {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Cond {
     Flag { name: String },
     Var { name: String, op: CmpOp, value: i64 },
@@ -452,6 +456,7 @@ impl Cond {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Condition {
     pub cond: Cond,
     #[serde(default)]
@@ -518,6 +523,7 @@ pub fn all_met(
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum VarOp {
     Set,
     #[default]
@@ -528,6 +534,7 @@ pub enum VarOp {
 pub type TargetName = String;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Action {
     /// Show a text box and wait for the player to confirm.
     Dialog { speaker: String, text: String },
@@ -1102,6 +1109,7 @@ pub fn spell_light_color() -> [u8; 3] {
 /// An animated sprite for the `Fly` / `Effect` actions: frames `first..=last` of a sprite sheet
 /// (both 0 = every frame of the sheet).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct FxSprite {
     pub sheet: String,
@@ -1680,9 +1688,6 @@ mod tests {
         assert!(!met(&poisoned, &w, &mut no_script) && !met(&any, &w, &mut no_script));
         crate::srd::conditions::apply(&mut w.effects, &crate::srd::ConditionSpec::new(crate::srd::Condition::Poisoned, 3.0));
         assert!(met(&poisoned, &w, &mut no_script) && met(&any, &w, &mut no_script));
-        // A condition of 0.27 (a status effect's name) reads as the nearest condition.
-        let old: Cond = ron::from_str("HasEffect(kind: Poison)").unwrap();
-        assert_eq!(old, Cond::HasEffect { kind: crate::srd::Condition::Poisoned });
         let slimes = |count| [Condition::new(Cond::Defeated { character: "slime".into(), op: CmpOp::Ge, count })];
         assert!(met(&slimes(0), &w, &mut no_script) && !met(&slimes(1), &w, &mut no_script));
         w.bestiary.insert("slime".into(), 3);

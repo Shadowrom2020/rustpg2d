@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 /// A running timer.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Timer {
     /// Seconds left.
     pub left: f32,

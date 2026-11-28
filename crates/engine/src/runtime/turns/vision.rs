@@ -4,7 +4,7 @@
 //! A creature that can't see its target attacks it at disadvantage, and one it can't see attacks
 //! it with advantage.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::Who;
 use crate::grid::TilePos;

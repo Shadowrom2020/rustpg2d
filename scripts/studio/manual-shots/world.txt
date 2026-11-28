@@ -1,0 +1,7 @@
+#head headc.txt
+tab world
+wait 2
+wait 2
+hover 1000 880
+shot $S/out/world.png
+quit

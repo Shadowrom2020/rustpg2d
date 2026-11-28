@@ -1,0 +1,14 @@
+#head headc.txt
+check.problems
+wait 1
+tab publish
+wait 1
+publish name Emberbrook
+publish out ~/Games/Emberbrook
+publish appimage on
+publish check
+wait 2
+hover 1000 880
+wait 1
+shot $S/out/publish.png
+quit

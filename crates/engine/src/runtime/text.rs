@@ -15,8 +15,8 @@
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeSet;
 
-use macroquad::prelude::{Color, TextDimensions};
-use macroquad::text::{Font, TextParams};
+use gfx::prelude::{Color, TextDimensions};
+use gfx::text::{Font, TextParams};
 
 pub use crate::fonts::Role;
 use crate::fonts::{builtin_covers, invisible, Coverage, FontDef, FontRoles};
@@ -61,10 +61,10 @@ pub fn install(fonts: Vec<(FontDef, Vec<u8>)>, roles: &FontRoles) {
             eprintln!("[game] font '{}' ({}) is no TTF / OTF font; the built-in font is used instead", def.id, def.file);
             continue;
         };
-        match macroquad::text::load_ttf_font_from_bytes(&bytes) {
+        match gfx::text::load_ttf_font_from_bytes(&bytes) {
             Ok(mut font) => {
                 if def.pixel > 0 {
-                    font.set_filter(macroquad::miniquad::FilterMode::Nearest);
+                    font.set_filter(gfx::texture::FilterMode::Nearest);
                 }
                 set.faces.push(Face { font: Some(font), def, cover });
             }
@@ -189,7 +189,7 @@ pub fn draw_plain(text: &str, x: f32, y: f32, font_size: f32, color: Color) -> T
     let (x, y) = (x.round(), y.round());
     if !has_fonts() {
         note_missing(text);
-        return macroquad::text::draw_text(text, x, y, font_size, color);
+        return gfx::text::draw_text(text, x, y, font_size, color);
     }
     SET.with(|s| {
         let mut set = s.borrow_mut();
@@ -197,7 +197,7 @@ pub fn draw_plain(text: &str, x: f32, y: f32, font_size: f32, color: Color) -> T
         let mut dims = TextDimensions { width: 0.0, height: 0.0, offset_y: 0.0 };
         for (part, face) in runs {
             let (p, dy) = params(&set, face, font_size, color);
-            let d = macroquad::text::draw_text_ex(part, (x + dims.width).round(), (y + dy).round(), p);
+            let d = gfx::text::draw_text_ex(part, (x + dims.width).round(), (y + dy).round(), p);
             dims.width += d.width;
             dims.height = dims.height.max(d.height);
             dims.offset_y = dims.offset_y.max(d.offset_y);
@@ -209,7 +209,7 @@ pub fn draw_plain(text: &str, x: f32, y: f32, font_size: f32, color: Color) -> T
 /// Measures text as [`draw_plain`] draws it at `font_size`.
 pub fn measure_plain(text: &str, font_size: f32) -> TextDimensions {
     if !has_fonts() {
-        return macroquad::text::measure_text(text, None, font_size as u16, 1.0);
+        return gfx::text::measure_text(text, None, font_size as u16, 1.0);
     }
     SET.with(|s| {
         let mut set = s.borrow_mut();
@@ -217,7 +217,7 @@ pub fn measure_plain(text: &str, font_size: f32) -> TextDimensions {
         let mut dims = TextDimensions { width: 0.0, height: 0.0, offset_y: 0.0 };
         for (part, face) in runs {
             let (p, _) = params(&set, face, font_size, Color::default());
-            let d = macroquad::text::measure_text(part, p.font, p.font_size, p.font_scale);
+            let d = gfx::text::measure_text(part, p.font, p.font_size, p.font_scale);
             dims.width += d.width;
             dims.height = dims.height.max(d.height);
             dims.offset_y = dims.offset_y.max(d.offset_y);

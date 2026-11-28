@@ -4,7 +4,7 @@
 //! Words: typed letters (a keyboard; the window starts with the variable's value, so the gamepad
 //! can confirm it as it is). Enter / E / A confirm; Backspace deletes.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::input::{self, Act, Pad};
 use super::skin;

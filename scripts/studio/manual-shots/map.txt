@@ -1,0 +1,9 @@
+map.open village
+wait 1
+mapview 38 26 0.8
+mapselect elder
+check.problems
+wait 3
+hover 1000 860
+shot $S/out/map.png
+quit

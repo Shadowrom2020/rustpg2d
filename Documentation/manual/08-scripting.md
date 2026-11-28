@@ -52,21 +52,21 @@ function.
 ## Where scripts live
 
 - Scripts are the `*.rhai` files in the project's `scripts/` folder (in the example project:
-  `example_project/scripts/main.rhai`). Edit them in the editor under **Database › Scripts**, or
-  with any text editor.
+  `example_project/scripts/main.rhai`). Edit them in the editor (*Story › Scripts* in the Project
+  browser: each file opens in a tab), or with any text editor.
 - All files are loaded together when the game starts, as if they were one file. A function in
   one file can call a function in another, and every function name must be unique in the
   project. (If two files define the same name, the file that comes later alphabetically wins.)
 - Put only **functions** (and comments) at the top level of a file. Statements outside functions
   don't keep values between calls; keep lasting state in [flags and variables](#game-state-flags-and-variables).
 - **Visual scripts** (`defs/visual_scripts.ron`): script functions built from nodes instead of
-  typed (*since 0.35*; the editor's *Nodes* tab, see [Visual scripts](20-visual-scripts.md)). Saving the definitions writes every visual
+  typed (*since 0.35*; a visual script's tab in the editor, see [Visual scripts](20-visual-scripts.md)). Saving the definitions writes every visual
   script's function into `scripts/visual_scripts.rhai`, so they are called like any function
   (triggers' *Run script*, hooks, menus, spells, other scripts). That file is made by the editor:
   don't edit it, it is written again. A visual script with problems (a missing function, a value
   of the wrong kind) is written as a function that does nothing and prints why. AI agents write
   them with `upsert_def` (kind `visual_scripts`; `describe_def` shows the format).
-- Scripts are part of an exported game (*File › Export game*).
+- Scripts are part of an exported game ([Publishing](14-publishing.md)).
 - **Asset library and packages**: a spell or other asset that uses scripts can go into
   the asset library or a `.r2dpack` package together with its functions. The editor asks which
   functions to copy, with the ones the asset needs (and everything they call or pass on as a
@@ -82,11 +82,11 @@ The game never runs a script on its own. Something in the game calls a script **
 |---|---|---|
 | **Run script** action | Any trigger: on a map, zone, character, prop, item pickup or an item's *On use* | `name()`, `SELF` = the trigger's owner |
 | **Script** condition | The *If all of* list of any trigger, or an *If* action | `name()`, must return `true` / `false` |
-| Spell with the **Script** effect | *Database › Spells* | `name()` when the spell is cast |
+| Spell with the **Script** effect | *Rules › Spells* | `name()` when the spell is cast |
 | `then_call("name")` | In a script | `name()` after the actions queued before it |
 | `aim("name")` | In a script | `name(x, y)` with the target the player clicked |
 | `fly(…, "name", …)` | In a script | `name(x, y)` when the flying sprite arrives |
-| **Script hook** | *Database › Project › Script hooks* | `name(map)` where the engine decides something: a hit's damage, a price, an item use… ([Script hooks](#script-hooks)) |
+| **Script hook** | the *Scripts & plugins* page | `name(map)` where the engine decides something: a hit's damage, a price, an item use… ([Script hooks](#script-hooks)) |
 
 Triggers fire on these events: **Interact** (the player presses E in front of an entity, or
 right-clicks it), **Enter** / **Leave** (a zone), **Use item**, **Map enter**, **Custom event**
@@ -113,8 +113,8 @@ A condition should only look at the game, not change it. Actions it queues (`say
 ## Script hooks
 
 A **script hook** lets a script change what the engine itself does: how much damage a hit deals,
-what a merchant charges, whether an item may be used. Register the function in *Database ›
-Project › Script hooks*: pick the hook, the function and a priority. The engine calls the
+what a merchant charges, whether an item may be used. Register the function in the *Scripts &
+plugins* page: pick the hook, the function and a priority. The engine calls the
 function with a **map** that describes what is about to happen; the function returns the map
 changed, or nothing (`()`) to leave it as it is.
 
@@ -237,7 +237,7 @@ Functions that act on an entity take a **target**:
 - `"self"` — the entity that owns the trigger which called the script (the shrine above);
 - `"player"` — the player;
 - any other text — the entity with that **name** on the current map (set the name in the
-  editor's inspector, e.g. `mira`, `guard`).
+  editor's Inspector, e.g. `mira`, `guard`).
 
 `SELF` is a number: the owner's id (uid), or `-1` when there is no owner (spells,
 callbacks). `say(SELF, "…")` shows the owner's name as the speaker. `SELF` is only visible in the function the
@@ -255,7 +255,7 @@ trigger calls; a helper function it calls doesn't see it, so pass it on as an ar
   (`give_item("coin", 3)`, `heal(2)`, `move_by("mira", 2, 0)`). Rhai doesn't convert decimals
   to integers by itself; use `to_int()` if needed: `heal((max / 2.0).to_int())`.
 - **Ids** (items, maps, spawn points, sounds, quests, proficiencies, spells, sprite sheets, prop states)
-  are strings exactly as in the editor's database: `give_item("potion", 1)`.
+  are strings exactly as the definitions' ids: `give_item("potion", 1)`.
 - **Text placeholders** work in `say`, `choice` and with `text(…)`:
   - `{player}` — the player's name;
   - `{sir|madam}` — the first word for a male player character, the second for a female one
@@ -266,7 +266,7 @@ trigger calls; a helper function it calls doesn't see it, so pass it on as an ar
     ids: `confirm` (also `interact`), `attack`, `character`, `skills`, `spells`, `map`, `journal`,
     `switch_weapon`, `command`, `quick1` … `quick8` and the others of the Controls page.
 - **Translations**: the texts of `say(…)` and `choice(…)` are looked up in the game's language
-  files (`lang/<code>.ron`, *Database › Project › Languages*) like dialogs in triggers, by the
+  files (`lang/<code>.ron`, the *Languages* page) like dialogs in triggers, by the
   exact text before the placeholders are filled in. Write a text as **one string with
   placeholders**, `say("Mira", "Hi, {player}! You came {visits} times.")`, not glued together
   (`"Hi, " + player_name() + "!"`): a glued text only exists while the game runs, so the
@@ -276,9 +276,9 @@ trigger calls; a helper function it calls doesn't see it, so pass it on as an ar
 
 ![The script editor](../images/editor-script.webp)
 
-**Database › Scripts** lists the script files and their functions. Click a file to edit it, or a
-function to jump to it. **+ New** creates a file, **Save & check** (Ctrl+S) saves and reports
-syntax errors.
+*Story › Scripts* in the Project browser lists the script files; a click opens one in a tab, with
+its functions as an outline beside the text (a click jumps to one). **+ New script** creates a
+file. The text is checked as you type; *Save all* (Ctrl+S) writes it.
 
 - **Completion**: while you type, the editor suggests engine functions (with their parameters),
   your own functions, keywords and `let` variables. Ctrl+Space shows all suggestions; ↑ ↓ choose,
@@ -291,16 +291,16 @@ syntax errors.
 - **Parameter hint**: the line above the editor shows the call around the cursor with the current
   parameter highlighted and a short description, for engine functions and your own functions.
 - **Ctrl+click** a function name to jump to its definition, also in another file.
-- **Problems**: ids that don't exist in the project (a misspelled item, a missing spawn point, an
-  unknown sprite sheet) are listed under the file list and underlined in red.
+- **Problems**: what doesn't compile and ids that don't exist in the project (a misspelled item, a
+  missing spawn point, an unknown sprite sheet) are said at their line, underlined in red.
 - **Renames**: renaming an item, map, sound or sprite sheet in the editor also updates the ids in
   scripts, where they are passed directly to an API function.
 
 ### Trying scripts while the game runs
 
-Play-tests started from the editor (F5 / F6, *Play as cutscene*) run the game with `--dev`:
+Play-tests started from the editor (F5 / F6, the Play tab) run the game with `--dev`:
 
-- **Hot reload**: saving a script (Ctrl+S in the script editor, or any editor writing
+- **Hot reload**: saving a script (Ctrl+S in its tab, or any editor writing
   `scripts/*.rhai`) reloads all scripts within half a second; a toast says *Scripts reloaded*.
   Triggers, conditions and spells use the new functions from then on. If a file has an error,
   the game keeps running the previous scripts and shows the error (toast and console) until it
@@ -375,7 +375,7 @@ coins itself.
 | `money()` | The player's money in copper pieces: every coin carried by its worth. *(since 0.31)* |
 | `give_money(cp)` | Gives money in the fewest gold, silver and copper pieces: `give_money(250)` = 2 gp 5 sp. *(since 0.31)* |
 | `take_money(cp)` | Takes money from the player's coins and gives the change back; `false` (nothing taken) when they have less. *(since 0.31)* |
-| `eat(days)` | The player eats this many days' worth of food (a ration = 1, a meal = 0.5): what *Food and water* counts when the project's rules turn it on (*Database › Project › Rules*). *(since 0.32)* |
+| `eat(days)` | The player eats this many days' worth of food (a ration = 1, a meal = 0.5): what *Food and water* counts when the project's rules turn it on (the *Rules* page). *(since 0.32)* |
 | `drink(days)` | The player drinks this many days' worth of water (a waterskin = 0.5, a well = 1), counted like `eat`. *(since 0.32)* |
 | `carried_weight()` | Pounds the player carries: the bag and what they wear and hold (the purse weighs nothing). Their capacity is STR × 15 (`ability("str") * 15`). *(since 0.32)* |
 | `fall(feet)` | The player falls this many feet (a trapdoor, a collapsing floor): 1d6 bludgeoning per 10 ft (at most 20d6) into the roll log, prone for a moment; they stay where they are. *(since 0.32)* |
@@ -422,15 +422,15 @@ fn shrine_blessing() {
 |---|---|
 | `player_name()` | The name the player chose. |
 | `player_sex()` | `"male"` or `"female"`. |
-| `player_race()` | The player's race id (*Database › Races*), e.g. `"goblin"`, or a subrace's (`"hill-dwarf"`; a *Player race* condition for `dwarf` matches it too); `""` without one. |
+| `player_race()` | The player's race id (*Characters › Races*), e.g. `"goblin"`, or a subrace's (`"hill-dwarf"`; a *Player race* condition for `dwarf` matches it too); `""` without one. |
 | `knows_language(language)` | Whether the hero speaks a language (`"dwarvish"`, `"elvish"`…): their race's, the creator's picks and their background's. *(since 0.28)* |
 | `has_resistance(damage)` | Whether the hero resists a damage type (`"fire"`, `"poison"`…): their race's, a dragonborn's ancestry. *(since 0.28)* |
-| `background()` | The hero's background id (*Database › Backgrounds*), `""` without one. *(since 0.28)* |
+| `background()` | The hero's background id (*Characters › Backgrounds*), `""` without one. *(since 0.28)* |
 | `race_choice(choice)` | What the hero picked for a racial choice in the creator, as an array: `race_choice("high-elf-cantrip")` = `["fire-bolt"]`, `race_choice("draconic-ancestry")` = `["draconic-ancestry-red"]`; empty when nothing was picked. *(since 0.28)* |
-| `carry(target, prop)` | A character (or `"player"`) carries a prop in both hands, e.g. `carry("player", "crate")`: drawn in the character's hands; while carrying it holds nothing else and the player can't attack. *(queued)* |
+| `carry(target, prop)` | A character (or `"player"`) carries a prop in both hands, e.g. `carry("player", "crate")` (the prop isn't drawn); while carrying it holds nothing else and the player can't attack. *(queued)* |
 | `stop_carrying(target)` | Puts down what a character carries. *(queued)* |
 | `player_carrying()` | The prop the player carries (`""` = none). |
-| `player_faction()` | The player's faction id (*Database › Factions*): their race's, else the player character's; `""` without one. |
+| `player_faction()` | The player's faction id (the *World* page's factions): their race's, else the player character's; `""` without one. |
 | `standing(faction)` | The player's standing with a faction, -100 to 100. It starts at 100 for the player's own faction, 50 for friendly, 0 for neutral and -50 for hostile factions (the attitude table); at -20 or below the faction's characters attack the player. |
 | `change_standing(faction, amount)` | Raises the standing (a negative amount lowers it); the faction's characters turn hostile or calm down at once. *(queued)* |
 | `set_faction(target, faction)` | A character on this map (`"self"`, a name) or `"player"` joins a faction; `""` = back to its own (the placed character's, its definition's, its race's). Saved; who attacks whom changes at once. *(queued)* |
@@ -469,7 +469,7 @@ fn shrine_blessing() {
 | `choice(text, options, var)` | Asks a question with answers `["Yes", "No"]`; the chosen index (0 = first) goes into variable `var`. *(queued, blocks)* |
 | `wait(seconds)` | Pauses the queue. *(queued, blocks)* |
 | `then_call(function)` | Calls another script function when the queue gets there. *(queued)* |
-| `call_common(id)` | Runs a common event's actions ([The Database › Common events](05-database.md#common-events)) when the queue gets there, e.g. `call_common("quest_reward");`. *(queued)* |
+| `call_common(id)` | Runs a common event's actions ([Definitions › Common events](05-database.md#common-events)) when the queue gets there, e.g. `call_common("quest_reward");`. *(queued)* |
 | `emit(event)` | Fires a custom event: triggers *On Custom event* with that name run before the rest of the queue. *(queued)* |
 | `text(text)` | Returns the text with [placeholders](#positions-numbers-and-text) filled in. |
 | `random(n)` | A random whole number from `0` to `n - 1`. |
@@ -493,9 +493,9 @@ fn shrine_blessing() {
 | `sleep(hours)` | The player sleeps (camping, an inn keeper's "Rest"): the screen fades, the clock moves on, HP and spell slots are restored, timed effects end, then *Woke up* triggers run. Refused with enemies nearby. *(queued, blocks)* |
 | `is_sitting()` / `is_sleeping()` | Whether the player sits on furniture / lies in a bed (or the night is passing). |
 | `lockpick(dc, var)` | Picks a lock in a custom puzzle: a DEX (Thieves' Tools) check against the DC; 1 (picked) or 0 goes into the variable, e.g. `lockpick(15, "vault"); then_call("vault_result");`. Until 0.27 the lockpicking game. *(queued)* |
-| `unlock_achievement(id)` | Unlocks an achievement (*Database › Achievements*) for the player: a toast, kept across save games. *(queued)* |
+| `unlock_achievement(id)` | Unlocks an achievement (*Story › Achievements*) for the player: a toast, kept across save games. *(queued)* |
 | `achievement_unlocked(id)` | Whether the player has unlocked an achievement (in any game). |
-| `open_crafting(station)` | Opens the crafting window with the recipes of a station (*Database › Recipes*), e.g. `open_crafting("alchemy")` on an alchemy table's trigger. *(queued)* |
+| `open_crafting(station)` | Opens the crafting window with the recipes of a station (*Items › Recipes*), e.g. `open_crafting("alchemy")` on an alchemy table's trigger. *(queued)* |
 | `open_crafting(station, title)` | The same with a window title, e.g. `open_crafting("anvil", "Smithy")`. *(queued)* |
 | `can_craft(recipe)` | Whether the player has the ingredients (and the tools and proficiency it needs) to make a recipe once. |
 | `follow(target)` | The character joins the player as a companion: it follows from map to map and fights hostile characters near the player. Only placed, friendly characters can. Saved. *(queued)* |
@@ -527,7 +527,7 @@ fn ogre_hurt() {                      // the ogre's "HP below 30 %" trigger runs
 
 ### Cut-scenes
 
-A cut-scene is a timeline from the Database's *Cut-scenes* tab ([Events › Cut-scene
+A cut-scene is a timeline (*Story › Cut-scenes*; [Events › Cut-scene
 timelines](07-events.md#cut-scene-timelines)) or an ordinary script function, played with
 `cutscene("name")` or the trigger action *Play cutscene* (a cut-scene of that id first, else the
 function). While it plays the HUD is hidden, black bars slide in at the top and bottom,
@@ -552,12 +552,11 @@ another one becomes part of it.
 `move_by`, `face`, `say`, `choice`, `wait`, `teleport`, `play_sound`, `play_music` and every other
 queued function work in cut-scenes as everywhere. Scripted walks go straight to their target
 and ignore walls and characters, so a scene can't get stuck - plan the paths. Tile positions are
-the editor's tile coordinates (shown in its status bar).
+the editor's tile coordinates (shown in the corner of a map's tab).
 
-In the editor, the Scripts tab's *+ Cutscene* adds a template function, *Play as cutscene*
-play-tests any function of the open script as a cut-scene on the open map, and the *Play
-cutscene* action has a *Preview* button. A preview starts without the map's *Map enter*
-triggers.
+A cut-scene made on a timeline is played from its tab (*Play from here*); a scripted one with the
+*Play cutscene* action. The game started with `--cutscene FN` plays one without the map's *Map
+enter* triggers.
 
 ### Enemy spawners
 
@@ -607,8 +606,8 @@ are still shown. Not saved: a loaded game always starts with the HUD visible.
 #### Pictures
 
 A picture over the game: a full-body painting of a character the first time the player meets
-them, a letter, a map, a poster. The picture is a sprite sheet drawn whole (*Database › Sprite
-sheets*; its frame size doesn't matter). It is drawn at its own size (or `scale`), and scaled down
+them, a letter, a map, a poster. The picture is a sprite sheet drawn whole (*Art & sound ›
+Sprite sheets*; its frame size doesn't matter). It is drawn at its own size (or `scale`), and scaled down
 to fit the window when it is larger, keeping its proportions. A **scrolling** picture taller than
 the window keeps the window's width instead and pans slowly from the top down and back up, resting
 a second at each end, until it is closed; the arrow keys, the stick and the mouse wheel scroll it
@@ -904,7 +903,7 @@ tool (`"dex:thieves-tools"`, `"int:smiths-tools"`).
 | `change_shape(who, form, keep_hp)` | Like `change_shape`; `keep_hp` false gives the shape its own hit points and brings the old ones back with its own shape, as *Polymorph* does. *(queued, since 0.35)* |
 | `own_shape(who)` | The character `who` in another shape is itself again. *(queued, since 0.35)* |
 | `poison(target, item)` | Exposes the hero (`"player"`), the script's owner (`"self"`) or a character to the poison of an item: its Constitution save, then its damage and conditions ([Gameplay › Poisons](09-gameplay.md#poisons)). A drugged ale, a gas trap. *(since 0.32)* |
-| `infect(disease)` | Exposes the hero to a disease (*Database › Diseases*): its saving throw, then its onset ([Gameplay › Diseases](09-gameplay.md#diseases)). A dirty well, a sick villager's cough. *(since 0.32)* |
+| `infect(disease)` | Exposes the hero to a disease (*Rules › Diseases*): its saving throw, then its onset ([Gameplay › Diseases](09-gameplay.md#diseases)). A dirty well, a sick villager's cough. *(since 0.32)* |
 | `cure_disease(disease)` | Ends the hero's disease (`""` = every disease); its exhaustion stays for rests to take away. A healer, a remedy. *(since 0.32)* |
 | `has_disease(disease)` | Whether the hero has the disease, incubating or sick (`""` = any). *(since 0.32)* |
 | `prop_hp(target)` | A prop's hit points as an object (its name or `"self"`); `-1` without object statistics (*Object* in the prop form). *(since 0.32)* |
@@ -959,7 +958,7 @@ it; a scroll that is used up when read is used up.
 
 ### Experience and levels
 
-These only matter in projects with *Experience and levels* enabled in *Database › Project*. Defeated
+These only matter in projects with *Experience and levels* enabled (the *Hero & party* page). Defeated
 characters give the experience set in their definition (*Combat › Experience*), completed quests their
 *Experience reward*; enough experience raises the level, which adds max HP and mana as set in the
 project, and the SRD proficiency bonus grows with it (+3 at level 5, +4 at 9, +5 at 13, +6 at 17). *Defeat all enemies* / `defeat_enemies()` gives no experience.
@@ -986,8 +985,8 @@ fn trainer_talk() {
 The SRD's conditions on the hero or a character ([Gameplay › Conditions](09-gameplay.md#conditions-and-damage)):
 `blinded`, `charmed`, `deafened`, `frightened`, `grappled`, `incapacitated`, `invisible`,
 `paralyzed`, `petrified`, `poisoned`, `prone`, `restrained`, `stunned`, `unconscious` and
-`exhaustion` (levels 1 to 6). Weapons give them on hit and hostile characters on touch (set in the
-Database); these functions apply and remove them like the *Apply condition* / *Remove condition*
+`exhaustion` (levels 1 to 6). Weapons give them on hit and hostile characters on touch (set in their
+forms); these functions apply and remove them like the *Apply condition* / *Remove condition*
 actions. The hero's are saved; a character's last until the map is left. Applying one that is
 running keeps the longer duration; exhaustion adds a level.
 
@@ -998,7 +997,7 @@ running keeps the longer duration; exhaustion adds a level.
 | `remove_condition(target, condition)` | Ends a condition (all levels of exhaustion); `""` or `"all"` = every condition and the damage per round. *(queued, since 0.28)* |
 | `has_condition(condition)` | Whether the hero has it (`"any"` = any condition). *(since 0.28)* |
 | `has_condition(target, condition)` | Whether `"player"`, `"self"` (or `SELF`) or a character on this map has it. *(since 0.28)* |
-| `srd_attribution()` | The SRD 5.1's attribution (CC BY 4.0) when the project uses SRD content (*Project › Uses SRD 5.1 content*), else `""`: for credits a script rolls. *(since 0.28)* |
+| `srd_attribution()` | The SRD 5.1's attribution (CC BY 4.0) when the project uses SRD content (*Uses SRD 5.1 content* on the *Rules* page), else `""`: for credits a script rolls. *(since 0.28)* |
 | `exhaustion()` | The hero's exhaustion level (0-6). *(since 0.28)* |
 | `set_exhaustion(level)` | Sets it (0 = none; 6 is death). *(immediately, since 0.28)* |
 | `short_rest()` | Opens the rest window: the hero spends hit dice. *(queued, since 0.28)* |
@@ -1006,11 +1005,11 @@ running keeps the longer duration; exhaustion adds a level.
 | `start_combat()` | Starts a [turn-based fight](09-gameplay.md#health-and-combat) with the hostile characters within 12 tiles of the player; their allies and the party join (the *Start fight* action). Nothing without any, or during a fight. *(queued, since 0.29)* |
 | `in_combat()` | Whether a fight is going on. *(since 0.29)* |
 | `combat_round()` | The round of the fight going on (1 = the first; 0 = no fight). *(since 0.29)* |
-| `class()` | The hero's [class](09-gameplay.md#classes-and-levels) id (*Database › Classes*), e.g. `"fighter"`; `""` without one. *(since 0.30)* |
+| `class()` | The hero's [class](09-gameplay.md#classes-and-levels) id (*Characters › Classes*), e.g. `"fighter"`; `""` without one. *(since 0.30)* |
 | `subclass()` | The hero's subclass id (`"champion"`, `"thief"`), `""` before they chose one. *(since 0.30)* |
 | `class_level()` | The hero's level in their class (0 without a class). *(since 0.30)* |
 | `resource(resource)` | Uses left of one of the hero's class resources: `resource("rage")`, `resource("ki")`, `resource("second-wind")`, `resource("lay-on-hands")` (its hit points); 0 without it. A short rest gives back those that recharge on one, a long rest all. *(since 0.30)* |
-| `has_feature(feature)` | Whether the hero has a class feature at their level, by its id (*Database › Classes*, the class's features): `has_feature("second-wind")`; chosen options count too (`"fighter-fighting-style-defense"`). *(since 0.30)* |
+| `has_feature(feature)` | Whether the hero has a class feature at their level, by its id (*Characters › Classes*, the class's features): `has_feature("second-wind")`; chosen options count too (`"fighter-fighting-style-defense"`). *(since 0.30)* |
 | `level_up_pending()` | Whether level-up choices (the hero's or a party member's) wait for the level-up window. *(since 0.30)* |
 | `set_class(target, class)` | Gives the hero (`"player"`) or a party member on this map a class: its saving throws and proficiencies; the choices of the levels it has open the level-up window (the *Set class* action). *(queued, since 0.30)* |
 | `set_class(target, class, level)` | Like above; a party member also gets this level (it joins at it: its experience and hit points follow). The example's `set_class("finn", "ranger", level())` makes Old Finn a ranger at the hero's level. *(queued, since 0.30)* |
@@ -1076,7 +1075,7 @@ keys are ignored, missing keys use the default.
 | `speed` | `fly` | Tiles per second | `8` |
 | `frames` | `fly`, `effect` | `[first, last]` frame of the sheet | all frames |
 | `frame` | `fly`, `effect` | A single frame | — |
-| `tag` | `fly`, `effect` | A named animation of the sheet (*Database › Sprite sheets › Animations*, e.g. the tags of an imported Aseprite sheet): its frames and speed replace `frames` / `fps` | — |
+| `tag` | `fly`, `effect` | A named animation of the sheet (the sheet's *Animations*): its frames and speed replace `frames` / `fps` | — |
 | `fps` | `fly`, `effect` | Frames per second (`fly` loops, `effect` plays once) | `12` |
 | `scale` | `fly`, `effect` | Size factor (`2` = twice the frame size) | `1` |
 | `light` | `fly`, `effect` | Radius of a glow in tiles (an effect's glow fades with it) | `0` (none) |
@@ -1194,7 +1193,7 @@ fn trap_sprung() {
 
 ### A scripted spell
 
-A spell with a **Script** part, function `meteor` (*Database › Spells*), using the sprite sheets
+A spell with a **Script** part, function `meteor` (*Rules › Spells*), using the sprite sheets
 `fireball` (4 frames, flying to the right) and `explosion` (8 frames). The SRD's Fireball needs no
 script (its parts are a DEX save for half and fire damage in a 20 ft sphere); a script is for what
 the parts can't say:
@@ -1333,7 +1332,7 @@ or a [plugin](18-plugins.md) knows what it may count on; a plugin names the vers
 (`api` in its `plugin.ron`) and isn't loaded by an older engine.
 
 A **deprecated** function still works, but has a better replacement: the reference says which. The
-editor's completion marks it, and the script check (*Save & check*, *Edit › Problems*, the agent
+editor's completion marks it, and the script check (while typing in a script's tab, the project check, the agent
 server's `check_script`) warns about every call with the line and what to use instead.
 
 - **Until 1.0** a function may still change or go away; the CHANGELOG says so in a *Breaking:*

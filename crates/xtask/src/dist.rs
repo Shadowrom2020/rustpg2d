@@ -8,14 +8,18 @@
 //!   which the editors download or load from a file;
 //! - `SHA256SUMS` of what it wrote.
 //!
-//! Every editor gets the game runners of the other platforms and the web game next to it, so it
-//! exports games for Linux, Windows, macOS and browsers.
+//! The editor packaged is the binary named by [`EDITOR`] (the new editor, `crates/studio`, while
+//! it keeps its working name). Every editor gets the game runners of the other platforms and the
+//! web game next to it, so it exports games for Linux, Windows, macOS and browsers
+//! (`editor-core`'s `export::game_binary` / `web_binary` look next to the editor and, in the macOS
+//! app, in `Contents/Resources`; `files::bundled_example` finds the example project at
+//! `share/rustpg2d/example_project`, next to the editor or in `Contents/Resources`).
 //!
 //! Options: `--out DIR` (default `dist/`), `--bin-dir DIR` (the Linux release binaries, default
-//! `target/release`), `--web-wasm FILE` (the game for browsers, default
-//! `target/wasm32-unknown-unknown/release/rustpg2d-game.wasm`), `--windows-dir DIR`
-//! (`rustpg2d-editor.exe` and `rustpg2d-game.exe`, cross-compiled with MinGW-w64; default
-//! `target/x86_64-pc-windows-gnu/release`), `--macos-dir DIR` (universal `rustpg2d-editor` and
+//! `target/release`), `--web-wasm FILE` (the game for browsers with its loader `.js` beside it, as
+//! `cargo xtask-web` writes them; default `target/web/rustpg2d-game.wasm`), `--windows-dir DIR`
+//! (the editor's `.exe` and `rustpg2d-game.exe`, cross-compiled with MinGW-w64; default
+//! `target/x86_64-pc-windows-gnu/release`), `--macos-dir DIR` (the universal editor and
 //! `rustpg2d-game`, built on a Mac and joined with `lipo`; default `target/macos`).
 //! `--require-web`, `--require-windows`, `--require-macos`: fail without them (CI).
 
@@ -32,6 +36,11 @@ const MAX_GLIBC: (u32, u32) = (2, 35);
 const APP_ID: &str = "io.github.Shadowrom2020.rustpg2d";
 /// The macOS application's folder name.
 pub const MAC_APP: &str = "R(ust)PG2D.app";
+/// The editor's binary (cargo's name of the package `crates/studio`): the command of the Linux
+/// packages, `EDITOR.exe` in the Windows zip, `Contents/MacOS/EDITOR` in the macOS app. It takes
+/// its final name when the new editor replaces the old one (ROADMAP.md, 0.36.0, part 12): the
+/// workflows (`builds.yml`, `actions/packages`, `ci.yml`) name it too.
+pub const EDITOR: &str = "rustpg2d-studio";
 
 fn is_mach_o_universal(b: &[u8]) -> bool {
     b.starts_with(&[0xca, 0xfe, 0xba, 0xbe])
@@ -44,7 +53,7 @@ pub fn dist(args: &[String]) -> Result<()> {
     let out = opt("--out").unwrap_or_else(|| root.join("dist"));
     let bins = opt("--bin-dir").unwrap_or_else(|| root.join("target/release"));
     let version = workspace_version(&read(&root.join("Cargo.toml"))?)?;
-    let (editor, game) = (bins.join("rustpg2d-editor"), bins.join("rustpg2d-game"));
+    let (editor, game) = (bins.join(EDITOR), bins.join("rustpg2d-game"));
     for b in [&editor, &game] {
         let bytes = std::fs::read(b).with_context(|| format!("{} not found: run `cargo build --release` first", b.display()))?;
         match rustpg2d_packaging::glibc_needed(&bytes) {
@@ -54,22 +63,25 @@ pub fn dist(args: &[String]) -> Result<()> {
         }
     }
     // The web game.
-    let wasm = opt("--web-wasm").unwrap_or_else(|| root.join("target/wasm32-unknown-unknown/release/rustpg2d-game.wasm"));
+    let wasm = opt("--web-wasm").unwrap_or_else(|| root.join("target/web/rustpg2d-game.wasm"));
     let wasm = if wasm.is_file() {
         if !std::fs::read(&wasm)?.starts_with(b"\0asm") {
             bail!("{} is not a WebAssembly file", wasm.display());
         }
+        if !wasm.with_extension("js").is_file() {
+            bail!("{} has no loader beside it ({}): cargo xtask-web writes both", wasm.display(), wasm.with_extension("js").display());
+        }
         println!("{}: the web game", wasm.display());
         Some(wasm)
     } else if flag("--require-web") {
-        bail!("the web game is missing: cargo build --release --target wasm32-unknown-unknown -p rustpg2d-game");
+        bail!("the web game is missing: cargo build --release --target wasm32-unknown-unknown -p rustpg2d-game && cargo xtask-web");
     } else {
         println!("no web game ({}): the packaged editors won't export web games", wasm.display());
         None
     };
     // Windows: editor and game.
     let win_dir = opt("--windows-dir").unwrap_or_else(|| root.join("target/x86_64-pc-windows-gnu/release"));
-    let (win_editor, win_game) = (win_dir.join("rustpg2d-editor.exe"), win_dir.join("rustpg2d-game.exe"));
+    let (win_editor, win_game) = (win_dir.join(format!("{EDITOR}.exe")), win_dir.join("rustpg2d-game.exe"));
     let windows = if win_editor.is_file() && win_game.is_file() {
         for w in [&win_editor, &win_game] {
             if !std::fs::read(w)?.starts_with(b"MZ") {
@@ -79,14 +91,14 @@ pub fn dist(args: &[String]) -> Result<()> {
         println!("{}: the Windows build", win_dir.display());
         true
     } else if flag("--require-windows") {
-        bail!("the Windows build is missing in {}: cargo build --release --target x86_64-pc-windows-gnu -p rustpg2d-editor -p rustpg2d-game", win_dir.display());
+        bail!("the Windows build is missing in {}: cargo build --release --target x86_64-pc-windows-gnu -p {EDITOR} -p rustpg2d-game", win_dir.display());
     } else {
         println!("no Windows build in {}: no Windows zip, and the other editors won't export Windows games", win_dir.display());
         false
     };
     // macOS: universal editor and game.
     let mac_dir = opt("--macos-dir").unwrap_or_else(|| root.join("target/macos"));
-    let (mac_editor, mac_game) = (mac_dir.join("rustpg2d-editor"), mac_dir.join("rustpg2d-game"));
+    let (mac_editor, mac_game) = (mac_dir.join(EDITOR), mac_dir.join("rustpg2d-game"));
     let macos = if mac_editor.is_file() && mac_game.is_file() {
         for m in [&mac_editor, &mac_game] {
             if !is_mach_o_universal(&std::fs::read(m)?) {
@@ -96,7 +108,7 @@ pub fn dist(args: &[String]) -> Result<()> {
         println!("{}: the macOS build", mac_dir.display());
         true
     } else if flag("--require-macos") {
-        bail!("the macOS build is missing in {}: universal rustpg2d-editor and rustpg2d-game, built on a Mac (README: Building on macOS)", mac_dir.display());
+        bail!("the macOS build is missing in {}: universal {EDITOR} and rustpg2d-game, built on a Mac (README: Building on macOS)", mac_dir.display());
     } else {
         println!("no macOS build in {}: no macOS app, and the other editors won't export macOS games", mac_dir.display());
         false
@@ -111,7 +123,7 @@ pub fn dist(args: &[String]) -> Result<()> {
 
     // Linux: AppImage and Flatpak; the foreign runners next to the editor.
     let mut spec = AppSpec {
-        command: "rustpg2d-editor".into(),
+        command: EDITOR.into(),
         name: "R(ust)PG2D".into(),
         comment: "Editor and engine for 2D top-down role-playing games".into(),
         categories: "Development;Game;".into(),
@@ -123,16 +135,17 @@ pub fn dist(args: &[String]) -> Result<()> {
             .map(String::from)
             .to_vec(),
         files: vec![
-            Entry { dest: "lib/rustpg2d/rustpg2d-editor".into(), src: Source::Path(editor), exec: true },
+            Entry { dest: format!("lib/rustpg2d/{EDITOR}"), src: Source::Path(editor), exec: true },
             Entry { dest: "lib/rustpg2d/rustpg2d-game".into(), src: Source::Path(game.clone()), exec: true },
         ],
-        bin: vec![("rustpg2d-editor".into(), "lib/rustpg2d/rustpg2d-editor".into()), ("rustpg2d-game".into(), "lib/rustpg2d/rustpg2d-game".into())],
+        bin: vec![(EDITOR.into(), format!("lib/rustpg2d/{EDITOR}")), ("rustpg2d-game".into(), "lib/rustpg2d/rustpg2d-game".into())],
         icon: icon.clone(),
         license: "MIT".into(),
     };
-    // Next to the editor, where File > Export game looks for them.
+    // Next to the editor, where the Publishing page looks for them (editor-core's export.rs).
     if let Some(w) = &wasm {
         spec.files.push(Entry { dest: "lib/rustpg2d/rustpg2d-game.wasm".into(), src: Source::Path(w.clone()), exec: false });
+        spec.files.push(Entry { dest: "lib/rustpg2d/rustpg2d-game.js".into(), src: Source::Path(w.with_extension("js")), exec: false });
     }
     if windows {
         spec.files.push(Entry { dest: "lib/rustpg2d/rustpg2d-game.exe".into(), src: Source::Path(win_game.clone()), exec: false });
@@ -166,17 +179,18 @@ pub fn dist(args: &[String]) -> Result<()> {
     if windows {
         let zip = out.join(format!("rustpg2d-{version}-windows-x86_64.zip"));
         let mut files: Vec<(String, Vec<u8>, u32)> = vec![
-            ("rustpg2d-editor.exe".into(), std::fs::read(&win_editor)?, 0o755),
+            (format!("{EDITOR}.exe"), std::fs::read(&win_editor)?, 0o755),
             ("rustpg2d-game.exe".into(), std::fs::read(&win_game)?, 0o755),
             ("rustpg2d-game-linux".into(), std::fs::read(&game)?, 0o755),
             ("LICENSE.txt".into(), read(&license)?.replace('\n', "\r\n").into_bytes(), 0o644),
-            ("README.txt".into(), WINDOWS_README.replace("{version}", &version).replace('\n', "\r\n").into_bytes(), 0o644),
+            ("README.txt".into(), windows_readme(&version).replace('\n', "\r\n").into_bytes(), 0o644),
         ];
         if macos {
             files.push(("rustpg2d-game-macos".into(), std::fs::read(&mac_game)?, 0o644));
         }
         if let Some(w) = &wasm {
             files.push(("rustpg2d-game.wasm".into(), std::fs::read(w)?, 0o644));
+            files.push(("rustpg2d-game.js".into(), std::fs::read(w.with_extension("js"))?, 0o644));
         }
         for (rel, path) in &examples {
             files.push((format!("example_project/{rel}"), std::fs::read(path)?, 0o644));
@@ -208,7 +222,7 @@ pub fn dist(args: &[String]) -> Result<()> {
             Ok(())
         };
         // Code in MacOS (signed as part of the app), everything else in Resources.
-        put(&contents.join("MacOS/rustpg2d-editor"), &std::fs::read(&mac_editor)?, true)?;
+        put(&contents.join("MacOS").join(EDITOR), &std::fs::read(&mac_editor)?, true)?;
         put(&contents.join("MacOS/rustpg2d-game"), &std::fs::read(&mac_game)?, true)?;
         put(&contents.join("Info.plist"), mac_info_plist(&version).as_bytes(), false)?;
         put(&contents.join("PkgInfo"), b"APPL????", false)?;
@@ -219,6 +233,7 @@ pub fn dist(args: &[String]) -> Result<()> {
         }
         if let Some(w) = &wasm {
             put(&res.join("rustpg2d-game.wasm"), &std::fs::read(w)?, false)?;
+            put(&res.join("rustpg2d-game.js"), &std::fs::read(w.with_extension("js"))?, false)?;
         }
         put(&res.join("LICENSE"), &std::fs::read(&license)?, false)?;
         for (rel, path) in &examples {
@@ -303,7 +318,7 @@ fn mac_info_plist(version: &str) -> String {
     <key>CFBundleDisplayName</key>
     <string>R(ust)PG2D</string>
     <key>CFBundleExecutable</key>
-    <string>rustpg2d-editor</string>
+    <string>{EDITOR}</string>
     <key>CFBundleIconFile</key>
     <string>rustpg2d.icns</string>
     <key>CFBundleIdentifier</key>
@@ -330,24 +345,44 @@ fn mac_info_plist(version: &str) -> String {
     )
 }
 
-const WINDOWS_README: &str = "R(ust)PG2D {version} for Windows (10 / 11, 64-bit)
+/// `README.txt` of the Windows zip.
+fn windows_readme(version: &str) -> String {
+    format!(
+        "R(ust)PG2D {version} for Windows (10 / 11, 64-bit)
 
-Start rustpg2d-editor.exe: the welcome screen opens the example project or one of your own.
-F5 in the editor play-tests the open map with rustpg2d-game.exe. Both need a graphics driver
-with OpenGL 3 (in a virtual machine: turn on 3D acceleration).
+Start {EDITOR}.exe: its home screen opens the example game or one of your own projects.
+F5 in the editor plays the game in a tab; it can also run in a window of its own
+(rustpg2d-game.exe). Both need a graphics driver with DirectX 12 or Vulkan (in a virtual
+machine: turn on 3D acceleration).
 
 R(ust)PG2D isn't code-signed: the first start shows \"Windows protected your PC\". Choose
 \"More info\", then \"Run anyway\".
 
 Your files:
-- the example project you open is copied to %USERPROFILE%\\rustpg2d\\example_project
+- the example game you open is copied to %USERPROFILE%\\rustpg2d\\example_project.r2dproject
 - the asset library: %LOCALAPPDATA%\\rustpg2d\\library
 - settings and the recent projects: %APPDATA%\\rustpg2d
 
-File > Export game makes games for Windows (rustpg2d-game.exe), Linux (rustpg2d-game-linux),
+The Publishing page makes games for Windows (rustpg2d-game.exe), Linux (rustpg2d-game-linux),
 macOS (rustpg2d-game-macos) and browsers (rustpg2d-game.wasm), all in this folder. AppImage and
 Flatpak packages are made by R(ust)PG2D on Linux.
 
 Documentation and source: https://github.com/Shadowrom2020/rustpg2d
 R(ust)PG2D is MIT licensed: see LICENSE.txt.
-";
+"
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The app starts the binary put into `Contents/MacOS`, and the Windows readme names the
+    /// editor's `.exe` of the zip.
+    #[test]
+    fn the_packages_name_the_editor() {
+        assert!(mac_info_plist("1.2.3").contains(&format!("<key>CFBundleExecutable</key>\n    <string>{EDITOR}</string>")));
+        assert!(windows_readme("1.2.3").contains(&format!("Start {EDITOR}.exe")));
+        assert!(!windows_readme("1.2.3").contains("rustpg2d-editor"));
+    }
+}

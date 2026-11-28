@@ -4,7 +4,7 @@
 //! done now or acting at once. It replaced the quick bar of 0.31 and older. F / RB focuses the bar
 //! for keys and gamepads; a list pauses the world like the inventory.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::input::{self, Act};
 use super::skin;

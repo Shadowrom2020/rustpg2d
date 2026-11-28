@@ -115,7 +115,7 @@ pub fn emblem() -> Rgba {
 
 /// A window icon (16, 32 and 64 px) from a square image: each pixel averages the area it covers
 /// (alpha-weighted, so transparent pixels don't darken the edges).
-pub fn window_icon(img: &Rgba) -> macroquad::miniquad::conf::Icon {
+pub fn window_icon(img: &Rgba) -> gfx::conf::Icon {
     fn scaled<const N: usize>(img: &Rgba, size: u32) -> [u8; N] {
         let mut out = [0u8; N];
         let (fx, fy) = (img.w as f32 / size as f32, img.h as f32 / size as f32);
@@ -147,7 +147,7 @@ pub fn window_icon(img: &Rgba) -> macroquad::miniquad::conf::Icon {
         }
         out
     }
-    macroquad::miniquad::conf::Icon { small: scaled::<{ 16 * 16 * 4 }>(img, 16), medium: scaled::<{ 32 * 32 * 4 }>(img, 32), big: scaled::<{ 64 * 64 * 4 }>(img, 64) }
+    gfx::conf::Icon { small: scaled::<{ 16 * 16 * 4 }>(img, 16), medium: scaled::<{ 32 * 32 * 4 }>(img, 32), big: scaled::<{ 64 * 64 * 4 }>(img, 64) }
 }
 
 #[cfg(test)]

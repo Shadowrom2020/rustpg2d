@@ -2,26 +2,32 @@
 
 A map is one area of the game world: a village, a house's inside, a forest, a dungeon level, up to
 1024 × 1024 tiles of 32 × 32 pixels large. Its ground is **painted** with materials (grass, a road,
-a pond), trees, rocks, walls and buildings stand on it as **decorations**, and entities (props,
-characters, items) and zones are placed on it. The tile grid remains for what needs whole squares:
+a pond), trees, rocks, walls and buildings stand on it as **scenery**, and objects (props that do
+something, characters, items) and zones are placed on it. The tile grid remains for what needs whole squares:
 collision overrides, route planning, zones and positions in events and scripts.
 
 ## Creating and switching maps
 
-- **Map › New map…** (or *+ New map…* in the map dropdown) asks for a name and a size. Map names may
-  use letters, digits, `_` and `-`.
-- The **map dropdown** in the top bar switches maps; **Ctrl+M** opens a searchable switcher;
-  **Ctrl+PgUp / Ctrl+PgDn** step through the maps.
-- With nothing selected, the inspector shows the map's settings: its **Title** (the name players
-  see on the map screen, at its exits and in the save list; empty = the map's name with a capital,
-  e.g. *Tavern*), **Rename map…** (every reference in the project follows), **Resize…**, the **Background** colour shown outside the map and where
-  no ground is painted, and the map's **Music** (a looping sound; empty keeps whatever is playing). **Battle
-  music**: *Project's* (*Database › Project › Game sounds › Battle music*), *None* (the map's music
-  plays on in fights) or *Own track*.
+- **A new map**: *New…* (**Ctrl+N**) › *Map*, or **+ New map** under *World › Maps* in the Project
+  browser: a name (letters, digits, `_` and `-`), a size in tiles (40 x 30 to start with) and the
+  ground it starts with. It opens in a tab of its own.
+- **Opening one**: a click in the Project browser (*World › Maps*), **Go to anything** (Ctrl+P), a
+  card of the **World view** (every map and the ways between them), or a link anywhere that names
+  it. Each open map is a tab; several can be side by side.
+- With nothing selected, the Inspector shows the map itself: its **Size** (*Resize* keeps the top
+  left where it is; one step, undone as one) and its settings: the **Title** (the name players see
+  on the map screen, at its exits and in the save list; empty = the map's name with a capital,
+  e.g. *Tavern*), the **Background** colour shown outside the map and where no ground is painted,
+  the light and weather, the map's **Music** (a looping sound; empty keeps whatever is playing),
+  its **Battle music** (*Project's*: the one on the *Sound* page; *None*: the map's music plays on
+  in fights; or a track of its own), what lies beyond its edges and its events. **Rename** a map
+  with *Edit › Rename* (every reference in the project follows).
+
+![The World view: every map of the example and the ways between them](../images/editor-world.webp)
 
 ## Painted ground
 
-The map's **painted ground** is a grid of 8 × 8 pixel cells (four per tile side), each holding a **material** from [*Database › Materials*](05-database.md#materials): grass,
+The map's **painted ground** is a grid of 8 × 8 pixel cells (four per tile side), each holding a **material** ([Definitions › Materials](05-database.md#materials)): grass,
 dirt, sand, water, cobblestone, snow… The game draws it with a shader that shapes where two
 materials meet, so painted roads, shores and meadows have natural, uneven edges instead of tile
 edges:
@@ -41,7 +47,7 @@ edges:
 Painted ground **collides** by its cells: water stops walking exactly at its drawn edge (shots fly
 over it: *Low*), a *Solid* material stops walking, shots and sight. Route planning (click-to-move,
 characters) counts a tile as blocked when half its cells are. Collision painted on the
-[collision layer](#collision) wins over the ground (*Walkable* frees a tile, *Solid* blocks it).
+[Collision tool](#collision) wins over the ground (*walkable* frees a tile, *solid* blocks it).
 Footsteps play the material's sound.
 
 The starter library brings materials for grass, meadow, forest floor, dirt, farmland, sand, snow,
@@ -49,11 +55,10 @@ cobblestone, flagstones, stone tiles, wooden floor, carpet, rug, water, earth, c
 void, the animated **lava**, **swamp water** and **waterfall pool**, **mud**, natural **cave rock**,
 **sandstone tiles**, and those its converted tile structures needed. A map uses at most 64 materials.
 
-### The Ground tool
+### The Terrain tool
 
-**Ground** (P) is the first tool of the ribbon's *Paint* group. Its panel shows the project's
-materials as cards with their names (the map's own first; a search box filters them): click one,
-then paint on the map:
+**Terrain** (P) paints the ground. Its panel on the left lists the project's materials (searched)
+and **Erase (no ground)**: click one, then paint on the map:
 
 | Mode | Use |
 |---|---|
@@ -62,47 +67,48 @@ then paint on the map:
 | **Rectangle** | Drag from one corner to the other: a filled rectangle (a floor, a carpet, a field) |
 | **Fill** | Click: the connected area of the same material (or of no ground) |
 
-*Size* is the brush's diameter (a line's width) in tiles; **[** and **]** change it by a quarter
-tile. **Snap to tiles** (on by default) puts rectangle corners, the square brush and line ends on
-the 32 px tile grid; off, they follow the 8 px cells. A rectangular carpet: *Carpet*, *Rectangle*,
-drag over the floor. **Shift** erases (no ground: the background or the tiles show), **right-click** takes the
-material under the cursor. Each stroke is one undo step. While the tool is active, decorations
-drawn over everyone are see-through.
+*Brush width* is in tiles; **[** and **]** change it. **On tiles** puts rectangle corners, the
+square brush and line ends on the 32 px tile grid; off, they follow the 8 px cells. A rectangular
+carpet: *Carpet*, *Rectangle*, drag over the floor. **Shift** erases (no ground: the background
+shows), the **right button** takes the material under the pointer. Each stroke is one step of the
+history.
 
 AI agents paint the ground with `paint_ground` (circles, strokes, polygons) and `fill_ground`
-([chapter 13](13-ai-agents.md)); scripts of the editor with `ground`, `gpaint`, `gline`, `gfill`
+([chapter 13](13-ai-agents.md)); editor scripts with `maptool terrain`, `mapground MATERIAL|erase
+[brush|line|rect|fill] [WIDTH] [square] [snap]` and then `mapdrag` / `mapclick`
 ([Testing](17-testing.md)).
 
-## Decorations
+## Scenery
 
-Trees, rocks, flowers, fences, walls and buildings are placed as **decorations**: props drawn as
-pictures anywhere on the map (pixel positions, not tiles). A decoration has its prop's picture,
-hitbox, solidity (*Low* included), light and *Ladder* flag, but no states, triggers or interaction,
-so a map can hold tens of thousands of them (a 1024 × 1024 forest of 67 000 trees runs at full
-speed). A prop that does something (a door, a chest, a tree to chop) is placed with the
-[Entities tool](04-objects-and-zones.md) instead.
+Trees, rocks, flowers, fences, walls and buildings stand on a map as **scenery**: props drawn as
+pictures or models anywhere on the map (pixel positions, not tiles). A piece of scenery has its
+prop's look, hitbox, solidity (*Low* included), light and *Ladder* flag, but no name, states,
+events or interaction, so a map can hold tens of thousands of them (a 1024 × 1024 forest of 67 000
+trees runs at full speed). A prop that does something (a door, a chest, a tree to chop) is placed
+as an **object** instead ([Objects and zones](04-objects-and-zones.md)).
 
-Each decoration lies on a **layer**: *Flat* (on the ground, under everyone: rugs, puddles),
-*Sorted* (in front of or behind characters by its feet: trees, rocks, walls, houses) or *Above*
-(over everyone: treetops, roofs, arches); choosing a prop that *lies flat on the ground* picks
-*Flat*. A prop with an **animation** (*Database › Props*:
-frames of its sheet and a speed) plays it as a decoration too: torches, flags, water wheels.
+Each piece lies on a **layer**: *Flat* (on the ground, under everyone: rugs, puddles), *Sorted* (in
+front of or behind characters by its feet: trees, rocks, walls, houses) or *Above* (over everyone:
+treetops, roofs, arches); a prop that *lies flat on the ground* is *Flat* by itself.
 
-**Decorations** (O) in the ribbon's *Objects* group has four modes:
+**Place** (N) puts everything down: pick a prop, a character, an item, a structure or a scatter
+set in its panel (searched, by kind), then click the map. What a prop is decides how it goes down:
+a prop that only stands there becomes scenery, one that does something becomes an object. For
+scenery the panel offers:
 
-| Mode | Use |
-|---|---|
-| **Place** | Click: one of the chosen prop, on its grid when it snaps (*Snap to*) |
-| **Line** | Drag a straight line of a prop on its grid (its *Snap to*): a wall or a fence |
-| **Scatter** | Click or drag a brush: a **scatter set**'s props at random, keeping their spacing (*Forest*, *Rocks*, *Wild plants*; [Database › Scatter sets](05-database.md#scatter-sets)) |
-| **Erase** | Click or drag a brush: removes the decorations under it |
+- **Layer**: *Its own* (the prop's), *Flat*, *Sorted* or *Above*;
+- **Mirror at random**: each one placed is mirrored half of the time;
+- **Facing · Turn** (or **R**) for props with a 3D model: the next ones a quarter further, their
+  hitbox with them;
+- a prop with a grid of its own (walls, fences: *Snap to*) is put down **in a row** by dragging;
+- **Shift** places off the grid, where the pointer is.
 
-*Mirror at random* flips placed props half of the time; props with a 3D model or pictures from
-four sides **turn**: **R** (or *Turn* in the left panel) turns the next ones a quarter, their
-hitbox with them; **[** and **]** change the brush size;
-right-click takes the prop of the decoration under the cursor. Each click or stroke is one undo
-step. With *View › Collision* on, solid decorations show their hitboxes (red; yellow: low) and the
-painted ground its blocked cells.
+A **scatter set** is brushed on: its props at random, keeping their spacing (*Forest*, *Rocks*,
+*Wild plants*; [Definitions › Scatter sets](05-database.md#scatter-sets)); *Brush width* sets its size.
+Each click or stroke is one step. Scenery is selected like anything else (a click, a box with the
+Select tool) and deleted with **Delete**; *Make interactive* in its Inspector turns a piece into an
+object (a name, events, states), *Make scenery* an object back into scenery. With *Blocked tiles*
+on in the map's bar, solid things show what they block (red; yellow: low).
 
 ### Building walls, rooms and houses
 
@@ -114,7 +120,7 @@ by clicking. Its left panel picks the mode, the wall and the rest:
   walls, *Fence section*) stand on the edges, north-to-south runs are the same wall turned a
   quarter (corners meet by themselves); thick walls (a town's stone wall, a hedge) fill the tiles
   the mouse passes. Pieces that stand there already are kept. **Right-click** a piece to take it
-  away. The whole drag is one undo step.
+  away. The whole drag is one step.
 - **Room**: drag the floor. It is painted with the chosen *Floor* material and gets its back walls
   (north and west), open to the viewer like the example's interiors, or with *Walls on all four
   sides* all four, a doorway left in the middle of the south wall. *With a roof* puts a roof over
@@ -122,8 +128,8 @@ by clicking. Its left panel picks the mode, the wall and the rest:
 - **House**: drag the footprint, pick a *Look* (any building prop) and the *Storeys* (1 to 3: each
   further one 48 px higher, with windows of its own). A new building prop is made in that look, as
   big as the rectangle (its door in the middle of the front, windows along the walls, a chimney
-  when the look has one) and placed there; *Database › Props* changes its doors, windows and roof
-  ([Database › Props › Building](05-database.md#props)). **Drag a house against another one** (or
+  when the look has one) and placed there; the prop's form changes its doors, windows and roof
+  ([Definitions › Props](05-database.md#props)). **Drag a house against another one** (or
   start the drag inside it) and it becomes a **wing** of that one: as high and in its look, the two
   props are *joined* (*Joined to* in their forms), and where a ridge points into the other house its
   roof runs on until it meets that one's: an L- or T-shaped house under one roof. Each is still a
@@ -133,7 +139,7 @@ by clicking. Its left panel picks the mode, the wall and the rest:
   and kind (gable, hip, shed, flat), as high as the tallest wall under or beside it (else the
   chosen wall). *Draw* says how: **Rectangle** (drag: a roof at once), **Paint** (paint its tiles
   by hand, any shape: an L, a T, a cross; a drag that starts on a marked tile clears, right-click
-  clears one) or **Fill inside walls** (click inside a house of walls: its tiles and those of its
+  clears one) or **Inside walls** (click inside a house of walls: its tiles and those of its
   walls are marked). **Build roof** (or Enter) cuts the marked tiles into rectangles, biggest
   first, and roofs them joined, each smaller part's ridge pointing into the bigger part it meets,
   so their roofs run into each other in valleys. It doesn't block the way; in play it fades out
@@ -145,23 +151,20 @@ by clicking. Its left panel picks the mode, the wall and the rest:
   **Right-click** a house's door or window, or a door put into a wall, to take it away (the wall
   piece comes back).
 
-Each wall, floor, house, roof and door is one undo step (the changed building props themselves are
-undone in the Database, *Edit › Undo* there). Everything built on one map is remembered as an
-area: **Save as structure** in the panel (give it an id) captures those tiles (ground, walls,
-houses, roofs and doors) as a structure of the *Built* category, to be placed again with the
-Structures tool. Editor scripts: `tool build`, `buildmode walls|room|house|roof|doors`, `buildwall
-PROP`, `buildfloor MATERIAL|-`, `buildsides all|back`, `buildroomroof on|off`, `buildstyle PROP`,
-`buildstoreys N`, `buildroof gable|hip|shed|flat`, `buildroofdraw rectangle|paint|fill`, `buildroofmake` (*Build roof*), `buildroofclear`, `buildopening door|window|gap [PROP]`, `buildsave
-ID`, then `drag X1 Y1 X2 Y2`, `dragpath X1 Y1 X2 Y2 X3 Y3 …` or `click X Y [right]` (tiles);
-`status` prints `build=mode:wall:sides:style[:storeysN][:roof:draw:marked][:opening:door:window][:area=WxH@X,Y]`.
+Each wall, floor, house, roof and door is one step of the history, the building props it made or
+changed included. To keep what you built as a piece to place again, select it (a box with the Select
+tool, or **Alt+drag** a region) and use **Save as structure** in the Inspector. Editor scripts:
+`maptool build`, then `mapbuild walls [WALL] | room [WALL|-] [FLOOR|-] [all] [roof] | house
+[LOOK|-] [STOREYS] | roof [LOOK|-] [gable|hip|shed|flat] [paint|fill] | doors door|window|gap
+[PROP] | make | clear`, then `mapdrag X1 Y1 X2 Y2` or `mapclick X Y [right]` (tiles).
 
 **Rooms** are drawn open to the viewer: a thin wall along the north and west sides of the floor,
 nothing in front. The starter library's thin walls (*Grey stone wall (thin)*, *Plaster window
 (thin)*… and their *thin, north to south* versions) stand on a tile's edge: the north wall's pieces
-on the bottom edge of the tiles above the floor (*Line* along them), the west wall's on the right
+on the bottom edge of the tiles above the floor (a row along them), the west wall's on the right
 edge of the tiles left of it (they snap to 8 px: place them at the tile's right edge). Fill the
 tiles behind them with *Black void* (flat, solid). The example's interiors are built this way.
-**Torches** hang on any wall: place *Wall Torch* as a decoration on the floor tile in front of the
+**Torches** hang on any wall: place *Wall Torch* as scenery on the floor tile in front of the
 wall, close to it (it hangs at wall height with its back to the wall); **R** turns it to face east
 for a west wall. It gives light, doesn't block the floor, and its *out* state is burnt out.
 **Fences** work the same: *Fence section* runs east to west on a tile's bottom edge, and north to
@@ -176,94 +179,74 @@ AI agents place them with `place_objects`, `scatter` and `erase_objects` ([chapt
 
 ## Maps from older versions
 
-Until 0.20, maps were grids of tiles from tilesets, painted on layers (*Ground*, *Detail*,
-*Overhead*) with brush, rectangle, fill and auto-tiling terrain tools. The editor converts such a
-project **once, when it opens it**, after copying it beside itself (`<name>-backup-tiles`, a
-project file as `<name>-backup-tiles.r2dproject`):
-
-- the **ground layer** becomes painted ground: every kind of tile a material whose texture is the
-  tile (so the map looks as before; a project's materials with the same picture are used instead;
-  an animated tile's frames become the material's animation frames),
-  every **terrain** a material of its inside tile; a terrain tile's edge tiles paint its cells by
-  their neighbours, so shores and paths keep their shape, now in 8 px cells;
-- the other layers become **decorations** (*Detail* = *Flat*, *Overhead* = *Above*) of props made
-  for the tiles (`terrain_tile_12`: a sheet over the tileset's image, 32 px frames; solid, low,
-  ladder, light and animation carried over; give them real names with *Rename…* in
-  *Database › Props*, which updates every map and structure, as the example and the starter
-  library did: `hedge`, `berry_bush`, `wooden_door`…);
-- **tile structures** become structures of ground cells and decorations; the tilesets go.
-
-Nothing that could be walked on is blocked afterwards; entities, zones, triggers and save games
-are unchanged. Your asset library converts the same way the first time it opens (backup beside it),
-and old `.r2dpack` packages convert while they are imported. Converted maps look like the tile maps
-did; repaint them with the Ground and Decorations tools to get natural edges and free placement.
+This editor opens projects of R(ust)PG2D 0.35 and later. A project of an earlier version (tile maps
+of 0.20 and before, 16 px tiles, the skill tree of 0.27) is refused with a message: open and save it
+with R(ust)PG2D 0.35 first, which converts it once (tile maps become painted ground and scenery,
+after a backup beside the project).
 
 ## Collision
 
 What blocks movement comes from the painted ground (*Solid* and *Low* materials, by their cells)
-and from solid decorations, props and characters (by their hitboxes). The **Collision** tool (C)
-overrides it per tile: **left-click** paints *force solid*, **right-click** *force walkable* (a gap
-in a wall of decorations, a bridge over painted water), **Shift+left** goes back to automatic. The
-*Collision* button in the ribbon's View group shows it all as an overlay.
+and from solid scenery, objects and characters (by their hitboxes). The **Collision** tool (C)
+overrides it per tile: the **left button** paints *force solid*, the **right button** *force
+walkable* (a gap in a wall of scenery, a bridge over painted water), **Shift** goes back to the
+ground's own rule. *Blocked tiles* in the map's bar shows it all over the map (red: blocked,
+yellow: low, green: opened by hand).
 
 ### Low and high obstacles
 
 Solid things come in two heights. **High** ones (walls, tree trunks, statues, market stalls) stop
 walking, arrows, bolts and the sight of enemies. **Low** ones (fences, rocks, mushrooms, water,
 tables, barrels, chairs) stop only walking: the player and the archers in the game shoot over them,
-and enemies see across them. Which materials are low is set per material (*Database › Materials ›
-Walking: Low*), which props are low per prop (*Database › Props › Low*, also for their
-decorations); everything solid is high unless it is marked low. In the collision overlay low cells
+and enemies see across them. Which materials are low is set per material (its form's *Walking: Low*), which props are
+low per prop (its form's *Low*, also for their
+scenery); everything solid is high unless it is marked low. With *Blocked tiles* shown, low cells
 and hitboxes are yellow, high ones red, and a tile painted *force solid* with the Collision tool
 counts as high.
 
 ## Copying, cutting and pasting regions
 
-With the **Select** tool, drag on empty space (or **Shift+drag** anywhere, also over entities) to
-select a rectangle of tiles; a dashed outline shows it.
+With the **Select** tool, **Alt+drag** selects a rectangle of tiles (anywhere, also over things);
+a yellow frame shows it, and the Inspector says how big it is and what stands in it.
 
-- **Ctrl+C** copies it: the painted ground, the decorations and entities standing in it and the
-  collision overrides (zones are not copied).
-- **Ctrl+X** copies it and empties it; **Del** only empties it.
-- **Ctrl+V** arms the copy: it follows the mouse as a transparent preview, and every click pastes it
-  as one undo step, until Esc or right-click. A pasted copy replaces everything in its rectangle,
-  so trees don't stand in a pasted house. Pasted entities keep their triggers; named ones get a
-  free name (`guard` becomes `guard_2`).
+- **Ctrl+C** (*Copy* in the Inspector) copies it with its ground: the painted ground, the scenery and
+  the characters, objects and items whose feet stand in it, and the blocked tiles (zones are not
+  copied).
+- **Ctrl+X** (*Cut*) copies it and empties it; **Delete** (*Empty it*) only empties it.
+- **Ctrl+V** puts it down with its north-west tile under the pointer (the map's right-click menu:
+  *Paste here*), as one step of the history. A pasted region replaces the scenery in its rectangle,
+  so trees don't stand in a pasted house. Pasted things keep their events; named ones get a free
+  name (`guard` becomes `guard_2`). The pasted region is selected, ready to be pasted again.
 
-The clipboard stays when you open another map, so regions move between maps. A selected entity can
-be copied on its own too. The region's inspector has the same commands plus **Save as structure…**.
+The clipboard stays when you open another map, so regions move between maps. Things selected by a
+click or a box are copied without the ground under them. The region's Inspector also has **Save as
+structure**.
 
 ## Structures
 
 Structures are ready-made pieces placed with one click: houses, wall and fence pieces, rooms,
 ponds, groves, a plaza, a market row, and a piece of each landscape: a *Frozen pond* and a
 *Snowy grove*, an *Oasis* and a *Desert ruin*, a *Cave chamber* and a *Crystal grotto*, a *Swamp
-pool* and a dungeon's *Collapsed hall*. A structure paints ground, places decorations, sets collision
-overrides (e.g. a walkable door) and places its entities (a shop's sign and barrel, a room's chest).
-Tiles it marks *clear* lose the map's decorations first, so no tree stands in a room.
+pool* and a dungeon's *Collapsed hall*. A structure paints ground, places scenery, sets collision
+overrides (e.g. a walkable door) and places its objects (a shop's sign and barrel, a room's chest).
+Tiles it marks *clear* lose the map's scenery first, so no tree stands in a room.
 
-**Placing**: choose **Structures** (H). The palette groups them by category with thumbnails (search
-box, *Add from library…*). Pick one: a transparent preview follows the mouse, a click places it,
-right-click or Esc stops. Each placement is one undo step. Placed structures are ordinary ground,
-decorations and entities.
+**Placing**: **Place** (N), *Structures* in its panel (searched, with their pictures). Pick one: its
+outline follows the pointer, a click places it with its middle there. Each placement is one step.
+Placed structures are ordinary ground, scenery and objects.
 
-**Capturing your own**: *Save as structure* in the Build tool's panel takes what you built there;
-*New from map area…* in the Structures palette (or *Save as structure…* on a selected region):
-drag a rectangle on the map, then give it an id, a name and a category. Untick
-*Include the ground* for things that should stand on any ground. Its ground, the decorations and
-entities standing in it and its collision overrides become the structure; with the ground, placing
-it clears the area's decorations first.
+**Capturing your own**: select what should be in it (a box with the Select tool, or **Alt+drag** a
+region of tiles), then **Save as structure** in the Inspector: a name, and *With the ground* (untick
+it for things that should stand on any ground, a market stall, a camp). Its ground, the scenery and
+things standing in it and its blocked tiles become the structure; with the ground, placing it
+clears the area's scenery first.
 
-**Editing a structure** happens on the map canvas: *Edit on the map* in *Database › Structures*
-(new ones with *New asset… › Structure* open there at once) opens the structure as a small map of
-its own, drawn as in the game, with every map tool: the Ground tool, decorations and their layers,
-objects, collision, the Build tool, **R** to turn. The right panel shows only what a structure
-keeps (its size with *Resize…*; no music, weather, lighting, edges or triggers). A bar over the
-map shows which structure is open: **Done** (or Ctrl+S) saves it back into the structure and goes
-back to your map, **Cancel** goes back without saving; opening another map saves it first.
-Structures with no ground keep none unless you paint some. The palette's thumbnails, the Database
-and the preview while placing show structures as the game draws them.
-
+**Editing a structure**: its tab (*World › Structures* in the Project browser; *New…* › Structure
+for a new one) is the structure itself as a small map, drawn as in the game, with every tool of a
+map but Zones: paint its ground, place and move things, build walls and roofs, set blocked tiles;
+**R** turns. Its own tiles start at 1, 1; the tiles around them are room for what hangs over its
+edge. What is done there is a step of the history like any change of a definition, and the
+structure's pictures follow. The Inspector shows its size (*Resize*) and what is selected.
 
 The example has 35 structures (pieces of nature and the buildings of the village); the starter
 library adds town houses, a brick shop, a watchtower, city walls, fences, hedges, a plaza, a market,
@@ -275,7 +258,7 @@ hung on them, their trees the painted tree props.
 
 ## Map settings
 
-Select nothing (Esc) and the inspector shows the map's settings.
+Select nothing (Esc) and the Inspector shows the map's settings.
 
 ### Lighting
 
@@ -285,14 +268,17 @@ Select nothing (Esc) and the inspector shows the map's settings.
 | **Outdoor (day & night)** | Bright by day, darker at night by the map's *Night darkness*, with warm dusk and dawn. The game shows the time of day. |
 | **Dark (dungeon, cave)** | Constant darkness; at 100 % only light sources show anything. |
 
-Light comes from props (per state, so a lamp can be lit or off; as decorations too), characters, items (a lantern in the hand, a torch on the ground), any placed entity, and
+Light comes from props (per state, so a lamp can be lit or off; as scenery too), characters, items (a lantern in the hand, a torch on the ground), any placed entity, and
 the player's equipped light. Each light has a radius in tiles, a colour, a strength and optionally a
-flicker. **View › Lighting preview** (the bulb in the ribbon, with a time slider for outdoor maps)
-shows darkness and lights in the editor.
+flicker. A light lies on the ground around a point: by default north of a prop by two thirds of its
+picture's height, a little north of a character's feet; *Its place (east, south)* (since 0.36) puts
+it elsewhere, in pixels from the place of what carries it (a lantern on a post's arm, the hearth
+at the back of a range). **Light** in the map's bar (with the hour beside it) shows darkness and
+lights in the editor.
 
-![The lighting preview at 21:30](../images/editor-lighting.webp)
+![The village with Light on at 22:00](../images/editor-lighting.webp)
 
-The clock itself is set in *Database › Project* (day length, the hour new games start at); see
+The clock itself is set on the *World* page (day length, the hour new games start at); see
 [Gameplay › Time of day](09-gameplay.md#time-of-day).
 
 ### Weather
@@ -300,8 +286,8 @@ The clock itself is set in *Database › Project* (day length, the hour new game
 *Clear*, *Rain*, *Snow* or *Fog*, with a *Strength*. Rain falls in streaks with splashes, darkens
 the map a little and plays a rain sound (players set its loudness with *Options › Sound › Ambience
 volume*); snow drifts down; fog drifts over the map in soft clouds. Particles are drawn over the lit
-scene, dimmer at night, with lamps showing through. **View › Weather preview** (the cloud in the
-ribbon) shows it in the editor. The *Set weather* action and the scripts `set_weather` /
+scene, dimmer at night, with lamps showing through. **Weather** in the map's bar shows it in the
+editor. The *Set weather* action and the scripts `set_weather` /
 `set_map_weather` change it during the game; the change is kept in save games.
 
 In the example, an eerie fog hangs over Whisperwood until the shrine is lit, and it rains in the
@@ -319,7 +305,7 @@ has a sprite sheet (drawn whole) and:
 | **Drift** | Pixels per second, for clouds that move by themselves |
 | **Offset**, **Repeat** x / y, **Size**, **Opacity** | Placement, tiling, scale and transparency |
 
-The arrows change the drawing order. **View › Parallax layers** previews them. In the example,
+Their order in the list is the drawing order. The map's tab draws them as the game does. In the example,
 cloud shadows drift over the Wilds and dark mist moves far below the mine's chasm.
 
 ### Map screen and fog of war
@@ -337,7 +323,7 @@ to the player arriving, waking up or the clock reaching an hour. See
 
 ## Ladders
 
-A prop with the **Ladder** flag (*Database › Props*), placed as a decoration, can be climbed by the
+A prop with the **Ladder** flag (in the prop's form), placed as scenery, can be climbed by the
 player: only up and down move, slower, and the hero is seen from behind and can't attack. Ladders
 aren't solid, but other characters keep off them. A ladder's top can lead onto a platform or to
 another map through a portal. The example's two watchtowers at the east gate are built this way
@@ -348,15 +334,15 @@ structure *Lookout Tower*).
 
 Maps are flat, so height is built from three pieces (the SRD's movement rules):
 
-- **Climbable walls and ropes:** a *Ladder* prop with an **Athletics DC** (*Database › Props*) is a
+- **Climbable walls and ropes:** a *Ladder* prop with an **Athletics DC** (in its form) is a
   wall the hero has to climb: stepping onto it rolls Athletics against the DC (on screen and in the
   roll log). A success climbs it like a ladder, at the ladder's slower speed; a failure finds no hold, and
   the hero can try again two seconds later. DC 0 is a plain ladder. The tiles under it need to be
-  walkable (paint them *Walkable* in the collision layer when the wall is solid rock). The
+  walkable (paint them *walkable* with the Collision tool when the wall is solid rock). The
   library has the **Rough rock wall** (DC 12) and the **Climbing rope** (no check).
 - **Drops:** a *Drop* zone ([Objects and zones › Zones](04-objects-and-zones.md#zones)) over a
-  pit or along a ledge's edge. Paint it dark (the *Abyss* material) and its tiles *Walkable* in the
-  collision layer, so the player can step in. Walking in is a fall of the zone's height: 1d6
+  pit or along a ledge's edge. Paint it dark (the *Abyss* material) and its tiles *walkable* with
+  the Collision tool, so the player can step in. Walking in is a fall of the zone's height: 1d6
   bludgeoning per 10 ft (at most 20d6), prone for a moment, then the landing. That is a spawn on
   this map or another (a lower chamber, the level below), or with none the tile past the zone.
   Characters keep off drops, and the click-to-walk path goes round them.

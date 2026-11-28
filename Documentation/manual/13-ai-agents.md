@@ -7,9 +7,10 @@ open and watch; every change appears at once and is one undo step (Ctrl+Z).
 
 ## Starting the server and connecting
 
-*Assets › AI agent server…* in the editor: *Start* listens on `http://127.0.0.1:7743/mcp`
-(Streamable HTTP; the port is adjustable, *Start with the editor* remembers the choice in the
-editor's settings). The window shows ready-made client configurations with *Copy* buttons:
+The **AI agents** page (under *Game* in the Project browser; *Agent › Start the agent server* does the
+same): **Start** listens on `http://127.0.0.1:7743/mcp` (Streamable HTTP; the *Port* is adjustable,
+*Start it with the editor* remembers the choice in the editor's settings). The page shows ready-made
+set-ups for the agents' programs, each with *Copy the set-up*, and a first thing to ask (*Copy*):
 
 | Client | Configuration |
 |---|---|
@@ -17,9 +18,11 @@ editor's settings). The window shows ready-made client configurations with *Copy
 | Cursor, VS Code | `.cursor/mcp.json` / `.vscode/mcp.json`: `{"mcpServers": {"rustpg2d": {"url": "http://127.0.0.1:7743/mcp"}}}` |
 | Claude Desktop, other stdio-only clients | `{"mcpServers": {"rustpg2d": {"command": "npx", "args": ["-y", "mcp-remote", "http://127.0.0.1:7743/mcp"]}}}` (needs Node.js) |
 
-The window also lists every call the agents made (tool, time, ok / error, the parameters).
-Editor script commands for tests: `mcp on [PORT]`, `mcp off`, `mcpwindow`; `status` prints
-`mcp=127.0.0.1:7743 calls=N` or `mcp=off`.
+The page also lists every call the agents made (tool, time, ok / error, the parameters). The server
+keeps running when another project is opened in the window. Without a window (a server, a
+container): `rustpg2d-studio --headless PROJECT --mcp PORT`. Editor script words for tests: `agents
+start [PORT]`, `agents stop`, `agents autostart on|off`, `agents copy claude|cursor|desktop|ask`;
+`agents` prints `off` or the address and the number of calls.
 
 **Security.** The server binds to the loopback address only and has no authentication:
 anything on the same computer that can reach the port can edit the open project. Stop the
@@ -92,7 +95,7 @@ bats and a chest".
 | `create_map {name, width, height, fill}` | A new map, its ground filled with the material `fill` (optional), saved and opened. |
 | `paint_ground {map, material, circles, lines, polygons, rects}` | The painted ground ([Maps › Painted ground](03-maps.md#painted-ground)) with a material (`""` erases): `circles` = `[x, y, radius]`, `lines` = `{points: [[x, y], …], width}` (roads, streams), `polygons` = `[[x, y], …]` filled, `rects` = `[x, y, w, h]` (floors, carpets); all in tiles, fractions allowed. One undo step. |
 | `fill_ground {map, material, x, y}` | Fills the connected area of the same material (or of no ground) at a point. |
-| `place_objects {map, prop, points, line, layer, flip}` | Decorations ([Maps › Decorations](03-maps.md#decorations)): a prop as a picture at feet `points` (`[x, y]` in tiles), and / or a `line` `[x1, y1, x2, y2]` of it on its grid; `layer` `Flat` \| `Sorted` (default) \| `Above`. One undo step. |
+| `place_objects {map, prop, points, line, layer, flip}` | Decorations ([Maps › Decorations](03-maps.md#scenery)): a prop as a picture at feet `points` (`[x, y]` in tiles), and / or a `line` `[x1, y1, x2, y2]` of it on its grid; `layer` `Flat` \| `Sorted` (default) \| `Above`. One undo step. |
 | `scatter {map, set, circles, seed}` | A scatter set's props at random inside `circles` (`[x, y, radius]` in tiles), keeping their spacing (forests, flowers, rocks). |
 | `erase_objects {map, circles, prop}` | Removes the decorations inside `circles` (all, or one prop's). |
 | `set_collision {map, cells, rect, value}` | `solid`, `walkable` or back to `auto`. |
@@ -156,11 +159,11 @@ screenshots as images. The game opens a real window on the person's screen for t
 | `library_send {assets: [{kind, id}], replace, drop_script_triggers}` | Sends project assets with everything they need to the library. An id the library has already gets a numbered copy, or with `replace` its definition, files and script functions are updated. `drop_script_triggers` leaves the triggers of items, props and characters that run the project's script functions behind (story scripts stay with the game). The library is `$RUSTPG2D_LIBRARY` or the user's own one. |
 
 ### Drawing art
-With a Meshy key in *Edit › Settings… › Meshy*, agents draw art in the project's style the way
-the Art window does ([Art and sound › Generate art](10-art-and-sound.md#generate-art-with-meshy)).
+With a Meshy key on the *Generate art* page, agents draw art in the project's style the way the
+page does ([Art and sound › Generate art](10-art-and-sound.md#generate-art-with-meshy)).
 Pictures cost the person's credits: `generate_art` without `confirm_credits` only names the price,
 so an assistant asks before it spends, and the session's budget holds for agents too. Every job
-also shows in the editor's Art window and status bar.
+also shows on the editor's *Generate art* page (*asked for by an agent*).
 
 | Tool | Does |
 |---|---|
@@ -193,19 +196,22 @@ Agents (and other programs) may also write the project's files directly: in the 
 the open project file, whose folder `project_info` names (the editor writes the project file again
 within two seconds of a change). The editor checks
 `project.ron`, `defs/*.ron`, `maps/*.map`, `scripts/*.rhai` and `lang/*.ron` once a second:
-when a changed file has no unsaved edits in the editor, it is reloaded with a status note
-(definitions, the open map, the open script, the map list). When it has, a yellow banner asks
-*Reload (discard my edits)* or *Keep mine* (saving later overwrites the file). The editor's own
-saves never trigger this. Editor script: `watchanswer reload|keep`; `status` prints
-`watch=clean` or `watch=changed:<files>`.
+when a changed file has no unsaved edits in the editor, it is read again with a note in the
+status line (definitions, the maps that are open, the open script, the map list). When it has, a
+bar at the top asks *Take the files' version* (your unsaved changes there are dropped) or *Keep
+mine* (saving later overwrites the file). The editor's own saves never trigger this. Editor script:
+`watch` prints `clean` or `changed:<files>`, `watch reload|keep` answers the bar.
 
 ## Troubleshooting
 
-- *Port in use*: pick another port in the window; clients then need the new URL.
+- *Port in use*: pick another port on the page; clients then need the new URL.
 - *403*: the server accepts requests addressed to `127.0.0.1` / `localhost` only (Host header).
 - *play_test: game not found*: the game runner must sit next to the editor (packaged downloads do;
   from source run `cargo build -p rustpg2d-game`). A warning about a different engine build means
-  the game was built from another checkout: rebuild it.
+  the game was built from another engine version than the editor: rebuild it (the Play tab's
+  *Own window* refuses such a game).
+- *screenshot_editor: no window*: an editor started with `--headless` has no window to take a
+  picture of; `screenshot_map` and `get_map` show maps.
 - *Flatpak*: the editor's sandbox has network access, so the port is reachable from the host;
   the game for play-tests runs inside the sandbox like F5 does.
 - *the editor did not answer within 120 s*: the editor's main thread was busy or blocked (a

@@ -7,7 +7,7 @@
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::Game;
 use crate::races::RaceDef;

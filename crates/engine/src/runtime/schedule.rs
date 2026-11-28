@@ -8,7 +8,7 @@
 //! current stop (they went on with their day while the player was away: other maps aren't
 //! simulated).
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::patrol::{Walk, Walker};
 use super::{Game, RtEntity};

@@ -6,30 +6,28 @@
 //! [--template TEMPLATE.glb [--turn DEGREES]] [--height PIXELS] [--anims walk,idle,…] [--facing left]
 //! [--moments N] [--clip ANIM=CLIP]… [--shared CLIPS.glb]… [--stand UNITS] [--part PIECE.glb]…` (`--clip` maps an animation name to a clip by its name in the
 //! files, for clips the standard names don't find, e.g. `--clip attack_2h=Armature|Heavy_Hammer_Swing|baselayer`)
-use std::collections::HashMap;
 
-use macroquad::prelude::*;
+use rustpg2d_engine::gfx;
+use rustpg2d_engine::gfx::prelude::*;
 use rustpg2d_engine::defs::{Appearance, Database, ModelDef, RigFit};
 use rustpg2d_engine::entity::Facing;
 use rustpg2d_engine::model::guess_clips;
 use rustpg2d_engine::render::model::{Gear, Models, PoseReq};
 
-fn conf() -> macroquad::conf::Conf {
-    macroquad::conf::Conf {
-        miniquad_conf: miniquad::conf::Conf { window_title: "model_sheet".into(), window_width: 1600, window_height: 900, ..Default::default() },
-        update_on: None,
-        default_filter_mode: FilterMode::Nearest,
-        draw_call_vertex_capacity: rustpg2d_engine::render::model::DRAW_VERTICES,
-        draw_call_index_capacity: rustpg2d_engine::render::model::DRAW_INDICES,
-    }
-}
-
 fn clip_names(path: &str) -> Vec<String> {
     std::fs::read(path).ok().and_then(|b| rustpg2d_engine::model::clip_names(&b).ok()).unwrap_or_default()
 }
 
-#[macroquad::main(conf)]
-async fn main() {
+/// Renders off screen: no window is opened.
+fn main() {
+    if let Err(e) = gfx::window::run_headless(1600, 900, run()) {
+        eprintln!("model_sheet: {e}");
+        std::process::exit(1);
+    }
+}
+
+async fn run() {
+    set_default_filter_mode(FilterMode::Nearest);
     let args: Vec<String> = std::env::args().skip(1).collect();
     let (Some(out), Some(file)) = (args.first(), args.get(1)) else {
         eprintln!("usage: model_sheet OUT.png MODEL.glb [--clips FILE.glb]… [--template TEMPLATE.glb [--turn DEGREES]] [--height PIXELS] [--anims walk,idle,…]");
@@ -85,7 +83,6 @@ async fn main() {
     let moments: usize = opt("--moments").and_then(|m| m.parse().ok()).unwrap_or(4);
     let look = Appearance { model: "m".into(), ..Default::default() };
     let gear = Gear::default();
-    let sheets = HashMap::new();
     let (cw, ch) = (96.0, 112.0);
     let mut done = 0;
     for frame in 0..60 {
@@ -96,7 +93,7 @@ async fn main() {
             for (fi, f) in facings.iter().enumerate() {
                 for m in 0..moments {
                     let req = PoseReq { look: &look, gear: &gear, anim, time: (m as f32 + 0.5) / moments as f32, once: true, facing: *f, turn: 0, bust: false };
-                    if let Some(cell) = models.pose(&db, &sheets, &req) {
+                    if let Some(cell) = models.pose(&db, &req) {
                         placed.push((cell, vec2(((fi * moments + m) as f32 + 0.5) * cw, r as f32 * ch + 16.0 + ch - 12.0)));
                     }
                 }

@@ -3,7 +3,7 @@
 //! [`FURNITURE_UID_BASE`]) and picked up again. E on placed furniture asks first: use it (a
 //! bed, a chair, a chest) or pick it up.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::occupancy::Occupancy;
 use super::{Game, RtEntity};

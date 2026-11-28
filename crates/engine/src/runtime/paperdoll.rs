@@ -2,7 +2,7 @@
 //! (`render/model.rs`). [`Game::look`] says which: the character's model; a look of an older
 //! project that names a figure plays the model of the same id; anything else is the mannequin.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::Game;
 pub(super) use crate::render::character::Anim;
@@ -33,9 +33,9 @@ impl Game {
     /// [`Self::model_cell`] turned a further eighth (`turn`: -1, 0, 1; see `diagonal_turn`).
     pub(super) fn model_cell_turned(&self, a: &Appearance, gear: &Gear, pose: (Facing, Anim), turn: i8) -> Option<Cell> {
         let a = &self.look(a);
-        let (anim, time, once) = self.assets.models.clip_req(&self.project.db, a, gear, pose.1, macroquad::time::get_time() as f32);
+        let (anim, time, once) = self.assets.models.clip_req(&self.project.db, a, gear, pose.1, gfx::time::get_time() as f32);
         let req = PoseReq { look: a, gear, anim: &anim, time, once, facing: pose.0, turn, bust: false };
-        self.assets.models.pose(&self.project.db, &self.assets.sheets, &req)
+        self.assets.models.pose(&self.project.db, &req)
     }
 
     /// How far a walker is drawn turned from its facing: an eighth towards the diagonal it walks
@@ -51,7 +51,7 @@ impl Game {
     pub(super) fn model_bust(&self, a: &Appearance) -> Option<Cell> {
         let a = &self.look(a);
         let req = PoseReq { look: a, gear: &Gear::default(), anim: "idle", time: 0.0, once: true, facing: Facing::Down, turn: 0, bust: true };
-        self.assets.models.pose(&self.project.db, &self.assets.sheets, &req)
+        self.assets.models.pose(&self.project.db, &req)
     }
 
     /// Whether a character's model has a clip for `anim` ("sit", "attack"…).
@@ -93,7 +93,7 @@ impl Game {
 
     /// Breathing frame (0 / 1) of a character standing still; `seed` keeps neighbours apart.
     fn breath(seed: u32) -> u32 {
-        ((macroquad::time::get_time() * 1.25 + (seed % 97) as f64 * 0.37) as u32) % 2
+        ((gfx::time::get_time() * 1.25 + (seed % 97) as f64 * 0.37) as u32) % 2
     }
 
     /// What the player shows: a strike, blocking, being hurt, sneaking, walking or breathing.
@@ -192,16 +192,15 @@ impl Game {
     }
 
     /// `held=` for `status`: what the player and the characters within 8 tiles hold, as
-    /// `who:item@hand` (`R`, `L`, `B` = both; `/back` behind a figure), a sheathed weapon as
+    /// `who:item@hand` (`R`, `L`, `B` = both; a carried prop too), a sheathed weapon as
     /// `who:item@hip` and a backpack as `who:item@back`.
     pub(super) fn held_status(&self) -> Vec<String> {
         let line = |who: &str, _a: &Appearance, gear: &Gear, pose: (Facing, Anim)| -> Vec<String> {
-            let g = Some(crate::hands::Grip::new(0.0, 0.0, 0.0));
-            let held = crate::hands::held_with(&self.project.db, (g, g), &gear.equipment(), &gear.carrying, None, pose.0);
+            let held = crate::hands::in_hands(&self.project.db, &gear.equipment(), &gear.carrying, None);
             // (Out of combat a one-handed weapon hangs at the hip: `@hip`.)
             let action = matches!(pose.1, Anim::Strike(_) | Anim::Windup(_) | Anim::Swing(_) | Anim::Block(_) | Anim::Attack(_));
             let hip = if action { None } else { crate::render::model::sheathed(&self.project.db, gear, "idle") };
-            let mut out: Vec<String> = held.into_iter().map(|h| if Some(h.id.as_str()) == hip { format!("{who}:{}@hip", h.id) } else { format!("{who}:{}@{}{}", h.id, &format!("{:?}", h.hand)[..1], if h.front { "" } else { "/back" }) }).collect();
+            let mut out: Vec<String> = held.into_iter().map(|h| if Some(h.id.as_str()) == hip { format!("{who}:{}@hip", h.id) } else { format!("{who}:{}@{}", h.id, &format!("{:?}", h.hand)[..1]) }).collect();
             out.extend(gear.back.as_ref().map(|b| format!("{who}:{b}@back")));
             out
         };

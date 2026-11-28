@@ -2,7 +2,7 @@
 //! bonus / reaction marks (bottom), the reachable tiles, the path, the cursor, the hit chance
 //! and cover of the target under it, the fight log; and the player's input on their turns.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::{Aim, Side, TurnAct, Who};
 use crate::grid::TilePos;

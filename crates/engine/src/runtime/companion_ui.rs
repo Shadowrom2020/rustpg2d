@@ -6,7 +6,7 @@
 //! (or Enter on a bag item) to equip it, click a worn item to take it off; drag between all
 //! three. Tab switches the panel, Esc closes.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::skin;
 

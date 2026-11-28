@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::inventory::ItemStack;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct BackgroundDef {
     pub id: String,
     pub name: String,

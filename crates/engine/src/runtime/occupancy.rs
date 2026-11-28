@@ -2,7 +2,7 @@
 //! round people when blocked) and the broad phase of collision look here instead of scanning
 //! every entity each time.
 
-use macroquad::prelude::Rect;
+use gfx::prelude::Rect;
 
 use crate::entity::EntityKind;
 use crate::grid::{tiles_of_rect, TilePos};

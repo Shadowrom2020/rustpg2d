@@ -3,7 +3,7 @@
 //! routes open unlocked doors (and locked ones they carry the key of) as they reach them and close
 //! them behind them.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::occupancy::{Occupancy, OCC_PROP};
 use super::{Game, Source};

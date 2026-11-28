@@ -7,7 +7,7 @@
 
 use std::collections::HashMap;
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::text::{draw_text, measure_text};
 use super::Game;

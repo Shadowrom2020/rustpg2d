@@ -1,6 +1,6 @@
 //! In-game UI: dialog box, choices and toast messages (inventories live in `inventory_ui`).
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::input;
 use crate::state::WorldState;

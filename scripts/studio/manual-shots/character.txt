@@ -1,0 +1,6 @@
+#head headc.txt
+tab def:character:villager
+wait 3
+hover 1000 880
+shot $S/out/character.png
+quit

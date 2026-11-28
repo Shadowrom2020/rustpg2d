@@ -78,7 +78,8 @@ mod tests {
         // A 0.17 figure with its colour features, flags and hand marks.
         let b: SheetDef = ron::from_str(r#"(id: "hero", image: "h.png", frame_w: 64, frame_h: 96, kind: Body, playable: true, female: false, features: [(name: "skin", shades: [(1, 2, 3)])], hands: ["0: R 1 2 3"], complete: true, cut: "")"#).unwrap();
         assert_eq!(b.kind, SheetKind::Sprite);
+        // An old look: its figure and layers are skipped.
         let a: Appearance = ron::from_str(r#"(body: "body_male", skin: (1, 2, 3), hair: "hair_short", hair_color: (4, 5, 6), beard: "")"#).unwrap();
-        assert_eq!(a, Appearance { body: "body_male".into(), ..Default::default() });
+        assert_eq!(a, Appearance::default());
     }
 }

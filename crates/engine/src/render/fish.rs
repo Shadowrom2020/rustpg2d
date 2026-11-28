@@ -2,7 +2,7 @@
 //! through the spot's water and fades again. A pure function of the time (nothing to update or
 //! save), so the game and the editor draw the same thing.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 /// A stable 0..1 value for (seed, a, b).
 fn hash(seed: u32, a: u32, b: u32) -> f32 {

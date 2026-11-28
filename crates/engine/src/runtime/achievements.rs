@@ -3,7 +3,7 @@
 //! directly. An unlock is saved right away (the player's file, not the save game) and shown in
 //! a toast of its own, drawn over the pause menu too.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::Game;
 use crate::events::runner::{conditions_met, ActionCtx};

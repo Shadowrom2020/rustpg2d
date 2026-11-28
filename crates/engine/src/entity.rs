@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::events::Trigger;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum EntityKind {
     Prop,
     Character,
@@ -24,6 +25,7 @@ impl EntityKind {
 
 /// Facing direction. The discriminant is the row in character sprite sheets.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Facing {
     #[default]
     Down = 0,
@@ -62,6 +64,7 @@ impl Facing {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct EntityInstance {
     pub uid: u32,
     pub kind: EntityKind,
@@ -144,6 +147,7 @@ fn one() -> u32 {
 
 /// How a patrol continues after its last waypoint.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum PatrolMode {
     /// Back to the first waypoint and around again.
     #[default]
@@ -164,6 +168,7 @@ impl PatrolMode {
 /// A patrol route: tile waypoints a character walks between (finding its way around
 /// obstacles), pausing at each one.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct PatrolRoute {
     /// Waypoints in tile coordinates.
     pub points: Vec<(i32, i32)>,
@@ -208,6 +213,7 @@ impl PatrolRoute {
 /// and stays there until the next stop's hour (the last stop lasts over midnight until the
 /// first one).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ScheduleStop {
     /// In-game hour the stop starts (0..24; 7.5 = 07:30).
     pub hour: f32,
@@ -236,6 +242,7 @@ pub struct ScheduleStop {
 /// `EntityInstance::activity`): it stays there, facing its way, with the tool in hand, and
 /// works in place. Nothing is produced or saved.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Activity {
     pub kind: ActivityKind,
     /// The tool it works with (the fishing line comes from it); "" = none.
@@ -245,6 +252,7 @@ pub struct Activity {
 
 /// What a character is seen doing (`Activity`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum ActivityKind {
     Fish,
     Farm,

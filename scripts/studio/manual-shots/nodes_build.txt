@@ -1,0 +1,28 @@
+defs.make visual_script force_door
+wait 0.5
+tab def:visual_script:force_door
+wait 1
+nodes select 2
+nodes delete
+nodes add call:check 300 40
+nodes add if 560 60
+nodes add call:say 820 0
+nodes add call:set_locked 820 170
+nodes add call:say 820 330
+nodes link 1 out 2 in
+nodes value 2 what athletics
+nodes value 2 dc 12
+nodes link 2 out 3 in
+nodes link 2 result 3 condition
+nodes link 3 then 4 in
+nodes link 3 else 6 in
+nodes link 4 out 5 in
+nodes value 4 speaker Hero
+nodes value 4 text It gives way!
+nodes value 5 target door
+nodes value 5 locked false
+nodes value 6 speaker Hero
+nodes value 6 text Too heavy.
+nodes select
+nodes
+nodes code

@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 
 /// An animation asset.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct AnimationDef {
     pub id: String,
@@ -30,6 +31,7 @@ pub struct AnimationDef {
 
 /// Frames of a sprite sheet shown from a moment on.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct Cel {
     /// Seconds from the start.
@@ -67,6 +69,7 @@ impl Default for Cel {
 
 /// Where a cel ends up at its last frame.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct CelEnd {
     pub offset: [f32; 2],
@@ -93,6 +96,7 @@ pub struct CelPose {
 
 /// Particles sent out from a point.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct Emitter {
     pub at: f32,
@@ -156,6 +160,7 @@ pub struct Particle {
 
 /// A flash of the target (its figure shines in the colour) or of the whole screen.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct AnimFlash {
     pub at: f32,
@@ -173,6 +178,7 @@ impl Default for AnimFlash {
 
 /// A sound at a moment.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct AnimSound {
     pub at: f32,

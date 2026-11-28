@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # Runtime smoke test: the game and the editor really run on a scratch copy of the example project
 # (CI's "Runtime smoke" job; runs the same way on a developer machine). It checks `status` fields
-# of scripted runs: title screen, a map with the player, the clock, loading an old save game,
-# quick-saving, a map change with its autosave, the editor opening a map, and the agent server's
-# smoke client (crates/editor/examples/mcp_smoke.rs).
+# of scripted runs: title screen, a map with the player, the clock, loading a save game of 0.35,
+# quick-saving, a map change with its autosave, a turn-based fight, the agent server of the editor
+# without a window driven by its smoke client (crates/studio/examples/mcp_smoke.rs), and the editor
+# in a window opening a map.
 #
-# Needs target/debug/rustpg2d-game, rustpg2d-editor and examples/mcp_smoke:
-#   cargo build -p rustpg2d-game -p rustpg2d-editor && cargo build -p rustpg2d-editor --example mcp_smoke
+# Needs target/debug/rustpg2d-game, rustpg2d-studio and examples/mcp_smoke:
+#   cargo build -p rustpg2d-game -p rustpg2d-studio && cargo build -p rustpg2d-studio --example mcp_smoke
 #   scripts/ci/smoke.sh            # BIN=<dir> for other binaries, WORK=<dir> to keep the logs
 # Without a display (CI) every run goes through xvfb-run.
 set -uo pipefail
@@ -18,9 +19,12 @@ FIXTURES=$ROOT/crates/engine/tests/fixtures
 rm -rf "$WORK"
 mkdir -p "$WORK/proj" "$WORK/home" "$WORK/settings" "$WORK/cfg" "$WORK/lib"
 (cd "$ROOT/example_project" && find . -path ./saves -prune -o -type f -print | cpio -pdm "$WORK/proj" 2>/dev/null)
-export RUSTPG2D_MUTE=1 RUSTPG2D_SETTINGS_DIR=$WORK/settings RUSTPG2D_EDITOR_CONFIG=$WORK/cfg RUSTPG2D_LIBRARY=$WORK/lib HOME=$WORK/home
+# (RUSTPG2D_REPO=0: started in the checkout, the editor would otherwise be in repository mode.)
+export RUSTPG2D_MUTE=1 RUSTPG2D_SETTINGS_DIR=$WORK/settings RUSTPG2D_EDITOR_CONFIG=$WORK/cfg RUSTPG2D_LIBRARY=$WORK/lib HOME=$WORK/home RUSTPG2D_REPO=0
 if [ -z "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] && command -v xvfb-run >/dev/null; then
   X=(xvfb-run -a -s "-screen 0 1280x720x24")
+  # No graphics card under Xvfb: the software renderer (lavapipe) is fine for a test.
+  export RUSTPG2D_ALLOW_SOFTWARE=1
 else
   X=()
 fi
@@ -62,15 +66,16 @@ expect "a map with the player" "$line" "map=house" "hp=Some(" "fps="
 line=$(game "wait 1; settime +20; wait 1; status; quit" --no-title --map house --spawn start)
 expect "the clock advances a day" "$line" "day=1" "time=04:0"
 
-# The fixture save (written by 0.11.0, no `version` yet) loads; quick-saving (F5) rewrites it.
+# The fixture save (written by the 0.35 game) loads; quick-saving (F5) writes it again.
 mkdir -p "$WORK/proj/saves"
-cp "$FIXTURES/saves/save-0.11.0.ron" "$WORK/proj/saves/quick.ron"
+cp "$FIXTURES/saves/save-0.35.0.ron" "$WORK/proj/saves/quick.ron"
+touch -d "2000-01-01" "$WORK/proj/saves/quick.ron"
 line=$(game "wait 1; press f9; wait 2; status; press f5; wait 1; quit" --no-title --map house --spawn start)
-expect "an old save game loads" "$line" "map=house" "fixture_flag" '"potion": 2'
-if grep -q "version: 2" "$WORK/proj/saves/quick.ron" 2>/dev/null; then echo "PASS quick save written"; else echo "FAIL quick save written: saves/quick.ron was not rewritten with version: 2"; failed=$((failed + 1)); fi
+expect "a save game of 0.35 loads" "$line" "map=house" "fixture_flag" '"potion": 2'
+if [ "$WORK/proj/saves/quick.ron" -nt "$FIXTURES/saves/save-0.35.0.ron" ] && grep -q "version: 2" "$WORK/proj/saves/quick.ron"; then echo "PASS quick save written"; else echo "FAIL quick save written: saves/quick.ron was not written again"; failed=$((failed + 1)); fi
 
 # The fixture save moved to the village's east edge: load it, step over the edge, autosave.
-sed -e 's/current_map: "house"/current_map: "village"/' -e 's/player_pos: ([^)]*)/player_pos: (2556.0, 1008.0)/' "$FIXTURES/saves/save-0.11.0.ron" > "$WORK/proj/saves/quick.ron"
+sed -e 's/current_map: "house"/current_map: "village"/' -e 's/player_pos: ([^)]*)/player_pos: (2556.0, 1008.0)/' "$FIXTURES/saves/save-0.35.0.ron" > "$WORK/proj/saves/quick.ron"
 rm -f "$WORK/proj/saves/autosave.ron"
 line=$(game "wait 1; press f9; wait 1.5; hold right 0.12; wait 3; status; quit" --no-title --map house --spawn start)
 expect "a map change with its autosave" "$line" "map=forest" "autosave=saved"
@@ -83,21 +88,36 @@ line=$(game "seed 5; wait 2; waitturn 30; turn fast; turn end; waitturn 30; turn
 # (Two attack rolls: the rat's on its turn, then the player's.)
 expect "a turn-based fight" "$line" "rolls=attack:" ",attack:"
 
-# The editor converts the project folder into a project file beside it and works on its copy.
-line=$(RUSTPG2D_EDITOR_SCRIPT="wait 2; open village; status; quit" timeout 120 "${X[@]}" "$BIN/rustpg2d-editor" "$WORK/proj" 2>&1 | tee -a "$WORK/editor.log" | grep '^\[status\]' | tail -1)
-expect "the editor opens a map" "$line" "open=true" 'map=Some("village")'
-expect "the folder becomes a project file" "$line" "projectfile=$WORK/proj.r2dproject:saved"
+# The new editor without a window (ROADMAP.md, 0.36.0): its agent server on the scratch project,
+# driven by the smoke client (lists the tools, edits the project, writes art, captures a
+# structure, sends assets to the scratch library, play-tests; needs the game next to it).
+if [ -x "$BIN/rustpg2d-studio" ] && [ -x "$BIN/examples/mcp_smoke" ]; then
+  cp -r "$WORK/proj" "$WORK/agent-proj"
+  # (Under the display the games get: the editor itself opens no window, but its play-tests do.)
+  RUSTPG2D_FOLDER_PROJECTS=1 RUSTPG2D_REPO=0 "${X[@]}" "$BIN/rustpg2d-studio" --headless "$WORK/agent-proj" --mcp "$PORT" --seconds 300 > "$WORK/studio-mcp.log" 2>&1 &
+  studio=$!
+  for _ in $(seq 1 120); do
+    curl -s -o /dev/null "http://127.0.0.1:$PORT/mcp" && break
+    sleep 0.5
+  done
+  if timeout 280 "$BIN/examples/mcp_smoke" "$PORT" headless > "$WORK/mcp_smoke.log" 2>&1; then echo "PASS agent server smoke client (no window)"; else echo "FAIL agent server smoke client (no window):"; cat "$WORK/mcp_smoke.log"; failed=$((failed + 1)); fi
+  kill "$studio" 2>/dev/null; pkill -f "rustpg2d-studio --headless $WORK/agent-proj" 2>/dev/null; wait "$studio" 2>/dev/null
+else
+  echo "SKIP the agent server: no $BIN/rustpg2d-studio or $BIN/examples/mcp_smoke"
+fi
 
-# The agent server: the smoke client lists the tools, edits the project, writes art, captures a
-# structure, sends assets to the scratch library and play-tests (it needs the game next to the editor).
-RUSTPG2D_EDITOR_SCRIPT="mcp on $PORT; wait 300; quit" timeout 330 "${X[@]}" "$BIN/rustpg2d-editor" "$WORK/proj.r2dproject" > "$WORK/editor-mcp.log" 2>&1 &
-editor=$!
-for _ in $(seq 1 120); do
-  curl -s -o /dev/null "http://127.0.0.1:$PORT/mcp" && break
-  sleep 0.5
-done
-if timeout 300 "$BIN/examples/mcp_smoke" "$PORT" > "$WORK/mcp_smoke.log" 2>&1; then echo "PASS agent server smoke client"; else echo "FAIL agent server smoke client:"; cat "$WORK/mcp_smoke.log"; failed=$((failed + 1)); fi
-kill "$editor" 2>/dev/null; wait "$editor" 2>/dev/null
+# The new editor in a window: it opens the scratch project (a folder: converted into a project file
+# beside it, which it works on), opens a map, and quits cleanly when its script says so.
+if [ -x "$BIN/rustpg2d-studio" ]; then
+  out=$(RUSTPG2D_STUDIO_SCRIPT="wait 2; map.open village; wait 1; status; quit" timeout 120 "${X[@]}" "$BIN/rustpg2d-studio" "$WORK/proj" 2>&1; echo "[exit] $?")
+  printf '%s\n' "$out" >> "$WORK/studio.log"
+  line=$(grep '^\[status\]' <<<"$out" | tail -1)
+  expect "the editor opens a map" "$line" "project=R(ust)PG2D_example" "focus=map:village" "map=village"
+  expect "the editor quits cleanly" "$(grep '^\[exit\]' <<<"$out")" "[exit] 0"
+  if [ -s "$WORK/proj.r2dproject" ]; then echo "PASS the folder becomes a project file"; else echo "FAIL the folder becomes a project file: no $WORK/proj.r2dproject"; failed=$((failed + 1)); fi
+else
+  echo "SKIP the editor in a window: no $BIN/rustpg2d-studio"
+fi
 
 if [ "$failed" -gt 0 ]; then
   echo "$failed check(s) failed (logs in $WORK)"

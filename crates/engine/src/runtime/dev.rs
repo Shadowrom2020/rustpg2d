@@ -15,7 +15,7 @@
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::input;
 use super::Game;

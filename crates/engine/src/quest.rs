@@ -9,6 +9,7 @@ use crate::state::WorldState;
 
 /// A quest as defined in `defs/quests.ron`.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct QuestDef {
     pub id: String,
     pub title: String,
@@ -55,6 +56,7 @@ pub struct QuestDef {
 /// with the options `accept` / `decline` and the lines after each answer. Without a question the
 /// quest starts after the lines.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct QuestOffer {
     pub lines: Vec<String>,
@@ -73,6 +75,7 @@ impl QuestOffer {
 
 /// How one stage of a quest is done, and what happens around it.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct QuestStep {
     pub done: StepGoal,
@@ -99,6 +102,7 @@ impl QuestStep {
 
 /// When a quest step is done.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum StepGoal {
     /// Quest actions or scripts move the quest on.
     #[default]
@@ -137,6 +141,7 @@ impl StepGoal {
 
 /// An item given as a quest reward.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct RewardItem {
     pub item: String,
     #[serde(default = "one")]
@@ -149,6 +154,7 @@ fn one() -> u32 {
 
 /// What completing a quest gives (its `xp` is given too).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct QuestRewards {
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -167,6 +173,7 @@ impl QuestRewards {
 /// Where a quest stage leads, for its quest marker: a placed character, prop or zone by name on a
 /// map.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct QuestTarget {
     #[serde(default)]
     pub map: String,
@@ -283,6 +290,7 @@ fn is_zero(n: &u32) -> bool {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum QuestStatus {
     #[default]
     Active,
@@ -292,6 +300,7 @@ pub enum QuestStatus {
 
 /// The player's progress in one quest (only quests that were started have one).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct QuestProgress {
     /// Current stage (index into the definition's stages).
     pub stage: u32,
@@ -303,6 +312,7 @@ pub struct QuestProgress {
 
 /// What a "Quest" action does.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum QuestOp {
     /// Starts the quest at stage 0 (nothing happens if it was already started).
     Start,
@@ -329,6 +339,7 @@ impl QuestOp {
 
 /// What a "Quest" condition checks.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum QuestCheck {
     NotStarted,
     /// Started and neither completed nor failed.

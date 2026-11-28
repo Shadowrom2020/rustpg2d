@@ -377,11 +377,7 @@ fn scan_glibc_names(binary: &[u8]) -> Vec<String> {
 }
 
 fn cache_dir() -> PathBuf {
-    let base = rustpg2d_engine::paths::cache_base().unwrap_or_else(std::env::temp_dir);
-    let dir = base.join("rustpg2d");
-    // The downloaded AppImage runtime of a rust2d install (saves a download, works offline).
-    rustpg2d_engine::legacy::adopt(&dir, &base.join(rustpg2d_engine::legacy::OLD_NAME));
-    dir
+    rustpg2d_engine::paths::cache_base().unwrap_or_else(std::env::temp_dir).join("rustpg2d")
 }
 
 fn now() -> u64 {

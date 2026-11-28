@@ -1,10 +1,14 @@
 # Web game files
 
-Written next to `rustpg2d-game.wasm` by *File › Export game › Web* (`release::export_web`):
+Written by *File › Export game › Web* (`release::export_web`):
 
-- `index.html` — the page (`{title}` = the game's name).
-- `mq_js_bundle.js` — macroquad 0.4.16's JS loader (WebGL, input, audio, file loading), copied
-  unchanged from the crate's `js/` folder. macroquad / miniquad are MIT OR Apache-2.0
-  (Copyright (c) 2020 Fedor Logachev). Update it together with the macroquad version.
-- `rustpg2d.js` — R(ust)PG2D's plugin (version 2): browser storage, clock, the page's query string
-  and gamepads (the Gamepad API's first connected pad, standard layout) (`engine/src/sys.rs`).
+- `index.html` — the page (`{title}` = the game's name): a canvas and a module script that loads
+  the game.
+- `rustpg2d-game.wasm` and `rustpg2d-game.js` — the game runner for browsers and its loader, not
+  kept here: `cargo build --release --target wasm32-unknown-unknown -p rustpg2d-game`, then
+  `cargo xtask-web` writes the pair into `target/web/` (wasm-bindgen's step).
+- `data.pack` — the game's files.
+
+The browser's services the game uses (storage for save games, the clock, the page's address,
+gamepads, downloads, fetching `data.pack`) are Rust code in `crates/gfx/src/web.rs`; until 0.35
+they were JavaScript files of this folder, loaded by macroquad's loader.

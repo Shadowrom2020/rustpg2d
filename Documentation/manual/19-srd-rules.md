@@ -72,10 +72,10 @@ The SRD 5.1 is free to use under **CC BY 4.0**: a game that uses its material mu
 
 - **Exports** always contain `SRD-5.1-ATTRIBUTION.txt` beside the engine's licence, because the
   game runner's rules include SRD text.
-- **The credits:** *Database › Project › Uses SRD 5.1 content* (on in the example, in the starter
+- **The credits:** *Uses SRD 5.1 content* on the *Rules* page (on in the example, in the starter
   library and in new projects that start from it) ends the *Credits* page with the attribution.
   `srd_attribution()` returns it for credits a script rolls; the example's ending credits show it.
-- **Edit › Problems** warns when a project has SRD races, backgrounds or stat blocks but the
+- **The project check** (Problems) warns when a project has SRD races, backgrounds or stat blocks but the
   setting is off.
 - **Trademarks:** the SRD's licence doesn't cover Wizards of the Coast's trademarks. Don't call
   your game a "Dungeons & Dragons" or "D&D" game; "uses the SRD 5.1" is fine.

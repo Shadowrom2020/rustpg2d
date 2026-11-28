@@ -1,7 +1,7 @@
 //! Equipment (head, body, weapon, left hand): equipping from the inventory, two-handed weapons,
 //! derived stats, armor overlays.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::Game;
 use crate::defs::{EquipSlot, Weapon};

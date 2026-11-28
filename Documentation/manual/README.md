@@ -14,13 +14,13 @@ interest you.
 2. [The editor](02-the-editor.md): the window, tools and shortcuts, saving, play-testing, project files
 3. [Maps](03-maps.md): painted ground, decorations, maps from older versions, collision, structures, copy and paste, map settings
 4. [Objects and zones](04-objects-and-zones.md): placing props, characters and items, the inspector, zones, map transitions, spawners
-5. [The Database](05-database.md): items, props, materials, scatter sets, sprite sheets, sounds, fonts, quests, recipes, achievements, project settings
+5. [Definitions](05-database.md): items, props, materials, scatter sets, sprite sheets, sounds, fonts, quests, recipes, achievements, project settings
 6. [Characters](06-characters.md): the character builder, the player and the character creator, behaviour, routines, merchants, companions, portraits
 7. [Events](07-events.md): triggers, conditions and actions, cut-scenes, the Events graph
 8. [Scripting](08-scripting.md): Rhai scripts, the script editor, live reload, the console, and every script function with recipes
 9. [Gameplay systems](09-gameplay.md): combat, levels, the SRD 5.1 rules (abilities, checks), conditions, damage types, rests, magic, inventory, crafting, farming, fishing, lockpicking, furniture, time of day, achievements
-10. [Art and sound](10-art-and-sound.md): sprite sheets, the pixel editor, new assets, importing from Tiled and Aseprite, sounds and music
-11. [The asset library](11-asset-library.md): shared assets, the Asset Library window, packages, scripted assets
+10. [Art and sound](10-art-and-sound.md): sprite sheets, the pixel editor, new assets, sounds and music
+11. [The asset library](11-asset-library.md): shared assets, the Library tab, packs and sources, scripted assets
 12. [Languages](12-languages.md): translating a game
 13. [AI agents](13-ai-agents.md): letting an AI assistant work in the editor, and every tool it gets
 14. [Publishing](14-publishing.md): exporting for Windows, macOS, Linux and the web, itch.io
@@ -46,7 +46,7 @@ change R(ust)PG2D itself.
 | **Material** | What a map's ground is painted with: grass, dirt, water… (a repeated texture) |
 | **Decoration** | A prop placed as a picture: a tree, a rock, a wall, a house |
 | **Sprite sheet** | An image of frames for characters, props, item icons and effects |
-| **Definition** | A kind of thing in the Database: an item, a prop, a character, a quest… |
+| **Definition** | A thing of the game with a form of its own: an item, a prop, a character, a quest… |
 | **Entity** | A definition placed on a map: a chest, a villager, a coin on the ground |
 | **Zone** | A rectangle on a map: a spawn point, a portal, a trigger area, a spawner… |
 | **Trigger** | *When* something happens, *if* conditions hold, *do* actions |

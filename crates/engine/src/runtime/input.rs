@@ -6,7 +6,7 @@
 
 use std::cell::RefCell;
 
-use macroquad::prelude::{
+use gfx::prelude::{
     is_key_down, is_key_pressed, is_mouse_button_down, is_mouse_button_pressed, is_mouse_button_released, mouse_position, KeyCode,
     MouseButton, Vec2,
 };
@@ -72,7 +72,7 @@ pub fn mouse_released(b: MouseButton) -> bool {
 
 /// Vertical mouse wheel movement this frame (positive = up).
 pub fn wheel() -> f32 {
-    INJECTED.with(|i| i.borrow().mouse.as_ref().map(|m| m.wheel)).unwrap_or_else(|| macroquad::input::mouse_wheel().1)
+    INJECTED.with(|i| i.borrow().mouse.as_ref().map(|m| m.wheel)).unwrap_or_else(|| gfx::input::mouse_wheel().1)
 }
 
 /// Queues typed text (for automated play-throughs).
@@ -82,7 +82,7 @@ pub fn inject_text(text: &str) {
 
 /// Next typed character (injected text first, then the keyboard).
 pub fn next_char() -> Option<char> {
-    INJECTED.with(|i| i.borrow_mut().chars.pop_front()).or_else(macroquad::input::get_char_pressed)
+    INJECTED.with(|i| i.borrow_mut().chars.pop_front()).or_else(gfx::input::get_char_pressed)
 }
 
 pub fn down(k: KeyCode) -> bool {
@@ -256,7 +256,7 @@ pub fn key_label(k: KeyCode) -> String {
 
 /// The key pressed this frame, injected ones first (the Controls page waits for one).
 pub fn last_key_pressed() -> Option<KeyCode> {
-    INJECTED.with(|i| i.borrow().pressed.first().copied()).or_else(macroquad::input::get_last_key_pressed)
+    INJECTED.with(|i| i.borrow().pressed.first().copied()).or_else(gfx::input::get_last_key_pressed)
 }
 
 // ------------------------------------------------------------------ gamepads
@@ -924,7 +924,7 @@ pub fn update_device() {
     let keys = INJECTED.with(|i| {
         let i = i.borrow();
         !i.pressed.is_empty() || i.mouse.as_ref().is_some_and(|m| !m.pressed.is_empty() || m.wheel != 0.0)
-    }) || !macroquad::input::get_keys_pressed().is_empty()
+    }) || !gfx::input::get_keys_pressed().is_empty()
         || [MouseButton::Left, MouseButton::Right, MouseButton::Middle].into_iter().any(is_mouse_button_pressed);
     // The real mouse moving more than a few pixels (not an injected one, which stays parked).
     let moved = INJECTED.with(|i| i.borrow().mouse.is_none()) && {

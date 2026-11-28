@@ -3,6 +3,420 @@
 All notable changes to R(ust)PG2D (formerly rust2d) (engine, game runner and editor). Versions follow
 `MAJOR.MINOR.PATCH`; see AGENTS.md for how releases are made.
 
+## Unreleased
+
+### Engine
+- **The engine draws with wgpu** (Vulkan, Metal, DirectX 12) through a platform layer of its own,
+  `crates/gfx`, instead of macroquad: the window (winit), drawing, text, input and sound (kira).
+  The game looks as before (compared picture by picture with 0.35); the drawing functions keep
+  their names, shaders are WGSL. Part 1 of the editor's rewrite (ROADMAP.md, *0.36.0 — The
+  Studio*): the game can be drawn into any number of views inside another program.
+- **The web game** is built with wasm-bindgen and draws with WebGL 2: the runner is the pair
+  `rustpg2d-game.wasm` + `rustpg2d-game.js` (`cargo xtask-web` writes it into `target/web`), and
+  an exported web game no longer has `mq_js_bundle.js` and `rustpg2d.js`.
+- `RUSTPG2D_FIXED_STEP=SECONDS`: every frame of the game takes that long whatever the real clock
+  says, so a scripted run draws the same frames every time.
+- `RUSTPG2D_ALLOW_SOFTWARE=1` lets the game start on a software renderer (tests, CI); without it
+  a machine without a graphics driver gets a message.
+- `Game::step` and `Game::thing_under_pointer` (an editor shows the game itself: its clock
+  by hand, what a click would open); `map::MapSettings` (what a map is besides its ground
+  and what stands on it, for forms); `Assets::load_sheet` (one picture read again);
+  `ScriptHost::compile_check` (a script checked before it is saved); `Game::raise` (an event
+  raised for a thing as if it had just happened: the editor's *Try it*).
+
+- **A roof alone covers what stands under it:** wall pieces in the southern and eastern rows of
+  a roofed room were drawn over the roof's eaves, and someone standing in that corner over the
+  roof. A building without walls is now drawn after everything under it (it is still cut away
+  around the hero).
+
+- **Fixed: an item's own 3D model is updated with the item.** *Update asset library* (and a
+  starter library taken as a pack) never wrote the model file of an item (a sword's, a bow's, a
+  backpack's): a library that got such items by an update had their definitions without their
+  models. The update writes them now and brings back the ones that are missing.
+
+### Editor
+- **The new editor's window** (`rustpg2d-studio`, part 3 of *The Studio*), egui 0.37 on the
+  engine's own renderer: tabs that can be arranged, a Project browser with fixed groups, a
+  command palette (Ctrl+Shift+P), *Go to anything* (Ctrl+P), one undo history over maps and
+  definitions, the project check, and the game running in a tab. Maps can be looked at, not
+  edited yet.
+- **Forms that know their fields** (part 4): every definition's form has sections, a label and
+  help for each field, a choice for every enum, a searchable picker for every id (with *+ New…*
+  and *Open*), lists with add / remove / move, and shows the fields a file leaves out with
+  their defaults, dimmed, so what was set stands out (right-click a label: *Back to the
+  default*); *Show all fields* adds the rarely needed ones. New, duplicate, delete, rename
+  and usages are in the form's header. The forms are made from the engine's own types
+  (`cargo run -p rustpg2d-engine --features schema --example schema -- item` prints a kind's
+  JSON Schema), so a new engine field appears in its form without editor work.
+- **Pictures everywhere** (part 4): the Project browser's rows, an asset's header and the
+  pickers' lists show the item's icon, the prop's picture, the character as the game draws it.
+  *Show all* opens everything of a kind in a tab, as cards with pictures or as a list, with a
+  filter. A sprite's fields have its picture beside them and *Pick the frame…*: the sheet's
+  frames to click.
+- **Sorted without sorting** (part 4): the browser lists items under the SRD's categories, props
+  under what they do (containers, doors, lights, furniture to use, walls and buildings…),
+  characters under their creature type, spells under their level; a kind's tab filters by one.
+  Where a flag, a variable, a script function or a faction is typed, the form lists the ones
+  already in use.
+- ***New…*** (Ctrl+N, part 4): pick what to make (each kind says what it is), give it a name,
+  and start blank or from a copy picked from a list with pictures; the id is made from the name.
+- **Maps open as tabs with their own view** (part 6): the map as the game draws it, with
+  the hour's light, the weather, the grid, zone areas and blocked tiles to switch on, and a
+  view from above. Tools: *Select* (click, box, drag to move, R, Ctrl+D, Del), *Place*
+  (characters, objects and items from one list with pictures), *Zones* (every kind, drawn
+  by dragging, sized by their corners) and *Collision*. Beside the map the **Outliner**
+  lists everything on it, and the **Inspector** shows the selected thing as a form with
+  only the fields that mean something for it. Every change is a named step of the one
+  history. Agents' `screenshot_map` works again.
+- **Play inside the editor** (part 6): right-click a map, *Play from here*, and the game
+  runs in the Play tab with the hero on that tile (F5: from the title screen, F6: on the
+  open map). Pause, single steps, a slower or faster clock; *Inspect* opens what is clicked
+  in the running game; the **State** panel shows and changes its flags, variables, quests,
+  party and bag. *Keep as the test setup* remembers that state, and *Play from here with
+  the test setup* starts a game in progress with it (no intro). *Own window* runs the
+  real game beside the editor.
+- **The World view and linked maps** (part 6): *World › World view* shows every map as a
+  card with the ways between them as arrows, and marks a way that leads nowhere and a map
+  nothing leads to. A Transition zone drawn on one map and the next one drawn on another
+  become each other's other side. With nothing selected, a map's Inspector is the map's
+  own settings (light, weather, music, edges, events). Several things selected can be saved
+  as a structure; a selected character's patrol route and daily schedule are drawn; a
+  character, prop, item or structure is dragged from the Project browser onto a map.
+- **Terrain, scenery, structures and scatter sets on the map** (part 6): *Terrain* paints
+  materials with a brush, a line, a rectangle or a fill. *Place* now takes everything from
+  one list: a prop that only stands there is put down as scenery, one that does something
+  as an object (no choosing between "Entities" and "Decorations" first); walls and fences
+  are dragged out as rows, scatter sets brushed on, structures put down whole. Scenery is
+  selected, moved, turned and deleted like anything else, and *Make interactive* turns a
+  piece into an object with a name and events (and back).
+- **The Build tool on the map** (part 6, key B): walls painted along the tile edges or tile by
+  tile, round corners; a room dragged as its floor, with walls, a floor material and a roof if
+  wanted; a house dragged as its footprint, in the look of a building you pick, with one to
+  three storeys (dragged against another house it becomes its wing under one roof); a roof
+  alone as a rectangle or over tiles you paint or find inside walls with a click; doors,
+  windows and gaps clicked into walls and houses, and taken out with the right button. One
+  Ctrl+Z takes a house back together with the prop made for it. A room of thick walls now
+  stands around the floor you dragged (0.35 put the walls on the floor's own tiles), and a
+  door in a wall closes the room for *Inside walls*.
+- **The event sheet** (part 7): wherever events are edited (a placed character, a zone, a map,
+  a definition), each one reads as a sentence, *When the player uses it or talks to it, if the
+  flag met_elder is not set · 3 actions*, and opens as **When**, **If** and **Do**. Every
+  condition and action is one line that says what it does (*Elder: "Welcome, traveller."*,
+  *Give 2 x Healing Potion*), opened in place to change it, dragged to another place, copied
+  to another event, character or map from its menu. New actions come from a searched list in
+  the manual's groups, new events from the events that owner can get.
+- **A start screen and projects in one window** (part 3): without a project the editor starts
+  with *A new game*, *Open a project* and the projects you worked on lately; the Overview's
+  *Another project* opens a different one in the same window.
+- **The asset library in a tab** (part 9, a first step): *Game › Asset library* lists what the
+  library holds by kind, searched; tick what you want and *Add to the project* brings it in
+  with what it needs. A definition's tab has *Send to library*.
+- **The prop workshop** (part 8, a first step): a prop's tab starts with the prop itself, large,
+  as the game draws it. Drag the corners of its hitbox, the spot it is used from and how far
+  its light reaches on the picture instead of typing numbers; pick a state from the strip to
+  see it, turn it, and look at it in the dark by its own light.
+- **Hear a sound, cut a sheet** (part 8): a sound's tab plays, loops and stops it and says how
+  long it is. A sprite sheet's tab shows its picture with the frame grid: say how many frames
+  go across and down, pick a frame, watch its animations, add one.
+- **A new game starts with the basics** (part 3): a new project comes with ground to paint,
+  a hero, a few props and items from the asset library and grass on its first map, so Play
+  works at once. Untick it on the start screen for an empty project. The game keeps the name
+  you typed.
+- **Drop a file to make something of it** (part 8): a 3D model (`.glb`) or a picture (`.png`)
+  dropped on the editor becomes a prop that shows it, a sound file a sound: *New…* opens with
+  the file and a name from it, Enter makes it. *New…* also takes a file's place typed in.
+- **New maps and a map's size** (part 6): *Map* is one of the things *New…* (Ctrl+N) makes:
+  its name, its size in tiles and the material its ground starts with; *+ New map* is in the
+  Project browser. A map's Inspector has its *Size* with *Resize* (one step; the top left
+  stays). Commands `map.new NAME [W H] [GROUND]` and `map.resize W H`. (Until now only agents
+  could do either in the new editor.)
+- **AI agents have a page** (part 10): *AI agents* in the Project browser starts and stops the
+  agent server (its port, *Start it with the editor*), has the set-up for Claude Code, for
+  Cursor and VS Code and for Claude Desktop with a *Copy the set-up* button each, a first
+  thing to ask to copy, and the list of what the agents did. The server stays on when another
+  project is opened.
+- **What's new** (part 10): after an update the Overview says so once, with *What's new*: this
+  version's part of the changelog in the Help tab, where it stays (last of the chapters), with
+  the versions before it to pick.
+- **A field explains itself in the Help tab** (part 10): F1 with the pointer on a field's
+  label, or *About this field* in the label's menu (right-click), opens the Help tab with what
+  the field is for and the places the manual names it, the chapter about that form first.
+- **Empty places say what to do next** (part 10): a kind with nothing in it says what belongs
+  there with *New…* and *Take some from the asset library*; a map with nothing on it offers the
+  Place and Terrain tools; the Problems tab says what the check looks for before it ran and
+  that nothing was found after; the Place tool and the World view say what to do when there
+  is nothing to place or only one map.
+- **The Creator's Manual describes the new editor**: the window, maps, objects, definitions,
+  characters, events, art, the library and packs, languages, agents, publishing and plugins as
+  they are now (the screenshots follow later). The Tiled and Aseprite import sections are gone
+  with the imports.
+- **The Help tab opens where you left it**: the chapter and heading read last come back with
+  the next start of the editor.
+- **A character starts from another one's look** (part 8): *Start from…* in the character
+  workshop lists the project's characters with their pictures; a click gives this character that
+  one's model, pieces and colours, as one step.
+- **Regions of a map copied with their ground** (part 6): Alt+drag with the Select tool selects
+  a rectangle of tiles; Ctrl+C, Ctrl+X and Ctrl+V copy, cut and paste it with its painted ground,
+  scenery, blocked tiles and what stands in it, on the same map or another, as one step.
+- **Frames added in the pixel editor**: *+ Frame* adds an empty frame to a sprite sheet and
+  *Duplicate* a copy of the frame being painted, ready for the next step of an animation.
+- **A selection in the pixel editor**: the *Select* tool (S) drags a rectangle of the frame.
+  *Copy*, *Cut*, *Paste* (Ctrl+C, X, V over the picture), *Mirror*, *Clear* (Delete), the
+  fill, the colour replaced and *Left* / *Up* / *Down* / *Right* (Shift and an arrow key) then
+  keep to it. What is pasted or moved floats on the frame, to be dragged where it goes; a
+  click, Escape or another tool puts it down, and undo takes the whole move back in one step.
+- **The test setup has a form** (part 6): *Test setup…* in the Play tab's bar sets what a
+  test-play starts with (the hero's level and class, items, flags, variables, quests, the hour,
+  the party) without playing there first.
+- **Animations are seen and played** (part 7): an animation's tab shows it on a straw target
+  dummy as the game draws it, with *Play*, *Pause*, *Loop* and a strip of time to look at any
+  moment; changes in its form show at once.
+- **The events graph** (part 7): *Events graph* in a map's bar shows the map's events as a
+  graph in a tab of its own: who has events, their events in the event sheet's words, the script
+  functions they run and the maps they lead to, with lines for what runs, raises, sets and leads
+  where. A click on a card goes where it is edited; *Only what is selected* and *Find* narrow it.
+- **Unsaved changes are asked about**: closing the window, closing the project or opening
+  another one with changes that aren't saved asks first: *Save and go on*, *Don't save* or
+  *Stay*. Before, closing the window lost them without a word.
+- **More clips for a 3D model** (part 8): the model workshop adds a file of animations for the
+  model's skeleton (*Add a file of clips…*), or takes the animations of another model with the
+  same skeleton (*Take clips from another model…*, the ones to take ticked).
+- **A rig template's joints moved by hand** (part 8): a model that borrows its skeleton from a
+  rig template lists the template's joints under *Joints of the skeleton*, each with three
+  numbers (across, up, to the front, in parts of the model's height); the preview shows the
+  change as it is made, and *Reset* puts one joint or all of them back where the fit puts them.
+- **A building's doors and windows added in its workshop** (part 8): a building prop's tab says
+  above its picture what it is (its roof, its size, its doors, windows and chimneys) and has
+  *Add a door* and *Add a window*: the new one goes on the front wall where there is room and
+  looks like the ones the building has. Its measurements, its roof's ridge, each door's and
+  window's place and size are numbers in the form's *Building* section, and the picture
+  follows at once.
+- **Fixed in the forms:** a building's *Walls* box showed unticked (and could not be turned
+  off), and a few fields that are on or 1 unless set (a prop's *Casts a shadow*, a sheet's
+  scale, a sprite's size in cells, *Eight facings*…) showed as off or 0 when the file left them
+  out.
+- **The item workshop** (part 8): an item's tab shows its own 3D model in the hero's hand,
+  standing, walking and striking. A model file is taken with *From a file…*; buttons find
+  where it is held, turn its handle and its front and set how it is held and how long it is;
+  *Render its icon* draws the model as the item's inventory icon.
+- **Plugins on their page** (part 5): *Scripts & plugins* shows the project's plugins with
+  what each does, on / off, their order, and every parameter by its name with the control that
+  fits; a plugin is added from the asset library or a plugin file and removed with its files
+  kept aside.
+- **Clean up unused files** (part 4): *Assets › Clean up unused files* lists what nothing in
+  the game names, with its size; what is ticked is deleted after a copy is put beside the
+  project, what isn't is remembered as kept. It is also offered when you close the project or
+  the editor and the project has unused files you haven't kept.
+- **Translations** (part 5): the *Languages* page lists the languages the game is offered in
+  with how far each is translated, adds one (a click for the nine languages the game's own
+  menus exist in), and opens a language's table: every text players read with its translation
+  typed beside it, searched, or only what isn't translated yet. *Play in it* starts the game in
+  that language.
+- **Files changed by another program** are noticed in the window too: definitions, settings
+  and maps are read again when nothing unsaved is in the way; else a bar asks whether to take
+  the files' version or keep yours. (An open map was never read again: fixed, also for the
+  agent server without a window.)
+- **Browse… for every file a form names**: a sheet's picture, a sound, a material's texture, a
+  font and its licence, a model's file; the file picked is copied into the project. *New…*
+  takes a font file (.ttf, .otf) and a picture as ground.
+- **Tours point nearer and lead back** (part 10): a tour's frame goes to the control nearest
+  to what is to be done (*Character* in *New…*, the Place tool's *Characters*, *+ Add an
+  event…* and *+ Line* in the Inspector) and is never drawn around something scrolled out of
+  view; when a step is done in another tab than the one in front, the tour says so and
+  shows that tab. Its window can be moved.
+- **Choose one…** (part 10): the Problems tab mends *No player character is set* and a start map
+  that doesn't exist by offering the project's characters or maps to pick from.
+- **Use another…** (part 10): a problem about something that doesn't exist also offers the
+  ones that do; everything that named the missing one (definitions, maps, scripts) names the
+  one picked.
+- **The manual inside the editor** (part 10): the *Help* tab shows the Creator's Manual with
+  its chapters, a search over all of it and links that lead on. **F1** opens it at the part
+  about what you are working on: a map's tool, a kind of thing, scripts, publishing.
+- **Guided tours** (part 10): *Learn by doing* on the Overview starts one of three tours (*Your
+  first map*, *A character who talks*, *A quest*). A small window lists the steps, says how the
+  one at hand is done and ticks it when it is; a frame shows which control to use.
+- **Problems with fixes** (part 10): the Problems tab groups its entries, and one that says
+  something doesn't exist offers *Create it* and, when the library has it, *Take it from the
+  library*.
+- **Packs** (part 9): what you make can be given to others as one file. ***Share…*** in a
+  prop's, character's, item's… tab writes it as a pack with what it needs, under your name, a
+  licence and a version. On the Library tab, *Packs and sources* shows a pack before it is
+  installed (what it holds, what in it runs, what your library has differently), lists the
+  installed ones, and reads **sources**: a web address or folder that offers packs, whose
+  downloads are checked against its index. A pack file can also be dropped on the window.
+  Asset packages, plugin files and the starter library file of 0.35 are read as packs.
+  A newer version of an installed pack is applied asset by asset: what you didn't change is
+  updated, what you changed stays unless you tick it, what the pack dropped stays unless you
+  tick it; the library is copied first.
+  A project is told when the library has a newer version of a pack its assets came from, and
+  takes it as one undoable step. Several things chosen in a list, and plugins, are shared as
+  one pack.
+  The starter library can be installed as a pack too (taken from the editor or downloaded),
+  and is then listed and updated like the others.
+  A project remembers which pack each asset came from; the Publishing page lists the packs in
+  the game with their licences and puts their credit lines into the game's credits.
+- **Generate art** (part 8): the page for Meshy jobs (icons, portraits, pictures, 3D characters,
+  creatures, item and prop models, more clips): what a job costs is on its button, the jobs
+  show their progress and results, *Add to project* makes the thing. *Generate art…* in a
+  prop's, item's, character's or 3D model's tab opens it with that thing filled in.
+- **A light's place and a picture's foot** (part 8; two new optional fields of the engine): in
+  the prop workshop the light's middle is dragged to where it sits on the ground (a lamp's
+  glow around its head instead of beside it), and a prop's picture is dragged until it stands
+  right on its hitbox. Lights have *Its place (east, south)*, props *Picture moved by*; unset,
+  everything is drawn as before.
+- **The pixel editor** (part 8): *Paint* in a sprite sheet's tab paints the frame picked,
+  pixel by pixel: pencil, eraser, fill, line, rectangle, colour picker, two colours on the two
+  mouse buttons, the picture's own colours as swatches; a frame is copied, mirrored and moved;
+  the picture has its own undo and is saved with everything. A ground material's tab paints
+  its texture the same way, across its seams: it is shown with its copies around it, and what
+  is drawn over one edge comes in at the other.
+- **The model workshop** (part 8): a 3D model's tab starts with the model playing its
+  animations and with what it still needs: an animation without a clip, a model without a
+  skeleton, too many colours. Each animation's clip is picked from the clips in its files,
+  *Guess from the clips' names* maps them in one go, and a model without bones takes a rig
+  template (four legs, a bird…) with its animations. A `.glb` dropped on the editor can
+  become a 3D model for characters as well as a prop.
+- **File dialogs** (parts 3 and 8): *Browse…* picks a file or folder in the system's dialog:
+  the file a new thing starts from, a project to open (a file, or *A folder…*), where a new
+  game is kept, the folder a game is published into.
+- **Structures are edited on a map of their own** (part 8): a structure's tab is the structure
+  itself with every map tool: paint its ground, place and move things, build on it; its name,
+  category and size are in the Inspector. What you do is undone like anything else. Around
+  its own tiles there is a tile of room for what hangs over its edge (a fence, a tree's
+  foot); a structure holds no zones, so there is no Zones tool there.
+- **New… from the asset library** (part 8): a new prop, character, item… can start as one of
+  the asset library, under your own name: it comes with its pictures, sounds, models and the
+  script functions its events call. The library's chest, lamp or merchant is the template.
+  The one picked is shown as the library has it.
+- **Structures have pictures** (part 8): every structure shows as it stands on a map, in the
+  *Structures* list, the Place tool and its own tab.
+- **The character's look** (part 8): a character's tab starts with the figure itself, large,
+  turning, walking or striking, with what it wears and holds. Beside it you pick its model from
+  cards, the pieces it wears (hair, beard, outfit, headwear, cloak) and the colour of each of
+  its features from swatches; what it wears and holds is a row of slots with the items'
+  pictures, each offering the items that go there.
+- **Visual scripts on a canvas** (part 7): a visual script's tab shows its nodes: drag from pin
+  to pin to link them, right-click or Space for the searched palette of nodes, type values
+  into a node, group nodes into a function of their own. Beside the canvas: what the selected
+  node does, what is wrong, and the Rhai the game runs. Moving a node (or a cue on the
+  timeline) is one step to undo.
+- **The cut-scene timeline** (part 7): a cut-scene's tab starts with its timeline: tracks, cues
+  as boxes in time, a playhead to drag. *Show its map* puts the map above it, showing where
+  everyone is at that moment and what the camera frames; *Play from here* plays it from the
+  playhead.
+- **Publishing** (part 5): the *Game* group's *Publishing* page exports the game to play without
+  the editor, for Linux, Windows, macOS and the web, with a zip, an AppImage and a Flatpak on
+  request. Before it goes out the page says what stands in the way and what is worth knowing,
+  and where everything will be written.
+- **Try it** (part 7): an event of a placed character, prop, zone or map has a *Try it* button:
+  the game starts beside the thing with the event raised, so you see at once what it does.
+- **Conversations** (part 7): in the event sheet a line of talk is written where it stands, who
+  speaks and what is said; *+ Line* adds the next. A question shows its answers under it, and
+  under each answer what it leads to: more lines, any actions, another question.
+- **Flags and variables** (part 7): *Story › Flags and variables* lists every flag, variable and
+  text variable of the game with how often it is set and read, marks the ones that are only
+  ever set or only ever read, keeps a note for each, shows every place one stands (a click goes
+  there) and renames it everywhere: definitions, maps and scripts, as one step.
+- **Scripts in tabs** (part 7): *Story › Scripts* in the Project browser opens a script file with
+  its colours, line numbers and its functions as an outline. While you type it suggests script
+  functions with what they do, your own functions, and inside a text the ids it can name (items
+  with their names, maps, spawn points, flags); it shows the call's parameters, closes brackets,
+  indents new lines, and underlines what is wrong a moment after you stop (an id that isn't
+  there, a line that doesn't compile). Ctrl+click goes to a function. Saved with everything.
+- **More on the map** (part 6): copy, cut and paste what is selected, on the same map or onto
+  another (Ctrl+C / X / V); *Replace with…* puts another definition in a thing's place;
+  several things are put in a row or a column; a placed prop's state is picked among its own
+  states; a character's patrol route gets its waypoints by clicks on the map, and waypoints
+  and the stops of its day are dragged where they are drawn; the World view's cards stay
+  where you put them.
+- **One action, one undo:** what a single action changes in two places (a built house: its
+  prop and the map; two linked maps) is undone and redone together.
+- **The game's settings have pages of their own** (part 5): Game, Hero & party, Rules, World,
+  Look & feel, Title & menus, Sound, Languages, Scripts & plugins, first in the Project
+  browser, each a form like a definition's (the browser's filter finds a page by a setting's
+  name).
+- **A kind as a table** (part 4): a column per field, cells changed in place, a click on a
+  column's head sorts by it; a change in a ticked row is made in every ticked row (set the
+  price of ten items at once).
+- **Problems where they are** (part 4): after *Check the project* an asset with a problem is
+  marked in the browser and on its card, its form says what is wrong, and a kind's tab can
+  show only those, or (pictures, models, sounds, materials, fonts) only what nothing uses.
+- **Your own order** (part 4): every definition and map can have a folder, tags, notes and a
+  favourite mark (`editor/meta.ron` in the project; the game doesn't read it). Favourites are
+  first in the browser, a kind's folders come before its categories, the filter finds tags, and
+  in a kind's tab several assets are chosen (Ctrl+click) and tagged, moved or deleted together.
+
+- **The agent server runs without a window:** `rustpg2d-studio --headless PROJECT --mcp PORT`
+  opens a project and serves every agent tool (map screenshots excepted) where there is no
+  display. The editor's logic moved into a crate of its own, `crates/editor-core` (part 2).
+- **Started without a project the editor shows its home screen,** also when an `example_project`
+  folder lies beside it (as in the Windows download): it no longer opens that folder and turns
+  it into a project file. *The example game* on the home screen opens your own copy of it.
+- **The new editor on Windows** opens without a console window beside it, writes to the
+  terminal it was started from, and says in a message box why it stopped. Its window has
+  R(ust)PG2D's emblem as its icon.
+- **The Play tab's *Own window*** refuses a game runner built from another engine version than
+  the editor and says so in the message line (rebuild it with `cargo build -p rustpg2d-game`),
+  as the agents' `play_test` warns.
+- **Agents get a picture of the whole editor window** with `screenshot_editor`.
+- **Saving and then changing something at once** (an undo right after *Save all*) no longer
+  makes the editor think another program changed the files: the bar *Another program
+  changed…* stays away.
+- **The History names what a form changed:** *Small red-roofed cottage: Ridge*, *…: States,
+  an entry added*, *Game settings: It starts on*, instead of *Change definitions*. Typing a
+  name letter by letter is still one step.
+- **A long message in the status line** is cut short with "…" before *saved*, the problems'
+  counts and the fps; the whole message shows when the pointer rests on it.
+- **The Problems tab says when its list may be out of date:** after anything changed since the
+  check, *The project changed since this check.* with *Check again*, the list and the status
+  bar's counts dimmed.
+- **Add a chimney** in a building's workshop, beside *Add a door* and *Add a window*: like the
+  last chimney (its picture, size and height), on the roof along the ridge where there is room;
+  a building's first chimney is built of its walls' picture.
+- **Test setup…** no longer shows red warnings with two items (or an item and a quest), and its
+  summary says the same day as its field. The events graph's cards say *Wait 0.4 s*, not a long
+  run of digits.
+- **Small things that read or fit better:** the map's bar stays on one line (what doesn't fit
+  folds into its *Show* and *More* menus); a character's schedule lists its stops by hour and
+  place (*07:00 at 34, 22*, *13:00 in tavern*) and a patrol by its waypoints; the World view's
+  names no longer run into each other when zoomed out; the Overview counts *1 disease*,
+  *3D models*, *UI skins*; a visual script's *Name* and *Description* use the panel's width and
+  its Rhai scrolls sideways; the events graph keeps `_` and `-` sharp when zoomed out; the
+  Project browser shows no close cross that does nothing; the home screen has no Problems
+  panel until a project is open; Help lists *18. Plugins* with its number.
+
+### Removed (Breaking)
+- **Projects made before 0.35 no longer open:** the game and the editor say "This project was made with a version before 0.35. Open and save it with R(ust)PG2D 0.35 first." 0.35 still converts tile projects (0.20 and older), 16-pixel projects and the skill tree and status effects of 0.27, each with a backup. Asset libraries and asset packages of tiles or 16-pixel art are refused the same way.
+- **Save games** of 0.35 load; older ones are not promised.
+- **Settings, the asset library and the recent list under the old name `rust2d`** are no longer copied over. The old folders stay where they are.
+Old ways of drawing that only earlier versions needed are gone (the maintainer's word,
+2026-11-28: everything not needed any more leaves; held items are 3D models so the look is
+consistent; creators work in the isometric view, what you see is what the game shows).
+- **Pictures in the hand:** an item is shown in a character's hand only as its own 3D model. An
+  item without one is still held (it counts in play) but isn't drawn; the item form's *Held*
+  section (*Picture in the hand*: a picture, hold point, orientation, size, hand) is gone, and so
+  are a prop's *Carried* marks: a carried prop (*Carry prop*, `carry()`) fills both hands and
+  isn't drawn. The example's and the starter library's items all have their own models: they look
+  as before; their old `held` entries were taken out of the files. `status`'s `held=` no longer
+  ends a hand with `/back`.
+- **What was left of sprite-sheet figures and props:** a prop's *Pictures from four sides*, its
+  *Animation* (a picture cycling through frames: a 3D model, or an *Effect* with a sheet's
+  animation, does that now), the wall sets of earlier versions (`pieces`), and a look's old
+  figure (`body`: a character without a 3D model shows the mannequin). Files that still have these
+  fields load; the fields are skipped (props converted from animated tiles of 0.20 show their
+  first frame). Old figure sheets keep loading as plain sprites. `status` prints the hero's model
+  in `player=` and the chosen figure in `creator=`; `npcs=` no longer ends with `@`.
+- **The top-down view of the map tab** (*From above*, the script's `mapopt above`): maps are
+  edited in the game's isometric view only. The game's map screen and minimap are unchanged.
+- **The old Meshy pipeline for 2D figures** (`scripts/art/meshy/`, 0.16 / 0.17). The editor's
+  *Generate art* keeps its icons, portraits and pictures.
+
+### Maintenance
+- The downloads (AppImage, Flatpak, Windows zip, macOS app) carry the new editor, `rustpg2d-studio`; on Windows it
+  needs DirectX 12 or Vulkan instead of OpenGL 3.
+- The 0.35 editor is no longer built on this branch (it needs macroquad); it stays in the tree
+  until the new editor replaces it.
+
 ## 0.35.0-alpha.1 — 2026-11-26
 
 ### Isometric view

@@ -1,0 +1,11 @@
+#head headc.txt
+tab def:sheet:portraits
+wait 1
+pixels open
+pixels frame 2
+pixels zoom 5
+wait 2
+hover 1000 880
+pixels
+shot $S/out/pixel.png
+quit

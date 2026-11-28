@@ -1,0 +1,9 @@
+#head headc.txt
+tab def:cutscene:intro
+wait 2
+timeline time 7.5
+wait 2
+hover 1000 880
+timeline
+shot $S/out/timeline.png
+quit

@@ -10,7 +10,7 @@
 use std::path::PathBuf;
 
 use anyhow::{bail, Context, Result};
-use macroquad::prelude::*;
+use gfx::prelude::*;
 use rustpg2d_engine::project::{Project, ProjectConfig};
 use rustpg2d_engine::release;
 use rustpg2d_engine::runtime::{Game, StartOptions};
@@ -21,7 +21,7 @@ macro_rules! say {
         #[cfg(not(target_arch = "wasm32"))]
         println!($($t)*);
         #[cfg(target_arch = "wasm32")]
-        macroquad::logging::info!($($t)*);
+        gfx::logging::info!($($t)*);
     }};
 }
 
@@ -95,7 +95,7 @@ fn preloaded(root: &std::path::Path) -> Option<Project> {
     PRELOADED.lock().unwrap_or_else(|e| e.into_inner()).take().filter(|(r, _)| r == root).map(|(_, p)| p)
 }
 
-fn window_conf() -> macroquad::conf::Conf {
+fn window_conf() -> gfx::conf::Conf {
     // The engine build stays readable in the binary: the editor's exports check it.
     std::hint::black_box(rustpg2d_engine::ENGINE_BUILD_TAG);
     rustpg2d_engine::desktop::startup("The game");
@@ -113,26 +113,21 @@ fn window_conf() -> macroquad::conf::Conf {
         .unwrap_or_else(|| "R(ust)PG2D".to_owned());
     // The window icon: the player character, else R(ust)PG2D's emblem. The project read here
     // is handed to `main` (it used to be loaded twice).
-    let project = Project::load(&root).ok();
+    // (A project of a version before 0.35 is refused in `game_main`, not read here.)
+    let project = if rustpg2d_engine::project::made_before_035(&root) { None } else { Project::load(&root).ok() };
     let icon = project.as_ref().and_then(rustpg2d_engine::icon::hero_icon).unwrap_or_else(rustpg2d_engine::icon::emblem);
     if let Some(p) = project {
         *PRELOADED.lock().unwrap_or_else(|e| e.into_inner()) = Some((root.clone(), p));
     }
-    let window = Conf {
+    gfx::conf::Conf {
         window_title: title,
         icon: Some(rustpg2d_engine::icon::window_icon(&icon)),
         window_width: 1280,
         window_height: 720,
-        high_dpi: true,
-        ..Default::default()
-    };
-    macroquad::conf::Conf {
-        miniquad_conf: window,
-        update_on: None,
         default_filter_mode: FilterMode::Linear,
-        // 3D character models are drawn as one mesh each (render/model.rs).
-        draw_call_vertex_capacity: rustpg2d_engine::render::model::DRAW_VERTICES,
-        draw_call_index_capacity: rustpg2d_engine::render::model::DRAW_INDICES,
+        // `RUSTPG2D_VSYNC=0`: frames as fast as they come (measuring).
+        vsync: std::env::var("RUSTPG2D_VSYNC").map_or(true, |v| v != "0"),
+        ..Default::default()
     }
 }
 
@@ -165,7 +160,7 @@ fn loading_screen(text: &str, progress: Option<f32>) {
 #[cfg(target_arch = "wasm32")]
 async fn web_failed(e: anyhow::Error) {
     // (macroquad's log macros print a lone literal as it is: no inline `{e}`.)
-    macroquad::logging::error!("{:#}", e);
+    gfx::logging::error!("{:#}", e);
     let causes: Vec<String> = e.chain().map(|c| c.to_string()).collect();
     loop {
         // The error and each cause on its own line, so a long chain stays on the canvas.
@@ -178,18 +173,31 @@ async fn web_failed(e: anyhow::Error) {
     }
 }
 
-#[macroquad::main(window_conf)]
-async fn main() {
+fn main() {
+    let conf = window_conf();
+    // No graphics adapter (or only a software renderer): a message instead of a window.
+    if let Err(e) = gfx::window::run(conf, game_main()) {
+        rustpg2d_engine::desktop::fatal("The game", &format!("{e}"));
+    }
+}
+
+async fn game_main() {
+    // `RUSTPG2D_FIXED_STEP=0.0166…`: every frame takes that long whatever the real clock says, so a
+    // scripted run draws the same frames every time (picture comparisons).
+    if let Some(step) = std::env::var("RUSTPG2D_FIXED_STEP").ok().and_then(|s| s.parse::<f32>().ok()).filter(|s| *s > 0.0) {
+        gfx::time::set_fixed_step(Some(step));
+    }
     #[cfg(target_arch = "wasm32")]
     {
         std::panic::set_hook(Box::new(|info| {
-            macroquad::logging::error!("{info}");
+            gfx::logging::error!("{info}");
         }));
         if let Err(e) = web_mount().await {
             return web_failed(e).await;
         }
     }
     let project = parse_args().and_then(|(root, start)| {
+        rustpg2d_engine::project::refuse_before_035(&root)?;
         let p = match preloaded(&root) {
             Some(p) => p,
             None => Project::load(&root).with_context(|| format!("loading project {}", root.display()))?,

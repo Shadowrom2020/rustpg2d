@@ -17,6 +17,7 @@ pub const CHUNK_SIZE: u32 = 32;
 
 /// Per-tile collision override painted in the editor.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[repr(u8)]
 pub enum CollisionOverride {
     /// Use the tileset's solidity flags.
@@ -63,9 +64,62 @@ pub struct Map {
     pub parallax: Vec<ParallaxLayer>,
 }
 
+/// What a map is besides its ground and what stands on it: the settings its form shows.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+pub struct MapSettings {
+    /// The colour beyond the map's edge and where no ground is painted.
+    pub background: [u8; 3],
+    /// The music that loops on this map (none: whatever is playing goes on).
+    #[serde(default)]
+    pub music: String,
+    /// The music of fights on this map: not set = the game's battle music, empty = none.
+    #[serde(default)]
+    pub battle_music: Option<String>,
+    /// How dark the map is: always bright (indoors), day and night with the clock, or dark
+    /// (dungeons: only lights show the way).
+    #[serde(default)]
+    pub lighting: MapLighting,
+    /// Fog of war: the map screen shows only what the player has explored.
+    #[serde(default)]
+    pub fog: bool,
+    /// Rain, snow or fog over the map.
+    #[serde(default)]
+    pub weather: Weather,
+    /// Pictures moving at their own speed behind the map (a sky, an abyss) or over it (cloud
+    /// shadows, mist).
+    #[serde(default)]
+    pub parallax: Vec<ParallaxLayer>,
+    /// The maps that begin where this one ends: walking off an edge arrives on the other.
+    #[serde(default)]
+    pub edges: EdgeLinks,
+    /// The map's own events: on entering it, at an hour, on a custom event.
+    #[serde(default)]
+    pub triggers: Vec<Trigger>,
+}
+
+impl MapSettings {
+    pub fn of(map: &Map) -> MapSettings {
+        MapSettings { background: map.background, music: map.music.clone(), battle_music: map.battle_music.clone(), lighting: map.lighting, fog: map.fog, weather: map.weather, parallax: map.parallax.clone(), edges: map.edges.clone(), triggers: map.triggers.clone() }
+    }
+
+    pub fn apply(self, map: &mut Map) {
+        map.background = self.background;
+        map.music = self.music;
+        map.battle_music = self.battle_music;
+        map.lighting = self.lighting;
+        map.fog = self.fog;
+        map.weather = self.weather;
+        map.parallax = self.parallax;
+        map.edges = self.edges;
+        map.triggers = self.triggers;
+    }
+}
+
 /// An image layer of a map that moves at its own speed: behind the tiles (seen under empty
 /// tiles and beyond the map's edge: a sky, an abyss) or over everything (cloud shadows, mist).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct ParallaxLayer {
     /// Sprite sheet id: its whole image is drawn.
@@ -115,6 +169,7 @@ impl ParallaxLayer {
 
 /// How dark a map is when nothing lights it.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum LightMode {
     /// No darkness at all (the default; lights are not drawn).
     #[default]
@@ -126,6 +181,7 @@ pub enum LightMode {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct MapLighting {
     pub mode: LightMode,
     /// 0..1: how dark it gets without lights (outdoor: at midnight).
@@ -139,6 +195,7 @@ fn default_darkness() -> f32 {
 
 /// What falls from the sky on a map.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum WeatherKind {
     #[default]
     None,
@@ -173,6 +230,7 @@ impl WeatherKind {
 
 /// A map's weather: kind and strength (0..1).
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Weather {
     pub kind: WeatherKind,
     #[serde(default = "default_intensity")]

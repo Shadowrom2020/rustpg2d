@@ -7,8 +7,8 @@
 # when started by hand (Actions > CI > Run workflow, any branch: all of them, to try platform or
 # packaging changes before a release). Merging a release pull request publishes its packages
 # (release.yml) instead of building them again.
-# Runtime smoke (scripts/ci/smoke.sh: the game and the editor running under Xvfb) runs for every
-# pull request; it is advisory until it has proven itself stable.
+# Runtime smoke (scripts/ci/smoke.sh: the game and the editor, rustpg2d-studio, running under Xvfb)
+# runs for every pull request; it is advisory until it has proven itself stable.
 # A push to master whose tree is the merged pull request's (always: master must be up to date
 # before a merge) only reports the checks; the pull request ran them on that very tree.
 name: CI
@@ -85,27 +85,30 @@ jobs:
         with:
           shared-key: ci
       - if: steps.tested.outputs.skip != 'true'
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends libasound2-dev libudev-dev
+        # (mesa-vulkan-drivers: Vulkan's software renderer, for the tests that draw.)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends libasound2-dev libudev-dev mesa-vulkan-drivers libvulkan1
       # No separate `cargo build`: clippy checks every target (all features, so xtask's dist
       # too) and `cargo test` compiles every crate, binaries included.
       - if: steps.tested.outputs.skip != 'true'
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+      # The tests that draw (off screen) must run here, on the software renderer.
       - if: steps.tested.outputs.skip != 'true'
         run: cargo test --workspace --locked --config 'profile.dev.package."*".opt-level=0'
+        env:
+          RUSTPG2D_GPU_TESTS: 1
+          RUSTPG2D_ALLOW_SOFTWARE: 1
       # The game also builds for the web (wasm32; no browser needed to check it compiles).
       - if: steps.tested.outputs.skip != 'true'
         run: rustup target add wasm32-unknown-unknown
       - if: steps.tested.outputs.skip != 'true'
         run: cargo clippy --locked --target wasm32-unknown-unknown -p rustpg2d-game -- -D warnings
-      # Game and editor also compile for Windows (no linking; the Windows job tests them
-      # natively). The editor's TLS library (ring, for Generate art) compiles C: the MinGW C
-      # compiler is needed even for a check.
+      # The game also compiles for Windows (no linking; the Windows job tests it natively). The
+      # editor is checked for Windows by the Windows job and built by the release builds: its
+      # TLS (ring) compiles C for the target, which needs MinGW-w64 here.
       - if: steps.tested.outputs.skip != 'true'
         run: rustup target add x86_64-pc-windows-gnu
       - if: steps.tested.outputs.skip != 'true'
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends gcc-mingw-w64-x86-64
-      - if: steps.tested.outputs.skip != 'true'
-        run: cargo clippy --locked --target x86_64-pc-windows-gnu -p rustpg2d-game -p rustpg2d-editor -- -D warnings
+        run: cargo clippy --locked --target x86_64-pc-windows-gnu -p rustpg2d-game -- -D warnings
 
   smoke:
     name: Runtime smoke
@@ -136,13 +139,16 @@ jobs:
         with:
           shared-key: smoke
       - if: steps.tested.outputs.skip != 'true'
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends libasound2-dev libudev-dev xvfb xauth libgl1-mesa-dri libglx-mesa0 libxi6 libxcursor1 libxkbcommon-x11-0
+        # Vulkan's software renderer (lavapipe) draws under Xvfb; smoke.sh allows it.
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends libasound2-dev libudev-dev xvfb xauth mesa-vulkan-drivers libvulkan1 libxi6 libxcursor1 libxrandr2 libxkbcommon-x11-0
       # The repository's dev profile (optimized dependencies): what developers and the editor's
-      # play-test run; opt-level 0 renders too slowly under llvmpipe for timed autoplay steps.
+      # play-test run; opt-level 0 renders too slowly in software for timed autoplay steps.
+      # (The editor: its agent server without a window, driven by mcp_smoke, and the editor in a
+      # window opening a map.)
       - if: steps.tested.outputs.skip != 'true'
-        run: cargo build --locked -p rustpg2d-game -p rustpg2d-editor
+        run: cargo build --locked -p rustpg2d-game -p rustpg2d-studio
       - if: steps.tested.outputs.skip != 'true'
-        run: cargo build --locked -p rustpg2d-editor --example mcp_smoke
+        run: cargo build --locked -p rustpg2d-studio --example mcp_smoke
       - if: steps.tested.outputs.skip != 'true'
         run: scripts/ci/smoke.sh
       - uses: actions/upload-artifact@v7
@@ -190,8 +196,8 @@ jobs:
 
   macos:
     name: macOS
-    # Clippy for editor and game and the engine's tests on a Mac (the release builds are in
-    # builds.yml).
+    # Clippy for the editor (rustpg2d-studio) and the game and the engine's tests on a Mac (the
+    # release builds are in builds.yml).
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && startsWith(github.head_ref, 'release/'))
     runs-on: macos-latest
     env:
@@ -206,7 +212,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: macos
-      - run: cargo clippy --locked -p rustpg2d-editor -p rustpg2d-game -- -D warnings
+      - run: cargo clippy --locked -p rustpg2d-game -p rustpg2d-studio -- -D warnings
       # The engine's tests on macOS (paths, export, signing).
       - run: cargo test --locked -p rustpg2d-engine --lib
 

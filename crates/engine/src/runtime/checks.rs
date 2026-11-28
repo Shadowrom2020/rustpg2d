@@ -43,7 +43,7 @@ impl Game {
     }
 
     /// The companions on this map who can act (not down): uid, the name messages use, position.
-    fn party_members(&self) -> Vec<(u32, String, macroquad::prelude::Vec2)> {
+    fn party_members(&self) -> Vec<(u32, String, gfx::prelude::Vec2)> {
         (0..self.loaded.entities.len())
             .filter(|&i| {
                 let e = &self.loaded.entities[i];

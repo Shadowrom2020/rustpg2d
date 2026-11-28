@@ -8,6 +8,7 @@ use super::{Condition, ConditionSpec};
 
 /// How a poison gets into a creature.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum PoisonKind {
     /// Smeared on an object or a weapon: touching it exposes (it coats a weapon).
     Contact,
@@ -40,6 +41,7 @@ impl PoisonKind {
 
 /// A poison: a Constitution save against its DC, its damage and its conditions on a failure.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct PoisonDef {
     /// Which of the SRD's poisons it started from ("" = made by hand; for the editor).
@@ -165,6 +167,7 @@ impl PoisonDef {
 /// A weapon or ammunition coated with a poison (`WorldState::coating`): one dose, delivered by
 /// the next hit with it.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct Coating {
     /// The poison's item.

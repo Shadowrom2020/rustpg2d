@@ -22,6 +22,7 @@ use crate::script_api::{Arg, Ret, API};
 
 /// What a pin carries.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum PinType {
     /// What runs next (the white pins).
     Flow,
@@ -93,6 +94,7 @@ impl PinType {
 
 /// A value typed into an input that nothing is linked to.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Value {
     Num(f64),
     Bool(bool),
@@ -139,6 +141,7 @@ fn text_code(t: &str) -> String {
 
 /// A parameter of a visual script (an output of its *Start* node).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Param {
     pub name: String,
     #[serde(default)]
@@ -146,6 +149,7 @@ pub struct Param {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum MathOp {
     Add,
     Sub,
@@ -173,6 +177,7 @@ impl MathOp {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum CmpOp {
     Eq,
     Ne,
@@ -198,6 +203,7 @@ impl CmpOp {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum LogicOp {
     And,
     Or,
@@ -205,6 +211,7 @@ pub enum LogicOp {
 
 /// What a node is.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum NodeKind {
     /// Where the function starts: a flow output and one value output per parameter.
     Start,
@@ -247,6 +254,7 @@ fn is_zero(n: &u8) -> bool {
 
 /// A node on the canvas.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Node {
     pub id: u32,
     pub kind: NodeKind,
@@ -260,6 +268,7 @@ pub struct Node {
 
 /// A link from an output pin to an input pin.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Link {
     pub from: u32,
     pub out: String,
@@ -269,6 +278,7 @@ pub struct Link {
 
 /// A script function made of nodes.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct VisualScript {
     /// The Rhai function's name: what triggers, hooks and other scripts call.
     pub id: String,

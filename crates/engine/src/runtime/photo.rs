@@ -5,7 +5,7 @@
 //! Pictures folder (`<Pictures>/<game>/`; the web game offers it as a download); Esc / P (B)
 //! leaves, back to the clock as it was.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::input::{self, Act, Device, Pad};
 use super::text::{draw_text, measure_text};

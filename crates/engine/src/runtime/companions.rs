@@ -5,7 +5,7 @@
 //! a companion falls and lies where it is until healed (`ProjectConfig::companion_down`: or it
 //! gets up after a while, or goes home); dismissed, it goes back to where it is placed.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::patrol::{Walk, Walker};
 use super::{Game, Mover, RtEntity};

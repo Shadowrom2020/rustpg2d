@@ -5,7 +5,7 @@
 //! gives its rewards. Everything is played as ordinary actions on the event runner (dialogs,
 //! choices, the Quest action), so quests moved on by triggers and scripts work the same.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::{conditions_met, ActionCtx, Game};
 use crate::entity::EntityKind;

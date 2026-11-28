@@ -2,7 +2,7 @@
 
 use std::collections::VecDeque;
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::{input, Game, RtEntity, Source};
 use crate::entity::{EntityKind, Facing};
@@ -60,6 +60,18 @@ pub(super) struct MouseState {
     hold: Option<u32>,
 }
 
+/// What [`Game::thing_under_pointer`] found: a placed character, prop or item.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Pointed {
+    pub map: String,
+    pub kind: EntityKind,
+    pub def: String,
+    /// Its name on the map ("" = none).
+    pub name: String,
+    /// Its number on the map (0: it was spawned in play and isn't on the map).
+    pub uid: u32,
+}
+
 impl Game {
     /// Debug description of the current order.
     pub fn order_debug(&self) -> String {
@@ -92,10 +104,10 @@ impl Game {
         let ts = self.ts();
         let size = match e.kind {
             EntityKind::Prop => match db.prop(&e.def) {
-                Some(d) => return self.assets.prop_rect(d, e.state, e.body.facing, e.body.pos, ts, true),
+                Some(d) => return self.assets.prop_rect(d, e.state, e.body.facing, e.body.pos, ts),
                 None => None,
             },
-            EntityKind::Character => db.character(&e.def).and_then(|d| self.assets.sheets.get(&d.appearance.body)).map(|s| s.world_size()),
+            EntityKind::Character => None,
             EntityKind::Item => db.item(&e.def).map(|d| self.assets.sprite_size(&d.icon, ts)),
         }
         .unwrap_or(vec2(ts, ts));
@@ -122,6 +134,13 @@ impl Game {
             .max_by(|a, b| crate::render::iso::depth(a.1.body.pos).total_cmp(&crate::render::iso::depth(b.1.body.pos)))
             // Furniture in use: its user (clicking a bed talks to the sleeper).
             .map(|(i, _)| self.user_of(i).unwrap_or(i))
+    }
+
+    /// What stands under the pointer on the map being played: for an editor showing the game,
+    /// where a click on a character or a prop opens what it is.
+    pub fn thing_under_pointer(&self) -> Option<Pointed> {
+        let e = &self.loaded.entities[self.entity_under(self.mouse_world())?];
+        Some(Pointed { map: self.loaded.map.name.clone(), kind: e.kind, def: e.def.clone(), name: e.name.clone(), uid: e.uid })
     }
 
     pub(super) fn uid_index(&self, uid: u32) -> Option<usize> {

@@ -1,0 +1,308 @@
+[
+  {
+    "index": "belt-of-giant-strength-hill",
+    "name": "Belt of Hill Giant Strength",
+    "equipment_category": {
+      "index": "wondrous-items",
+      "name": "Wondrous Items",
+      "url": "/api/2014/equipment-categories/wondrous-items"
+    },
+    "rarity": {
+      "name": "Rare"
+    },
+    "variants": [],
+    "variant": true,
+    "desc": [
+      "Wondrous item, rare (requires attunement)",
+      "While wearing this belt, your Strength score changes to a 21. If your Strength is already equal to or greater than the belt's score, the item has no Effect on you."
+    ],
+    "image": "/api/images/magic-items/belt-of-giant-strength.png",
+    "url": "/api/2014/magic-items/belt-of-giant-strength-hill"
+  },
+  {
+    "index": "deck-of-many-things",
+    "name": "Deck of Many Things",
+    "equipment_category": {
+      "index": "wondrous-items",
+      "name": "Wondrous Items",
+      "url": "/api/2014/equipment-categories/wondrous-items"
+    },
+    "rarity": {
+      "name": "Legendary"
+    },
+    "variants": [],
+    "variant": false,
+    "desc": [
+      "Wondrous item, legendary",
+      "Usually found in a box or pouch, this deck contains a number of cards made of ivory or vellum. Most (75 percent) of these decks have only thirteen cards, but the rest have twenty-two.",
+      "Before you draw a card, you must declare how many cards you intend to draw and then draw them randomly (you can use an altered deck of playing cards to simulate the deck). Any cards drawn in excess of this number have no effect. Otherwise, as soon as you draw a card from the deck, its magic takes effect. You must draw each card no more than 1 hour after the previous draw. If you fail to draw the chosen number, the remaining number of cards fly from the deck on their own and take effect all at once.",
+      "Once a card is drawn, it fades from existence. Unless the card is the Fool or the Jester, the card reappears in the deck, making it possible to draw the same card twice.",
+      "| Playing Card | Card |",
+      "|---|---|",
+      "| Ace of diamonds | Vizier* |",
+      "| King of diamonds | Sun |",
+      "| Queen of diamonds | Moon |",
+      "| Jack of diamonds | Star |",
+      "| Two of diamonds | Comet* |",
+      "| Ace of hearts | The Fates* |",
+      "| King of hearts | Throne |",
+      "| Queen of hearts | Key |",
+      "| Jack of hearts | Knight |",
+      "| Two of hearts | Gem* |",
+      "| Ace of clubs | Talons* |",
+      "| King of clubs | The Void |",
+      "| Queen of clubs | Flames |",
+      "| Jack of clubs | Skull |",
+      "| Two of clubs | Idiot* |",
+      "| Ace of spades | Donjon* |",
+      "| King of spades | Ruin |",
+      "| Queen of spades | Euryale |",
+      "| Jack of spades | Rogue |",
+      "| Two of spades | Balance* |",
+      "| Joker (with TM) | Fool* |",
+      "| Joker (without TM) | Jester |",
+      "* Found only in a deck with twenty-two cards",
+      "***Balance.*** Your mind suffers a wrenching alteration, causing your alignment to change. Lawful becomes chaotic, good becomes evil, and vice versa. If you are true neutral or unaligned, this card has no effect on you.",
+      "***Comet.*** If you single-handedly defeat the next hostile monster or group of monsters you encounter, you gain experience points enough to gain one level. Otherwise, this card has no effect.",
+      "***Donjon.*** You disappear and become entombed in a state of suspended animation in an extradimensional sphere. Everything you were wearing and carrying stays behind in the space you occupied when you disappeared. You remain imprisoned until you are found and removed from the sphere. You can't be located by any divination magic, but a wish spell can reveal the location of your prison. You draw no more cards.",
+      "***Euryale.*** The card's medusa-like visage curses you. You take a -2 penalty on saving throws while cursed in this way. Only a god or the magic of The Fates card can end this curse.",
+      "**The Fates.** Reality's fabric unravels and spins anew, allowing you to avoid or erase one event as if it never happened. You can use the card's magic as soon as you draw the card or at any other time before you die.",
+      "***Flames.*** A powerful devil becomes your enemy. The devil seeks your ruin and plagues your life, savoring your suffering before attempting to slay you. This enmity lasts until either you or the devil dies.",
+      "***Fool.*** You lose 10,000 XP, discard this card, and draw from the deck again, counting both draws as one of your declared draws. If losing that much XP would cause you to lose a level, you instead lose an amount that leaves you with just enough XP to keep your level.",
+      "***Gem.*** Twenty-five pieces of jewelry worth 2,000 gp each or fifty gems worth 1,000 gp each appear at your feet.",
+      "***Idiot.*** Permanently reduce your Intelligence by 1d4 + 1 (to a minimum score of 1). You can draw one additional card beyond your declared draws.",
+      "***Jester.*** You gain 10,000 XP, or you can draw two additional cards beyond your declared draws.",
+      "***Key.*** A rare or rarer magic weapon with which you are proficient appears in your hands. The GM chooses the weapon.",
+      "***Knight.*** You gain the service of a 4th-level fighter who appears in a space you choose within 30 feet of you. The fighter is of the same race as you and serves you loyally until death, believing the fates have drawn him or her to you. You control this character.",
+      "***Moon.*** You are granted the ability to cast the wish spell 1d3 times.",
+      "***Rogue.*** A nonplayer character of the GM's choice becomes hostile toward you. The identity of your new enemy isn't known until the NPC or someone else reveals it. Nothing less than a wish spell or divine intervention can end the NPC's hostility toward you.",
+      "***Ruin.*** All forms of wealth that you carry or own, other than magic items, are lost to you. Portable property vanishes. Businesses, buildings, and land you own are lost in a way that alters reality the least. Any documentation that proves you should own something lost to this card also disappears.",
+      "***Skull.*** You summon an avatar of death-a ghostly humanoid skeleton clad in a tattered black robe and carrying a spectral scythe. It appears in a space of the GM's choice within 10 feet of you and attacks you, warning all others that you must win the battle alone. The avatar fights until you die or it drops to 0 hit points, whereupon it disappears. If anyone tries to help you, the helper summons its own avatar of death. A creature slain by an avatar of death can't be restored to life."
+    ],
+    "image": "/api/images/magic-items/deck-of-many-things.png",
+    "url": "/api/2014/magic-items/deck-of-many-things"
+  },
+  {
+    "index": "flame-tongue",
+    "name": "Flame Tongue",
+    "equipment_category": {
+      "index": "weapon",
+      "name": "Weapon",
+      "url": "/api/2014/equipment-categories/weapon"
+    },
+    "rarity": {
+      "name": "Rare"
+    },
+    "variants": [],
+    "variant": false,
+    "desc": [
+      "Weapon (any sword), rare (requires attunement)",
+      "You can use a bonus action to speak this magic sword's command word, causing flames to erupt from the blade. These flames shed bright light in a 40-foot radius and dim light for an additional 40 feet. While the sword is ablaze, it deals an extra 2d6 fire damage to any target it hits. The flames last until you use a bonus action to speak the command word again or until you drop or sheathe the sword."
+    ],
+    "url": "/api/2014/magic-items/flame-tongue"
+  },
+  {
+    "index": "mithral-armor",
+    "name": "Mithral Armor",
+    "equipment_category": {
+      "index": "armor",
+      "name": "Armor",
+      "url": "/api/2014/equipment-categories/armor"
+    },
+    "rarity": {
+      "name": "Uncommon"
+    },
+    "variants": [],
+    "variant": false,
+    "desc": [
+      "Armor (medium or heavy), uncommon",
+      "Mithral is a light, flexible metal. A mithral chain shirt or breastplate can be worn under normal clothes. If the armor normally imposes disadvantage on Dexterity (Stealth) checks or has a Strength requirement, the mithral version of the armor doesn't."
+    ],
+    "url": "/api/2014/magic-items/mithral-armor"
+  },
+  {
+    "index": "potion-of-healing",
+    "name": "Potion of Healing",
+    "equipment_category": {
+      "index": "potion",
+      "name": "Potion",
+      "url": "/api/2014/equipment-categories/potion"
+    },
+    "rarity": {
+      "name": "Varies"
+    },
+    "variants": [
+      {
+        "index": "potion-of-healing-common",
+        "name": "Potion of Healing",
+        "url": "/api/2014/magic-items/potion-of-healing-common"
+      },
+      {
+        "index": "potion-of-healing-greater",
+        "name": "Potion of Greater Healing",
+        "url": "/api/2014/magic-items/potion-of-healing-greater"
+      },
+      {
+        "index": "potion-of-healing-superior",
+        "name": "Potion of Superior Healing",
+        "url": "/api/2014/magic-items/potion-of-healing-superior"
+      },
+      {
+        "index": "potion-of-healing-supreme",
+        "name": "Potion of Supreme Healing",
+        "url": "/api/2014/magic-items/potion-of-healing-supreme"
+      }
+    ],
+    "variant": false,
+    "desc": [
+      "Potion, varies",
+      "You regain hit points when you drink this potion. The number of hit points depends on the potion's rarity, as shown in the Potions of Healing table. Whatever its potency, the potion's red liquid glimmers when agitated.",
+      "Potions of Healing (table)",
+      "| Potion of ... | Rarity | HP Regained |",
+      "|---|---|---|",
+      "| Healing | Common | 2d4 + 2 |",
+      "| Greater healing | Uncommon | 4d4 + 4 |",
+      "| Superior healing | Rare | 8d4 + 8 |",
+      "| Supreme healing | Very rare | 10d4 + 20 |"
+    ],
+    "url": "/api/2014/magic-items/potion-of-healing"
+  },
+  {
+    "index": "potion-of-healing-common",
+    "name": "Potion of Healing",
+    "equipment_category": {
+      "index": "potion",
+      "name": "Potion",
+      "url": "/api/2014/equipment-categories/potion"
+    },
+    "rarity": {
+      "name": "Common"
+    },
+    "variants": [],
+    "variant": true,
+    "desc": [
+      "Potion, common",
+      "You regain 2d4 + 2 hit points when you drink this potion. The potion's red liquid glimmers when agitated."
+    ],
+    "url": "/api/2014/magic-items/potion-of-healing-common"
+  },
+  {
+    "index": "potion-of-healing-greater",
+    "name": "Potion of Greater Healing",
+    "equipment_category": {
+      "index": "potion",
+      "name": "Potion",
+      "url": "/api/2014/equipment-categories/potion"
+    },
+    "rarity": {
+      "name": "Uncommon"
+    },
+    "variants": [],
+    "variant": true,
+    "desc": [
+      "Potion, uncommon",
+      "You regain 4d4 + 4 hit points when you drink this potion. The potion's red liquid glimmers when agitated."
+    ],
+    "url": "/api/2014/magic-items/potion-of-healing-greater"
+  },
+  {
+    "index": "ring-of-protection",
+    "name": "Ring of Protection",
+    "equipment_category": {
+      "index": "ring",
+      "name": "Ring",
+      "url": "/api/2014/equipment-categories/ring"
+    },
+    "rarity": {
+      "name": "Rare"
+    },
+    "variants": [],
+    "variant": false,
+    "desc": [
+      "Ring, rare (requires attunement)",
+      "You gain a +1 bonus to AC and saving throws while wearing this ring."
+    ],
+    "url": "/api/2014/magic-items/ring-of-protection"
+  },
+  {
+    "index": "spell-scroll-1st",
+    "name": "Spell Scroll (1st)",
+    "equipment_category": {
+      "index": "scroll",
+      "name": "Scroll",
+      "url": "/api/2014/equipment-categories/scroll"
+    },
+    "rarity": {
+      "name": "Common"
+    },
+    "variants": [],
+    "variant": true,
+    "desc": [
+      "Scroll, common",
+      "A spell scroll bears the words of a single spell, written in a mystical cipher. If the spell is on your class's spell list, you can read the scroll and cast its spell without providing any material components. Otherwise, the scroll is unintelligible. Casting the spell by reading the scroll requires the spell's normal casting time. Once the spell is cast, the words on the scroll fade, and it crumbles to dust. If the casting is uninterrupted, the scroll is not lost.",
+      "If the spell is on your class's spell list but of a higher level than you can normally cast, you must make an ability check using your spellcasting ability to determine whether you cast it successfully. The DC equals 10 + the spell's level. On a failed check, the spell disappears from the scroll with no other effect.",
+      "This scroll contains a 1st level spell. The spell's saving throw is 13 and the attack bonus is +5.",
+      "A wizard spell on a spell scroll can be copied just as spells in spellbooks can be copied. When a spell is copied from a spell scroll, the copier must succeed on an Intelligence (Arcana) check with a DC equal to 11. If the check succeeds, the spell is successfully copied. Whether the check succeeds or fails, the spell scroll is destroyed."
+    ],
+    "url": "/api/2014/magic-items/spell-scroll-1st"
+  },
+  {
+    "index": "staff-of-healing",
+    "name": "Staff of Healing",
+    "equipment_category": {
+      "index": "staff",
+      "name": "Staff",
+      "url": "/api/2014/equipment-categories/staff"
+    },
+    "rarity": {
+      "name": "Rare"
+    },
+    "variants": [],
+    "variant": false,
+    "desc": [
+      "Staff, rare (requires attunement by a bard, cleric, or druid)",
+      "This staff has 10 charges. While holding it, you can use an action to expend 1 or more of its charges to cast one of the following spells from it, using your spell save DC and spellcasting ability modifier: cure wounds (1 charge per spell level, up to 4th), lesser restoration (2 charges), or mass cure wounds (5 charges).",
+      "The staff regains 1d6 + 4 expended charges daily at dawn. If you expend the last charge, roll a d20. On a 1, the staff vanishes in a flash of light, lost forever."
+    ],
+    "url": "/api/2014/magic-items/staff-of-healing"
+  },
+  {
+    "index": "wand-of-magic-missiles",
+    "name": "Wand of Magic Missiles",
+    "equipment_category": {
+      "index": "wand",
+      "name": "Wand",
+      "url": "/api/2014/equipment-categories/wand"
+    },
+    "rarity": {
+      "name": "Uncommon"
+    },
+    "variants": [],
+    "variant": false,
+    "desc": [
+      "Wand, uncommon",
+      "This wand has 7 charges. While holding it, you can use an action to expend 1 or more of its charges to cast the magic missile spell from it. For 1 charge, you cast the 1st-level version of the spell. You can increase the spell slot level by one for each additional charge you expend.",
+      "The wand regains 1d6 + 1 expended charges daily at dawn. If you expend the wand's last charge, roll a d20. On a 1, the wand crumbles into ashes and is destroyed."
+    ],
+    "url": "/api/2014/magic-items/wand-of-magic-missiles"
+  },
+  {
+    "index": "weapon-1",
+    "name": "Weapon, +1",
+    "equipment_category": {
+      "index": "weapon",
+      "name": "Weapon",
+      "url": "/api/2014/equipment-categories/weapon"
+    },
+    "rarity": {
+      "name": "Uncommon"
+    },
+    "variants": [],
+    "variant": true,
+    "desc": [
+      "Weapon (any), uncommon",
+      "You have a +1 bonus to attack and damage rolls made with this magic weapon."
+    ],
+    "url": "/api/2014/magic-items/weapon-1"
+  }
+]

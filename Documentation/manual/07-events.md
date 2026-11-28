@@ -21,9 +21,27 @@ Triggers belong to an **owner**, and each owner receives only some events:
 | an **item lying on a map** | *Interact*, *Use item*, *Custom event* |
 | an **item definition's** *On use* | *Use item* |
 
-The editor offers only the events that can reach a trigger where it is. A placed entity runs its
-definition's triggers first, then its own. Edit them in the inspector (placed entities, zones, the
-map) or in the Database (definitions).
+The editor offers only the events that can reach a trigger where it is. A placed thing runs its
+definition's triggers first, then its own. Edit them in the map's Inspector (placed things, zones,
+the map itself with nothing selected) or in a definition's form (its *Events*).
+
+### The event sheet
+
+Wherever there are triggers, the editor shows them as an **event sheet**: each trigger a block of
+rows to read, *When* its event, *If* its conditions, *Do* its actions, every row one line that says
+what it does ("Give 2 x Healing Potion", "Elder: "Welcome, traveller.""). A click opens a row to
+change its fields; it closes again with another click.
+
+- **+ Add an event…**, **+ Add a condition…** and **+ Add an action…** offer what fits there,
+  searched; actions in the groups this chapter lists them in (*Talking*, *Game state*, *Entities
+  and the world*, *Cut-scenes and effects*, *Rules (SRD 5.1)*, *Magic*).
+- A row is **dragged** to another place in its list; its **…** menu has *Duplicate*, *Copy*,
+  *Cut*, *Paste above* and *Delete*; *Paste* at the end of a list puts what was copied there,
+  also from another character, another map. **x** removes a row.
+- **Conversations** read as talk: a *Dialog* is a line with who speaks (*+ Line*), a *Choice* its
+  answers (*+ Answer*), each answer with what it leads to (*+ then…*).
+- **Try it** (in a placed thing's Inspector) plays the game on its map at once with that event
+  raised for it: the quickest way to see what a trigger does.
 
 ### The events
 
@@ -59,11 +77,11 @@ All conditions of a trigger must hold; each can be negated (*not*). Comparisons 
 | **Timer** | A timer's seconds left compared with a value (a timer that isn't running has 0: *> 0* = running) |
 | **Text variable** | A text variable equals a text (*any case*: "Rosehill" = "rosehill"; an empty text = the variable is empty) |
 | **Player sex** | Male or female |
-| **Player race** | The player's race (*Database › Races*), e.g. goblin; a race holds for its subraces too (*dwarf* for a hill dwarf) |
+| **Player race** | The player's race, e.g. goblin; a race holds for its subraces too (*dwarf* for a hill dwarf) |
 | **Has money** | The hero's money (every coin carried, in copper pieces: 1 gp = 100) compared with an amount (*≥ 500* = at least 5 gp). Pair it with *Take money*: the example's Greta and the stone house do |
 | **Is attuned** | The hero is attuned to a magic item ([Gameplay › Magic items](09-gameplay.md#magic-items)) |
 | **Was knocked out** | A fight knocked out a character of this name (or definition id) instead of killing it: the player chose *Knock out* ([Gameplay › Health and combat](09-gameplay.md#health-and-combat)) |
-| **Has class** | The hero's class or subclass (*Database › Classes*: *fighter*, *champion*; empty = any class) at a level compared with a number (*≥ 3*); false without a class |
+| **Has class** | The hero's class or subclass ( *fighter*, *champion*; empty = any class) at a level compared with a number (*≥ 3*); false without a class |
 | **Faction standing** | The player's standing with a faction (-100 to 100) compared with a value; at -20 or below its characters attack the player |
 | **Time of day** | Between two hours; wraps around midnight (20 to 6 = at night) |
 | **Proficient in** | The hero is proficient in a skill, tool or saving throw (`stealth`, `thieves-tools`, `save:dex`). Until 0.27 *Skill level* |
@@ -105,11 +123,11 @@ across map changes and in save games.
   most 20d6, into the roll log, and prone for a moment; they stay where they are (move them with
   *Teleport*, or use a *Drop* zone).
 - **Eat / drink** (food days, water days): what the hero ate and drank today for *Food and water*
-  (*Database › Project › Rules*): a ration is 1 day of food, a meal half a day, a waterskin half a
+  (the *Rules* page): a ration is 1 day of food, a meal half a day, a waterskin half a
   day of water, a well a whole day. Put it on a food item's *Use* trigger (beside its *Heal*) or a
   well's. With the rule off it does nothing.
-- **Change standing**: raises or lowers the player's standing with a faction (*Database ›
-  Factions*); at -20 or below its characters attack the player, above it they calm
+- **Change standing**: raises or lowers the player's standing with a faction (the *World*
+  page's factions); at -20 or below its characters attack the player, above it they calm
   down at once.
 - **Set faction**: a character on this map (*target*: `self`, a name) or `player` joins a faction;
   empty = back to its own (the placed character's, its definition's, its race's). Saved; who
@@ -160,7 +178,7 @@ across map changes and in save games.
   effect** (a fanfare: the music ducks under it and comes back after; *Wait* holds the event until
   it is over), **Shake the screen**.
 - **Call common event**: runs a common event's actions here, as if they stood in this list
-  ([The Database › Common events](05-database.md#common-events)).
+  ([Definitions › Common events](05-database.md#common-events)).
 - **Show image** / **Hide image**: a picture over the game (below).
 - **Show picture**, **Move picture**, **Erase picture**: picture layers, moved and faded (below).
 - **Input number**: a window asks the player for a whole number (from, to, at most so many digits;
@@ -312,13 +330,13 @@ Because both are checked before either runs, the first conversation shows only t
 
 ### A locked door
 
-Give the door prop a lock (*Database › Props › Lockable*): the key item, *on unlock: switch to state
+Give the door prop a lock (its form's *Lock*): the key item, *on unlock: switch to state
 open*. Put the key somewhere: in a chest, a shop, an item lying on a map, or a *Give item* action.
 An *Unlocked* trigger on the door can add a line or a sound.
 
 ### A quest
 
-Describe it in *Database › Quests* ([Database › Quests](05-database.md#quests)): the giver, the
+Describe it as a quest definition ([Definitions › Quests](05-database.md#quests)): the giver, the
 offer, each step (talk to someone, reach a place, conditions that hold) with actions when it starts
 and when it is done, and the rewards. The game plays it; the giver needs no triggers. The example's
 quests are all built this way (Elder Rowan's two, Tilda's, Mira's, Bram's, Ida's, Brom's and the
@@ -374,7 +392,7 @@ little and fades out.
 | **wait until it is over** | The event goes on only afterwards (a beat before a line) |
 
 Put it right before a *Dialog* to show how the speaker feels while they talk. Characters also show
-emotions by themselves when *Automatic emotions* is on (*Database › Project*): enemies are
+emotions by themselves when *Automatic emotions* is on (the *Look & feel* page): enemies are
 surprised when they notice the player, confused when they lose them and afraid when they flee;
 sleepers snore; companions are happy when they learn a spell. In the example, the guard is surprised
 to see you arrive, Tilda is glad to meet you, Elder Rowan dozes, thinks before he tells you about the
@@ -411,7 +429,7 @@ letter, a map or a poster:
 
 | Setting | Effect |
 |---|---|
-| **picture** | The sprite sheet (*Database › Sprite sheets*; *Browse…* a PNG of any size, the frame size doesn't matter) |
+| **picture** | The sprite sheet (*New…* › Sprite sheet › *from a file* takes a PNG of any size, the frame size doesn't matter) |
 | **Wait until closed** | On: the event goes on once the player closes the picture (E, a click or Esc). Off: it stays **behind** the following dialogs until *Hide image* or the end of the event, so a character can talk in front of their portrait |
 | **Scroll** | A picture taller than the window keeps the window's width and pans slowly down and back up; the arrow keys and the mouse wheel scroll it by hand |
 | **size** | 1 = the picture's own pixels (painted art); 2, 3… for small pixel art. A picture larger than the window is scaled down to fit, keeping its proportions, and drawn smoothly |
@@ -448,7 +466,7 @@ center, size x 4, opacity 0), *Move picture* (opacity 1 over 1.5 s, wait), *Wait
 
 ### A cut-scene
 
-*Play cutscene* plays a **cut-scene** from the Database's *Cut-scenes* tab (see below), or a script
+*Play cutscene* plays a **cut-scene** (see below), or a script
 function of that name ([Scripting › Cut-scenes](08-scripting.md#cut-scenes)), with the HUD hidden
 and black bars in.
 
@@ -456,7 +474,7 @@ and black bars in.
 
 ![The intro on its timeline](../images/editor-timeline.webp)
 
-A cut-scene asset (Database › *Cut-scenes*, saved in `defs/cutscenes.ron`) is a timeline instead
+A cut-scene (*Story › Cut-scenes* in the Project browser, saved in `defs/cutscenes.ron`) is a timeline instead
 of a script: **tracks** of **cues**, each cue an ordinary action at a moment in seconds.
 
 | Track | Its cues |
@@ -472,18 +490,17 @@ waits holds the scene until it is done (a dialog until the player closes it, a w
 walker arrives): the cues after it come that much later. One that runs alongside starts at its
 moment and the scene goes on (a pan while a title card fades in).
 
-**Editing.** The form's *Edit timeline on the map* opens the timeline window under the map
-view (on the cut-scene's map): one row per track, the cues as blocks at their time. Drag a cue
-to move it (in steps of 0.1 s), click it to edit its action, its time and *Waits* below; *+ Cue*
-adds one of the actions that fit the track, *Add track* a new row. Click or drag the ruler to
-move the **playhead**: the map view shows where each actor stands at that moment (a ring with
-its name; a thinner ring while it walks) and the camera's frame. The preview doesn't
-play animations and doesn't count waits for dialogs.
+**Editing.** A cut-scene's tab shows its timeline above the form: one row per track, the cues as
+boxes at their time. Drag a cue to move it in time, click it to change its action, its time and
+*Waits* below; a track's **…** menu adds one of the actions that fit it, **+ Track** a new row.
+Click or drag along the time axis to move the **playhead**: **Show its map** puts the cut-scene's
+map beside the timeline, where each actor stands at that moment (a ring with its name; a thinner
+ring while it walks) and the camera's frame. The preview doesn't play animations and doesn't count
+waits for dialogs.
 
 **Play from here** play-tests the cut-scene from the playhead: what happened before that moment
 is done at once (walkers stand where they were going, the camera and pictures are where they
-moved to; dialogs, sounds and emotions are left out), then it plays on. The form's *Play* plays
-it from the start.
+moved to; dialogs, sounds and emotions are left out), then it plays on, in the Play tab.
 
 *Play cutscene* (and `cutscene("id")` in scripts) takes the cut-scene's id. The example's intro
 (the village's *Map enter* trigger, *once*) is the cut-scene `intro`: the player walks in from
@@ -497,26 +514,30 @@ event's: the event goes on at once. Cut-scenes use it for cues that don't wait.
 
 ![The Events graph of Whisperwood](../images/editor-events.webp)
 
-The **Events** tab next to *Map* shows the open map's events as a graph:
+**Events graph** in a map's bar (or *Map › Events graph*) opens the map's events as a graph in
+a tab of its own, *Events: village*:
 
-- on the left the **owners** (the map, its zones, placed entities), next to them their **triggers**
-  with their conditions and actions summarised (dialog lines, choices with their options and the
-  variable that keeps the answer);
+- first **who has events**: the map itself, its zones and what is placed on it; next to each its
+  **events**, with *When …*, their conditions (*If …*) and their actions in the same words as the
+  event sheet (an event a placed thing has from its definition says *Event of its definition*);
 - then the **script functions** they run, with their dialog lines, choices, events, flags and
   teleports read from the script;
 - and the **maps** they lead to.
 
-The edges show how things connect: **green** runs a script function, **orange** an emitted event
-reaching the triggers that listen for it, **blue** a choice, variable or flag reaching the
-conditions and scripts that test it, **purple** a teleport, portal or transition to another map.
+The lines show how things connect (the legend above the graph says the same): **grey** an event
+of who has it, **green** runs a script function, **orange** raises an event that other events
+listen for, **blue** sets a flag or variable (or keeps a choice's answer) that conditions and
+scripts test, **purple** a teleport, portal or transition to another map. A line that comes from
+an action starts at that action's line.
 
-Drag the background to pan, Ctrl+wheel to zoom, a node's title to move it (*Arrange* lays them out
-again, *Fit* shows everything); click a title to highlight its edges. The pencil on a trigger opens
-its condition and action editors inside the node; changes can be undone. Triggers from a definition
-are read-only with *Open in Database*; function nodes have *Edit in <file>*, owners *Show on map*,
-maps *Open*. *Whole map* / *Selected object* switches between everything and only what the selected
-entity's or zone's triggers lead to; *All script functions* also shows functions the map doesn't
-run.
+The graph shows, it doesn't edit: **a click on a card goes where it is edited**. Who has events and
+their events open the map with that thing selected (its Inspector edits its events), a script
+function opens its script at the function, a map opens that map. *Everything on the map* /
+*Only what is selected* switches between the whole map and only what the events of the thing
+selected on the map lead to; *Functions: those the map reaches / all* also shows the functions
+nothing on the map runs. *Find* dims the cards that don't have what is typed (a name, a flag, a
+word of a line). Drag a card to move it (*Arrange* lays them out again); drag the background or
+turn the wheel to move the view, Ctrl+wheel zooms. The pointer on a card lights its lines.
 
 ## The JSON form (AI agents, hand-written files)
 

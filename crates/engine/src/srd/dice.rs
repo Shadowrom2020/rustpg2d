@@ -67,6 +67,7 @@ pub fn below(n: u32) -> u32 {
 
 /// Advantage (roll two d20s, keep the higher), disadvantage (the lower) or a plain roll.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum Mode {
     #[default]
     Normal,

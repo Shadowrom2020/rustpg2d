@@ -2,7 +2,7 @@
 //! `set_weather`), its particles over the lit scene, the darker ambient light of rain and the
 //! built-in rain sound.
 
-use macroquad::prelude::*;
+use gfx::prelude::*;
 
 use super::Game;
 use crate::map::{Weather, WeatherKind};
